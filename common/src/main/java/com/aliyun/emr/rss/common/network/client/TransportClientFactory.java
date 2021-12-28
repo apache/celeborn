@@ -195,7 +195,6 @@ public class TransportClientFactory implements Closeable {
     return createClient(remoteHost, remotePort, reduceId, this::createPushClient);
   }
 
-
   public TransportClient createClient(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
     return createClient(remoteHost, remotePort, -1, this::createClient);

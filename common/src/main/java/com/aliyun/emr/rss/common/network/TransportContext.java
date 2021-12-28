@@ -109,7 +109,6 @@ public class TransportContext {
     return new PushTransportServer(this, null, port, rpcHandler, bootstraps);
   }
 
-
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(
       String host, int port, List<TransportServerBootstrap> bootstraps) {
@@ -200,7 +199,6 @@ public class TransportContext {
     return new TransportChannelHandler(client, responseHandler, requestHandler,
       conf.connectionTimeoutMs(), closeIdleConnections);
   }
-
 
   public TransportChannelHandler createChannelHandler(Channel channel) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);

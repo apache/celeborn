@@ -47,8 +47,8 @@ public class TransportServer implements Closeable {
 
   protected final RpcHandler appRpcHandler;
   protected final List<TransportServerBootstrap> bootstraps;
-  protected ServerBootstrap bootstrap;
   protected final TransportContext context;
+  protected ServerBootstrap bootstrap;
 
   private final TransportConf conf;
   private ChannelFuture channelFuture;
