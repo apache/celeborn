@@ -40,6 +40,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.RssConf.{storageMemoryHighRatio, storageMemoryLowRatio, storageMemoryPressureCheckInterval, workerDirectMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -49,6 +50,7 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
 import com.aliyun.emr.rss.common.network.server.{FileInfo, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.util.MemoryTracker
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -73,7 +75,11 @@ private[deploy] class Worker(
     source
   }
 
+  private val memoryTracker = MemoryTracker.initialize(storageMemoryHighRatio(conf)
+    , storageMemoryLowRatio(conf), workerDirectMemoryCriticalRatio(conf),
+    storageMemoryPressureCheckInterval(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
+  memoryTracker.registerMemoryListener(localStorageManager)
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -640,7 +646,7 @@ private[deploy] class Worker(
             return
           }
           try {
-            val client = pushClientFactory.createClient(
+            val client = pushClientFactory.createPushClient(
               peer.getHost, peer.getPushPort, location.getReduceId)
             val newPushData = new PushData(
               PartitionLocation.Mode.Slave.mode(),
@@ -772,7 +778,7 @@ private[deploy] class Worker(
             return
           }
           try {
-            val client = pushClientFactory.createClient(
+            val client = pushClientFactory.createPushClient(
               peer.getHost, peer.getPushPort, location.getReduceId)
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.Slave.mode(),

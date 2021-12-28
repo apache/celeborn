@@ -124,7 +124,8 @@ public class TransportClientFactory implements Closeable {
    *
    * Concurrency: This method is safe to call from multiple threads.
    */
-  public TransportClient createClient(String remoteHost, int remotePort, int reduceId)
+  public TransportClient createClient(String remoteHost, int remotePort, int reduceId,
+    CheckedFunction<InetSocketAddress,TransportClient> clientCreator)
       throws IOException, InterruptedException {
     // Get connection from the connection pool first.
     // If it is not found or not active, create a new one.
@@ -182,14 +183,22 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      clientPool.clients[clientIndex] = createClient(resolvedAddress);
+      TransportClient client = clientCreator.apply(resolvedAddress);
+      assert client != null;
+      clientPool.clients[clientIndex] = client;
       return clientPool.clients[clientIndex];
     }
   }
 
+  public TransportClient createPushClient(String remoteHost, int remotePort, int reduceId)
+    throws IOException, InterruptedException {
+    return createClient(remoteHost, remotePort, reduceId, this::createPushClient);
+  }
+
+
   public TransportClient createClient(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
-    return createClient(remoteHost, remotePort, -1);
+    return createClient(remoteHost, remotePort, -1, this::createClient);
   }
 
   /**
@@ -198,16 +207,20 @@ public class TransportClientFactory implements Closeable {
    *
    * As with {@link #createClient(String, int)}, this method is blocking.
    */
-  public TransportClient createUnmanagedClient(String remoteHost, int remotePort)
-      throws IOException, InterruptedException {
-    final InetSocketAddress address = new InetSocketAddress(remoteHost, remotePort);
-    return createClient(address);
+  private TransportClient createPushClient(InetSocketAddress address)
+    throws IOException, InterruptedException {
+    return internalCreateClient(address, context::initializePipelineForPushClient);
   }
 
   /** Create a completely new {@link TransportClient} to the remote address. */
   private TransportClient createClient(InetSocketAddress address)
-      throws IOException, InterruptedException {
-    logger.debug("Creating new connection to {}", address);
+    throws IOException, InterruptedException {
+    return internalCreateClient(address, context::initializePipeline);
+  }
+
+  private TransportClient internalCreateClient(InetSocketAddress address,
+    BiConsumer<SocketChannel, ChannelHandlerAdapter> pipelineInitializer)
+    throws IOException, InterruptedException {
 
     Bootstrap bootstrap = new Bootstrap();
     bootstrap.group(workerGroup)
@@ -232,7 +245,8 @@ public class TransportClientFactory implements Closeable {
     bootstrap.handler(new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) {
-        TransportChannelHandler clientHandler = context.initializePipeline(ch);
+        TransportChannelHandler clientHandler = context.createChannelHandler(ch);
+        pipelineInitializer.consume(ch, clientHandler);
         clientRef.set(clientHandler.getClient());
         channelRef.set(ch);
       }

@@ -45,12 +45,12 @@ import com.aliyun.emr.rss.common.network.util.*;
 public class TransportServer implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportServer.class);
 
-  private final TransportContext context;
-  private final TransportConf conf;
-  private final RpcHandler appRpcHandler;
-  private final List<TransportServerBootstrap> bootstraps;
+  protected final RpcHandler appRpcHandler;
+  protected final List<TransportServerBootstrap> bootstraps;
+  protected ServerBootstrap bootstrap;
+  protected final TransportContext context;
 
-  private ServerBootstrap bootstrap;
+  private final TransportConf conf;
   private ChannelFuture channelFuture;
   private int port = -1;
   private NettyMemoryMetrics metrics;
@@ -123,6 +123,18 @@ public class TransportServer implements Closeable {
       bootstrap.childOption(ChannelOption.SO_SNDBUF, conf.sendBuf());
     }
 
+    initializeChannel(bootstrap);
+
+    InetSocketAddress address = hostToBind == null ?
+        new InetSocketAddress(portToBind): new InetSocketAddress(hostToBind, portToBind);
+    channelFuture = bootstrap.bind(address);
+    channelFuture.syncUninterruptibly();
+
+    port = ((InetSocketAddress) channelFuture.channel().localAddress()).getPort();
+    logger.debug("Shuffle server started on port: {}", port);
+  }
+
+  protected void initializeChannel(ServerBootstrap bootstrap){
     bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
       @Override
       protected void initChannel(SocketChannel ch) {
@@ -133,14 +145,6 @@ public class TransportServer implements Closeable {
         context.initializePipeline(ch, rpcHandler);
       }
     });
-
-    InetSocketAddress address = hostToBind == null ?
-        new InetSocketAddress(portToBind): new InetSocketAddress(hostToBind, portToBind);
-    channelFuture = bootstrap.bind(address);
-    channelFuture.syncUninterruptibly();
-
-    port = ((InetSocketAddress) channelFuture.channel().localAddress()).getPort();
-    logger.debug("Shuffle server started on port: {}", port);
   }
 
   public MetricSet getAllMetrics() {

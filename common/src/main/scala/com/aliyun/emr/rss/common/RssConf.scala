@@ -478,21 +478,13 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
-  def workerFlushQueueCapacity(conf: RssConf): Int = {
-    conf.getInt("rss.worker.flush.queue.capacity", 512)
-  }
-
   def workerFetchChunkSize(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
   }
 
   def workerNumSlots(conf: RssConf, numDisks: Int): Int = {
     val userNumSlots = conf.getInt("rss.worker.numSlots", -1)
-    if (userNumSlots > 0) {
-      userNumSlots
-    } else {
-      workerFlushQueueCapacity(conf: RssConf) * numDisks
-    }
+    Math.max(64 * 1024, userNumSlots)
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {
@@ -713,6 +705,23 @@ object RssConf extends Logging {
   def supportAdaptiveQueryExecution(conf: RssConf): Boolean = {
     conf.getBoolean("rss.support.adaptiveQueryExecution", false)
   }
+
+  def storageMemoryHighRatio(conf: RssConf): Double = {
+    conf.getDouble("ess.worker.storage.memory.high.ratio", 0.45)
+  }
+
+  def storageMemoryLowRatio(conf: RssConf): Double = {
+    conf.getDouble("ess.worker.storage.memory.low.ratio", 0.35)
+  }
+
+  def workerDirectMemoryCriticalRatio(conf: RssConf): Double = {
+    conf.getDouble("ess.worker.memory.direct.critical.ratio", 0.9)
+  }
+
+  def storageMemoryPressureCheckInterval(conf: RssConf): Int = {
+    conf.getInt("ess.worker.storage.memory.check.interval", 10)
+  }
+
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 

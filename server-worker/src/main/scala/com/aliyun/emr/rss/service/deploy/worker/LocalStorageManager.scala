@@ -21,7 +21,7 @@ import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -33,6 +33,7 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.network.util.{MemoryTracker, MemoryTrackerListener}
 import com.aliyun.emr.rss.common.protocol.PartitionLocation
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource
@@ -44,15 +45,12 @@ private[worker] case class FlushTask(
 
 private[worker] final class DiskFlusher(
     val workingDir: File,
-    queueCapacity: Int,
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
-  private val workingQueue = new LinkedBlockingQueue[FlushTask](queueCapacity)
-  private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf](queueCapacity)
-  for (_ <- 0 until queueCapacity) {
-    bufferQueue.put(Unpooled.compositeBuffer(256))
-  }
+  private val DEFAULT_CAPACITY = 256 * 1024
+  private val workingQueue = new LinkedBlockingQueue[FlushTask](DEFAULT_CAPACITY)
+  private val usedSlots = new AtomicLong()
 
   @volatile
   private var lastBeginFlushTime: Long = -1
@@ -67,6 +65,7 @@ private[worker] final class DiskFlusher(
         val task = workingQueue.take()
 
         val key = s"DiskFlusher-$workingDir"
+        val flushSize = task.buffer.readableBytes()
         workerSource.sample(WorkerSource.FlushDataTime, key) {
           if (!task.notifier.hasException) {
             try {
@@ -84,6 +83,7 @@ private[worker] final class DiskFlusher(
             lastBeginFlushTime = -1
           }
 
+          MemoryTracker.instance().decrement(flushSize)
           returnBuffer(task.buffer)
 
           task.notifier.numPendingFlushes.decrementAndGet()
@@ -101,15 +101,16 @@ private[worker] final class DiskFlusher(
 
   deviceMonitor.registerDiskFlusher(this)
 
-  def takeBuffer(timeoutMs: Long): CompositeByteBuf = {
-    bufferQueue.poll(timeoutMs, TimeUnit.MILLISECONDS)
+  def takeBuffer(): CompositeByteBuf = {
+    usedSlots.incrementAndGet();
+    Unpooled.compositeBuffer(256)
   }
 
   def returnBuffer(buffer: CompositeByteBuf): Unit = {
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 
-    bufferQueue.put(buffer)
+    usedSlots.decrementAndGet();
   }
 
   def addTask(task: FlushTask, timeoutMs: Long): Boolean = {
@@ -138,7 +139,7 @@ private[worker] final class DiskFlusher(
     deviceMonitor.reportDeviceError(workingDir, e, deviceErrorType)
   }
 
-  def bufferQueueInfo(): String = s"$this available buffers: ${bufferQueue.size()}"
+  def slotUsage(): String = s"$this used slots: ${usedSlots.get()}"
 
   override def hashCode(): Int = {
     workingDir.hashCode()
@@ -157,7 +158,7 @@ private[worker] final class DiskFlusher(
 private[worker] final class LocalStorageManager(
   conf: RssConf,
   workerSource: AbstractSource,
-  worker: Worker) extends DeviceObserver with Logging {
+  worker: Worker) extends DeviceObserver with Logging with MemoryTrackerListener {
 
   val isolatedWorkingDirs =
     new ConcurrentHashMap[File, DeviceErrorType](RssConf.workerBaseDirs(conf).length)
@@ -198,10 +199,9 @@ private[worker] final class LocalStorageManager(
   private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, workingDirsSnapshot())
 
   private val diskFlushers: ConcurrentHashMap[File, DiskFlusher] = {
-    val queueCapacity = RssConf.workerFlushQueueCapacity(conf)
     val flushers = new ConcurrentHashMap[File, DiskFlusher]()
     workingDirsSnapshot().asScala.foreach {
-      dir => flushers.put(dir, new DiskFlusher(dir, queueCapacity, workerSource, deviceMonitor))
+      dir => flushers.put(dir, new DiskFlusher(dir, workerSource, deviceMonitor))
     }
     flushers
   }
@@ -236,11 +236,10 @@ private[worker] final class LocalStorageManager(
 
   override def notifyHealthy(dirs: ListBuffer[File]): Unit = this.synchronized {
     val availableDisks = numDisks()
-    val queueCapacity = RssConf.workerFlushQueueCapacity(conf)
     dirs.foreach(dir => {
       isolatedWorkingDirs.remove(dir)
       if(!diskFlushers.containsKey(dir)) {
-        diskFlushers.put(dir, new DiskFlusher(dir, queueCapacity, workerSource, deviceMonitor))
+        diskFlushers.put(dir, new DiskFlusher(dir, workerSource, deviceMonitor))
       }
       if (!dirOperators.containsKey(dir)) {
         dirOperators.put(dir,
@@ -423,7 +422,7 @@ private[worker] final class LocalStorageManager(
     override def run(): Unit = {
       val currentTime = System.nanoTime()
       diskFlushers.values().asScala.foreach(flusher => {
-        logInfo(flusher.bufferQueueInfo())
+        logInfo(flusher.slotUsage())
         val lastFlushTime = flusher.getLastFlushTime
         if (lastFlushTime != -1 &&
           currentTime - lastFlushTime  > essSlowFlushInterval * 1000 * 1000) {
@@ -508,4 +507,13 @@ private[worker] final class LocalStorageManager(
       deviceMonitor.close()
     }
   }
+
+  override def onMemoryPressure(): Unit = {
+    writers.entrySet().asScala.foreach(u =>
+      u.getValue.asScala
+        .foreach(f => f._2.flushOnMemoryPressure()))
+  }
+
+  override def onOOM(): Unit = {}
+
 }
