@@ -1,0 +1,86 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.spark.shuffle.rss
+
+import org.apache.spark.{ShuffleDependency, SparkConf}
+import org.apache.spark.sql.internal.SQLConf
+
+import com.aliyun.emr.rss.client.write.LifecycleManager
+import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.internal.Logging
+
+class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
+
+  private lazy val essConf = RssShuffleManager.fromSparkConf(sparkConf)
+
+  def applyAllFallbackPolicy(dependency: ShuffleDependency[_, _, _],
+    lifecycleManager: LifecycleManager): Boolean = {
+    applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(dependency) ||
+      applyAQEFallbackPolicy() || applyClusterLoadFallbackPolicy(lifecycleManager)
+  }
+
+  /**
+   * if rss.force.fallback is true, fallback to external shuffle
+   * @return return rss.force.fallback
+   */
+  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(essConf)
+
+  /**
+   * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
+   * @param dependency shuffle dependency
+   * @return return if shuffle partitions bigger than limit
+   */
+  def applyShufflePartitionsFallbackPolicy(dependency: ShuffleDependency[_, _, _]): Boolean = {
+    val needFallback = dependency.partitioner.numPartitions >=
+      RssConf.maxPartitionNumSupported(essConf)
+    if (needFallback) {
+      logInfo(s"Shuffle num of partitions: ${dependency.partitioner.numPartitions}" +
+        s" is bigger than the limit: ${RssConf.maxPartitionNumSupported(essConf)}," +
+        s" need fallback to spark shuffle")
+    }
+    needFallback
+  }
+
+  /**
+   * if AQE is enabled, fallback to external shuffle
+   * @return if AQE is support by rss
+   */
+  def applyAQEFallbackPolicy(): Boolean = {
+    val needFallback = !RssConf.supportAdaptiveQueryExecution(essConf) &&
+      sparkConf.get(SQLConf.ADAPTIVE_EXECUTION_ENABLED) &&
+      (sparkConf.get(SQLConf.LOCAL_SHUFFLE_READER_ENABLED) ||
+        sparkConf.get(SQLConf.SKEW_JOIN_ENABLED))
+    if (needFallback) {
+      logInfo(s"Rss current does not support AQE, need fallback to spark shuffle")
+    }
+    needFallback
+  }
+
+  /**
+   * if rss cluster is under high load, fallback to external shuffle
+   * @return if rss cluster's slots used percent is overhead the limit
+   */
+  def applyClusterLoadFallbackPolicy(lifeCycleManager: LifecycleManager): Boolean = {
+    val needFallback = lifeCycleManager.isClusterOverload()
+    if (needFallback) {
+      logWarning(s"Cluster is overload: $needFallback")
+    }
+    needFallback
+  }
+
+}
