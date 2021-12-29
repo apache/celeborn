@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
+import com.aliyun.emr.rss.common.network.util.MemoryTracker;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
 /*
@@ -198,6 +199,7 @@ public final class FileWriter extends DeviceObserver {
 
       data.retain();
       flushBuffer.addComponent(true, data);
+      MemoryTracker.instance().increment(numBytes);
 
       numPendingWrites.decrementAndGet();
     }
@@ -240,6 +242,7 @@ public final class FileWriter extends DeviceObserver {
     if (!closed) {
       closed = true;
       notifier.setException(new IOException("destroyed"));
+      MemoryTracker.instance().decrement(flushBuffer.readableBytes());
       returnBuffer();
       try {
         channel.close();
@@ -293,7 +296,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs);
+    flushBuffer = flusher.takeBuffer();
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -302,7 +305,7 @@ public final class FileWriter extends DeviceObserver {
 
     if (flushBuffer == null) {
       IOException e = new IOException("Take buffer timeout from DiskFlusher: "
-        + flusher.bufferQueueInfo());
+        + flusher.slotUsage());
       notifier.setException(e);
     }
   }
@@ -333,5 +336,12 @@ public final class FileWriter extends DeviceObserver {
 
   public String toString() {
     return file.getAbsolutePath();
+  }
+
+  public synchronized void flushOnMemoryPressure() throws IOException {
+    if (flushBuffer != null && flushBuffer.readableBytes() != 0) {
+      flush(false);
+      takeBuffer();
+    }
   }
 }

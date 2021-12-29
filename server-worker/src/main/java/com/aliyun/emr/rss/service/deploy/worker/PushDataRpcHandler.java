@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker;
 
 import java.nio.ByteBuffer;
 
+import io.netty.util.internal.OutOfDirectMemoryError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
+import com.aliyun.emr.rss.common.network.util.MemoryTracker;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
 public final class PushDataRpcHandler extends RpcHandler {
@@ -74,6 +76,9 @@ public final class PushDataRpcHandler extends RpcHandler {
 
   @Override
   public void exceptionCaught(Throwable cause, TransportClient client) {
+    if (cause instanceof OutOfDirectMemoryError) {
+      MemoryTracker.instance().oomOccurred();
+    }
     logger.debug("exception caught " + cause + " " + client.getSocketAddress());
   }
 

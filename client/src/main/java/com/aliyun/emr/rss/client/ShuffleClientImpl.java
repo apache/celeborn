@@ -176,7 +176,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(reduceId);
       logger.info("Revive success, new location for reduce {} is {}.", reduceId, newLoc);
       try {
-        TransportClient client = dataClientFactory.createClient(
+        TransportClient client = dataClientFactory.createPushClient(
             newLoc.getHost(), newLoc.getPushPort(), reduceId);
         NettyManagedBuffer newBuffer =
             new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -524,7 +524,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // do push data
       try {
         TransportClient client =
-            dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), reduceId);
+            dataClientFactory.createPushClient(loc.getHost(), loc.getPushPort(), reduceId);
         ChannelFuture future = client.pushData(pushData, wrappedCallback);
         pushState.addFuture(nextBatchId, future);
       } catch (Exception e) {

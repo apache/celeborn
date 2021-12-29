@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Properties;
 
 import com.google.common.primitives.Ints;
+import io.netty.channel.WriteBufferWaterMark;
 
 /**
  * A central location that tracks all the settings we expose to users.
@@ -42,6 +43,8 @@ public class TransportConf {
   private final String RSS_NETWORK_IO_RETRYWAIT_KEY;
   private final String RSS_NETWORK_IO_LAZYFD_KEY;
   private final String RSS_NETWORK_VERBOSE_METRICS;
+  private final String RSS_NETWORK_WRITER_WATERMARK_LOW;
+  private final String RSS_NETWORK_WRITER_WATERMARK_HIGH;
 
   private final ConfigProvider conf;
 
@@ -65,6 +68,8 @@ public class TransportConf {
     RSS_NETWORK_IO_RETRYWAIT_KEY = getConfKey("io.retryWait");
     RSS_NETWORK_IO_LAZYFD_KEY = getConfKey("io.lazyFD");
     RSS_NETWORK_VERBOSE_METRICS = getConfKey("io.enableVerboseMetrics");
+    RSS_NETWORK_WRITER_WATERMARK_LOW = getConfKey("io.waterMarkLow");
+    RSS_NETWORK_WRITER_WATERMARK_HIGH = getConfKey("io.waterMarkHigh");
   }
 
   public int getInt(String name, int defaultValue) {
@@ -81,6 +86,12 @@ public class TransportConf {
 
   public String getModuleName() {
     return module;
+  }
+
+  public WriteBufferWaterMark writeWaterMark() {
+    int low = conf.getInt(RSS_NETWORK_WRITER_WATERMARK_LOW, 192 * 1024);
+    int high = conf.getInt(RSS_NETWORK_WRITER_WATERMARK_HIGH, 512 * 1024);
+    return new WriteBufferWaterMark(low, high);
   }
 
   /** IO mode: nio or epoll */

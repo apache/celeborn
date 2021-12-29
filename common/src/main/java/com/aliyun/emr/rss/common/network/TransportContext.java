@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
@@ -104,6 +105,10 @@ public class TransportContext {
     return new TransportServer(this, null, port, rpcHandler, bootstraps);
   }
 
+  public TransportServer createPushServer(int port, List<TransportServerBootstrap> bootstraps) {
+    return new PushTransportServer(this, null, port, rpcHandler, bootstraps);
+  }
+
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(
       String host, int port, List<TransportServerBootstrap> bootstraps) {
@@ -117,10 +122,6 @@ public class TransportContext {
 
   public TransportServer createServer() {
     return createServer(0, new ArrayList<>());
-  }
-
-  public TransportChannelHandler initializePipeline(SocketChannel channel) {
-    return initializePipeline(channel, rpcHandler);
   }
 
   /**
@@ -155,6 +156,36 @@ public class TransportContext {
     }
   }
 
+  public void initializePipeline(SocketChannel channel, ChannelHandlerAdapter handlerAdapter) {
+    channel.pipeline()
+      .addLast("encoder", ENCODER)
+      .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
+      .addLast("decoder", DECODER)
+      .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
+      .addLast("handler", handlerAdapter);
+  }
+
+  public void initializePipelineForPushServer(SocketChannel channel, RpcHandler handler) {
+    TransportChannelHandler channelHandler = createChannelHandler(channel, handler);
+    channel.pipeline()
+      .addLast("limiter", GlobalChannelLimiter.globalChannelBreaker())
+      .addLast("encoder", ENCODER)
+      .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
+      .addLast("decoder", DECODER)
+      .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
+      .addLast("handler", channelHandler);
+  }
+
+  public void initializePipelineForPushClient(SocketChannel channel,
+    ChannelHandlerAdapter handlerAdapter) {
+    channel.config().setWriteBufferWaterMark(conf.writeWaterMark());
+    channel.pipeline()
+      .addLast("encoder", ENCODER)
+      .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
+      .addLast("decoder", DECODER)
+      .addLast("handler", handlerAdapter);
+  }
+
   /**
    * Creates the server- and client-side handler which is used to handle both RequestMessages and
    * ResponseMessages. The channel is expected to have been successfully created, though certain
@@ -165,6 +196,15 @@ public class TransportContext {
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
       rpcHandler, conf.maxChunksBeingTransferred());
+    return new TransportChannelHandler(client, responseHandler, requestHandler,
+      conf.connectionTimeoutMs(), closeIdleConnections);
+  }
+
+  public TransportChannelHandler createChannelHandler(Channel channel) {
+    TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
+    TransportClient client = new TransportClient(channel, responseHandler);
+    TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
+      this.rpcHandler, conf.maxChunksBeingTransferred());
     return new TransportChannelHandler(client, responseHandler, requestHandler,
       conf.connectionTimeoutMs(), closeIdleConnections);
   }

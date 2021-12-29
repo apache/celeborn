@@ -128,7 +128,7 @@
                 <configuration>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
-                    <argLine>-Xmx3072m -XX:MaxPermSize=256m</argLine>
+                    <argLine>-Xmx4096m</argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -137,7 +137,7 @@
                 <configuration>
                     <parallel>false</parallel>
                     <forkMode>once</forkMode>
-                    <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+                    <argLine>-Xmx1024m</argLine>
                 </configuration>
             </plugin>
             <plugin>
