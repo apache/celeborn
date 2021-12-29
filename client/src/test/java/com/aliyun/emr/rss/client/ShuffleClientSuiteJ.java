@@ -274,7 +274,7 @@ public class ShuffleClientSuiteJ {
     };
 
     when(client.pushData(any(), any())).thenAnswer(t -> mockedFuture);
-    when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort(),
+    when(clientFactory.createPushClient(masterLocation.getHost(), masterLocation.getPushPort(),
       TEST_REDUCRE_ID)).thenAnswer(t ->
       client);
 
