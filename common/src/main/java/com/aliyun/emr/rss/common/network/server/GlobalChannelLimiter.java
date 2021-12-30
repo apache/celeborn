@@ -54,7 +54,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
   private MemoryTracker memoryTracker = MemoryTracker.instance();
   private static GlobalChannelLimiter globalChannelLimiter = new GlobalChannelLimiter();
 
-  public static GlobalChannelLimiter globalChannelBreaker(){
+  public static GlobalChannelLimiter globalChannelLimiter(){
     return globalChannelLimiter;
   }
 

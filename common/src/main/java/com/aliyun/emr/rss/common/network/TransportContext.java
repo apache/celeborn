@@ -168,7 +168,7 @@ public class TransportContext {
   public void initializePipelineForPushServer(SocketChannel channel, RpcHandler handler) {
     TransportChannelHandler channelHandler = createChannelHandler(channel, handler);
     channel.pipeline()
-      .addLast("limiter", GlobalChannelLimiter.globalChannelBreaker())
+      .addLast("limiter", GlobalChannelLimiter.globalChannelLimiter())
       .addLast("encoder", ENCODER)
       .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
       .addLast("decoder", DECODER)
