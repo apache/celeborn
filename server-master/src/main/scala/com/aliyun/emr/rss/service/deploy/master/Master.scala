@@ -81,7 +81,7 @@ private[deploy] class Master(
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val (totalSlots, usedSlots, overloadWorkerCount, _) = getClusterLoad
+    val (totalSlots, usedSlots, overloadWorkerCount, _) = getClusterLoad()
     // worker slots count
     source.addGauge(MasterSource.WorkerSlotsCount, _ => totalSlots)
     // worker slots used count
@@ -189,9 +189,9 @@ private[deploy] class Master(
       executeWithLeaderChecker(context,
         handleReportNodeFailure(context, failedWorkers, requestId))
 
-    case GetClusterLoadStatus =>
+    case GetClusterLoadStatus(numPartitions: Int) =>
       logInfo(s"Received GetClusterLoad request")
-      executeWithLeaderChecker(context, handleGetClusterLoadStatus(context))
+      executeWithLeaderChecker(context, handleGetClusterLoadStatus(context, numPartitions))
   }
 
   private def timeoutDeadWorkers() {
@@ -421,12 +421,12 @@ private[deploy] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  private def handleGetClusterLoadStatus(context: RpcCallContext): Unit = {
-    val (_, _, _, result) = getClusterLoad
+  private def handleGetClusterLoadStatus(context: RpcCallContext, numPartitions: Int): Unit = {
+    val (_, _, _, result) = getClusterLoad(numPartitions)
     context.reply(GetClusterLoadStatusResponse(result))
   }
 
-  private def getClusterLoad: (Int, Int, Int, Boolean) = {
+  private def getClusterLoad(numPartitions: Int = 0): (Int, Int, Int, Boolean) = {
     if (workersSnapShot.isEmpty) {
       return (0, 0, 0, false)
     }
@@ -442,7 +442,7 @@ private[deploy] class Master(
       (pair1._1 + pair2._1, pair1._2 + pair2._2, pair1._3 + pair2._3)
     })
 
-    val totalUsedRatio: Double = usedSlots / totalSlots.toDouble
+    val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
     val result = totalUsedRatio >= clusterSlotsUsageLimit
     logInfo(s"Current cluster slots usage:$totalUsedRatio, conf:$clusterSlotsUsageLimit, " +
         s"overload:$result")

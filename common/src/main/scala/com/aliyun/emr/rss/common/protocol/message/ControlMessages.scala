@@ -184,7 +184,7 @@ object ControlMessages {
   case class GetBlacklistResponse(statusCode: StatusCode,
       blacklist: util.List[WorkerInfo], unknownWorkers: util.List[WorkerInfo])
 
-  case object GetClusterLoadStatus extends Message
+  case class GetClusterLoadStatus(numPartitions: Int) extends Message
 
   case class GetClusterLoadStatusResponse(isOverload: Boolean)
 
