@@ -74,7 +74,8 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * if rss cluster is under high load, fallback to external shuffle
    * @return if rss cluster's slots used percent is overhead the limit
    */
-  def applyClusterLoadFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
+  def applyClusterLoadFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int):
+    Boolean = {
     val needFallback = lifecycleManager.isClusterOverload(numPartitions)
     if (needFallback) {
       logWarning(s"Cluster is overload: $needFallback")
