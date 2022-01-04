@@ -172,11 +172,12 @@ private[deploy] class Worker(
     } catch {
       case NonFatal(t) =>
         if (heartBeatFailCnt.addAndGet(1) > 5) {
-          logError(s"Uncaught exception 5 times. Now stopping in thread " +
+          logError(s"Heart-beat fail 5 times in a row. Now stopping in thread " +
               s"${Thread.currentThread().getName}", t)
           onStop()
         } else {
-          logError(s"Uncaught exception in thread ${Thread.currentThread().getName}", t)
+          logWarning(s"Heart-beat fail ${heartBeatFailCnt.get()} times in a row in thread " +
+              s"${Thread.currentThread().getName}", t)
         }
     }
   }
