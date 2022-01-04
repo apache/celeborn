@@ -81,7 +81,7 @@ private[deploy] class Master(
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val (totalSlots, usedSlots, overloadWorkerCount, _) = getClusterLoad()
+    val (totalSlots, usedSlots, overloadWorkerCount) = getClusterLoad()
     // worker slots count
     source.addGauge(MasterSource.WorkerSlotsCount, _ => totalSlots)
     // worker slots used count
@@ -422,13 +422,19 @@ private[deploy] class Master(
   }
 
   private def handleGetClusterLoadStatus(context: RpcCallContext, numPartitions: Int): Unit = {
-    val (_, _, _, result) = getClusterLoad(numPartitions)
+    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
+    val (totalSlots, usedSlots, _) = getClusterLoad(numPartitions)
+
+    val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
+    val result = totalUsedRatio >= clusterSlotsUsageLimit
+    logInfo(s"Current cluster slots usage:$totalUsedRatio, conf:$clusterSlotsUsageLimit, " +
+        s"overload:$result")
     context.reply(GetClusterLoadStatusResponse(result))
   }
 
-  private def getClusterLoad(numPartitions: Int = 0): (Int, Int, Int, Boolean) = {
+  private def getClusterLoad(numPartitions: Int = 0): (Int, Int, Int) = {
     if (workersSnapShot.isEmpty) {
-      return (0, 0, 0, false)
+      return (0, 0, 0)
     }
 
     val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
@@ -436,17 +442,13 @@ private[deploy] class Master(
     val (totalSlots, usedSlots, overloadWorkers) = workersSnapShot.asScala.map(workerInfo => {
       val allSlots: Int = workerInfo.numSlots
       val usedSlots: Int = workerInfo.usedSlots()
-      val flag: Int = if (usedSlots/allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
+      val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
       (allSlots, usedSlots, flag)
     }).reduce((pair1, pair2) => {
       (pair1._1 + pair2._1, pair1._2 + pair2._2, pair1._3 + pair2._3)
     })
 
-    val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
-    val result = totalUsedRatio >= clusterSlotsUsageLimit
-    logInfo(s"Current cluster slots usage:$totalUsedRatio, conf:$clusterSlotsUsageLimit, " +
-        s"overload:$result")
-    (totalSlots, usedSlots, overloadWorkers, result)
+    (totalSlots, usedSlots, overloadWorkers)
   }
 
   private def workersNotBlacklisted(
