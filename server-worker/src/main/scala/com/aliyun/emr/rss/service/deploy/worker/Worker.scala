@@ -30,10 +30,11 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
 import io.netty.buffer.ByteBuf
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
@@ -117,7 +118,7 @@ private[deploy] class Worker(
 
   // worker info
   private val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort,
-    RssConf.workerNumSlots(conf, localStorageManager.numDisks), self)
+    RssConf.workerNumSlots(conf, localStorageManager.numDisks()), self)
 
   private val partitionLocationInfo = new PartitionLocationInfo
 
@@ -131,6 +132,7 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.SlotsUsed, _ => workerInfo.usedSlots())
   workerSource.addGauge(WorkerSource.SlotsAvailable, _ => workerInfo.freeSlots())
 
+  private val heartBeatFailCnt = new AtomicInteger(0)
   // Threads
   private val forwardMessageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
@@ -156,14 +158,27 @@ private[deploy] class Worker(
   }
 
   def heartBeatToMaster(): Unit = {
-    val shuffleKeys = new jHashSet[String]
-    shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
-    shuffleKeys.addAll(localStorageManager.shuffleKeySet())
-    val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots,
-        self, shuffleKeys)
-      , classOf[HeartbeatResponse])
-    cleanTaskQueue.put(response.expiredShuffleKeys)
+    try {
+      val shuffleKeys = new jHashSet[String]
+      shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
+      shuffleKeys.addAll(localStorageManager.shuffleKeySet())
+      val response = rssHARetryClient.askSync[HeartbeatResponse](
+        HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots,
+          self, shuffleKeys)
+        , classOf[HeartbeatResponse])
+      cleanTaskQueue.put(response.expiredShuffleKeys)
+
+      heartBeatFailCnt.getAndSet(0)
+    } catch {
+      case NonFatal(t) =>
+        if (heartBeatFailCnt.addAndGet(1) > 5) {
+          logError(s"Uncaught exception 5 times. Now stopping in thread " +
+              s"${Thread.currentThread().getName}", t)
+          onStop()
+        } else {
+          logError(s"Uncaught exception in thread ${Thread.currentThread().getName}", t)
+        }
+    }
   }
 
   override def onStart(): Unit = {
@@ -172,9 +187,7 @@ private[deploy] class Worker(
 
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
-      override def run(): Unit = Utils.tryLogNonFatalError {
-        heartBeatToMaster()
-      }
+      override def run(): Unit = heartBeatToMaster()
     }, HEARTBEAT_MILLIS, HEARTBEAT_MILLIS, TimeUnit.MILLISECONDS)
 
     checkFastfailTask = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
