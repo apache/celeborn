@@ -34,7 +34,7 @@ import java.io.IOException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{HashMap, ListBuffer}
 import scala.util.Random
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -784,11 +784,22 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       var retrySuccess = true
       logWarning("ReserveSlots failed once, retry again")
       // get failed partition locations
-      val failedPartitionLocations = new util.LinkedList[PartitionLocation]()
+      val failedPartitionLocations = new HashMap[Int, PartitionLocation]()
       failed.asScala.foreach(workerInfo => {
         val (failedMasterLocations, failedSlaveLocations) = slots.remove(workerInfo)
-        if (null != failedMasterLocations) failedPartitionLocations.addAll(failedMasterLocations)
-        if (null != failedSlaveLocations) failedPartitionLocations.addAll(failedSlaveLocations)
+        if (null != failedMasterLocations) {
+          failedMasterLocations.asScala.foreach(failedMaster => {
+            failedPartitionLocations += (failedMaster.getReduceId -> failedMaster)
+          })
+        }
+        if (null != failedSlaveLocations) {
+          failedSlaveLocations.asScala.foreach(failedSlave => {
+            val reduceId = failedSlave.getReduceId
+            if (!failedPartitionLocations.contains(reduceId)) {
+              failedPartitionLocations += (reduceId -> failedSlave)
+            }
+          })
+        }
         // remove failed slot from total slots, close transport client
         val transportClient = workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client
         if (null != transportClient && transportClient.isActive) {
@@ -804,10 +815,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             new util.LinkedList[PartitionLocation]())
       }
 
-      if (ShouldReplicate && !failedPartitionLocations.isEmpty && !slots.isEmpty) {
+      if (ShouldReplicate && failedPartitionLocations.nonEmpty && !slots.isEmpty) {
         // get partition locations that need to destroy
         val destroyPartitionLocations = ListBuffer[PartitionLocation]()
-        failedPartitionLocations.asScala.foreach(partition => {
+        failedPartitionLocations.values.foreach(partition => {
           if (null != partition.getPeer) {
             destroyPartitionLocations.append(partition.getPeer)
           }
@@ -877,7 +888,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // remove blacklist from retryCandidates
       retryCandidates.removeAll(blacklist)
 
-      val retrySlots = reallocateSlotsFromCandidates(failedPartitionLocations.asScala.toList,
+      val retrySlots = reallocateSlotsFromCandidates(failedPartitionLocations.values.toList,
         retryCandidates.asScala.toList)
 
       if (null == retrySlots) {
