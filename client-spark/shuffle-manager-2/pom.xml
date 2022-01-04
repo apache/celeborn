@@ -124,7 +124,7 @@
                                     <!-- Include here the dependencies you
                                         want to be packed in your fat jar -->
                                     <include>com.aliyun.emr:common</include>
-                                    <include>com.aliyun.emr:client-java</include>
+                                    <include>com.aliyun.emr:client</include>
                                     <include>com.aliyun.emr:shuffle-manager-common</include>
                                     <include>com.aliyun.emr:shuffle-manager</include>
                                 </includes>
