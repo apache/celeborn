@@ -26,14 +26,25 @@ import com.codahale.metrics.UniformSnapshot
 class ResettableSlidingWindowReservoir(size: Int) extends Reservoir {
   var measurements: Array[Long] = new Array[Long](size)
   var count: Int = 0
+  var full = false
 
   def size(): Int = this.synchronized {
-    Math.min(count, measurements.length).toInt
+    if (!full) {
+      Math.min(count, size)
+    } else {
+      size
+    }
   }
 
   def update(value: Long): Unit = this.synchronized {
-    measurements(count % measurements.length) = value
+    measurements(count) = value
     count += 1
+    if (count >= size) {
+      count = 0
+      if (!full) {
+        full = true
+      }
+    }
   }
 
   override def getSnapshot: Snapshot = {
