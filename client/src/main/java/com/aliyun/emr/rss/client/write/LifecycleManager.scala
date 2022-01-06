@@ -344,16 +344,16 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
+    // only blacklist if cause is PushDataFailMain or PushDataFailSlave
     val failedWorker = new util.ArrayList[WorkerInfo]()
     if (cause == StatusCode.PushDataFailSlave && oldPartition.getPeer != null) {
       failedWorker.add(oldPartition.getPeer.getWorker)
     } else if (cause == StatusCode.PushDataFailMain || oldPartition.getPeer == null) {
       failedWorker.add(oldPartition.getWorker)
-    } else {
-      failedWorker.add(oldPartition.getWorker)
-      failedWorker.add(oldPartition.getPeer.getWorker)
     }
-    reportWorkerFailure(failedWorker)
+    if (!failedWorker.isEmpty) {
+      reportWorkerFailure(failedWorker)
+    }
   }
 
   private def handleRevive(

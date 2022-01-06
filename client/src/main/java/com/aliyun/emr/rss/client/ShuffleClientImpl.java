@@ -418,7 +418,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // get location
     if (!map.containsKey(reduceId) &&
         !revive(applicationId, shuffleId, mapId, attemptId, reduceId, 0, null,
-                StatusCode.PushDataFailUnknownCause)) {
+                StatusCode.PushDataFailNonCriticalCause)) {
       throw new IOException(
           "Revive for shuffle " + shuffleKey + " reduceId " + reduceId + " failed.");
     }
@@ -866,7 +866,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)){
       cause = StatusCode.PushDataFailMain;
     } else {
-      cause = StatusCode.PushDataFailUnknownCause;
+      cause = StatusCode.PushDataFailNonCriticalCause;
     }
     return cause;
   }
