@@ -608,7 +608,7 @@ private[deploy] class Worker(
         val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
           s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
         logWarning(s"[handlePushData] $msg")
-        wrappedCallback.onFailure(new Exception(msg))
+        callback.onFailure(new Exception(StatusCode.PushDataFailPartitionNotFound.getMessage()))
       }
       return
     }
