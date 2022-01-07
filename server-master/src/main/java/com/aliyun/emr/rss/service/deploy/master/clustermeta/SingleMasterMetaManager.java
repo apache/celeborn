@@ -37,10 +37,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleRequestSlots(
-      String shuffleKey,
-      String hostName,
-      Map<WorkerInfo, Integer> workerToAllocatedSlots,
-      String requestId) {
+    String shuffleKey,
+    String hostName,
+    Map<WorkerInfo, Integer> workerToAllocatedSlots) {
     updateRequestSlotsMeta(shuffleKey, hostName, null);
     synchronized (workers) {
       for (WorkerInfo workerInfo : workerToAllocatedSlots.keySet()) {
@@ -50,46 +49,44 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-                                 List<Integer> slots, String requestId) {
+  public void handleReleaseSlots(String shuffleKey, List<String> workerIds, List<Integer> slots) {
     updateReleaseSlotsMeta(shuffleKey, workerIds, slots);
   }
 
   @Override
-  public void handleUnRegisterShuffle(String shuffleKey, String requestId) {
+  public void handleUnRegisterShuffle(String shuffleKey) {
     updateUnregisterShuffleMeta(shuffleKey);
   }
 
   @Override
-  public void handleAppHeartbeat(String appId, long time, String requestId) {
+  public void handleAppHeartbeat(String appId, long time) {
     updateAppHeartBeatMeta(appId, time);
   }
 
   @Override
-  public void handleAppLost(String appId, String requestId) {
+  public void handleAppLost(String appId) {
     updateAppLostMeta(appId);
   }
 
   @Override
-  public void handleWorkerLost(String host, int rpcPort,
-                               int pushPort, int fetchPort, String requestId) {
+  public void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort) {
     updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort);
   }
 
   @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-                                    int numSlots, long time, String requestId) {
+    int numSlots, long time) {
     updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, numSlots, time);
   }
 
   @Override
-  public void handleRegisterWorker(
-      String host, int rpcPort, int pushPort, int fetchPort, int numSlots, String requestId) {
+  public void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
+    int numSlots) {
     updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, numSlots);
   }
 
   @Override
-  public void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId) {
+  public void handleReportWorkerFailure(List<WorkerInfo> failedNodes) {
     updateBlacklistByReportWorkerFailure(failedNodes);
   }
 }

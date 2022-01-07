@@ -36,5 +36,5 @@ private[rss] object RpcEndpointVerifier {
   val NAME = "endpoint-verifier"
 
   /** A message used to ask the remote [[RpcEndpointVerifier]] if an `RpcEndpoint` exists. */
-  case class CheckExistence(name: String)
+  @SerialVersionUID(492543523453L) case class CheckExistence(name: String)
 }

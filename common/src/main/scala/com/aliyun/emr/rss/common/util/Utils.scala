@@ -41,7 +41,9 @@ import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, RssMessages}
+import com.aliyun.emr.rss.common.protocol.RssMessages.{FileGroup, PbPartitionLocation, PbWorkerInfo, PbWorkerResource}
+import com.aliyun.emr.rss.common.rpc.{RpcAddress, RpcEnv}
 
 object Utils extends Logging {
 
@@ -596,6 +598,9 @@ object Utils extends Logging {
     args.mkString(sep)
   }
 
+  type WorkerResource = java.util.HashMap[WorkerInfo,
+    (java.util.List[PartitionLocation], java.util.List[PartitionLocation])]
+
   def workerToAllocatedSlots(slots: WorkerResource): util.Map[WorkerInfo, Integer] = {
     val workerToSlots = new util.HashMap[WorkerInfo, Integer]()
     slots.asScala.foreach(entry => {
@@ -638,5 +643,84 @@ object Utils extends Logging {
         future.cancel(true)
       }
     }
+  }
+
+  def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource],
+    rpcEnv: RpcEnv): WorkerResource = {
+    val slots = new WorkerResource()
+    pbWorkerResource.asScala.foreach(item => {
+      val Array(host, rpcPort, pushPort, fetchPort) = item._1.split(":")
+      val workerInfo = buildWorker(host, rpcPort, pushPort, fetchPort)
+      workerInfo.endpoint = rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort.toInt),
+        RpcNameConstants.WORKER_EP)
+      val masterPartitionLocation = item._2.getMasterPartitionsList
+        .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
+      val slavePartitionLocation = item._2.getSlavePartitionsList
+        .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
+      slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
+    })
+    slots
+  }
+
+  private def buildWorker(host: String, rpcPort: String, pushPort: String,
+    fetchPort: String): WorkerInfo = {
+    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
+  }
+
+  def convertWorkerResourceToPbWorkerResource(workerResource: WorkerResource):
+  util.Map[String, PbWorkerResource] = {
+    workerResource.asScala.map(item => {
+      val uniqueId = item._1.toUniqueId()
+      val masterPartitions = item._2._1.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+      val slavePartitions = item._2._2.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+      val pbWorkerResource = PbWorkerResource.newBuilder()
+        .addAllMasterPartitions(masterPartitions)
+        .addAllSlavePartitions(slavePartitions).build()
+      uniqueId -> pbWorkerResource
+    }).toMap.asJava
+  }
+
+  def convertPartitionLocationsToPbPartitionLocations(
+    partitionLocations: List[PartitionLocation]): Iterable[PbPartitionLocation] = {
+    partitionLocations.map(PartitionLocation.toPbPartitionLocation(_))
+  }
+
+
+  def convertPartitionLocationsToPbPartitionLocations(partitionLocations:
+  util.List[PartitionLocation]): Iterable[PbPartitionLocation] = {
+    convertPartitionLocationsToPbPartitionLocations(partitionLocations.asScala.toList)
+  }
+
+  def convertPbPartitionLocationToPartitionLocation(
+    pbPartitionLocations: List[PbPartitionLocation]): Iterable[PartitionLocation] = {
+    pbPartitionLocations.map(PartitionLocation.fromPbPartitionLocation(_))
+  }
+
+  def convertPbPartitionLocationToPartitionLocation(
+    pbPartitionLocations: util.List[PbPartitionLocation]): Iterable[PartitionLocation] = {
+    convertPbPartitionLocationToPartitionLocation(pbPartitionLocations.asScala.toList)
+  }
+
+  def convertFileGroupToPartionLocations(fileGroups: Array[FileGroup]):
+  Array[Array[PartitionLocation]] = {
+    fileGroups.map(f => convertPbPartitionLocationToPartitionLocation(f.getLocaltionsList).toArray)
+  }
+
+  def convertWorkerInfosToPbWorkerInfos(workerInfos: util.List[WorkerInfo]):
+  Iterable[PbWorkerInfo] = {
+    convertWorkerInfosToPbWorkerInfos(workerInfos.asScala.toList)
+  }
+
+  def convertPbWorkerInfosToWorkerInfos(workerInfos: util.List[PbWorkerInfo]):
+  Iterable[WorkerInfo] = {
+    convertPbWorkerInfosToWorkerInfos(workerInfos.asScala.toList)
+  }
+
+  def convertWorkerInfosToPbWorkerInfos(workerInfos: List[WorkerInfo]): Iterable[PbWorkerInfo] = {
+    workerInfos.map(WorkerInfo.toPbWorkerInfo(_))
+  }
+
+  def convertPbWorkerInfosToWorkerInfos(workerInfos: List[PbWorkerInfo]): Iterable[WorkerInfo] = {
+    workerInfos.map(WorkerInfo.fromPbWorkerInfo(_))
   }
 }

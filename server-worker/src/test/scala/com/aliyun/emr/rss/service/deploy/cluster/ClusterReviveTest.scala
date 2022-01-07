@@ -12,8 +12,7 @@ import com.aliyun.emr.rss.service.deploy.MiniClusterFeature
 class ClusterReviveTest extends MiniClusterFeature{
   @Test
   def testWorkerLost(): Unit ={
-    val (worker1, workerRpcEnv1, worker2, workerRpcEnv2, worker3, workerRpcEnv3, worker4,
-    workerRpcEnv4, workerRpcEnv5, worker5) = setUpMiniCluster(Map("rss.worker.timeout" -> "10s"),
+    val (_, _, worker2, _, _, _, _, _, _, _) = setUpMiniCluster(Map("rss.worker.timeout" -> "10s"),
       Map("rss.worker.flush.queue.capacity" -> "4", "rss.worker.timeout" -> "10s"))
 
     val APP1 = "APP-1"
@@ -25,52 +24,52 @@ class ClusterReviveTest extends MiniClusterFeature{
     val shuffleClient = new ShuffleClientImpl(clientConf)
     shuffleClient.setupMetaServiceRef(metaSystem.self)
 
-    val STR1 = RandomStringUtils.random(1024)
-    val DATA1 = STR1.getBytes(StandardCharsets.UTF_8)
-    val OFFSET1 = 0
-    val LENGTH1 = DATA1.length
+    val str1 = RandomStringUtils.random(1024)
+    val data1 = str1.getBytes(StandardCharsets.UTF_8)
+    val offset1 = 0
+    val length1 = data1.length
 
-    val dataSize1 = shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
+    val dataSize1 = shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
     logInfo(s"push data data size ${dataSize1}")
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
     worker2.rpcEnv.shutdown()
     worker2.stop()
     Thread.sleep(10000L)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
     Thread.sleep(5000L)
 
-    shuffleClient.pushData(APP1, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 1, 0, 1, DATA1, OFFSET1, LENGTH1, 3, 3)
-    shuffleClient.pushData(APP1, 1, 2, 0, 2, DATA1, OFFSET1, LENGTH1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 0, 0, 0, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 1, 0, 1, data1, offset1, length1, 3, 3)
+    shuffleClient.pushData(APP1, 1, 2, 0, 2, data1, offset1, length1, 3, 3)
 
     shuffleClient.mapperEnd(APP1, 1, 0, 1, 3)
     shuffleClient.mapperEnd(APP1, 1, 1, 1, 3)

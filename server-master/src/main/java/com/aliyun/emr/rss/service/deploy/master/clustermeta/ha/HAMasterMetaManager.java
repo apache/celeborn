@@ -53,11 +53,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleRequestSlots(
-      String shuffleKey,
-      String hostName,
-      Map<WorkerInfo, Integer> workerToAllocatedSlots,
-      String requestId) {
+  public void handleRequestSlots(String shuffleKey, String hostName,
+    Map<WorkerInfo, Integer> workerToAllocatedSlots) {
     try {
       ResourceProtos.RequestSlotsRequest.Builder builder =
         ResourceProtos.RequestSlotsRequest.newBuilder()
@@ -70,7 +67,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       }
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.RequestSlots)
-          .setRequestId(requestId)
           .setRequestSlotsRequest(builder.build())
           .build());
     } catch (ServiceException e) {
@@ -79,12 +75,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-                                 List<Integer> slots, String requestId) {
+  public void handleReleaseSlots(String shuffleKey, List<String> workerIds, List<Integer> slots) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.ReleaseSlots)
-          .setRequestId(requestId)
           .setReleaseSlotsRequest(
             ResourceProtos.ReleaseSlotsRequest.newBuilder()
                           .setShuffleKey(shuffleKey)
@@ -99,11 +93,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleUnRegisterShuffle(String shuffleKey, String requestId) {
+  public void handleUnRegisterShuffle(String shuffleKey) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.UnRegisterShuffle)
-          .setRequestId(requestId)
           .setUnregisterShuffleRequest(
             ResourceProtos.UnregisterShuffleRequest.newBuilder()
                   .setShuffleKey(shuffleKey)
@@ -115,11 +108,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleAppHeartbeat(String appId, long time, String requestId) {
+  public void handleAppHeartbeat(String appId, long time) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.AppHeartBeat)
-          .setRequestId(requestId)
           .setAppHeartbeatRequest(
             ResourceProtos.AppHeartbeatRequest.newBuilder()
                   .setAppId(appId).setTime(time)
@@ -131,11 +123,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleAppLost(String appId, String requestId) {
+  public void handleAppLost(String appId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.AppLost)
-          .setRequestId(requestId)
           .setAppLostRequest(
             ResourceProtos.AppLostRequest.newBuilder()
                   .setAppId(appId)
@@ -147,12 +138,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerLost(String host,
-                               int rpcPort, int pushPort, int fetchPort, String requestId) {
+  public void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerLost)
-              .setRequestId(requestId)
               .setWorkerLostRequest(
                 ResourceProtos.WorkerLostRequest.newBuilder()
                               .setHost(host)
@@ -167,12 +156,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerHeartBeat(String host,
-          int rpcPort, int pushPort, int fetchPort, int numSlots, long time, String requestId) {
+  public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
+    int numSlots, long time) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartBeat)
-              .setRequestId(requestId)
               .setWorkerHeartBeatRequest(
                 ResourceProtos.WorkerHeartBeatRequest.newBuilder()
                               .setHost(host)
@@ -189,13 +177,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleRegisterWorker(String host, int rpcPort,
-                                   int pushPort, int fetchPort,
-                                   int numSlots, String requestId) {
+  public void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
+    int numSlots) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.RegisterWorker)
-          .setRequestId(requestId)
           .setRegisterWorkerRequest(
             ResourceProtos.RegisterWorkerRequest.newBuilder()
                   .setHost(host)
@@ -211,13 +197,12 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId) {
+  public void handleReportWorkerFailure(List<WorkerInfo> failedNodes) {
     try {
       List<ResourceProtos.WorkerAddress> addrs = failedNodes.stream()
               .map(MetaUtil::infoToAddr).collect(Collectors.toList());
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.ReportWorkerFailure)
-              .setRequestId(requestId)
               .setReportWorkerFailureRequest(
                 ResourceProtos.ReportWorkerFailureRequest.newBuilder()
                               .addAllFailedWorker(addrs)
@@ -227,5 +212,4 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       LOG.error("Handle report node failure for {} failed !", failedNodes);
     }
   }
-
 }

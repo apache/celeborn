@@ -25,14 +25,16 @@ import scala.util.Random
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.haEnabled
-import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
+import com.aliyun.emr.rss.common.network.protocol.RssMessage
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
-import com.aliyun.emr.rss.common.protocol.message.StatusCode
+import com.aliyun.emr.rss.common.protocol.RssMessages._
+import com.aliyun.emr.rss.common.protocol.RssMessages.MessageType._
+import com.aliyun.emr.rss.common.protocol.RssMessages.StatusCode.{Failed, SlotNotAvailable, Success}
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.util.Utils.WorkerResource
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -97,13 +99,13 @@ private[deploy] class Master(
   override def onStart(): Unit = {
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(new Runnable {
       override def run(): Unit = Utils.tryLogNonFatalError {
-        self.send(CheckForWorkerTimeOut)
+        self.send(RssMessage.newMessage().ptype(CHECK_WORKER_TIMEOUT))
       }
     }, 0, WorkerTimeoutMs, TimeUnit.MILLISECONDS)
 
     checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(new Runnable {
       override def run(): Unit = Utils.tryLogNonFatalError {
-        self.send(CheckForApplicationTimeOut)
+        self.send(RssMessage.newMessage().ptype(CHECK_APPLICATION_TIMEOUT))
       }
     }, 0, ApplicationTimeoutMs / 2, TimeUnit.MILLISECONDS)
   }
@@ -129,69 +131,90 @@ private[deploy] class Master(
     if (HAHelper.checkShouldProcess(context, statusSystem)) f
 
   override def receive: PartialFunction[Any, Unit] = {
-    case CheckForWorkerTimeOut =>
-      logDebug("Received CheckForWorkerTimeOut request.")
-      executeWithLeaderChecker(null, timeoutDeadWorkers())
-    case CheckForApplicationTimeOut =>
-      logDebug("Received CheckForApplicationTimeOut request.")
-      executeWithLeaderChecker(null, timeoutDeadApplications())
-    case WorkerLost(host, rpcPort, pushPort, fetchPort, requestId) =>
-      logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
-      executeWithLeaderChecker(null
-        , handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, requestId))
+    case message: RssMessage =>
+      message.getType match {
+        case CHECK_WORKER_TIMEOUT =>
+          logDebug("Received CheckForWorkerTimeOut request.")
+          executeWithLeaderChecker(null, timeoutDeadWorkers())
+        case CHECK_APPLICATION_TIMEOUT =>
+          logDebug("Received CheckForApplicationTimeOut request.")
+          executeWithLeaderChecker(null, timeoutDeadApplications())
+        case WORKER_LOST =>
+          val workerLost = WorkerLost.parseFrom(message.getProto)
+          logDebug(s"Received worker lost ${workerLost.getHost}:${workerLost.getRpcPort}:" +
+            s"${workerLost.getPushPort}:${workerLost.getFetchPort}.")
+          executeWithLeaderChecker(null
+            , handleWorkerLost(null, workerLost.getHost, workerLost.getRpcPort,
+              workerLost.getPushPort, workerLost.getFetchPort))
+      }
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartBeatFromApplication(appId, requestId) =>
-      logDebug(s"Received heartbeat from app $appId")
-      executeWithLeaderChecker(context, handleHeartBeatFromApplication(context, appId, requestId))
-
-    case RegisterWorker(host, pushPort, fetchPort, numSlots, worker, requestId) =>
-      logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort $numSlots.")
-      executeWithLeaderChecker(context,
-        handleRegisterWorker(context, host, pushPort, fetchPort, numSlots, worker, requestId))
-
-    case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
-      logDebug(s"Received RequestSlots request $requestSlots.")
-      executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
-
-    case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
-      logDebug(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
-          s"workers ${workerIds.asScala.mkString(",")}, slots ${slots.asScala.mkString(",")}")
-      executeWithLeaderChecker(context,
-        handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
-
-    case UnregisterShuffle(applicationId, shuffleId, requestId) =>
-      logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
-      executeWithLeaderChecker(context,
-        handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
-
-    case msg: GetBlacklist =>
-      logDebug(s"Received Blacklist request")
-      executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
-
-    case ApplicationLost(appId, requestId) =>
-      logDebug(s"Received ApplicationLost request $requestId, $appId.")
-      executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
-
-    case HeartbeatFromWorker(host, rpcPort, pushPort
-    , fetchPort, numSlots, endpoint, shuffleKeys, requestId) =>
-      logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
-      executeWithLeaderChecker(context, handleHeartBeatFromWorker(
-        context, host, rpcPort, pushPort, fetchPort, numSlots, endpoint, shuffleKeys, requestId))
-
-    case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request")
-      executeWithLeaderChecker(context, handleGetWorkerInfos(context))
-
-    case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
-      logDebug("Received ReportNodeFailure request ")
-      executeWithLeaderChecker(context,
-        handleReportNodeFailure(context, failedWorkers, requestId))
-
-    case GetClusterLoadStatus =>
-      logInfo(s"Received GetClusterLoad request")
-      executeWithLeaderChecker(context, handleGetClusterLoadStatus(context))
+    case message: RssMessage =>
+      message.getType match {
+        case HEARTBEAT_FROM_APPLICATION =>
+          val heartBeatFromApplication = HeartBeatFromApplication.parseFrom(message.getProto)
+          logDebug(s"Received heartbeat from app ${heartBeatFromApplication.getAppId}")
+          executeWithLeaderChecker(context,
+            handleHeartBeatFromApplication(context, heartBeatFromApplication.getAppId))
+        case REGISTER_WORKER =>
+          val registerWorker = RegisterWorker.parseFrom(message.getProto)
+          logDebug(s"Received RegisterWorker request " +
+            s"${registerWorker.getHost}:${registerWorker.getPushPort}:" +
+            s"${registerWorker.getNumSlots}.")
+          executeWithLeaderChecker(context,
+            handleRegisterWorker(context, registerWorker.getHost, registerWorker.getRpcPort,
+              registerWorker.getPushPort, registerWorker.getFetchPort, registerWorker.getNumSlots))
+        case REQUEST_SLOTS =>
+          logDebug(s"Received RequestSlots request.")
+          val requestSlots = RequestSlots.parseFrom(message.getProto)
+          executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
+        case RELEASE_SLOTS =>
+          val releaseSlots = ReleaseSlots.parseFrom(message.getProto)
+          logDebug(s"Received ReleaseSlots request  ${releaseSlots.getApplicationId}," +
+            s" ${releaseSlots.getShuffleId},workers " +
+            s"${releaseSlots.getWorkerIdsList.asScala.mkString(",")}, " +
+            s"slots ${releaseSlots.getSlotsList.asScala.mkString(",")}")
+          executeWithLeaderChecker(context,
+            handleReleaseSlots(context, releaseSlots.getApplicationId, releaseSlots.getShuffleId,
+              releaseSlots.getWorkerIdsList, releaseSlots.getSlotsList))
+        case UNREGISTER_SHUFFLE =>
+          val unregisterShuffle = UnregisterShuffle.parseFrom(message.getProto)
+          logDebug(s"Received UnregisterShuffle request , ${unregisterShuffle.getAppId}," +
+            s" ${unregisterShuffle.getShuffleId}")
+          executeWithLeaderChecker(context, handleUnregisterShuffle(context,
+              unregisterShuffle.getAppId, unregisterShuffle.getShuffleId))
+        case GET_BLACKLIST =>
+          val getBlacklist = GetBlacklist.parseFrom(message.getProto)
+          logDebug(s"Received Blacklist request")
+          executeWithLeaderChecker(context, handleGetBlacklist(context, getBlacklist))
+        case APPLICATION_LOST =>
+          val applicationlost = ApplicationLost.parseFrom(message.getProto)
+          logDebug(s"Received ApplicationLost request ${applicationlost.getAppId}.")
+          executeWithLeaderChecker(context,
+            handleApplicationLost(context, applicationlost.getAppId))
+        case HEARTBEAT_FROM_WORKER =>
+          val heartbeatFromWorker = HeartbeatFromWorker.parseFrom(message.getProto)
+          logDebug(s"Received heartbeat from worker ${heartbeatFromWorker.getHost}" +
+            s":${heartbeatFromWorker.getRpcPort}:${heartbeatFromWorker.getPushPort}" +
+            s":${heartbeatFromWorker.getFetchPort}.")
+          executeWithLeaderChecker(context, handleHeartBeatFromWorker(
+            context, heartbeatFromWorker.getHost, heartbeatFromWorker.getRpcPort,
+            heartbeatFromWorker.getPushPort, heartbeatFromWorker.getFetchPort,
+            heartbeatFromWorker.getNumSlots, heartbeatFromWorker.getShuffleKeysList.asScala.toSet))
+        case GET_WORKER_INFO =>
+          logDebug("Received GetWorkerInfos request")
+          executeWithLeaderChecker(context, handleGetWorkerInfos(context))
+        case REPORT_WORKER_FAILURE =>
+          logDebug("Received ReportNodeFailure request ")
+          val reportWorkerFailure = ReportWorkerFailure.parseFrom(message.getProto)
+          executeWithLeaderChecker(context,
+            handleReportNodeFailure(context, Utils.convertPbWorkerInfosToWorkerInfos(
+                reportWorkerFailure.getFailedList.asScala.toList).toList))
+        case GET_CLUSTER_LOAD_STATUS =>
+          logInfo(s"Received GetClusterLoad request")
+          executeWithLeaderChecker(context, handleGetClusterLoadStatus(context))
+      }
   }
 
   private def timeoutDeadWorkers() {
@@ -201,9 +224,9 @@ private[deploy] class Master(
       if (worker.lastHeartbeat < currentTime - WorkerTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
-        // trigger WorkerLost event
-        self.send(WorkerLost(worker.host, worker.rpcPort
-          , worker.pushPort, worker.fetchPort, RssHARetryClient.genRequestId()))
+        self.send(RssMessage.newMessage().ptype(WORKER_LOST).proto(WorkerLost.newBuilder()
+          .setHost(worker.host).setRpcPort(worker.rpcPort).setPushPort(worker.pushPort)
+          .setFetchPort(worker.fetchPort).build()))
       }
       ind += 1
     }
@@ -214,11 +237,14 @@ private[deploy] class Master(
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - ApplicationTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
-        val requestId = RssHARetryClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+        var res = ApplicationLostResponse.parseFrom(self.askSync[RssMessage]
+          (RssMessage.newMessage().ptype(APPLICATION_LOST).proto(ApplicationLost.newBuilder()
+            .setAppId(key).build())).getProto)
         var retry = 1
-        while (res.status != StatusCode.Success && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+        while (res.getStatus != Success && retry <= 3) {
+          res = ApplicationLostResponse.parseFrom(self.askSync[RssMessage](RssMessage.newMessage()
+            .ptype(APPLICATION_LOST).proto(ApplicationLost.newBuilder().setAppId(key).build()))
+            .getProto)
           retry += 1
         }
         if (retry > 3) {
@@ -235,9 +261,7 @@ private[deploy] class Master(
       pushPort: Int,
       fetchPort: Int,
       numSlots: Int,
-      endpointRef: RpcEndpointRef,
-      shuffleKeys: util.HashSet[String],
-      requestId: String): Unit = {
+      shuffleKeys: Set[String]): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort,
       pushPort, fetchPort, -1, null)
     val worker: WorkerInfo = workersSnapShot
@@ -251,24 +275,25 @@ private[deploy] class Master(
       return
     }
 
-    worker.setupEndpoint(endpointRef)
+    worker.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress(host, rpcPort),
+      RpcNameConstants.WORKER_EP))
 
     statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, numSlots,
-      System.currentTimeMillis(), requestId)
+      System.currentTimeMillis())
 
     val expiredShuffleKeys = new util.HashSet[String]
-    shuffleKeys.asScala.foreach { shuffleKey =>
+    shuffleKeys.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
         logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys))
+    context.reply(RssMessage.newMessage().ptype(HEARTBEAT_RESPONSE).proto(HeartbeatResponse
+      .newBuilder().addAllExpiredShuffleKeys(expiredShuffleKeys).build()))
   }
 
-  private def handleWorkerLost(context: RpcCallContext, host: String
-                               , rpcPort: Int, pushPort: Int, fetchPort: Int
-                               , requestId: String): Unit = {
+  private def handleWorkerLost(context: RpcCallContext, host: String, rpcPort: Int, pushPort: Int,
+    fetchPort: Int): Unit = {
     val targetWorker = new WorkerInfo(host,
       rpcPort, pushPort, fetchPort, -1, null)
     val worker: WorkerInfo = workersSnapShot
@@ -281,67 +306,70 @@ private[deploy] class Master(
       return
     }
 
-    statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, requestId)
+    statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort)
 
     if (context != null) {
-      context.reply(WorkerLostResponse(true))
+      context.reply(RssMessage.newMessage().ptype(WORKER_LOST_RESPONSE)
+        .proto(WorkerLostResponse.newBuilder().setSuccess(true).build()))
     }
   }
 
   def handleRegisterWorker(
       context: RpcCallContext,
       host: String,
+      rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
-      numSlots: Int,
-      workerRef: RpcEndpointRef,
-      requestId: String): Unit = {
-    val workerToRegister = new WorkerInfo(host, workerRef.address.port,
-      pushPort, fetchPort, numSlots, workerRef)
+    numSlots: Int): Unit = {
+    val workerToRegister = new WorkerInfo(host, rpcPort,
+      pushPort, fetchPort, numSlots, null)
     val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
       if (!statusSystem.workerLostEvents.contains(hostPort)) {
-        self.send(WorkerLost(host, workerRef.address.port,
-          pushPort, fetchPort, RssHARetryClient.genRequestId()))
+        self.send(RssMessage.newMessage().ptype(WORKER_LOST))
       }
-      context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
+      context.reply(RssMessage.newMessage().ptype(REGISTER_WORKER_RESPONSE)
+        .proto(RegisterWorkerResponse.newBuilder().setSuccess(false)
+          .setMessage("Worker already registered!").build()))
     } else if (statusSystem.workerLostEvents.contains(hostPort)) {
       logWarning(s"Receive RegisterWorker while worker $hostPort in workerLostEvents.")
-      context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
+      context.reply(RssMessage.newMessage().ptype(REGISTER_WORKER_RESPONSE)
+        .proto(RegisterWorkerResponse.newBuilder().setSuccess(false)
+          .setMessage("Worker in workerLostEvents.").build()))
     } else {
-      statusSystem.handleRegisterWorker(host, workerRef.address.port, pushPort,
-        fetchPort, numSlots, requestId)
+      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, numSlots)
       logInfo(s"Registered worker $workerToRegister.")
-      context.reply(RegisterWorkerResponse(true, null))
+      context.reply(RssMessage.newMessage().proto(RegisterWorkerResponse.newBuilder()
+        .setSuccess(true).build()).ptype(REGISTER_WORKER_RESPONSE))
     }
   }
 
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
-    val numReducers = requestSlots.reduceIdList.size()
-    val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
+    val numReducers = requestSlots.getReduceIdListCount
+    val shuffleKey = Utils.makeShuffleKey(requestSlots.getApplicationId, requestSlots.getShuffleId)
 
-    // offer slots
     val slots = statusSystem.workers.synchronized {
       MasterUtil.offerSlots(
         shuffleKey,
         workersNotBlacklisted(),
-        requestSlots.reduceIdList,
-        requestSlots.shouldReplicate
+        requestSlots.getReduceIdListList,
+        requestSlots.getShouldReplicate
       )
     }
 
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
-      context.reply(RequestSlotsResponse(StatusCode.SlotNotAvailable, null))
+      context.reply(RssMessage.newMessage().ptype(REQUEST_SLOTS_RESPONSE)
+        .proto(RequestSlotsResponse.newBuilder().setStatus(SlotNotAvailable).build()))
       return
     }
 
     // register shuffle success, update status
-    statusSystem.handleRequestSlots(shuffleKey, requestSlots.hostname,
-      Utils.workerToAllocatedSlots(slots.asInstanceOf[WorkerResource]), requestSlots.requestId)
+    statusSystem.handleRequestSlots(shuffleKey, requestSlots.getHostname,
+      Utils.workerToAllocatedSlots(slots.asInstanceOf[WorkerResource]))
 
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
@@ -358,7 +386,10 @@ private[deploy] class Master(
       logInfo(s"Offered extra $extraSlotsSize slots for $shuffleKey")
     }
 
-    context.reply(RequestSlotsResponse(StatusCode.Success, slots.asInstanceOf[WorkerResource]))
+    context.reply(RssMessage.newMessage().ptype(REQUEST_SLOTS_RESPONSE)
+      .proto(RequestSlotsResponse.newBuilder().setStatus(Success)
+        .putAllWorkerResource(Utils.convertWorkerResourceToPbWorkerResource(
+          slots.asInstanceOf[WorkerResource])).build()))
   }
 
   def handleReleaseSlots(
@@ -366,64 +397,67 @@ private[deploy] class Master(
       applicationId: String,
       shuffleId: Int,
       workerIds: util.List[String],
-      slots: util.List[Integer],
-      requestId: String): Unit = {
+      slots: util.List[Integer]): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
+    statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots)
     logInfo(s"[handleReleaseSlots] Release all slots of $shuffleKey")
-    context.reply(ReleaseSlotsResponse(StatusCode.Success))
+    context.reply(RssMessage.newMessage().ptype(RELEASE_SLOTS_RESPONSE).proto(ReleaseSlotsResponse
+      .newBuilder().setStatus(Success).build()))
   }
 
   def handleUnregisterShuffle(
     context: RpcCallContext,
     applicationId: String,
-    shuffleId: Int,
-    requestId: String): Unit = {
+    shuffleId: Int): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
+    statusSystem.handleUnRegisterShuffle(shuffleKey)
     logInfo(s"Unregister shuffle $shuffleKey")
-    context.reply(UnregisterShuffleResponse(StatusCode.Success))
+    context.reply(RssMessage.newMessage().ptype(UNREGISTER_SHUFFLE_RESPONSE)
+      .proto(UnregisterShuffleResponse.newBuilder().setStatus(Success).build()))
   }
 
   def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
-    msg.localBlacklist.removeAll(workersSnapShot)
-    context.reply(
-      GetBlacklistResponse(StatusCode.Success,
-        new util.ArrayList(statusSystem.blacklist), msg.localBlacklist))
+    msg.getLocalBlackListList.removeAll(workersSnapShot)
+    context.reply(RssMessage.newMessage().ptype(GET_BLACKLIST_RESPONSE).proto(GetBlacklistResponse
+      .newBuilder().addAllBlacklist(Utils.convertWorkerInfosToPbWorkerInfos(statusSystem.blacklist
+      .asScala.toList).asJava).build()))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, workersSnapShot))
+    context.reply(RssMessage.newMessage().ptype(GET_WORKER_INFO_RESPONSE)
+      .proto(GetWorkerInfosResponse.newBuilder().setStatus(Success)
+        .addAllWorkerInfos(Utils.convertWorkerInfosToPbWorkerInfos(workersSnapShot.asScala.toList)
+          .asJava).build()))
   }
 
   private def handleReportNodeFailure(context: RpcCallContext,
-                                      failedWorkers: util.List[WorkerInfo],
-                                      requestId: String): Unit = {
+                                      failedWorkers: List[WorkerInfo]): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
         s"${statusSystem.blacklist}")
-    statusSystem.handleReportWorkerFailure(failedWorkers, requestId)
-    context.reply(OneWayMessageResponse)
+    statusSystem.handleReportWorkerFailure(failedWorkers.asJava)
+    context.reply(RssMessage.newMessage().ptype(ONE_WAY_MESSAGE_RESPONSE))
   }
 
-  def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
+  def handleApplicationLost(context: RpcCallContext, appId: String): Unit = {
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
-        statusSystem.handleAppLost(appId, requestId)
+        statusSystem.handleAppLost(appId)
         logInfo(s"Removed application $appId")
-        context.reply(ApplicationLostResponse(StatusCode.Success))
+        context.reply(RssMessage.newMessage().ptype(APPLICATION_LOST_RESPONSE)
+          .proto(ApplicationLostResponse.newBuilder().setStatus(Success).build()))
       }
     })
   }
 
-  private def handleHeartBeatFromApplication(
-      context: RpcCallContext, appId: String, requestId: String): Unit = {
-    statusSystem.handleAppHeartbeat(appId, System.currentTimeMillis(), requestId)
-    context.reply(OneWayMessageResponse)
+  private def handleHeartBeatFromApplication(context: RpcCallContext, appId: String): Unit = {
+    statusSystem.handleAppHeartbeat(appId, System.currentTimeMillis())
+    context.reply(RssMessage.newMessage().ptype(ONE_WAY_MESSAGE_RESPONSE))
   }
 
   private def handleGetClusterLoadStatus(context: RpcCallContext): Unit = {
     val (_, _, _, result) = getClusterLoad
-    context.reply(GetClusterLoadStatusResponse(result))
+    context.reply(RssMessage.newMessage().ptype(GET_CLUSTER_LOAD_STATUS_RESPONSE)
+      .proto(GetClusterLoadStatusResponse.newBuilder().setIsOverload(result).build()))
   }
 
   private def getClusterLoad: (Int, Int, Int, Boolean) = {
@@ -462,8 +496,8 @@ private[deploy] class Master(
       sb.append("==========WorkerInfos in Master==========\n")
       sb.append(w).append("\n")
 
-      val workerInfo = requestGetWorkerInfos(w.endpoint)
-        .workerInfos.asInstanceOf[util.List[WorkerInfo]]
+      val workerInfo = Utils.convertPbWorkerInfosToWorkerInfos(requestGetWorkerInfos(w.endpoint)
+        .getWorkerInfosList.asScala.toList).asInstanceOf[util.List[WorkerInfo]]
         .get(0)
 
       sb.append("==========WorkerInfos in Workers==========\n")
@@ -487,7 +521,7 @@ private[deploy] class Master(
     workersSnapShot.asScala.foreach(w => {
       sb.append(s"==========Worker ${w.readableAddress()} ThreadDump==========\n")
       val res = requestThreadDump(w.endpoint)
-      sb.append(res.threadDump).append("\n")
+      sb.append(res.getThreadDump).append("\n")
     })
 
     sb.toString()
@@ -499,23 +533,26 @@ private[deploy] class Master(
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
     try {
-      endpoint.askSync[GetWorkerInfosResponse](GetWorkerInfos)
+      GetWorkerInfosResponse.parseFrom(endpoint.askSync[RssMessage](RssMessage.newMessage()
+        .ptype(GET_WORKER_INFO)).getProto)
     } catch {
       case e: Exception =>
         logError(s"AskSync GetWorkerInfos failed.", e)
         val result = new util.ArrayList[WorkerInfo]
         result.add(new WorkerInfo("unknown", -1, -1, -1, 0, null))
-        GetWorkerInfosResponse(StatusCode.Failed, result)
+        GetWorkerInfosResponse.newBuilder().setStatus(Failed).addAllWorkerInfos(Utils.
+          convertWorkerInfosToPbWorkerInfos(result.asScala.toList).asJava).build()
     }
   }
 
   private def requestThreadDump(endpoint: RpcEndpointRef): ThreadDumpResponse = {
     try {
-      endpoint.askSync[ThreadDumpResponse](ThreadDump)
+      ThreadDumpResponse.parseFrom(endpoint.askSync[RssMessage](RssMessage.newMessage()
+        .ptype(THREAD_DUMP)).getProto)
     } catch {
       case e: Exception =>
         logError(s"AskSync ThreadDump failed.", e)
-        ThreadDumpResponse("Unknown")
+        ThreadDumpResponse.newBuilder().setThreadDump("Unknown").build()
     }
   }
 }

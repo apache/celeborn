@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.aliyun.emr.rss.common.RssConf;
-import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
@@ -72,20 +71,15 @@ public class DefaultMetaSystemSuiteJ {
   public void tearDown() throws Exception {
   }
 
-  private String getNewReqeustId() {
-    return RssHARetryClient.encodeRequestId(UUID.randomUUID().toString(),
-        callerId.incrementAndGet());
-  }
-
   @Test
   public void testHandleRegisterWorker() {
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     assert (statusSystem.workers.size() == 3);
   }
@@ -93,13 +87,13 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleWorkerLost() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
-    statusSystem.handleWorkerLost(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, getNewReqeustId());
+    statusSystem.handleWorkerLost(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1);
     assert (statusSystem.workers.size() == 2);
   }
 
@@ -110,11 +104,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleRequestSlots() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
         NUMSLOTS1, dummyRef);
@@ -127,7 +121,7 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1, 5);
     workersToAllocate.put(workerInfo2, 5);
 
-    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
+    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate);
 
     assert (workerInfo1.usedSlots() == 5);
     assert (workerInfo2.usedSlots() == 5);
@@ -137,11 +131,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleReleaseSlots() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     assert 3==statusSystem.workers.size();
 
@@ -151,7 +145,7 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2))
         .findFirst().get(), 5);
 
-    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
+    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate);
 
     List<String> workerIds = new ArrayList<>();
     workerIds.add(HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1);
@@ -159,7 +153,7 @@ public class DefaultMetaSystemSuiteJ {
     List<Integer> workerSlots = new ArrayList<>();
     workerSlots.add(3);
 
-    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
+    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots);
 
     assert 2 == statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
         .findFirst().get().usedSlots();
@@ -168,11 +162,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleAppLost() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
         NUMSLOTS1, dummyRef);
@@ -183,11 +177,11 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1, 5);
     workersToAllocate.put(workerInfo2, 5);
 
-    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
+    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate);
 
     assert statusSystem.registeredShuffle.size()==1;
 
-    statusSystem.handleAppLost(APPID1, getNewReqeustId());
+    statusSystem.handleAppLost(APPID1);
 
     assert statusSystem.registeredShuffle.isEmpty();
   }
@@ -195,11 +189,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleUnRegisterShuffle() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
         NUMSLOTS1, dummyRef);
@@ -210,11 +204,11 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1, 5);
     workersToAllocate.put(workerInfo2, 5);
 
-    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
+    statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate);
 
     assert statusSystem.registeredShuffle.size() == 1;
 
-    statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
+    statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1);
 
     assert statusSystem.registeredShuffle.isEmpty();
   }
@@ -222,11 +216,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleAppHeartbeat() {
     long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, dummy);
     assert statusSystem.appHeartbeatTime.get(APPID1) == dummy;
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, dummy);
     assert statusSystem.appHeartbeatTime.get(appId2) == dummy;
 
     assert statusSystem.appHeartbeatTime.size()==2;
@@ -235,24 +229,24 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleWorkerHeartBeat() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        0, 1, getNewReqeustId());
+        0, 1);
 
     assert statusSystem.blacklist.size()==1;
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        0, 1, getNewReqeustId());
+        0, 1);
 
     assert statusSystem.blacklist.size()==2;
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        1, 1, getNewReqeustId());
+        1, 1);
 
     assert statusSystem.blacklist.size()==1;
   }
@@ -260,11 +254,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleReportWorkerFailure() {
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
+        NUMSLOTS1);
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
+        NUMSLOTS2);
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+        NUMSLOTS3);
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
         NUMSLOTS1, dummyRef);
@@ -274,7 +268,7 @@ public class DefaultMetaSystemSuiteJ {
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);
 
-    statusSystem.handleReportWorkerFailure(failedWorkers, getNewReqeustId());
+    statusSystem.handleReportWorkerFailure(failedWorkers);
     assert 1 == statusSystem.blacklist.size();
   }
 }

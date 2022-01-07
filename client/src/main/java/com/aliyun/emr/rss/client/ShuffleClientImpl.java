@@ -54,28 +54,21 @@ import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.PushData;
 import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
+import com.aliyun.emr.rss.common.network.protocol.RssMessage;
 import com.aliyun.emr.rss.common.network.server.NoOpRpcHandler;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants;
+import com.aliyun.emr.rss.common.protocol.RssMessages.*;
 import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.GetReducerFileGroup;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.MapperEnd;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.MapperEndResponse;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.RegisterShuffle;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.RegisterShuffleResponse;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.Revive;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ReviveResponse;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UnregisterShuffle;
-import com.aliyun.emr.rss.common.protocol.message.StatusCode;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.*;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.REGISTER_SHUFFLE;
 
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
@@ -163,7 +156,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation loc,
       RpcResponseCallback callback,
       PushState pushState,
-      StatusCode cause) {
+      StatusCode cause,
+      ErrorMessage error) {
     int reduceId = loc.getReduceId();
     if (!revive(applicationId, shuffleId, mapId, attemptId,
             reduceId, loc.getEpoch(), loc, cause)) {
@@ -247,15 +241,23 @@ public class ShuffleClientImpl extends ShuffleClient {
     int numRetries = 3;
     while (numRetries > 0) {
       try {
-        RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
-            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions, getLocalHost()),
-            ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class)
+        RssMessage registerShuffle = RssMessage.newMessage()
+          .ptype(REGISTER_SHUFFLE)
+          .proto(RegisterShuffle.newBuilder().setApplicationId(appId)
+            .setShuffleId(shuffleId).setNumMapppers(numMappers).setNumPartitions(numPartitions)
+            .setHostname(getLocalHost()).build());
+        RssMessage response = driverRssMetaService.askSync(
+          registerShuffle,
+          ClassTag$.MODULE$.apply(RssMessage.class)
         );
 
-        if (response.status().equals(StatusCode.Success)) {
+        RegisterShuffleResponse registerShuffleResponse =RegisterShuffleResponse.parseFrom(response
+          .getProto());
+        if (registerShuffleResponse.getStatus().equals(StatusCode.Success)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
-          for (int i = 0; i < response.partitionLocations().size(); i++) {
-            PartitionLocation partitionLoc = response.partitionLocations().get(i);
+          for (int i = 0; i < registerShuffleResponse.getPartitionLocationsCount(); i++) {
+            PartitionLocation partitionLoc = PartitionLocation
+              .fromPbPartitionLocation(registerShuffleResponse.getPartitionLocations(i));
             result.put(partitionLoc.getReduceId(), partitionLoc);
           }
           return result;
@@ -357,17 +359,21 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     try {
-      ReviveResponse response = driverRssMetaService.<ReviveResponse>askSync(
-          new Revive(applicationId, shuffleId, mapId, attemptId,
-                  reduceId, epoch, oldLocation, cause),
-          ClassTag$.MODULE$.<ReviveResponse>apply(ReviveResponse.class)
-      );
+      RssMessage reviveRequest = RssMessage.newMessage().proto(Revive.newBuilder()
+        .setApplicationId(applicationId).setShuffleId(shuffleId).setMapId(mapId)
+        .setAttemptId(attemptId).setReduceId(reduceId).setEpoch(epoch)
+        .setOldPartition(PartitionLocation.toPbPartitionLocation(oldLocation)).setStatus(cause)
+        .build()).ptype(REVIVE);
+      ReviveResponse response = ReviveResponse.parseFrom(driverRssMetaService
+        .<RssMessage>askSync(reviveRequest, ClassTag$.MODULE$.apply(
+          RssMessage.class)).getProto());
 
       // per partitionKey only serve single PartitionLocation in Client Cache.
-      if (response.status().equals(StatusCode.Success)) {
-        map.put(reduceId, response.partitionLocation());
+      if (response.getStatus().equals(StatusCode.Success) && response.hasPartitionLocation()) {
+        map.put(reduceId, PartitionLocation.fromPbPartitionLocation(response
+          .getPartitionLocation()));
         return true;
-      } else if (response.status().equals(StatusCode.MapEnded)) {
+      } else if (response.getStatus().equals(StatusCode.MapEnded)) {
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
             .add(mapKey);
         return true;
@@ -408,8 +414,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     // register shuffle if not registered
     final ConcurrentHashMap<Integer, PartitionLocation> map =
-        reducePartitionMap.computeIfAbsent(shuffleId, (id) ->
-            registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
+        reducePartitionMap.computeIfAbsent(shuffleId, (id) -> registerShuffle(applicationId,
+          shuffleId, numMappers, numPartitions));
 
     if (map == null) {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
@@ -477,7 +483,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         public void onSuccess(ByteBuffer response) {
           pushState.inFlightBatches.remove(nextBatchId);
           if (response.remaining() > 0 &&
-              response.get() == StatusCode.StageEnded.getValue()) {
+              response.get() == StatusCode.StageEnded.getNumber()) {
             mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
                 .add(mapKey);
           }
@@ -511,7 +517,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           if (!mapperEnded(shuffleId, mapId, attemptId)) {
             pushDataRetryPool.submit(() ->
                 submitRetryPushData(applicationId, shuffleId, mapId, attemptId, body,
-                    nextBatchId, loc, callback, pushState, getPushDataFailCause(e.getMessage())));
+                  nextBatchId, loc, callback, pushState, getPushDataFailCause(e.getMessage()),
+                  ErrorMessage.newBuilder().setMessage(e.getMessage()).build()));
           } else {
             pushState.inFlightBatches.remove(nextBatchId);
             logger.info("Mapper shuffleId:{} mapId:{} attempt:{} already ended," +
@@ -661,7 +668,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             mapId, attemptId, groupedBatchId);
         pushState.inFlightBatches.remove(groupedBatchId);
         if (response.remaining() > 0 &&
-            response.get() == StatusCode.StageEnded.getValue()) {
+            response.get() == StatusCode.StageEnded.getNumber()) {
           mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
               .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
         }
@@ -729,12 +736,14 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       limitMaxInFlight(mapKey, pushState, 0);
 
-      MapperEndResponse response = driverRssMetaService.<MapperEndResponse>askSync(
-          new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers),
-          ClassTag$.MODULE$.<MapperEndResponse>apply(MapperEndResponse.class)
-      );
-      if (response.status() != StatusCode.Success) {
-        throw new IOException("MapperEnd failed! StatusCode: " + response.status());
+      MapperEndResponse response = MapperEndResponse.parseFrom(driverRssMetaService
+        .askSync(RssMessage.newMessage().proto(MapperEnd.newBuilder()
+            .setApplicationId(applicationId).setShuffleId(shuffleId).setMapId(mapId)
+            .setAttemptId(attemptId).setNumMappers(numMappers).build()).ptype(MAPPER_END),
+        ClassTag$.MODULE$.<RssMessage>apply(RssMessage.class)
+      ).getProto());
+      if (response.getStatus() != StatusCode.Success) {
+        throw new IOException("MapperEnd failed! StatusCode: " + response.getStatus());
       }
     } finally {
       pushStates.remove(mapKey);
@@ -755,8 +764,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   public boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver) {
     if (isDriver) {
       try {
-        driverRssMetaService.send(
-          new UnregisterShuffle(applicationId, shuffleId, ControlMessages.ZERO_UUID()));
+        driverRssMetaService.send(RssMessage.newMessage().ptype(UNREGISTER_SHUFFLE)
+          .proto(UnregisterShuffle.newBuilder().setAppId(applicationId)
+            .setShuffleId(shuffleId).build()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.
@@ -783,15 +793,25 @@ public class ShuffleClientImpl extends ShuffleClient {
           return null;
         }
 
-        GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(applicationId, shuffleId);
-        ClassTag<GetReducerFileGroupResponse> classTag =
-          ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class);
+        RssMessage getReducerFileGroup = RssMessage.newMessage().ptype(GET_REDUCER_FILE_GROUP)
+          .proto(GetReducerFileGroup.newBuilder().setApplicationId(applicationId)
+            .setShuffleId(shuffleId).build());
+        ClassTag<RssMessage> classTag =
+          ClassTag$.MODULE$.apply(RssMessage.class);
 
-        GetReducerFileGroupResponse response =
-          driverRssMetaService.<GetReducerFileGroupResponse>askSync(getReducerFileGroup, classTag);
+        GetReducerFileGroupResponse response = GetReducerFileGroupResponse
+          .parseFrom(driverRssMetaService.askSync(getReducerFileGroup,
+            classTag).getProto());
 
-        if (response != null && response.status() == StatusCode.Success) {
-          return new ReduceFileGroups(response.fileGroup(), response.attempts());
+        if (response != null && response.getStatus() == StatusCode.Success) {
+          int tmpAttemptCount = response.getAttemptsCount();
+          int[] tmpAttempts = new int[response.getAttemptsCount()];
+          for (int i = 0; i < tmpAttemptCount; i++) {
+            tmpAttempts[i] = response.getAttemptsList().get(i);
+          }
+          return new ReduceFileGroups(Utils.convertFileGroupToPartionLocations(
+            response.getFileGroupList().toArray(new FileGroup[response.getFileGroupCount()])),
+            tmpAttempts);
         }
       } catch (Exception e) {
         logger.warn("Exception raised while getting reduce file groups.", e);
@@ -861,9 +881,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   private StatusCode getPushDataFailCause(String message) {
     logger.info("[getPushDataFailCause] message: " + message);
     StatusCode cause;
-    if (StatusCode.PushDataFailSlave.getMessage().equals(message)) {
+    if ("PushDataFailSlave".equals(message)) {
       cause = StatusCode.PushDataFailSlave;
-    } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)){
+    } else if ("PushDataFailMain".equals(message) || connectFail(message)) {
       cause = StatusCode.PushDataFailMain;
     } else {
       cause = StatusCode.PushDataFailNonCriticalCause;
@@ -874,7 +894,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private boolean connectFail(String message) {
     return (message.startsWith("Connection from ") && message.endsWith(" closed")) ||
             (message.equals("Connection reset by peer")) ||
-            (message.startsWith("Failed to send RPC "))
+            (message.startsWith("Failed to send RPC ")) ||
+             (message.startsWith("Failed to connect"))
             ;
   }
 }
