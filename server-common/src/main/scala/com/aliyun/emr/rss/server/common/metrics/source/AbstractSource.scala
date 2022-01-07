@@ -141,15 +141,20 @@ abstract class AbstractSource(essConf: RssConf, role: String)
   }
 
   protected def doStopTimer(metricsName: String, key: String): Unit = {
-    val (namedTimer, map) = namedTimers.get(metricsName)
-    val startTime = Option(map.remove(key))
-    startTime match {
-      case Some(t) =>
-        namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
-        if (namedTimer.timer.getCount % slidingWindowSize == 0) {
-          recordTimer(namedTimer)
-        }
-      case None =>
+    try {
+      val (namedTimer, map) = namedTimers.get(metricsName)
+      val startTime = Option(map.remove(key))
+      startTime match {
+        case Some(t) =>
+          namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
+          if (namedTimer.timer.getCount % slidingWindowSize == 0) {
+            recordTimer(namedTimer)
+          }
+        case None =>
+      }
+    } catch {
+      case e: Exception =>
+        logWarning("Exception encountered in Metrics StopTimer", e)
     }
   }
 
