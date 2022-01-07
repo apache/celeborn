@@ -280,7 +280,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     candidatesWorkers.removeAll(connectFailedWorkers)
 
-    reportWorkerFailure(connectFailedWorkers)
+    recordWorkerFailure(connectFailedWorkers)
 
     val reserveSlotsSuccess = reserveSlotsWithRetry(applicationId, shuffleId,
       candidatesWorkers.asScala.toList, slots)
@@ -344,15 +344,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
-    // only blacklist if cause is PushDataFailMain or PushDataFailSlave
+    // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
-    if (cause == StatusCode.PushDataFailSlave && oldPartition.getPeer != null) {
-      failedWorker.add(oldPartition.getPeer.getWorker)
-    } else if (cause == StatusCode.PushDataFailMain || oldPartition.getPeer == null) {
+    if (cause == StatusCode.PushDataFailMain) {
       failedWorker.add(oldPartition.getWorker)
     }
     if (!failedWorker.isEmpty) {
-      reportWorkerFailure(failedWorker)
+      recordWorkerFailure(failedWorker)
     }
   }
 
@@ -637,7 +635,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    reportWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
     // release resources and clear worker info
     workerSnapshots(shuffleId).asScala.foreach { w2p =>
       val partitionLocationInfo = w2p._2
@@ -767,7 +765,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    reportWorkerFailure(failed);
+    recordWorkerFailure(failed);
 
     failed
   }
@@ -1124,7 +1122,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def reportWorkerFailure(failures: util.List[WorkerInfo]): Unit = {
+  private def recordWorkerFailure(failures: util.List[WorkerInfo]): Unit = {
     val failedWorker = new util.ArrayList[WorkerInfo](failures)
     failedWorker.removeAll(blacklist)
     if (failedWorker.isEmpty) {
@@ -1132,7 +1130,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
     blacklist.addAll(failedWorker)
-    rssHARetryClient.send(ReportWorkerFailure(failedWorker))
   }
 
   def isClusterOverload(): Boolean = {
