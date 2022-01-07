@@ -34,45 +34,45 @@ class ClusterReadWriteTest extends MiniClusterFeature {
   def testMiniCluster(): Unit = {
     setUpMiniCluster()
 
-    val APP = "app-1"
+    val app = "app-1"
 
     val clientConf = new RssConf()
     clientConf.set("rss.push.data.replicate", "true")
     clientConf.set("rss.push.data.buffer.size", "256K")
-    val metaSystem = new LifecycleManager(APP, clientConf)
+    val metaSystem = new LifecycleManager(app, clientConf)
     val shuffleClient = new ShuffleClientImpl(clientConf)
     shuffleClient.setupMetaServiceRef(metaSystem.self)
 
-    val STR1 = RandomStringUtils.random(1024)
-    val DATA1 = STR1.getBytes(StandardCharsets.UTF_8)
-    val OFFSET1 = 0
-    val LENGTH1 = DATA1.length
+    val str1 = RandomStringUtils.random(1024)
+    val data1 = str1.getBytes(StandardCharsets.UTF_8)
+    val offset1 = 0
+    val length1 = data1.length
 
-    val dataSize1 = shuffleClient.pushData(APP, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 1, 1)
+    val dataSize1 = shuffleClient.pushData(app, 1, 0, 0, 0, data1, offset1, length1, 1, 1)
     logInfo(s"push data data size ${dataSize1}")
 
-    val STR2 = RandomStringUtils.random(32 * 1024)
-    val DATA2 = STR2.getBytes(StandardCharsets.UTF_8)
-    val OFFSET2 = 0
-    val LENGTH2 = DATA2.length
-    val dataSize2 = shuffleClient.pushData(APP, 1, 0, 0, 0, DATA2, OFFSET2, LENGTH2, 1, 1)
+    val str2 = RandomStringUtils.random(32 * 1024)
+    val data2 = str2.getBytes(StandardCharsets.UTF_8)
+    val offset2 = 0
+    val length2 = data2.length
+    val dataSize2 = shuffleClient.pushData(app, 1, 0, 0, 0, data2, offset2, length2, 1, 1)
     logInfo(s"push data data size ${dataSize2}")
 
-    val STR3 = RandomStringUtils.random(32 * 1024)
-    val DATA3 = STR3.getBytes(StandardCharsets.UTF_8)
-    val LENGTH3 = DATA3.length
-    val dataSize3 = shuffleClient.mergeData(APP, 1, 0, 0, 0, DATA3, 0, LENGTH3, 1, 1);
+    val str3 = RandomStringUtils.random(32 * 1024)
+    val data3 = str3.getBytes(StandardCharsets.UTF_8)
+    val length3 = data3.length
+    val dataSize3 = shuffleClient.mergeData(app, 1, 0, 0, 0, data3, 0, length3, 1, 1);
 
-    val STR4 = RandomStringUtils.random(16 * 1024)
-    val DATA4 = STR4.getBytes(StandardCharsets.UTF_8)
-    val LENGTH4 = DATA4.length
-    val dataSize4 = shuffleClient.mergeData(APP, 1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1);
-    shuffleClient.pushMergedData(APP, 1, 0, 0)
+    val str4 = RandomStringUtils.random(16 * 1024)
+    val data4 = str4.getBytes(StandardCharsets.UTF_8)
+    val length4 = data4.length
+    val dataSize4 = shuffleClient.mergeData(app, 1, 0, 0, 0, data4, 0, length4, 1, 1);
+    shuffleClient.pushMergedData(app, 1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(APP, 1, 0, 0, 1)
+    shuffleClient.mapperEnd(app, 1, 0, 0, 1)
 
-    val inputStream = shuffleClient.readPartition(APP, 1, 0, 0)
+    val inputStream = shuffleClient.readPartition(app, 1, 0, 0)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()
@@ -83,8 +83,8 @@ class ClusterReadWriteTest extends MiniClusterFeature {
 
     val readBytes = outputStream.toByteArray
 
-    assert(readBytes.length == LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4)
-    val targetArr = Array.concat(DATA1, DATA2, DATA3, DATA4)
+    assert(readBytes.length == length1 + length2 + length3 + length4)
+    val targetArr = Array.concat(data1, data2, data3, data4)
     Assert.assertArrayEquals(targetArr, readBytes)
 
     Thread.sleep(5000L)

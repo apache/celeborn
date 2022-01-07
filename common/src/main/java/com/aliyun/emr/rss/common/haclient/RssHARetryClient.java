@@ -20,15 +20,12 @@ package com.aliyun.emr.rss.common.haclient;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
-import scala.Tuple2;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.reflect.ClassTag$;
@@ -38,10 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.network.protocol.RssMessage;
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.OneWayMessageResponse$;
-import com.aliyun.emr.rss.common.protocol.message.MasterRequestMessage;
-import com.aliyun.emr.rss.common.protocol.message.Message;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
@@ -72,43 +67,15 @@ public class RssHARetryClient {
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");
   }
 
-  private static final String SPLITER = "#";
-  private static final AtomicLong CALL_ID_COUNTER = new AtomicLong();
-
-  static long nextCallId() {
-    return CALL_ID_COUNTER.getAndIncrement() & Long.MAX_VALUE;
-  }
-
-  public static Tuple2<String, Long> decodeRequestId(String requestId) {
-    if (requestId.contains(SPLITER)) {
-      return new Tuple2<>(requestId.split(SPLITER)[0],
-          Long.valueOf(requestId.split(SPLITER)[1]));
-    } else {
-      return null;
-    }
-  }
-
-  public static String encodeRequestId(String uuid, long callId) {
-    return String.format("%s%s%d", uuid, SPLITER, callId);
-  }
-
-  /**
-   * For message sent by Master itself like ApplicationLost or WorkerLost,
-   * we should set requestId manually.
-   * @return
-   */
-  public static String genRequestId() {
-    return encodeRequestId(UUID.randomUUID().toString(), nextCallId());
-  }
-
-  public void send(Message message) throws Throwable {
+  public void send(RssMessage message) throws Throwable {
     // Send a one-way message. Because we need to know whether the leader between Masters has
     // switched, we must adopt a synchronous method, but for a one-way message, we don’t care
     // whether it can be sent successfully, so we adopt an asynchronous method. Therefore, we
     // choose to use one Thread pool to use synchronization.
     oneWayMessageSender.submit(() -> {
       try {
-        sendMessageInner(message, OneWayMessageResponse$.class);
+        LOG.debug("RssHARetryClient send message :{}", message);
+        sendMessageInner(message, RssMessage.class);
       } catch (Throwable e) {
         LOG.warn("Exception occurs while send one-way message.", e);
       }
@@ -116,7 +83,11 @@ public class RssHARetryClient {
     LOG.debug("Send one-way message {}.", message);
   }
 
-  public <T> T askSync(Message message, Class<T> clz) throws Throwable {
+  public RssMessage askSync(RssMessage wrappedMsg) throws Throwable {
+    return sendMessageInner(wrappedMsg, RssMessage.class);
+  }
+
+  public <T, R> R askSync(T message, Class<R> clz) throws Throwable {
     return sendMessageInner(message, clz);
   }
 
@@ -125,14 +96,10 @@ public class RssHARetryClient {
   }
 
   @SuppressWarnings("UnstableApiUsage")
-  private <T> T sendMessageInner(Message message, Class<T> clz) throws Throwable {
+  private <T, R> R sendMessageInner(T message, Class<R> clz) throws Throwable {
     Throwable throwable = null;
     int numTries = 0;
     boolean shouldRetry = true;
-    if (message instanceof MasterRequestMessage) {
-      ((MasterRequestMessage) message).requestId_(
-          encodeRequestId(UUID.randomUUID().toString(), nextCallId()));
-    }
 
     LOG.debug("Send rpc message " + message);
     RpcEndpointRef endpointRef = null;
@@ -144,14 +111,13 @@ public class RssHARetryClient {
     while (numTries < maxTries && shouldRetry) {
       try {
         endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
-        Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
+        Future<R> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
         return rpcTimeout.awaitResult(future);
       } catch (Throwable e) {
         throwable = e;
         shouldRetry = shouldRetry(endpointRef, throwable);
         if (shouldRetry) {
           numTries++;
-
           Uninterruptibles.sleepUninterruptibly(Math.min(numTries * 100L, sleepLimitTime),
               TimeUnit.MILLISECONDS);
         }

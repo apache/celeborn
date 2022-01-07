@@ -1,0 +1,341 @@
+syntax = "proto3";
+option java_package = "com.aliyun.emr.rss.common.protocol";
+option java_outer_classname = "RssMessages";
+
+enum MessageType{
+  UNKNOWN_MESSAGE = 0;
+  REGISTER_WORKER = 1;
+  HEARTBEAT_FROM_WORKER = 2;
+  HEARTBEAT_RESPONSE = 3 ;
+  REGISTER_SHUFFLE = 4;
+  REGISTER_SHUFFLE_RESPONSE = 5;
+  REQUEST_SLOTS = 6;
+  RELEASE_SLOTS = 7;
+  RELEASE_SLOTS_RESPONSE = 8;
+  REQUEST_SLOTS_RESPONSE = 9;
+  REVIVE = 10;
+  REVIVE_RESPONSE = 11;
+  MAPPER_END = 12;
+  MAPPER_END_RESPONSE = 13;
+  GET_REDUCER_FILE_GROUP = 14;
+  GET_REDUCER_FILE_GROUP_RESPONSE = 15;
+  UNREGISTER_SHUFFLE = 16;
+  UNREGISTER_SHUFFLE_RESPONSE = 17;
+  APPLICATION_LOST = 18;
+  APPLICATION_LOST_RESPONSE = 19;
+  HEARTBEAT_FROM_APPLICATION = 20;
+  GET_BLACKLIST = 21;
+  GET_BLACKLIST_RESPONSE = 22;
+  GET_CLUSTER_LOAD_STATUS = 23;
+  GET_CLUSTER_LOAD_STATUS_RESPONSE = 24;
+  REPORT_WORKER_FAILURE = 25;
+  REGISTER_WORKER_RESPONSE = 26;
+  REREGISTER_WORKER_RESPONSE = 27;
+  RESERVE_SLOTS = 28;
+  RESERVE_SLOTS_RESPONSE = 29;
+  COMMIT_FILES = 30;
+  COMMIT_FILES_RESPONSE = 31;
+  DESTROY = 32;
+  DESTROY_RESPONSE = 33;
+  SLAVE_LOST_RESPONSE = 34;
+  GET_WORKER_INFO = 35;
+  GET_WORKER_INFO_RESPONSE = 36;
+  THREAD_DUMP = 37;
+  THREAD_DUMP_RESPONSE = 38;
+  REMOVE_EXPIRED_SHUFFLE = 39;
+  ONE_WAY_MESSAGE_RESPONSE = 40;
+  CHECK_WORKER_TIMEOUT = 41;
+  CHECK_APPLICATION_TIMEOUT = 42;
+  WORKER_LOST = 43;
+  WORKER_LOST_RESPONSE = 44;
+  WORKER_STAGE_END = 45;
+  STAGE_END = 46;
+  STAGE_END_RESPONSE = 47;
+}
+
+enum StatusCode{
+  Unknown = 0;
+  Success = 1;
+  PartialSuccess = 2;
+  Failed = 3;
+  ShuffleAlreadyRegistered = 4;
+  ShuffleNotRegistered = 5;
+  ReserveBufferFailed = 6;
+  ReserveSlotFailed = 7;
+  SlotNotAvailable = 8;
+  WorkerNotFound = 9;
+  PartitionNotFound = 10;
+  SlavePartitionNotFound = 11;
+  DeleteFilesFailed = 12;
+  PartitionExists = 13;
+  ReviveFailed = 14;
+  PushDataFailed = 15;
+  NumMapperZero = 16;
+  MapEnded = 17;
+  StageEnded = 18;
+  PushDataFailNonCriticalCause = 19;
+  PushDataFailSlave = 20;
+  PushDataFailMain = 21;
+  PushDataFailPartitionNotFound = 22;
+}
+
+message ErrorMessage{
+  StatusCode status = 1;
+  string message = 2;
+}
+
+message PbPartitionLocation{
+  enum Mode{
+    Master = 0;
+    Slave = 1;
+  }
+  Mode mode = 1;
+  int32 reduceId = 2;
+  int32 epoch = 3;
+  string host = 4;
+  int32 rpcPort = 5;
+  int32 pushPort = 6;
+  int32 fetchPort = 7;
+  PbPartitionLocation peer = 8;
+}
+
+message PbWorkerResource{
+  repeated PbPartitionLocation masterPartitions = 1;
+  repeated PbPartitionLocation slavePartitions = 2;
+}
+
+message PbWorkerInfo{
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 numSlots = 5;
+  int32 slotsUsed = 6;
+}
+
+message FileGroup{
+  repeated PbPartitionLocation localtions = 1;
+}
+
+message RegisterWorker{
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 numSlots = 5;
+}
+
+message HeartbeatFromWorker{
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 numSlots = 5;
+  repeated string shuffleKeys = 8;
+}
+
+message HeartbeatResponse{
+  repeated string expiredShuffleKeys = 1 ;
+}
+
+message RegisterShuffle {
+  string applicationId = 1 ;
+  int32 shuffleId = 2;
+  int32 numMapppers = 3 ;
+  int32 numPartitions = 4;
+  string hostname = 5 ;
+}
+
+message RegisterShuffleResponse{
+  StatusCode status = 1;
+  repeated PbPartitionLocation partitionLocations = 2;
+}
+
+message RequestSlots{
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  repeated int32 reduceIdList = 3;
+  string hostname = 4;
+  bool shouldReplicate = 5;
+}
+
+message ReleaseSlots{
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  repeated string workerIds = 3;
+  repeated int32 slots = 4;
+}
+
+message ReleaseSlotsResponse{
+  StatusCode status = 1;
+}
+
+message  RequestSlotsResponse{
+  StatusCode status = 1 ;
+  // key is host:rpcPort:pushPort:fetchPort
+  map<string, PbWorkerResource> workerResource = 2;
+}
+
+message Revive{
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  int32 mapId = 3;
+  int32 attemptId = 4;
+  int32 reduceId = 5;
+  int32 epoch = 6;
+  PbPartitionLocation oldPartition = 7;
+  StatusCode status = 8;
+  ErrorMessage error = 9;
+}
+
+message ReviveResponse{
+  StatusCode status = 1;
+  PbPartitionLocation partitionLocation = 2;
+  ErrorMessage error = 3;
+}
+
+message MapperEnd {
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  int32 mapId = 3 ;
+  int32 attemptId = 4;
+  int32 numMappers = 5;
+}
+
+message MapperEndResponse{
+  StatusCode status = 1;
+}
+
+message GetReducerFileGroup{
+  string applicationId = 1;
+  int32 shuffleId = 2;
+}
+
+message GetReducerFileGroupResponse{
+  StatusCode status = 1;
+  repeated FileGroup fileGroup = 2 ;
+  repeated int32 attempts = 3;
+}
+
+message UnregisterShuffle{
+  string appId = 1 ;
+  int32 shuffleId = 2 ;
+}
+
+message UnregisterShuffleResponse{
+  StatusCode status = 1;
+}
+
+message ApplicationLost{
+  string appId = 1;
+}
+
+message ApplicationLostResponse{
+  StatusCode status = 1;
+}
+
+message HeartBeatFromApplication{
+  string appId = 1;
+}
+
+message GetBlacklist{
+  repeated PbWorkerInfo localBlackList = 1;
+}
+
+message GetBlacklistResponse{
+  StatusCode status = 1;
+  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo unknownWorkers = 3 ;
+}
+
+message GetClusterLoadStatusResponse{
+  bool isOverload = 1;
+}
+
+message ReportWorkerFailure{
+  repeated PbWorkerInfo failed = 1;
+}
+
+message RegisterWorkerResponse{
+  bool success = 1;
+  string message = 2;
+}
+
+message ReregisterWorkerResponse{
+  bool success = 1;
+}
+
+message ReserveSlots{
+  string applicationId = 1;
+  int32 shuffleId = 2 ;
+  repeated PbPartitionLocation masterLocations = 3;
+  repeated PbPartitionLocation slaveLocations = 4;
+}
+
+message  ReserveSlotsResponse{
+  StatusCode status = 1 ;
+  string reason = 2 ;
+}
+
+message CommitFiles {
+  string applicationId = 1 ;
+  int32 shuffleId = 2 ;
+  repeated string masterIds = 3;
+  repeated string slaveIds = 4 ;
+  repeated int32 mapAttempts = 5;
+}
+
+message CommitFilesResponse{
+  StatusCode status = 1;
+  repeated string committedMasterIds = 2;
+  repeated string committedSlaveIds = 3;
+  repeated string  failedMasterIds = 4;
+  repeated string  failedSlaveIds = 5;
+}
+
+message Destroy{
+  string shuffleKey = 1;
+  repeated string masterLocations = 2 ;
+  repeated string slaveLocation = 3 ;
+}
+
+message DestroyResponse{
+  StatusCode status = 1;
+  repeated string failedMasters = 2;
+  repeated string failedSlaves = 3;
+}
+
+message SlaveLostResponse{
+  StatusCode status = 1 ;
+  PbPartitionLocation slaveLocation = 2 ;
+}
+
+message GetWorkerInfosResponse{
+  StatusCode status = 1;
+  repeated PbWorkerInfo workerInfos = 2;
+}
+
+message  ThreadDumpResponse{
+  string threadDump = 1;
+}
+
+message WorkerLost{
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+}
+
+message WorkerLostResponse{
+  bool success = 1;
+}
+
+message StageEnd{
+  string applicationId = 1;
+  int32 shuffleId = 2;
+}
+
+message StageEndResponse{
+  StatusCode status = 1;
+  repeated string lostFiles = 2;
+}

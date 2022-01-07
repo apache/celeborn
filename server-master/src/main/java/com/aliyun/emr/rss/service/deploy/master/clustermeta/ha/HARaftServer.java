@@ -32,8 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import scala.Tuple2;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.ServiceException;
@@ -68,7 +66,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
-import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 
@@ -202,18 +199,11 @@ public class HARaftServer {
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
     throws ServiceException {
-    String requestId = request.getRequestId();
-    Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
-    if (decoded == null) {
-      throw new ServiceException("RequestId invalid, should be: uuid#callId.");
-    }
-    ClientId clientId = ClientId.valueOf(UUID.fromString(decoded._1));
-    long callId = decoded._2;
     RaftClientRequest raftClientRequest = new RaftClientRequest.Builder()
         .setClientId(clientId)
         .setServerId(server.getId())
         .setGroupId(raftGroupId)
-        .setCallId(callId)
+        .setCallId(nextCallId())
         .setType(RaftClientRequest.writeRequestType())
         .setMessage(Message.valueOf(HAHelper.convertRequestToByteString(request)))
         .build();

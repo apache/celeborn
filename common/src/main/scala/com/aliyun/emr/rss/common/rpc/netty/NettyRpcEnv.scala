@@ -554,7 +554,14 @@ private[rss] class RequestMessage(
     val receiver: NettyRpcEndpointRef,
     val content: Any) {
 
-  /** Manually serialize [[RequestMessage]] to minimize the size. */
+  /**
+   *  Manually serialize [[RequestMessage]] to minimize the size.
+   *  RequestMessage layout:
+   *  [boolean][rpcaddress][boolean][rpcaddress][boolean][payload]
+   *  for example:
+   *  [true][senderAddress][true][receiverRpcAddress][true][protobuf-payload]
+   *  [true][senderAddress][true][receiverRpcAddress][false][java-serialized-payload]
+   */
   def serialize(nettyEnv: NettyRpcEnv): ByteBuffer = {
     val bos = new ByteBufferOutputStream()
     val out = new DataOutputStream(bos)

@@ -26,25 +26,24 @@ public interface IMetadataHandler {
   void handleRequestSlots(
       String shuffleKey,
       String hostName,
-      Map<WorkerInfo, Integer> workerToAllocatedSlots,
-      String requestId);
+      Map<WorkerInfo, Integer> workerToAllocatedSlots);
 
   void handleReleaseSlots(
-          String shuffleKey, List<String> workerIds, List<Integer> slots, String requestId);
+          String shuffleKey, List<String> workerIds, List<Integer> slots);
 
-  void handleUnRegisterShuffle(String shuffleKey, String requestId);
+  void handleUnRegisterShuffle(String shuffleKey);
 
-  void handleAppHeartbeat(String appId, long time, String requestId);
+  void handleAppHeartbeat(String appId, long time);
 
-  void handleAppLost(String appId, String requestId);
+  void handleAppLost(String appId);
 
-  void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort, String requestId);
+  void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort);
 
   void handleWorkerHeartBeat(String host, int rpcPort,
-           int pushPort, int fetchPort, int numSlots, long time, String requestId);
+           int pushPort, int fetchPort, int numSlots, long time);
 
   void handleRegisterWorker(
-      String host, int rpcPort, int pushPort, int fetchPort, int numSlots, String requestId);
+      String host, int rpcPort, int pushPort, int fetchPort, int numSlots);
 
-  void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);
+  void handleReportWorkerFailure(List<WorkerInfo> failedNodes);
 }

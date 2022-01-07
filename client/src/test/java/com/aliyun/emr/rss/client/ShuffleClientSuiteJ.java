@@ -22,9 +22,11 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import scala.reflect.ClassTag$;
 
@@ -42,10 +44,13 @@ import com.aliyun.emr.rss.client.compress.RssLz4Compressor;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
+import com.aliyun.emr.rss.common.network.protocol.RssMessage;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
-import com.aliyun.emr.rss.common.protocol.message.StatusCode;
+import com.aliyun.emr.rss.common.protocol.RssMessages;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.REGISTER_SHUFFLE;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.REGISTER_SHUFFLE_RESPONSE;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.StatusCode.Success;
 
 public class ShuffleClientSuiteJ {
 
@@ -141,13 +146,20 @@ public class ShuffleClientSuiteJ {
     shuffleClient = new ShuffleClientImpl(conf);
 
     masterLocation.setPeer(slaveLocation);
-    when(endpointRef.askSync(new ControlMessages.RegisterShuffle(TEST_APPLICATION_ID,
-        TEST_SHUFFLE_ID, 1, 1, getLocalHost()),
-      ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
-      .thenAnswer(t -> new ControlMessages.RegisterShuffleResponse(StatusCode.Success,
-        new ArrayList<PartitionLocation>() {{
-            add(masterLocation);
-          }}));
+    List<PartitionLocation> resultLocations = new ArrayList<PartitionLocation>() {{
+        add(masterLocation);
+      }};
+
+    when(endpointRef.askSync(RssMessage.newMessage().proto(
+        RssMessages.RegisterShuffle.newBuilder().setApplicationId(TEST_APPLICATION_ID)
+          .setShuffleId(TEST_SHUFFLE_ID).setHostname(getLocalHost())
+          .setNumMapppers(1).setNumPartitions(1).build()).ptype(REGISTER_SHUFFLE),
+      ClassTag$.MODULE$.apply(RssMessage.class)))
+      .thenAnswer(t -> RssMessage.newMessage().ptype(REGISTER_SHUFFLE_RESPONSE)
+        .proto(RssMessages.RegisterShuffleResponse.newBuilder()
+          .setStatus(Success).addAllPartitionLocations(resultLocations.stream()
+            .map(PartitionLocation::toPbPartitionLocation)
+            .collect(Collectors.toList())).build()));
 
     shuffleClient.setupMetaServiceRef(endpointRef);
 

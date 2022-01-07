@@ -37,13 +37,12 @@ import static org.junit.Assert.fail;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.RssException;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartBeatFromApplication;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartbeatFromWorker;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartbeatResponse;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.OneWayMessageResponse$;
+import com.aliyun.emr.rss.common.network.protocol.RssMessage;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.ONE_WAY_MESSAGE_RESPONSE;
+import static com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.UNKNOWN_MESSAGE;
 
 public class RssHARetryClientSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(RssHARetryClientSuiteJ.class);
@@ -51,8 +50,9 @@ public class RssHARetryClientSuiteJ {
   private final String masterHost = "localhost";
   private final int masterPort = 9097;
   private final RssConf rssConf = new RssConf(false);
-  private final OneWayMessageResponse$ response = OneWayMessageResponse$.MODULE$;
-  private final HeartbeatResponse mockResponse = Mockito.mock(HeartbeatResponse.class);
+  private final RssMessage response = RssMessage.newMessage()
+    .ptype(ONE_WAY_MESSAGE_RESPONSE);
+  private final RssMessage mockResponse = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
   private RpcEnv rpcEnv = null;
   private RpcEndpointRef endpointRef = null;
@@ -78,10 +78,10 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
+    RssMessage testOneWayMessage = RssMessage.newMessage().ptype(ONE_WAY_MESSAGE_RESPONSE);
 
     try {
-      client.send(message);
+      client.send(testOneWayMessage);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");
@@ -103,7 +103,7 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
+    RssMessage message = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
     try {
       client.send(message);
@@ -128,7 +128,7 @@ public class RssHARetryClientSuiteJ {
     });
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
+    RssMessage message = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
     try {
       client.send(message);
@@ -148,11 +148,11 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+    RssMessage message = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
-    HeartbeatResponse response = null;
+    RssMessage response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, RssMessage.class);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");
@@ -170,11 +170,11 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+    RssMessage message = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
-    HeartbeatResponse response = null;
+    RssMessage response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, RssMessage.class);
     } catch (Throwable t) {
       t.printStackTrace();
       LOG.error("It should be no exceptions when sending one-way message.", t);
@@ -191,11 +191,11 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithHA(() -> Future$.MODULE$.successful(mockResponse));
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+    RssMessage message = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
-    HeartbeatResponse response = null;
+    RssMessage response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, RssMessage.class);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");
@@ -240,11 +240,11 @@ public class RssHARetryClientSuiteJ {
     }).when(rpcEnv).setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+    RssMessage message = RssMessage.newMessage().ptype(UNKNOWN_MESSAGE);
 
-    HeartbeatResponse response = null;
+    RssMessage response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, RssMessage.class);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");

@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.language.postfixOps
 
 import io.netty.buffer.ByteBuf
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
@@ -47,11 +48,13 @@ import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
-import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
+import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData, RssMessage}
 import com.aliyun.emr.rss.common.network.server.{FileInfo, TransportServerBootstrap}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
-import com.aliyun.emr.rss.common.protocol.message.StatusCode
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, RssMessages, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.RssMessages._
+import com.aliyun.emr.rss.common.protocol.RssMessages.MessageType._
+import com.aliyun.emr.rss.common.protocol.RssMessages.MessageType.HEARTBEAT_FROM_WORKER
+import com.aliyun.emr.rss.common.protocol.RssMessages.StatusCode.{PartialSuccess, ReserveSlotFailed, ShuffleNotRegistered, Success}
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.unsafe.Platform
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -159,11 +162,15 @@ private[deploy] class Worker(
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
-    val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots,
-        self, shuffleKeys)
-      , classOf[HeartbeatResponse])
-    cleanTaskQueue.put(response.expiredShuffleKeys)
+    val response = HeartbeatResponse.parseFrom(rssHARetryClient.askSync(
+      RssMessage.newMessage().ptype(HEARTBEAT_FROM_WORKER).proto(HeartbeatFromWorker.newBuilder()
+        .setHost(host).setRpcPort(rpcPort).setPushPort(pushPort).setFetchPort(fetchPort)
+        .setNumSlots(workerInfo.numSlots).addAllShuffleKeys(shuffleKeys.asScala.toList.asJava)
+        .build())).getProto)
+    val expiredShuffleKeys = response.getExpiredShuffleKeysList.asScala
+    val expiredShuffleKeysSet = new jHashSet[String]()
+    expiredShuffleKeys.foreach(expiredShuffleKeysSet.add(_))
+    cleanTaskQueue.put(expiredShuffleKeysSet)
   }
 
   override def onStart(): Unit = {
@@ -221,41 +228,60 @@ private[deploy] class Worker(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations) =>
-      val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
-        logInfo(s"Received ReserveSlots request, $shuffleKey," +
-            s" master number: ${masterLocations.size()}, slave number: ${slaveLocations.size()}")
-        logDebug(s"Received ReserveSlots request, $shuffleKey, " +
-          s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
-          s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
-        handleReserveSlots(context, applicationId, shuffleId, masterLocations, slaveLocations)
-        logDebug(s"ReserveSlots for $shuffleKey succeed.")
+    case message: RssMessage =>
+      message.getType match {
+        case RESERVE_SLOTS =>
+          val reserveSlots = ReserveSlots.parseFrom(message.getProto)
+          val shuffleKey = Utils.makeShuffleKey(reserveSlots.getApplicationId,
+            reserveSlots.getShuffleId)
+          workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
+            logInfo(s"Received ReserveSlots request, $shuffleKey," +
+              s" master number: ${reserveSlots.getMasterLocationsCount}," +
+              s" slave number: ${reserveSlots.getSlaveLocationsCount}")
+            logDebug(s"Received ReserveSlots request, $shuffleKey, " +
+              s"master partitions: ${
+                Utils.convertPbPartitionLocationToPartitionLocation(
+                  reserveSlots.getMasterLocationsList).map(_.getUniqueId).mkString(",")
+              }; " +
+              s"slave partitions: ${
+                Utils.convertPbPartitionLocationToPartitionLocation(
+                  reserveSlots.getSlaveLocationsList).map(_.getUniqueId).mkString(",")
+              }.")
+            handleReserveSlots(context, reserveSlots.getApplicationId, reserveSlots.getShuffleId,
+              Utils.convertPbPartitionLocationToPartitionLocation(reserveSlots
+                .getMasterLocationsList).toList.asJava,
+              Utils.convertPbPartitionLocationToPartitionLocation(reserveSlots
+                .getSlaveLocationsList).toList.asJava)
+            logDebug(s"ReserveSlots for $shuffleKey succeed.")
+          }
+        case COMMIT_FILES =>
+          val commitFiles = CommitFiles.parseFrom(message.getProto)
+          val shuffleKey = Utils.makeShuffleKey(commitFiles.getApplicationId,
+            commitFiles.getShuffleId)
+          workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
+            logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
+              s" ${commitFiles.getMasterIdsList.asScala.mkString(",")};" +
+              s" slave files ${commitFiles.getSlaveIdsList.asScala.mkString(",")}.")
+            val commitFilesTimeMs = Utils.timeIt({
+              handleCommitFiles(context, shuffleKey, commitFiles.getMasterIdsList,
+                commitFiles.getSlaveIdsList, commitFiles.getMapAttemptsList.asScala
+                  .map(x => x: Int).toArray)
+            })
+            logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
+              s"${commitFilesTimeMs}ms.")
+          }
+        case GET_WORKER_INFO =>
+          logDebug("Received GetWorkerInfos request.")
+          handleGetWorkerInfos(context)
+        case THREAD_DUMP =>
+          logDebug("Receive ThreadDump request.")
+          handleThreadDump(context)
+        case DESTROY =>
+          val destroy = Destroy.parseFrom(message.getProto)
+          logDebug(s"Receive Destroy request, ${destroy.getShuffleKey.mkString(",")}.")
+          handleDestroy(context, destroy.getShuffleKey, destroy.getMasterLocationsList,
+            destroy.getSlaveLocationList)
       }
-
-    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
-      val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
-        logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
-          s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
-        val commitFilesTimeMs = Utils.timeIt({
-          handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts)
-        })
-        logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
-          s"${commitFilesTimeMs}ms.")
-      }
-
-    case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request.")
-      handleGetWorkerInfos(context)
-
-    case ThreadDump =>
-      logDebug("Receive ThreadDump request.")
-      handleThreadDump(context)
-
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
-      logDebug(s"Receive Destroy request, $shuffleKey.")
-      handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
   private def handleReserveSlots(
@@ -268,7 +294,9 @@ private[deploy] class Worker(
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(RssMessage.newMessage().ptype(RESERVE_SLOTS_RESPONSE)
+        .proto(ReserveSlotsResponse.newBuilder().setStatus(ReserveSlotFailed).setReason(msg)
+          .build()))
       return
     }
     val masterPartitions = new jArrayList[PartitionLocation]()
@@ -286,7 +314,9 @@ private[deploy] class Worker(
       val msg = (s"Not all master partition satisfied for $shuffleKey")
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
       masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(RssMessage.newMessage().ptype(RESERVE_SLOTS_RESPONSE)
+        .proto(ReserveSlotsResponse.newBuilder().setStatus(ReserveSlotFailed).setReason(msg)
+          .build()))
       return
     }
 
@@ -306,7 +336,9 @@ private[deploy] class Worker(
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
       masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
       slavePartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(RssMessage.newMessage().ptype(RESERVE_SLOTS_RESPONSE)
+        .proto(ReserveSlotsResponse.newBuilder().setStatus(ReserveSlotFailed).setReason(msg)
+          .build()))
       return
     }
 
@@ -314,9 +346,11 @@ private[deploy] class Worker(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
     workerInfo.allocateSlots(shuffleKey, masterPartitions.size() + slavePartitions.size())
-    logInfo(s"Reserved ${masterPartitions.size()} master location and ${slavePartitions.size()}" +
-      s" slave location for $shuffleKey master: ${masterPartitions}\nslave: ${slavePartitions}.")
-    context.reply(ReserveSlotsResponse(StatusCode.Success))
+    logInfo(s"Reserved ${masterPartitions.size()} master location " +
+      s"and ${slavePartitions.size()} slave location for $shuffleKey " +
+      s"master: ${masterPartitions}\nslave: ${slavePartitions}.")
+    context.reply(RssMessage.newMessage().ptype(RESERVE_SLOTS_RESPONSE)
+      .proto(ReserveSlotsResponse.newBuilder().setStatus(Success).build()))
   }
 
   private def commitFiles(
@@ -340,7 +374,8 @@ private[deploy] class Worker(
               }
 
               if (location == null) {
-                logWarning(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist.")
+                logWarning(s"Get Partition Location for $shuffleKey $uniqueId " +
+                  s"but didn't exist.")
                 return
               }
 
@@ -378,8 +413,9 @@ private[deploy] class Worker(
     // return null if shuffleKey does not exist
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
-      context.reply(CommitFilesResponse(
-        StatusCode.ShuffleNotRegistered, null, null, masterIds, slaveIds))
+      context.reply(RssMessage.newMessage().proto(CommitFilesResponse.newBuilder()
+        .setStatus(ShuffleNotRegistered).addAllFailedMasterIds(masterIds)
+        .addAllFailedSlaveIds(slaveIds).build()))
       return
     }
 
@@ -421,13 +457,20 @@ private[deploy] class Worker(
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(
-          StatusCode.Success, committedMasterIdList, committedSlaveIdList, null, null))
+        context.reply(RssMessage.newMessage().ptype(COMMIT_FILES_RESPONSE)
+          .proto(CommitFilesResponse.newBuilder().setStatus(Success)
+            .addAllCommittedMasterIds(committedMasterIdList)
+            .addAllCommittedSlaveIds(committedSlaveIdList).build()))
       } else {
-        logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-          s" partitions and ${failedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(StatusCode.PartialSuccess, committedMasterIdList,
-          committedSlaveIdList, failedMasterIdList, failedSlaveIdList))
+        logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()}" +
+          s" master partitions and ${failedSlaveIds.size()} slave partitions!")
+        context.reply(RssMessage.newMessage().ptype(COMMIT_FILES_RESPONSE)
+          .proto(CommitFilesResponse.newBuilder().setStatus(PartialSuccess)
+            .addAllCommittedMasterIds(committedMasterIdList)
+            .addAllCommittedSlaveIds(committedSlaveIdList)
+            .addAllFailedMasterIds(failedMasterIdList)
+            .addAllFailedSlaveIds(failedSlaveIdList)
+            .build()))
       }
     }
 
@@ -484,8 +527,11 @@ private[deploy] class Worker(
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
-      context.reply(DestroyResponse(
-        StatusCode.ShuffleNotRegistered, masterLocations, slaveLocations))
+//      context.reply(DestroyResponse(
+//        ShuffleNotRegistered, masterLocations, slaveLocations))
+      context.reply(RssMessage.newMessage().ptype(DESTROY_RESPONSE).proto(DestroyResponse
+        .newBuilder().setStatus(ShuffleNotRegistered).addAllFailedMasters(masterLocations)
+        .addAllFailedSlaves(slaveLocations).build()))
       return
     }
 
@@ -520,26 +566,32 @@ private[deploy] class Worker(
     }
     // reply
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
-      logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
-        s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.Success, null, null))
+      logInfo(s"Destroy ${masterLocations.size()} master location and " +
+        s"${slaveLocations.size()} slave locations for $shuffleKey successfully.")
+      context.reply(RssMessage.newMessage().ptype(DESTROY_RESPONSE).proto(DestroyResponse
+        .newBuilder().setStatus(Success).build()))
     } else {
-      logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
-        s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
-          s" $shuffleKey PartialSuccess.")
-      context.reply(DestroyResponse(StatusCode.PartialSuccess, failedMasters, failedSlaves))
+      logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location" +
+        s" and ${failedSlaves.size()}/${slaveLocations.size()} slave location for $shuffleKey" +
+        s" PartialSuccess.")
+      context.reply(RssMessage.newMessage().ptype(DESTROY_RESPONSE).proto(DestroyResponse
+        .newBuilder().setStatus(PartialSuccess).addAllFailedMasters(failedMasters)
+        .addAllFailedSlaves(failedSlaves).build()))
     }
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
     val list = new jArrayList[WorkerInfo]()
     list.add(workerInfo)
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, list))
+    context.reply(RssMessage.newMessage().ptype(GET_WORKER_INFO_RESPONSE)
+      .proto(GetWorkerInfosResponse.newBuilder().setStatus(Success)
+        .addAllWorkerInfos(Utils.convertWorkerInfosToPbWorkerInfos(list).asJava).build()))
   }
 
   private def handleThreadDump(context: RpcCallContext): Unit = {
     val threadDump = Utils.getThreadDump()
-    context.reply(ThreadDumpResponse(threadDump))
+    context.reply(RssMessage.newMessage().ptype(THREAD_DUMP_RESPONSE).proto(ThreadDumpResponse
+      .newBuilder().setThreadDump(threadDump).build()))
   }
 
   private def getMapAttempt(body: ByteBuf): (Int, Int) = {
@@ -592,7 +644,8 @@ private[deploy] class Worker(
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location")
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage(), e))
+        callback.onFailure(new Exception(
+          RssMessages.StatusCode.PushDataFailSlave.getNumber.toString, e))
       }
     }
 
@@ -603,12 +656,14 @@ private[deploy] class Worker(
         // partition data has already been committed
         logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
           s" attempt $attemptId), but this mapper has already been ended.")
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.StageEnded.getValue)))
+        wrappedCallback.onSuccess(ByteBuffer.allocate(4)
+          .putInt(StatusCode.StageEnded.getNumber))
       } else {
         val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
           s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
         logWarning(s"[handlePushData] $msg")
-        callback.onFailure(new Exception(StatusCode.PushDataFailPartitionNotFound.getMessage()))
+        callback.onFailure(new Exception(RssMessages.StatusCode.PushDataFailPartitionNotFound
+          .getNumber.toString))
       }
       return
     }
@@ -617,11 +672,11 @@ private[deploy] class Worker(
     if (exception != null) {
       logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
       val message = if (isMaster) {
-        StatusCode.PushDataFailMain.getMessage()
+        StatusCode.PushDataFailMain.getNumber()
       } else {
-        StatusCode.PushDataFailSlave.getMessage()
+        StatusCode.PushDataFailSlave.getNumber()
       }
-      callback.onFailure(new Exception(message, exception))
+      callback.onFailure(new Exception(message.toString, exception))
       return
     }
     fileWriter.incrementPendingWrites()
@@ -711,7 +766,7 @@ private[deploy] class Worker(
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage, e))
+        callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getNumber.toString, e))
       }
     }
 
@@ -729,7 +784,8 @@ private[deploy] class Worker(
           val msg = s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId), but this mapper has already been ended."
           logInfo(msg)
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.StageEnded.getValue)))
+          wrappedCallback.onSuccess(ByteBuffer.allocateDirect(4)
+            .putInt(StatusCode.StageEnded.getNumber))
         } else {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId, uniqueId $id)."
@@ -748,11 +804,11 @@ private[deploy] class Worker(
       logWarning(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
           s" has Exception $exception")
       val message = if (isMaster) {
-        StatusCode.PushDataFailMain.getMessage()
+        StatusCode.PushDataFailMain.getNumber()
       } else {
-        StatusCode.PushDataFailSlave.getMessage()
+        StatusCode.PushDataFailSlave.getNumber()
       }
-      callback.onFailure(new Exception(message, exception))
+      callback.onFailure(new Exception(message.toString, exception))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
@@ -847,10 +903,10 @@ private[deploy] class Worker(
     val delta = 2000
     while (registerTimeout > 0) {
       val rsp = try {
-        rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, pushPort, fetchPort, workerInfo.numSlots, self),
-          classOf[RegisterWorkerResponse]
-        )
+        RegisterWorkerResponse.parseFrom(rssHARetryClient.askSync(RssMessage.newMessage()
+          .ptype(REGISTER_WORKER).proto(RegisterWorker.newBuilder.setHost(host)
+          .setPushPort(pushPort).setRpcPort(workerInfo.rpcPort).setFetchPort(fetchPort)
+          .setNumSlots(workerInfo.numSlots).build())).getProto)
       } catch {
         case throwable: Throwable =>
           logWarning(s"Register worker to master failed, will retry after 2s, exception: ",
@@ -858,7 +914,7 @@ private[deploy] class Worker(
           null
       }
       // Register successfully
-      if (null != rsp && rsp.success) {
+      if (null != rsp && rsp.getSuccess) {
         registered.set(true)
         logInfo("Register worker successfully.")
         return

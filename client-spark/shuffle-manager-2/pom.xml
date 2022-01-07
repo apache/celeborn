@@ -119,6 +119,12 @@
                         <configuration>
                             <minimizeJar>false</minimizeJar>
                             <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.google.protobuf</pattern>
+                                    <shadedPattern>com.aliyun.emr.com.google.protobuf</shadedPattern>
+                                </relocation>
+                            </relocations>
                             <artifactSet>
                                 <includes>
                                     <!-- Include here the dependencies you
@@ -127,6 +133,7 @@
                                     <include>com.aliyun.emr:client</include>
                                     <include>com.aliyun.emr:shuffle-manager-common</include>
                                     <include>com.aliyun.emr:shuffle-manager</include>
+                                    <include>com.google.protobuf:protobuf-java</include>
                                 </includes>
                             </artifactSet>
                             <filters>
