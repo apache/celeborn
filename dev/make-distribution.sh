@@ -90,11 +90,6 @@ SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
-SHUFFLE_MANAGER_DIR=$("$MVN" help:evaluate -Dexpression=rss.shuffle.manager $@ 2>/dev/null\
-    | grep -v "INFO"\
-    | grep -v "WARNING"\
-    | tail -n 1)
-
 echo "RSS version is $VERSION"
 
 if [ "$NAME" == "none" ]; then
@@ -123,15 +118,27 @@ echo -e "\$ ${BUILD_COMMAND[@]}\n"
 rm -rf "$DISTDIR"
 mkdir -p "$DISTDIR/master-jars"
 mkdir -p "$DISTDIR/worker-jars"
-mkdir -p "$DISTDIR/spark"
+mkdir -p "$DISTDIR/client"
+mkdir -p "$DISTDIR/client/spark2"
+mkdir -p "$DISTDIR/client/spark3"
 
 echo "RSS $VERSION$GITREVSTRING" > "$DISTDIR/RELEASE"
 echo "Build flags: $@" >> "$DISTDIR/RELEASE"
 
-# Copy jars
 cp "$RSS_HOME"/server-master/target/master-"$VERSION"-shaded.jar "$DISTDIR/master-jars/"
 cp "$RSS_HOME"/server-worker/target/worker-"$VERSION"-shaded.jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/client-spark/${SHUFFLE_MANAGER_DIR}/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/spark/"
+
+BUILD_COMMAND_SPARK2=("$MVN" clean package -Pspark-2 -pl client-spark/shuffle-manager-2 -DskipTests -am $@)
+
+BUILD_COMMAND_SPARK3=("$MVN" clean package -Pspark-3 -pl client-spark/shuffle-manager-3 -DskipTests -am $@)
+
+"${BUILD_COMMAND_SPARK2[@]}"
+
+"${BUILD_COMMAND_SPARK3[@]}"
+
+# Copy jars
+cp "$RSS_HOME"/client-spark/shuffle-manager-2/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/client/spark2/"
+cp "$RSS_HOME"/client-spark/shuffle-manager-3/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/client/spark3/"
 
 # Copy other things
 mkdir "$DISTDIR/conf"
