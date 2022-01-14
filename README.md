@@ -41,14 +41,9 @@ RSS worker's slot count decreases when a partition is allocated and increments w
 ## Build
 RSS supports Spark2.x(>=2.4.0) and Spark3.x(>=3.1.0).
 
-Build for Spark 2    
+Build    
 `
-./dev/make-distribution.sh -Pspark-2 -Dspark.version=[spark.version default 2.4.5]
-`
-
-Build for Spark 3  
-`
-./dev/make-distribution.sh -Pspark-3 -Dspark.version=[spark.version default 3.1.2]
+./dev/make-distribution.sh
 `
 
 package rss-${project.version}-bin-release.tgz will be generated.
@@ -62,7 +57,8 @@ Build procedure will create a compressed package.
     ├── master-jars                     
     ├── worker-jars                     
     ├── sbin                            
-    └── spark                       //Spark client jars
+    ├── client/spark2                   
+    └── client/spark3                        //Spark client jars
 ```
 
 ## Usage
@@ -156,7 +152,7 @@ WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.99:41955)
 ```
 
 ### Deploy Spark client
-Copy $RSS_HOME/spark/*.jar to $SPARK_HOME/jars/
+Copy $RSS_HOME/spark/[spark-version]/*.jar to $SPARK_HOME/jars/
 
 ### Spark Configuration
 To use RSS, following spark configurations should be added.
