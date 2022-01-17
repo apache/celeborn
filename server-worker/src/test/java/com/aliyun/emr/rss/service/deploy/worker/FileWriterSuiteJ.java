@@ -51,7 +51,7 @@ import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
-import com.aliyun.emr.rss.common.network.util.MemoryTracker;
+import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
@@ -89,7 +89,8 @@ public class FileWriterSuiteJ {
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
     flusher = new DiskFlusher(tempDir, source, DeviceMonitor$.MODULE$.EmptyMonitor());
-    MemoryTracker memoryTracker = MemoryTracker.initialize(0.4, 0.3, 0.9, 10);
+    MemoryTracker memoryTracker = MemoryTracker.initialize(0.4, 0.3, 0.9,
+      10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {

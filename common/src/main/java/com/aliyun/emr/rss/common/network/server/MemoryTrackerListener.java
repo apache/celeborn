@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.util;
+package com.aliyun.emr.rss.common.network.server;
 
 public interface MemoryTrackerListener {
   void onMemoryPressure();
