@@ -125,7 +125,7 @@ public class TransportClientFactory implements Closeable {
    * Concurrency: This method is safe to call from multiple threads.
    */
   public TransportClient createClient(String remoteHost, int remotePort, int reduceId,
-    CheckedFunction<InetSocketAddress,TransportClient> clientCreator)
+    BiConsumer<SocketChannel, ChannelHandlerAdapter> pipelineInitializer)
       throws IOException, InterruptedException {
     // Get connection from the connection pool first.
     // If it is not found or not active, create a new one.
@@ -183,7 +183,7 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      TransportClient client = clientCreator.apply(resolvedAddress);
+      TransportClient client = internalCreateClient(resolvedAddress, pipelineInitializer);
       assert client != null;
       clientPool.clients[clientIndex] = client;
       return clientPool.clients[clientIndex];
@@ -192,12 +192,12 @@ public class TransportClientFactory implements Closeable {
 
   public TransportClient createPushClient(String remoteHost, int remotePort, int reduceId)
     throws IOException, InterruptedException {
-    return createClient(remoteHost, remotePort, reduceId, this::createPushClient);
+    return createClient(remoteHost, remotePort, reduceId, context::initializePipelineForPushClient);
   }
 
   public TransportClient createClient(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
-    return createClient(remoteHost, remotePort, -1, this::createClient);
+    return createClient(remoteHost, remotePort, -1, context::initializePipeline);
   }
 
   /**
@@ -206,17 +206,6 @@ public class TransportClientFactory implements Closeable {
    *
    * As with {@link #createClient(String, int)}, this method is blocking.
    */
-  private TransportClient createPushClient(InetSocketAddress address)
-    throws IOException, InterruptedException {
-    return internalCreateClient(address, context::initializePipelineForPushClient);
-  }
-
-  /** Create a completely new {@link TransportClient} to the remote address. */
-  private TransportClient createClient(InetSocketAddress address)
-    throws IOException, InterruptedException {
-    return internalCreateClient(address, context::initializePipeline);
-  }
-
   private TransportClient internalCreateClient(InetSocketAddress address,
     BiConsumer<SocketChannel, ChannelHandlerAdapter> pipelineInitializer)
     throws IOException, InterruptedException {

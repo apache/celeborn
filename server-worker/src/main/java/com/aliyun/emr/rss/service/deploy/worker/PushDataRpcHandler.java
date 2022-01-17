@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
-import com.aliyun.emr.rss.common.network.util.MemoryTracker;
+import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
 public final class PushDataRpcHandler extends RpcHandler {
@@ -79,7 +79,7 @@ public final class PushDataRpcHandler extends RpcHandler {
     if (cause instanceof OutOfDirectMemoryError) {
       MemoryTracker.instance().oomOccurred();
     }
-    logger.debug("exception caught " + cause + " " + client.getSocketAddress());
+    logger.warn("Push data handler caught " + cause + " " + client.getSocketAddress());
   }
 
   @Override

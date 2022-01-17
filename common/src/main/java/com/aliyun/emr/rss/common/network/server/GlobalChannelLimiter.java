@@ -33,9 +33,6 @@ import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.network.util.MemoryTracker;
-import com.aliyun.emr.rss.common.network.util.MemoryTrackerListener;
-
 @ChannelHandler.Sharable
 public class GlobalChannelLimiter extends ChannelDuplexHandler implements MemoryTrackerListener {
   private static final long DEFAULT_CHECK_INTERVAL = 10;
@@ -81,7 +78,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
 
     reportExecutor.scheduleAtFixedRate(()->{
       long flowIn = readCount.sumThenReset();
-      logger.info("Channel limiter flow-in rate {} ({} MB)", flowIn, flowIn / 1024.0 / 1024.0);
+      logger.debug("Channel limiter flow-in rate {} ({} MB)", flowIn, flowIn / 1024.0 / 1024.0);
     }, 1, 1, TimeUnit.SECONDS);
 
     memoryTracker.registerMemoryListener(this);
@@ -131,12 +128,6 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
     limitActionExecutor.submit(() -> {
       logger.debug("Channel limiter execute rate control action");
       stopAllChannels();
-      try {
-        Thread.sleep(20);
-      } catch (InterruptedException e) {
-        logger.warn("Channel limiter on memory pressure action failed. Reason : {}", e);
-      }
-      resumeAllChannels();
     });
   }
 

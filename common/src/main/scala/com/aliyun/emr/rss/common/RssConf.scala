@@ -706,14 +706,6 @@ object RssConf extends Logging {
     conf.getBoolean("rss.support.adaptiveQueryExecution", false)
   }
 
-  def storageMemoryHighRatio(conf: RssConf): Double = {
-    conf.getDouble("ess.worker.storage.memory.high.ratio", 0.45)
-  }
-
-  def storageMemoryLowRatio(conf: RssConf): Double = {
-    conf.getDouble("ess.worker.storage.memory.low.ratio", 0.35)
-  }
-
   def workerDirectMemoryCriticalRatio(conf: RssConf): Double = {
     conf.getDouble("ess.worker.memory.direct.critical.ratio", 0.9)
   }
@@ -722,6 +714,10 @@ object RssConf extends Logging {
     conf.getInt("ess.worker.storage.memory.check.interval", 10)
   }
 
+  def storageMemoryReportInterval(conf: RssConf): Int = {
+    Utils.timeStringAsSeconds(conf.get("ess.worker.storage.memory.report.interval",
+      "10s")).intValue()
+  }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 

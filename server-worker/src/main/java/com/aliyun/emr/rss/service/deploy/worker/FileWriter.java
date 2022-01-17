@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
-import com.aliyun.emr.rss.common.network.util.MemoryTracker;
+import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
 /*
