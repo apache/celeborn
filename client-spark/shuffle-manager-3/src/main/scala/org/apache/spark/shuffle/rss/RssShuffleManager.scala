@@ -22,11 +22,11 @@ import org.apache.spark._
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.Utils
-
 import com.aliyun.emr.rss.client.ShuffleClient
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import org.apache.spark.shuffle.rss.RssShuffleManager.invokeGetReaderMethod
 
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
@@ -87,6 +87,29 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     }
   }
 
+  override def unregisterShuffle(shuffleId: Int): Boolean = {
+    if (sortShuffleIds.contains(shuffleId)) {
+      sortShuffleManager.unregisterShuffle(shuffleId)
+    } else {
+      newAppId match {
+        case Some(id) => rssShuffleClient.exists(_.unregisterShuffle(id, shuffleId, isDriver))
+        case None => true
+      }
+    }
+  }
+
+  override def shuffleBlockResolver: ShuffleBlockResolver = {
+    sortShuffleManager.shuffleBlockResolver
+  }
+
+  override def stop(): Unit = {
+    rssShuffleClient.foreach(_.shutDown())
+    lifecycleManager.foreach(_.stop())
+    if (sortShuffleManager != null) {
+      sortShuffleManager.stop()
+    }
+  }
+
   override def getWriter[K, V](
       handle: ShuffleHandle,
       mapId: Long,
@@ -112,11 +135,13 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     }
   }
 
-  // remove override for compatibility
-  override def getReader[K, C](
+  /*=========================================
+   * Interfaces for Spark3.1 and higher
+   =========================================*/
+  def getReader[K, C](
       handle: ShuffleHandle,
-      startMapIndex: Int,
-      endMapIndex: Int,
+      startMapIndex: Int = 0,
+      endMapIndex: Int = Int.MaxValue,
       startPartition: Int,
       endPartition: Int,
       context: TaskContext,
@@ -129,32 +154,44 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           endPartition,
           context,
           essConf)
-      case _ => sortShuffleManager.getReader(handle, startMapIndex, endMapIndex,
-          startPartition, endPartition, context, metrics)
+      case _ =>
+        invokeGetReaderMethod(sortShuffleManagerName, "getReader", sortShuffleManager, handle,
+          startMapIndex, endMapIndex, startPartition, endPartition, context, metrics)
     }
   }
 
-  override def unregisterShuffle(shuffleId: Int): Boolean = {
-    if (sortShuffleIds.contains(shuffleId)) {
-      sortShuffleManager.unregisterShuffle(shuffleId)
-    } else {
-      newAppId match {
-        case Some(id) => rssShuffleClient.exists(_.unregisterShuffle(id, shuffleId, isDriver))
-        case None => true
-      }
+  /*=========================================
+   * Interfaces for Spark3.0
+   =========================================*/
+  def getReader[K, C](
+      handle: ShuffleHandle,
+      startPartition: Int,
+      endPartition: Int,
+      context: TaskContext,
+      metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    handle match {
+      case _: RssShuffleHandle[K@unchecked, C@unchecked, _] =>
+        new RssShuffleReader(
+          handle.asInstanceOf[RssShuffleHandle[K, _, C]],
+          startPartition,
+          endPartition,
+          context,
+          essConf)
+      case _ =>
+        invokeGetReaderMethod(sortShuffleManagerName, "getReader", sortShuffleManager, handle,
+          -1, -1, startPartition, endPartition, context, metrics)
     }
   }
-
-  override def shuffleBlockResolver: ShuffleBlockResolver = {
-    sortShuffleManager.shuffleBlockResolver
-  }
-
-  override def stop(): Unit = {
-    rssShuffleClient.foreach(_.shutDown())
-    lifecycleManager.foreach(_.stop())
-    if (sortShuffleManager != null) {
-      sortShuffleManager.stop()
-    }
+  def getReaderForRange[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int,
+      context: TaskContext,
+      metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    throw new UnsupportedOperationException("Currently RSS do NOT support skew join Optimization," +
+      "Please set spark.sql.adaptive.skewJoin.enabled to false")
   }
 }
 
@@ -198,6 +235,50 @@ object RssShuffleManager {
         } catch {
           case _: NoSuchMethodException =>
             cls.getConstructor().newInstance().asInstanceOf[T]
+        }
+    }
+  }
+
+  // Invoke and return getReader method of SortShuffleManager
+  def invokeGetReaderMethod[K, C](
+      className: String,
+      methodName: String,
+      sortShuffleManager: SortShuffleManager,
+      handle: ShuffleHandle,
+      startMapIndex: Int = 0,
+      endMapIndex: Int = Int.MaxValue,
+      startPartition: Int,
+      endPartition: Int,
+      context: TaskContext,
+      metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    val cls = Utils.classForName(className)
+    try {
+      val method = cls.getMethod(methodName, classOf[ShuffleHandle], Integer.TYPE, Integer.TYPE,
+        Integer.TYPE, Integer.TYPE, classOf[TaskContext], classOf[ShuffleReadMetricsReporter])
+      method.invoke(
+        sortShuffleManager,
+        handle,
+        Integer.valueOf(startMapIndex),
+        Integer.valueOf(endMapIndex),
+        Integer.valueOf(startPartition),
+        Integer.valueOf(endPartition),
+        context,
+        metrics).asInstanceOf[ShuffleReader[K, C]]
+    } catch {
+      case _: NoSuchMethodException =>
+        try {
+          val method = cls.getMethod(methodName, classOf[ShuffleHandle], Integer.TYPE, Integer.TYPE,
+            classOf[TaskContext], classOf[ShuffleReadMetricsReporter])
+          method.invoke(
+            sortShuffleManager,
+            handle,
+            Integer.valueOf(startPartition),
+            Integer.valueOf(endPartition),
+            context,
+            metrics).asInstanceOf[ShuffleReader[K, C]]
+        } catch {
+          case e: NoSuchMethodException =>
+            throw new Exception("Get getReader method failed.", e)
         }
     }
   }
