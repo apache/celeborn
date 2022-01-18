@@ -22,11 +22,11 @@ import org.apache.spark._
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.Utils
+
 import com.aliyun.emr.rss.client.ShuffleClient
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import org.apache.spark.shuffle.rss.RssShuffleManager.invokeGetReaderMethod
 
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
@@ -135,13 +135,13 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     }
   }
 
-  /*=========================================
-   * Interfaces for Spark3.1 and higher
-   =========================================*/
+  /**
+   * Interface for Spark3.1 and higher
+   */
   def getReader[K, C](
       handle: ShuffleHandle,
-      startMapIndex: Int = 0,
-      endMapIndex: Int = Int.MaxValue,
+      startMapIndex: Int,
+      endMapIndex: Int,
       startPartition: Int,
       endPartition: Int,
       context: TaskContext,
@@ -155,14 +155,23 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           context,
           essConf)
       case _ =>
-        invokeGetReaderMethod(sortShuffleManagerName, "getReader", sortShuffleManager, handle,
-          startMapIndex, endMapIndex, startPartition, endPartition, context, metrics)
+        RssShuffleManager.invokeGetReaderMethod(
+          sortShuffleManagerName,
+          "getReader",
+          sortShuffleManager,
+          handle,
+          startMapIndex,
+          endMapIndex,
+          startPartition,
+          endPartition,
+          context,
+          metrics)
     }
   }
 
-  /*=========================================
-   * Interfaces for Spark3.0
-   =========================================*/
+  /**
+   * Interface for Spark3.0 and higher
+   */
   def getReader[K, C](
       handle: ShuffleHandle,
       startPartition: Int,
@@ -178,10 +187,20 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           context,
           essConf)
       case _ =>
-        invokeGetReaderMethod(sortShuffleManagerName, "getReader", sortShuffleManager, handle,
-          -1, -1, startPartition, endPartition, context, metrics)
+        RssShuffleManager.invokeGetReaderMethod(
+          sortShuffleManagerName,
+          "getReader",
+          sortShuffleManager,
+          handle,
+          -1,
+          -1,
+          startPartition,
+          endPartition,
+          context,
+          metrics)
     }
   }
+
   def getReaderForRange[K, C](
       handle: ShuffleHandle,
       startMapIndex: Int,
