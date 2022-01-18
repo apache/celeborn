@@ -1,7 +1,5 @@
 package com.aliyun.emr.rss.common.util
 
-;
-
 import com.aliyun.emr.RssFunSuite;
 
 class UtilsSuite extends RssFunSuite {
