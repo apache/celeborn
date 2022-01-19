@@ -115,18 +115,14 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
   }
 
   @Override
-  public void onMemoryPressure() {
-    limitActionExecutor.submit(() -> {
-      logger.debug("Channel limiter execute rate control action");
-      stopAllChannels();
-    });
+  public void onMemoryCritical() {
+    logger.debug("Channel limiter execute rate control action");
+    stopAllChannels();
   }
 
   @Override
   public void onOOM() {
-    limitActionExecutor.submit(() -> {
-      logger.warn("Channel limiter OOM detected. Stop all channels.");
-      stopAllChannels();
-    });
+    logger.warn("Channel limiter OOM detected. Stop all channels.");
+    stopAllChannels();
   }
 }

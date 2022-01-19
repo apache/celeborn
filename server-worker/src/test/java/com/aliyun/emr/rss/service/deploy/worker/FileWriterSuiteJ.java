@@ -78,7 +78,7 @@ public class FileWriterSuiteJ {
     new TransportConf("shuffle", MapConfigProvider.EMPTY);
 
   @BeforeClass
-  public static void beforeAll(){
+  public static void beforeAll() {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
 
     source = Mockito.mock(AbstractSource.class);
