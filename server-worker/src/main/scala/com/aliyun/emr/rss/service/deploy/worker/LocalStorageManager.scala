@@ -163,9 +163,6 @@ private[worker] final class LocalStorageManager(
   val isolatedWorkingDirs =
     new ConcurrentHashMap[File, DeviceErrorType](RssConf.workerBaseDirs(conf).length)
 
-  val flushActionExecutor = ThreadUtils
-    .newDaemonSingleThreadScheduledExecutor("Local-storage-flush-pool")
-
   private val workingDirs: util.ArrayList[File] = {
     val baseDirs = RssConf.workerBaseDirs(conf).map(new File(_, RssConf.WorkingDirName))
     val availableDirs = new mutable.HashSet[File]()

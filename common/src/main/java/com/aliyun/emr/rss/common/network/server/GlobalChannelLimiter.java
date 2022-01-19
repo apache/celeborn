@@ -17,7 +17,6 @@
 
 package com.aliyun.emr.rss.common.network.server;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,9 +40,6 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
   private ScheduledExecutorService checkExecutor = Executors.newSingleThreadScheduledExecutor(
     new ThreadFactoryBuilder().setDaemon(true)
     .setNameFormat("GlobalChannelLimiter-check-thread").build());
-  private ExecutorService limitActionExecutor = Executors.newSingleThreadExecutor(
-    new ThreadFactoryBuilder().setDaemon(true)
-      .setNameFormat("GlobalChannelLimiter-action-thread").build());
   private LongAdder readCount = new LongAdder();
   private MemoryTracker memoryTracker = MemoryTracker.instance();
   private static GlobalChannelLimiter globalChannelLimiter = new GlobalChannelLimiter();
