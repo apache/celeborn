@@ -74,10 +74,12 @@ private[deploy] class Worker(
     source
   }
 
-  private val memoryTracker = MemoryTracker.initialize( workerDirectMemoryCriticalRatio(conf),
-    workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
-  memoryTracker.registerMemoryListener(localStorageManager)
+  if (RssConf.workerChannelLimiterEnabled(conf)) {
+    val memoryTracker = MemoryTracker.initialize(workerDirectMemoryCriticalRatio(conf),
+      workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
+    memoryTracker.registerMemoryListener(localStorageManager)
+  }
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
