@@ -54,6 +54,7 @@ public class TransportServer implements Closeable {
   private ChannelFuture channelFuture;
   private int port = -1;
   private NettyMemoryMetrics metrics;
+  private boolean limiterEnabled = false;
 
   /**
    * Creates a TransportServer that binds to the given host and the given port, or to any available
@@ -65,6 +66,26 @@ public class TransportServer implements Closeable {
       int portToBind,
       RpcHandler appRpcHandler,
       List<TransportServerBootstrap> bootstraps) {
+    this.context = context;
+    this.conf = context.getConf();
+    this.appRpcHandler = appRpcHandler;
+    this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
+
+    boolean shouldClose = true;
+    try {
+      init(hostToBind, portToBind);
+      shouldClose = false;
+    } finally {
+      if (shouldClose) {
+        JavaUtils.closeQuietly(this);
+      }
+    }
+  }
+
+  public TransportServer(TransportContext context, String hostToBind,
+    int portToBind, RpcHandler appRpcHandler, List<TransportServerBootstrap> bootstraps,
+    boolean limiterEnabled) {
+    this.limiterEnabled = limiterEnabled;
     this.context = context;
     this.conf = context.getConf();
     this.appRpcHandler = appRpcHandler;
@@ -123,16 +144,7 @@ public class TransportServer implements Closeable {
       bootstrap.childOption(ChannelOption.SO_SNDBUF, conf.sendBuf());
     }
 
-    bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
-      @Override
-      protected void initChannel(SocketChannel ch) {
-        RpcHandler rpcHandler = appRpcHandler;
-        for (TransportServerBootstrap bootstrap : bootstraps) {
-          rpcHandler = bootstrap.doBootstrap(ch, rpcHandler);
-        }
-        context.initializePipeline(ch, rpcHandler);
-      }
-    });
+    initializeChannel(bootstrap);
 
     InetSocketAddress address = hostToBind == null ?
         new InetSocketAddress(portToBind): new InetSocketAddress(hostToBind, portToBind);
@@ -141,6 +153,19 @@ public class TransportServer implements Closeable {
 
     port = ((InetSocketAddress) channelFuture.channel().localAddress()).getPort();
     logger.debug("Shuffle server started on port: {}", port);
+  }
+
+  protected void initializeChannel(ServerBootstrap bootstrap){
+    bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
+      @Override
+      protected void initChannel(SocketChannel ch) {
+        RpcHandler rpcHandler = appRpcHandler;
+        for (TransportServerBootstrap bootstrap : bootstraps) {
+          rpcHandler = bootstrap.doBootstrap(ch, rpcHandler);
+        }
+        context.initializePipeline(ch, rpcHandler, limiterEnabled);
+      }
+    });
   }
 
   public MetricSet getAllMetrics() {

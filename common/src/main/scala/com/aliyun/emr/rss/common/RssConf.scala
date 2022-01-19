@@ -714,6 +714,23 @@ object RssConf extends Logging {
     conf.getBoolean("rss.support.adaptiveQueryExecution", false)
   }
 
+  def workerDirectMemoryCriticalRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.worker.memory.direct.critical.ratio", 0.9)
+  }
+
+  def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
+    conf.getInt("rss.worker.memory.check.interval", 10)
+  }
+
+  def workerChannelLimiterEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.worker.channel.limiter.enabled", true)
+  }
+
+  def workerDirectMemoryReportIntervalSecond(conf: RssConf): Int = {
+    Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval",
+      "10s")).intValue()
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

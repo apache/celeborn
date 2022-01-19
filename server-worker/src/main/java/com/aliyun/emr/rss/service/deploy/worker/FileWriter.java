@@ -142,7 +142,7 @@ public final class FileWriter extends DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
-  private void flush(boolean finalFlush) throws IOException {
+  private synchronized void flush(boolean finalFlush) throws IOException {
     int numBytes = flushBuffer.readableBytes();
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
@@ -282,7 +282,7 @@ public final class FileWriter extends DeviceObserver {
     notifier.checkException();
   }
 
-  private void takeBuffer() {
+  private synchronized void takeBuffer() {
     // metrics start
     String metricsName = null;
     String fileAbsPath = null;
@@ -333,5 +333,12 @@ public final class FileWriter extends DeviceObserver {
 
   public String toString() {
     return file.getAbsolutePath();
+  }
+
+  public synchronized void flushOnMemoryPressure() throws IOException {
+    if (flushBuffer != null && flushBuffer.readableBytes() != 0) {
+      flush(false);
+      takeBuffer();
+    }
   }
 }
