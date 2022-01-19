@@ -474,8 +474,8 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.asyncCommitFiles.numThreads", 32)
   }
 
-  def workerFlushBufferSize(conf: RssConf): Int = {
-    conf.getInt("rss.worker.flush.buffer.size", 512)
+  def workerFlushBufferSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
   def workerFlushQueueCapacity(conf: RssConf): Int = {
