@@ -105,8 +105,10 @@ public class TransportContext {
     return new TransportServer(this, null, port, rpcHandler, bootstraps);
   }
 
-  public TransportServer createPushServer(int port, List<TransportServerBootstrap> bootstraps) {
-    return new PushTransportServer(this, null, port, rpcHandler, bootstraps);
+  public TransportServer createPushServer(int port, List<TransportServerBootstrap> bootstraps,
+    boolean limiterEnabled) {
+    return new PushTransportServer(this, null, port, rpcHandler, bootstraps,
+      limiterEnabled);
   }
 
   /** Create a server which will attempt to bind to a specific host and port. */
@@ -157,33 +159,37 @@ public class TransportContext {
   }
 
   public void initializePipeline(SocketChannel channel, ChannelHandlerAdapter handlerAdapter) {
-    channel.pipeline()
-      .addLast("encoder", ENCODER)
-      .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
-      .addLast("decoder", DECODER)
-      .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
-      .addLast("handler", handlerAdapter);
+    try {
+      channel.pipeline()
+        .addLast("encoder", ENCODER)
+        .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
+        .addLast("decoder", DECODER)
+        .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
+        .addLast("handler", handlerAdapter);
+    } catch (RuntimeException e) {
+      logger.error("Error while initializing Netty pipeline", e);
+      throw e;
+    }
   }
 
-  public void initializePipelineForPushServer(SocketChannel channel, RpcHandler handler) {
-    TransportChannelHandler channelHandler = createChannelHandler(channel, handler);
-    channel.pipeline()
-      .addLast("limiter", GlobalChannelLimiter.globalChannelLimiter())
-      .addLast("encoder", ENCODER)
-      .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
-      .addLast("decoder", DECODER)
-      .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
-      .addLast("handler", channelHandler);
+  public void initializePipeline(SocketChannel channel, RpcHandler handler,
+    boolean limiterEnabled) {
+    try {
+      if (limiterEnabled) {
+        channel.pipeline()
+          .addLast("limiter", GlobalChannelLimiter.globalChannelLimiter());
+      }
+      initializePipeline(channel, handler);
+    } catch (RuntimeException e) {
+      logger.error("Error while initializing Netty pipeline", e);
+      throw e;
+    }
   }
 
   public void initializePipelineForPushClient(SocketChannel channel,
     ChannelHandlerAdapter handlerAdapter) {
     channel.config().setWriteBufferWaterMark(conf.writeWaterMark());
-    channel.pipeline()
-      .addLast("encoder", ENCODER)
-      .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
-      .addLast("decoder", DECODER)
-      .addLast("handler", handlerAdapter);
+    initializePipeline(channel, handlerAdapter);
   }
 
   /**

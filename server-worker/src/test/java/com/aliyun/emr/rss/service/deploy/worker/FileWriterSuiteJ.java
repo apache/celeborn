@@ -78,7 +78,7 @@ public class FileWriterSuiteJ {
     new TransportConf("shuffle", MapConfigProvider.EMPTY);
 
   @BeforeClass
-  public static void beforeAll() {
+  public static void beforeAll(){
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
 
     source = Mockito.mock(AbstractSource.class);
@@ -88,9 +88,8 @@ public class FileWriterSuiteJ {
     }).when(source)
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
-    flusher = new DiskFlusher(tempDir, source, DeviceMonitor$.MODULE$.EmptyMonitor());
-    MemoryTracker memoryTracker = MemoryTracker.initialize(0.4, 0.3, 0.9,
-      10, 10);
+    flusher = new DiskFlusher(tempDir, 100, source, DeviceMonitor$.MODULE$.EmptyMonitor());
+    MemoryTracker memoryTracker = MemoryTracker.initialize(0.9, 10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
@@ -274,7 +273,7 @@ public class FileWriterSuiteJ {
   @Test
   public void testHugeBufferQueueSize() throws IOException {
     File file = getTemporaryFile();
-    flusher = new DiskFlusher(file, source, DeviceMonitor$.MODULE$.EmptyMonitor());
+    flusher = new DiskFlusher(file, 100_0000, source, DeviceMonitor$.MODULE$.EmptyMonitor());
   }
 
   @Test

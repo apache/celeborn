@@ -199,7 +199,6 @@ public final class FileWriter extends DeviceObserver {
 
       data.retain();
       flushBuffer.addComponent(true, data);
-      MemoryTracker.instance().increment(numBytes);
 
       numPendingWrites.decrementAndGet();
     }
@@ -242,7 +241,6 @@ public final class FileWriter extends DeviceObserver {
     if (!closed) {
       closed = true;
       notifier.setException(new IOException("destroyed"));
-      MemoryTracker.instance().decrement(flushBuffer.readableBytes());
       returnBuffer();
       try {
         channel.close();

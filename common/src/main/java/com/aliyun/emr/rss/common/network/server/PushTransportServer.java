@@ -27,9 +27,12 @@ import com.aliyun.emr.rss.common.network.TransportContext;
 
 public class PushTransportServer extends TransportServer {
 
+  private boolean limiterEnabled = true;
+
   public PushTransportServer(TransportContext context, String hostToBind,
-    int portToBind, RpcHandler appRpcHandler, List<TransportServerBootstrap> bootstraps) {
+    int portToBind, RpcHandler appRpcHandler, List<TransportServerBootstrap> bootstraps,boolean limiterEnabled) {
     super(context, hostToBind, portToBind, appRpcHandler, bootstraps);
+    this.limiterEnabled = limiterEnabled;
   }
 
   @Override
@@ -41,7 +44,7 @@ public class PushTransportServer extends TransportServer {
         for (TransportServerBootstrap bootstrap : bootstraps) {
           rpcHandler = bootstrap.doBootstrap(ch, rpcHandler);
         }
-        context.initializePipelineForPushServer(ch, rpcHandler);
+        context.initializePipeline(ch, rpcHandler, limiterEnabled);
       }
     });
   }

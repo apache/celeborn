@@ -45,11 +45,12 @@ private[worker] case class FlushTask(
 
 private[worker] final class DiskFlusher(
     val workingDir: File,
+    queueCapacity: Int,
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
-  private val DEFAULT_CAPACITY = 256 * 1024
-  private val workingQueue = new LinkedBlockingQueue[FlushTask](DEFAULT_CAPACITY)
+  private val workingQueue = new LinkedBlockingQueue[FlushTask](queueCapacity)
+  private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf](queueCapacity)
   private val usedSlots = new AtomicLong()
 
   @volatile
@@ -83,7 +84,6 @@ private[worker] final class DiskFlusher(
             lastBeginFlushTime = -1
           }
 
-          MemoryTracker.instance().decrement(flushSize)
           returnBuffer(task.buffer)
 
           task.notifier.numPendingFlushes.decrementAndGet()
@@ -199,9 +199,10 @@ private[worker] final class LocalStorageManager(
   private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, workingDirsSnapshot())
 
   private val diskFlushers: ConcurrentHashMap[File, DiskFlusher] = {
+    val queueCapacity = RssConf.workerFlushBufferSize(conf)
     val flushers = new ConcurrentHashMap[File, DiskFlusher]()
     workingDirsSnapshot().asScala.foreach {
-      dir => flushers.put(dir, new DiskFlusher(dir, workerSource, deviceMonitor))
+      dir => flushers.put(dir, new DiskFlusher(dir, queueCapacity, workerSource, deviceMonitor))
     }
     flushers
   }
@@ -236,10 +237,11 @@ private[worker] final class LocalStorageManager(
 
   override def notifyHealthy(dirs: ListBuffer[File]): Unit = this.synchronized {
     val availableDisks = numDisks()
+    val queueCapacity = RssConf.workerFlushBufferSize(conf)
     dirs.foreach(dir => {
       isolatedWorkingDirs.remove(dir)
       if(!diskFlushers.containsKey(dir)) {
-        diskFlushers.put(dir, new DiskFlusher(dir, workerSource, deviceMonitor))
+        diskFlushers.put(dir, new DiskFlusher(dir, queueCapacity, workerSource, deviceMonitor))
       }
       if (!dirOperators.containsKey(dir)) {
         dirOperators.put(dir,

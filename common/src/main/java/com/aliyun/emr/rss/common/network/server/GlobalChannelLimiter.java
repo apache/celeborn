@@ -41,9 +41,6 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
   private ScheduledExecutorService checkExecutor = Executors.newSingleThreadScheduledExecutor(
     new ThreadFactoryBuilder().setDaemon(true)
     .setNameFormat("GlobalChannelLimiter-check-thread").build());
-  private ScheduledExecutorService reportExecutor = Executors.newSingleThreadScheduledExecutor(
-    new ThreadFactoryBuilder().setDaemon(true)
-      .setNameFormat("GlobalChannelLimiter-report-thread").build());
   private ExecutorService limitActionExecutor = Executors.newSingleThreadExecutor(
     new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("GlobalChannelLimiter-action-thread").build());
@@ -68,18 +65,12 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler implements Memory
       if (channels.isEmpty()) {
         return;
       }
-      if (memoryTracker.highPressure()) {
+      if (memoryTracker.directMemoryCritical()) {
         stopAllChannels();
-      }
-      if (memoryTracker.normalPressure()) {
+      } else {
         resumeAllChannels();
       }
     }, DEFAULT_CHECK_INTERVAL, DEFAULT_CHECK_INTERVAL, TimeUnit.MILLISECONDS);
-
-    reportExecutor.scheduleAtFixedRate(()->{
-      long flowIn = readCount.sumThenReset();
-      logger.debug("Channel limiter flow-in rate {} ({} MB)", flowIn, flowIn / 1024.0 / 1024.0);
-    }, 1, 1, TimeUnit.SECONDS);
 
     memoryTracker.registerMemoryListener(this);
   }

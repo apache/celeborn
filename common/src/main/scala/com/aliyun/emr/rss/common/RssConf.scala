@@ -474,8 +474,8 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.asyncCommitFiles.numThreads", 32)
   }
 
-  def workerFlushBufferSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
+  def workerFlushBufferSize(conf: RssConf): Int = {
+    conf.getInt("rss.worker.flush.buffer.size", 512)
   }
 
   def workerFetchChunkSize(conf: RssConf): Long = {
@@ -707,15 +707,19 @@ object RssConf extends Logging {
   }
 
   def workerDirectMemoryCriticalRatio(conf: RssConf): Double = {
-    conf.getDouble("ess.worker.memory.direct.critical.ratio", 0.9)
+    conf.getDouble("rss.worker.memory.direct.critical.ratio", 0.9)
   }
 
-  def storageMemoryPressureCheckInterval(conf: RssConf): Int = {
-    conf.getInt("ess.worker.storage.memory.check.interval", 10)
+  def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
+    conf.getInt("rss.worker.memory.check.interval", 10)
   }
 
-  def storageMemoryReportInterval(conf: RssConf): Int = {
-    Utils.timeStringAsSeconds(conf.get("ess.worker.storage.memory.report.interval",
+  def workerChannelLimiterEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.worker.channel.limiter.enabled", true)
+  }
+
+  def workerDirectMemoryReportIntervalSecond(conf: RssConf): Int = {
+    Utils.timeStringAsSeconds(conf.get("ess.worker.memory.report.interval",
       "10s")).intValue()
   }
 
