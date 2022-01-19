@@ -24,7 +24,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.internal.PlatformDependent;
@@ -34,12 +33,7 @@ import sun.misc.VM;
 
 public class MemoryTracker {
   private long maxDirectorMemory = VM.maxDirectMemory();
-//  private long high = 0;
-//  private long low = 0;
   private long directMemoryCritical = 0;
-//  private AtomicLong storageMemoryTracker = new AtomicLong();
-//  private LongAdder writeSpeedCounter = new LongAdder();
-//  private LongAdder flushSpeedCounter = new LongAdder();
   private List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
   private ScheduledExecutorService checkService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
@@ -52,7 +46,7 @@ public class MemoryTracker {
   private static volatile MemoryTracker _INSTANCE = null;
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
-    int reportInterval) {
+    int reportInterval){
     if (_INSTANCE == null) {
       _INSTANCE = new MemoryTracker( directMemoryCriticalRatio, checkInterval,
         reportInterval);
@@ -76,15 +70,15 @@ public class MemoryTracker {
     memoryTrackerListeners.stream().forEach(MemoryTrackerListener::onOOM);
   }
 
-  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval) {
+  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval){
     assert directMemoryCriticalRatio > 0 && directMemoryCriticalRatio < 1;
     directMemoryCritical = (long) (maxDirectorMemory * directMemoryCriticalRatio);
     assert directMemoryCritical > 0;
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
-        if (directMemoryIsCritical()) {
-          logger.info("Trigger storage memory on-pressure action");
+        if (directMemoryCritical()) {
+          logger.info("Trigger storage memory critical action");
           memoryTrackerListeners.forEach(MemoryTrackerListener::onMemoryPressure);
         }
       } catch (Exception e) {
@@ -97,10 +91,9 @@ public class MemoryTracker {
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> {
-      logger.info("Track all direct memory usage :{}/{}",
-        toMb(directMemoryIndicator.get()), toMb(maxDirectorMemory));
-    }, reportInterval, reportInterval, TimeUnit.SECONDS);
+    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}",
+        toMb(directMemoryIndicator.get()), toMb(maxDirectorMemory)), reportInterval,
+      reportInterval, TimeUnit.SECONDS);
 
     logger.info("Memory tracker initialized with :  " +
                   "\n max direct memory : {} ({} MB)" +
@@ -116,23 +109,23 @@ public class MemoryTracker {
   }
 
   private void initDirectMemoryIndicator() {
-    Field field = null;
-    Field[] result = PlatformDependent.class.getDeclaredFields();
-    for (Field tf : result) {
-      if ("DIRECT_MEMORY_COUNTER".equals(tf.getName())) {
-        field = tf;
-      }
-    }
-    field.setAccessible(true);
     try {
+      Field field = null;
+      Field[] result = PlatformDependent.class.getDeclaredFields();
+      for (Field tf : result) {
+        if ("DIRECT_MEMORY_COUNTER".equals(tf.getName())) {
+          field = tf;
+        }
+      }
+      field.setAccessible(true);
       directMemoryIndicator = ((AtomicLong) field.get(PlatformDependent.class));
-    } catch (IllegalAccessException e) {
-      logger.error("Get netty_direct_memory error, works without direct memory counter," +
-                     " reason : {}", e);
+    } catch (Exception e) {
+      logger.error("Fatal error, get netty_direct_memory failed, worker should stop, detail : {}", e);
+      System.exit(-1);
     }
   }
 
-  private boolean directMemoryIsCritical() {
+  public boolean directMemoryCritical() {
     if (directMemoryIndicator == null) {
       return false;
     } else {
