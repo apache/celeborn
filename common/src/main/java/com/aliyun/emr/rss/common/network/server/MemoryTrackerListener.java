@@ -18,6 +18,6 @@
 package com.aliyun.emr.rss.common.network.server;
 
 public interface MemoryTrackerListener {
-  void onMemoryPressure();
+  void onMemoryCritical();
   void onOOM();
 }

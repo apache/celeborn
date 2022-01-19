@@ -142,7 +142,7 @@ public final class FileWriter extends DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
-  private void flush(boolean finalFlush) throws IOException {
+  private synchronized void flush(boolean finalFlush) throws IOException {
     int numBytes = flushBuffer.readableBytes();
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
@@ -282,7 +282,7 @@ public final class FileWriter extends DeviceObserver {
     notifier.checkException();
   }
 
-  private void takeBuffer() {
+  private synchronized void takeBuffer() {
     // metrics start
     String metricsName = null;
     String fileAbsPath = null;
@@ -293,7 +293,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer();
+    flushBuffer = flusher.takeBuffer(timeoutMs);
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -302,7 +302,7 @@ public final class FileWriter extends DeviceObserver {
 
     if (flushBuffer == null) {
       IOException e = new IOException("Take buffer timeout from DiskFlusher: "
-        + flusher.slotUsage());
+        + flusher.bufferQueueInfo());
       notifier.setException(e);
     }
   }

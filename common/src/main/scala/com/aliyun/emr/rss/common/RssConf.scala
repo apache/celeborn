@@ -478,13 +478,21 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.flush.buffer.size", 512)
   }
 
+  def workerFlushQueueCapacity(conf: RssConf): Int = {
+    conf.getInt("rss.worker.flush.queue.capacity", 512)
+  }
+
   def workerFetchChunkSize(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
   }
 
   def workerNumSlots(conf: RssConf, numDisks: Int): Int = {
     val userNumSlots = conf.getInt("rss.worker.numSlots", -1)
-    Math.max(64 * 1024, userNumSlots)
+    if (userNumSlots > 0) {
+      userNumSlots
+    } else {
+      workerFlushQueueCapacity(conf: RssConf) * numDisks
+    }
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {

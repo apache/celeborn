@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.common.network.server;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +42,9 @@ public class MemoryTracker {
   private ScheduledExecutorService reportService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("MemoryTracker-report-thread").build());
+  private ExecutorService actionService = Executors
+    .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
+      .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong directMemoryIndicator = null;
   private static Logger logger = LoggerFactory.getLogger(MemoryTracker.class);
   private static volatile MemoryTracker _INSTANCE = null;
@@ -67,7 +71,8 @@ public class MemoryTracker {
   public void oomOccurred() {
     logger.warn("[MemoryTracker] detect OOM exception, " +
                   "current memory usage :${}", toMb(directMemoryIndicator.get()));
-    memoryTrackerListeners.stream().forEach(MemoryTrackerListener::onOOM);
+    actionService.submit(() -> memoryTrackerListeners.stream()
+      .forEach(MemoryTrackerListener::onOOM));
   }
 
   private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval){
@@ -79,10 +84,11 @@ public class MemoryTracker {
       try {
         if (directMemoryCritical()) {
           logger.info("Trigger storage memory critical action");
-          memoryTrackerListeners.forEach(MemoryTrackerListener::onMemoryPressure);
+          actionService.submit(() -> memoryTrackerListeners
+            .forEach(MemoryTrackerListener::onMemoryCritical));
         }
       } catch (Exception e) {
-        logger.error("Storage memory release on high pressure with error , detail : {}", e);
+        logger.error("Storage memory release on high pressure with error, detail : {}", e);
       }
       if (logger.isDebugEnabled() && directMemoryIndicator != null) {
         logger.debug("Track all direct memory usage :{}/{} ({}/{} MB)",
