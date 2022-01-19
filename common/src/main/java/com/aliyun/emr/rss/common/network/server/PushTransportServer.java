@@ -30,7 +30,8 @@ public class PushTransportServer extends TransportServer {
   private boolean limiterEnabled = true;
 
   public PushTransportServer(TransportContext context, String hostToBind,
-    int portToBind, RpcHandler appRpcHandler, List<TransportServerBootstrap> bootstraps,boolean limiterEnabled) {
+    int portToBind, RpcHandler appRpcHandler, List<TransportServerBootstrap> bootstraps,
+    boolean limiterEnabled) {
     super(context, hostToBind, portToBind, appRpcHandler, bootstraps);
     this.limiterEnabled = limiterEnabled;
   }

@@ -120,7 +120,8 @@ public class MemoryTracker {
       field.setAccessible(true);
       directMemoryIndicator = ((AtomicLong) field.get(PlatformDependent.class));
     } catch (Exception e) {
-      logger.error("Fatal error, get netty_direct_memory failed, worker should stop, detail : {}", e);
+      logger.error("Fatal error, get netty_direct_memory failed, worker should stop, detail : {}",
+        e);
       System.exit(-1);
     }
   }
