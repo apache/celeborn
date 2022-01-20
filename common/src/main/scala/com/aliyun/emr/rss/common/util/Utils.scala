@@ -40,7 +40,12 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
+import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
+import com.aliyun.emr.rss.common.protocol.PartitionLocation
+import com.aliyun.emr.rss.common.protocol.TransportMessages
+import com.aliyun.emr.rss.common.protocol.TransportMessages.PbWorkerResource
+import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
 
 object Utils extends Logging {
@@ -637,6 +642,104 @@ object Utils extends Logging {
       if (null != future && !future.isCancelled) {
         future.cancel(true)
       }
+    }
+  }
+
+  private def buildWorker(host: String, rpcPort: String, pushPort: String,
+    fetchPort: String): WorkerInfo = {
+    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
+  }
+
+  def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]):
+  WorkerResource = {
+    val slots = new WorkerResource()
+    pbWorkerResource.asScala.foreach(item => {
+      val Array(host, rpcPort, pushPort, fetchPort) = item._1.split(":")
+      val workerInfo = buildWorker(host, rpcPort, pushPort, fetchPort)
+      val masterPartitionLocation = item._2.getMasterPartitionsList
+        .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
+      val slavePartitionLocation = item._2.getSlavePartitionsList
+        .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
+      slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
+    })
+    slots
+  }
+
+  def convertWorkerResourceToPbWorkerResource(workerResource: WorkerResource):
+  util.Map[String, PbWorkerResource] = {
+    workerResource.asScala.map(item => {
+      val uniqueId = item._1.toUniqueId()
+      val masterPartitions = item._2._1.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+      val slavePartitions = item._2._2.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+      val pbWorkerResource = PbWorkerResource.newBuilder()
+        .addAllMasterPartitions(masterPartitions)
+        .addAllSlavePartitions(slavePartitions).build()
+      uniqueId -> pbWorkerResource
+    }).toMap.asJava
+  }
+
+  def toTransportMessage(message: Any): Any = {
+    if (message.isInstanceOf[Message]) {
+      message.asInstanceOf[Message].toTransportMessage()
+    } else {
+      message
+    }
+  }
+
+  def fromTransportMessage(messages: Any): Any = {
+    if (messages.isInstanceOf[TransportMessage]) {
+      ControlMessages.fromTransportMessage(messages.asInstanceOf[TransportMessage])
+    } else {
+      messages
+    }
+  }
+
+  def toStatusCode(status: Int): StatusCode = {
+    status match {
+      case 0 =>
+        StatusCode.Success
+      case 1 =>
+        StatusCode.PartialSuccess
+      case 2 =>
+        StatusCode.Failed
+      case 3 =>
+        StatusCode.ShuffleAlreadyRegistered
+      case 4 =>
+        StatusCode.ShuffleNotRegistered
+      case 5 =>
+        StatusCode.ReserveSlotFailed
+      case 6 =>
+        StatusCode.SlotNotAvailable
+      case 7 =>
+        StatusCode.WorkerNotFound
+      case 8 =>
+        StatusCode.PartitionNotFound
+      case 9 =>
+        StatusCode.SlavePartitionNotFound
+      case 10 =>
+        StatusCode.DeleteFilesFailed
+      case 11 =>
+        StatusCode.PartitionExists
+      case 12 =>
+        StatusCode.ReviveFailed
+      case 13 =>
+        StatusCode.PushDataFailed
+      case 14 =>
+        StatusCode.NumMapperZero
+      case 15 =>
+        StatusCode.MapEnded
+      case 16 =>
+        StatusCode.StageEnded
+      case 17 =>
+        StatusCode.PushDataFailNonCriticalCause
+      case 18 =>
+        StatusCode.PushDataFailSlave
+      case 19 =>
+        StatusCode.PushDataFailMain
+      case 20 =>
+        StatusCode.PushDataFailPartitionNotFound
+      case _ =>
+        null
     }
   }
 }

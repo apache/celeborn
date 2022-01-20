@@ -166,8 +166,7 @@ private[deploy] class Worker(
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
     val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots,
-        self, shuffleKeys)
+      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots, shuffleKeys)
       , classOf[HeartbeatResponse])
     cleanTaskQueue.put(response.expiredShuffleKeys)
   }
@@ -540,7 +539,7 @@ private[deploy] class Worker(
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
     val list = new jArrayList[WorkerInfo]()
     list.add(workerInfo)
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, list))
+    context.reply(GetWorkerInfosResponse(StatusCode.Success, list.asScala.toList: _*))
   }
 
   private def handleThreadDump(context: RpcCallContext): Unit = {
@@ -854,7 +853,7 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp = try {
         rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, pushPort, fetchPort, workerInfo.numSlots, self),
+          RegisterWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots),
           classOf[RegisterWorkerResponse]
         )
       } catch {

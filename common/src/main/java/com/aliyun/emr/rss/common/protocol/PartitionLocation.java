@@ -208,4 +208,70 @@ public class PartitionLocation implements Serializable {
     WorkerInfo info = new WorkerInfo(host, rpcPort, pushPort, fetchPort);
     return info;
   }
+
+  public static PartitionLocation fromPbPartitionLocation(TransportMessages.PbPartitionLocation
+                                                            pbPartitionLocation) {
+    Mode mode = Mode.Master;
+    if (pbPartitionLocation.getMode() == TransportMessages.PbPartitionLocation.Mode.Slave) {
+      mode = Mode.Slave;
+    }
+
+    PartitionLocation partitionLocation = new PartitionLocation(pbPartitionLocation.getReduceId(),
+      pbPartitionLocation.getEpoch(),
+      pbPartitionLocation.getHost(),
+      pbPartitionLocation.getRpcPort(),
+      pbPartitionLocation.getPushPort(),
+      pbPartitionLocation.getFetchPort(),
+      mode);
+
+    if (pbPartitionLocation.hasPeer()) {
+      TransportMessages.PbPartitionLocation peerPb = pbPartitionLocation.getPeer();
+      Mode peerMode = Mode.Master;
+      if (peerPb.getMode() == TransportMessages.PbPartitionLocation.Mode.Slave) {
+        peerMode = Mode.Slave;
+      }
+      PartitionLocation peerLocation = new PartitionLocation(peerPb.getReduceId(),
+        peerPb.getEpoch(), peerPb.getHost(), peerPb.getRpcPort(), peerPb.getPushPort(),
+        peerPb.getFetchPort(), peerMode);
+      partitionLocation.setPeer(peerLocation);
+    }
+
+    return partitionLocation;
+  }
+
+  public static TransportMessages.PbPartitionLocation toPbPartitionLocation(PartitionLocation
+                                                                              partitionLocation) {
+    TransportMessages.PbPartitionLocation.Builder pbPartitionLocation = TransportMessages
+      .PbPartitionLocation.newBuilder();
+    if (partitionLocation.mode == Mode.Master) {
+      pbPartitionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
+    } else {
+      pbPartitionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
+    }
+    pbPartitionLocation.setHost(partitionLocation.getHost());
+    pbPartitionLocation.setEpoch(partitionLocation.getEpoch());
+    pbPartitionLocation.setReduceId(partitionLocation.getReduceId());
+    pbPartitionLocation.setRpcPort(partitionLocation.getRpcPort());
+    pbPartitionLocation.setPushPort(partitionLocation.getPushPort());
+    pbPartitionLocation.setFetchPort(partitionLocation.getFetchPort());
+
+    if (partitionLocation.getPeer() != null) {
+      TransportMessages.PbPartitionLocation.Builder peerPbPartionLocation = TransportMessages
+        .PbPartitionLocation.newBuilder();
+      if (partitionLocation.getPeer().mode == Mode.Master) {
+        peerPbPartionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
+      } else {
+        peerPbPartionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
+      }
+      peerPbPartionLocation.setHost(partitionLocation.getPeer().getHost());
+      peerPbPartionLocation.setEpoch(partitionLocation.getPeer().getEpoch());
+      peerPbPartionLocation.setReduceId(partitionLocation.getPeer().getReduceId());
+      peerPbPartionLocation.setRpcPort(partitionLocation.getPeer().getRpcPort());
+      peerPbPartionLocation.setPushPort(partitionLocation.getPeer().getPushPort());
+      peerPbPartionLocation.setFetchPort(partitionLocation.getPeer().getFetchPort());
+      pbPartitionLocation.setPeer(peerPbPartionLocation.build());
+    }
+
+    return pbPartitionLocation.build();
+  }
 }

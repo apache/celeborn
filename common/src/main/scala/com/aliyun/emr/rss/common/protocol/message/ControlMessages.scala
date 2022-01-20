@@ -20,11 +20,348 @@ package com.aliyun.emr.rss.common.protocol.message
 import java.util
 import java.util.UUID
 
-import com.aliyun.emr.rss.common.meta.WorkerInfo
-import com.aliyun.emr.rss.common.protocol.PartitionLocation
-import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
+import scala.collection.JavaConverters._
 
-sealed trait Message extends Serializable
+import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.meta.WorkerInfo
+import com.aliyun.emr.rss.common.network.protocol.TransportMessage
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, TransportMessages}
+import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbApplicationLost, PbApplicationLostResponse, PbCommitFiles, PbCommitFilesResponse, PbDestroy, PbDestroyResponse, PbFileGroup, PbGetBlacklist, PbGetBlacklistResponse, PbGetClusterLoadStatusResponse, PbGetReducerFileGroup, PbGetReducerFileGroupResponse, PbGetWorkerInfosResponse, PbHeartBeatFromApplication, PbHeartbeatFromWorker, PbHeartbeatResponse, PbMapperEnd, PbMapperEndResponse, PbRegisterShuffle, PbRegisterShuffleResponse, PbRegisterWorker, PbRegisterWorkerResponse, PbReleaseSlots, PbReleaseSlotsResponse, PbReportWorkerFailure, PbRequestSlots, PbRequestSlotsResponse, PbReregisterWorkerResponse, PbReserveSlots, PbReserveSlotsResponse, PbRevive, PbReviveResponse, PbSlaveLostResponse, PbStageEnd, PbStageEndResponse, PbThreadDumpResponse, PbUnregisterShuffle, PbUnregisterShuffleResponse, PbWorkerLost, PbWorkerLostResponse}
+import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckForApplicationTimeOut, CheckForWorkerTimeOut, CommitFiles, CommitFilesResponse, Destroy, DestroyResponse, GetBlacklist, GetBlacklistResponse, GetClusterLoadStatus, GetClusterLoadStatusResponse, GetReducerFileGroup, GetReducerFileGroupResponse, GetWorkerInfos, GetWorkerInfosResponse, HeartBeatFromApplication, HeartbeatFromWorker, HeartbeatResponse, MapperEnd, MapperEndResponse, OneWayMessageResponse, RegisterShuffle, RegisterShuffleResponse, RegisterWorker, RegisterWorkerResponse, ReleaseSlots, ReleaseSlotsResponse, RemoveExpiredShuffle, ReportWorkerFailure, RequestSlots, RequestSlotsResponse, ReregisterWorkerResponse, ReserveSlots, ReserveSlotsResponse, Revive, ReviveResponse, SlaveLostResponse, StageEnd, StageEndResponse, ThreadDump, ThreadDumpResponse, UnregisterShuffle, UnregisterShuffleResponse, WorkerLost, WorkerLostResponse}
+import com.aliyun.emr.rss.common.util.Utils
+
+sealed trait Message extends Serializable{
+  def toTransportMessage(): TransportMessage = {
+    this match {
+      case CheckForWorkerTimeOut =>
+        new TransportMessage(TransportMessages.MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
+
+      case CheckForApplicationTimeOut =>
+        new TransportMessage(TransportMessages.MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
+
+      case RemoveExpiredShuffle =>
+        new TransportMessage(TransportMessages.MessageType.REMOVE_EXPIRED_SHUFFLE, null)
+
+      case RegisterWorker(host, rpcPort, pushPort, fetchPort, numSlots, requestId) =>
+        val payload = TransportMessages.PbRegisterWorker.newBuilder()
+          .setHost(host)
+          .setRpcPort(rpcPort)
+          .setPushPort(pushPort)
+          .setFetchPort(fetchPort)
+          .setNumSlots(numSlots)
+          .setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REGISTER_WORKER, payload)
+
+      case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, numSlots,
+      shuffleKeys, requestId) =>
+        val payload = TransportMessages.PbHeartbeatFromWorker.newBuilder()
+          .setHost(host)
+          .setRpcPort(rpcPort)
+          .setPushPort(pushPort)
+          .setFetchPort(fetchPort)
+          .setNumSlots(numSlots)
+          .addAllShuffleKeys(shuffleKeys)
+          .setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.HEARTBEAT_FROM_WORKER, payload)
+
+      case HeartbeatResponse(expiredShuffleKeys) =>
+        val payload = TransportMessages.PbHeartbeatResponse.newBuilder()
+          .addAllExpiredShuffleKeys(expiredShuffleKeys)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.HEARTBEAT_RESPONSE, payload)
+
+      case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions, hostname) =>
+        val payload = TransportMessages.PbRegisterShuffle.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .setNumMapppers(numMappers)
+          .setNumPartitions(numPartitions)
+          .setHostname(hostname)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE, payload)
+
+      case RegisterShuffleResponse(status, partitionLocations) =>
+        val payload = TransportMessages.PbRegisterShuffleResponse.newBuilder()
+          .setStatus(status.getValue)
+          .addAllPartitionLocations(partitionLocations.iterator().asScala
+            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
+
+      case RequestSlots(applicationId, shuffleId, reduceIdList, hostname,
+      shouldReplicate, requestId) =>
+        val payload = TransportMessages.PbRequestSlots.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .addAllReduceIdList(reduceIdList)
+          .setHostname(hostname)
+          .setShouldReplicate(shouldReplicate)
+          .setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REQUEST_SLOTS, payload)
+
+      case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
+        val payload = TransportMessages.PbReleaseSlots.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .addAllWorkerIds(workerIds)
+          .addAllSlots(slots)
+          .setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.RELEASE_SLOTS, payload)
+
+      case ReleaseSlotsResponse(status) =>
+        val payload = TransportMessages.PbReleaseSlotsResponse.newBuilder()
+          .setStatus(status.getValue).build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.RELEASE_SLOTS_RESPONSE, payload)
+
+      case RequestSlotsResponse(status, workerResource) =>
+        val payload = TransportMessages.PbRequestSlotsResponse.newBuilder()
+          .putAllWorkerResource(Utils.convertWorkerResourceToPbWorkerResource(workerResource))
+          .setStatus(status.getValue)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REQUEST_SLOTS_RESPONSE, payload)
+
+      case Revive(applicationId, shuffleId, mapId, attemptId, reduceId,
+      epoch, oldPartition, cause) =>
+        val payload = TransportMessages.PbRevive.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .setMapId(mapId)
+          .setAttemptId(attemptId)
+          .setReduceId(reduceId)
+          .setEpoch(epoch)
+          .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+          .setStatus(cause.getValue)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REVIVE, payload)
+
+      case ReviveResponse(status, partitionLocation) =>
+        val payload = TransportMessages.PbReviveResponse.newBuilder()
+          .setStatus(status.getValue)
+          .setPartitionLocation(PartitionLocation.toPbPartitionLocation(partitionLocation))
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REVIVE_RESPONSE, payload)
+
+      case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
+        val payload = TransportMessages.PbMapperEnd.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .setMapId(mapId)
+          .setAttemptId(attemptId)
+          .setNumMappers(numMappers)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.MAPPER_END, payload)
+
+      case MapperEndResponse(status) =>
+        val payload = TransportMessages.PbMapperEndResponse.newBuilder()
+          .setStatus(status.getValue)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.MAPPER_END_RESPONSE, payload)
+
+      case GetReducerFileGroup(applicationId, shuffleId) =>
+        val payload = TransportMessages.PbGetReducerFileGroup.newBuilder()
+          .setApplicationId(applicationId).setShuffleId(shuffleId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP, payload)
+
+      case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
+        val payload = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
+          .setStatus(status.getValue).addAllFileGroup(
+          fileGroup.map(arr => PbFileGroup.newBuilder()
+            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .build()).toList.asJava).addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
+
+      case WorkerLost(host, rpcPort, pushPort, fetchPort, requestId) =>
+        val payload = TransportMessages.PbWorkerLost.newBuilder()
+          .setHost(host)
+          .setRpcPort(rpcPort)
+          .setPushPort(pushPort)
+          .setFetchPort(fetchPort)
+          .setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.WORKER_LOST, payload)
+
+      case WorkerLostResponse(success) =>
+        val payload = TransportMessages.PbWorkerLostResponse.newBuilder()
+          .setSuccess(success)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.WORKER_LOST_RESPONSE, payload)
+
+      case StageEnd(applicationId, shuffleId) =>
+        val payload = TransportMessages.PbStageEnd.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.STAGE_END, payload)
+
+      case StageEndResponse(status, lostFiles) =>
+        val payload = TransportMessages.PbStageEndResponse.newBuilder()
+          .setStatus(status.getValue).addAllLostFiles(lostFiles)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.STAGE_END_RESPONSE, payload)
+
+      case UnregisterShuffle(appId, shuffleId, requestId) =>
+        val payload = TransportMessages.PbUnregisterShuffle.newBuilder()
+          .setAppId(appId).setShuffleId(shuffleId).setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.UNREGISTER_SHUFFLE, payload)
+
+      case UnregisterShuffleResponse(status) =>
+        val payload = TransportMessages.PbUnregisterShuffleResponse.newBuilder()
+          .setStatus(status.getValue)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.UNREGISTER_SHUFFLE_RESPONSE, payload)
+
+      case ApplicationLost(appId, requestId) =>
+        val payload = TransportMessages.PbApplicationLost.newBuilder()
+          .setAppId(appId).setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.APPLICATION_LOST, payload)
+
+      case ApplicationLostResponse(status) =>
+        val payload = TransportMessages.PbApplicationLostResponse.newBuilder()
+          .setStatus(status.getValue).build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.APPLICATION_LOST_RESPONSE, payload)
+
+      case HeartBeatFromApplication(appId, requestId) =>
+        val payload = TransportMessages.PbHeartBeatFromApplication.newBuilder()
+          .setAppId(appId)
+          .setRequestId(requestId)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.HEARTBEAT_FROM_APPLICATION, payload)
+
+      case GetBlacklist(localBlacklist) =>
+        val payload = TransportMessages.PbGetBlacklist.newBuilder()
+          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_))
+            .toList.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST, payload)
+
+      case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
+        val payload = TransportMessages.PbGetBlacklistResponse.newBuilder()
+          .setStatus(statusCode.getValue)
+          .addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+          .addAllUnknownWorkers(unknownWorkers.asScala
+            .map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
+
+      case GetClusterLoadStatus =>
+        new TransportMessage(TransportMessages.MessageType.GET_CLUSTER_LOAD_STATUS, null)
+
+      case GetClusterLoadStatusResponse(isOverload) =>
+        val payload = TransportMessages.PbGetClusterLoadStatusResponse.newBuilder()
+          .setIsOverload(isOverload)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.GET_CLUSTER_LOAD_STATUS_RESPONSE,
+          payload)
+
+      case ReportWorkerFailure(failed, requestId) =>
+        val payload = TransportMessages.PbReportWorkerFailure.newBuilder()
+          .addAllFailed(failed.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+          .setRequestId(requestId).build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REPORT_WORKER_FAILURE, payload)
+
+      case RegisterWorkerResponse(success, message) =>
+        val payload = TransportMessages.PbRegisterWorkerResponse.newBuilder()
+          .setSuccess(success)
+          .setMessage(message)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REGISTER_WORKER_RESPONSE, payload)
+
+      case ReregisterWorkerResponse(success) =>
+        val payload = TransportMessages.PbReregisterWorkerResponse.newBuilder()
+          .setSuccess(success)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.REREGISTER_WORKER_RESPONSE, payload)
+
+      case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations) =>
+        val payload = TransportMessages.PbReserveSlots.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .addAllMasterLocations(masterLocations.asScala
+            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+          .addAllSlaveLocations(slaveLocations.asScala
+            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.RESERVE_SLOTS, payload)
+
+      case ReserveSlotsResponse(status, reason) =>
+        val payload = TransportMessages.PbReserveSlotsResponse.newBuilder()
+          .setStatus(status.getValue).setReason(reason)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.RESERVE_SLOTS_RESPONSE, payload)
+
+      case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
+        val payload = TransportMessages.PbCommitFiles.newBuilder()
+          .setApplicationId(applicationId)
+          .setShuffleId(shuffleId)
+          .addAllMasterIds(masterIds)
+          .addAllSlaveIds(slaveIds)
+          .addAllMapAttempts(mapAttempts.map(new Integer(_)).toIterable.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.COMMIT_FILES, payload)
+
+      case CommitFilesResponse(status, committedMasterIds, committedSlaveIds,
+      failedMasterIds, failedSlaveIds) =>
+        val payload = TransportMessages.PbCommitFilesResponse.newBuilder()
+          .setStatus(status.getValue)
+          .addAllCommittedMasterIds(committedMasterIds)
+          .addAllCommittedSlaveIds(committedSlaveIds)
+          .addAllFailedMasterIds(failedMasterIds)
+          .addAllFailedSlaveIds(failedSlaveIds)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.COMMIT_FILES_RESPONSE, payload)
+
+      case Destroy(shuffleKey, masterLocations, slaveLocation) =>
+        val payload = TransportMessages.PbDestroy.newBuilder()
+          .setShuffleKey(shuffleKey)
+          .addAllMasterLocations(masterLocations)
+          .addAllSlaveLocation(slaveLocation)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.DESTROY, payload)
+
+      case DestroyResponse(status, failedMasters, failedSlaves) =>
+        val payload = TransportMessages.PbDestroyResponse.newBuilder()
+          .setStatus(status.getValue)
+          .addAllFailedMasters(failedMasters)
+          .addAllFailedSlaves(failedSlaves)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.DESTROY_RESPONSE, payload)
+
+      case SlaveLostResponse(status, slaveLocation) =>
+        val payload = TransportMessages.PbSlaveLostResponse.newBuilder()
+          .setStatus(status.getValue)
+          .setSlaveLocation(PartitionLocation.toPbPartitionLocation(slaveLocation))
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.SLAVE_LOST_RESPONSE, payload)
+
+      case GetWorkerInfos =>
+        new TransportMessage(TransportMessages.MessageType.GET_WORKER_INFO, null)
+
+      case GetWorkerInfosResponse(status, workerInfos@_*) =>
+        val payload = TransportMessages.PbGetWorkerInfosResponse.newBuilder()
+          .setStatus(status.getValue)
+          .addAllWorkerInfos(workerInfos.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.GET_WORKER_INFO_RESPONSE, payload)
+
+      case ThreadDump =>
+        new TransportMessage(TransportMessages.MessageType.THREAD_DUMP, null)
+
+      case ThreadDumpResponse(threadDump) =>
+        val payload = TransportMessages.PbThreadDumpResponse.newBuilder()
+          .setThreadDump(threadDump).build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.THREAD_DUMP_RESPONSE, payload)
+    }
+  }
+}
 sealed trait MasterMessage extends Message
 sealed abstract class MasterRequestMessage extends MasterMessage {
   var requestId: String
@@ -36,7 +373,7 @@ sealed abstract class MasterRequestMessage extends MasterMessage {
 sealed trait WorkerMessage extends Message
 sealed trait ClientMessage extends Message
 
-object ControlMessages {
+object ControlMessages extends Logging{
   val ZERO_UUID = new UUID(0L, 0L).toString
 
   type WorkerResource = java.util.HashMap[WorkerInfo,
@@ -46,25 +383,25 @@ object ControlMessages {
    *         handled by master
    *  ==========================================
    */
-  case object CheckForWorkerTimeOut
+  case object CheckForWorkerTimeOut extends Message
 
-  case object CheckForApplicationTimeOut
+  case object CheckForApplicationTimeOut extends Message
 
-  case object RemoveExpiredShuffle
+  case object RemoveExpiredShuffle extends Message
 
   /**
    * The response message for one-way message. Due to the Master HA, we must know whether a Master
    * is the leader, and the one-way message does not care about the response, so there is no
    * corresponding response message. So add a response message to get the response.
    */
-  case object OneWayMessageResponse
+  case object OneWayMessageResponse extends Message
 
   case class RegisterWorker(
       host: String,
+      rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
       numSlots: Int,
-      worker: RpcEndpointRef,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -74,7 +411,6 @@ object ControlMessages {
       pushPort: Int,
       fetchPort: Int,
       numSlots: Int,
-      endpoint: RpcEndpointRef,
       shuffleKeys: util.HashSet[String],
     override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
@@ -182,11 +518,11 @@ object ControlMessages {
   case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
 
   case class GetBlacklistResponse(statusCode: StatusCode,
-      blacklist: util.List[WorkerInfo], unknownWorkers: util.List[WorkerInfo])
+      blacklist: util.List[WorkerInfo], unknownWorkers: util.List[WorkerInfo]) extends Message
 
   case class GetClusterLoadStatus(numPartitions: Int) extends Message
 
-  case class GetClusterLoadStatusResponse(isOverload: Boolean)
+  case class GetClusterLoadStatusResponse(isOverload: Boolean) extends Message
 
   case class ReportWorkerFailure(
       failed: util.List[WorkerInfo],
@@ -246,9 +582,278 @@ object ControlMessages {
 
   case object GetWorkerInfos extends Message
 
-  case class GetWorkerInfosResponse(status: StatusCode, workerInfos: Any) extends Message
+  case class GetWorkerInfosResponse(status: StatusCode, workerInfos: WorkerInfo*) extends Message
 
   case object ThreadDump extends Message
 
-  case class ThreadDumpResponse(threadDump: String)
+  case class ThreadDumpResponse(threadDump: String) extends Message
+
+  def fromTransportMessage(message: TransportMessage): Message = {
+    message.getType match {
+      case UNKNOWN_MESSAGE =>
+        logWarning(s"received unknown message ${message}")
+        null
+
+      case REGISTER_WORKER =>
+        val pbRegisterWorker = PbRegisterWorker.parseFrom(message.getPayload)
+        RegisterWorker(pbRegisterWorker.getHost, pbRegisterWorker.getRpcPort,
+          pbRegisterWorker.getPushPort, pbRegisterWorker.getFetchPort, pbRegisterWorker.getNumSlots,
+          pbRegisterWorker.getRequestId)
+
+      case HEARTBEAT_FROM_WORKER =>
+        val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
+        val shuffleKeys = new util.HashSet[String]()
+        if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
+          shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
+        }
+        HeartbeatFromWorker(pbHeartbeatFromWorker.getHost, pbHeartbeatFromWorker.getRpcPort,
+          pbHeartbeatFromWorker.getPushPort, pbHeartbeatFromWorker.getFetchPort,
+          pbHeartbeatFromWorker.getNumSlots, shuffleKeys)
+
+      case HEARTBEAT_RESPONSE =>
+        val pbHeartBeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
+        val expiredShuffleKeys = new util.HashSet[String]()
+        if (pbHeartBeatResponse.getExpiredShuffleKeysCount > 0) {
+          expiredShuffleKeys.addAll(pbHeartBeatResponse.getExpiredShuffleKeysList)
+        }
+        HeartbeatResponse(expiredShuffleKeys)
+
+      case REGISTER_SHUFFLE =>
+        val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)
+        RegisterShuffle(pbRegisterShuffle.getApplicationId, pbRegisterShuffle.getShuffleId,
+          pbRegisterShuffle.getNumMapppers, pbRegisterShuffle.getNumPartitions,
+          pbRegisterShuffle.getHostname)
+
+      case REGISTER_SHUFFLE_RESPONSE =>
+        val pbRegisterShuffleResponse = PbRegisterShuffleResponse.parseFrom(message.getPayload)
+        val partitionLocations = new util.ArrayList[PartitionLocation]()
+        if (pbRegisterShuffleResponse.getPartitionLocationsCount > 0) {
+          partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
+            .asScala.map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+        }
+        RegisterShuffleResponse(Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
+          partitionLocations)
+
+      case REQUEST_SLOTS =>
+        val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
+        val reduceIds = new util.ArrayList[Integer]()
+        if (pbRequestSlots.getReduceIdListCount > 0) {
+          reduceIds.addAll(pbRequestSlots.getReduceIdListList)
+        }
+        RequestSlots(pbRequestSlots.getApplicationId, pbRequestSlots.getShuffleId, reduceIds,
+          pbRequestSlots.getHostname, pbRequestSlots.getShouldReplicate,
+          pbRequestSlots.getRequestId)
+
+      case RELEASE_SLOTS =>
+        val pbRequestSlots = PbReleaseSlots.parseFrom(message.getPayload)
+        val workerIds = new util.ArrayList[String]()
+        val slots = new util.ArrayList[Integer]()
+        if (pbRequestSlots.getWorkerIdsCount > 0) {
+          workerIds.addAll(pbRequestSlots.getWorkerIdsList)
+        }
+        if (pbRequestSlots.getSlotsCount > 0) {
+          slots.addAll(pbRequestSlots.getSlotsList)
+        }
+        ReleaseSlots(pbRequestSlots.getApplicationId, pbRequestSlots.getShuffleId, workerIds,
+          slots, pbRequestSlots.getRequestId)
+
+      case RELEASE_SLOTS_RESPONSE =>
+        val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
+        ReleaseSlotsResponse(Utils.toStatusCode(pbReleaseSlotsResponse.getStatus))
+
+      case REQUEST_SLOTS_RESPONSE =>
+        val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
+        val workerResource = if (pbRequestSlotsResponse.getWorkerResourceCount > 0) {
+          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap)
+        } else {
+          null
+        }
+        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus), workerResource)
+
+      case REVIVE =>
+        val pbRevive = PbRevive.parseFrom(message.getPayload)
+        Revive(pbRevive.getApplicationId, pbRevive.getShuffleId, pbRevive.getMapId,
+          pbRevive.getAttemptId, pbRevive.getReduceId, pbRevive.getEpoch,
+          PartitionLocation.fromPbPartitionLocation(pbRevive.getOldPartition),
+          Utils.toStatusCode(pbRevive.getStatus))
+
+      case REVIVE_RESPONSE =>
+        val pbReviveResponse = PbReviveResponse.parseFrom(message.getPayload)
+        ReviveResponse(Utils.toStatusCode(pbReviveResponse.getStatus),
+          PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getPartitionLocation))
+
+      case MAPPER_END =>
+        val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
+        MapperEnd(pbMapperEnd.getApplicationId, pbMapperEnd.getShuffleId, pbMapperEnd.getMapId,
+          pbMapperEnd.getAttemptId, pbMapperEnd.getNumMappers)
+
+      case MAPPER_END_RESPONSE =>
+        val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
+        MapperEndResponse(Utils.toStatusCode(pbMapperEndResponse.getStatus))
+
+      case GET_REDUCER_FILE_GROUP =>
+        val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
+        GetReducerFileGroup(pbGetReducerFileGroup.getApplicationId,
+          pbGetReducerFileGroup.getShuffleId)
+
+      case GET_REDUCER_FILE_GROUP_RESPONSE =>
+        val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
+          .parseFrom(message.getPayload)
+        val (fileGroup, attempts) = if (pbGetReducerFileGroupResponse.getFileGroupCount > 0) {
+          (pbGetReducerFileGroupResponse.getFileGroupList.asScala
+            .map(fg => fg.getLocaltionsList.asScala
+              .map(PartitionLocation.fromPbPartitionLocation(_)).toArray).toArray,
+            pbGetReducerFileGroupResponse.getAttemptsList)
+        } else {
+          (null, null)
+        }
+        GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
+          fileGroup, attempts.asScala.map(Int.unbox(_)).toArray)
+
+      case UNREGISTER_SHUFFLE =>
+        val pbUnregisterShuffle = PbUnregisterShuffle.parseFrom(message.getPayload)
+        UnregisterShuffle(pbUnregisterShuffle.getAppId, pbUnregisterShuffle.getShuffleId,
+          pbUnregisterShuffle.getRequestId)
+
+      case UNREGISTER_SHUFFLE_RESPONSE =>
+        val pbUnregisterShuffleResponse = PbUnregisterShuffleResponse.parseFrom(message.getPayload)
+        UnregisterShuffleResponse(Utils.toStatusCode(pbUnregisterShuffleResponse.getStatus))
+
+      case APPLICATION_LOST =>
+        val pbApplicationLost = PbApplicationLost.parseFrom(message.getPayload)
+        ApplicationLost(pbApplicationLost.getAppId, pbApplicationLost.getRequestId)
+
+      case APPLICATION_LOST_RESPONSE =>
+        val pbApplicationLostResponse = PbApplicationLostResponse.parseFrom(message.getPayload)
+        ApplicationLostResponse(Utils.toStatusCode(pbApplicationLostResponse.getStatus))
+
+      case HEARTBEAT_FROM_APPLICATION =>
+        val pbHeartBeatFromApplication = PbHeartBeatFromApplication.parseFrom(message.getPayload)
+        HeartBeatFromApplication(pbHeartBeatFromApplication.getAppId,
+          pbHeartBeatFromApplication.getRequestId)
+
+      case GET_BLACKLIST =>
+        val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
+        GetBlacklist(pbGetBlacklist.getLocalBlackListList.asScala
+          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava)
+
+      case GET_BLACKLIST_RESPONSE =>
+        val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
+        GetBlacklistResponse(Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
+          pbGetBlacklistResponse.getBlacklistList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava,
+          pbGetBlacklistResponse.getUnknownWorkersList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava)
+
+      case GET_CLUSTER_LOAD_STATUS =>
+        GetClusterLoadStatus
+
+      case GET_CLUSTER_LOAD_STATUS_RESPONSE =>
+        val pbGetClusterLoadStatusResponse = PbGetClusterLoadStatusResponse
+          .parseFrom(message.getPayload)
+        GetClusterLoadStatusResponse(pbGetClusterLoadStatusResponse.getIsOverload)
+
+      case REPORT_WORKER_FAILURE =>
+        val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
+        ReportWorkerFailure(pbReportWorkerFailure.getFailedList.asScala
+          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava, pbReportWorkerFailure.getRequestId)
+
+      case REGISTER_WORKER_RESPONSE =>
+        val pbRegisterWorkerResponse = PbRegisterWorkerResponse.parseFrom(message.getPayload)
+        RegisterWorkerResponse(pbRegisterWorkerResponse.getSuccess,
+          pbRegisterWorkerResponse.getMessage)
+
+      case REREGISTER_WORKER_RESPONSE =>
+        val pbReregisterWorkerResponse = PbReregisterWorkerResponse.parseFrom(message.getPayload)
+        ReregisterWorkerResponse(pbReregisterWorkerResponse.getSuccess)
+
+      case RESERVE_SLOTS =>
+        val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
+        ReserveSlots(pbReserveSlots.getApplicationId,
+          pbReserveSlots.getShuffleId, pbReserveSlots.getMasterLocationsList.asScala
+            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava,
+          pbReserveSlots.getSlaveLocationsList.asScala
+            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+
+      case RESERVE_SLOTS_RESPONSE =>
+        val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
+        ReserveSlotsResponse(Utils.toStatusCode(pbReserveSlotsResponse.getStatus),
+          pbReserveSlotsResponse.getReason)
+
+      case COMMIT_FILES =>
+        val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
+        CommitFiles(pbCommitFiles.getApplicationId, pbCommitFiles.getShuffleId,
+          pbCommitFiles.getMasterIdsList, pbCommitFiles.getSlaveIdsList,
+          pbCommitFiles.getMapAttemptsList.asScala.map(Int.unbox(_)).toArray)
+
+      case COMMIT_FILES_RESPONSE =>
+        val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
+        CommitFilesResponse(Utils.toStatusCode(pbCommitFilesResponse.getStatus),
+          pbCommitFilesResponse.getCommittedMasterIdsList,
+          pbCommitFilesResponse.getCommittedSlaveIdsList,
+          pbCommitFilesResponse.getFailedMasterIdsList,
+          pbCommitFilesResponse.getFailedSlaveIdsList)
+
+      case DESTROY =>
+        val pbDestroy = PbDestroy.parseFrom(message.getPayload)
+        Destroy(pbDestroy.getShuffleKey, pbDestroy.getMasterLocationsList,
+          pbDestroy.getSlaveLocationList)
+
+      case DESTROY_RESPONSE =>
+        val pbDestroyResponse = PbDestroyResponse.parseFrom(message.getPayload)
+        DestroyResponse(Utils.toStatusCode(pbDestroyResponse.getStatus),
+          pbDestroyResponse.getFailedMastersList, pbDestroyResponse.getFailedSlavesList)
+
+      case SLAVE_LOST_RESPONSE =>
+        val pbSlaveLostResponse = PbSlaveLostResponse.parseFrom(message.getPayload)
+        SlaveLostResponse(Utils.toStatusCode(pbSlaveLostResponse.getStatus),
+          PartitionLocation.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
+
+      case GET_WORKER_INFO =>
+        GetWorkerInfos
+
+      case GET_WORKER_INFO_RESPONSE =>
+        val pbGetWorkerInfoResponse = PbGetWorkerInfosResponse.parseFrom(message.getPayload)
+        GetWorkerInfosResponse(Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
+          pbGetWorkerInfoResponse.getWorkerInfosList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo(_)).toList: _* )
+
+      case THREAD_DUMP =>
+        ThreadDump
+
+      case THREAD_DUMP_RESPONSE =>
+        val pbThreadDumpResponse = PbThreadDumpResponse.parseFrom(message.getPayload)
+        ThreadDumpResponse(pbThreadDumpResponse.getThreadDump)
+
+      case REMOVE_EXPIRED_SHUFFLE =>
+        RemoveExpiredShuffle
+
+      case ONE_WAY_MESSAGE_RESPONSE =>
+        OneWayMessageResponse
+
+      case CHECK_FOR_WORKER_TIMEOUT =>
+        CheckForWorkerTimeOut
+
+      case CHECK_FOR_APPLICATION_TIMEOUT =>
+        CheckForApplicationTimeOut
+
+      case WORKER_LOST =>
+        val pbWorkerLost = PbWorkerLost.parseFrom(message.getPayload)
+        WorkerLost(pbWorkerLost.getHost, pbWorkerLost.getRpcPort, pbWorkerLost.getPushPort,
+          pbWorkerLost.getFetchPort, pbWorkerLost.getRequestId)
+
+      case WORKER_LOST_RESPONSE =>
+        val pbWorkerLostResponse = PbWorkerLostResponse.parseFrom(message.getPayload)
+        WorkerLostResponse(pbWorkerLostResponse.getSuccess)
+
+      case STAGE_END =>
+        val pbStageEnd = PbStageEnd.parseFrom(message.getPayload)
+        StageEnd(pbStageEnd.getApplicationId, pbStageEnd.getShuffleId)
+
+      case STAGE_END_RESPONSE =>
+        val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
+        StageEndResponse(Utils.toStatusCode(pbStageEndResponse.getStatus),
+          pbStageEndResponse.getLostFilesList)
+    }
+  }
 }
