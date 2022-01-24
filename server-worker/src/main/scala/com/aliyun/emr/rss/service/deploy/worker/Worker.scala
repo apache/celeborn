@@ -17,8 +17,9 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.io.IOException
+import java.io.{File, IOException}
 import java.nio.ByteBuffer
+import java.nio.file.Paths
 import java.util.{ArrayList => jArrayList}
 import java.util.{List => jList}
 import java.util.{HashSet => jHashSet}
@@ -174,7 +175,7 @@ private[deploy] class Worker(
         if (heartBeatFailCnt.addAndGet(1) > 5) {
           logError(s"Heart-beat fail 5 times in a row. Now stopping in thread " +
               s"${Thread.currentThread().getName}", t)
-          onStop()
+          onRestart()
         } else {
           logWarning(s"Heart-beat fail ${heartBeatFailCnt.get()} times in a row in thread " +
               s"${Thread.currentThread().getName}", t)
@@ -232,6 +233,15 @@ private[deploy] class Worker(
     pushServer.close()
     fetchServer.close()
     logInfo("RSS Worker is stopped.")
+  }
+
+  def onRestart(): Unit = {
+    val scriptName = "restart-worker.sh"
+    val cmd = s"${RssConf.rssOperationScriptLocation(conf, scriptName)}/$scriptName"
+    logInfo(s"Restart worker execute : $cmd")
+
+    val cmds = Array("/bin/sh", "-c", cmd)
+    Runtime.getRuntime.exec(cmds)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
