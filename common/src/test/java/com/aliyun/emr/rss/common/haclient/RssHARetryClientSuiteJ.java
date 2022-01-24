@@ -326,7 +326,7 @@ public class RssHARetryClientSuiteJ {
     String masterHosts = "host1,host2,host3";
     return rssConf.clone()
       .set("rss.ha.enable", "true")
-      .set("rss.master.host", masterHosts)
+      .set("rss.ha.master.hosts", masterHosts)
       .set("rss.ha.client.maxTries", "5");
   }
 }
