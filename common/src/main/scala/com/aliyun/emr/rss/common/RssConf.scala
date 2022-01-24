@@ -467,7 +467,8 @@ object RssConf extends Logging {
   }
 
   def masterPort(conf: RssConf): Int = {
-    conf.getInt("rss.master.port", masterAddress(conf).split(",").head.split(":")(1).toInt)
+    conf.getInt("rss.master.port",
+      masterAddress(conf).split(",").head.split(":")(1).toInt)
   }
 
   def workerReplicateNumThreads(conf: RssConf): Int = {

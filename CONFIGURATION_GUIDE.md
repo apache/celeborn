@@ -28,7 +28,8 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 | Item | Default | Description |
 | :---: | :---: | :--: |
 | spark.rss.master.address | | Single master mode: address(host:port) of RSS Master,necessary |
-| spark.rss.master.hosts | | Ha mode: hosts of RSS Master|
+| spark.rss.ha.master.hosts | | Ha mode: hosts of RSS Master|
+| spark.rss.master.host | | Single master: host of RSS Master|
 | spark.rss.master.port | | Port of RSS Master|
 | spark.rss.push.data.buffer.size | 64k | Amount of reducer partition buffer memory. Buffered data will be sent to RSS worker if buffer is full. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000,buffer size is 64K and task will consume up to 64K * 2000 = 125 M heap memory.|
 | spark.rss.push.data.queue.capacity | 512 | Push buffer queue size for a task. The maximum memory is `spark.rss.push.data.buffer.size` * `spark.rss.push.data.queue.capacity`(64K * 512 = 32M) |
@@ -71,6 +72,10 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 | rss.worker.fetch.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128 M and the data will need 16 fetch chunk requests to fetch. |
 | rss.push.io.threads | `rss.worker.base.dirs` * 2 | |
 | rss.fetch.io.threads | `rss.worker.base.dirs` * 2 | |
+| rss.master.address | | Single master mode: address(host:port) of RSS Master,necessary |
+| rss.master.host | | Single master: host of RSS Master|
+| rss.ha.master.hosts | | Ha mode: hosts of RSS Master|
+| rss.master.port | | Port of RSS Master|
 
 ### Metrics 
 
