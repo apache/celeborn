@@ -76,6 +76,10 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    */
   def applyClusterLoadFallbackPolicy(lifeCycleManager: LifecycleManager, numPartitions: Int):
     Boolean = {
+    if (!RssConf.clusterLoadFallbackEnabled(essConf)) {
+      return false
+    }
+
     val needFallback = lifeCycleManager.isClusterOverload(numPartitions)
     if (needFallback) {
       logWarning(s"Cluster is overload: $needFallback")

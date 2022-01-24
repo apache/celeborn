@@ -433,13 +433,14 @@ private[deploy] class Master(
   }
 
   private def getClusterLoad(numPartitions: Int = 0): (Int, Int, Int) = {
-    if (workersSnapShot.isEmpty) {
+    val workers: util.List[WorkerInfo] = workersSnapShot
+    if (workers.isEmpty) {
       return (0, 0, 0)
     }
 
     val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
 
-    val (totalSlots, usedSlots, overloadWorkers) = workersSnapShot.asScala.map(workerInfo => {
+    val (totalSlots, usedSlots, overloadWorkers) = workers.asScala.map(workerInfo => {
       val allSlots: Int = workerInfo.numSlots
       val usedSlots: Int = workerInfo.usedSlots()
       val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
