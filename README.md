@@ -39,16 +39,16 @@ RSS Worker's slot count is decided by `rss.worker.numSlots` or`rss.worker.flush.
 RSS worker's slot count decreases when a partition is allocated and increments when a partition is freed.  
 
 ## Build
-RSS supports Spark2.x(>=2.4.0) and Spark3.x(>=3.1.0).
+RSS supports Spark2.x(>=2.4.0) and Spark3.x(>=3.0.1).
 
 Build for Spark 2    
 `
-./dev/make-distribution.sh -Pspark-2 -Dspark.version=[spark.version default 2.4.5]
+./dev/make-distribution.sh -Pspark-2
 `
 
 Build for Spark 3  
 `
-./dev/make-distribution.sh -Pspark-3 -Dspark.version=[spark.version default 3.1.2]
+./dev/make-distribution.sh -Pspark-3
 `
 
 package rss-${project.version}-bin-release.tgz will be generated.
