@@ -19,10 +19,8 @@ package com.aliyun.emr.rss.service.deploy.master
 
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
-
 import scala.collection.JavaConverters._
 import scala.util.Random
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.haEnabled
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
@@ -38,6 +36,8 @@ import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
+
+import scala.collection.mutable
 
 private[deploy] class Master(
                               override val rpcEnv: RpcEnv,
@@ -81,7 +81,7 @@ private[deploy] class Master(
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val (totalSlots, usedSlots, overloadWorkerCount) = getClusterLoad()
+    val (totalSlots, usedSlots, overloadWorkerCount) = getClusterLoad
     // worker slots count
     source.addGauge(MasterSource.WorkerSlotsCount, _ => totalSlots)
     // worker slots used count
@@ -423,7 +423,7 @@ private[deploy] class Master(
 
   private def handleGetClusterLoadStatus(context: RpcCallContext, numPartitions: Int): Unit = {
     val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
-    val (totalSlots, usedSlots, _) = getClusterLoad(numPartitions)
+    val (totalSlots, usedSlots, _) = getClusterLoad
 
     val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
     val result = totalUsedRatio >= clusterSlotsUsageLimit
@@ -432,15 +432,15 @@ private[deploy] class Master(
     context.reply(GetClusterLoadStatusResponse(result))
   }
 
-  private def getClusterLoad(numPartitions: Int = 0): (Int, Int, Int) = {
-    val workers: util.List[WorkerInfo] = workersSnapShot
+  private def getClusterLoad: (Int, Int, Int) = {
+    val workers: mutable.Buffer[WorkerInfo] = workersSnapShot.asScala
     if (workers.isEmpty) {
       return (0, 0, 0)
     }
 
     val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
 
-    val (totalSlots, usedSlots, overloadWorkers) = workers.asScala.map(workerInfo => {
+    val (totalSlots, usedSlots, overloadWorkers) = workers.map(workerInfo => {
       val allSlots: Int = workerInfo.numSlots
       val usedSlots: Int = workerInfo.usedSlots()
       val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
