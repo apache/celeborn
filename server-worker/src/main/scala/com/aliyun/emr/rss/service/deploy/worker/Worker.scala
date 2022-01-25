@@ -17,9 +17,8 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.io.{File, IOException}
+import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.file.Paths
 import java.util.{ArrayList => jArrayList}
 import java.util.{List => jList}
 import java.util.{HashSet => jHashSet}
@@ -236,12 +235,15 @@ private[deploy] class Worker(
   }
 
   def onRestart(): Unit = {
-    val scriptName = "restart-worker.sh"
-    val cmd = s"${RssConf.rssOperationScriptLocation(conf, scriptName)}/$scriptName"
-    logInfo(s"Restart worker execute : $cmd")
+    val cmd = RssConf.rssOperationScriptLocation(conf, "restart-worker.sh")
+    if (null == cmd) {
+      logWarning(s"Restart worker execute : cmd=null. Cannot find restart-worker.sh")
+    } else {
+      logInfo(s"Restart worker execute : $cmd")
 
-    val cmds = Array("/bin/sh", "-c", cmd)
-    Runtime.getRuntime.exec(cmds)
+      val cmds = Array("/bin/sh", "-c", cmd)
+      Runtime.getRuntime.exec(cmds)
+    }
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {

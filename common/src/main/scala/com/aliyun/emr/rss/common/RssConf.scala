@@ -419,15 +419,16 @@ object RssConf extends Logging {
     if (null == scriptName || scriptName.isBlank) {
       return null
     }
-    var scriptLocation: String = conf.get("rss.operation.script.location", null)
+    val scriptLocation: String = conf.get("rss.operation.script.location", null)
     if (null == scriptLocation || scriptLocation.isBlank) {
-      scriptLocation = sys.env.get("RSS_HOME")
-          .map(rssHome => new File(s"$rssHome${File.separator}sbin"))
-          .filter(_.isDirectory)
-          .map(dir => Paths.get(dir.getAbsolutePath).resolve(scriptName).toString)
-          .orNull
+      sys.env.get("RSS_HOME")
+        .map(rssHome => new File(s"$rssHome${File.separator}sbin"))
+        .filter(_.isDirectory)
+        .map(dir => Paths.get(dir.getAbsolutePath).resolve(scriptName).toString)
+        .orNull
+    } else {
+      scriptLocation + "/" + scriptName
     }
-    scriptLocation
   }
 
   def pushDataBufferSize(conf: RssConf): Int = {
