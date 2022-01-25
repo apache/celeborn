@@ -40,7 +40,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{workerChannelLimiterEnabled, workerDirectMemoryCriticalRatio, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond}
+import com.aliyun.emr.rss.common.RssConf.{trafficControlEnabled, workerOffheapMemoryCriticalRatio, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -75,8 +75,8 @@ private[deploy] class Worker(
   }
 
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
-  if (RssConf.workerChannelLimiterEnabled(conf)) {
-    val memoryTracker = MemoryTracker.initialize(workerDirectMemoryCriticalRatio(conf),
+  if (RssConf.trafficControlEnabled(conf)) {
+    val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
       workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
     memoryTracker.registerMemoryListener(localStorageManager)
   }
@@ -91,7 +91,7 @@ private[deploy] class Worker(
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
     val clientBootstraps = new jArrayList[TransportClientBootstrap]()
     (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps,
-      workerChannelLimiterEnabled(conf)), transportContext.createClientFactory(clientBootstraps))
+      trafficControlEnabled(conf)), transportContext.createClientFactory(clientBootstraps))
   }
 
   private val fetchServer = {

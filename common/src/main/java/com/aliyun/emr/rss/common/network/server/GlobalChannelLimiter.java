@@ -42,7 +42,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
   private MemoryTracker memoryTracker = MemoryTracker.instance();
   private static GlobalChannelLimiter globalChannelLimiter = new GlobalChannelLimiter();
 
-  public static GlobalChannelLimiter globalChannelLimiter(){
+  public static GlobalChannelLimiter globalChannelLimiter() {
     return globalChannelLimiter;
   }
 
@@ -61,7 +61,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
     memoryTracker.registerMemoryListener(this);
   }
 
-  private void pauseAllChannels(){
+  private void pauseAllChannels() {
     channels.stream().forEach(c -> {
       if (c.config().isAutoRead()) {
         if(logger.isDebugEnabled()) {
@@ -73,7 +73,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
     });
   }
 
-  private void resumeAllChannels(){
+  private void resumeAllChannels() {
     channels.stream().forEach(c -> {
       if (!c.config().isAutoRead()) {
         if(logger.isDebugEnabled()) {

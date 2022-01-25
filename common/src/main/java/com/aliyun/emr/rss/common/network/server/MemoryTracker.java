@@ -37,7 +37,7 @@ public class MemoryTracker {
   private static volatile MemoryTracker _INSTANCE = null;
 
   private long maxDirectorMemory = VM.maxDirectMemory();
-  private long directMemoryCritical = 0;
+  private long offheapMemoryCriticalThreshold = 0;
   private List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
   private ScheduledExecutorService checkService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
@@ -48,13 +48,12 @@ public class MemoryTracker {
   private ExecutorService actionService = Executors
     .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("MemoryTracker-action-thread").build());
-  private AtomicLong directMemoryIndicator = null;
+  private AtomicLong nettyMemoryCounter = null;
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
-    int reportInterval){
+    int reportInterval) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryTracker( directMemoryCriticalRatio, checkInterval,
-        reportInterval);
+      _INSTANCE = new MemoryTracker(directMemoryCriticalRatio, checkInterval, reportInterval);
     }
     return _INSTANCE;
   }
@@ -69,10 +68,12 @@ public class MemoryTracker {
     return _INSTANCE;
   }
 
-  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval){
+  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval) {
     assert directMemoryCriticalRatio > 0 && directMemoryCriticalRatio < 1;
-    directMemoryCritical = (long) (maxDirectorMemory * directMemoryCriticalRatio);
-    assert directMemoryCritical > 0;
+    offheapMemoryCriticalThreshold = (long) (maxDirectorMemory * directMemoryCriticalRatio);
+    assert offheapMemoryCriticalThreshold > 0;
+
+    initDirectMemoryIndicator();
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
@@ -86,17 +87,15 @@ public class MemoryTracker {
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}",
-        toMb(directMemoryIndicator.get()), toMb(maxDirectorMemory)), reportInterval,
+    reportService.scheduleWithFixedDelay(() -> logger.debug("Track all direct memory usage :{}/{}",
+        toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory)), reportInterval,
       reportInterval, TimeUnit.SECONDS);
 
     logger.info("Memory tracker initialized with :  " +
                   "\n max direct memory : {} ({} MB)" +
                   "\n direct memory critical : {} ({} MB)",
       maxDirectorMemory, toMb(maxDirectorMemory),
-      directMemoryCritical, toMb(directMemoryCritical));
-
-    initDirectMemoryIndicator();
+      offheapMemoryCriticalThreshold, toMb(offheapMemoryCriticalThreshold));
   }
 
   private double toMb(long bytes) {
@@ -113,7 +112,7 @@ public class MemoryTracker {
         }
       }
       field.setAccessible(true);
-      directMemoryIndicator = ((AtomicLong) field.get(PlatformDependent.class));
+      nettyMemoryCounter = ((AtomicLong) field.get(PlatformDependent.class));
     } catch (Exception e) {
       logger.error("Fatal error, get netty_direct_memory failed, worker should stop, detail : {}",
         e);
@@ -122,7 +121,7 @@ public class MemoryTracker {
   }
 
   public boolean directMemoryCritical() {
-    return directMemoryIndicator.get() > directMemoryCritical;
+    return nettyMemoryCounter.get() > offheapMemoryCriticalThreshold;
   }
 
   public interface MemoryTrackerListener {

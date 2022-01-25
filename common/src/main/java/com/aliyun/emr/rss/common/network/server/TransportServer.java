@@ -66,20 +66,7 @@ public class TransportServer implements Closeable {
       int portToBind,
       RpcHandler appRpcHandler,
       List<TransportServerBootstrap> bootstraps) {
-    this.context = context;
-    this.conf = context.getConf();
-    this.appRpcHandler = appRpcHandler;
-    this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
-
-    boolean shouldClose = true;
-    try {
-      init(hostToBind, portToBind);
-      shouldClose = false;
-    } finally {
-      if (shouldClose) {
-        JavaUtils.closeQuietly(this);
-      }
-    }
+    this(context, hostToBind, portToBind, appRpcHandler, bootstraps, false);
   }
 
   public TransportServer(TransportContext context, String hostToBind,
@@ -155,7 +142,7 @@ public class TransportServer implements Closeable {
     logger.debug("Shuffle server started on port: {}", port);
   }
 
-  protected void initializeChannel(ServerBootstrap bootstrap){
+  protected void initializeChannel(ServerBootstrap bootstrap) {
     bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
       @Override
       protected void initChannel(SocketChannel ch) {
