@@ -19,8 +19,11 @@ package com.aliyun.emr.rss.service.deploy.master
 
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.haEnabled
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
@@ -36,8 +39,6 @@ import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
-
-import scala.collection.mutable
 
 private[deploy] class Master(
                               override val rpcEnv: RpcEnv,
