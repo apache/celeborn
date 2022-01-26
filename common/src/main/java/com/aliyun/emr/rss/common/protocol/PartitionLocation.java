@@ -241,37 +241,37 @@ public class PartitionLocation implements Serializable {
 
   public static TransportMessages.PbPartitionLocation toPbPartitionLocation(PartitionLocation
                                                                               partitionLocation) {
-    TransportMessages.PbPartitionLocation.Builder pbPartitionLocation = TransportMessages
+    TransportMessages.PbPartitionLocation.Builder pbPartitionLocationBuilder = TransportMessages
       .PbPartitionLocation.newBuilder();
     if (partitionLocation.mode == Mode.Master) {
-      pbPartitionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
+      pbPartitionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
     } else {
-      pbPartitionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
+      pbPartitionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
     }
-    pbPartitionLocation.setHost(partitionLocation.getHost());
-    pbPartitionLocation.setEpoch(partitionLocation.getEpoch());
-    pbPartitionLocation.setReduceId(partitionLocation.getReduceId());
-    pbPartitionLocation.setRpcPort(partitionLocation.getRpcPort());
-    pbPartitionLocation.setPushPort(partitionLocation.getPushPort());
-    pbPartitionLocation.setFetchPort(partitionLocation.getFetchPort());
+    pbPartitionLocationBuilder.setHost(partitionLocation.getHost());
+    pbPartitionLocationBuilder.setEpoch(partitionLocation.getEpoch());
+    pbPartitionLocationBuilder.setReduceId(partitionLocation.getReduceId());
+    pbPartitionLocationBuilder.setRpcPort(partitionLocation.getRpcPort());
+    pbPartitionLocationBuilder.setPushPort(partitionLocation.getPushPort());
+    pbPartitionLocationBuilder.setFetchPort(partitionLocation.getFetchPort());
 
     if (partitionLocation.getPeer() != null) {
-      TransportMessages.PbPartitionLocation.Builder peerPbPartionLocation = TransportMessages
+      TransportMessages.PbPartitionLocation.Builder peerPbPartionLocationBuilder = TransportMessages
         .PbPartitionLocation.newBuilder();
       if (partitionLocation.getPeer().mode == Mode.Master) {
-        peerPbPartionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
+        peerPbPartionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
       } else {
-        peerPbPartionLocation.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
+        peerPbPartionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
       }
-      peerPbPartionLocation.setHost(partitionLocation.getPeer().getHost());
-      peerPbPartionLocation.setEpoch(partitionLocation.getPeer().getEpoch());
-      peerPbPartionLocation.setReduceId(partitionLocation.getPeer().getReduceId());
-      peerPbPartionLocation.setRpcPort(partitionLocation.getPeer().getRpcPort());
-      peerPbPartionLocation.setPushPort(partitionLocation.getPeer().getPushPort());
-      peerPbPartionLocation.setFetchPort(partitionLocation.getPeer().getFetchPort());
-      pbPartitionLocation.setPeer(peerPbPartionLocation.build());
+      peerPbPartionLocationBuilder.setHost(partitionLocation.getPeer().getHost());
+      peerPbPartionLocationBuilder.setEpoch(partitionLocation.getPeer().getEpoch());
+      peerPbPartionLocationBuilder.setReduceId(partitionLocation.getPeer().getReduceId());
+      peerPbPartionLocationBuilder.setRpcPort(partitionLocation.getPeer().getRpcPort());
+      peerPbPartionLocationBuilder.setPushPort(partitionLocation.getPeer().getPushPort());
+      peerPbPartionLocationBuilder.setFetchPort(partitionLocation.getPeer().getFetchPort());
+      pbPartitionLocationBuilder.setPeer(peerPbPartionLocationBuilder.build());
     }
 
-    return pbPartitionLocation.build();
+    return pbPartitionLocationBuilder.build();
   }
 }

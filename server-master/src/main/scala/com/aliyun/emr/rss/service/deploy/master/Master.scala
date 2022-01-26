@@ -251,11 +251,6 @@ private[deploy] class Master(
       return
     }
 
-    if (worker.endpoint == null) {
-      worker.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort),
-        RpcNameConstants.WORKER_EP))
-    }
-
     statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, numSlots,
       System.currentTimeMillis(), requestId)
 
