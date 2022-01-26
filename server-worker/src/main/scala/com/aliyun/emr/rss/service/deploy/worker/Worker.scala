@@ -40,6 +40,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.RssConf.{trafficControlEnabled, workerOffheapMemoryCriticalRatio, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -48,7 +49,7 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
-import com.aliyun.emr.rss.common.network.server.{FileInfo, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, TransportServerBootstrap}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -74,6 +75,11 @@ private[deploy] class Worker(
   }
 
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
+  if (RssConf.trafficControlEnabled(conf)) {
+    val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
+      workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
+    memoryTracker.registerMemoryListener(localStorageManager)
+  }
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -84,8 +90,8 @@ private[deploy] class Worker(
       new TransportContext(transportConf, rpcHandler, closeIdleConnections)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
     val clientBootstraps = new jArrayList[TransportClientBootstrap]()
-    (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps),
-      transportContext.createClientFactory(clientBootstraps))
+    (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps,
+      trafficControlEnabled(conf)), transportContext.createClientFactory(clientBootstraps))
   }
 
   private val fetchServer = {

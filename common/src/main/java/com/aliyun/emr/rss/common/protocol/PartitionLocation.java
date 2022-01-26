@@ -139,7 +139,7 @@ public class PartitionLocation implements Serializable {
     return host + ":" + rpcPort + ":" + pushPort + ":" + fetchPort;
   }
 
-  public String hostAndPushPort(){
+  public String hostAndPushPort() {
     return host+":"+pushPort;
   }
 
@@ -204,7 +204,7 @@ public class PartitionLocation implements Serializable {
         + ":" + pushPort + ":" + fetchPort + " Mode: " + mode + " peer: " + peerAddr + "]";
   }
 
-  public WorkerInfo getWorker(){
+  public WorkerInfo getWorker() {
     WorkerInfo info = new WorkerInfo(host, rpcPort, pushPort, fetchPort);
     return info;
   }

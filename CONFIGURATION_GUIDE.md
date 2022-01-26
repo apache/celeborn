@@ -184,3 +184,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.disk.space.safe.watermark.size` | 0GB | String | Disk usage watermark size in GB
 , size must be Long |
 | `rss.worker.status.check.timeout` | 10s | String | Worker device check timeout |
+| `rss.traffic.control.enabled` | true | bool | Flow control |
+| `rss.worker.offheap.memory.critical.ratio` | 0.9 | float | Worker direct memory usage critical level ratio |
+| `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
+| `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |

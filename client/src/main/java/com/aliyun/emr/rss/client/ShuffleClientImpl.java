@@ -863,7 +863,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode cause;
     if (StatusCode.PushDataFailSlave.getMessage().equals(message)) {
       cause = StatusCode.PushDataFailSlave;
-    } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)){
+    } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)) {
       cause = StatusCode.PushDataFailMain;
     } else {
       cause = StatusCode.PushDataFailNonCriticalCause;
