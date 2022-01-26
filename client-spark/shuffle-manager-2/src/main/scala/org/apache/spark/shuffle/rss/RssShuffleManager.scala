@@ -75,7 +75,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     newAppId = Some(RssShuffleManager.genNewAppId(dependency.rdd.context))
     newAppId.foreach(initializeLifecycleManager)
 
-    if (fallbackPolicyRunner.applyAllFallbackPolicy(dependency, lifecycleManager.get)) {
+    if (fallbackPolicyRunner.applyAllFallbackPolicy(lifecycleManager.get,
+      dependency.partitioner.numPartitions)) {
       logWarning("Fallback to SortShuffleManager!")
       sortShuffleIds.add(shuffleId)
       sortShuffleManager.registerShuffle(shuffleId, numMaps, dependency)

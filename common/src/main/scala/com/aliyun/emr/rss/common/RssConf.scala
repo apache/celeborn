@@ -607,6 +607,10 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.prometheus.metric.port", 9096)
   }
 
+  def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
+  }
+
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }

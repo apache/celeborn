@@ -1132,10 +1132,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     blacklist.addAll(failedWorker)
   }
 
-  def isClusterOverload(): Boolean = {
+  def isClusterOverload(numPartitions: Int = 0): Boolean = {
     logInfo(s"Ask Sync Cluster Load Status")
     try {
-      rssHARetryClient.askSync[GetClusterLoadStatusResponse](GetClusterLoadStatus,
+      rssHARetryClient.askSync[GetClusterLoadStatusResponse](GetClusterLoadStatus(numPartitions),
         classOf[GetClusterLoadStatusResponse]).isOverload
     } catch {
       case e: Exception =>
