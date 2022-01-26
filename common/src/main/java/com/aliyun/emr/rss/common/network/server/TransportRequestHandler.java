@@ -134,7 +134,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       IOException e = new IOException("Worker Not Registered!");
       if (req instanceof RpcRequest) {
         respond(new RpcFailure(((RpcRequest)req).requestId, Throwables.getStackTraceAsString(e)));
-      } else if (req instanceof ChunkFetchRequest){
+      } else if (req instanceof ChunkFetchRequest) {
         respond(new ChunkFetchFailure(((ChunkFetchRequest)req).streamChunkId,
             Throwables.getStackTraceAsString(e)));
       } else if (req instanceof OneWayMessage) {

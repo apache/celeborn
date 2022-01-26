@@ -338,7 +338,7 @@ public class FileWriterSuiteJ {
   }
 
   @Test
-  public void testCompositeBufClear(){
+  public void testCompositeBufClear() {
     ByteBuf buf = Unpooled.wrappedBuffer("hello world".getBytes(StandardCharsets.UTF_8));
     ByteBuf buf2 = Unpooled.wrappedBuffer("hello world".getBytes(StandardCharsets.UTF_8));
     ByteBuf buf3 = Unpooled.wrappedBuffer("hello world".getBytes(StandardCharsets.UTF_8));
