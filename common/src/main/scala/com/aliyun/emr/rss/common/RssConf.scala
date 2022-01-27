@@ -455,15 +455,20 @@ object RssConf extends Logging {
   }
 
   def masterAddress(conf: RssConf): String = {
-    conf.get("rss.master.address", Utils.localHostName() + ":" + 9097)
+    conf.get("rss.master.address", masterHost(conf) + ":" + 9097)
+  }
+
+  def masterHostsFromAddress(conf: RssConf): String = {
+    masterAddress(conf).split(",").map(_.split(":")(0)).mkString(",")
   }
 
   def masterHost(conf: RssConf): String = {
-    conf.get("rss.master.host", masterAddress(conf).split(":")(0))
+    conf.get("rss.master.host", Utils.localHostName())
   }
 
   def masterPort(conf: RssConf): Int = {
-    conf.getInt("rss.master.port", masterAddress(conf).split(":")(1).toInt)
+    conf.getInt("rss.master.port",
+      masterAddress(conf).split(",").head.split(":")(1).toInt)
   }
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
@@ -699,9 +704,11 @@ object RssConf extends Logging {
   def haEnabled(conf: RssConf): Boolean = {
     conf.getBoolean("rss.ha.enable", false)
   }
+
   def haMasterHosts(conf: RssConf): String = {
-    conf.get("rss.ha.master.hosts", masterHost(conf))
+    conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
   }
+
   def haClientMaxTries(conf: RssConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 3)
   }
