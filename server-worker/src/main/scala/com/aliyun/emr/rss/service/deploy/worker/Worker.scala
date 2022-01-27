@@ -40,7 +40,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{trafficControlEnabled, workerOffheapMemoryCriticalRatio, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond}
+import com.aliyun.emr.rss.common.RssConf.{trafficControlEnabled, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
