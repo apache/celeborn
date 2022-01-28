@@ -26,7 +26,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, TransportMessages}
-import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbApplicationLost, PbApplicationLostResponse, PbCommitFiles, PbCommitFilesResponse, PbDestroy, PbDestroyResponse, PbFileGroup, PbGetBlacklist, PbGetBlacklistResponse, PbGetClusterLoadStatusResponse, PbGetReducerFileGroup, PbGetReducerFileGroupResponse, PbGetWorkerInfosResponse, PbHeartBeatFromApplication, PbHeartbeatFromWorker, PbHeartbeatResponse, PbMapperEnd, PbMapperEndResponse, PbRegisterShuffle, PbRegisterShuffleResponse, PbRegisterWorker, PbRegisterWorkerResponse, PbReleaseSlots, PbReleaseSlotsResponse, PbReportWorkerFailure, PbRequestSlots, PbRequestSlotsResponse, PbReregisterWorkerResponse, PbReserveSlots, PbReserveSlotsResponse, PbRevive, PbReviveResponse, PbSlaveLostResponse, PbStageEnd, PbStageEndResponse, PbThreadDumpResponse, PbUnregisterShuffle, PbUnregisterShuffleResponse, PbWorkerLost, PbWorkerLostResponse}
+import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbApplicationLost, PbApplicationLostResponse, PbCommitFiles, PbCommitFilesResponse, PbDestroy, PbDestroyResponse, PbFileGroup, PbGetBlacklist, PbGetBlacklistResponse, PbGetClusterLoadStatus, PbGetClusterLoadStatusResponse, PbGetReducerFileGroup, PbGetReducerFileGroupResponse, PbGetWorkerInfosResponse, PbHeartBeatFromApplication, PbHeartbeatFromWorker, PbHeartbeatResponse, PbMapperEnd, PbMapperEndResponse, PbRegisterShuffle, PbRegisterShuffleResponse, PbRegisterWorker, PbRegisterWorkerResponse, PbReleaseSlots, PbReleaseSlotsResponse, PbReportWorkerFailure, PbRequestSlots, PbRequestSlotsResponse, PbReregisterWorkerResponse, PbReserveSlots, PbReserveSlotsResponse, PbRevive, PbReviveResponse, PbSlaveLostResponse, PbStageEnd, PbStageEndResponse, PbThreadDumpResponse, PbUnregisterShuffle, PbUnregisterShuffleResponse, PbWorkerLost, PbWorkerLostResponse}
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckForApplicationTimeOut, CheckForWorkerTimeOut, CommitFiles, CommitFilesResponse, Destroy, DestroyResponse, GetBlacklist, GetBlacklistResponse, GetClusterLoadStatus, GetClusterLoadStatusResponse, GetReducerFileGroup, GetReducerFileGroupResponse, GetWorkerInfos, GetWorkerInfosResponse, HeartBeatFromApplication, HeartbeatFromWorker, HeartbeatResponse, MapperEnd, MapperEndResponse, OneWayMessageResponse, RegisterShuffle, RegisterShuffleResponse, RegisterWorker, RegisterWorkerResponse, ReleaseSlots, ReleaseSlotsResponse, RemoveExpiredShuffle, ReportWorkerFailure, RequestSlots, RequestSlotsResponse, ReregisterWorkerResponse, ReserveSlots, ReserveSlotsResponse, Revive, ReviveResponse, SlaveLostResponse, StageEnd, StageEndResponse, ThreadDump, ThreadDumpResponse, UnregisterShuffle, UnregisterShuffleResponse, WorkerLost, WorkerLostResponse}
 import com.aliyun.emr.rss.common.util.Utils
@@ -252,8 +252,9 @@ sealed trait Message extends Serializable{
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
 
-      case GetClusterLoadStatus =>
-        new TransportMessage(TransportMessages.MessageType.GET_CLUSTER_LOAD_STATUS, null)
+      case GetClusterLoadStatus(numPartitions) =>
+        new TransportMessage(TransportMessages.MessageType.GET_CLUSTER_LOAD_STATUS,
+          PbGetClusterLoadStatus.newBuilder().setNumPartitions(numPartitions).build().toByteArray)
 
       case GetClusterLoadStatusResponse(isOverload) =>
         val payload = TransportMessages.PbGetClusterLoadStatusResponse.newBuilder()
@@ -746,7 +747,8 @@ object ControlMessages extends Logging{
             .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava)
 
       case GET_CLUSTER_LOAD_STATUS =>
-        GetClusterLoadStatus
+        val pbGetClusterLoadStats = PbGetClusterLoadStatus.parseFrom(message.getPayload)
+        GetClusterLoadStatus(pbGetClusterLoadStats.getNumPartitions)
 
       case GET_CLUSTER_LOAD_STATUS_RESPONSE =>
         val pbGetClusterLoadStatusResponse = PbGetClusterLoadStatusResponse
