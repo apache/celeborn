@@ -268,6 +268,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     slots.asScala.foreach(entry => {
       val workerInfo = entry._1
       try {
+        workerInfo.endpoint = rpcEnv.setupEndpointRef(
+          RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
+          WORKER_EP)
         workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client =
           rpcEnv.asInstanceOf[NettyRpcEnv].clientFactory.createClient(workerInfo.host,
             workerInfo.rpcPort)
@@ -1073,7 +1076,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
-        DestroyResponse(StatusCode.Failed, message.masterLocations, message.slaveLocation)
+        DestroyResponse(StatusCode.Failed, message.masterLocations, message.slaveLocations)
     }
   }
 

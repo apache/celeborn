@@ -310,7 +310,7 @@ private[deploy] class Master(
     } else {
       statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, numSlots, requestId)
       logInfo(s"Registered worker $workerToRegister.")
-      context.reply(RegisterWorkerResponse(true, null))
+      context.reply(RegisterWorkerResponse(true, ""))
     }
   }
 

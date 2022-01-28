@@ -26,12 +26,12 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, TransportMessages}
-import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbApplicationLost, PbApplicationLostResponse, PbCommitFiles, PbCommitFilesResponse, PbDestroy, PbDestroyResponse, PbFileGroup, PbGetBlacklist, PbGetBlacklistResponse, PbGetClusterLoadStatus, PbGetClusterLoadStatusResponse, PbGetReducerFileGroup, PbGetReducerFileGroupResponse, PbGetWorkerInfosResponse, PbHeartBeatFromApplication, PbHeartbeatFromWorker, PbHeartbeatResponse, PbMapperEnd, PbMapperEndResponse, PbRegisterShuffle, PbRegisterShuffleResponse, PbRegisterWorker, PbRegisterWorkerResponse, PbReleaseSlots, PbReleaseSlotsResponse, PbReportWorkerFailure, PbRequestSlots, PbRequestSlotsResponse, PbReregisterWorkerResponse, PbReserveSlots, PbReserveSlotsResponse, PbRevive, PbReviveResponse, PbSlaveLostResponse, PbStageEnd, PbStageEndResponse, PbThreadDumpResponse, PbUnregisterShuffle, PbUnregisterShuffleResponse, PbWorkerLost, PbWorkerLostResponse}
+import com.aliyun.emr.rss.common.protocol.TransportMessages._
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckForApplicationTimeOut, CheckForWorkerTimeOut, CommitFiles, CommitFilesResponse, Destroy, DestroyResponse, GetBlacklist, GetBlacklistResponse, GetClusterLoadStatus, GetClusterLoadStatusResponse, GetReducerFileGroup, GetReducerFileGroupResponse, GetWorkerInfos, GetWorkerInfosResponse, HeartBeatFromApplication, HeartbeatFromWorker, HeartbeatResponse, MapperEnd, MapperEndResponse, OneWayMessageResponse, RegisterShuffle, RegisterShuffleResponse, RegisterWorker, RegisterWorkerResponse, ReleaseSlots, ReleaseSlotsResponse, RemoveExpiredShuffle, ReportWorkerFailure, RequestSlots, RequestSlotsResponse, ReregisterWorkerResponse, ReserveSlots, ReserveSlotsResponse, Revive, ReviveResponse, SlaveLostResponse, StageEnd, StageEndResponse, ThreadDump, ThreadDumpResponse, UnregisterShuffle, UnregisterShuffleResponse, WorkerLost, WorkerLostResponse}
 import com.aliyun.emr.rss.common.util.Utils
 
 sealed trait Message extends Serializable{
+  import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
   def toTransportMessage(): TransportMessage = {
     this match {
       case CheckForWorkerTimeOut =>
@@ -170,10 +170,11 @@ sealed trait Message extends Serializable{
 
       case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
         val payload = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
-          .setStatus(status.getValue).addAllFileGroup(
-          fileGroup.map(arr => PbFileGroup.newBuilder()
-            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
-            .build()).toList.asJava).addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
+          .setStatus(status.getValue)
+          .addAllFileGroup(fileGroup.map(arr => PbFileGroup.newBuilder()
+            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation(_)).toIterable.asJava)
+            .build()).toIterable.asJava)
+          .addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
@@ -320,11 +321,11 @@ sealed trait Message extends Serializable{
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES_RESPONSE, payload)
 
-      case Destroy(shuffleKey, masterLocations, slaveLocation) =>
+      case Destroy(shuffleKey, masterLocations, slaveLocations) =>
         val payload = TransportMessages.PbDestroy.newBuilder()
           .setShuffleKey(shuffleKey)
           .addAllMasterLocations(masterLocations)
-          .addAllSlaveLocation(slaveLocation)
+          .addAllSlaveLocation(slaveLocations)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.DESTROY, payload)
 
@@ -360,6 +361,9 @@ sealed trait Message extends Serializable{
         val payload = TransportMessages.PbThreadDumpResponse.newBuilder()
           .setThreadDump(threadDump).build().toByteArray
         new TransportMessage(TransportMessages.MessageType.THREAD_DUMP_RESPONSE, payload)
+
+      case OneWayMessageResponse =>
+        new TransportMessage(TransportMessages.MessageType.ONE_WAY_MESSAGE_RESPONSE, null)
     }
   }
 }
@@ -566,7 +570,7 @@ object ControlMessages extends Logging{
   case class Destroy(
       shuffleKey: String,
       masterLocations: util.List[String],
-      slaveLocation: util.List[String])
+      slaveLocations: util.List[String])
     extends WorkerMessage
 
   case class DestroyResponse(
@@ -592,8 +596,9 @@ object ControlMessages extends Logging{
   def fromTransportMessage(message: TransportMessage): Message = {
     message.getType match {
       case UNKNOWN_MESSAGE =>
-        logWarning(s"received unknown message ${message}")
-        null
+        val msg = s"received unknown message $message"
+        logError(msg)
+        throw new UnsupportedOperationException(msg)
 
       case REGISTER_WORKER =>
         val pbRegisterWorker = PbRegisterWorker.parseFrom(message.getPayload)
@@ -735,8 +740,8 @@ object ControlMessages extends Logging{
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetBlacklist(pbGetBlacklist.getLocalBlackListList.asScala
-          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava)
+        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
+          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava))
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
@@ -856,6 +861,9 @@ object ControlMessages extends Logging{
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
         StageEndResponse(Utils.toStatusCode(pbStageEndResponse.getStatus),
           pbStageEndResponse.getLostFilesList)
+
+      case ONE_WAY_MESSAGE_RESPONSE =>
+        OneWayMessageResponse
     }
   }
 }
