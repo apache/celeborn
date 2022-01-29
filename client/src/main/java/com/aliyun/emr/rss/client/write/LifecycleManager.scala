@@ -173,11 +173,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions, hostname) =>
+    case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions) =>
       logDebug(s"Received RegisterShuffle request, " +
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
       handleRegisterShuffle(context, applicationId, shuffleId, numMappers,
-        numPartitions, hostname)
+        numPartitions)
 
     case Revive(applicationId, shuffleId, mapId, attemptId,
       reduceId, epoch, oldPartition, cause) =>
@@ -208,8 +208,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     applicationId: String,
     shuffleId: Int,
     numMappers: Int,
-    numPartitions: Int,
-    hostname: String): Unit = {
+    numPartitions: Int): Unit = {
     // check if same request already exists for the same shuffle.
     // If do, just register and return
     registerShuffleRequest.synchronized {
@@ -570,7 +569,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       if (context != null) {
-        context.reply(StageEndResponse(StatusCode.ShuffleNotRegistered, null))
+        context.reply(StageEndResponse(StatusCode.ShuffleNotRegistered))
       }
       return
     }
@@ -698,7 +697,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       if (context != null) {
-        context.reply(StageEndResponse(StatusCode.Success, null))
+        context.reply(StageEndResponse(StatusCode.Success))
       }
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
@@ -706,7 +705,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       if (context != null) {
-        context.reply(StageEndResponse(StatusCode.PartialSuccess, null))
+        context.reply(StageEndResponse(StatusCode.PartialSuccess))
       }
     }
   }

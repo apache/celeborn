@@ -248,7 +248,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
-            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions, getLocalHost()),
+            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
             ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class)
         );
 
