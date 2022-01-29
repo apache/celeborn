@@ -166,8 +166,7 @@ private[deploy] class Worker(
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
     val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots,
-        self, shuffleKeys)
+      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots, shuffleKeys)
       , classOf[HeartbeatResponse])
     cleanTaskQueue.put(response.expiredShuffleKeys)
   }
@@ -385,7 +384,8 @@ private[deploy] class Worker(
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(CommitFilesResponse(
-        StatusCode.ShuffleNotRegistered, null, null, masterIds, slaveIds))
+        StatusCode.ShuffleNotRegistered, new jArrayList[String](), new jArrayList[String](),
+        masterIds, slaveIds))
       return
     }
 
@@ -428,7 +428,8 @@ private[deploy] class Worker(
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
         context.reply(CommitFilesResponse(
-          StatusCode.Success, committedMasterIdList, committedSlaveIdList, null, null))
+          StatusCode.Success, committedMasterIdList, committedSlaveIdList,
+          new jArrayList[String](), new jArrayList[String]()))
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
@@ -540,7 +541,7 @@ private[deploy] class Worker(
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
     val list = new jArrayList[WorkerInfo]()
     list.add(workerInfo)
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, list))
+    context.reply(GetWorkerInfosResponse(StatusCode.Success, list.asScala.toList: _*))
   }
 
   private def handleThreadDump(context: RpcCallContext): Unit = {
@@ -854,7 +855,7 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp = try {
         rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, pushPort, fetchPort, workerInfo.numSlots, self),
+          RegisterWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots),
           classOf[RegisterWorkerResponse]
         )
       } catch {
