@@ -112,7 +112,6 @@ message PbRegisterShuffle {
   int32 shuffleId = 2;
   int32 numMapppers = 3;
   int32 numPartitions = 4;
-  string hostname = 5;
 }
 
 message PbRegisterShuffleResponse {
@@ -314,5 +313,4 @@ message PbStageEnd {
 
 message PbStageEndResponse {
   int32 status = 1;
-  repeated string lostFiles = 2;
 }

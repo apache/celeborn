@@ -232,7 +232,7 @@ public class PartitionLocation implements Serializable {
       }
       PartitionLocation peerLocation = new PartitionLocation(peerPb.getReduceId(),
         peerPb.getEpoch(), peerPb.getHost(), peerPb.getRpcPort(), peerPb.getPushPort(),
-        peerPb.getFetchPort(), peerMode);
+        peerPb.getFetchPort(), peerMode, partitionLocation);
       partitionLocation.setPeer(peerLocation);
     }
 

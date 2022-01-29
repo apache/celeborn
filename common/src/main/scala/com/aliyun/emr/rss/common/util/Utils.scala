@@ -645,17 +645,12 @@ object Utils extends Logging {
     }
   }
 
-  private def buildWorker(host: String, rpcPort: String, pushPort: String,
-    fetchPort: String): WorkerInfo = {
-    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
-  }
-
   def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]):
   WorkerResource = {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach(item => {
       val Array(host, rpcPort, pushPort, fetchPort) = item._1.split(":")
-      val workerInfo = buildWorker(host, rpcPort, pushPort, fetchPort)
+      val workerInfo = new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
       val masterPartitionLocation = item._2.getMasterPartitionsList
         .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
       val slavePartitionLocation = item._2.getSlavePartitionsList
@@ -686,11 +681,11 @@ object Utils extends Logging {
     }
   }
 
-  def fromTransportMessage(messages: Any): Any = {
-    if (messages.isInstanceOf[TransportMessage]) {
-      ControlMessages.fromTransportMessage(messages.asInstanceOf[TransportMessage])
+  def fromTransportMessage(message: Any): Any = {
+    if (message.isInstanceOf[TransportMessage]) {
+      ControlMessages.fromTransportMessage(message.asInstanceOf[TransportMessage])
     } else {
-      messages
+      message
     }
   }
 

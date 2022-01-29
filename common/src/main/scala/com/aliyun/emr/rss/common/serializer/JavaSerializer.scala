@@ -98,7 +98,7 @@ private[rss] class JavaSerializerInstance(
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
     val bos = new ByteBufferOutputStream()
     val out = serializeStream(bos)
-    out.writeObject(t)
+    out.writeObject(Utils.toTransportMessage(t))
     out.close()
     bos.toByteBuffer
   }
