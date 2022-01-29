@@ -682,12 +682,11 @@ object Utils extends Logging {
   }
 
   def fromTransportMessage(message: Any): Any = {
-    val msg = if (message.isInstanceOf[TransportMessage]) {
+    if (message.isInstanceOf[TransportMessage]) {
       ControlMessages.fromTransportMessage(message.asInstanceOf[TransportMessage])
     } else {
       message
     }
-    msg
   }
 
   def toStatusCode(status: Int): StatusCode = {

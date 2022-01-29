@@ -169,13 +169,17 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP, payload)
 
       case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
-        val payload = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
+        val builder = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
           .setStatus(status.getValue)
-          .addAllFileGroup(fileGroup.map(arr => PbFileGroup.newBuilder()
+        if (fileGroup != null) {
+          builder.addAllFileGroup(fileGroup.map(arr => PbFileGroup.newBuilder()
             .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation(_)).toIterable.asJava)
             .build()).toIterable.asJava)
-          .addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
-          .build().toByteArray
+        }
+        if (attempts != null) {
+          builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
+        }
+        val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
       case WorkerLost(host, rpcPort, pushPort, fetchPort, requestId) =>
@@ -705,16 +709,17 @@ object ControlMessages extends Logging{
       case GET_REDUCER_FILE_GROUP_RESPONSE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
-        val (fileGroup, attempts) = if (pbGetReducerFileGroupResponse.getFileGroupCount > 0) {
-          (pbGetReducerFileGroupResponse.getFileGroupList.asScala
+        if (pbGetReducerFileGroupResponse.getFileGroupCount > 0) {
+          val fileGroup = pbGetReducerFileGroupResponse.getFileGroupList.asScala
             .map(fg => fg.getLocaltionsList.asScala
-              .map(PartitionLocation.fromPbPartitionLocation(_)).toArray).toArray,
-            pbGetReducerFileGroupResponse.getAttemptsList)
+              .map(PartitionLocation.fromPbPartitionLocation(_)).toArray).toArray
+          val attempts = pbGetReducerFileGroupResponse.getAttemptsList
+          GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
+            fileGroup, attempts.asScala.map(Int.unbox(_)).toArray)
         } else {
-          (null, null)
+          GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
+            null, null)
         }
-        GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
-          fileGroup, attempts.asScala.map(Int.unbox(_)).toArray)
 
       case UNREGISTER_SHUFFLE =>
         val pbUnregisterShuffle = PbUnregisterShuffle.parseFrom(message.getPayload)

@@ -269,8 +269,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       val workerInfo = entry._1
       try {
         workerInfo.endpoint = rpcEnv.setupEndpointRef(
-          RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
-          WORKER_EP)
+          RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
         workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client =
           rpcEnv.asInstanceOf[NettyRpcEnv].clientFactory.createClient(workerInfo.host,
             workerInfo.rpcPort)
