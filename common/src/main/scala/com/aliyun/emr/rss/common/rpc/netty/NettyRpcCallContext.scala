@@ -18,10 +18,10 @@
 package com.aliyun.emr.rss.common.rpc.netty
 
 import scala.concurrent.Promise
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback
 import com.aliyun.emr.rss.common.rpc.{RpcAddress, RpcCallContext}
-import com.aliyun.emr.rss.common.util.Utils
 
 private[rss] abstract class NettyRpcCallContext(override val senderAddress: RpcAddress)
   extends RpcCallContext with Logging {

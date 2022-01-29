@@ -123,7 +123,8 @@ sealed trait Message extends Serializable{
         val builder = TransportMessages.PbRequestSlotsResponse.newBuilder()
           .setStatus(status.getValue)
         if (workerResource != null) {
-          builder.putAllWorkerResource(Utils.convertWorkerResourceToPbWorkerResource(workerResource))
+          builder.putAllWorkerResource(
+            Utils.convertWorkerResourceToPbWorkerResource(workerResource))
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REQUEST_SLOTS_RESPONSE, payload)
