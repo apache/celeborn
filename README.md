@@ -65,6 +65,12 @@ Build procedure will create a compressed package.
     └── spark                       //Spark client jars
 ```
 
+### Compatibility
+RSS server is compatible with both Spark2 and Spark3.
+You can run both Spark2 and Spark3 with the same RSS server. It doesn't matter whether RSS server is compiled with -Pspark-2 or -Pspark-3.
+However, RSS client must be consistent with the version of the Spark.
+That is, if you are running Spark2, you must compile RSS client with -Pspark-2; if you are running Spark3, you must compile RSS client with -Pspark-3.
+
 ## Usage
 RSS supports HA mode deployment.
 
