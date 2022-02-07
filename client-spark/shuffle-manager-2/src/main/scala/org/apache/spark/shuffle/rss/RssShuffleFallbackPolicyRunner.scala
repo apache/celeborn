@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.rss
 
-import org.apache.spark.{ShuffleDependency, SparkConf}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.internal.SQLConf
 
 import com.aliyun.emr.rss.client.write.LifecycleManager
@@ -28,10 +28,9 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
   private lazy val essConf = RssShuffleManager.fromSparkConf(sparkConf)
 
-  def applyAllFallbackPolicy(dependency: ShuffleDependency[_, _, _],
-    lifecycleManager: LifecycleManager): Boolean = {
-    applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(dependency) ||
-      applyAQEFallbackPolicy() || applyClusterLoadFallbackPolicy(lifecycleManager)
+  def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
+    applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
+      applyAQEFallbackPolicy() || applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
   }
 
   /**
@@ -42,15 +41,15 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
   /**
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
-   * @param dependency shuffle dependency
+   * @param numPartitions shuffle partitions
    * @return return if shuffle partitions bigger than limit
    */
-  def applyShufflePartitionsFallbackPolicy(dependency: ShuffleDependency[_, _, _]): Boolean = {
-    val needFallback = dependency.partitioner.numPartitions >=
-      RssConf.maxPartitionNumSupported(essConf)
+  def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
+    val confNumPartitions = RssConf.maxPartitionNumSupported(essConf)
+    val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
-      logInfo(s"Shuffle num of partitions: ${dependency.partitioner.numPartitions}" +
-        s" is bigger than the limit: ${RssConf.maxPartitionNumSupported(essConf)}," +
+      logInfo(s"Shuffle num of partitions: $numPartitions" +
+        s" is bigger than the limit: $confNumPartitions," +
         s" need fallback to spark shuffle")
     }
     needFallback
@@ -73,8 +72,13 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * if rss cluster is under high load, fallback to external shuffle
    * @return if rss cluster's slots used percent is overhead the limit
    */
-  def applyClusterLoadFallbackPolicy(lifecycleManager: LifecycleManager): Boolean = {
-    val needFallback = lifecycleManager.isClusterOverload()
+  def applyClusterLoadFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int):
+    Boolean = {
+    if (!RssConf.clusterLoadFallbackEnabled(essConf)) {
+      return false
+    }
+
+    val needFallback = lifecycleManager.isClusterOverload(numPartitions)
     if (needFallback) {
       logWarning(s"Cluster is overload: $needFallback")
     }

@@ -33,20 +33,21 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.PartitionLocation
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource
 
 private[worker] case class FlushTask(
-    buffer: CompositeByteBuf,
-    fileChannel: FileChannel,
-    notifier: FileWriter.FlushNotifier)
+  buffer: CompositeByteBuf,
+  fileChannel: FileChannel,
+  notifier: FileWriter.FlushNotifier)
 
 private[worker] final class DiskFlusher(
-    val workingDir: File,
-    queueCapacity: Int,
-    workerSource: AbstractSource,
-    val deviceMonitor: DeviceMonitor) extends DeviceObserver with Logging {
+  val workingDir: File,
+  queueCapacity: Int,
+  workerSource: AbstractSource,
+  val deviceMonitor: DeviceMonitor) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueue = new LinkedBlockingQueue[FlushTask](queueCapacity)
   private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf](queueCapacity)
@@ -146,7 +147,7 @@ private[worker] final class DiskFlusher(
 
   override def equals(obj: Any): Boolean = {
     obj.isInstanceOf[DiskFlusher] &&
-        obj.asInstanceOf[DiskFlusher].workingDir.equals(workingDir)
+      obj.asInstanceOf[DiskFlusher].workingDir.equals(workingDir)
   }
 
   override def toString(): String = {
@@ -157,7 +158,7 @@ private[worker] final class DiskFlusher(
 private[worker] final class LocalStorageManager(
   conf: RssConf,
   workerSource: AbstractSource,
-  worker: Worker) extends DeviceObserver with Logging {
+  worker: Worker) extends DeviceObserver with Logging with MemoryTrackerListener{
 
   val isolatedWorkingDirs =
     new ConcurrentHashMap[File, DeviceErrorType](RssConf.workerBaseDirs(conf).length)
@@ -323,11 +324,11 @@ private[worker] final class LocalStorageManager(
 
   @throws[IOException]
   def createWriter(
-      appId: String,
-      shuffleId: Int,
-      reduceId: Int,
-      epoch: Int,
-      mode: PartitionLocation.Mode): FileWriter = {
+    appId: String,
+    shuffleId: Int,
+    reduceId: Int,
+    epoch: Int,
+    mode: PartitionLocation.Mode): FileWriter = {
     val fileName = s"$reduceId-$epoch-${mode.mode()}"
 
     var retryCount = 0
@@ -435,7 +436,7 @@ private[worker] final class LocalStorageManager(
   }, essSlowFlushInterval, essSlowFlushInterval, TimeUnit.MILLISECONDS)
 
   private def cleanupExpiredAppDirs(
-                 deleteRecursively: Boolean = false, expireDuration: Long): Unit = {
+    deleteRecursively: Boolean = false, expireDuration: Long): Unit = {
     val workingDirs = workingDirsSnapshot()
     workingDirs.addAll(isolatedWorkingDirs.asScala.filterNot(entry => {
       DeviceErrorType.criticalError(entry._2)
@@ -507,5 +508,11 @@ private[worker] final class LocalStorageManager(
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
+  }
+
+  override def onMemoryCritical(): Unit = {
+    writers.entrySet().asScala.foreach(u =>
+      u.getValue.asScala
+        .foreach(f => f._2.flushOnMemoryPressure()))
   }
 }

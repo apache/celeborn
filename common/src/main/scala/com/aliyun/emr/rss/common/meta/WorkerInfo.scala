@@ -21,6 +21,7 @@ import java.util
 import java.util.Objects
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.TransportMessages.PbWorkerInfo
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
@@ -162,5 +163,20 @@ object WorkerInfo {
   def fromUniqueId(id: String): WorkerInfo = {
     val Array(host, rpcPort, pushPort, fetchPort) = id.split(":")
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
+  }
+
+  def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
+    new WorkerInfo(pbWorker.getHost, pbWorker.getRpcPort,
+      pbWorker.getPushPort, pbWorker.getFetchPort, pbWorker.getNumSlots, null)
+  }
+
+  def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
+    PbWorkerInfo.newBuilder()
+      .setHost(workerInfo.host)
+      .setRpcPort(workerInfo.rpcPort)
+      .setFetchPort(workerInfo.fetchPort)
+      .setPushPort(workerInfo.pushPort)
+      .setNumSlots(workerInfo.numSlots)
+      .build()
   }
 }

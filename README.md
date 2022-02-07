@@ -39,7 +39,7 @@ RSS Worker's slot count is decided by `rss.worker.numSlots` or`rss.worker.flush.
 RSS worker's slot count decreases when a partition is allocated and increments when a partition is freed.  
 
 ## Build
-RSS supports Spark2.x(>=2.4.0) and Spark3.x(>=3.0.1).
+RSS supports Spark2.x(>=2.4.0), Spark3.x(>=3.0.1) and only tested under Java8(JDK1.8).
 
 Build for Spark 2    
 `
@@ -64,6 +64,12 @@ Build procedure will create a compressed package.
     ├── sbin                            
     └── spark                       //Spark client jars
 ```
+
+### Compatibility
+RSS server is compatible with both Spark2 and Spark3.
+You can run both Spark2 and Spark3 with the same RSS server. It doesn't matter whether RSS server is compiled with -Pspark-2 or -Pspark-3.
+However, RSS client must be consistent with the version of the Spark.
+That is, if you are running Spark2, you must compile RSS client with -Pspark-2; if you are running Spark3, you must compile RSS client with -Pspark-3.
 
 ## Usage
 RSS supports HA mode deployment.
@@ -96,6 +102,7 @@ rss.metrics.system.enable true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 4096
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
+rss.master.port 9097
 
 rss.ha.enable true
 rss.ha.service.id dev-cluster
@@ -110,7 +117,7 @@ rss.ha.master.hosts host1,host2,host3
 5. Start RSS master
 `$RSS_HOME/sbin/start-master.sh`
 6. Start RSS worker
-`$RSS_HOME/sbin/start-worker.sh rss://master-host:port`
+`$RSS_HOME/sbin/start-worker.sh`
 7. If RSS start success, the output of Master's log should be like this: 
 ```angular2html
 21/12/21 20:06:18,964 INFO [main] Dispatcher: Dispatcher numThreads: 64

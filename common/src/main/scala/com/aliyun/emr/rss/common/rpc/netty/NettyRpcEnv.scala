@@ -36,6 +36,7 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.client._
 import com.aliyun.emr.rss.common.network.server._
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.message.Message
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
@@ -564,7 +565,7 @@ private[rss] class RequestMessage(
       out.writeUTF(receiver.name)
       val s = nettyEnv.serializeStream(out)
       try {
-        s.writeObject(content)
+        s.writeObject(Utils.toTransportMessage(content))
       } finally {
         s.close()
       }

@@ -104,15 +104,16 @@ public class TransportContext {
     return new TransportServer(this, null, port, rpcHandler, bootstraps);
   }
 
+  public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps,
+    boolean limiterEnabled) {
+    return new TransportServer(this, null, port, rpcHandler, bootstraps,
+      limiterEnabled);
+  }
+
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(
       String host, int port, List<TransportServerBootstrap> bootstraps) {
     return new TransportServer(this, host, port, rpcHandler, bootstraps);
-  }
-
-  /** Creates a new server, binding to any available ephemeral port. */
-  public TransportServer createServer(List<TransportServerBootstrap> bootstraps) {
-    return createServer(0, bootstraps);
   }
 
   public TransportServer createServer() {
@@ -149,6 +150,20 @@ public class TransportContext {
         // would require more logic to guarantee if this were not part of the same event loop.
         .addLast("handler", channelHandler);
       return channelHandler;
+    } catch (RuntimeException e) {
+      logger.error("Error while initializing Netty pipeline", e);
+      throw e;
+    }
+  }
+
+  public void initializePipeline(SocketChannel channel, RpcHandler handler,
+    boolean limiterEnabled) {
+    try {
+      if (limiterEnabled) {
+        channel.pipeline()
+          .addLast("limiter", GlobalChannelLimiter.globalChannelLimiter());
+      }
+      initializePipeline(channel, handler);
     } catch (RuntimeException e) {
       logger.error("Error while initializing Netty pipeline", e);
       throw e;
