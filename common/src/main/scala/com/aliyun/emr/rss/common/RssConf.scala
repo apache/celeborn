@@ -416,11 +416,11 @@ object RssConf extends Logging {
 
   // Conf getters
   def rssOperationScriptLocation(conf: RssConf, scriptName: String): String = {
-    if (null == scriptName || scriptName.isBlank) {
+    if (null == scriptName) {
       return null
     }
     val scriptLocation: String = conf.get("rss.operation.script.location", null)
-    if (null == scriptLocation || scriptLocation.isBlank) {
+    if (null == scriptLocation) {
       sys.env.get("RSS_HOME")
         .map(rssHome => new File(s"$rssHome${File.separator}sbin"))
         .filter(_.isDirectory)
@@ -472,15 +472,20 @@ object RssConf extends Logging {
   }
 
   def masterAddress(conf: RssConf): String = {
-    conf.get("rss.master.address", Utils.localHostName() + ":" + 9097)
+    conf.get("rss.master.address", masterHost(conf) + ":" + 9097)
+  }
+
+  def masterHostsFromAddress(conf: RssConf): String = {
+    masterAddress(conf).split(",").map(_.split(":")(0)).mkString(",")
   }
 
   def masterHost(conf: RssConf): String = {
-    conf.get("rss.master.host", masterAddress(conf).split(":")(0))
+    conf.get("rss.master.host", Utils.localHostName())
   }
 
   def masterPort(conf: RssConf): Int = {
-    conf.getInt("rss.master.port", masterAddress(conf).split(":")(1).toInt)
+    conf.getInt("rss.master.port",
+      masterAddress(conf).split(",").head.split(":")(1).toInt)
   }
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
@@ -624,6 +629,10 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.prometheus.metric.port", 9096)
   }
 
+  def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
+  }
+
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
@@ -712,9 +721,11 @@ object RssConf extends Logging {
   def haEnabled(conf: RssConf): Boolean = {
     conf.getBoolean("rss.ha.enable", false)
   }
+
   def haMasterHosts(conf: RssConf): String = {
-    conf.get("rss.ha.master.hosts", masterHost(conf))
+    conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
   }
+
   def haClientMaxTries(conf: RssConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 3)
   }
@@ -729,6 +740,23 @@ object RssConf extends Logging {
 
   def supportAdaptiveQueryExecution(conf: RssConf): Boolean = {
     conf.getBoolean("rss.support.adaptiveQueryExecution", false)
+  }
+
+  def trafficControlEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.traffic.control.enabled", true)
+  }
+
+  def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
+  }
+
+  def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
+    conf.getInt("rss.worker.memory.check.interval", 10)
+  }
+
+  def workerDirectMemoryReportIntervalSecond(conf: RssConf): Int = {
+    Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval",
+      "10s")).toInt
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

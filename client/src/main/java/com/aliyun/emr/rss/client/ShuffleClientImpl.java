@@ -248,7 +248,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
-            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions, getLocalHost()),
+            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
             ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class)
         );
 
@@ -418,7 +418,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // get location
     if (!map.containsKey(reduceId) &&
         !revive(applicationId, shuffleId, mapId, attemptId, reduceId, 0, null,
-                StatusCode.PushDataFailUnknownCause)) {
+                StatusCode.PushDataFailNonCriticalCause)) {
       throw new IOException(
           "Revive for shuffle " + shuffleKey + " reduceId " + reduceId + " failed.");
     }
@@ -863,10 +863,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode cause;
     if (StatusCode.PushDataFailSlave.getMessage().equals(message)) {
       cause = StatusCode.PushDataFailSlave;
-    } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)){
+    } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)) {
       cause = StatusCode.PushDataFailMain;
     } else {
-      cause = StatusCode.PushDataFailUnknownCause;
+      cause = StatusCode.PushDataFailNonCriticalCause;
     }
     return cause;
   }

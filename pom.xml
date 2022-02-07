@@ -45,7 +45,7 @@
     <ratis.version>2.0.0</ratis.version>
     <!-- ProtocolBuffer version, used to verify the protoc version and -->
     <!-- define the protobuf JAR version                               -->
-    <protobuf.version>2.5.0</protobuf.version><!-- Maven protoc compiler -->
+    <protobuf.version>3.5.1</protobuf.version><!-- Maven protoc compiler -->
     <protobuf-maven-plugin.version>0.5.1</protobuf-maven-plugin.version>
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <build.testJarPhase>prepare-package</build.testJarPhase>
@@ -510,7 +510,7 @@
       <properties>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.1.2</spark.version>
+        <spark.version>3.0.1</spark.version>
         <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
       <dependencies>

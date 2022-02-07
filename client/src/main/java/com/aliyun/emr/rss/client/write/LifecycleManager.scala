@@ -173,11 +173,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions, hostname) =>
+    case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions) =>
       logDebug(s"Received RegisterShuffle request, " +
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
       handleRegisterShuffle(context, applicationId, shuffleId, numMappers,
-        numPartitions, hostname)
+        numPartitions)
 
     case Revive(applicationId, shuffleId, mapId, attemptId,
       reduceId, epoch, oldPartition, cause) =>
@@ -208,8 +208,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     applicationId: String,
     shuffleId: Int,
     numMappers: Int,
-    numPartitions: Int,
-    hostname: String): Unit = {
+    numPartitions: Int): Unit = {
     // check if same request already exists for the same shuffle.
     // If do, just register and return
     registerShuffleRequest.synchronized {
@@ -268,6 +267,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     slots.asScala.foreach(entry => {
       val workerInfo = entry._1
       try {
+        workerInfo.endpoint = rpcEnv.setupEndpointRef(
+          RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
         workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client =
           rpcEnv.asInstanceOf[NettyRpcEnv].clientFactory.createClient(workerInfo.host,
             workerInfo.rpcPort)
@@ -280,7 +281,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     candidatesWorkers.removeAll(connectFailedWorkers)
 
-    reportWorkerFailure(connectFailedWorkers)
+    recordWorkerFailure(connectFailedWorkers)
 
     val reserveSlotsSuccess = reserveSlotsWithRetry(applicationId, shuffleId,
       candidatesWorkers.asScala.toList, slots)
@@ -344,16 +345,14 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
+    // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
-    if (cause == StatusCode.PushDataFailSlave && oldPartition.getPeer != null) {
-      failedWorker.add(oldPartition.getPeer.getWorker)
-    } else if (cause == StatusCode.PushDataFailMain || oldPartition.getPeer == null) {
+    if (cause == StatusCode.PushDataFailMain) {
       failedWorker.add(oldPartition.getWorker)
-    } else {
-      failedWorker.add(oldPartition.getWorker)
-      failedWorker.add(oldPartition.getPeer.getWorker)
     }
-    reportWorkerFailure(failedWorker)
+    if (!failedWorker.isEmpty) {
+      recordWorkerFailure(failedWorker)
+    }
   }
 
   private def handleRevive(
@@ -570,7 +569,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       if (context != null) {
-        context.reply(StageEndResponse(StatusCode.ShuffleNotRegistered, null))
+        context.reply(StageEndResponse(StatusCode.ShuffleNotRegistered))
       }
       return
     }
@@ -637,7 +636,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    reportWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
     // release resources and clear worker info
     workerSnapshots(shuffleId).asScala.foreach { w2p =>
       val partitionLocationInfo = w2p._2
@@ -698,7 +697,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       if (context != null) {
-        context.reply(StageEndResponse(StatusCode.Success, null))
+        context.reply(StageEndResponse(StatusCode.Success))
       }
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
@@ -706,7 +705,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       if (context != null) {
-        context.reply(StageEndResponse(StatusCode.PartialSuccess, null))
+        context.reply(StageEndResponse(StatusCode.PartialSuccess))
       }
     }
   }
@@ -767,7 +766,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    reportWorkerFailure(failed);
+    recordWorkerFailure(failed);
 
     failed
   }
@@ -1075,7 +1074,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
-        DestroyResponse(StatusCode.Failed, message.masterLocations, message.slaveLocation)
+        DestroyResponse(StatusCode.Failed, message.masterLocations, message.slaveLocations)
     }
   }
 
@@ -1124,7 +1123,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def reportWorkerFailure(failures: util.List[WorkerInfo]): Unit = {
+  private def recordWorkerFailure(failures: util.List[WorkerInfo]): Unit = {
     val failedWorker = new util.ArrayList[WorkerInfo](failures)
     failedWorker.removeAll(blacklist)
     if (failedWorker.isEmpty) {
@@ -1132,13 +1131,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
     blacklist.addAll(failedWorker)
-    rssHARetryClient.send(ReportWorkerFailure(failedWorker))
   }
 
-  def isClusterOverload(): Boolean = {
+  def isClusterOverload(numPartitions: Int = 0): Boolean = {
     logInfo(s"Ask Sync Cluster Load Status")
     try {
-      rssHARetryClient.askSync[GetClusterLoadStatusResponse](GetClusterLoadStatus,
+      rssHARetryClient.askSync[GetClusterLoadStatusResponse](GetClusterLoadStatus(numPartitions),
         classOf[GetClusterLoadStatusResponse]).isOverload
     } catch {
       case e: Exception =>

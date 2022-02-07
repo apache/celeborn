@@ -40,9 +40,10 @@ public enum StatusCode {
   StageEnded(16),
 
   // push data fail causes
-  PushDataFailSlave(17),
-  PushDataFailMain(18),
-  PushDataFailUnknownCause(19);
+  PushDataFailNonCriticalCause(17),
+  PushDataFailSlave(18),
+  PushDataFailMain(19),
+  PushDataFailPartitionNotFound(20);
 
   private final byte value;
 
@@ -61,8 +62,10 @@ public enum StatusCode {
       msg = "PushDataFailMain";
     } else if (value == PushDataFailSlave.getValue()) {
       msg = "PushDataFailSlave";
-    } else if (value == PushDataFailUnknownCause.getValue()){
-      msg = "PushDataFailUnkonwCause";
+    } else if (value == PushDataFailNonCriticalCause.getValue()) {
+      msg = "PushDataFailNonCriticalCause";
+    } else if (value == PushDataFailPartitionNotFound.getValue()) {
+      msg = "PushDataFailPartitionNotFound";
     }
 
     return msg;

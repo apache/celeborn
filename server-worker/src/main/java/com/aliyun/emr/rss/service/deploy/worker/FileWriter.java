@@ -334,4 +334,13 @@ public final class FileWriter extends DeviceObserver {
   public String toString() {
     return file.getAbsolutePath();
   }
+
+  public void flushOnMemoryPressure() throws IOException {
+    synchronized (this) {
+      if (flushBuffer != null && flushBuffer.readableBytes() != 0) {
+        flush(false);
+        takeBuffer();
+      }
+    }
+  }
 }
