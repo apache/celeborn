@@ -34,7 +34,8 @@ import java.io.IOException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{HashMap, ListBuffer}
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -742,35 +743,36 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    |        END OF EVENT HANDLER                                |
    * ========================================================== */
 
-  def reserveSlots(
-    applicationId: String, shuffleId: Int, slots: WorkerResource): util.List[WorkerInfo] = {
-    val failed = new util.ArrayList[WorkerInfo]()
+  def reserveSlots(applicationId: String, shuffleId: Int,
+    slots: WorkerResource): ConcurrentSet[WorkerInfo] = {
 
-    val parallelism = Array(workerSnapshots(shuffleId).size(),
-      RssConf.rpcMaxParallelism(conf), Runtime.getRuntime().availableProcessors()).min
+    val reserveSlotsFailedWorkers = new ConcurrentSet[WorkerInfo]
+
+    val parallelism = Array(slots.size(), RssConf.rpcMaxParallelism(conf),
+      Runtime.getRuntime().availableProcessors()).min
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlots", parallelism) { entry =>
       if (this.blacklist.contains(entry._1)) {
         logWarning(s"[reserve buffer] failed due to blacklist: ${entry._1}")
-        failed.add(entry._1)
+        reserveSlotsFailedWorkers.add(entry._1)
       } else {
         val res = requestReserveSlots(entry._1.endpoint,
           ReserveSlots(applicationId, shuffleId, entry._2._1, entry._2._2))
         if (res.status.equals(StatusCode.Success)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-            s" from worker ${entry._1.readableAddress}.")
+            s" from worker ${entry._1.readableAddress()}.")
         } else {
           logError(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-            s" from worker ${entry._1.readableAddress}. Reason: ${res.reason}")
-          failed.add(entry._1)
+            s" from worker ${entry._1.readableAddress()}. Reason: ${res.reason}")
+          reserveSlotsFailedWorkers.add(entry._1)
         }
       }
     }
 
-    recordWorkerFailure(failed);
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](reserveSlotsFailedWorkers))
 
-    failed
+    reserveSlotsFailedWorkers
   }
 
   /**
@@ -785,7 +787,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       var retrySuccess = true
       logWarning("ReserveSlots failed once, retry again")
       // get failed partition locations
-      val failedPartitionLocations = new HashMap[Int, PartitionLocation]()
+      val failedPartitionLocations = new mutable.HashMap[Int, PartitionLocation]()
       failed.asScala.foreach(workerInfo => {
         val (failedMasterLocations, failedSlaveLocations) = slots.remove(workerInfo)
         if (null != failedMasterLocations) {
