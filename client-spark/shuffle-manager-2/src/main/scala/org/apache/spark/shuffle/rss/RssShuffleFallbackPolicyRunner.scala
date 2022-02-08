@@ -30,7 +30,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-      applyAQEFallbackPolicy() || applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
+      applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
   }
 
   /**
@@ -51,19 +51,6 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
       logInfo(s"Shuffle num of partitions: $numPartitions" +
         s" is bigger than the limit: $confNumPartitions," +
         s" need fallback to spark shuffle")
-    }
-    needFallback
-  }
-
-  /**
-   * if AQE is enabled, fallback to external shuffle
-   * @return if AQE is support by rss
-   */
-  def applyAQEFallbackPolicy(): Boolean = {
-    val needFallback = !RssConf.supportAdaptiveQueryExecution(essConf) &&
-      sparkConf.get(SQLConf.ADAPTIVE_EXECUTION_ENABLED)
-    if (needFallback) {
-      logInfo(s"Rss current does not support AQE, need fallback to spark shuffle")
     }
     needFallback
   }

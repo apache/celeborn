@@ -39,13 +39,14 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
   public ManagedBufferIterator(FileInfo fileInfo, TransportConf conf) throws IOException {
     file = fileInfo.file;
     numChunks = fileInfo.numChunks;
-    offsets = new long[numChunks + 1];
-    for (int i = 0; i <= numChunks; i++) {
-      offsets[i] = fileInfo.chunkOffsets.get(i);
-    }
-    if (offsets[numChunks] != fileInfo.fileLength) {
-      throw new IOException(String.format("The last chunk offset %d should be equals to file" +
-        " length %d!", offsets[numChunks], fileInfo.fileLength));
+    if (numChunks > 0) {
+      offsets = new long[numChunks + 1];
+      for (int i = 0; i <= numChunks; i++) {
+        offsets[i] = fileInfo.chunkOffsets.get(i);
+      }
+    } else {
+      offsets = new long[1];
+      offsets[0] = 0;
     }
     chunkTracker = new BitSet(numChunks);
     chunkTracker.clear();

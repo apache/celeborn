@@ -22,20 +22,14 @@ import java.nio.ByteBuffer
 import java.util.{ArrayList => jArrayList}
 import java.util.{List => jList}
 import java.util.{HashSet => jHashSet}
-import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ArrayBlockingQueue, Callable, CancellationException, CompletableFuture, ConcurrentHashMap, ExecutionException, LinkedBlockingQueue, ScheduledFuture, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 
-import io.netty.buffer.ByteBuf
+import com.google.common.util.concurrent.ThreadFactoryBuilder
+import io.netty.buffer.{ByteBuf}
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
@@ -49,7 +43,8 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
-import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, ShuffleFileSorter, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -144,6 +139,20 @@ private[deploy] class Worker(
     "worker-replicate-data", RssConf.workerReplicateNumThreads(conf))
   private val timer = new HashedWheelTimer()
 
+  private lazy val sortedShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
+  private lazy val sortingShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
+  private lazy val shuffleSortScheduler = {
+    val threadFactory = new ThreadFactoryBuilder().setDaemon(true)
+      .setNameFormat("worker-shuffle-sort-scheduler-%d").build()
+    val sortLimit = RssConf.shuffleSortSchedulerSize(conf)
+    val taskLimit = RssConf.shuffleSortSchedulerTaskLimit(conf)
+    new ThreadPoolExecutor(sortLimit, sortLimit, 600, TimeUnit.SECONDS,
+      new ArrayBlockingQueue[Runnable](taskLimit), threadFactory)
+  }
+  private lazy val shuffleSorterAllocator = NettyUtils.createPooledByteBufAllocator(true, true,
+    RssConf.shuffleSortSchedulerSize(conf))
+  private lazy val shuffleSortTimeout = RssConf.shuffleSortTimeout(conf)
+
   // Configs
   private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
 
@@ -226,7 +235,7 @@ private[deploy] class Worker(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations) =>
+    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
@@ -234,7 +243,8 @@ private[deploy] class Worker(
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
-        handleReserveSlots(context, applicationId, shuffleId, masterLocations, slaveLocations)
+        handleReserveSlots(context, applicationId, shuffleId, masterLocations,
+          slaveLocations, splitThreashold)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -268,7 +278,8 @@ private[deploy] class Worker(
       applicationId: String,
       shuffleId: Int,
       masterLocations: jList[PartitionLocation],
-      slaveLocations: jList[PartitionLocation]): Unit = {
+      slaveLocations: jList[PartitionLocation],
+      splitThreshold: Long): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -280,7 +291,8 @@ private[deploy] class Worker(
     try {
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location)
+        val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
+          splitThreshold)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -299,7 +311,8 @@ private[deploy] class Worker(
     try {
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location)
+        val writer = localStorageManager.createWriter(applicationId, shuffleId,
+          location, splitThreshold)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -631,6 +644,12 @@ private[deploy] class Worker(
       callback.onFailure(new Exception(message, exception))
       return
     }
+    if (isMaster && fileWriter.shouldSplit()) {
+      logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
+        s"needs to split. Shuffle split threshold ${fileWriter.splitThreshold()}")
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
+      return
+    }
     fileWriter.incrementPendingWrites()
 
     // for master, send data to slave
@@ -750,9 +769,10 @@ private[deploy] class Worker(
 
     val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
     val fileWriterWithException = fileWriters.find(_.getException != null)
+    val fileWriterWithPendingSplit = fileWriters.find(_.shouldSplit())
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
-      logWarning(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
+      logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
           s" has Exception $exception")
       val message = if (isMaster) {
         StatusCode.PushDataFailMain.getMessage()
@@ -760,6 +780,12 @@ private[deploy] class Worker(
         StatusCode.PushDataFailSlave.getMessage()
       }
       callback.onFailure(new Exception(message, exception))
+      return
+    }
+    if (isMaster && fileWriterWithPendingSplit.nonEmpty) {
+      logWarning(s"[handlePushMergedData] fileWriters ${fileWriterWithPendingSplit}" +
+        s" needs to  split")
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
@@ -836,16 +862,88 @@ private[deploy] class Worker(
     }
   }
 
-  override def handleOpenStream(
-      shuffleKey: String, fileName: String): FileInfo = {
-    logDebug(s"Open file $fileName for $shuffleKey")
+  val newOpenStreamMapFunc =
+    new java.util.function.BiFunction[String, ConcurrentSet[String], ConcurrentSet[String]]() {
+      override def apply(key: String, u: ConcurrentSet[String]): ConcurrentSet[String] = {
+        if (u == null) {
+          new ConcurrentSet[String]
+        } else {
+          u
+        }
+      }
+    }
+
+  override def handleOpenStream(shuffleKey: String, fileName: String, startMapIndex: Int,
+    endMapIndex: Int): FileInfo = {
+    logInfo(s"Open file $fileName for $shuffleKey with" +
+      s" startMapIndex ${startMapIndex} endMapIndex ${endMapIndex}")
     // find FileWriter responsible for the data
     val fileWriter = localStorageManager.getWriter(shuffleKey, fileName)
     if (fileWriter eq null) {
       logWarning(s"File $fileName for $shuffleKey was not found!")
       return null
     }
-    new FileInfo(fileWriter.getFile, fileWriter.getChunkOffsets, fileWriter.getFileLength)
+
+    if (endMapIndex != Int.MaxValue) {
+      val shuffleFileId = shuffleKey + fileName;
+      val shuffleBoundSortedShuffleFiles = sortedShuffleFiles.compute(shuffleKey,
+        newOpenStreamMapFunc)
+      val shuffleBoundSortingShuffleFiles = sortingShuffleFiles.compute(shuffleKey,
+        newOpenStreamMapFunc)
+
+      if (!shuffleBoundSortedShuffleFiles.contains(shuffleFileId)) {
+        if (!shuffleBoundSortingShuffleFiles.contains(shuffleFileId)) {
+          shuffleBoundSortingShuffleFiles.add(shuffleFileId)
+          val sortFuture = shuffleSortScheduler.submit(new Callable[FileInfo] {
+            override def call(): FileInfo = {
+              val sorter = new ShuffleFileSorter(fileWriter.getFile,
+                RssConf.workerFetchChunkSize(conf), shuffleSorterAllocator)
+              sorter.sort()
+              shuffleBoundSortingShuffleFiles.remove(shuffleFileId)
+              shuffleBoundSortedShuffleFiles.add(shuffleFileId)
+              val fileInfo = sorter.resolve(startMapIndex, endMapIndex)
+              logInfo(s"[Worker] sort shuffle file complete" +
+                s" ${fileWriter.getFile.getAbsolutePath}")
+              fileInfo
+            }
+          })
+          try {
+            logInfo(s"[Worker] sorting file ${fileName}")
+            sortFuture.get(shuffleSortTimeout, TimeUnit.MILLISECONDS)
+          } catch {
+            case e1: TimeoutException =>
+              sortFuture.cancel(true)
+              logError(s"[Worker] Sort file ${fileWriter.getFile.getAbsoluteFile}" +
+                s" timeout, detail : ${e1}")
+              null
+            case e: ExecutionException =>
+              logError(s"[Worker] Sort file ${fileWriter.getFile.getAbsoluteFile}" +
+                s" failed, detail : ${e}")
+              null
+          }
+        } else {
+          logInfo(s"[Worker] read sorting file ${fileName}")
+          val start = System.currentTimeMillis()
+          while (shuffleBoundSortingShuffleFiles.contains(shuffleFileId)) {
+            Thread.sleep(1000)
+            if (System.currentTimeMillis() - start > shuffleSortTimeout) {
+              logError(s"[Worker] sorting ${shuffleFileId}" +
+                s" ${fileWriter.getFile.getAbsolutePath} timeout")
+              return null
+            }
+          }
+          new ShuffleFileSorter(fileWriter.getFile, RssConf.workerFetchChunkSize(conf),
+            shuffleSorterAllocator).resolve(startMapIndex, endMapIndex)
+        }
+      } else {
+        logInfo(s"[Worker] read sorted file ${fileName}")
+        new ShuffleFileSorter(fileWriter.getFile, RssConf.workerFetchChunkSize(conf),
+          shuffleSorterAllocator).resolve(startMapIndex, endMapIndex)
+      }
+    } else {
+      logInfo(s"[Worker] read shuffle file fully ${fileWriter.getFile.getAbsolutePath}")
+      new FileInfo(fileWriter.getFile, fileWriter.getChunkOffsets)
+    }
   }
 
   private def registerWithMaster() {
@@ -906,6 +1004,8 @@ private[deploy] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
+      sortingShuffleFiles.remove(shuffleKey)
+      sortedShuffleFiles.remove(shuffleKey)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
 

@@ -19,8 +19,11 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -51,11 +54,24 @@ public abstract class RssInputStream extends InputStream {
       PartitionLocation[] locations,
       int[] attempts,
       int attemptNumber) throws IOException {
+    return create(conf, clientFactory, shuffleKey, locations, attempts,
+      attemptNumber, 0, Integer.MAX_VALUE);
+  }
+
+  public static RssInputStream create(
+      RssConf conf,
+      TransportClientFactory clientFactory,
+      String shuffleKey,
+      PartitionLocation[] locations,
+      int[] attempts,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex) throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
     } else {
-      return new RssInputStreamImpl(
-          conf, clientFactory, shuffleKey, locations, attempts, attemptNumber);
+      return new RssInputStreamImpl(conf, clientFactory, shuffleKey, locations, attempts,
+        attemptNumber, startMapIndex, endMapIndex);
     }
   }
 
@@ -88,6 +104,8 @@ public abstract class RssInputStream extends InputStream {
     private final PartitionLocation[] locations;
     private final int[] attempts;
     private final int attemptNumber;
+    private final int startMapIndex;
+    private final int endMapIndex;
 
     private final int maxInFlight;
 
@@ -116,12 +134,34 @@ public abstract class RssInputStream extends InputStream {
         PartitionLocation[] locations,
         int[] attempts,
         int attemptNumber) throws IOException {
+      this(conf, clientFactory, shuffleKey, locations,
+        attempts, attemptNumber, 0, Integer.MAX_VALUE);
+    }
+
+    RssInputStreamImpl(
+        RssConf conf,
+        TransportClientFactory clientFactory,
+        String shuffleKey,
+        PartitionLocation[] locations,
+        int[] attempts,
+        int attemptNumber,
+        int startMapIndex,
+        int endMapIndex) throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
-      this.locations = locations;
+
+      List<PartitionLocation> shuffledLocations = new ArrayList<>();
+      for (PartitionLocation location : locations) {
+        shuffledLocations.add(location);
+      }
+      Collections.shuffle(shuffledLocations);
+      this.locations = shuffledLocations.toArray(new PartitionLocation[locations.length]);
+
       this.attempts = attempts;
       this.attemptNumber = attemptNumber;
+      this.startMapIndex = startMapIndex;
+      this.endMapIndex = endMapIndex;
 
       maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
 
@@ -132,16 +172,20 @@ public abstract class RssInputStream extends InputStream {
       decompressor = new RssLz4Decompressor();
 
       moveToNextReader();
+      while (this.currentReader.numChunks < 1 && this.fileIndex < this.locations.length) {
+        moveToNextReader();
+      }
     }
 
     private void moveToNextReader() throws IOException {
-      logger.info("Move to next partition {}, {}/{} read.",
-          locations[fileIndex], fileIndex, locations.length);
       if (currentReader != null) {
         currentReader.close();
       }
       currentReader = createReader(locations[fileIndex]);
       currentChunk = currentReader.next();
+      logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
+                    "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
+        fileIndex, locations.length, this.currentReader.numChunks);
       fileIndex++;
     }
 
@@ -225,14 +269,23 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private boolean moveToNextChunk() throws IOException {
-      currentChunk.release();
+      if (currentChunk != null) {
+        currentChunk.release();
+      }
       currentChunk = null;
       if (currentReader.hasNext()) {
         currentChunk = currentReader.next();
         return true;
       } else if (fileIndex < locations.length) {
         moveToNextReader();
-        return true;
+        while (this.currentReader.numChunks < 1 && fileIndex < locations.length) {
+          moveToNextReader();
+        }
+        if (this.currentReader.numChunks < 1) {
+          return false;
+        } else {
+          return true;
+        }
       }
       currentReader = null;
       return false;
@@ -328,7 +381,8 @@ public abstract class RssInputStream extends InputStream {
             exception.set(new IOException(errorMsg, e));
           }
         };
-        this.client = new RetryingChunkClient(conf, shuffleKey, location, callback, clientFactory);
+        this.client = new RetryingChunkClient(conf, shuffleKey, location,
+          callback, clientFactory, startMapIndex, endMapIndex);
         this.numChunks = client.openChunks();
       }
 
@@ -343,7 +397,7 @@ public abstract class RssInputStream extends InputStream {
         }
         ByteBuf chunk = null;
         try {
-          while (chunk == null) {
+          while (chunk == null && numChunks > 0) {
             checkException();
             chunk = results.poll(500, TimeUnit.MILLISECONDS);
           }

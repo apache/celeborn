@@ -637,10 +637,6 @@ object RssConf extends Logging {
     port
   }
 
-  def reviveWaitMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.driver.revive.waitMs", "1s")
-  }
-
   def closeIdleConnections(conf: RssConf): Boolean = {
     conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = true)
   }
@@ -721,8 +717,20 @@ object RssConf extends Logging {
     conf.getDouble("rss.slots.usage.overload.percent", 0.95)
   }
 
-  def supportAdaptiveQueryExecution(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.support.adaptiveQueryExecution", false)
+  def shuffleSplitThreshold(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.shuffle.split.threshold", "256m")
+  }
+
+  def shuffleSortSchedulerSize(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.sort.scheduler.size", 4)
+  }
+
+  def shuffleSortSchedulerTaskLimit(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.sort.scheduler.task.limit", 10240)
+  }
+
+  def shuffleSortTimeout(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.shuffle.sort.timeout", "240s")
   }
 
   def trafficControlEnabled(conf: RssConf): Boolean = {

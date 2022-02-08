@@ -49,6 +49,7 @@ public class MemoryTracker {
     .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong nettyMemoryCounter = null;
+  private AtomicLong reserveForSort = new AtomicLong(0);
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
     int reportInterval) {
@@ -87,7 +88,7 @@ public class MemoryTracker {
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.debug("Track all direct memory usage :{}/{}",
+    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}",
         toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory)), reportInterval,
       reportInterval, TimeUnit.SECONDS);
 
@@ -121,10 +122,28 @@ public class MemoryTracker {
   }
 
   public boolean directMemoryCritical() {
-    return nettyMemoryCounter.get() > offheapMemoryCriticalThreshold;
+    return nettyMemoryCounter.get() + reserveForSort.get() > offheapMemoryCriticalThreshold;
   }
 
   public interface MemoryTrackerListener {
     void onMemoryCritical();
+  }
+
+  public void reserveSortMemory(int fileLen) {
+    reserveForSort.addAndGet(fileLen);
+  }
+
+  public boolean sortMemoryReady() {
+    return !directMemoryCritical();
+  }
+
+  public void releaseSortMemory(int filelen) {
+    synchronized (this) {
+      if (reserveForSort.get() - filelen < 0) {
+        reserveForSort.set(0);
+      } else {
+        reserveForSort.addAndGet(-1L * filelen);
+      }
+    }
   }
 }

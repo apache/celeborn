@@ -733,6 +733,8 @@ object Utils extends Logging {
         StatusCode.PushDataFailMain
       case 20 =>
         StatusCode.PushDataFailPartitionNotFound
+      case 21 =>
+        StatusCode.ShuffleFileSplit
       case _ =>
         null
     }

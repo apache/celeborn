@@ -72,6 +72,17 @@ public class RetryingChunkClient {
       PartitionLocation location,
       ChunkReceivedCallback callback,
       TransportClientFactory clientFactory) {
+    this(conf, shuffleKey, location, callback, clientFactory, 0, Integer.MAX_VALUE);
+  }
+
+  public RetryingChunkClient(
+      RssConf conf,
+      String shuffleKey,
+      PartitionLocation location,
+      ChunkReceivedCallback callback,
+      TransportClientFactory clientFactory,
+      int startMapIndex,
+      int endMapIndex) {
     TransportConf transportConf = Utils.fromRssConf(conf, TransportModuleConstants.DATA_MODULE, 0);
 
     this.replicas = new ArrayList<>(2);
@@ -80,9 +91,11 @@ public class RetryingChunkClient {
 
     long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
     if (location != null) {
-      this.replicas.add(new Replica(timeoutMs, shuffleKey, location, clientFactory));
+      this.replicas.add(new Replica(timeoutMs, shuffleKey, location,
+        clientFactory, startMapIndex, endMapIndex));
       if (location.getPeer() != null) {
-        this.replicas.add(new Replica(timeoutMs, shuffleKey, location.getPeer(), clientFactory));
+        this.replicas.add(new Replica(timeoutMs, shuffleKey, location.getPeer(),
+          clientFactory, startMapIndex, endMapIndex));
       }
     }
 
@@ -228,16 +241,30 @@ class Replica {
   private long streamId;
   private int numChunks;
   private TransportClient client;
+  private int startMapIndex;
+  private int endMapIndex;
+
+  Replica(
+      long timeoutMs,
+      String shuffleKey,
+      PartitionLocation location,
+      TransportClientFactory clientFactory,
+      int startMapIndex,
+      int endMapIndex) {
+    this.timeoutMs = timeoutMs;
+    this.shuffleKey = shuffleKey;
+    this.location = location;
+    this.clientFactory = clientFactory;
+    this.startMapIndex = startMapIndex;
+    this.endMapIndex = endMapIndex;
+  }
 
   Replica(
       long timeoutMs,
       String shuffleKey,
       PartitionLocation location,
       TransportClientFactory clientFactory) {
-    this.timeoutMs = timeoutMs;
-    this.shuffleKey = shuffleKey;
-    this.location = location;
-    this.clientFactory = clientFactory;
+    this(timeoutMs, shuffleKey, location, clientFactory, 0, Integer.MAX_VALUE);
   }
 
   public synchronized TransportClient getOrOpenStream()
@@ -270,11 +297,13 @@ class Replica {
     byte[] shuffleKeyBytes = shuffleKey.getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = location.getFileName().getBytes(StandardCharsets.UTF_8);
     ByteBuffer openMessage = ByteBuffer.allocate(
-        4 + shuffleKeyBytes.length + 4 + fileNameBytes.length);
+      4 + shuffleKeyBytes.length + 4 + fileNameBytes.length + 4 + 4);
     openMessage.putInt(shuffleKeyBytes.length);
     openMessage.put(shuffleKeyBytes);
     openMessage.putInt(fileNameBytes.length);
     openMessage.put(fileNameBytes);
+    openMessage.putInt(startMapIndex);
+    openMessage.putInt(endMapIndex);
     openMessage.flip();
     return openMessage;
   }
