@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
+import com.aliyun.emr.rss.common.network.server.ShuffleFileSorter;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
 /*
@@ -66,6 +68,9 @@ public final class FileWriter extends DeviceObserver {
 
   private final DeviceMonitor deviceMonitor;
   private final AbstractSource source; // metrics
+
+  private long splitThreshold = 0;
+  private AtomicBoolean splitted = new AtomicBoolean(false);
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -105,6 +110,7 @@ public final class FileWriter extends DeviceObserver {
       File workingDir,
       long chunkSize,
       long flushBufferSize,
+      long splitThreshold,
       AbstractSource workerSource,
       RssConf rssConf,
       DeviceMonitor deviceMonitor) throws IOException {
@@ -115,10 +121,12 @@ public final class FileWriter extends DeviceObserver {
     this.nextBoundary = chunkSize;
     this.chunkOffsets.add(0L);
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
+    this.splitThreshold = splitThreshold;
     this.flushBufferSize = flushBufferSize;
     this.deviceMonitor = deviceMonitor;
     channel = new FileOutputStream(file).getChannel();
     source = workerSource;
+    logger.debug("FileWriter {} split threshold {}", this, splitThreshold);
     takeBuffer();
   }
 
@@ -249,6 +257,15 @@ public final class FileWriter extends DeviceObserver {
     }
     file.delete();
 
+    if (splitted.get()) {
+      String indexFileStr = file.getAbsolutePath() + ShuffleFileSorter.INDEX_SUFFIX;
+      String sortedFileStr = file.getAbsolutePath() + ShuffleFileSorter.SORTED_SUFFIX;
+      File indexFile = new File(indexFileStr);
+      File sortedFile = new File(sortedFileStr);
+      indexFile.delete();
+      sortedFile.delete();
+    }
+
     // unregister from DeviceMonitor
     deviceMonitor.unregisterFileWriter(this);
   }
@@ -342,5 +359,15 @@ public final class FileWriter extends DeviceObserver {
         takeBuffer();
       }
     }
+  }
+
+  public boolean shouldSplit() {
+    boolean split = this.bytesFlushed > this.splitThreshold;
+    this.splitted.set(split);
+    return split;
+  }
+
+  public long splitThreshold(){
+    return this.splitThreshold;
   }
 }

@@ -63,6 +63,12 @@
             <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
             <version>1.16.37</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>scala-library</artifactId>
+                    <groupId>org.scala-lang</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>

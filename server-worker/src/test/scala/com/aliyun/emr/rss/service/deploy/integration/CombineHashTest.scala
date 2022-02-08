@@ -28,8 +28,8 @@ class CombineHashTest extends SparkTestBase {
   @Test
   def testHashRss(): Unit = {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-    val saprkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    val resultWithoutRss = combine(saprkSession)
+    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+    val resultWithoutRss = combine(sparkSession)
 
     val resultWithRss = combine(SparkSession.builder()
       .config(updateSparkConf(sparkConf, true)).getOrCreate())

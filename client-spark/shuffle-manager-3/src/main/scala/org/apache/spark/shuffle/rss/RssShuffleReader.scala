@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.rss
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.shuffle.ShuffleReader
+import org.apache.spark.shuffle.{ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -31,8 +31,11 @@ class RssShuffleReader[K, C](
     handle: RssShuffleHandle[K, _, C],
     startPartition: Int,
     endPartition: Int,
+    startMapId: Int = 0,
+    endMapId: Int = Int.MaxValue,
     context: TaskContext,
-    conf: RssConf)
+    conf: RssConf,
+    metrics: ShuffleReadMetricsReporter)
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
@@ -44,20 +47,21 @@ class RssShuffleReader[K, C](
     val serializerInstance = dep.serializer.newInstance()
 
     // Update the context task metrics for each record read.
-    val readMetrics = context.taskMetrics.createTempShuffleReadMetrics()
     val metricsCallback = new MetricsCallback {
-      override def incBytesRead(bytesWritten: Long): Unit =
-        readMetrics.incRemoteBytesRead(bytesWritten)
+      override def incBytesRead(bytesWritten: Long): Unit = {
+        metrics.incRemoteBytesRead(bytesWritten)
+        metrics.incRemoteBlocksFetched(1)
+      }
 
       override def incReadTime(time: Long): Unit =
-        readMetrics.incFetchWaitTime(time)
+        metrics.incFetchWaitTime(time)
     }
 
     val recordIter = (startPartition until endPartition).map(reduceId => {
       if (handle.numMappers > 0) {
         val start = System.currentTimeMillis()
-        val inputStream = essShuffleClient.readPartition(
-          handle.newAppId, handle.shuffleId, reduceId, context.attemptNumber())
+        val inputStream = essShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
+          reduceId, context.attemptNumber(), startMapId, endMapId)
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
         inputStream
@@ -70,7 +74,7 @@ class RssShuffleReader[K, C](
 
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
       recordIter.map { record =>
-        readMetrics.incRecordsRead(1)
+        metrics.incRecordsRead(1)
         record
       },
       context.taskMetrics().mergeShuffleReadMetrics())

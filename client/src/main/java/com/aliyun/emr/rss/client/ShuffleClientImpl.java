@@ -87,6 +87,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final RssConf conf;
   private final int maxInFlight;
   private final int pushBufferSize;
+  private final long splitThreshold;
 
   private final RpcEnv rpcEnv;
 
@@ -133,6 +134,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     this.conf = conf;
     maxInFlight = RssConf.pushDataMaxReqsInFlight(conf);
     pushBufferSize = RssConf.pushDataBufferSize(conf);
+    splitThreshold = RssConf.shuffleSplitThreshold(conf);
 
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient",
@@ -247,8 +249,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     int numRetries = 3;
     while (numRetries > 0) {
       try {
+        logger.debug("RegisterShuffle split threshold : {}", splitThreshold);
         RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
-            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
+            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions, splitThreshold),
             ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class)
         );
 
@@ -358,9 +361,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     try {
       ReviveResponse response = driverRssMetaService.<ReviveResponse>askSync(
-          new Revive(applicationId, shuffleId, mapId, attemptId,
-                  reduceId, epoch, oldLocation, cause),
-          ClassTag$.MODULE$.<ReviveResponse>apply(ReviveResponse.class)
+        new Revive(applicationId, shuffleId, mapId, attemptId, reduceId, epoch, oldLocation,
+          cause, splitThreshold),
+        ClassTag$.MODULE$.<ReviveResponse>apply(ReviveResponse.class)
       );
 
       // per partitionKey only serve single PartitionLocation in Client Cache.
@@ -476,14 +479,13 @@ public class ShuffleClientImpl extends ShuffleClient {
         @Override
         public void onSuccess(ByteBuffer response) {
           pushState.inFlightBatches.remove(nextBatchId);
-          if (response.remaining() > 0 &&
-              response.get() == StatusCode.StageEnded.getValue()) {
+          if (response.remaining() > 0 && response.get() == StatusCode.StageEnded.getValue()) {
             mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
-                .add(mapKey);
+              .add(mapKey);
           }
           pushState.removeFuture(nextBatchId);
           logger.debug("Push data success for map {} attempt {} batch {}.",
-              mapId, attemptId, nextBatchId);
+            mapId, attemptId, nextBatchId);
         }
 
         @Override
@@ -499,7 +501,17 @@ public class ShuffleClientImpl extends ShuffleClient {
       RpcResponseCallback wrappedCallback = new RpcResponseCallback() {
         @Override
         public void onSuccess(ByteBuffer response) {
-          callback.onSuccess(response);
+          if (response.remaining() > 0 &&
+                response.get() == StatusCode.ShuffleFileSplit.getValue()) {
+            logger.debug("Push data split for map {} attempt {} batch {}.",
+              mapId, attemptId, nextBatchId);
+            pushDataRetryPool.submit(() -> submitRetryPushData(applicationId, shuffleId, mapId,
+              attemptId, body, nextBatchId, loc, callback, pushState,
+              StatusCode.ShuffleFileSplit));
+          } else {
+            response.rewind();
+            callback.onSuccess(response);
+          }
         }
 
         @Override
@@ -660,10 +672,18 @@ public class ShuffleClientImpl extends ShuffleClient {
         logger.debug("Push data success for map {} attempt {} grouped batch {}.",
             mapId, attemptId, groupedBatchId);
         pushState.inFlightBatches.remove(groupedBatchId);
-        if (response.remaining() > 0 &&
-            response.get() == StatusCode.StageEnded.getValue()) {
-          mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
+        if (response.remaining() > 0) {
+          if(response.get() == StatusCode.StageEnded.getValue()) {
+            mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
               .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
+          }
+          response.rewind();
+          if (response.get() == StatusCode.ShuffleFileSplit.getValue()) {
+            logger.debug("Push data split for map {} attempt {} grouped batch {}.",
+              mapId, attemptId, groupedBatchId);
+            pushDataRetryPool.submit(() -> submitRetryPushMergedData(pushState, applicationId,
+              shuffleId, mapId, attemptId, batches, false, StatusCode.ShuffleFileSplit));
+          }
         }
       }
 
@@ -774,8 +794,15 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(
-      String applicationId, int shuffleId, int reduceId, int attemptNumber) throws IOException {
+  public RssInputStream readPartition(String applicationId, int shuffleId, int reduceId,
+    int attemptNumber) throws IOException {
+    return readPartition(applicationId, shuffleId, reduceId, attemptNumber, 0,
+      Integer.MAX_VALUE);
+  }
+
+  @Override
+  public RssInputStream readPartition(String applicationId, int shuffleId, int reduceId,
+    int attemptNumber, int startMapId, int endMapId) throws IOException {
     ReduceFileGroups fileGroups = reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> {
       try {
         if (driverRssMetaService == null) {
@@ -810,7 +837,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     return RssInputStream.create(conf, dataClientFactory, shuffleKey,
-        fileGroups.partitionGroups[reduceId], fileGroups.mapAttempts, attemptNumber);
+      fileGroups.partitionGroups[reduceId], fileGroups.mapAttempts, attemptNumber,
+      startMapId, endMapId);
   }
 
   @Override

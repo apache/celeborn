@@ -102,7 +102,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
 
   @Override
   public void onMemoryCritical() {
-    logger.debug("Channel limiter execute rate control action");
+    logger.info("Channel limiter execute rate control action");
     pauseAllChannels();
   }
 }

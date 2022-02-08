@@ -142,7 +142,7 @@ public class ShuffleClientSuiteJ {
 
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(new ControlMessages.RegisterShuffle(TEST_APPLICATION_ID,
-        TEST_SHUFFLE_ID, 1, 1),
+        TEST_SHUFFLE_ID, 1, 1, RssConf.shuffleSplitThreshold(conf)),
       ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
       .thenAnswer(t -> new ControlMessages.RegisterShuffleResponse(StatusCode.Success,
         new ArrayList<PartitionLocation>() {{

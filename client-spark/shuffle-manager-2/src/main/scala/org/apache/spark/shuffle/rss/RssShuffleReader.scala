@@ -29,11 +29,14 @@ import com.aliyun.emr.rss.client.read.RssInputStream
 import com.aliyun.emr.rss.common.RssConf
 
 class RssShuffleReader[K, C](
-    handle: RssShuffleHandle[K, _, C],
-    startPartition: Int,
-    endPartition: Int,
-    context: TaskContext,
-    conf: RssConf)
+  handle: RssShuffleHandle[K, _, C],
+  startPartition: Int,
+  endPartition: Int,
+  startMapId: Int = 0,
+  endMapId: Int = Int.MaxValue,
+  context: TaskContext,
+  conf: RssConf
+)
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
@@ -57,11 +60,8 @@ class RssShuffleReader[K, C](
     val recordIter = (startPartition until endPartition).map(reduceId => {
       if (handle.numMaps > 0) {
         val start = System.currentTimeMillis()
-        val inputStream = essShuffleClient.readPartition(
-          handle.newAppId,
-          handle.shuffleId,
-          reduceId,
-          context.attemptNumber())
+        val inputStream = essShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
+          reduceId, context.attemptNumber(), startMapId, endMapId)
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
         // ensure inputStream is closed when task completes

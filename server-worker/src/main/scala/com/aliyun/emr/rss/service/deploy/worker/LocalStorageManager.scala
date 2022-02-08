@@ -185,7 +185,7 @@ private[worker] final class LocalStorageManager(
 
   def hasAvailableWorkingDirs(): Boolean = workingDirsSnapshot().size() > 0
 
-  val essWriterFlushBufferSize: Long = RssConf.workerFlushBufferSize(conf)
+  val writerFlushBufferSize: Long = RssConf.workerFlushBufferSize(conf)
 
   private val dirOperators: ConcurrentHashMap[File, ThreadPoolExecutor] = {
     val cleaners = new ConcurrentHashMap[File, ThreadPoolExecutor]()
@@ -315,11 +315,13 @@ private[worker] final class LocalStorageManager(
   }
 
   @throws[IOException]
-  def createWriter(appId: String, shuffleId: Int, location: PartitionLocation): FileWriter = {
+  def createWriter(appId: String, shuffleId: Int, location: PartitionLocation,
+    splitThreshold: Long): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
-    createWriter(appId, shuffleId, location.getReduceId, location.getEpoch, location.getMode)
+    createWriter(appId, shuffleId, location.getReduceId, location.getEpoch,
+      location.getMode, splitThreshold)
   }
 
   @throws[IOException]
@@ -328,7 +330,8 @@ private[worker] final class LocalStorageManager(
     shuffleId: Int,
     reduceId: Int,
     epoch: Int,
-    mode: PartitionLocation.Mode): FileWriter = {
+    mode: PartitionLocation.Mode,
+    splitThreshold: Long): FileWriter = {
     val fileName = s"$reduceId-$epoch-${mode.mode()}"
 
     var retryCount = 0
@@ -347,7 +350,7 @@ private[worker] final class LocalStorageManager(
           throw new RssException("create app shuffle data dir or file failed")
         }
         val fileWriter = new FileWriter(file, diskFlushers.get(dir), dir, fetchChunkSize,
-          essWriterFlushBufferSize, workerSource, conf, deviceMonitor)
+          writerFlushBufferSize, splitThreshold, workerSource, conf, deviceMonitor)
         deviceMonitor.registerFileWriter(fileWriter)
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)

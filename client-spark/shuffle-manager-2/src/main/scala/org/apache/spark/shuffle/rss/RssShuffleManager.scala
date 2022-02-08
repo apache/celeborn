@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.rss
 
 import java.lang.reflect.Method
+import java.util.concurrent.atomic.LongAdder
 
 import io.netty.util.internal.ConcurrentSet
 import org.apache.spark._
@@ -100,12 +101,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       case h: RssShuffleHandle[K@unchecked, V@unchecked, _] =>
         val client = ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf)
         if (RssConf.shuffleWriterMode(rssConf) == "sort") {
-          val bmId = SparkEnv.get.blockManager.shuffleServerId
-          val mapStatusLengths = new Array[Long](h.dependency.partitioner.numPartitions)
-          val mapStatusRecords = new Array[Long](h.dependency.partitioner.numPartitions)
-          val mapStatus = SparkUtils.createMapStatus(bmId, mapStatusLengths, mapStatusRecords)
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMaps, context,
-            rssConf, client, mapStatusLengths, mapStatusRecords, mapStatus)
+            rssConf, client)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
           new HashBasedShuffleWriter(h, mapId, context, rssConf, client)
         } else {
@@ -127,8 +124,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           handle.asInstanceOf[RssShuffleHandle[K, _, C]],
           startPartition,
           endPartition,
-          context,
-          rssConf)
+          context = context,
+          conf = rssConf)
       case _ => sortShuffleManager.getReader(handle, startPartition, endPartition, context)
     }
   }
@@ -143,7 +140,14 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       endMapId: Int): ShuffleReader[K, C] = {
     handle match {
       case _: RssShuffleHandle[K@unchecked, C@unchecked, _] =>
-        throw new UnsupportedOperationException("Rss Shuffle do not support AQE yet.")
+        new RssShuffleReader(
+          handle.asInstanceOf[RssShuffleHandle[K, _, C]],
+          startPartition,
+          endPartition,
+          startMapId,
+          endMapId,
+          context,
+          rssConf)
       case _ =>
         RssShuffleManager.instantiateMethod(sortShuffleManagerName, "getReader")
           .invoke(handle,

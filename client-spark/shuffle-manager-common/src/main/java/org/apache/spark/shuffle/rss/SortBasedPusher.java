@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.rss;
 
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
 import org.apache.spark.memory.MemoryConsumer;
@@ -46,7 +47,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private MemoryBlock currentPage = null;
   private long pageCursor = -1;
 
-  private final ShuffleClient essShuffleClient;
+  private final ShuffleClient rssShuffleClient;
   private final DataPusher dataPusher;
   private final int pushBufferSize;
   private final long PushThreshold;
@@ -61,10 +62,11 @@ public class SortBasedPusher extends MemoryConsumer {
   int numPartitions;
   RssConf conf;
   Consumer<Integer> afterPush;
+  LongAdder[] mapStatusLengths;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
-      ShuffleClient essShuffleClient,
+      ShuffleClient rssShuffleClient,
       String appId,
       int shuffleId,
       int mapId,
@@ -73,12 +75,13 @@ public class SortBasedPusher extends MemoryConsumer {
       int numMappers,
       int numPartitions,
       RssConf conf,
-      Consumer<Integer> afterPush) throws IOException {
+      Consumer<Integer> afterPush,
+      LongAdder[] mapStatusLengths) throws IOException {
     super(memoryManager,
       (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
       memoryManager.getTungstenMemoryMode());
 
-    this.essShuffleClient = essShuffleClient;
+    this.rssShuffleClient = rssShuffleClient;
 
     this.appId = appId;
     this.shuffleId = shuffleId;
@@ -89,6 +92,7 @@ public class SortBasedPusher extends MemoryConsumer {
     this.numPartitions = numPartitions;
     this.conf = conf;
     this.afterPush = afterPush;
+    this.mapStatusLengths = mapStatusLengths;
 
     dataPusher = new DataPusher(
       appId,
@@ -99,8 +103,9 @@ public class SortBasedPusher extends MemoryConsumer {
       numMappers,
       numPartitions,
       conf,
-      essShuffleClient,
-      this.afterPush);
+      rssShuffleClient,
+      this.afterPush,
+      mapStatusLengths);
 
     pushBufferSize = RssConf.pushDataBufferSize(conf);
     PushThreshold = RssConf.sortPushThreshold(conf);
@@ -128,7 +133,7 @@ public class SortBasedPusher extends MemoryConsumer {
         if (currentPartition == -1) {
           currentPartition = partition;
         } else {
-          int bytesWritten = essShuffleClient.mergeData(
+          int bytesWritten = rssShuffleClient.mergeData(
             appId,
             shuffleId,
             mapId,
@@ -140,6 +145,7 @@ public class SortBasedPusher extends MemoryConsumer {
             numMappers,
             numPartitions
           );
+          mapStatusLengths[currentPartition].add(bytesWritten);
           afterPush.accept(bytesWritten);
           currentPartition = partition;
           offSet = 0;

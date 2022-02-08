@@ -20,6 +20,5 @@ package com.aliyun.emr.rss.service.deploy.worker;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 
 public interface OpenStreamHandler {
-
-  FileInfo handleOpenStream(String shuffleKey, String partitionId);
+  FileInfo handleOpenStream(String shuffleKey, String partitionId, int startMapId, int endMapId);
 }
