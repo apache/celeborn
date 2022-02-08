@@ -746,7 +746,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     applicationId: String, shuffleId: Int, slots: WorkerResource): util.List[WorkerInfo] = {
     val failed = new util.ArrayList[WorkerInfo]()
 
-    slots.asScala.foreach { entry =>
+    val parallelism = Array(workerSnapshots(shuffleId).size(),
+      RssConf.rpcMaxParallelism(conf), Runtime.getRuntime().availableProcessors()).min
+    ThreadUtils.parmap(slots.asScala.to, "ReserveSlots", parallelism) { entry =>
       if (this.blacklist.contains(entry._1)) {
         logWarning(s"[reserve buffer] failed due to blacklist: ${entry._1}")
         failed.add(entry._1)
