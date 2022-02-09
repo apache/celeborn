@@ -149,8 +149,8 @@ public class ShuffleClientSuiteJ {
       eq(ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class))))
       .thenAnswer(t -> new ControlMessages.RegisterShuffleResponse(StatusCode.Success,
         new ArrayList<PartitionLocation>() {{
-          add(masterLocation);
-        }}));
+            add(masterLocation);
+          }}));
 
     shuffleClient.setupMetaServiceRef(endpointRef);
 
