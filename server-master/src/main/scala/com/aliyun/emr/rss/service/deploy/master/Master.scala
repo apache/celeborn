@@ -19,11 +19,9 @@ package com.aliyun.emr.rss.service.deploy.master
 
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.haEnabled
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
@@ -33,7 +31,7 @@ import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.util.{RpcUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -216,10 +214,12 @@ private[deploy] class Master(
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - ApplicationTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
         val requestId = RssHARetryClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+        var res = self.askSync[ApplicationLostResponse](
+          ApplicationLost(key, requestId), RpcUtils.applicationLostRpcTimeout(conf))
         var retry = 1
         while (res.status != StatusCode.Success && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+          res = self.askSync[ApplicationLostResponse](
+            ApplicationLost(key, requestId), RpcUtils.applicationLostRpcTimeout(conf))
           retry += 1
         }
         if (retry > 3) {

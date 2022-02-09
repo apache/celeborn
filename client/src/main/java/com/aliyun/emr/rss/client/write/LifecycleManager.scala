@@ -27,7 +27,7 @@ import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.util.{RpcUtils, ThreadUtils, Utils}
 import io.netty.util.internal.ConcurrentSet
 
 import java.io.IOException
@@ -166,11 +166,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       handleGetBlacklist(msg)
     case StageEnd(applicationId, shuffleId) =>
       logInfo(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleStageEnd(null, applicationId, shuffleId)
+      handleStageEnd(applicationId, shuffleId)
     case UnregisterShuffle(applicationId, shuffleId, _) =>
       logInfo(s"Received UnregisterShuffle request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleUnregisterShuffle(null, applicationId, shuffleId)
+      handleUnregisterShuffle(applicationId, shuffleId)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -194,10 +194,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logDebug(s"Received GetShuffleFileGroup request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleGetReducerFileGroup(context, shuffleId)
-
-    case StageEnd(applicationId, shuffleId) =>
-      logInfo(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleStageEnd(context, applicationId, shuffleId)
   }
 
   /* ========================================================== *
@@ -298,7 +294,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         registerShuffleRequest.remove(shuffleId)
       }
       // tell Master to release slots
-      requestReleaseSlots(rssHARetryClient, ReleaseSlots(applicationId, shuffleId,
+      requestReleaseSlots(ReleaseSlots(applicationId, shuffleId,
         new util.ArrayList[String](), new util.ArrayList[Integer]()))
       return
     } else {
@@ -560,7 +556,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def handleStageEnd(
-    context: RpcCallContext,
     applicationId: String,
     shuffleId: Int): Unit = {
     // check whether shuffle has registered
@@ -569,9 +564,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"$shuffleId not registered, maybe no shuffle data within this stage.")
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
-      if (context != null) {
-        context.reply(StageEndResponse(StatusCode.ShuffleNotRegistered))
-      }
       return
     }
 
@@ -644,7 +636,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
       partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
     }
-    requestReleaseSlots(rssHARetryClient, ReleaseSlots(applicationId, shuffleId,
+    requestReleaseSlots(ReleaseSlots(applicationId, shuffleId,
       new util.ArrayList[String](), new util.ArrayList[Integer]()))
 
     def hasCommonFailedIds(): Boolean = {
@@ -697,25 +689,19 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logInfo(s"Succeed to handle stageEnd for $shuffleId.")
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
-      if (context != null) {
-        context.reply(StageEndResponse(StatusCode.Success))
-      }
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
       dataLostShuffleSet.add(shuffleId)
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
-      if (context != null) {
-        context.reply(StageEndResponse(StatusCode.PartialSuccess))
-      }
     }
   }
 
-  def handleUnregisterShuffle(context: RpcCallContext, appId: String, shuffleId: Int): Unit = {
+  def handleUnregisterShuffle(appId: String, shuffleId: Int): Unit = {
     // if StageEnd has not been handled, trigger StageEnd
     if (!stageEndShuffleSet.contains(shuffleId)) {
       logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
-      handleStageEnd(null, appId, shuffleId)
+      handleStageEnd(appId, shuffleId)
     }
 
     if (partitionExists(shuffleId)) {
@@ -726,7 +712,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
         partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
       }
-      requestReleaseSlots(rssHARetryClient, ReleaseSlots(appId, shuffleId,
+      requestReleaseSlots(ReleaseSlots(appId, shuffleId,
         new util.ArrayList[String](), new util.ArrayList[Integer]()))
     }
 
@@ -734,9 +720,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
     logInfo(s"Unregister for $shuffleId success.")
-    if (context != null) {
-      context.reply(UnregisterShuffleResponse(StatusCode.Success))
-    }
   }
 
   /* ========================================================== *
@@ -877,7 +860,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
               slots.add(entry._2)
             })
             val msg = ReleaseSlots(applicationId, shuffleId, workerIds, slots)
-            requestReleaseSlots(rssHARetryClient, msg)
+            requestReleaseSlots(msg)
             logInfo(s"Released slots for reserve buffer failed workers " +
               s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}, ")
@@ -1018,13 +1001,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         unregisterShuffleTime.remove(key)
         shuffleAllocatedWorkers.remove(key)
 
-        requestUnregisterShuffle(rssHARetryClient, UnregisterShuffle(appId, key))
+        requestUnregisterShuffle(UnregisterShuffle(appId, key))
       }
     }
   }
 
   private def handleGetBlacklist(msg: GetBlacklist): Unit = {
-    val res = requestGetBlacklist(rssHARetryClient, msg)
+    val res = requestGetBlacklist(msg)
     if (res.statusCode == StatusCode.Success) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist}" +
         s"unkown workers: ${res.unknownWorkers}")
@@ -1040,16 +1023,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     reduceIdList: util.ArrayList[Integer]): RequestSlotsResponse = {
     val req = RequestSlots(
       applicationId, shuffleId, reduceIdList, lifecycleHost, ShouldReplicate)
-    val res = requestRequestSlots(rssHARetryClient, req)
+    val res = requestRequestSlots(req)
     if (res.status != StatusCode.Success) {
-      requestRequestSlots(rssHARetryClient, req)
+      requestRequestSlots(req)
     } else {
       res
     }
   }
 
-  private def requestRequestSlots(rssHARetryClient: RssHARetryClient,
-    message: RequestSlots): RequestSlotsResponse = {
+  private def requestRequestSlots(message: RequestSlots): RequestSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
       rssHARetryClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
@@ -1064,7 +1046,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     endpoint: RpcEndpointRef, message: ReserveSlots): ReserveSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
-      endpoint.askSync[ReserveSlotsResponse](message)
+      endpoint.askSync[ReserveSlotsResponse](message, RpcUtils.reserveSlotsRpcTimeout(conf))
     } catch {
       case e: Exception =>
         val msg = s"Exception when askSync ReserveSlots for $shuffleKey, ${e.getMessage}"
@@ -1074,7 +1056,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def requestDestroy(endpoint: RpcEndpointRef, message: Destroy): DestroyResponse = {
     try {
-      endpoint.askSync[DestroyResponse](message)
+      endpoint.askSync[DestroyResponse](message, RpcUtils.destroyRpcTimeout(conf))
     } catch {
       case e: Exception =>
         logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
@@ -1085,7 +1067,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def requestCommitFiles(
     endpoint: RpcEndpointRef, message: CommitFiles): CommitFilesResponse = {
     try {
-      endpoint.askSync[CommitFilesResponse](message)
+      endpoint.askSync[CommitFilesResponse](message, RpcUtils.commitFilesRpcTimeout(conf))
     } catch {
       case e: Exception =>
         logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
@@ -1093,8 +1075,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestReleaseSlots(rssHARetryClient: RssHARetryClient,
-    message: ReleaseSlots): ReleaseSlotsResponse = {
+  private def requestReleaseSlots(message: ReleaseSlots): ReleaseSlotsResponse = {
     try {
       rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
     } catch {
@@ -1104,8 +1085,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestUnregisterShuffle(rssHARetryClient: RssHARetryClient,
-    message: UnregisterShuffle): UnregisterShuffleResponse = {
+  private def requestUnregisterShuffle(message: UnregisterShuffle): UnregisterShuffleResponse = {
     try {
       rssHARetryClient.askSync[UnregisterShuffleResponse](
         message, classOf[UnregisterShuffleResponse])
@@ -1116,8 +1096,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestGetBlacklist(rssHARetryClient: RssHARetryClient,
-    msg: GetBlacklist): GetBlacklistResponse = {
+  private def requestGetBlacklist(msg: GetBlacklist): GetBlacklistResponse = {
     try {
       rssHARetryClient.askSync[GetBlacklistResponse](msg, classOf[GetBlacklistResponse])
     } catch {
