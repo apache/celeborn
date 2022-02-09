@@ -586,8 +586,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
     val commitFilesFailedWorkers = new ConcurrentSet[WorkerInfo]
 
-    val parallelism = Math.min(workerSnapshots(shuffleId).size(),
-      RssConf.rpcMaxParallelism(conf))
+    val parallelism = Array(workerSnapshots(shuffleId).size(),
+      RssConf.rpcMaxParallelism(conf), Runtime.getRuntime().availableProcessors()).min
     ThreadUtils.parmap(
       allocatedWorkers.asScala.to, "CommitFiles", parallelism) { w2p =>
       val worker = w2p._1
