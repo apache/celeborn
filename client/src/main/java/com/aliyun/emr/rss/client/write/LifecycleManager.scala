@@ -28,15 +28,17 @@ import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
 import com.aliyun.emr.rss.common.util.{RpcUtils, ThreadUtils, Utils}
-import io.netty.util.internal.ConcurrentSet
 
 import java.io.IOException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
+
+import io.netty.util.internal.ConcurrentSet
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
 
