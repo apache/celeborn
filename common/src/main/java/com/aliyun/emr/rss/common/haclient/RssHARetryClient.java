@@ -129,7 +129,8 @@ public class RssHARetryClient {
   }
 
   @SuppressWarnings("UnstableApiUsage")
-  private <T> T sendMessageInner(Message message, Class<T> clz, RpcTimeout timeout) throws Throwable {
+  private <T> T sendMessageInner(Message message, Class<T> clz,
+      RpcTimeout timeout) throws Throwable {
     Throwable throwable = null;
     int numTries = 0;
     boolean shouldRetry = true;
