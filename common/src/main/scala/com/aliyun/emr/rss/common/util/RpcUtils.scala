@@ -62,9 +62,19 @@ private[rss] object RpcUtils {
     RpcTimeout(conf, "rss.getReducerFileGroup.timeout", "240s")
   }
 
+  /** Returns the master RequestSlots timeout to use for RPC ask operations. */
+  def requestSlotsRpcTimeout(conf: RssConf): RpcTimeout = {
+    RpcTimeout(conf, "rss.requestSlots.timeout", "30s")
+  }
+
   /** Returns the driver ReserveSlots timeout to use for RPC ask operations. */
   def reserveSlotsRpcTimeout(conf: RssConf): RpcTimeout = {
     RpcTimeout(conf, "rss.reserveSlots.timeout", "30s")
+  }
+
+  /** Returns the master RequestSlots timeout to use for RPC ask operations. */
+  def releaseSlotsRpcTimeout(conf: RssConf): RpcTimeout = {
+    RpcTimeout(conf, "rss.releaseSlots.timeout", "30s")
   }
 
   /** Returns the driver destroy timeout to use for RPC ask operations. */
@@ -80,6 +90,11 @@ private[rss] object RpcUtils {
   /** Returns the master applicationLost timeout to use for RPC ask operations. */
   def applicationLostRpcTimeout(conf: RssConf): RpcTimeout = {
     RpcTimeout(conf, "rss.applicationLost.timeout", "120s")
+  }
+
+  /** Returns the master GetClusterLoadStatus timeout to use for RPC ask operations. */
+  def getClusterLoadStatusTimeout(conf: RssConf): RpcTimeout = {
+    RpcTimeout(conf, "rss.getClusterLoadStatus.timeout", "30s")
   }
 
   private val MAX_MESSAGE_SIZE_IN_MB = Int.MaxValue / 1024 / 1024

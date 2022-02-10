@@ -532,7 +532,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     context: RpcCallContext,
     shuffleId: Int): Unit = {
     logDebug(s"Wait for StageEnd, $shuffleId.")
-    var timeout = RssConf.stageEndTimeout(conf)
+    var timeout = RpcUtils.getReducerFileGroupResponseRpcTimeout(conf).duration.toMillis
+
     val delta = 50
     while (!stageEndShuffleSet.contains(shuffleId)) {
       Thread.sleep(50)
@@ -1036,7 +1037,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def requestRequestSlots(message: RequestSlots): RequestSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
-      rssHARetryClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
+      rssHARetryClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse],
+        RpcUtils.requestSlotsRpcTimeout(conf))
     } catch {
       case e: Exception =>
         logError(s"AskSync RegisterShuffle for $shuffleKey failed.", e)
@@ -1079,7 +1081,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def requestReleaseSlots(message: ReleaseSlots): ReleaseSlotsResponse = {
     try {
-      rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
+      rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse],
+        RpcUtils.releaseSlotsRpcTimeout(conf))
     } catch {
       case e: Exception =>
         logError(s"AskSync ReleaseSlots for ${message.shuffleId} failed.", e)
@@ -1121,8 +1124,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   def isClusterOverload(numPartitions: Int = 0): Boolean = {
     logInfo(s"Ask Sync Cluster Load Status")
     try {
-      rssHARetryClient.askSync[GetClusterLoadStatusResponse](GetClusterLoadStatus(numPartitions),
-        classOf[GetClusterLoadStatusResponse]).isOverload
+      rssHARetryClient.askSync[GetClusterLoadStatusResponse](
+        GetClusterLoadStatus(numPartitions),
+        classOf[GetClusterLoadStatusResponse],
+        RpcUtils.getClusterLoadStatusTimeout(conf)
+      ).isOverload
     } catch {
       case e: Exception =>
         logError(s"AskSync Cluster Load Status failed.", e)
