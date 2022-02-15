@@ -36,7 +36,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.5.4</maven.version>
     <slf4j.version>1.7.16</slf4j.version>
-    <log4j.version>1.2.17</log4j.version>
+<!--    <log4j.version>1.2.17</log4j.version>-->
     <guava.version>14.0.1</guava.version>
     <CodeCacheSize>512m</CodeCacheSize>
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
@@ -103,11 +103,6 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>log4j</groupId>
-        <artifactId>log4j</artifactId>
-        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -528,6 +523,63 @@
         </dependency>
       </dependencies>
     </profile>
+
+    <profile>
+      <id>log4j-1</id>
+      <properties>
+        <log4j.version>1.2.17</log4j.version>
+      </properties>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+          <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>log4j-2</id>
+      <properties>
+        <log4j2.version>2.17.1</log4j2.version>
+      </properties>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j-impl</artifactId>
+          <version>${log4j2.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api</artifactId>
+          <version>${log4j2.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j2.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-1.2-api</artifactId>
+          <version>${log4j2.version}</version>
+        </dependency>
+      </dependencies>
+      <build>
+
+      </build>
+    </profile>
   </profiles>
+
 </project>
 
