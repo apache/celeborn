@@ -639,7 +639,7 @@ object ControlMessages extends Logging{
         }
         HeartbeatFromWorker(pbHeartbeatFromWorker.getHost, pbHeartbeatFromWorker.getRpcPort,
           pbHeartbeatFromWorker.getPushPort, pbHeartbeatFromWorker.getFetchPort,
-          pbHeartbeatFromWorker.getNumSlots, shuffleKeys)
+          pbHeartbeatFromWorker.getNumSlots, shuffleKeys, pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
         val pbHeartBeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)

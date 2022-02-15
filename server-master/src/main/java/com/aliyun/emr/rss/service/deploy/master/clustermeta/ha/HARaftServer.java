@@ -205,7 +205,7 @@ public class HARaftServer {
     String requestId = request.getRequestId();
     Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
     if (decoded == null) {
-      throw new ServiceException("RequestId invalid, should be: uuid#callId.");
+      throw new ServiceException("RequestId:" + requestId + " invalid, should be: uuid#callId.");
     }
     ClientId clientId = ClientId.valueOf(UUID.fromString(decoded._1));
     long callId = decoded._2;
