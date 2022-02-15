@@ -36,7 +36,6 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.5.4</maven.version>
     <slf4j.version>1.7.16</slf4j.version>
-<!--    <log4j.version>1.2.17</log4j.version>-->
     <guava.version>14.0.1</guava.version>
     <CodeCacheSize>512m</CodeCacheSize>
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
