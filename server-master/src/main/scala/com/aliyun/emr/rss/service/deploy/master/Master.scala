@@ -177,7 +177,7 @@ private[deploy] class Master(
 
     case HeartbeatFromWorker(host, rpcPort, pushPort
     , fetchPort, numSlots, shuffleKeys, requestId) =>
-      logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort:$requestId.")
+      logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
       executeWithLeaderChecker(context, handleHeartBeatFromWorker(
         context, host, rpcPort, pushPort, fetchPort, numSlots, shuffleKeys, requestId))
 
