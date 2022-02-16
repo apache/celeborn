@@ -1025,8 +1025,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist}" +
         s"unkown workers: ${res.unknownWorkers}")
       blacklist.clear()
-      blacklist.addAll(res.blacklist)
-      blacklist.addAll(res.unknownWorkers)
+      if (res.blacklist != null) {
+        blacklist.addAll(res.blacklist)
+      }
+      if (res.unknownWorkers != null) {
+        blacklist.addAll(res.unknownWorkers)
+      }
     }
   }
 
