@@ -43,12 +43,12 @@ RSS supports Spark2.x(>=2.4.0), Spark3.x(>=3.0.1) and only tested under Java8(JD
 
 Build for Spark 2    
 `
-./dev/make-distribution.sh -Pspark-2
+./dev/make-distribution.sh -Pspark-2 -Plog4j-1/-Plog4j-2
 `
 
 Build for Spark 3  
 `
-./dev/make-distribution.sh -Pspark-3
+./dev/make-distribution.sh -Pspark-3 -Plog4j-1/-Plog4j-2
 `
 
 package rss-${project.version}-bin-release.tgz will be generated.
