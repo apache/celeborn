@@ -651,10 +651,10 @@ object Utils extends Logging {
     pbWorkerResource.asScala.foreach(item => {
       val Array(host, rpcPort, pushPort, fetchPort) = item._1.split(":")
       val workerInfo = new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
-      val masterPartitionLocation = item._2.getMasterPartitionsList
-        .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
-      val slavePartitionLocation = item._2.getSlavePartitionsList
-        .asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
+      val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
+        .getMasterPartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
+      val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
+        .getSlavePartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
       slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
     })
     slots

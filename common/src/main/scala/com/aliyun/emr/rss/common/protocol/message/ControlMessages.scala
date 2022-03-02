@@ -783,8 +783,9 @@ object ControlMessages extends Logging{
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
-        ReportWorkerFailure(pbReportWorkerFailure.getFailedList.asScala
-          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava, pbReportWorkerFailure.getRequestId)
+        ReportWorkerFailure(new util.ArrayList[WorkerInfo](pbReportWorkerFailure.getFailedList
+          .asScala.map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava),
+          pbReportWorkerFailure.getRequestId)
 
       case REGISTER_WORKER_RESPONSE =>
         val pbRegisterWorkerResponse = PbRegisterWorkerResponse.parseFrom(message.getPayload)
@@ -799,10 +800,10 @@ object ControlMessages extends Logging{
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         ReserveSlots(pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
-          pbReserveSlots.getMasterLocationsList.asScala
-            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava,
-          pbReserveSlots.getSlaveLocationsList.asScala
-            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+          new util.ArrayList[PartitionLocation](pbReserveSlots.getMasterLocationsList.asScala
+            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
+          new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
+            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava))
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
