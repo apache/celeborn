@@ -462,7 +462,7 @@ private[deploy] class Master(
       sb.append(w).append("\n")
 
       val workerInfo = requestGetWorkerInfos(w.endpoint)
-        .workerInfos.asInstanceOf[util.List[WorkerInfo]]
+        .workerInfos.asJava
         .get(0)
 
       sb.append("==========WorkerInfos in Workers==========\n")
