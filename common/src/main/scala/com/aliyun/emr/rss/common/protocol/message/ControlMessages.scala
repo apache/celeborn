@@ -131,16 +131,18 @@ sealed trait Message extends Serializable{
 
       case Revive(applicationId, shuffleId, mapId, attemptId, reduceId,
       epoch, oldPartition, cause) =>
-        val payload = TransportMessages.PbRevive.newBuilder()
-          .setApplicationId(applicationId)
+        val builder = TransportMessages.PbRevive.newBuilder()
+        builder.setApplicationId(applicationId)
           .setShuffleId(shuffleId)
           .setMapId(mapId)
           .setAttemptId(attemptId)
           .setReduceId(reduceId)
           .setEpoch(epoch)
-          .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
           .setStatus(cause.getValue)
-          .build().toByteArray
+        if (oldPartition != null) {
+          builder.setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+        }
+        val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REVIVE, payload)
 
       case ReviveResponse(status, partitionLocation) =>
@@ -692,10 +694,14 @@ object ControlMessages extends Logging{
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
+        val oldPartition = if (pbRevive.hasOldPartition) {
+          PartitionLocation.fromPbPartitionLocation(pbRevive.getOldPartition)
+        } else {
+          null
+        }
         Revive(pbRevive.getApplicationId, pbRevive.getShuffleId, pbRevive.getMapId,
           pbRevive.getAttemptId, pbRevive.getReduceId, pbRevive.getEpoch,
-          PartitionLocation.fromPbPartitionLocation(pbRevive.getOldPartition),
-          Utils.toStatusCode(pbRevive.getStatus))
+          oldPartition, Utils.toStatusCode(pbRevive.getStatus))
 
       case REVIVE_RESPONSE =>
         val pbReviveResponse = PbReviveResponse.parseFrom(message.getPayload)
