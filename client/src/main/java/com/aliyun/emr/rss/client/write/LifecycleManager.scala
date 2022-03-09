@@ -987,8 +987,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         res = requestDestroy(entry._1.endpoint,
           Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
       }
-      if(null != res.failedMasters) failedMasters.addAll(res.failedMasters)
-      if(null != res.failedSlaves) failedSlaves.addAll(res.failedSlaves)
+      if (null != res.failedMasters) failedMasters.addAll(res.failedMasters)
+      if (null != res.failedSlaves) failedSlaves.addAll(res.failedSlaves)
     })
     (failedMasters, failedSlaves)
   }

@@ -240,7 +240,7 @@ private[worker] final class LocalStorageManager(
     val queueCapacity = RssConf.workerFlushQueueCapacity(conf)
     dirs.foreach(dir => {
       isolatedWorkingDirs.remove(dir)
-      if(!diskFlushers.containsKey(dir)) {
+      if (!diskFlushers.containsKey(dir)) {
         diskFlushers.put(dir, new DiskFlusher(dir, queueCapacity, workerSource, deviceMonitor))
       }
       if (!dirOperators.containsKey(dir)) {
