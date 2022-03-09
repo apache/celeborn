@@ -17,7 +17,6 @@
 
 package com.aliyun.emr.rss.common
 
-
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 

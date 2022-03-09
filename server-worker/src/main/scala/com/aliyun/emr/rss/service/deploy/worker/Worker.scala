@@ -784,7 +784,7 @@ private[deploy] class Worker(
     }
     if (isMaster && fileWriterWithPendingSplit.nonEmpty) {
       logWarning(s"[handlePushMergedData] fileWriters ${fileWriterWithPendingSplit}" +
-        s" needs to  split")
+        s" needs to split")
       callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
       return
     }

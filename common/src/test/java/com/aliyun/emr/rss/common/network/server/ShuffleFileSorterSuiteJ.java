@@ -83,7 +83,6 @@ public class ShuffleFileSorterSuiteJ {
     shuffleFile.delete();
   }
 
-
   @Test
   public void test() {
     ShuffleFileSorter sorter = new ShuffleFileSorter(shuffleFile, CHUNK_SIZE, allocator);

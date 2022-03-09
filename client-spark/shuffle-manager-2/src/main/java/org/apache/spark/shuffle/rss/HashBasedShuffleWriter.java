@@ -129,8 +129,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     serBuffer = new MyByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
 
-    int numPartitions = partitioner.numPartitions();
-    mapStatusLengths = new LongAdder[partitioner.numPartitions()];
+    mapStatusLengths = new LongAdder[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       mapStatusLengths[i] = new LongAdder();
     }

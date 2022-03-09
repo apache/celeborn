@@ -674,7 +674,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         pushState.inFlightBatches.remove(groupedBatchId);
         if (response.remaining() > 0) {
           byte statusCode = response.get();
-          if(statusCode == StatusCode.StageEnded.getValue()) {
+          if (statusCode == StatusCode.StageEnded.getValue()) {
             mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
               .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
           }
