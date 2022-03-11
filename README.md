@@ -90,7 +90,7 @@ RSS_WORKER_OFFHEAP_MEMORY=4g
 EXAMPLE: single master cluster
 ```properties
 rss.master.address master-host:port
-rss.metrics.system.enable true
+rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 512
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
@@ -98,13 +98,13 @@ rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
   
 EXAMPLE: HA cluster
 ```properties
-rss.metrics.system.enable true
+rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 4096
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
 rss.master.port 9097
 
-rss.ha.enable true
+rss.ha.enabled true
 rss.ha.service.id dev-cluster
 rss.ha.nodes.dev-cluster node1,node2,node3
 rss.ha.address.dev-cluster.node1 host1

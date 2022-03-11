@@ -52,14 +52,14 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 | rss.rpc.io.serverThreads | min{64, availableCores} |  |
 | rss.master.port.maxretry | 1 | When RSS master port is occupied,we will retry for maxretry times. |
 | rss.rpc.io.numConnectionsPerPeer | 1 | Connections between hosts are reused in order to reduce connection. |
-| rss.ha.enable | true | When true, RSS will activate raft implementation and sync shared data on master clusters. |
+| rss.ha.enabled | true | When true, RSS will activate raft implementation and sync shared data on master clusters. |
 | rss.ha.master.hosts | | Master hosts address list. |
 | rss.ha.service.id | | When this config is empty, RSS master will refuse to startup. |
 | rss.ha.nodes.{serviceId} |  | Nodes list that deploy RSS master. ServiceId is `rss.ha.service.id` |
 | rss.ha.address.{serviceId}.{node} | localhost:9872 | RSS master's rpc address for raft implementation. Port can be ignored and defaults to 9872 |
 | rss.ha.port | 9872 | Rpc port between multi master |
 | rss.ha.storage.dir | /tmp/ratis | Directory of RSS master to store ratis metadata. |
-| rss.ha.ratis.snapshot.autoTrigger.enable | true | Weather to enable raft implementation's snapshot. |
+| rss.ha.ratis.snapshot.auto.trigger.enabled | true | Weather to enable raft implementation's snapshot. |
 | rss.ha.ratis.snapshot.auto.trigger.threshold | 200000 |  |
 
 ### RSS Worker Configurations
@@ -81,7 +81,7 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 
 | Item | Default | Description |
 | :---: | :---: | :--: |
-| rss.metrics.system.enable | true |  |
+| rss.metrics.system.enabled | true |  |
 | rss.master.prometheus.metric.port | 9098 |  |
 | rss.worker.prometheus.metric.port | 9096 |  |
  
@@ -163,7 +163,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.register.worker.timeout` | 180 s | String | |
 | `rss.master.port.maxretry` | 1 | int | |
 | `rss.pushdata.retry.thread.num` | 8 | int | |
-| `rss.metrics.system.enable` | true | bool | |
+| `rss.metrics.system.enabled` | true | bool | |
 | `rss.metrics.system.timer.sliding.size` | 4000 | int | |
 | `rss.metrics.system.sample.rate` | 1 | double | |
 | `rss.metrics.system.sliding.window.size` | 4096 | int | |
@@ -174,7 +174,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.driver.metaService.port` | 0 | int | |
 | `rss.driver.revive.waitMs` | 1 s | String | |
 | `rss.worker.closeIdleConnections` | true | bool | |
-| `rss.ha.enable` | false | bool | |
+| `rss.ha.enabled` | false | bool | |
 | `rss.ha.master.hosts` | `rss.master.host` 的值 | String | |
 | `rss.ha.service.id` | | String | |
 | `rss.ha.nodes.<serviceId>` | | String | |
