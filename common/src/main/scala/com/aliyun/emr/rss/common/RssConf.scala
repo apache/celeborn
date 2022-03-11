@@ -580,7 +580,7 @@ object RssConf extends Logging {
   }
 
   def metricsSystemEnable(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.metrics.system.enable", defaultValue = true)
+    conf.getBoolean("rss.metrics.system.enabled", defaultValue = true)
   }
 
   def metricsTimerSlidingSize(conf: RssConf): Int = {
@@ -702,7 +702,7 @@ object RssConf extends Logging {
    * Ratis related config
    */
   def haEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.ha.enable", false)
+    conf.getBoolean("rss.ha.enabled", false)
   }
 
   def haMasterHosts(conf: RssConf): String = {
@@ -790,7 +790,7 @@ object RssConf extends Logging {
   val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT = "15s"
 
   // Ratis snapshot configurations
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.autoTrigger.enable"
+  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.auto.trigger.enabled"
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = false
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY = "rss.ha.ratis.snapshot.auto.trigger.threshold"
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT = 200000
