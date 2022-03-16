@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -718,6 +719,20 @@ object RssConf extends Logging {
 
   def shuffleSplitThreshold(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.shuffle.split.threshold", "256m")
+  }
+
+  def shuffleSplitMode(conf: RssConf): ShuffleSplitMode = {
+    val modeStr = conf.get("rss.shuffle.split.mode", "tolerant")
+    modeStr match {
+      case "tolerant" => ShuffleSplitMode.tolerant
+      case "strict" => ShuffleSplitMode.strict
+      case _ => logWarning(s"Invalid split mode ${modeStr}, use tolerant mode by default")
+        ShuffleSplitMode.tolerant
+    }
+  }
+
+  def shuffleSplitPoolSize(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.split.pool.size", 4)
   }
 
   def shuffleSortSchedulerSize(conf: RssConf): Int = {

@@ -192,6 +192,8 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
 | `rss.shuffle.split.threshold` | 256m | String | Shuffle file split size |
+| `rss.shuffle.split.mode` | tolerant | String | Tolerant , the shuffle file size might be larger than split threshold  ; Strict , the shuffle file size will be limited to split threshold  |
+| `rss.shuffle.split.pool.size` | 4 | int | Thread number to process shuffle split request. |
 | `rss.shuffle.sort.scheduler.size` | 4 | int | Max count of shuffle files to sort in concurrent |
 | `rss.shuffle.sort.timeout` | 120 | int | Timeout for a shuffle file to sort |
 | `rss.shuffle.sort.scheduler.task.limit` | 10240 | int | Shuffle file task queue size |

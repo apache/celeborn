@@ -43,6 +43,7 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
+import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.protocol.message.StatusCode;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
@@ -142,7 +143,8 @@ public class ShuffleClientSuiteJ {
 
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(new ControlMessages.RegisterShuffle(TEST_APPLICATION_ID,
-        TEST_SHUFFLE_ID, 1, 1, RssConf.shuffleSplitThreshold(conf)),
+        TEST_SHUFFLE_ID, 1, 1, RssConf.shuffleSplitThreshold(conf),
+        ShuffleSplitMode.tolerant),
       ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
       .thenAnswer(t -> new ControlMessages.RegisterShuffleResponse(StatusCode.Success,
         new ArrayList<PartitionLocation>() {{

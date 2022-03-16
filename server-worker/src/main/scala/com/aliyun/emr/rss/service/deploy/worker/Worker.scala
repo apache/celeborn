@@ -29,7 +29,7 @@ import java.util.function.BiFunction
 import scala.collection.JavaConverters._
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import io.netty.buffer.{ByteBuf}
+import io.netty.buffer.ByteBuf
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
@@ -45,7 +45,7 @@ import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportC
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
 import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, ShuffleFileSorter, TransportServerBootstrap}
 import com.aliyun.emr.rss.common.network.util.NettyUtils
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, ShuffleSplitMode, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -235,7 +235,8 @@ private[deploy] class Worker(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold) =>
+    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
+    splitMode) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
@@ -244,7 +245,7 @@ private[deploy] class Worker(
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold)
+          slaveLocations, splitThreashold, splitMode)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -279,7 +280,8 @@ private[deploy] class Worker(
       shuffleId: Int,
       masterLocations: jList[PartitionLocation],
       slaveLocations: jList[PartitionLocation],
-      splitThreshold: Long): Unit = {
+      splitThreshold: Long,
+      splitMode: ShuffleSplitMode): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -292,7 +294,7 @@ private[deploy] class Worker(
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
-          splitThreshold)
+          splitThreshold, splitMode)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -312,7 +314,7 @@ private[deploy] class Worker(
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId,
-          location, splitThreshold)
+          location, splitThreshold, splitMode)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -646,9 +648,13 @@ private[deploy] class Worker(
     }
     if (isMaster && fileWriter.shouldSplit()) {
       logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
-        s"needs to split. Shuffle split threshold ${fileWriter.splitThreshold()}")
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
-      return
+        s" needs to split. Shuffle split threshold ${fileWriter.splitThreshold()}")
+      if (fileWriter.getSplitMode == ShuffleSplitMode.tolerant) {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleSplitRequired.getValue)))
+      } else {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
+        return
+      }
     }
     fileWriter.incrementPendingWrites()
 
@@ -769,7 +775,6 @@ private[deploy] class Worker(
 
     val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
     val fileWriterWithException = fileWriters.find(_.getException != null)
-    val fileWriterWithPendingSplit = fileWriters.find(_.shouldSplit())
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
       logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
@@ -780,12 +785,6 @@ private[deploy] class Worker(
         StatusCode.PushDataFailSlave.getMessage()
       }
       callback.onFailure(new Exception(message, exception))
-      return
-    }
-    if (isMaster && fileWriterWithPendingSplit.nonEmpty) {
-      logWarning(s"[handlePushMergedData] fileWriters ${fileWriterWithPendingSplit}" +
-        s" needs to split")
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())

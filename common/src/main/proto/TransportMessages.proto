@@ -14,7 +14,7 @@ enum MessageType {
   RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
   REVIVE = 10;
-  REVIVE_RESPONSE = 11;
+  LOCATION_UPDATE_RESPONSE = 11;
   MAPPER_END = 12;
   MAPPER_END_RESPONSE = 13;
   GET_REDUCER_FILE_GROUP = 14;
@@ -50,6 +50,7 @@ enum MessageType {
   WORKER_LOST_RESPONSE = 44;
   STAGE_END = 45;
   STAGE_END_RESPONSE = 46;
+  SHUFFLE_SPLIT = 47;
 }
 
 message PbPartitionLocation {
@@ -113,6 +114,7 @@ message PbRegisterShuffle {
   int32 numMapppers = 3;
   int32 numPartitions = 4;
   int64 splitThreshold = 5;
+  int32 splitMode = 6;
 }
 
 message PbRegisterShuffleResponse {
@@ -156,11 +158,22 @@ message PbRevive {
   PbPartitionLocation oldPartition = 7;
   int32 status = 8;
   int64 splitThreshold = 9;
+  int32 splitMode = 10;
 }
 
-message PbReviveResponse {
+message PbLocationUpdateResponse {
   int32 status = 1;
-  PbPartitionLocation partitionLocation = 2;
+  PbPartitionLocation location = 2;
+}
+
+message PbShuffleSplit {
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  int32 reduceId = 3;
+  int32 epoch = 4;
+  PbPartitionLocation oldPartition = 5;
+  int64 splitThreshold = 6;
+  int32 splitMode = 7;
 }
 
 message PbMapperEnd {
@@ -248,6 +261,7 @@ message PbReserveSlots {
   repeated PbPartitionLocation masterLocations = 3;
   repeated PbPartitionLocation slaveLocations = 4;
   int64 splitThreshold = 5;
+  int32 splitMode = 6;
 }
 
 message PbReserveSlotsResponse {

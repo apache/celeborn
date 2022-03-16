@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, TransportMessages}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, ShuffleSplitMode, TransportMessages}
 import com.aliyun.emr.rss.common.protocol.TransportMessages._
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
 import com.aliyun.emr.rss.common.util.Utils
@@ -74,13 +74,14 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.HEARTBEAT_RESPONSE, payload)
 
       case RegisterShuffle(applicationId, shuffleId, numMappers,
-      numPartitions, splitThreshold) =>
+      numPartitions, splitThreshold, splitMode) =>
         val payload = TransportMessages.PbRegisterShuffle.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
           .setNumMapppers(numMappers)
           .setNumPartitions(numPartitions)
           .setSplitThreshold(splitThreshold)
+          .setSplitMode(splitMode.getValue)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE, payload)
 
@@ -132,7 +133,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REQUEST_SLOTS_RESPONSE, payload)
 
       case Revive(applicationId, shuffleId, mapId, attemptId, reduceId,
-      epoch, oldPartition, cause, splitThreshold) =>
+      epoch, oldPartition, cause, splitThreshold, splitMode) =>
         val builder = TransportMessages.PbRevive.newBuilder()
         builder.setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -142,20 +143,21 @@ sealed trait Message extends Serializable{
           .setEpoch(epoch)
           .setSplitThreshold(splitThreshold)
           .setStatus(cause.getValue)
+          .setSplitMode(splitMode.getValue)
         if (oldPartition != null) {
           builder.setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REVIVE, payload)
 
-      case ReviveResponse(status, partitionLocation) =>
-        val builder = TransportMessages.PbReviveResponse.newBuilder()
+      case LocationUpdateResponse(status, location) =>
+        val builder = TransportMessages.PbLocationUpdateResponse.newBuilder()
           .setStatus(status.getValue)
-        if (partitionLocation != null) {
-          builder.setPartitionLocation(PartitionLocation.toPbPartitionLocation(partitionLocation))
+        if (location != null) {
+          builder.setLocation(PartitionLocation.toPbPartitionLocation(location))
         }
         val payload = builder.build().toByteArray
-        new TransportMessage(TransportMessages.MessageType.REVIVE_RESPONSE, payload)
+        new TransportMessage(TransportMessages.MessageType.LOCATION_UPDATE_RESPONSE, payload)
 
       case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
         val payload = TransportMessages.PbMapperEnd.newBuilder()
@@ -303,7 +305,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REREGISTER_WORKER_RESPONSE, payload)
 
       case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations,
-      splitThreshold) =>
+      splitThreshold, splitMode) =>
         val payload = TransportMessages.PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -312,6 +314,7 @@ sealed trait Message extends Serializable{
           .addAllSlaveLocations(slaveLocations.asScala
             .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
           .setSplitThreshold(splitThreshold)
+          .setSplitMode(splitMode.getValue)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.RESERVE_SLOTS, payload)
 
@@ -395,6 +398,15 @@ sealed trait Message extends Serializable{
           .setThreadDump(threadDump).build().toByteArray
         new TransportMessage(TransportMessages.MessageType.THREAD_DUMP_RESPONSE, payload)
 
+      case ShuffleSplit(applicationId, shuffleId, reduceId, epoch, oldPartition,
+      splitThreshold, splitMode) =>
+        val payload = TransportMessages.PbShuffleSplit.newBuilder()
+          .setApplicationId(applicationId).setShuffleId(shuffleId).setReduceId(reduceId)
+          .setEpoch(epoch).setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+          .setSplitThreshold(splitThreshold).setSplitMode(splitMode.getValue)
+          .build().toByteArray
+        new TransportMessage(TransportMessages.MessageType.SHUFFLE_SPLIT, payload)
+
       case OneWayMessageResponse =>
         new TransportMessage(TransportMessages.MessageType.ONE_WAY_MESSAGE_RESPONSE, null)
     }
@@ -459,7 +471,8 @@ object ControlMessages extends Logging{
       shuffleId: Int,
       numMappers: Int,
       numPartitions: Int,
-      splitThreshold: Long)
+      splitThreshold: Long,
+      splitMode: ShuffleSplitMode)
     extends MasterMessage
 
   case class RegisterShuffleResponse(
@@ -501,12 +514,23 @@ object ControlMessages extends Logging{
       epoch: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode,
-      splitThreshold: Long)
+      splitThreshold: Long,
+      splitMode: ShuffleSplitMode)
     extends MasterMessage
 
-  case class ReviveResponse(
+  case class LocationUpdateResponse(
       status: StatusCode,
-      partitionLocation: PartitionLocation)
+      partition: PartitionLocation)
+    extends MasterMessage
+
+  case class ShuffleSplit(
+      applicationId : String,
+      shuffleId: Int,
+      reduceId: Int,
+      epoch: Int,
+      oldPartition: PartitionLocation,
+      splitThreshold: Long,
+      splitMode: ShuffleSplitMode)
     extends MasterMessage
 
   case class MapperEnd(
@@ -580,7 +604,8 @@ object ControlMessages extends Logging{
       shuffleId: Int,
       masterLocations: util.List[PartitionLocation],
       slaveLocations: util.List[PartitionLocation],
-      splitThreshold: Long)
+      splitThreshold: Long,
+      splitMode: ShuffleSplitMode)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -630,7 +655,7 @@ object ControlMessages extends Logging{
 
   def fromTransportMessage(message: TransportMessage): Message = {
     message.getType match {
-      case UNKNOWN_MESSAGE =>
+      case UNKNOWN_MESSAGE | UNRECOGNIZED =>
         val msg = s"received unknown message $message"
         logError(msg)
         throw new UnsupportedOperationException(msg)
@@ -663,7 +688,8 @@ object ControlMessages extends Logging{
         val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)
         RegisterShuffle(pbRegisterShuffle.getApplicationId, pbRegisterShuffle.getShuffleId,
           pbRegisterShuffle.getNumMapppers, pbRegisterShuffle.getNumPartitions,
-          pbRegisterShuffle.getSplitThreshold)
+          pbRegisterShuffle.getSplitThreshold,
+          Utils.toShuffleSplitMode(pbRegisterShuffle.getSplitMode))
 
       case REGISTER_SHUFFLE_RESPONSE =>
         val pbRegisterShuffleResponse = PbRegisterShuffleResponse.parseFrom(message.getPayload)
@@ -710,14 +736,15 @@ object ControlMessages extends Logging{
         }
         Revive(pbRevive.getApplicationId, pbRevive.getShuffleId, pbRevive.getMapId,
           pbRevive.getAttemptId, pbRevive.getReduceId, pbRevive.getEpoch,
-          oldPartition, Utils.toStatusCode(pbRevive.getStatus), pbRevive.getSplitThreshold)
+          oldPartition, Utils.toStatusCode(pbRevive.getStatus), pbRevive.getSplitThreshold,
+          Utils.toShuffleSplitMode(pbRevive.getSplitMode))
 
-      case REVIVE_RESPONSE =>
-        val pbReviveResponse = PbReviveResponse.parseFrom(message.getPayload)
-        val loc = if (pbReviveResponse.hasPartitionLocation) {
-          PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getPartitionLocation)
+      case LOCATION_UPDATE_RESPONSE =>
+        val pbReviveResponse = PbLocationUpdateResponse.parseFrom(message.getPayload)
+        val loc = if (pbReviveResponse.hasLocation) {
+          PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getLocation)
         } else null
-        ReviveResponse(Utils.toStatusCode(pbReviveResponse.getStatus), loc)
+        LocationUpdateResponse(Utils.toStatusCode(pbReviveResponse.getStatus), loc)
 
       case MAPPER_END =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
@@ -819,7 +846,7 @@ object ControlMessages extends Logging{
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
           new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
-          pbReserveSlots.getSplitThreshold)
+          pbReserveSlots.getSplitThreshold, Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode))
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
@@ -895,6 +922,18 @@ object ControlMessages extends Logging{
       case STAGE_END =>
         val pbStageEnd = PbStageEnd.parseFrom(message.getPayload)
         StageEnd(pbStageEnd.getApplicationId, pbStageEnd.getShuffleId)
+
+      case SHUFFLE_SPLIT =>
+        val pbShuffleSplitRequest = PbShuffleSplit.parseFrom(message.getPayload)
+        val partition = if (pbShuffleSplitRequest.hasOldPartition) {
+          PartitionLocation.fromPbPartitionLocation(pbShuffleSplitRequest.getOldPartition)
+        } else {
+          null
+        }
+        ShuffleSplit(pbShuffleSplitRequest.getApplicationId, pbShuffleSplitRequest.getShuffleId,
+          pbShuffleSplitRequest.getReduceId, pbShuffleSplitRequest.getEpoch, partition,
+          pbShuffleSplitRequest.getSplitThreshold,
+          Utils.toShuffleSplitMode(pbShuffleSplitRequest.getSplitMode))
 
       case STAGE_END_RESPONSE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
