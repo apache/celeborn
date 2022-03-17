@@ -717,23 +717,20 @@ object RssConf extends Logging {
   }
 
   def shuffleSplitThreshold(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.shuffle.split.threshold", "256m")
-  }
-
-  def shuffleSortSchedulerSize(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.sort.scheduler.size", 4)
-  }
-
-  def shuffleSortSchedulerTaskLimit(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.sort.scheduler.task.limit", 10240)
+    val threshold = conf.getSizeAsBytes("rss.shuffle.split.threshold", "256m")
+    Math.min(threshold, 1717986918)
   }
 
   def shuffleSortTimeout(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.shuffle.sort.timeout", "240s")
+    conf.getTimeAsMs("rss.shuffle.sort.timeout", "220s")
   }
 
-  def trafficControlEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.traffic.control.enabled", true)
+  def shuffleSortMaxMemoryRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.shuffle.sort.memory.max.ratio", 0.7)
+  }
+
+  def shuffleSortSingleFileMaxRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.shuffle.sort.single.file.max.ratio", 0.3)
   }
 
   def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {

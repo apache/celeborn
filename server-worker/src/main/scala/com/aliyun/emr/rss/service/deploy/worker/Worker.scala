@@ -22,19 +22,18 @@ import java.nio.ByteBuffer
 import java.util.{ArrayList => jArrayList}
 import java.util.{List => jList}
 import java.util.{HashSet => jHashSet}
-import java.util.concurrent.{ArrayBlockingQueue, Callable, CancellationException, CompletableFuture, ConcurrentHashMap, ExecutionException, LinkedBlockingQueue, ScheduledFuture, ThreadPoolExecutor, TimeoutException, TimeUnit}
+import java.util.concurrent.{CancellationException, CompletableFuture, ConcurrentHashMap, ExecutionException, LinkedBlockingQueue, ScheduledFuture, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
-import io.netty.buffer.{ByteBuf}
+import io.netty.buffer.ByteBuf
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{trafficControlEnabled, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
+import com.aliyun.emr.rss.common.RssConf.{shuffleSortMaxMemoryRatio, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -43,8 +42,8 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
-import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, ShuffleFileSorter, TransportServerBootstrap}
-import com.aliyun.emr.rss.common.network.util.NettyUtils
+import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, ShuffleFileSortTask, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.server.ShuffleFileSortTask.SortCompleteCallback
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -69,12 +68,11 @@ private[deploy] class Worker(
     source
   }
 
+  val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
+    workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf),
+    shuffleSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
-  if (RssConf.trafficControlEnabled(conf)) {
-    val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
-      workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
-    memoryTracker.registerMemoryListener(localStorageManager)
-  }
+  memoryTracker.registerMemoryListener(localStorageManager)
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -86,7 +84,7 @@ private[deploy] class Worker(
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
     val clientBootstraps = new jArrayList[TransportClientBootstrap]()
     (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps,
-      trafficControlEnabled(conf)), transportContext.createClientFactory(clientBootstraps))
+      true), transportContext.createClientFactory(clientBootstraps))
   }
 
   private val fetchServer = {
@@ -139,19 +137,47 @@ private[deploy] class Worker(
     "worker-replicate-data", RssConf.workerReplicateNumThreads(conf))
   private val timer = new HashedWheelTimer()
 
-  private lazy val sortedShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
-  private lazy val sortingShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
-  private lazy val shuffleSortScheduler = {
-    val threadFactory = new ThreadFactoryBuilder().setDaemon(true)
-      .setNameFormat("worker-shuffle-sort-scheduler-%d").build()
-    val sortLimit = RssConf.shuffleSortSchedulerSize(conf)
-    val taskLimit = RssConf.shuffleSortSchedulerTaskLimit(conf)
-    new ThreadPoolExecutor(sortLimit, sortLimit, 600, TimeUnit.SECONDS,
-      new ArrayBlockingQueue[Runnable](taskLimit), threadFactory)
-  }
-  private lazy val shuffleSorterAllocator = NettyUtils.createPooledByteBufAllocator(true, true,
-    RssConf.shuffleSortSchedulerSize(conf))
-  private lazy val shuffleSortTimeout = RssConf.shuffleSortTimeout(conf)
+  private val sortedShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
+  private val sortingShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
+  private val shuffleSortTaskDeque = new LinkedBlockingQueue[ShuffleFileSortTask](8192)
+  private val shuffleSortTimeout = RssConf.shuffleSortTimeout(conf)
+  private val readChunkSize = RssConf.workerFetchChunkSize(conf)
+  private val sortMaxSingleFileRatio = RssConf.shuffleSortSingleFileMaxRatio(conf)
+  private lazy val shuffleSortExecutors = ThreadUtils.newDaemonCachedThreadPool(
+    "worker-shuffle-execute", Math.max(Runtime.getRuntime.availableProcessors(), 8), 120)
+
+  private val shuffleSortSchedulerThread = new Thread(new Runnable {
+    override def run(): Unit = {
+      try {
+        while (true) {
+          val task = shuffleSortTaskDeque.take();
+          if (task.wholeFileInMemory()) {
+            memoryTracker.reserveSortMemory(task.getOriginFileLen)
+          } else {
+            memoryTracker.reserveSortMemory(1024 * 1024)
+          }
+          while (!memoryTracker.sortMemoryReady()) {
+            Thread.sleep(20)
+          }
+          shuffleSortExecutors.submit(new Runnable {
+            override def run(): Unit = {
+              task.sort()
+              if (task.wholeFileInMemory()) {
+                memoryTracker.releaseSortMemory(task.getOriginFileLen)
+              } else {
+                memoryTracker.reserveSortMemory(1024 * 1024)
+              }
+              logInfo(s"sort ${task.getOriginFile} complete")
+            }
+          })
+        }
+      } catch {
+        case _: Exception =>
+      }
+    }
+  })
+  shuffleSortSchedulerThread.start()
+
 
   // Configs
   private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
@@ -223,6 +249,8 @@ private[deploy] class Worker(
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
+    shuffleSortSchedulerThread.interrupt()
+    shuffleSortExecutors.shutdownNow()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -893,34 +921,21 @@ private[deploy] class Worker(
 
       if (!shuffleBoundSortedShuffleFiles.contains(shuffleFileId)) {
         if (!shuffleBoundSortingShuffleFiles.contains(shuffleFileId)) {
+          logInfo(s"[Worker] sorting file ${shuffleFileId}")
           shuffleBoundSortingShuffleFiles.add(shuffleFileId)
-          val sortFuture = shuffleSortScheduler.submit(new Callable[FileInfo] {
-            override def call(): FileInfo = {
-              val sorter = new ShuffleFileSorter(fileWriter.getFile,
-                RssConf.workerFetchChunkSize(conf), shuffleSorterAllocator)
-              sorter.sort()
-              shuffleBoundSortingShuffleFiles.remove(shuffleFileId)
+          val sortTask = new ShuffleFileSortTask(fileWriter.getFile, readChunkSize,
+            sortMaxSingleFileRatio, fileWriter.getFileLength)
+          sortTask.setSortCompleteCallback(new SortCompleteCallback {
+            override def onComplete(): Unit = {
               shuffleBoundSortedShuffleFiles.add(shuffleFileId)
-              val fileInfo = sorter.resolve(startMapIndex, endMapIndex)
-              logInfo(s"[Worker] sort shuffle file complete" +
-                s" ${fileWriter.getFile.getAbsolutePath}")
-              fileInfo
+              shuffleBoundSortingShuffleFiles.remove(shuffleFileId)
             }
           })
-          try {
-            logInfo(s"[Worker] sorting file ${fileName}")
-            sortFuture.get(shuffleSortTimeout, TimeUnit.MILLISECONDS)
-          } catch {
-            case e1: TimeoutException =>
-              sortFuture.cancel(true)
-              logError(s"[Worker] Sort file ${fileWriter.getFile.getAbsoluteFile}" +
-                s" timeout, detail : ${e1}")
-              null
-            case e: ExecutionException =>
-              logError(s"[Worker] Sort file ${fileWriter.getFile.getAbsoluteFile}" +
-                s" failed, detail : ${e}")
-              null
+          shuffleSortTaskDeque.put(sortTask)
+          sortTask.synchronized {
+            sortTask.wait((shuffleSortTimeout))
           }
+          sortTask.resolve(startMapIndex, endMapIndex)
         } else {
           logInfo(s"[Worker] read sorting file ${fileName}")
           val start = System.currentTimeMillis()
@@ -932,13 +947,13 @@ private[deploy] class Worker(
               return null
             }
           }
-          new ShuffleFileSorter(fileWriter.getFile, RssConf.workerFetchChunkSize(conf),
-            shuffleSorterAllocator).resolve(startMapIndex, endMapIndex)
+          new ShuffleFileSortTask(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
+            fileWriter.getFileLength).resolve(startMapIndex, endMapIndex)
         }
       } else {
         logInfo(s"[Worker] read sorted file ${fileName}")
-        new ShuffleFileSorter(fileWriter.getFile, RssConf.workerFetchChunkSize(conf),
-          shuffleSorterAllocator).resolve(startMapIndex, endMapIndex)
+        new ShuffleFileSortTask(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
+          fileWriter.getFileLength).resolve(startMapIndex, endMapIndex)
       }
     } else {
       logInfo(s"[Worker] read shuffle file fully ${fileWriter.getFile.getAbsolutePath}")

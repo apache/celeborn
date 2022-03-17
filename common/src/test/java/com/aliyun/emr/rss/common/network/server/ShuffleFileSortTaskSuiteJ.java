@@ -26,26 +26,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import io.netty.buffer.PooledByteBufAllocator;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 
-public class ShuffleFileSorterSuiteJ {
+public class ShuffleFileSortTaskSuiteJ {
 
   private static File shuffleFile;
-  private static PooledByteBufAllocator allocator;
   public static final int CHUNK_SIZE = 8 * 1024 * 1024;
+  private static long originFileLen;
 
   @BeforeClass
   public static void prepare() throws IOException {
     byte[] batchHeader = new byte[16];
     Random random = new Random();
-    allocator = NettyUtils.createPooledByteBufAllocator(
-      true, true /* allowCache */, 1);
     shuffleFile = File.createTempFile("RSS", "sort-suite");
     System.out.println(shuffleFile.getAbsolutePath());
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
@@ -75,7 +72,8 @@ public class ShuffleFileSorterSuiteJ {
       random.nextBytes(mockedData);
       channel.write(ByteBuffer.wrap(mockedData));
     }
-    MemoryTracker.initialize(0.9, 10, 10);
+    originFileLen = channel.size();
+    MemoryTracker.initialize(0.9, 10, 10, 0.6);
   }
 
   @AfterClass
@@ -84,10 +82,21 @@ public class ShuffleFileSorterSuiteJ {
   }
 
   @Test
-  public void test() {
-    ShuffleFileSorter sorter = new ShuffleFileSorter(shuffleFile, CHUNK_SIZE, allocator);
+  public void inMemTest() {
+    ShuffleFileSortTask sorter = new ShuffleFileSortTask(shuffleFile, CHUNK_SIZE, 0.9,
+      originFileLen);
     sorter.sort();
     FileInfo info = sorter.resolve(4, 5);
-    assert info.numChunks > 0;
+    Assert.assertTrue( info.numChunks > 0);
   }
+
+  @Test
+  public void offMemTest() {
+    ShuffleFileSortTask sorter = new ShuffleFileSortTask(shuffleFile, CHUNK_SIZE, 0.01,
+      originFileLen);
+    sorter.sort();
+    FileInfo info = sorter.resolve(4, 5);
+    Assert.assertTrue( info.numChunks > 0);
+  }
+
 }

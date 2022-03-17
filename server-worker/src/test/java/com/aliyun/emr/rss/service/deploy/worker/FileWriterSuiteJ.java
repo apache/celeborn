@@ -90,7 +90,7 @@ public class FileWriterSuiteJ {
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
     flusher = new DiskFlusher(tempDir, 100, source, DeviceMonitor$.MODULE$.EmptyMonitor());
-    MemoryTracker memoryTracker = MemoryTracker.initialize(0.9, 10, 10);
+    MemoryTracker.initialize(0.9, 10, 10, 0.6);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {

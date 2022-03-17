@@ -1,3 +1,4 @@
+
 # Configuration Guide
 This documentation contains RSS configuration details and a tuning guide.
 
@@ -187,11 +188,12 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.create.file.writer.retry.count` | 3 | Int | Worker create FileWriter retry count |
 | `rss.disk.space.safe.watermark.size` | 0GB | String | Disk usage watermark size in GB, size must be Long |
 | `rss.worker.status.check.timeout` | 10s | String | Worker device check timeout |
-| `rss.traffic.control.enabled` | true | bool | Flow control |
 | `rss.worker.offheap.memory.critical.ratio` | 0.9 | float | Worker direct memory usage critical level ratio |
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
-| `rss.shuffle.split.threshold` | 256m | String | Shuffle file split size |
-| `rss.shuffle.sort.scheduler.size` | 4 | int | Max count of shuffle files to sort in concurrent |
-| `rss.shuffle.sort.timeout` | 120 | int | Timeout for a shuffle file to sort |
-| `rss.shuffle.sort.scheduler.task.limit` | 10240 | int | Shuffle file task queue size |
+| `rss.shuffle.split.threshold` | 256m | String | Shuffle file split size, max value is 1.6GB |
+| `rss.shuffle.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
+| `rss.shuffle.sort.memory.max.ratio` | 0.7 | double | Max ratio of sort memory |
+| `rss.shuffle.sort.single.file.max.ratio` | 0.3 | double | Max ratio of single shuffle file to 
+sort in memory. If a shuffle file is larger than limit, it will be sorted on disk. |
+
