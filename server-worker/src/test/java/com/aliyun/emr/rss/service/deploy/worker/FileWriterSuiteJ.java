@@ -53,6 +53,7 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
+import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
@@ -65,6 +66,7 @@ public class FileWriterSuiteJ {
   private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
   public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
+  public static final ShuffleSplitMode splitMode = ShuffleSplitMode.strict;
 
   private static File tempDir = null;
   private static DiskFlusher flusher = null;
@@ -213,8 +215,8 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, SPLIT_THRESHOLD, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor());
+      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -248,8 +250,8 @@ public class FileWriterSuiteJ {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, SPLIT_THRESHOLD, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor());
+      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -287,8 +289,8 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, SPLIT_THRESHOLD, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor());
+      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");

@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -721,12 +722,34 @@ object RssConf extends Logging {
     Math.min(threshold, 1717986918)
   }
 
+  def shuffleSplitMode(conf: RssConf): ShuffleSplitMode = {
+    val modeStr = conf.get("rss.shuffle.split.mode", "tolerant")
+    modeStr match {
+      case "tolerant" => ShuffleSplitMode.tolerant
+      case "strict" => ShuffleSplitMode.strict
+      case _ => logWarning(s"Invalid split mode ${modeStr}, use tolerant mode by default")
+        ShuffleSplitMode.tolerant
+    }
+  }
+
+  def shuffleSplitPoolSize(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.split.pool.size", 4)
+  }
+
+  def shuffleSortSchedulerSize(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.sort.scheduler.size", 4)
+  }
+
+  def shuffleSortSchedulerTaskLimit(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.sort.scheduler.task.limit", 10240)
+  }
+
   def shuffleSortTimeout(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.shuffle.sort.timeout", "220s")
   }
 
   def shuffleSortMaxMemoryRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.shuffle.sort.memory.max.ratio", 0.7)
+    conf.getDouble("rss.shuffle.sort.memory.max.ratio", 0.5)
   }
 
   def shuffleSortSingleFileMaxRatio(conf: RssConf): Double = {

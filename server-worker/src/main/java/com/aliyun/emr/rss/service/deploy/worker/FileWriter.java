@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.network.server.ShuffleFileSortTask;
+import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
 /*
@@ -71,6 +72,7 @@ public final class FileWriter extends DeviceObserver {
 
   private long splitThreshold = 0;
   private final AtomicBoolean splitted = new AtomicBoolean(false);
+  private final ShuffleSplitMode splitMode;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -110,10 +112,11 @@ public final class FileWriter extends DeviceObserver {
       File workingDir,
       long chunkSize,
       long flushBufferSize,
-      long splitThreshold,
       AbstractSource workerSource,
       RssConf rssConf,
-      DeviceMonitor deviceMonitor) throws IOException {
+      DeviceMonitor deviceMonitor,
+      long splitThreshold,
+      ShuffleSplitMode splitMode) throws IOException {
     this.file = file;
     this.flusher = flusher;
     this.dataRootDir = workingDir;
@@ -124,9 +127,10 @@ public final class FileWriter extends DeviceObserver {
     this.splitThreshold = splitThreshold;
     this.flushBufferSize = flushBufferSize;
     this.deviceMonitor = deviceMonitor;
+    this.splitMode = splitMode;
     channel = new FileOutputStream(file).getChannel();
     source = workerSource;
-    logger.debug("FileWriter {} split threshold {}", this, splitThreshold);
+    logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
   }
 
@@ -362,12 +366,19 @@ public final class FileWriter extends DeviceObserver {
   }
 
   public boolean shouldSplit() {
-    boolean split = this.bytesFlushed > this.splitThreshold;
-    this.splitted.set(split);
-    return split;
+    if (this.bytesFlushed > this.splitThreshold) {
+      this.splitted.set(true);
+      return true;
+    } else {
+      return false;
+    }
   }
 
   public long splitThreshold() {
     return this.splitThreshold;
+  }
+
+  public ShuffleSplitMode getSplitMode() {
+    return this.splitMode;
   }
 }
