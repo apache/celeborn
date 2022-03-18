@@ -150,14 +150,14 @@ sealed trait Message extends Serializable{
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REVIVE, payload)
 
-      case LocationUpdateResponse(status, location) =>
-        val builder = TransportMessages.PbLocationUpdateResponse.newBuilder()
+      case LocationRenewalResponse(status, location) =>
+        val builder = TransportMessages.PbLocationRenewalResponse.newBuilder()
           .setStatus(status.getValue)
         if (location != null) {
           builder.setLocation(PartitionLocation.toPbPartitionLocation(location))
         }
         val payload = builder.build().toByteArray
-        new TransportMessage(TransportMessages.MessageType.LOCATION_UPDATE_RESPONSE, payload)
+        new TransportMessage(TransportMessages.MessageType.LOCATION_RENEWAL_RESPONSE, payload)
 
       case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
         val payload = TransportMessages.PbMapperEnd.newBuilder()
@@ -505,6 +505,8 @@ object ControlMessages extends Logging{
     workerResource: WorkerResource)
     extends MasterMessage
 
+  trait LocationRenewalRequest
+
   case class Revive(
       applicationId: String,
       shuffleId: Int,
@@ -516,12 +518,7 @@ object ControlMessages extends Logging{
       cause: StatusCode,
       splitThreshold: Long,
       splitMode: ShuffleSplitMode)
-    extends MasterMessage
-
-  case class LocationUpdateResponse(
-      status: StatusCode,
-      partition: PartitionLocation)
-    extends MasterMessage
+    extends MasterMessage with LocationRenewalRequest
 
   case class ShuffleSplit(
       applicationId : String,
@@ -531,6 +528,11 @@ object ControlMessages extends Logging{
       oldPartition: PartitionLocation,
       splitThreshold: Long,
       splitMode: ShuffleSplitMode)
+    extends MasterMessage with LocationRenewalRequest
+
+  case class LocationRenewalResponse(
+      status: StatusCode,
+      partition: PartitionLocation)
     extends MasterMessage
 
   case class MapperEnd(
@@ -739,12 +741,12 @@ object ControlMessages extends Logging{
           oldPartition, Utils.toStatusCode(pbRevive.getStatus), pbRevive.getSplitThreshold,
           Utils.toShuffleSplitMode(pbRevive.getSplitMode))
 
-      case LOCATION_UPDATE_RESPONSE =>
-        val pbReviveResponse = PbLocationUpdateResponse.parseFrom(message.getPayload)
+      case LOCATION_RENEWAL_RESPONSE =>
+        val pbReviveResponse = PbLocationRenewalResponse.parseFrom(message.getPayload)
         val loc = if (pbReviveResponse.hasLocation) {
           PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getLocation)
         } else null
-        LocationUpdateResponse(Utils.toStatusCode(pbReviveResponse.getStatus), loc)
+        LocationRenewalResponse(Utils.toStatusCode(pbReviveResponse.getStatus), loc)
 
       case MAPPER_END =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)

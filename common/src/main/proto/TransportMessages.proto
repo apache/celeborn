@@ -14,7 +14,7 @@ enum MessageType {
   RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
   REVIVE = 10;
-  LOCATION_UPDATE_RESPONSE = 11;
+  LOCATION_RENEWAL_RESPONSE = 11;
   MAPPER_END = 12;
   MAPPER_END_RESPONSE = 13;
   GET_REDUCER_FILE_GROUP = 14;
@@ -161,7 +161,7 @@ message PbRevive {
   int32 splitMode = 10;
 }
 
-message PbLocationUpdateResponse {
+message PbLocationRenewalResponse {
   int32 status = 1;
   PbPartitionLocation location = 2;
 }

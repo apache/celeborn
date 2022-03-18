@@ -192,9 +192,8 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
 | `rss.shuffle.split.threshold` | 256m | String | Shuffle file split size, max value is 1.6GB |
-| `rss.shuffle.split.mode` | tolerant | String | Tolerant , the shuffle file size might be larger than split threshold  ; Strict , the shuffle file size will be limited to split threshold  |
-| `rss.shuffle.split.pool.size` | 4 | int | Thread number to process shuffle split request. |
+| `rss.shuffle.split.mode` | tolerant | String | Tolerant, the shuffle file size might be larger than split threshold ; Strict, the shuffle file size will be limited to split threshold  |
+| `rss.shuffle.client.split.pool.size` | 4 | int | Thread number to process shuffle split request in shuffle client. |
 | `rss.shuffle.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
-| `rss.shuffle.sort.memory.max.ratio` | 0.7 | double | Max ratio of sort memory |
-| `rss.shuffle.sort.single.file.max.ratio` | 0.3 | double | Max ratio of single shuffle file to 
-sort in memory. If a shuffle file is larger than limit, it will be sorted on disk. |
+| `rss.shuffle.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
+| `rss.shuffle.sort.single.file.max.ratio` | 0.3 | double | Max ratio of single shuffle file to sort in memory. If a shuffle file is larger than limit, it will be sorted on disk. |

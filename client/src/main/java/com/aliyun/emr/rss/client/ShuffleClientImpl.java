@@ -148,7 +148,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     int retryThreadNum = RssConf.pushDataRetryThreadNum(conf);
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
 
-    int splitPoolSize = RssConf.shuffleSplitPoolSize(conf);
+    int splitPoolSize = RssConf.shuffleClientSplitPoolSize(conf);
     shuffleSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
   }
 
@@ -376,9 +376,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     try {
       cancelShuffleSplitRequest(shuffleId, reduceId);
-      LocationUpdateResponse response = driverRssMetaService.askSync(
+      LocationRenewalResponse response = driverRssMetaService.askSync(
         new Revive(applicationId, shuffleId, mapId, attemptId, reduceId, epoch, oldLocation,
-          cause, splitThreshold, splitMode), ClassTag$.MODULE$.apply(LocationUpdateResponse.class)
+          cause, splitThreshold, splitMode), ClassTag$.MODULE$.apply(LocationRenewalResponse.class)
       );
       // per partitionKey only serve single PartitionLocation in Client Cache.
       if (response.status().equals(StatusCode.Success)) {
@@ -606,10 +606,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       try {
         ConcurrentHashMap<Integer, PartitionLocation>
           currentShuffleLocs = reducePartitionMap.get(shuffleId);
-        LocationUpdateResponse shuffleSplitResponse =
+        LocationRenewalResponse shuffleSplitResponse =
           driverRssMetaService.askSync(
             new ShuffleSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc,
-              splitThreshold, splitMode), ClassTag$.MODULE$.apply(LocationUpdateResponse.class));
+              splitThreshold, splitMode), ClassTag$.MODULE$.apply(LocationRenewalResponse.class));
         if (shuffleSplitResponse.status().equals(StatusCode.Success)) {
           if (!Thread.interrupted()) {
             currentShuffleLocs.put(reduceId, shuffleSplitResponse.partition());

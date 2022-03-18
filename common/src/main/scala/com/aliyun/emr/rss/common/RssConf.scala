@@ -732,8 +732,8 @@ object RssConf extends Logging {
     }
   }
 
-  def shuffleSplitPoolSize(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.split.pool.size", 4)
+  def shuffleClientSplitPoolSize(conf: RssConf): Int = {
+    conf.getInt("rss.shuffle.client.split.pool.size", 4)
   }
 
   def shuffleSortSchedulerSize(conf: RssConf): Int = {

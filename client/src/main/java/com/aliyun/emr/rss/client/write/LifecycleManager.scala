@@ -388,14 +388,14 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // check whether shuffle has registered
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
-      context.reply(LocationUpdateResponse(StatusCode.ShuffleNotRegistered, null))
+      context.reply(LocationRenewalResponse(StatusCode.ShuffleNotRegistered, null))
       return
     }
     if (shuffleMapperAttempts.containsKey(shuffleId)
       && shuffleMapperAttempts.get(shuffleId)(mapId) != -1) {
       logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
         s"ended attemptId ${shuffleMapperAttempts.get(shuffleId)(mapId)}, shuffleId $shuffleId.")
-      context.reply(LocationUpdateResponse(StatusCode.MapEnded, null))
+      context.reply(LocationRenewalResponse(StatusCode.MapEnded, null))
       return
     }
 
@@ -411,7 +411,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         // check if new slot for the partition has allocated
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
         if (latestLoc != null) {
-          context.reply(LocationUpdateResponse(StatusCode.Success, latestLoc))
+          context.reply(LocationRenewalResponse(StatusCode.Success, latestLoc))
           logInfo(s"New partition found, old partition $reduceId-$oldEpoch return it." +
             s" shuffleId: $shuffleId ${latestLoc}")
           return
@@ -446,7 +446,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (slots == null) {
       logError("[Update partition] failed for slot not available.")
       replyAndClearReduceContext(reduceId, contexts,
-        _.reply(LocationUpdateResponse(StatusCode.SlotNotAvailable, null)))
+        _.reply(LocationRenewalResponse(StatusCode.SlotNotAvailable, null)))
       return
     }
 
@@ -455,7 +455,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (!reserveSlotsSuccess) {
       logError(s"[Update partition] failed for $shuffleId.")
       replyAndClearReduceContext(reduceId, contexts,
-        _.reply(LocationUpdateResponse(StatusCode.ReserveSlotFailed, null)))
+        _.reply(LocationRenewalResponse(StatusCode.ReserveSlotFailed, null)))
       return
     }
 
@@ -473,7 +473,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     logInfo(s"[Update partition] success for $shuffleId $location.")
     replyAndClearReduceContext(reduceId, contexts,
-      _.reply(LocationUpdateResponse(StatusCode.Success, location)))
+      _.reply(LocationRenewalResponse(StatusCode.Success, location)))
     logInfo(s"Renew $shuffleId $reduceId partition success.")
   }
 
@@ -515,7 +515,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     mode: ShuffleSplitMode
   ): Unit = {
     if (isReviving(shuffleId, reduceId)) {
-      context.reply(LocationUpdateResponse(StatusCode.ShuffleReviving, null))
+      context.reply(LocationRenewalResponse(StatusCode.ShuffleReviving, null))
       return
     }
 
@@ -528,7 +528,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       } else {
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
         if (latestLoc != null) {
-          context.reply(LocationUpdateResponse(StatusCode.Success, latestLoc))
+          context.reply(LocationRenewalResponse(StatusCode.Success, latestLoc))
           logInfo(s"Split request found new partition, old partition $reduceId-$oldEpoch" +
             s" return it. shuffleId: $shuffleId ${latestLoc}")
           return
@@ -539,7 +539,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
     if (isReviving(shuffleId, reduceId)) {
-      context.reply(LocationUpdateResponse(StatusCode.ShuffleReviving, null))
+      context.reply(LocationRenewalResponse(StatusCode.ShuffleReviving, null))
       shuffleSplitting.get(reduceId).remove(context)
       return
     }
