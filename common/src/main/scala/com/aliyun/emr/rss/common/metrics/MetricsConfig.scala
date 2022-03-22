@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics
+package com.aliyun.emr.rss.common.metrics
 
 import java.io.{FileInputStream, InputStream}
 import java.util.Properties

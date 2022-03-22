@@ -23,10 +23,10 @@ import io.netty.channel.ChannelFuture
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.rpc.RpcEnv
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
-import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.service.deploy.master.{Master, MasterArguments, MasterSource}
 import com.aliyun.emr.rss.service.deploy.worker.{Worker, WorkerArguments, WorkerSource}
 

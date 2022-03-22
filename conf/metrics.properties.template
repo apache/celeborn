@@ -1,1 +1,1 @@
-*.sink.prometheusServlet.class=com.aliyun.emr.rss.server.common.metrics.sink.PrometheusServlet
+*.sink.prometheusServlet.class=com.aliyun.emr.rss.common.metrics.sink.PrometheusServlet

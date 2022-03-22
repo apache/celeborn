@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.source
+package com.aliyun.emr.rss.common.metrics.source
 
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, TimeUnit}
 
@@ -26,8 +26,8 @@ import com.codahale.metrics._
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.metrics.{ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
 import com.aliyun.emr.rss.common.util.ThreadUtils
-import com.aliyun.emr.rss.server.common.metrics._
 
 case class NamedCounter(name: String, counter: Counter)
 

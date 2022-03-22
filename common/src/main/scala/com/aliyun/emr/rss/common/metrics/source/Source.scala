@@ -15,12 +15,16 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.sink
+package com.aliyun.emr.rss.common.metrics.source
 
-trait Sink {
-  def start(): Unit
+import com.codahale.metrics.MetricRegistry
 
-  def stop(): Unit
-
-  def report(): Unit
+trait Source {
+  def sourceName: String
+  def metricRegistry: MetricRegistry
+  def sample[T](metricsName: String, key: String)(f: => T): T
+  def startTimer(metricsName: String, key: String): Unit
+  def stopTimer(metricsName: String, key: String): Unit
+  def incCounter(metricsName: String, incV: Long): Unit
+  def getMetrics(): String
 }

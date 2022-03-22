@@ -27,6 +27,8 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
@@ -63,6 +65,18 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   /** The max number of chunks being transferred and not finished yet. */
   private final long maxChunksBeingTransferred;
+
+  private AbstractSource source = null;
+
+  public TransportRequestHandler(
+      Channel channel,
+      TransportClient reverseClient,
+      RpcHandler rpcHandler,
+      Long maxChunksBeingTransferred,
+      AbstractSource source){
+    this(channel, reverseClient, rpcHandler, maxChunksBeingTransferred);
+    this.source = source;
+  }
 
   public TransportRequestHandler(
       Channel channel,
@@ -146,6 +160,9 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   }
 
   private void processFetchRequest(final ChunkFetchRequest req) {
+    if (source != null) {
+      source.startTimer(NetWorkSource.FetchChunkTime(), req.toString());
+    }
     if (logger.isTraceEnabled()) {
       logger.trace("Received req from {} to fetch block {}", NettyUtils.getRemoteAddress(channel),
         req.streamChunkId);
@@ -155,6 +172,9 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
         chunksBeingTransferred, maxChunksBeingTransferred);
       channel.close();
+      if (source != null) {
+        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+      }
       return;
     }
     ManagedBuffer buf;
@@ -165,12 +185,18 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       logger.error(String.format("Error opening block %s for request from %s",
         req.streamChunkId, NettyUtils.getRemoteAddress(channel)), e);
       respond(new ChunkFetchFailure(req.streamChunkId, Throwables.getStackTraceAsString(e)));
+      if (source != null) {
+        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+      }
       return;
     }
 
     streamManager.chunkBeingSent(req.streamChunkId.streamId);
     respond(new ChunkFetchSuccess(req.streamChunkId, buf)).addListener(future -> {
       streamManager.chunkSent(req.streamChunkId.streamId);
+      if (source != null) {
+        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+      }
     });
   }
 

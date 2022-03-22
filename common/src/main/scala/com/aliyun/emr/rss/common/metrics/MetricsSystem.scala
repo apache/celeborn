@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics
+package com.aliyun.emr.rss.common.metrics
 
 import java.util.Properties
 import java.util.concurrent.TimeUnit
@@ -28,9 +28,9 @@ import com.codahale.metrics.{Metric, MetricFilter, MetricRegistry}
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.metrics.sink.{PrometheusHttpRequestHandler, PrometheusServlet, Sink}
+import com.aliyun.emr.rss.common.metrics.source.Source
 import com.aliyun.emr.rss.common.util.Utils
-import com.aliyun.emr.rss.server.common.metrics.sink._
-import com.aliyun.emr.rss.server.common.metrics.source.Source
 
 class MetricsSystem(val instance: String, conf: RssConf, val servletPath: String) extends Logging{
   private[this] val metricsConfig = new MetricsConfig(conf)

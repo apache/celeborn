@@ -15,13 +15,11 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics
+package com.aliyun.emr.rss.common.metrics
 
 import java.util
 
-import com.codahale.metrics.Reservoir
-import com.codahale.metrics.Snapshot
-import com.codahale.metrics.UniformSnapshot
+import com.codahale.metrics.{Reservoir, Snapshot, UniformSnapshot}
 
 class ResettableSlidingWindowReservoir(size: Int) extends Reservoir {
   var measurements: Array[Long] = new Array[Long](size)

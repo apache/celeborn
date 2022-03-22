@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.exception.RssException;
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
@@ -34,7 +35,6 @@ import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
 public final class ChunkFetchRpcHandler extends RpcHandler {
 
@@ -66,7 +66,7 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
     String fileName = readString(message);
 
     // metrics start
-    source.startTimer(WorkerSource.FetchChunkTime(), shuffleKey);
+    source.startTimer(WorkerSource.OpenStreamTime(), shuffleKey);
     FileInfo fileInfo = handler.handleOpenStream(shuffleKey, fileName);
     if (fileInfo != null) {
       try {
@@ -87,11 +87,11 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
             new RssException("Chunk offsets meta exception ", e));
       } finally {
         // metrics end
-        source.stopTimer(WorkerSource.FetchChunkTime(), shuffleKey);
+        source.stopTimer(WorkerSource.OpenStreamTime(), shuffleKey);
       }
     } else {
       // metrics end
-      source.stopTimer(WorkerSource.FetchChunkTime(), shuffleKey);
+      source.stopTimer(WorkerSource.OpenStreamTime(), shuffleKey);
 
       callback.onFailure(new FileNotFoundException());
     }

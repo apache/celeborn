@@ -41,25 +41,25 @@ import com.aliyun.emr.rss.common.network.client.TransportClient;
 public class OneForOneStreamManager extends StreamManager {
   private static final Logger logger = LoggerFactory.getLogger(OneForOneStreamManager.class);
 
-  private final AtomicLong nextStreamId;
+  protected final AtomicLong nextStreamId;
   protected final ConcurrentHashMap<Long, StreamState> streams;
 
   /** State of a single stream. */
   protected static class StreamState {
-    final String appId;
-    final Iterator<ManagedBuffer> buffers;
+    public final String appId;
+    public final Iterator<ManagedBuffer> buffers;
 
     // The channel associated to the stream
-    final Channel associatedChannel;
+    public final Channel associatedChannel;
 
     // Used to keep track of the index of the buffer that the user has retrieved, just to ensure
     // that the caller only requests each chunk one at a time, in order.
-    int curChunk = 0;
+    public int curChunk = 0;
 
     // Used to keep track of the number of chunks being transferred and not finished yet.
-    volatile long chunksBeingTransferred = 0L;
+    public volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String appId, Iterator<ManagedBuffer> buffers, Channel channel) {
+    public StreamState(String appId, Iterator<ManagedBuffer> buffers, Channel channel) {
       this.appId = appId;
       this.buffers = Preconditions.checkNotNull(buffers);
       this.associatedChannel = channel;

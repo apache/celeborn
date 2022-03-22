@@ -36,6 +36,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.util.*;
 
@@ -55,7 +56,18 @@ public class TransportServer implements Closeable {
   private int port = -1;
   private NettyMemoryMetrics metrics;
   private boolean limiterEnabled = false;
+  private AbstractSource source = null;
 
+  public TransportServer(
+    TransportContext context,
+    String hostToBind,
+    int portToBind,
+    RpcHandler appRpcHandler,
+    List<TransportServerBootstrap> bootstraps,
+    AbstractSource source) {
+    this(context, hostToBind, portToBind, appRpcHandler, bootstraps, false);
+    this.source = source;
+  }
   /**
    * Creates a TransportServer that binds to the given host and the given port, or to any available
    * if 0. If you don't want to bind to any special host, set "hostToBind" to null.
