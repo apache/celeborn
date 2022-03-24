@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
-import com.aliyun.emr.rss.common.network.server.ShuffleFileSortTask;
 import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
@@ -262,8 +261,8 @@ public final class FileWriter extends DeviceObserver {
     file.delete();
 
     if (splitted.get()) {
-      String indexFileStr = file.getAbsolutePath() + ShuffleFileSortTask.INDEX_SUFFIX;
-      String sortedFileStr = file.getAbsolutePath() + ShuffleFileSortTask.SORTED_SUFFIX;
+      String indexFileStr = file.getAbsolutePath() + PartitionFileSorter.INDEX_SUFFIX;
+      String sortedFileStr = file.getAbsolutePath() + PartitionFileSorter.SORTED_SUFFIX;
       File indexFile = new File(indexFileStr);
       File sortedFile = new File(sortedFileStr);
       indexFile.delete();

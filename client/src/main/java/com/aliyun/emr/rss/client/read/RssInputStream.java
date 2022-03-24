@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -151,10 +151,7 @@ public abstract class RssInputStream extends InputStream {
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
 
-      List<PartitionLocation> shuffledLocations = new ArrayList<>();
-      for (PartitionLocation location : locations) {
-        shuffledLocations.add(location);
-      }
+      List<PartitionLocation> shuffledLocations = Arrays.asList(locations);
       Collections.shuffle(shuffledLocations);
       this.locations = shuffledLocations.toArray(new PartitionLocation[locations.length]);
 
@@ -172,17 +169,21 @@ public abstract class RssInputStream extends InputStream {
       decompressor = new RssLz4Decompressor();
 
       moveToNextReader();
-      while (this.currentReader.numChunks < 1 && this.fileIndex < this.locations.length) {
-        moveToNextReader();
-      }
     }
 
     private void moveToNextReader() throws IOException {
       if (currentReader != null) {
         currentReader.close();
       }
+
       currentReader = createReader(locations[fileIndex]);
-      currentChunk = currentReader.next();
+      while (currentReader.numChunks < 1 && fileIndex < locations.length) {
+        currentReader = createReader(locations[fileIndex]);
+        fileIndex++;
+      }
+      if (currentReader.numChunks > 0) {
+        currentChunk = currentReader.next();
+      }
       logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
                     "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
         fileIndex, locations.length, this.currentReader.numChunks);
@@ -278,14 +279,7 @@ public abstract class RssInputStream extends InputStream {
         return true;
       } else if (fileIndex < locations.length) {
         moveToNextReader();
-        while (this.currentReader.numChunks < 1 && fileIndex < locations.length) {
-          moveToNextReader();
-        }
-        if (this.currentReader.numChunks < 1) {
-          return false;
-        } else {
-          return true;
-        }
+        return currentReader.numChunks > 0;
       }
       currentReader = null;
       return false;
@@ -397,7 +391,7 @@ public abstract class RssInputStream extends InputStream {
         }
         ByteBuf chunk = null;
         try {
-          while (chunk == null && numChunks > 0) {
+          while (chunk == null) {
             checkException();
             chunk = results.poll(500, TimeUnit.MILLISECONDS);
           }

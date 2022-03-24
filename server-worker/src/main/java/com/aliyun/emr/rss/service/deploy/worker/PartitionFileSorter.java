@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.server;
+package com.aliyun.emr.rss.service.deploy.worker;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,56 +34,50 @@ import org.slf4j.LoggerFactory;
 import sun.misc.VM;
 import sun.nio.ch.DirectBuffer;
 
+import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 
-public class ShuffleFileSortTask {
-  private static Logger logger = LoggerFactory.getLogger(ShuffleFileSortTask.class);
-  private File originFile;
-  private String sortedFile;
-  private String indexFile;
+public class PartitionFileSorter {
+  private static Logger logger = LoggerFactory.getLogger(PartitionFileSorter.class);
+  private final File originFile;
+  private final String sortedFileName;
+  private final String indexFileName;
   private final long chunkSize;
-  private final long maxInMemSortSize;
   private final long originFileLen;
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
-  private SortCompleteCallback sortCompleteCallBack = null;
+  private final SortCallback sortCallBack;
+  private final boolean inMemSort;
 
-  public ShuffleFileSortTask(File originFile, long chunkSize, double maxRatio, long originFileLen) {
+  public PartitionFileSorter(File originFile, long chunkSize, double maxRatio, long originFileLen
+    , SortCallback callback) {
     this.originFile = originFile;
-    sortedFile = originFile + SORTED_SUFFIX;
-    indexFile = originFile + INDEX_SUFFIX;
+    sortedFileName = originFile + SORTED_SUFFIX;
+    indexFileName = originFile + INDEX_SUFFIX;
     this.chunkSize = chunkSize;
     long maxDirectMem = VM.maxDirectMemory();
-    this.maxInMemSortSize = (long) (maxDirectMem * maxRatio);
+    long maxInMemSortSize = (long) (maxDirectMem * maxRatio);
     this.originFileLen = originFileLen;
-  }
-
-  public void setSortCompleteCallback(SortCompleteCallback callback) {
-    this.sortCompleteCallBack = callback;
+    this.sortCallBack = callback;
+    this.inMemSort = originFileLen < maxInMemSortSize;
   }
 
   public void sort() {
-    int fileLen = (int) originFileLen;
-
     try {
       int batchHeaderLen = 16;
       byte[] batchHeader = new byte[batchHeaderLen];
 
       FileChannel originFileChannel = new FileInputStream(originFile).getChannel();
-      FileChannel sortedFileChannel = new FileOutputStream(this.sortedFile).getChannel();
+      FileChannel sortedFileChannel = new FileOutputStream(sortedFileName).getChannel();
 
       Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
       Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
-      boolean inMem = wholeFileInMemory();
       ByteBuffer headerBuf = null;
       ByteBuffer originFileBuf = null;
-      if (inMem) {
-        originFileBuf = ByteBuffer.allocateDirect((int) this.originFileLen);
-        int readCount = originFileChannel.read(originFileBuf);
-        if (readCount != fileLen) {
-          logger.warn("Read shuffle file error, filelen {} read bytes {}", fileLen, readCount);
-        }
+      if (inMemSort) {
+        originFileBuf = ByteBuffer.allocateDirect((int) originFileLen);
+        readFully(originFileChannel, originFileBuf);
         originFileChannel.close();
         originFileBuf.flip();
       } else {
@@ -91,16 +85,17 @@ public class ShuffleFileSortTask {
       }
 
       int index = 0;
-      while (index != this.originFileLen) {
+      while (index != originFileLen) {
         final int blockStartIndex = index;
-        if (inMem) {
+        if (inMemSort) {
           originFileBuf.get(batchHeader);
         } else {
-          originFileChannel.read(headerBuf);
+          readFully(originFileChannel, headerBuf);
           batchHeader = headerBuf.array();
           headerBuf.rewind();
         }
 
+        // header is 4 integers: mapId, attemptId, nextBatchId, compressedBlockTotalSize
         int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
         final int compressedSize = Platform.getInt(batchHeader,
           Platform.BYTE_ARRAY_OFFSET + 12);
@@ -116,7 +111,7 @@ public class ShuffleFileSortTask {
           return v;
         });
         index += batchHeaderLen + compressedSize;
-        if (inMem) {
+        if (inMemSort) {
           originFileBuf.position(index);
         } else {
           originFileChannel.position(index);
@@ -136,48 +131,45 @@ public class ShuffleFileSortTask {
           sortedBlock.offset = fileIndex;
           sortedBlock.length = length;
           sortedShuffleBlocks.add(sortedBlock);
-          if (inMem) {
+          if (inMemSort) {
             originFileBuf.limit(offset + length);
             originFileBuf.position(offset);
             fileIndex += sortedFileChannel.write(originFileBuf.slice());
           } else {
-            fileIndex += originFileChannel.transferTo(offset, length, sortedFileChannel);
+            fileIndex += transferFully(originFileChannel, sortedFileChannel, offset, length);
           }
         }
         sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
       }
-      if (inMem) {
+      if (inMemSort) {
         cleanBuffer(originFileBuf);
       }
 
       sortedFileChannel.close();
+      if (!originFile.delete()) {
+        logger.warn("clean origin file failed, origin file is : {}", originFile.getAbsolutePath());
+      }
       writeIndex(sortedBlockInfoMap);
+      sortCallBack.onSuccess();
     } catch (Exception e) {
-      logger.error("Shuffle sort file failed , detail : {}", e);
+      logger.error("Shuffle sort file failed , detail :", e);
+      sortCallBack.onFailure();
     } finally {
-      if (this.sortCompleteCallBack != null) {
-        try {
-          this.sortCompleteCallBack.onComplete();
-        } catch (Exception e) {
-          logger.warn("Invoke sort complete callback failed, detail:", e);
-        } finally {
-          synchronized (this) {
-            this.notify();
-          }
-        }
+      synchronized (this) {
+        notify();
       }
     }
   }
 
   public FileInfo resolve(int startMapIndex, int endMapIndex) {
-    try (FileInputStream indexStream = new FileInputStream(indexFile)) {
-      File indexFile = new File(this.indexFile);
+    try (FileInputStream indexStream = new FileInputStream(indexFileName)) {
+      File indexFile = new File(indexFileName);
       int indexSize = (int) indexFile.length();
       ByteBuffer indexBuf = ByteBuffer.allocateDirect(indexSize);
-      indexStream.getChannel().read(indexBuf);
+      readFully(indexStream.getChannel(), indexBuf);
       indexBuf.flip();
       Map<Integer, List<ShuffleBlockInfo>> indexMap = readIndex(indexBuf);
-      return new FileInfo(new File(this.sortedFile),
+      return new FileInfo(new File(sortedFileName),
         refreshChunkOffsets(startMapIndex, endMapIndex, indexMap));
     } catch (Exception e) {
       logger.error("Read sorted shuffle file error , detail : {}", e);
@@ -187,7 +179,7 @@ public class ShuffleFileSortTask {
 
   private void writeIndex(Map<Integer, List<ShuffleBlockInfo>> indexMap)
     throws IOException {
-    File indexFile = new File(this.indexFile);
+    File indexFile = new File(indexFileName);
     FileChannel indexFileChannel = new FileOutputStream(indexFile).getChannel();
 
     int indexSize = 0;
@@ -240,7 +232,7 @@ public class ShuffleFileSortTask {
     ArrayList<Long> sortedChunkOffset = new ArrayList<>();
     ShuffleBlockInfo lastBlock = null;
     logger.debug("Refresh offsets for file {} , startMapIndex {} endMapIndex {}",
-      this.sortedFile, startMapIndex, endMapIndex);
+      sortedFileName, startMapIndex, endMapIndex);
     for (int i = startMapIndex; i < endMapIndex; i++) {
       List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
       if (blockInfos != null) {
@@ -253,12 +245,12 @@ public class ShuffleFileSortTask {
           }
           lastBlock = info;
         }
-        if (lastBlock != null) {
-          long endChunkOffset = lastBlock.length + lastBlock.offset;
-          if (!sortedChunkOffset.contains(endChunkOffset)) {
-            sortedChunkOffset.add(endChunkOffset);
-          }
-        }
+      }
+    }
+    if (lastBlock != null) {
+      long endChunkOffset = lastBlock.length + lastBlock.offset;
+      if (!sortedChunkOffset.contains(endChunkOffset)) {
+        sortedChunkOffset.add(endChunkOffset);
       }
     }
     return sortedChunkOffset;
@@ -269,15 +261,32 @@ public class ShuffleFileSortTask {
   }
 
   public String getOriginFile() {
-    return this.originFile.getAbsolutePath();
+    return originFile.getAbsolutePath();
   }
 
   public long getOriginFileLen() {
     return originFileLen;
   }
 
-  public boolean wholeFileInMemory() {
-    return this.originFileLen < this.maxInMemSortSize;
+  public boolean inMemSort() {
+    return inMemSort;
+  }
+
+  private void readFully(FileChannel channel, ByteBuffer buffer) throws IOException {
+    while (buffer.hasRemaining()) {
+      if (-1 == channel.read(buffer)) {
+        throw new IOException("Unexpected EOF, file name : " + originFile.getAbsolutePath());
+      }
+    }
+  }
+
+  private int transferFully(FileChannel originChannel, FileChannel targetChannel
+    , int offset, int length) throws IOException {
+    int transferedSize = 0;
+    while (transferedSize != length) {
+      transferedSize += originChannel.transferTo(offset, length, targetChannel);
+    }
+    return transferedSize;
   }
 
   class ShuffleBlockInfo {
@@ -285,7 +294,8 @@ public class ShuffleFileSortTask {
     protected int length;
   }
 
-  public interface SortCompleteCallback {
-    void onComplete();
+  public interface SortCallback {
+    void onSuccess();
+    void onFailure();
   }
 }

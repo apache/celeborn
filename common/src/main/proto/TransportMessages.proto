@@ -14,7 +14,7 @@ enum MessageType {
   RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
   REVIVE = 10;
-  LOCATION_RENEWAL_RESPONSE = 11;
+  CHANGE_LOCATION_RESPONSE = 11;
   MAPPER_END = 12;
   MAPPER_END_RESPONSE = 13;
   GET_REDUCER_FILE_GROUP = 14;
@@ -113,8 +113,6 @@ message PbRegisterShuffle {
   int32 shuffleId = 2;
   int32 numMapppers = 3;
   int32 numPartitions = 4;
-  int64 splitThreshold = 5;
-  int32 splitMode = 6;
 }
 
 message PbRegisterShuffleResponse {
@@ -157,8 +155,6 @@ message PbRevive {
   int32 epoch = 6;
   PbPartitionLocation oldPartition = 7;
   int32 status = 8;
-  int64 splitThreshold = 9;
-  int32 splitMode = 10;
 }
 
 message PbLocationRenewalResponse {
@@ -172,8 +168,6 @@ message PbShuffleSplit {
   int32 reduceId = 3;
   int32 epoch = 4;
   PbPartitionLocation oldPartition = 5;
-  int64 splitThreshold = 6;
-  int32 splitMode = 7;
 }
 
 message PbMapperEnd {

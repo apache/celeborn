@@ -72,13 +72,13 @@ public class MemoryTracker {
   }
 
   private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval,
-    double maxSortMemRatis) {
+    double maxSortMemRatio) {
     assert directMemoryCriticalRatio > 0 && directMemoryCriticalRatio < 1;
     offheapMemoryCriticalThreshold = (long) (maxDirectorMemory * directMemoryCriticalRatio);
     assert offheapMemoryCriticalThreshold > 0;
 
     initDirectMemoryIndicator();
-    maxReserveMemory = ((long) (maxDirectorMemory * maxSortMemRatis));
+    maxReserveMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
 
     checkService.scheduleWithFixedDelay(() -> {
       try {

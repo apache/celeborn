@@ -576,7 +576,8 @@ object RssConf extends Logging {
   }
 
   def pushDataRetryThreadNum(conf: RssConf): Int = {
-    conf.getInt("rss.pushdata.retry.thread.num", 8)
+    conf.getInt("rss.pushdata.retry.thread.num",
+      Math.max(8, Runtime.getRuntime().availableProcessors()))
   }
 
   def metricsSystemEnable(conf: RssConf): Boolean = {
@@ -725,15 +726,16 @@ object RssConf extends Logging {
   def shuffleSplitMode(conf: RssConf): ShuffleSplitMode = {
     val modeStr = conf.get("rss.shuffle.split.mode", "tolerant")
     modeStr match {
-      case "tolerant" => ShuffleSplitMode.tolerant
+      case "tolerant" => ShuffleSplitMode.nonstrict
       case "strict" => ShuffleSplitMode.strict
       case _ => logWarning(s"Invalid split mode ${modeStr}, use tolerant mode by default")
-        ShuffleSplitMode.tolerant
+        ShuffleSplitMode.nonstrict
     }
   }
 
   def shuffleClientSplitPoolSize(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.client.split.pool.size", 4)
+    conf.getInt("rss.shuffle.client.split.pool.size",
+      Math.max(8, Runtime.getRuntime().availableProcessors()))
   }
 
   def shuffleSortSchedulerSize(conf: RssConf): Int = {

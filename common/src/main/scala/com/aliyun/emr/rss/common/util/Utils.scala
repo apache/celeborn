@@ -733,11 +733,9 @@ object Utils extends Logging {
       case 20 =>
         StatusCode.PushDataFailPartitionNotFound
       case 21 =>
-        StatusCode.ShuffleFileSplit
+        StatusCode.HardSplit
       case 22 =>
-        StatusCode.ShuffleSplitRequired
-      case 23 =>
-        StatusCode.ShuffleReviving
+        StatusCode.SortSplit
       case _ =>
         null
     }
@@ -745,10 +743,10 @@ object Utils extends Logging {
 
   def toShuffleSplitMode(mode: Int): ShuffleSplitMode = {
     mode match {
-      case 0 => ShuffleSplitMode.tolerant
+      case 0 => ShuffleSplitMode.nonstrict
       case 1 => ShuffleSplitMode.strict
       case _ => logWarning(s"invalid shuffle mode ${mode}, fallback to tolerant")
-        ShuffleSplitMode.tolerant
+        ShuffleSplitMode.nonstrict
     }
   }
 }

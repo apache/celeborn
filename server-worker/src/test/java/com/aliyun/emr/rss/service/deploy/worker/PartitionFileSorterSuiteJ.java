@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.server;
+package com.aliyun.emr.rss.service.deploy.worker;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -31,13 +31,25 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.emr.rss.common.network.server.FileInfo;
+import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 
-public class ShuffleFileSortTaskSuiteJ {
+public class PartitionFileSorterSuiteJ {
 
   private static File shuffleFile;
   public static final int CHUNK_SIZE = 8 * 1024 * 1024;
   private static long originFileLen;
+
+  private PartitionFileSorter.SortCallback emptyCallback = new PartitionFileSorter.SortCallback() {
+    @Override
+    public void onSuccess() {
+    }
+
+    @Override
+    public void onFailure() {
+    }
+  };
 
   @BeforeClass
   public static void prepare() throws IOException {
@@ -83,20 +95,20 @@ public class ShuffleFileSortTaskSuiteJ {
 
   @Test
   public void inMemTest() {
-    ShuffleFileSortTask sorter = new ShuffleFileSortTask(shuffleFile, CHUNK_SIZE, 0.9,
-      originFileLen);
+    PartitionFileSorter sorter = new PartitionFileSorter(shuffleFile, CHUNK_SIZE, 0.9,
+      originFileLen, emptyCallback);
     sorter.sort();
     FileInfo info = sorter.resolve(4, 5);
-    Assert.assertTrue( info.numChunks > 0);
+    Assert.assertTrue(info.numChunks > 0);
   }
 
   @Test
   public void offMemTest() {
-    ShuffleFileSortTask sorter = new ShuffleFileSortTask(shuffleFile, CHUNK_SIZE, 0.01,
-      originFileLen);
+    PartitionFileSorter sorter = new PartitionFileSorter(shuffleFile, CHUNK_SIZE, 0.01,
+      originFileLen, emptyCallback);
     sorter.sort();
     FileInfo info = sorter.resolve(4, 5);
-    Assert.assertTrue( info.numChunks > 0);
+    Assert.assertTrue(info.numChunks > 0);
   }
 
 }

@@ -52,7 +52,6 @@ import com.aliyun.emr.rss.common.network.server.NoOpRpcHandler;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants;
-import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
 import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.*;
@@ -74,8 +73,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final RssConf conf;
   private final int maxInFlight;
   private final int pushBufferSize;
-  private final long splitThreshold;
-  private final ShuffleSplitMode splitMode;
 
   private final RpcEnv rpcEnv;
 
@@ -98,8 +95,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final ExecutorService pushDataRetryPool;
 
   private final ExecutorService shuffleSplitPool;
-  private final Map<Integer, Map<Integer,Queue<Future>>> splittingFutures =
-    new ConcurrentHashMap<>();
   private final Map<Integer, Set<Integer>> splitting = new ConcurrentHashMap<>();
 
   ThreadLocal<RssLz4Compressor> lz4CompressorThreadLocal = new ThreadLocal<RssLz4Compressor>() {
@@ -127,8 +122,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     this.conf = conf;
     maxInFlight = RssConf.pushDataMaxReqsInFlight(conf);
     pushBufferSize = RssConf.pushDataBufferSize(conf);
-    splitThreshold = RssConf.shuffleSplitThreshold(conf);
-    splitMode = RssConf.shuffleSplitMode(conf);
 
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient",
@@ -246,11 +239,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     int numRetries = 3;
     while (numRetries > 0) {
       try {
-        logger.debug("RegisterShuffle split threshold : {} with mode : {}", splitThreshold,
-          splitMode);
         RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
-            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions, splitThreshold,
-              splitMode),
+            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
           ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class)
         );
 
@@ -336,22 +326,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     return currentLocation != null && currentLocation.getEpoch() > epoch;
   }
 
-  private void cancelShuffleSplitRequest(int shuffleId, int reduceId) {
-    Map<Integer, Queue<Future>> reducerBoundSplitFutures = splittingFutures.get(shuffleId);
-    Set<Integer> splittingReducers = splitting.get(shuffleId);
-    if (reducerBoundSplitFutures != null) {
-      Queue<Future> futures = reducerBoundSplitFutures.remove(reduceId);
-      if (futures != null && !futures.isEmpty()) {
-        for (Future future : futures) {
-          future.cancel(true);
-        }
-      }
-    }
-    if (splittingReducers != null) {
-      splittingReducers.remove(reduceId);
-    }
-  }
-
   private boolean revive(
       String applicationId,
       int shuffleId,
@@ -375,10 +349,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     try {
-      cancelShuffleSplitRequest(shuffleId, reduceId);
       LocationRenewalResponse response = driverRssMetaService.askSync(
         new Revive(applicationId, shuffleId, mapId, attemptId, reduceId, epoch, oldLocation,
-          cause, splitThreshold, splitMode), ClassTag$.MODULE$.apply(LocationRenewalResponse.class)
+          cause), ClassTag$.MODULE$.apply(LocationRenewalResponse.class)
       );
       // per partitionKey only serve single PartitionLocation in Client Cache.
       if (response.status().equals(StatusCode.Success)) {
@@ -517,18 +490,18 @@ public class ShuffleClientImpl extends ShuffleClient {
         public void onSuccess(ByteBuffer response) {
           if (response.remaining() > 0) {
             byte reason = response.get();
-            if (reason == StatusCode.ShuffleSplitRequired.getValue()) {
+            if (reason == StatusCode.SortSplit.getValue()) {
               logger.debug("Push data split required for map {} attempt {} batch {}",
                 mapId, attemptId, nextBatchId);
               updateLocationForSplit(shuffleId, reduceId, applicationId, loc);
               callback.onSuccess(response);
             }
-            if (reason == StatusCode.ShuffleFileSplit.getValue()) {
+            if (reason == StatusCode.HardSplit.getValue()) {
               logger.debug("Push data split for map {} attempt {} batch {}.",
                 mapId, attemptId, nextBatchId);
               pushDataRetryPool.submit(() -> submitRetryPushData(applicationId, shuffleId, mapId,
-                attemptId, body, nextBatchId, loc, callback, pushState,
-                StatusCode.ShuffleFileSplit));
+                attemptId, body, nextBatchId, loc, this, pushState,
+                StatusCode.HardSplit));
             }
           } else {
             response.rewind();
@@ -591,7 +564,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private void updateLocationForSplit(int shuffleId, int reduceId, String applicationId,
     PartitionLocation loc) {
-    Future splitRequestFuture = shuffleSplitPool.submit(() -> {
+    shuffleSplitPool.submit(() -> {
       Set<Integer> reducerSplittingSet = splitting.computeIfAbsent(shuffleId,
         integer -> ConcurrentHashMap.newKeySet());
       synchronized (reducerSplittingSet) {
@@ -608,15 +581,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           currentShuffleLocs = reducePartitionMap.get(shuffleId);
         LocationRenewalResponse shuffleSplitResponse =
           driverRssMetaService.askSync(
-            new ShuffleSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc,
-              splitThreshold, splitMode), ClassTag$.MODULE$.apply(LocationRenewalResponse.class));
+            new ShuffleSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc),
+            ClassTag$.MODULE$.apply(LocationRenewalResponse.class));
         if (shuffleSplitResponse.status().equals(StatusCode.Success)) {
-          if (!Thread.interrupted()) {
-            currentShuffleLocs.put(reduceId, shuffleSplitResponse.partition());
-          }
-        } else if (shuffleSplitResponse.status().equals(StatusCode.ShuffleReviving)) {
-          logger.debug("shuffle {} reduce {} end or reviving, split should do nothing.",
-            shuffleId, reduceId);
+          currentShuffleLocs.put(reduceId, shuffleSplitResponse.partition());
         } else {
           logger.info("split failed for {}, shuffle file can be larger than expected, " +
                         "try split again", shuffleSplitResponse.status().toString());
@@ -624,21 +592,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       } catch (Exception e) {
         logger.warn("Shuffle file split failed for map {} reduceId {}, try again, detail : {}",
           shuffleId, reduceId, e);
-      }finally {
+      } finally {
         reducerSplittingSet.remove(reduceId);
       }
-    });
-
-    Map<Integer, Queue<Future>> reducerRelatedFutures = splittingFutures.computeIfAbsent(shuffleId,
-      integer -> new ConcurrentHashMap<>());
-    reducerRelatedFutures.compute(reduceId, (k, v) -> {
-      if (v == null) {
-        v = new ConcurrentLinkedQueue<>();
-      }
-      if (!splitRequestFuture.isDone()) {
-        v.add(splitRequestFuture);
-      }
-      return v;
     });
   }
 
@@ -745,14 +701,12 @@ public class ShuffleClientImpl extends ShuffleClient {
       @Override
       public void onSuccess(ByteBuffer response) {
         logger.debug("Push data success for map {} attempt {} grouped batch {}.",
-            mapId, attemptId, groupedBatchId);
+          mapId, attemptId, groupedBatchId);
         pushState.inFlightBatches.remove(groupedBatchId);
-        if (response.remaining() > 0) {
-          byte statusCode = response.get();
-          if (statusCode == StatusCode.StageEnded.getValue()) {
-            mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
-              .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
-          }
+        if (response.remaining() > 0 &&
+              response.get() == StatusCode.StageEnded.getValue()) {
+          mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
+            .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
         }
       }
 
@@ -858,15 +812,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     reduceFileGroupsMap.remove(shuffleId);
     mapperEndMap.remove(shuffleId);
     splitting.remove(shuffleId);
-    Map<Integer,Queue<Future>> shuffleBoundSplitRequestFutures = splittingFutures.remove(shuffleId);
-    if (shuffleBoundSplitRequestFutures != null) {
-      for (Map.Entry<Integer, Queue<Future>> entry : shuffleBoundSplitRequestFutures.entrySet()) {
-        logger.debug("clean shuffle split request futures, reduceId : {} ");
-        for (Future future : entry.getValue()) {
-          future.cancel(true);
-        }
-      }
-    }
 
     logger.info("Unregistered shuffle {}.", shuffleId);
     return true;

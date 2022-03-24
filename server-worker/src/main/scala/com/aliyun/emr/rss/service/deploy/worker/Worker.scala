@@ -42,8 +42,7 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
-import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, ShuffleFileSortTask, TransportServerBootstrap}
-import com.aliyun.emr.rss.common.network.server.ShuffleFileSortTask.SortCompleteCallback
+import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, TransportServerBootstrap}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, ShuffleSplitMode, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -53,6 +52,7 @@ import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.server.common.metrics.source.NetWorkSource
+import com.aliyun.emr.rss.service.deploy.worker.PartitionFileSorter.SortCallback
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
 private[deploy] class Worker(
@@ -139,7 +139,7 @@ private[deploy] class Worker(
 
   private val sortedShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
   private val sortingShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
-  private val shuffleSortTaskDeque = new LinkedBlockingQueue[ShuffleFileSortTask](8192)
+  private val shuffleSortTaskDeque = new LinkedBlockingQueue[PartitionFileSorter](8192)
   private val shuffleSortTimeout = RssConf.shuffleSortTimeout(conf)
   private val readChunkSize = RssConf.workerFetchChunkSize(conf)
   private val sortMaxSingleFileRatio = RssConf.shuffleSortSingleFileMaxRatio(conf)
@@ -151,7 +151,7 @@ private[deploy] class Worker(
       try {
         while (true) {
           val task = shuffleSortTaskDeque.take();
-          if (task.wholeFileInMemory()) {
+          if (task.inMemSort()) {
             memoryTracker.reserveSortMemory(task.getOriginFileLen)
           } else {
             memoryTracker.reserveSortMemory(1024 * 1024)
@@ -162,7 +162,7 @@ private[deploy] class Worker(
           shuffleSortExecutors.submit(new Runnable {
             override def run(): Unit = {
               task.sort()
-              if (task.wholeFileInMemory()) {
+              if (task.inMemSort()) {
                 memoryTracker.releaseSortMemory(task.getOriginFileLen)
               } else {
                 memoryTracker.reserveSortMemory(1024 * 1024)
@@ -677,10 +677,10 @@ private[deploy] class Worker(
     if (isMaster && fileWriter.shouldSplit()) {
       logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
         s" needs to split. Shuffle split threshold ${fileWriter.splitThreshold()}")
-      if (fileWriter.getSplitMode == ShuffleSplitMode.tolerant) {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleSplitRequired.getValue)))
+      if (fileWriter.getSplitMode == ShuffleSplitMode.nonstrict) {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SortSplit.getValue)))
       } else {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.ShuffleFileSplit.getValue)))
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
         return
       }
     }
@@ -922,19 +922,35 @@ private[deploy] class Worker(
         if (!shuffleBoundSortingShuffleFiles.contains(shuffleFileId)) {
           logInfo(s"[Worker] sorting file ${shuffleFileId}")
           shuffleBoundSortingShuffleFiles.add(shuffleFileId)
-          val sortTask = new ShuffleFileSortTask(fileWriter.getFile, readChunkSize,
-            sortMaxSingleFileRatio, fileWriter.getFileLength)
-          sortTask.setSortCompleteCallback(new SortCompleteCallback {
-            override def onComplete(): Unit = {
-              shuffleBoundSortedShuffleFiles.add(shuffleFileId)
-              shuffleBoundSortingShuffleFiles.remove(shuffleFileId)
-            }
-          })
+          val sortSuccess = new AtomicBoolean(false)
+
+          val sortTask = new PartitionFileSorter(fileWriter.getFile, readChunkSize,
+            sortMaxSingleFileRatio, fileWriter.getFileLength, new SortCallback {
+
+              override def onSuccess(): Unit = {
+                sortOver()
+                sortSuccess.set(false)
+              }
+
+              override def onFailure(): Unit = {
+                sortOver()
+              }
+
+              def sortOver(): Unit = {
+                shuffleBoundSortedShuffleFiles.add(shuffleFileId)
+                shuffleBoundSortingShuffleFiles.remove(shuffleFileId)
+              }
+            })
+
           shuffleSortTaskDeque.put(sortTask)
           sortTask.synchronized {
             sortTask.wait((shuffleSortTimeout))
           }
-          sortTask.resolve(startMapIndex, endMapIndex)
+          if (sortSuccess.get()) {
+            sortTask.resolve(startMapIndex, endMapIndex)
+          } else {
+            null
+          }
         } else {
           logInfo(s"[Worker] read sorting file ${fileName}")
           val start = System.currentTimeMillis()
@@ -946,13 +962,13 @@ private[deploy] class Worker(
               return null
             }
           }
-          new ShuffleFileSortTask(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
-            fileWriter.getFileLength).resolve(startMapIndex, endMapIndex)
+          new PartitionFileSorter(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
+            fileWriter.getFileLength, null).resolve(startMapIndex, endMapIndex)
         }
       } else {
         logInfo(s"[Worker] read sorted file ${fileName}")
-        new ShuffleFileSortTask(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
-          fileWriter.getFileLength).resolve(startMapIndex, endMapIndex)
+        new PartitionFileSorter(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
+          fileWriter.getFileLength, null).resolve(startMapIndex, endMapIndex)
       }
     } else {
       logInfo(s"[Worker] read shuffle file fully ${fileWriter.getFile.getAbsolutePath}")

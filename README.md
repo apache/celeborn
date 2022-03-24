@@ -185,6 +185,9 @@ spark.rss.push.data.replicate true
 # we recommend set localShuffleReader to false to get better performance of RSS
 spark.sql.adaptive.localShuffleReader.enabled false
 
+# we recommend enable aqe support to gain better performance
+spark.sql.adaptive.enabled true
+spark.sql.adaptive.skewJoin.enabled true 
 ```
 
 ### Best Practice
