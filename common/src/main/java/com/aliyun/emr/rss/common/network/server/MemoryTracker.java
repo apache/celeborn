@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.internal.PlatformDependent;
@@ -49,6 +50,7 @@ public class MemoryTracker {
     .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong nettyMemoryCounter = null;
+  private LongAdder memoryCriticalCount = new LongAdder();
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
     int reportInterval) {
@@ -121,10 +123,23 @@ public class MemoryTracker {
   }
 
   public boolean directMemoryCritical() {
-    return nettyMemoryCounter.get() > offheapMemoryCriticalThreshold;
+    if (nettyMemoryCounter.get() > offheapMemoryCriticalThreshold) {
+      memoryCriticalCount.increment();
+      return true;
+    } else {
+      return false;
+    }
   }
 
   public interface MemoryTrackerListener {
     void onMemoryCritical();
+  }
+
+  public long getMaxDirectorMemory() {
+    return nettyMemoryCounter.get();
+  }
+
+  public long getMemoryCriticalCounter() {
+    return memoryCriticalCount.sum();
   }
 }

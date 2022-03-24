@@ -79,6 +79,9 @@ private[deploy] class Worker(
     val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
       workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
     memoryTracker.registerMemoryListener(localStorageManager)
+    workerSource.addGauge(WorkerSource.DirectMemory, _ => memoryTracker.getMaxDirectorMemory)
+    workerSource.addGauge(WorkerSource.MemoryCriticalCount,
+      _ => memoryTracker.getMemoryCriticalCounter)
   }
 
   private val (pushServer, pushClientFactory) = {
