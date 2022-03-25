@@ -49,8 +49,8 @@ public class PartitionFileSorter {
   private final SortCallback sortCallBack;
   private final boolean inMemSort;
 
-  public PartitionFileSorter(File originFile, long chunkSize, double maxRatio, long originFileLen
-    , SortCallback callback) {
+  public PartitionFileSorter(File originFile, long chunkSize, double maxRatio, long originFileLen,
+    SortCallback callback) {
     this.originFile = originFile;
     sortedFileName = originFile + SORTED_SUFFIX;
     indexFileName = originFile + INDEX_SUFFIX;
@@ -280,8 +280,8 @@ public class PartitionFileSorter {
     }
   }
 
-  private int transferFully(FileChannel originChannel, FileChannel targetChannel
-    , int offset, int length) throws IOException {
+  private int transferFully(FileChannel originChannel, FileChannel targetChannel,
+    int offset, int length) throws IOException {
     int transferedSize = 0;
     while (transferedSize != length) {
       transferedSize += originChannel.transferTo(offset, length, targetChannel);
