@@ -177,17 +177,24 @@ public abstract class RssInputStream extends InputStream {
       }
 
       currentReader = createReader(locations[fileIndex]);
-      while (currentReader.numChunks < 1 && fileIndex < locations.length) {
+      logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
+                    "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
+        fileIndex, locations.length, this.currentReader.numChunks);
+      while (currentReader.numChunks < 1 && fileIndex < locations.length - 1) {
+        currentReader.close();
         currentReader = createReader(locations[fileIndex]);
+        logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
+                      "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
+          fileIndex, locations.length, this.currentReader.numChunks);
         fileIndex++;
       }
       if (currentReader.numChunks > 0) {
         currentChunk = currentReader.next();
+        fileIndex++;
+      } else {
+        currentReader.close();
+        currentReader = null;
       }
-      logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
-                    "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
-        fileIndex, locations.length, this.currentReader.numChunks);
-      fileIndex++;
     }
 
     private PartitionReader createReader(PartitionLocation location) throws IOException {
@@ -279,7 +286,7 @@ public abstract class RssInputStream extends InputStream {
         return true;
       } else if (fileIndex < locations.length) {
         moveToNextReader();
-        return currentReader.numChunks > 0;
+        return currentReader != null;
       }
       currentReader = null;
       return false;
