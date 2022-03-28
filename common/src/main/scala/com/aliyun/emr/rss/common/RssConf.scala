@@ -724,12 +724,12 @@ object RssConf extends Logging {
   }
 
   def shuffleSplitMode(conf: RssConf): ShuffleSplitMode = {
-    val modeStr = conf.get("rss.shuffle.split.mode", "tolerant")
+    val modeStr = conf.get("rss.shuffle.split.mode", "soft")
     modeStr match {
-      case "tolerant" => ShuffleSplitMode.nonstrict
-      case "strict" => ShuffleSplitMode.strict
-      case _ => logWarning(s"Invalid split mode ${modeStr}, use tolerant mode by default")
-        ShuffleSplitMode.nonstrict
+      case "soft" => ShuffleSplitMode.sort
+      case "hard" => ShuffleSplitMode.hard
+      case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
+        ShuffleSplitMode.sort
     }
   }
 
@@ -760,6 +760,10 @@ object RssConf extends Logging {
 
   def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {
     conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
+  }
+
+  def workerOffheapSortReserveMemory(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.offheap.sort.reserve.memory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {

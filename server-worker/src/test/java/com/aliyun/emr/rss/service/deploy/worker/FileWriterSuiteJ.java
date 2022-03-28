@@ -66,7 +66,7 @@ public class FileWriterSuiteJ {
   private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
   public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
-  public static final ShuffleSplitMode splitMode = ShuffleSplitMode.strict;
+  public static final ShuffleSplitMode splitMode = ShuffleSplitMode.hard;
 
   private static File tempDir = null;
   private static DiskFlusher flusher = null;

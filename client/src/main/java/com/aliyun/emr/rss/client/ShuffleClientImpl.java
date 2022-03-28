@@ -21,8 +21,15 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
@@ -564,38 +571,23 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private void updateLocationForSplit(int shuffleId, int reduceId, String applicationId,
     PartitionLocation loc) {
-    shuffleSplitPool.submit(() -> {
-      Set<Integer> reducerSplittingSet = splitting.computeIfAbsent(shuffleId,
-        integer -> ConcurrentHashMap.newKeySet());
-      synchronized (reducerSplittingSet) {
-        if (reducerSplittingSet.contains(reduceId)) {
-          logger.debug("shuffle {} reduceId {} is splitting, skip split request ",
-            shuffleId, reduceId);
-          return;
-        }
-        reducerSplittingSet.add(reduceId);
+    Set<Integer> reducerSplittingSet = splitting.computeIfAbsent(shuffleId,
+      integer -> ConcurrentHashMap.newKeySet());
+    synchronized (reducerSplittingSet) {
+      if (reducerSplittingSet.contains(reduceId)) {
+        logger.debug("shuffle {} reduceId {} is splitting, skip split request ",
+          shuffleId, reduceId);
+        return;
       }
+      reducerSplittingSet.add(reduceId);
+    }
 
-      try {
-        ConcurrentHashMap<Integer, PartitionLocation>
-          currentShuffleLocs = reducePartitionMap.get(shuffleId);
-        LocationRenewalResponse shuffleSplitResponse =
-          driverRssMetaService.askSync(
-            new ShuffleSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc),
-            ClassTag$.MODULE$.apply(LocationRenewalResponse.class));
-        if (shuffleSplitResponse.status().equals(StatusCode.Success)) {
-          currentShuffleLocs.put(reduceId, shuffleSplitResponse.partition());
-        } else {
-          logger.info("split failed for {}, shuffle file can be larger than expected, " +
-                        "try split again", shuffleSplitResponse.status().toString());
-        }
-      } catch (Exception e) {
-        logger.warn("Shuffle file split failed for map {} reduceId {}, try again, detail : {}",
-          shuffleId, reduceId, e);
-      } finally {
-        reducerSplittingSet.remove(reduceId);
-      }
-    });
+    ConcurrentHashMap<Integer, PartitionLocation> currentShuffleLocs =
+      reducePartitionMap.get(shuffleId);
+
+    ShuffleClientHelper.sendShuffleSplitAsync(driverRssMetaService,
+      new ShuffleSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc), shuffleSplitPool,
+      reducerSplittingSet, reduceId, shuffleId, currentShuffleLocs);
   }
 
   @Override

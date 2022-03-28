@@ -181,12 +181,12 @@ public abstract class RssInputStream extends InputStream {
                     "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
         fileIndex, locations.length, this.currentReader.numChunks);
       while (currentReader.numChunks < 1 && fileIndex < locations.length - 1) {
+        fileIndex++;
         currentReader.close();
         currentReader = createReader(locations[fileIndex]);
         logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
                       "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
           fileIndex, locations.length, this.currentReader.numChunks);
-        fileIndex++;
       }
       if (currentReader.numChunks > 0) {
         currentChunk = currentReader.next();

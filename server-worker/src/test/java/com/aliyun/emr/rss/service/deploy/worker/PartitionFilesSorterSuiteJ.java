@@ -22,26 +22,33 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
+import static org.mockito.Mockito.when;
 
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 
-public class PartitionFileSorterSuiteJ {
+public class PartitionFilesSorterSuiteJ {
 
-  private static File shuffleFile;
-  public static final int CHUNK_SIZE = 8 * 1024 * 1024;
-  private static long originFileLen;
+  private File shuffleFile;
+  public final int CHUNK_SIZE = 8 * 1024 * 1024;
+  private String originFileName;
+  private long originFileLen;
+  private FileWriter fileWriter;
+  private long sortTimeout = 16 * 1000;
 
-  private PartitionFileSorter.SortCallback emptyCallback = new PartitionFileSorter.SortCallback() {
+  private PartitionFilesSorter.SortCallback emptyCallback =
+    new PartitionFilesSorter.SortCallback() {
     @Override
     public void onSuccess() {
     }
@@ -51,15 +58,15 @@ public class PartitionFileSorterSuiteJ {
     }
   };
 
-  @BeforeClass
-  public static void prepare() throws IOException {
+  @Before
+  public void prepare() throws IOException {
     byte[] batchHeader = new byte[16];
     Random random = new Random();
     shuffleFile = File.createTempFile("RSS", "sort-suite");
-    System.out.println(shuffleFile.getAbsolutePath());
+
+    originFileName = shuffleFile.getAbsolutePath();
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
-    Map<Integer, Integer> attemptIds = new HashMap<>();
     Map<Integer, Integer> batchIds = new HashMap<>();
 
     int maxMapId = 50;
@@ -85,29 +92,37 @@ public class PartitionFileSorterSuiteJ {
       channel.write(ByteBuffer.wrap(mockedData));
     }
     originFileLen = channel.size();
+    System.out.println(shuffleFile.getAbsolutePath() + " filelen " + originFileLen);
+
     MemoryTracker.initialize(0.9, 10, 10, 0.6);
+    fileWriter = Mockito.mock(FileWriter.class);
+    when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
+    when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
+    when(fileWriter.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
   }
 
-  @AfterClass
-  public static void teardown() {
+  @After
+  public void teardown() {
     shuffleFile.delete();
   }
 
   @Test
   public void inMemTest() {
-    PartitionFileSorter sorter = new PartitionFileSorter(shuffleFile, CHUNK_SIZE, 0.9,
-      originFileLen, emptyCallback);
-    sorter.sort();
-    FileInfo info = sorter.resolve(4, 5);
+    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
+      sortTimeout, CHUNK_SIZE, 0.9,1024*1024);
+    FileInfo info = partitionFilesSorter.openStream("application-1", originFileName, fileWriter,
+      4, 5);
+    System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
   }
 
   @Test
   public void offMemTest() {
-    PartitionFileSorter sorter = new PartitionFileSorter(shuffleFile, CHUNK_SIZE, 0.01,
-      originFileLen, emptyCallback);
-    sorter.sort();
-    FileInfo info = sorter.resolve(4, 5);
+    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
+      sortTimeout, CHUNK_SIZE, 0.0,1024*1024);
+    FileInfo info = partitionFilesSorter.openStream("application-1", originFileName, fileWriter,
+      4, 5);
+    System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
   }
 

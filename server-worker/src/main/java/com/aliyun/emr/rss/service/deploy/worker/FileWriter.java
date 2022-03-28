@@ -261,8 +261,8 @@ public final class FileWriter extends DeviceObserver {
     file.delete();
 
     if (splitted.get()) {
-      String indexFileStr = file.getAbsolutePath() + PartitionFileSorter.INDEX_SUFFIX;
-      String sortedFileStr = file.getAbsolutePath() + PartitionFileSorter.SORTED_SUFFIX;
+      String indexFileStr = file.getAbsolutePath() + PartitionFilesSorter.INDEX_SUFFIX;
+      String sortedFileStr = file.getAbsolutePath() + PartitionFilesSorter.SORTED_SUFFIX;
       File indexFile = new File(indexFileStr);
       File sortedFile = new File(sortedFileStr);
       indexFile.delete();
@@ -364,20 +364,15 @@ public final class FileWriter extends DeviceObserver {
     }
   }
 
-  public boolean shouldSplit() {
-    if (this.bytesFlushed > this.splitThreshold) {
-      this.splitted.set(true);
-      return true;
-    } else {
-      return false;
-    }
+  public void setSplitFlag() {
+    this.splitted.set(true);
   }
 
   public long splitThreshold() {
-    return this.splitThreshold;
+    return splitThreshold;
   }
 
   public ShuffleSplitMode getSplitMode() {
-    return this.splitMode;
+    return splitMode;
   }
 }

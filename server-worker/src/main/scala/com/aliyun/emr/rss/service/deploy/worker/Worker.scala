@@ -33,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{shuffleSortMaxMemoryRatio, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
+import com.aliyun.emr.rss.common.RssConf.{shuffleSortMaxMemoryRatio, shuffleSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -52,7 +52,6 @@ import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.server.common.metrics.source.NetWorkSource
-import com.aliyun.emr.rss.service.deploy.worker.PartitionFileSorter.SortCallback
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
 private[deploy] class Worker(
@@ -73,6 +72,9 @@ private[deploy] class Worker(
     shuffleSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
+  private val partitionsSorter = new PartitionFilesSorter(this.memoryTracker,
+    shuffleSortTimeout(conf), RssConf.workerFetchChunkSize(conf),
+    RssConf.shuffleSortSingleFileMaxRatio(conf), RssConf.workerOffheapSortReserveMemory(conf))
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -136,48 +138,6 @@ private[deploy] class Worker(
   private val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
     "worker-replicate-data", RssConf.workerReplicateNumThreads(conf))
   private val timer = new HashedWheelTimer()
-
-  private val sortedShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
-  private val sortingShuffleFiles = new ConcurrentHashMap[String, ConcurrentSet[String]]
-  private val shuffleSortTaskDeque = new LinkedBlockingQueue[PartitionFileSorter](8192)
-  private val shuffleSortTimeout = RssConf.shuffleSortTimeout(conf)
-  private val readChunkSize = RssConf.workerFetchChunkSize(conf)
-  private val sortMaxSingleFileRatio = RssConf.shuffleSortSingleFileMaxRatio(conf)
-  private lazy val shuffleSortExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "worker-shuffle-execute", Math.max(Runtime.getRuntime.availableProcessors(), 8), 120)
-
-  private val shuffleSortSchedulerThread = new Thread(new Runnable {
-    override def run(): Unit = {
-      try {
-        while (true) {
-          val task = shuffleSortTaskDeque.take();
-          if (task.inMemSort()) {
-            memoryTracker.reserveSortMemory(task.getOriginFileLen)
-          } else {
-            memoryTracker.reserveSortMemory(1024 * 1024)
-          }
-          while (!memoryTracker.sortMemoryReady()) {
-            Thread.sleep(20)
-          }
-          shuffleSortExecutors.submit(new Runnable {
-            override def run(): Unit = {
-              task.sort()
-              if (task.inMemSort()) {
-                memoryTracker.releaseSortMemory(task.getOriginFileLen)
-              } else {
-                memoryTracker.reserveSortMemory(1024 * 1024)
-              }
-              logInfo(s"sort ${task.getOriginFile} complete")
-            }
-          })
-        }
-      } catch {
-        case _: Exception =>
-      }
-    }
-  })
-  shuffleSortSchedulerThread.start()
-
 
   // Configs
   private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
@@ -249,8 +209,7 @@ private[deploy] class Worker(
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
-    shuffleSortSchedulerThread.interrupt()
-    shuffleSortExecutors.shutdownNow()
+    this.partitionsSorter.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -674,10 +633,11 @@ private[deploy] class Worker(
       callback.onFailure(new Exception(message, exception))
       return
     }
-    if (isMaster && fileWriter.shouldSplit()) {
+    if (isMaster && fileWriter.getFileLength > fileWriter.splitThreshold()) {
       logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
         s" needs to split. Shuffle split threshold ${fileWriter.splitThreshold()}")
-      if (fileWriter.getSplitMode == ShuffleSplitMode.nonstrict) {
+      fileWriter.setSplitFlag()
+      if (fileWriter.getSplitMode == ShuffleSplitMode.sort) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SortSplit.getValue)))
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
@@ -910,70 +870,7 @@ private[deploy] class Worker(
       logWarning(s"File $fileName for $shuffleKey was not found!")
       return null
     }
-
-    if (endMapIndex != Int.MaxValue) {
-      val shuffleFileId = shuffleKey + fileName;
-      val shuffleBoundSortedShuffleFiles = sortedShuffleFiles.compute(shuffleKey,
-        newOpenStreamMapFunc)
-      val shuffleBoundSortingShuffleFiles = sortingShuffleFiles.compute(shuffleKey,
-        newOpenStreamMapFunc)
-
-      if (!shuffleBoundSortedShuffleFiles.contains(shuffleFileId)) {
-        if (!shuffleBoundSortingShuffleFiles.contains(shuffleFileId)) {
-          logInfo(s"[Worker] sorting file ${shuffleFileId}")
-          shuffleBoundSortingShuffleFiles.add(shuffleFileId)
-          val sortSuccess = new AtomicBoolean(false)
-
-          val sortTask = new PartitionFileSorter(fileWriter.getFile, readChunkSize,
-            sortMaxSingleFileRatio, fileWriter.getFileLength, new SortCallback {
-
-              override def onSuccess(): Unit = {
-                sortOver()
-                sortSuccess.set(false)
-              }
-
-              override def onFailure(): Unit = {
-                sortOver()
-              }
-
-              def sortOver(): Unit = {
-                shuffleBoundSortedShuffleFiles.add(shuffleFileId)
-                shuffleBoundSortingShuffleFiles.remove(shuffleFileId)
-              }
-            })
-
-          shuffleSortTaskDeque.put(sortTask)
-          sortTask.synchronized {
-            sortTask.wait((shuffleSortTimeout))
-          }
-          if (sortSuccess.get()) {
-            sortTask.resolve(startMapIndex, endMapIndex)
-          } else {
-            null
-          }
-        } else {
-          logInfo(s"[Worker] read sorting file ${fileName}")
-          val start = System.currentTimeMillis()
-          while (shuffleBoundSortingShuffleFiles.contains(shuffleFileId)) {
-            Thread.sleep(1000)
-            if (System.currentTimeMillis() - start > shuffleSortTimeout) {
-              logError(s"[Worker] sorting ${shuffleFileId}" +
-                s" ${fileWriter.getFile.getAbsolutePath} timeout")
-              return null
-            }
-          }
-          new PartitionFileSorter(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
-            fileWriter.getFileLength, null).resolve(startMapIndex, endMapIndex)
-        }
-      } else {
-        logInfo(s"[Worker] read sorted file ${fileName}")
-        new PartitionFileSorter(fileWriter.getFile, readChunkSize, sortMaxSingleFileRatio,
-          fileWriter.getFileLength, null).resolve(startMapIndex, endMapIndex)
-      }
-    } else {
-      logInfo(s"[Worker] read shuffle file fully ${fileWriter.getFile.getAbsolutePath}")
-      new FileInfo(fileWriter.getFile, fileWriter.getChunkOffsets)
-    }
+    this.partitionsSorter.openStream(shuffleKey, fileName, fileWriter, startMapIndex, endMapIndex);
   }
 
   private def registerWithMaster() {
@@ -1034,8 +931,7 @@ private[deploy] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
-      sortingShuffleFiles.remove(shuffleKey)
-      sortedShuffleFiles.remove(shuffleKey)
+      partitionsSorter.cleanup(expiredShuffleKeys)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
 
