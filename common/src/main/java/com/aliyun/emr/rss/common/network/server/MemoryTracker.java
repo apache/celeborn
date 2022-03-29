@@ -38,7 +38,7 @@ public class MemoryTracker {
 
   private long maxDirectorMemory = VM.maxDirectMemory();
   private long offheapMemoryCriticalThreshold = 0;
-  private long maxReserveMemory = 0;
+  private long maxSortMemory = 0;
   private List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
   private ScheduledExecutorService checkService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
@@ -50,7 +50,7 @@ public class MemoryTracker {
     .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong nettyMemoryCounter = null;
-  private AtomicLong reserveForSort = new AtomicLong(0);
+  private AtomicLong sortMemoryCounter = new AtomicLong(0);
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
     int reportInterval, double maxSortRatio) {
@@ -78,7 +78,7 @@ public class MemoryTracker {
     assert offheapMemoryCriticalThreshold > 0;
 
     initDirectMemoryIndicator();
-    maxReserveMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
+    maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
@@ -126,7 +126,7 @@ public class MemoryTracker {
   }
 
   public boolean directMemoryCritical() {
-    return nettyMemoryCounter.get() + reserveForSort.get() > offheapMemoryCriticalThreshold;
+    return nettyMemoryCounter.get() + sortMemoryCounter.get() > offheapMemoryCriticalThreshold;
   }
 
   public interface MemoryTrackerListener {
@@ -134,19 +134,19 @@ public class MemoryTracker {
   }
 
   public void reserveSortMemory(long fileLen) {
-    reserveForSort.addAndGet(fileLen);
+    sortMemoryCounter.addAndGet(fileLen);
   }
 
   public boolean sortMemoryReady() {
-    return !directMemoryCritical() && reserveForSort.get() < maxReserveMemory;
+    return !directMemoryCritical() && sortMemoryCounter.get() < maxSortMemory;
   }
 
-  public void releaseSortMemory(long filelen) {
+  public void releaseSortMemory(long size) {
     synchronized (this) {
-      if (reserveForSort.get() - filelen < 0) {
-        reserveForSort.set(0);
+      if (sortMemoryCounter.get() - size < 0) {
+        sortMemoryCounter.set(0);
       } else {
-        reserveForSort.addAndGet(-1L * filelen);
+        sortMemoryCounter.addAndGet(-1L * size);
       }
     }
   }

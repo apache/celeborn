@@ -43,7 +43,7 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
 import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, TransportServerBootstrap}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, ShuffleSplitMode, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -68,13 +68,16 @@ private[deploy] class Worker(
   }
 
   val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
-    workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf),
+    workerDirectMemoryPressureCheckIntervalMs(conf),
+    workerDirectMemoryReportIntervalSecond(conf),
     shuffleSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
   private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
-    shuffleSortTimeout(conf), RssConf.workerFetchChunkSize(conf),
-    RssConf.shuffleSortSingleFileMaxRatio(conf), RssConf.workerOffheapSortReserveMemory(conf))
+    shuffleSortTimeout(conf),
+    RssConf.workerFetchChunkSize(conf),
+    RssConf.shuffleSortSingleFileMaxRatio(conf),
+    RssConf.memoryForSortLargeFile(conf))
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -268,7 +271,7 @@ private[deploy] class Worker(
       masterLocations: jList[PartitionLocation],
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
-      splitMode: ShuffleSplitMode): Unit = {
+      splitMode: PartitionSplitMode): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -637,7 +640,7 @@ private[deploy] class Worker(
       logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
         s" needs to split. Shuffle split threshold ${fileWriter.getSplitThreshold()}")
       fileWriter.setSplitFlag()
-      if (fileWriter.getSplitMode == ShuffleSplitMode.soft) {
+      if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
@@ -848,17 +851,6 @@ private[deploy] class Worker(
       index += 1
     }
   }
-
-  val newOpenStreamMapFunc =
-    new java.util.function.BiFunction[String, ConcurrentSet[String], ConcurrentSet[String]]() {
-      override def apply(key: String, u: ConcurrentSet[String]): ConcurrentSet[String] = {
-        if (u == null) {
-          new ConcurrentSet[String]
-        } else {
-          u
-        }
-      }
-    }
 
   override def handleOpenStream(shuffleKey: String, fileName: String, startMapIndex: Int,
     endMapIndex: Int): FileInfo = {

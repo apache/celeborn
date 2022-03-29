@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -723,13 +723,13 @@ object RssConf extends Logging {
     Math.min(threshold, 1717986918)
   }
 
-  def shuffleSplitMode(conf: RssConf): ShuffleSplitMode = {
+  def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.shuffle.split.mode", "soft")
     modeStr match {
-      case "soft" => ShuffleSplitMode.soft
-      case "hard" => ShuffleSplitMode.hard
+      case "soft" => PartitionSplitMode.soft
+      case "hard" => PartitionSplitMode.hard
       case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
-        ShuffleSplitMode.soft
+        PartitionSplitMode.soft
     }
   }
 
@@ -739,7 +739,7 @@ object RssConf extends Logging {
   }
 
   def shuffleSortSchedulerSize(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.sort.scheduler.size", 4)
+    conf.getInt("rss.shuffle.sort.scheduler.size", 8)
   }
 
   def shuffleSortSchedulerTaskLimit(conf: RssConf): Int = {
@@ -762,8 +762,8 @@ object RssConf extends Logging {
     conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
   }
 
-  def workerOffheapSortReserveMemory(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.offheap.sort.reserve.memory", "1mb")
+  def memoryForSortLargeFile(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.reserveforLargeSortFile.memory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {

@@ -17,8 +17,6 @@
 
 package org.apache.spark.shuffle.rss
 
-import java.util.concurrent.atomic.LongAdder
-
 import io.netty.util.internal.ConcurrentSet
 import org.apache.spark._
 import org.apache.spark.shuffle.{ShuffleReadMetricsReporter, _}
@@ -133,8 +131,6 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       case _ => sortShuffleManager.getWriter(handle, mapId, context, metrics)
     }
   }
-
-
 
   /**
    * Interface for Spark3.1 and higher

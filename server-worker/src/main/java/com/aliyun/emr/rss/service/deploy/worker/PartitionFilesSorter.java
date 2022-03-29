@@ -138,7 +138,7 @@ public class PartitionFilesSorter {
           }
 
           long sortStartTime = System.currentTimeMillis();
-          while (fileSorter.sortStatus.equals(SortStatus.success)) {
+          while (!fileSorter.sortStatus.equals(SortStatus.success)) {
             try {
               Thread.sleep(50);
               if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
@@ -289,6 +289,7 @@ public class PartitionFilesSorter {
         readFully(indexStream.getChannel(), indexBuf, indexFileName);
         indexBuf.rewind();
         indexMap = readIndex(indexBuf);
+        ((DirectBuffer) indexBuf).cleaner().clean();
         Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
           cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
         cacheMap.put(fileId, indexMap);
@@ -341,7 +342,6 @@ public class PartitionFilesSorter {
         if (inMemSort) {
           originFileBuf = ByteBuffer.allocateDirect((int) originFileLen);
           readFully(originFileChannel, originFileBuf, originFile.getAbsolutePath());
-          originFileChannel.close();
           originFileBuf.flip();
         } else {
           headerBuf = ByteBuffer.allocate(batchHeaderLen);
@@ -406,13 +406,12 @@ public class PartitionFilesSorter {
           ((DirectBuffer) originFileBuf).cleaner().clean();
         }
 
-        sortedFileChannel.close();
+        writeIndex(sortedBlockInfoMap, indexFileName);
+        sortedShuffleFiles.get(shuffleKey).add(fileId);
         if (!originFile.delete()) {
           logger.warn("clean origin file failed, origin file is : {}",
             originFile.getAbsolutePath());
         }
-        writeIndex(sortedBlockInfoMap, indexFileName);
-        sortedShuffleFiles.get(shuffleKey).add(fileId);
         sortStatus = SortStatus.success;
         logger.debug("sort complete for {} {}", shuffleKey, originFile.getName());
       } catch (Exception e) {

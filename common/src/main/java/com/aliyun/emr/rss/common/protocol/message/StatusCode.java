@@ -70,7 +70,7 @@ public enum StatusCode {
     } else if (value == PushDataFailPartitionNotFound.getValue()) {
       msg = "PushDataFailPartitionNotFound";
     } else if (value == HardSplit.getValue()) {
-      msg = "ShuffleFileSplit";
+      msg = "PartitionFileSplit";
     }
     return msg;
   }

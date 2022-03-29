@@ -53,7 +53,7 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
@@ -66,7 +66,7 @@ public class FileWriterSuiteJ {
   private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
   public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
-  public static final ShuffleSplitMode splitMode = ShuffleSplitMode.hard;
+  public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
 
   private static File tempDir = null;
   private static DiskFlusher flusher = null;

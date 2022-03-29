@@ -96,21 +96,23 @@ public class PartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void inMemTest() {
+  public void inMemTest() throws InterruptedException {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 0.9,1024*1024);
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName, fileWriter,
       4, 5);
+    Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
   }
 
   @Test
-  public void offMemTest() {
+  public void offMemTest() throws InterruptedException {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 0.0,1024*1024);
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName, fileWriter,
       4, 5);
+    Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
   }

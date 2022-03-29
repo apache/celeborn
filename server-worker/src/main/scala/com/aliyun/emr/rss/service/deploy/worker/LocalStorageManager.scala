@@ -34,7 +34,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, ShuffleSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource
 
@@ -316,7 +316,7 @@ private[worker] final class LocalStorageManager(
 
   @throws[IOException]
   def createWriter(appId: String, shuffleId: Int, location: PartitionLocation,
-    splitThreshold: Long, splitMode: ShuffleSplitMode): FileWriter = {
+    splitThreshold: Long, splitMode: PartitionSplitMode): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
@@ -332,7 +332,7 @@ private[worker] final class LocalStorageManager(
     epoch: Int,
     mode: PartitionLocation.Mode,
     splitThreshold: Long,
-    splitMode: ShuffleSplitMode): FileWriter = {
+    splitMode: PartitionSplitMode): FileWriter = {
     val fileName = s"$reduceId-$epoch-${mode.mode()}"
 
     var retryCount = 0

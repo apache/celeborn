@@ -23,15 +23,15 @@ import scala.util.{Failure, Success}
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.PartitionLocation
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{LocationRenewalResponse, ShuffleSplit}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ChangeLocationResponse, PartitionSplit}
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 
 object ShuffleClientHelper extends Logging {
-  def sendShuffleSplitAsync(endpointRef: RpcEndpointRef, message: ShuffleSplit,
-    executors: ExecutorService, reducerSplittingSet: java.util.Set[Integer], reducerId: Int,
+  def sendShuffleSplitAsync(endpointRef: RpcEndpointRef, message: PartitionSplit,
+    executors: ExecutorService, splittingSet: java.util.Set[Integer], reducerId: Int,
     shuffleId: Int, shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
-    endpointRef.ask[LocationRenewalResponse](message).onComplete {
+    endpointRef.ask[ChangeLocationResponse](message).onComplete {
       case Success(value) =>
         if (value.status == StatusCode.Success) {
           shuffleLocs.put(reducerId, value.partition)
@@ -39,9 +39,9 @@ object ShuffleClientHelper extends Logging {
           logInfo(s"split failed for ${value.status.toString()}, " +
             s"shuffle file can be larger than expected, try split again");
         }
-        reducerSplittingSet.remove(reducerId)
+        splittingSet.remove(reducerId)
       case Failure(exception) =>
-        reducerSplittingSet.remove(reducerId)
+        splittingSet.remove(reducerId)
         logWarning(s"Shuffle file split failed for map ${shuffleId} reduceId ${reducerId}," +
           s" try again, detail : {}", exception);
 

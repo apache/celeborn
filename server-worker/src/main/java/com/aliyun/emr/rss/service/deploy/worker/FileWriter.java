@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
-import com.aliyun.emr.rss.common.protocol.ShuffleSplitMode;
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource;
 
 /*
@@ -71,7 +71,7 @@ public final class FileWriter extends DeviceObserver {
 
   private long splitThreshold = 0;
   private final AtomicBoolean splitted = new AtomicBoolean(false);
-  private final ShuffleSplitMode splitMode;
+  private final PartitionSplitMode splitMode;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -115,7 +115,7 @@ public final class FileWriter extends DeviceObserver {
       RssConf rssConf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
-      ShuffleSplitMode splitMode) throws IOException {
+      PartitionSplitMode splitMode) throws IOException {
     this.file = file;
     this.flusher = flusher;
     this.dataRootDir = workingDir;
@@ -372,7 +372,7 @@ public final class FileWriter extends DeviceObserver {
     return splitThreshold;
   }
 
-  public ShuffleSplitMode getSplitMode() {
+  public PartitionSplitMode getSplitMode() {
     return splitMode;
   }
 }

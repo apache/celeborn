@@ -101,7 +101,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final ExecutorService pushDataRetryPool;
 
-  private final ExecutorService shuffleSplitPool;
+  private final ExecutorService partitionSplitPool;
   private final Map<Integer, Set<Integer>> splitting = new ConcurrentHashMap<>();
 
   ThreadLocal<RssLz4Compressor> lz4CompressorThreadLocal = new ThreadLocal<RssLz4Compressor>() {
@@ -149,7 +149,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
 
     int splitPoolSize = RssConf.shuffleClientSplitPoolSize(conf);
-    shuffleSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
+    partitionSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
   }
 
   private void submitRetryPushData(
@@ -247,7 +247,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
-            new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
+          new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
           ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class)
         );
 
@@ -356,9 +356,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     try {
-      LocationRenewalResponse response = driverRssMetaService.askSync(
+      ChangeLocationResponse response = driverRssMetaService.askSync(
         new Revive(applicationId, shuffleId, mapId, attemptId, reduceId, epoch, oldLocation,
-          cause), ClassTag$.MODULE$.apply(LocationRenewalResponse.class)
+          cause), ClassTag$.MODULE$.apply(ChangeLocationResponse.class)
       );
       // per partitionKey only serve single PartitionLocation in Client Cache.
       if (response.status().equals(StatusCode.Success)) {
@@ -500,7 +500,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (reason == StatusCode.SoftSplit.getValue()) {
               logger.debug("Push data split required for map {} attempt {} batch {}",
                 mapId, attemptId, nextBatchId);
-              updateLocationForSplit(shuffleId, reduceId, applicationId, loc);
+              splitPartition(shuffleId, reduceId, applicationId, loc);
               callback.onSuccess(response);
             }
             if (reason == StatusCode.HardSplit.getValue()) {
@@ -569,25 +569,29 @@ public class ShuffleClientImpl extends ShuffleClient {
     return body.length;
   }
 
-  private void updateLocationForSplit(int shuffleId, int reduceId, String applicationId,
+  private void splitPartition(int shuffleId, int reduceId, String applicationId,
     PartitionLocation loc) {
-    Set<Integer> reducerSplittingSet = splitting.computeIfAbsent(shuffleId,
+    Set<Integer> splittingSet = splitting.computeIfAbsent(shuffleId,
       integer -> ConcurrentHashMap.newKeySet());
-    synchronized (reducerSplittingSet) {
-      if (reducerSplittingSet.contains(reduceId)) {
+    synchronized (splittingSet) {
+      if (splittingSet.contains(reduceId)) {
         logger.debug("shuffle {} reduceId {} is splitting, skip split request ",
           shuffleId, reduceId);
         return;
       }
-      reducerSplittingSet.add(reduceId);
+      splittingSet.add(reduceId);
     }
 
     ConcurrentHashMap<Integer, PartitionLocation> currentShuffleLocs =
       reducePartitionMap.get(shuffleId);
 
     ShuffleClientHelper.sendShuffleSplitAsync(driverRssMetaService,
-      new ShuffleSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc), shuffleSplitPool,
-      reducerSplittingSet, reduceId, shuffleId, currentShuffleLocs);
+      new PartitionSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc),
+      partitionSplitPool,
+      splittingSet,
+      reduceId,
+      shuffleId,
+      currentShuffleLocs);
   }
 
   @Override
@@ -868,8 +872,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != pushDataRetryPool) {
       pushDataRetryPool.shutdown();
     }
-    if (null != shuffleSplitPool) {
-      shuffleSplitPool.shutdown();
+    if (null != partitionSplitPool) {
+      partitionSplitPool.shutdown();
     }
     if (null != driverRssMetaService) {
       driverRssMetaService = null;

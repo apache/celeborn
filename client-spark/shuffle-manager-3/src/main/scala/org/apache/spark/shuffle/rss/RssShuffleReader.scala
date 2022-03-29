@@ -39,7 +39,7 @@ class RssShuffleReader[K, C](
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
-  private val essShuffleClient = ShuffleClient.get(
+  private val rssShuffleClient = ShuffleClient.get(
     handle.essMetaServiceHost, handle.essMetaServicePort, conf)
 
   override def read(): Iterator[Product2[K, C]] = {
@@ -60,7 +60,7 @@ class RssShuffleReader[K, C](
     val recordIter = (startPartition until endPartition).map(reduceId => {
       if (handle.numMappers > 0) {
         val start = System.currentTimeMillis()
-        val inputStream = essShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
+        val inputStream = rssShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
           reduceId, context.attemptNumber(), startMapIndex, endMapIndex)
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
