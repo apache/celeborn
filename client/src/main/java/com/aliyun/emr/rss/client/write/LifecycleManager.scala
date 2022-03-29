@@ -957,7 +957,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     retryReserveSlotsSuccess
   }
 
-  def reallocateSlotsFromCandidates(failedPartitionLocations: List[PartitionLocation],
+  def reallocateSlotsFromCandidates(oldPartitions: List[PartitionLocation],
     candidates: List[WorkerInfo]): WorkerResource = {
     if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
       logError("Not enough candidates for revive")
@@ -973,7 +973,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
 
     val slots = new WorkerResource()
-    failedPartitionLocations.foreach(partitionLocation => {
+    oldPartitions.foreach(partitionLocation => {
       val masterIndex = Random.nextInt(candidates.size)
       val masterLocation = new PartitionLocation(
         partitionLocation.getReduceId,
