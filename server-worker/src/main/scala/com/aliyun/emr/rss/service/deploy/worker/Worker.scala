@@ -638,7 +638,7 @@ private[deploy] class Worker(
         s" needs to split. Shuffle split threshold ${fileWriter.getSplitThreshold()}")
       fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == ShuffleSplitMode.soft) {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SortSplit.getValue)))
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
         return

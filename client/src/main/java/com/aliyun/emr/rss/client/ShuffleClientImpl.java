@@ -497,7 +497,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         public void onSuccess(ByteBuffer response) {
           if (response.remaining() > 0) {
             byte reason = response.get();
-            if (reason == StatusCode.SortSplit.getValue()) {
+            if (reason == StatusCode.SoftSplit.getValue()) {
               logger.debug("Push data split required for map {} attempt {} batch {}",
                 mapId, attemptId, nextBatchId);
               updateLocationForSplit(shuffleId, reduceId, applicationId, loc);

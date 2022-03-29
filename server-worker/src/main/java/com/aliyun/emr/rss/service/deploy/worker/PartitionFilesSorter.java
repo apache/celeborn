@@ -204,10 +204,7 @@ public class PartitionFilesSorter {
   }
 
   private void cleanBuffer(ByteBuffer buf) {
-    if (buf != null) {
-      ((DirectBuffer) buf).cleaner().clean();
-      buf = null;
-    }
+    ((DirectBuffer) buf).cleaner().clean();
   }
 
   public void close() {

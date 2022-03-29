@@ -197,4 +197,4 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.shuffle.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
 | `rss.shuffle.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
 | `rss.shuffle.sort.single.file.max.ratio` | 0.3 | double | Max ratio of single shuffle file to sort in memory. If a shuffle file is larger than limit, it will be sorted on disk. |
-| `rss.worker.offheap.sort.reserve.memory` | 1mb | string | When sort a shuffle file off-heap, reserve memory size. |
+| `rss.worker.offheap.sort.reserve.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|

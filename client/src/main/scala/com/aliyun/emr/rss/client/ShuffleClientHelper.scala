@@ -23,12 +23,12 @@ import scala.util.{Failure, Success}
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.PartitionLocation
-import com.aliyun.emr.rss.common.protocol.message.{Message, StatusCode}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.LocationRenewalResponse
+import com.aliyun.emr.rss.common.protocol.message.StatusCode
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{LocationRenewalResponse, ShuffleSplit}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 
 object ShuffleClientHelper extends Logging {
-  def sendShuffleSplitAsync(endpointRef: RpcEndpointRef, message: Message,
+  def sendShuffleSplitAsync(endpointRef: RpcEndpointRef, message: ShuffleSplit,
     executors: ExecutorService, reducerSplittingSet: java.util.Set[Integer], reducerId: Int,
     shuffleId: Int, shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
     endpointRef.ask[LocationRenewalResponse](message).onComplete {

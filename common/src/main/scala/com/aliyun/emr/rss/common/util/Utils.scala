@@ -735,7 +735,7 @@ object Utils extends Logging {
       case 21 =>
         StatusCode.HardSplit
       case 22 =>
-        StatusCode.SortSplit
+        StatusCode.SoftSplit
       case _ =>
         null
     }
