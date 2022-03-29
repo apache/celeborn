@@ -47,17 +47,6 @@ public class PartitionFilesSorterSuiteJ {
   private FileWriter fileWriter;
   private long sortTimeout = 16 * 1000;
 
-  private PartitionFilesSorter.SortCallback emptyCallback =
-    new PartitionFilesSorter.SortCallback() {
-    @Override
-    public void onSuccess() {
-    }
-
-    @Override
-    public void onFailure() {
-    }
-  };
-
   @Before
   public void prepare() throws IOException {
     byte[] batchHeader = new byte[16];

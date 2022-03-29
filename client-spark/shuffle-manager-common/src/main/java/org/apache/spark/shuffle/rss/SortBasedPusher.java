@@ -104,7 +104,7 @@ public class SortBasedPusher extends MemoryConsumer {
       numPartitions,
       conf,
       rssShuffleClient,
-      this.afterPush,
+      afterPush,
       mapStatusLengths);
 
     pushBufferSize = RssConf.pushDataBufferSize(conf);

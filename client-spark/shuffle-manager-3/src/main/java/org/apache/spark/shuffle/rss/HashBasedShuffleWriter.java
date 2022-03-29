@@ -146,7 +146,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         taskContext.attemptNumber(),
         taskContext.taskAttemptId(),
         numMappers,
-        this.numPartitions,
+        numPartitions,
         conf,
         rssShuffleClient,
         writeMetrics::incBytesWritten,

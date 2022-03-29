@@ -33,7 +33,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,8 +53,8 @@ public class PartitionFilesSorter {
     new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
     new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, Map<String, ByteBuffer>> cachedIndexes =
-    new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
+    cachedIndexMaps = new ConcurrentHashMap<>();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
   protected final long sortTimeout;
   protected final long fetchBlockSize;
@@ -106,100 +105,64 @@ public class PartitionFilesSorter {
 
   public FileInfo openStream(String shuffleKey, String fileName, FileWriter fileWriter,
     int startMaxIndex, int endMapIndex) {
-    FileInfo fileInfo = null;
     if (endMapIndex == Integer.MAX_VALUE) {
-      fileInfo = new FileInfo(fileWriter.getFile(), fileWriter.getChunkOffsets());
+      return new FileInfo(fileWriter.getFile(), fileWriter.getChunkOffsets());
     } else {
       String shuffleSortKey = shuffleKey + "-" + fileName;
 
-      Set<String> shuffleBoundSortedShuffleFiles =
-        sortedShuffleFiles.compute(shuffleKey, (k, v) -> {
-          if (v == null) {
-            v = ConcurrentHashMap.newKeySet();
-          }
-          return v;
-        });
-      Set<String> shuffleBoundSortingShuffleFiles =
-        sortingShuffleFiles.compute(shuffleKey, (k, v) -> {
-          if (v == null) {
-            v = ConcurrentHashMap.newKeySet();
-          }
-          return v;
-        });
+      Set<String> sorted =
+        sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+      Set<String> sorting =
+        sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
       boolean sortInMem = fileWriter.getFileLength() < maxSingleFileInMemSize;
 
       FileSorter fileSorter = new FileSorter(fileWriter.getFile(), fetchBlockSize,
-        fileWriter.getFileLength(), null, sortInMem, shuffleSortKey, shuffleKey);
+        fileWriter.getFileLength(), sortInMem, shuffleSortKey, shuffleKey);
 
-      synchronized (shuffleBoundSortedShuffleFiles) {
-        if (shuffleBoundSortedShuffleFiles.contains(shuffleSortKey)) {
-          fileInfo = fileSorter.resolve(startMaxIndex, endMapIndex);
+      synchronized (sorted) {
+        if (sorted.contains(shuffleSortKey)) {
+          return fileSorter.resolve(startMaxIndex, endMapIndex);
         }
       }
 
-      synchronized (shuffleBoundSortingShuffleFiles) {
-        if (!shuffleBoundSortedShuffleFiles.contains(shuffleSortKey)) {
-          shuffleBoundSortedShuffleFiles.add(shuffleSortKey);
-          AtomicBoolean sortSuccess = new AtomicBoolean(false);
-          SortCallback callback = new SortCallback() {
-            @Override
-            public void onSuccess() {
-              shuffleBoundSortingShuffleFiles.remove(shuffleSortKey);
-              sortSuccess.set(true);
-              synchronized (shuffleBoundSortedShuffleFiles) {
-                shuffleBoundSortedShuffleFiles.add(shuffleSortKey);
-              }
-            }
-
-            @Override
-            public void onFailure() {
-              shuffleBoundSortingShuffleFiles.remove(shuffleSortKey);
-            }
-          };
-          fileSorter.setSortCallBack(callback);
-
+      synchronized (sorting) {
+        if (!sorting.contains(shuffleSortKey)) {
+          sorting.add(shuffleSortKey);
           try {
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
             logger.info("scheduler thread is interrupted means worker is shutting down.");
           }
-
-          synchronized (fileSorter) {
-            try {
-              fileSorter.wait(sortTimeout);
-            } catch (InterruptedException e) {
-              logger.warn("sort {} timeout, detail:{}", fileSorter.getOriginFile(), e);
-            }
-          }
-          if (sortSuccess.get()) {
-            fileInfo = fileSorter.resolve(startMaxIndex, endMapIndex);
-          }
-        } else {
-          long startWaitTime = System.currentTimeMillis();
-          while (!shuffleBoundSortedShuffleFiles.contains(shuffleSortKey)) {
-            try {
-              Thread.sleep(50);
-            } catch (InterruptedException e) {
-              logger.warn("sort {} timeout, detail:{}", fileName, e);
-            }
-            if (System.currentTimeMillis() - startWaitTime > sortTimeout) {
-              logger.error("waiting file {} to be sort timeout", shuffleSortKey);
-            }
-          }
-          fileInfo = fileSorter.resolve(startMaxIndex, endMapIndex);
         }
       }
+
+      long sortStartTime = System.currentTimeMillis();
+      while (!fileSorter.sortComplete) {
+        try {
+          Thread.sleep(10);
+          if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
+            logger.error("waiting file {} to sort timeout", shuffleSortKey);
+            return null;
+          }
+          if(fileSorter.exception!=null){
+            logger.error("sort {} failed ", fileSorter.getOriginFile(), fileSorter.exception);
+            return null;
+          }
+        } catch (InterruptedException e) {
+          logger.info("scheduler thread is interrupted means worker is shutting down.");
+          return null;
+        }
+      }
+      return fileSorter.resolve(startMaxIndex, endMapIndex);
     }
-    return fileInfo;
   }
 
   public void cleanup(HashSet<String> expirtedShuffleKeys) {
     for (String expirtedShuffleKey : expirtedShuffleKeys) {
       sortingShuffleFiles.remove(expirtedShuffleKey);
       sortedShuffleFiles.remove(expirtedShuffleKey);
-      Map<String, ByteBuffer> cacheMaps = cachedIndexes.remove(expirtedShuffleKey);
-      cacheMaps.forEach((k, v) -> cleanBuffer(v));
+      cachedIndexMaps.remove(expirtedShuffleKey);
     }
   }
 
@@ -210,7 +173,7 @@ public class PartitionFilesSorter {
   public void close() {
     fileSorterSchedulerThread.interrupt();
     fileSorterExecutors.shutdownNow();
-    cachedIndexes.forEach((k, v) -> v.forEach((a, b) -> cleanBuffer(b)));
+    cachedIndexMaps.clear();
   }
 
   class ShuffleBlockInfo {
@@ -226,34 +189,27 @@ public class PartitionFilesSorter {
     private final long originFileLen;
     private final String shuffleFileId;
     private final String shuffleKey;
-
-    private SortCallback sortCallBack;
     private final boolean inMemSort;
+    private boolean sortComplete;
+    private Exception exception;
 
-    FileSorter(File originFile, long chunkSize, long originFileLen,
-      SortCallback sortCallBack, boolean inMemSort, String shuffleFileId, String shuffleKey) {
+    FileSorter(File originFile, long chunkSize, long originFileLen, boolean inMemSort,
+      String shuffleFileId, String shuffleKey) {
       this.originFile = originFile;
       this.sortedFileName = originFile.getAbsolutePath() + SORTED_SUFFIX;
       this.indexFileName = originFile.getAbsolutePath() + INDEX_SUFFIX;
       this.chunkSize = chunkSize;
       this.originFileLen = originFileLen;
-      this.sortCallBack = sortCallBack;
       this.inMemSort = inMemSort;
       this.shuffleFileId = shuffleFileId;
       this.shuffleKey = shuffleKey;
     }
 
-    public void setSortCallBack(SortCallback callback) {
-      this.sortCallBack = callback;
-    }
-
     public void sort() {
-      try {
+      try (FileChannel originFileChannel = new FileInputStream(originFile).getChannel();
+           FileChannel sortedFileChannel = new FileOutputStream(sortedFileName).getChannel();) {
         int batchHeaderLen = 16;
         byte[] batchHeader = new byte[batchHeaderLen];
-
-        FileChannel originFileChannel = new FileInputStream(originFile).getChannel();
-        FileChannel sortedFileChannel = new FileOutputStream(sortedFileName).getChannel();
 
         Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
@@ -285,16 +241,14 @@ public class PartitionFilesSorter {
           final int compressedSize = Platform.getInt(batchHeader,
             Platform.BYTE_ARRAY_OFFSET + 12);
 
-          originShuffleBlockInfos.compute(mapId, (k, v) -> {
-            ShuffleBlockInfo blockInfo = new ShuffleBlockInfo();
-            blockInfo.offset = blockStartIndex;
-            blockInfo.length = compressedSize + 16;
-            if (v == null) {
-              v = new ArrayList<>();
-            }
-            v.add(blockInfo);
-            return v;
-          });
+          List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
+            originShuffleBlockInfos.computeIfAbsent(mapId,
+              v -> new ArrayList<>());
+          ShuffleBlockInfo blockInfo = new ShuffleBlockInfo();
+          blockInfo.offset = blockStartIndex;
+          blockInfo.length = compressedSize + 16;
+          singleMapIdShuffleBlockList.add(blockInfo);
+
           index += batchHeaderLen + compressedSize;
           if (inMemSort) {
             originFileBuf.position(index);
@@ -336,38 +290,36 @@ public class PartitionFilesSorter {
             originFile.getAbsolutePath());
         }
         writeIndex(sortedBlockInfoMap);
-        sortCallBack.onSuccess();
+
+        sortedShuffleFiles.get(shuffleKey).add(shuffleFileId);
+        sortingShuffleFiles.get(shuffleKey).remove(shuffleFileId);
+        sortComplete = true;
       } catch (Exception e) {
-        logger.error("Shuffle sort file failed , detail :", e);
-        sortCallBack.onFailure();
-      } finally {
-        synchronized (this) {
-          notify();
-        }
+        exception = e;
       }
     }
 
     public FileInfo resolve(int startMapIndex, int endMapIndex) {
-      ByteBuffer indexBuf = null;
-      if (cachedIndexes.containsKey(shuffleKey) &&
-            cachedIndexes.get(shuffleKey).containsKey(shuffleFileId)) {
-        ByteBuffer cachedIndex = cachedIndexes.get(shuffleKey).get(shuffleFileId);
-        cachedIndex.flip();
-        indexBuf = cachedIndex.duplicate();
-        indexBuf.rewind();
+      Map<Integer, List<ShuffleBlockInfo>> indexMap = null;
+      if (cachedIndexMaps.containsKey(shuffleKey) &&
+            cachedIndexMaps.get(shuffleKey).containsKey(shuffleFileId)) {
+        indexMap = cachedIndexMaps.get(shuffleKey).get(shuffleFileId);
       } else {
         try (FileInputStream indexStream = new FileInputStream(indexFileName)) {
           File indexFile = new File(indexFileName);
           int indexSize = (int) indexFile.length();
-          indexBuf = ByteBuffer.allocateDirect(indexSize);
+          ByteBuffer indexBuf = ByteBuffer.allocateDirect(indexSize);
           readFully(indexStream.getChannel(), indexBuf);
-          indexBuf.flip();
+          indexBuf.rewind();
+          indexMap = readIndex(indexBuf);
+          Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
+            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
+          cacheMap.put(shuffleFileId, indexMap);
         } catch (Exception e) {
-          logger.error("Read sorted shuffle file error , detail : {}", e);
+          logger.error("Read sorted shuffle file error , detail : ", e);
           return null;
         }
       }
-      Map<Integer, List<ShuffleBlockInfo>> indexMap = readIndex(indexBuf);
       return new FileInfo(new File(sortedFileName),
         getChunkOffsets(startMapIndex, endMapIndex, indexMap));
     }
@@ -394,15 +346,6 @@ public class PartitionFilesSorter {
           indexBuf.putInt(info.length);
         });
       }
-
-      Map<String, ByteBuffer> cacheMap = cachedIndexes.compute(shuffleKey, (k, v) -> {
-        if (v == null) {
-          v = new ConcurrentHashMap<>();
-        }
-        return v;
-      });
-
-      cacheMap.put(shuffleFileId, indexBuf);
 
       indexBuf.flip();
       indexFileChannel.write(indexBuf);
@@ -487,11 +430,5 @@ public class PartitionFilesSorter {
       return inMemSort;
     }
 
-  }
-
-  public interface SortCallback {
-    void onSuccess();
-
-    void onFailure();
   }
 }
