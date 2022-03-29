@@ -145,7 +145,7 @@ public class PartitionFilesSorter {
             logger.error("waiting file {} to sort timeout", shuffleSortKey);
             return null;
           }
-          if(fileSorter.exception!=null){
+          if (fileSorter.exception != null) {
             logger.error("sort {} failed ", fileSorter.getOriginFile(), fileSorter.exception);
             return null;
           }
