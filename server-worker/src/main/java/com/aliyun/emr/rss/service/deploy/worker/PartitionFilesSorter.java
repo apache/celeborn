@@ -133,6 +133,7 @@ public class PartitionFilesSorter {
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
             logger.info("scheduler thread is interrupted means worker is shutting down.");
+            return null;
           }
         }
       }
@@ -146,7 +147,7 @@ public class PartitionFilesSorter {
             return null;
           }
           if (fileSorter.exception != null) {
-            logger.error("sort {} failed ", fileSorter.getOriginFile(), fileSorter.exception);
+            logger.error("sort " + fileSorter.getOriginFile() + " failed ", fileSorter.exception);
             return null;
           }
         } catch (InterruptedException e) {
