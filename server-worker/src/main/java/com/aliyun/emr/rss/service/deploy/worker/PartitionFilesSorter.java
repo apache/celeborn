@@ -428,7 +428,6 @@ public class PartitionFilesSorter {
         }
         indexMap.put(mapId, blockInfos);
       }
-      cleanBuffer(indexBuf);
       return indexMap;
     }
 
