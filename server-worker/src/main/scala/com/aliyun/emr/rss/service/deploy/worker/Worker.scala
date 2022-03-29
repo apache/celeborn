@@ -72,7 +72,7 @@ private[deploy] class Worker(
     shuffleSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
-  private val partitionsSorter = new PartitionFilesSorter(this.memoryTracker,
+  private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
     shuffleSortTimeout(conf), RssConf.workerFetchChunkSize(conf),
     RssConf.shuffleSortSingleFileMaxRatio(conf), RssConf.workerOffheapSortReserveMemory(conf))
 
@@ -209,7 +209,7 @@ private[deploy] class Worker(
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
-    this.partitionsSorter.close()
+    partitionsSorter.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -633,9 +633,9 @@ private[deploy] class Worker(
       callback.onFailure(new Exception(message, exception))
       return
     }
-    if (isMaster && fileWriter.getFileLength > fileWriter.splitThreshold()) {
+    if (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold()) {
       logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
-        s" needs to split. Shuffle split threshold ${fileWriter.splitThreshold()}")
+        s" needs to split. Shuffle split threshold ${fileWriter.getSplitThreshold()}")
       fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == ShuffleSplitMode.soft) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SortSplit.getValue)))
@@ -870,7 +870,7 @@ private[deploy] class Worker(
       logWarning(s"File $fileName for $shuffleKey was not found!")
       return null
     }
-    this.partitionsSorter.openStream(shuffleKey, fileName, fileWriter, startMapIndex, endMapIndex);
+    partitionsSorter.openStream(shuffleKey, fileName, fileWriter, startMapIndex, endMapIndex);
   }
 
   private def registerWithMaster() {

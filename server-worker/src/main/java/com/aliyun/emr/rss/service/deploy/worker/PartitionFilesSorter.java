@@ -57,20 +57,18 @@ public class PartitionFilesSorter {
   private final ConcurrentHashMap<String, Map<String, ByteBuffer>> cachedIndexes =
     new ConcurrentHashMap<>();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
-  private final MemoryTracker memoryTracker;
   protected final long sortTimeout;
   protected final long fetchBlockSize;
   protected final double maxSingleSortFileRatio;
   protected final long maxSingleFileInMemSize;
   protected final long reserveMemoryForOffHeapSort;
 
-  private ExecutorService fileSorterExecutors = ThreadUtils.newDaemonCachedThreadPool(
+  private final ExecutorService fileSorterExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
-  private Thread fileSorterSchedulerThread;
+  private final Thread fileSorterSchedulerThread;
 
-  public PartitionFilesSorter(MemoryTracker memoryTracker, long sortTimeOut, long fetchBlockSize,
+  PartitionFilesSorter(MemoryTracker memoryTracker, long sortTimeOut, long fetchBlockSize,
     double maxSingleSortFileRatio, long reserveMemoryForOffHeapSort) {
-    this.memoryTracker = memoryTracker;
     this.sortTimeout = sortTimeOut;
     this.fetchBlockSize = fetchBlockSize;
     this.maxSingleSortFileRatio = maxSingleSortFileRatio;
@@ -84,7 +82,7 @@ public class PartitionFilesSorter {
           if (task.inMemSort()) {
             memoryTracker.reserveSortMemory(task.getOriginFileLen());
           } else {
-            memoryTracker.reserveSortMemory(this.reserveMemoryForOffHeapSort);
+            memoryTracker.reserveSortMemory(reserveMemoryForOffHeapSort);
           }
           while (!memoryTracker.sortMemoryReady()) {
             Thread.sleep(20);
@@ -94,13 +92,13 @@ public class PartitionFilesSorter {
             if (task.inMemSort()) {
               memoryTracker.releaseSortMemory(task.getOriginFileLen());
             } else {
-              memoryTracker.releaseSortMemory(this.reserveMemoryForOffHeapSort);
+              memoryTracker.releaseSortMemory(reserveMemoryForOffHeapSort);
             }
             logger.info("sort {} complete", task.getOriginFile());
           });
         }
       } catch (InterruptedException e) {
-        logger.warn("sort file failed, detail : {}", e);
+        logger.warn("sort file failed, detail :", e);
       }
     });
     fileSorterSchedulerThread.start();
@@ -129,7 +127,7 @@ public class PartitionFilesSorter {
           return v;
         });
 
-      boolean sortInMem = fileWriter.getFileLength() < this.maxSingleFileInMemSize;
+      boolean sortInMem = fileWriter.getFileLength() < maxSingleFileInMemSize;
 
       FileSorter fileSorter = new FileSorter(fileWriter.getFile(), fetchBlockSize,
         fileWriter.getFileLength(), null, sortInMem, shuffleSortKey, shuffleKey);
@@ -169,7 +167,7 @@ public class PartitionFilesSorter {
 
           synchronized (fileSorter) {
             try {
-              fileSorter.wait(this.sortTimeout);
+              fileSorter.wait(sortTimeout);
             } catch (InterruptedException e) {
               logger.warn("sort {} timeout, detail:{}", fileSorter.getOriginFile(), e);
             }
@@ -185,7 +183,7 @@ public class PartitionFilesSorter {
             } catch (InterruptedException e) {
               logger.warn("sort {} timeout, detail:{}", fileName, e);
             }
-            if (System.currentTimeMillis() - startWaitTime > this.sortTimeout) {
+            if (System.currentTimeMillis() - startWaitTime > sortTimeout) {
               logger.error("waiting file {} to be sort timeout", shuffleSortKey);
             }
           }
@@ -238,8 +236,8 @@ public class PartitionFilesSorter {
     FileSorter(File originFile, long chunkSize, long originFileLen,
       SortCallback sortCallBack, boolean inMemSort, String shuffleFileId, String shuffleKey) {
       this.originFile = originFile;
-      this.sortedFileName = this.originFile.getAbsolutePath() + SORTED_SUFFIX;
-      this.indexFileName = this.originFile.getAbsolutePath() + INDEX_SUFFIX;
+      this.sortedFileName = originFile.getAbsolutePath() + SORTED_SUFFIX;
+      this.indexFileName = originFile.getAbsolutePath() + INDEX_SUFFIX;
       this.chunkSize = chunkSize;
       this.originFileLen = originFileLen;
       this.sortCallBack = sortCallBack;
@@ -358,9 +356,8 @@ public class PartitionFilesSorter {
             cachedIndexes.get(shuffleKey).containsKey(shuffleFileId)) {
         ByteBuffer cachedIndex = cachedIndexes.get(shuffleKey).get(shuffleFileId);
         cachedIndex.flip();
-        indexBuf = ByteBuffer.allocateDirect(cachedIndex.capacity());
-        indexBuf.put(cachedIndex);
-        indexBuf.flip();
+        indexBuf = cachedIndex.duplicate();
+        indexBuf.rewind();
       } else {
         try (FileInputStream indexStream = new FileInputStream(indexFileName)) {
           File indexFile = new File(indexFileName);
@@ -374,7 +371,6 @@ public class PartitionFilesSorter {
         }
       }
       Map<Integer, List<ShuffleBlockInfo>> indexMap = readIndex(indexBuf);
-      cleanBuffer(indexBuf);
       return new FileInfo(new File(sortedFileName),
         getChunkOffsets(startMapIndex, endMapIndex, indexMap));
     }
@@ -419,7 +415,6 @@ public class PartitionFilesSorter {
     private Map<Integer, List<ShuffleBlockInfo>> readIndex(ByteBuffer indexBuf) {
       Map<Integer, List<ShuffleBlockInfo>> indexMap = new HashMap<>();
       while (indexBuf.hasRemaining()) {
-        indexBuf.getInt();
         int mapId = indexBuf.getInt();
         int count = indexBuf.getInt();
         List<ShuffleBlockInfo> blockInfos = new ArrayList<>();

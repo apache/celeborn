@@ -18,10 +18,10 @@
 package com.aliyun.emr.rss.common.protocol;
 
 public enum ShuffleSplitMode {
-  // nonstrict means shuffle file reach split threshold and will receive data until shuffle split
+  // soft means shuffle file reach split threshold and will receive data until shuffle split
   // request complete.
   soft(0),
-  // strict means shuffle file reach split threshold and will stop receive data
+  // hard means shuffle file reach split threshold and will stop receive data
   hard(1);
 
   private final byte value;

@@ -179,14 +179,14 @@ public abstract class RssInputStream extends InputStream {
       currentReader = createReader(locations[fileIndex]);
       logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
                     "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
-        fileIndex, locations.length, this.currentReader.numChunks);
+        fileIndex, locations.length, currentReader.numChunks);
       while (currentReader.numChunks < 1 && fileIndex < locations.length - 1) {
         fileIndex++;
         currentReader.close();
         currentReader = createReader(locations[fileIndex]);
         logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
                       "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
-          fileIndex, locations.length, this.currentReader.numChunks);
+          fileIndex, locations.length, currentReader.numChunks);
       }
       if (currentReader.numChunks > 0) {
         currentChunk = currentReader.next();
@@ -382,9 +382,9 @@ public abstract class RssInputStream extends InputStream {
             exception.set(new IOException(errorMsg, e));
           }
         };
-        this.client = new RetryingChunkClient(conf, shuffleKey, location,
+        client = new RetryingChunkClient(conf, shuffleKey, location,
           callback, clientFactory, startMapIndex, endMapIndex);
-        this.numChunks = client.openChunks();
+        numChunks = client.openChunks();
       }
 
       boolean hasNext() {

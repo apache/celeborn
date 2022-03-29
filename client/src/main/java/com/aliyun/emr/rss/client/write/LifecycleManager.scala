@@ -775,7 +775,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val failed = new util.ArrayList[WorkerInfo]()
 
     slots.asScala.foreach { entry =>
-      if (this.blacklist.contains(entry._1)) {
+      if (blacklist.contains(entry._1)) {
         logWarning(s"[reserve buffer] failed due to blacklist: ${entry._1}")
         failed.add(entry._1)
       } else {
