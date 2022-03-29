@@ -726,10 +726,10 @@ object RssConf extends Logging {
   def shuffleSplitMode(conf: RssConf): ShuffleSplitMode = {
     val modeStr = conf.get("rss.shuffle.split.mode", "soft")
     modeStr match {
-      case "soft" => ShuffleSplitMode.sort
+      case "soft" => ShuffleSplitMode.soft
       case "hard" => ShuffleSplitMode.hard
       case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
-        ShuffleSplitMode.sort
+        ShuffleSplitMode.soft
     }
   }
 

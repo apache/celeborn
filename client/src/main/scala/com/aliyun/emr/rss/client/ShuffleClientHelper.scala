@@ -31,13 +31,12 @@ object ShuffleClientHelper extends Logging {
   def sendShuffleSplitAsync(endpointRef: RpcEndpointRef, message: Message,
     executors: ExecutorService, reducerSplittingSet: java.util.Set[Integer], reducerId: Int,
     shuffleId: Int, shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
-    endpointRef.ask(message).onComplete {
+    endpointRef.ask[LocationRenewalResponse](message).onComplete {
       case Success(value) =>
-        val resp = value.asInstanceOf[LocationRenewalResponse]
-        if (resp.status == StatusCode.Success) {
-          shuffleLocs.put(reducerId, resp.partition)
+        if (value.status == StatusCode.Success) {
+          shuffleLocs.put(reducerId, value.partition)
         } else {
-          logInfo(s"split failed for ${resp.status.toString()}, " +
+          logInfo(s"split failed for ${value.status.toString()}, " +
             s"shuffle file can be larger than expected, try split again");
         }
         reducerSplittingSet.remove(reducerId)

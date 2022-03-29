@@ -365,7 +365,7 @@ public final class FileWriter extends DeviceObserver {
   }
 
   public void setSplitFlag() {
-    this.splitted.set(true);
+    splitted.set(true);
   }
 
   public long splitThreshold() {

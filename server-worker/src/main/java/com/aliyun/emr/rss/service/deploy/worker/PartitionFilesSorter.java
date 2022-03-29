@@ -356,7 +356,10 @@ public class PartitionFilesSorter {
       ByteBuffer indexBuf = null;
       if (cachedIndexes.containsKey(shuffleKey) &&
             cachedIndexes.get(shuffleKey).containsKey(shuffleFileId)) {
-        indexBuf = cachedIndexes.get(shuffleKey).get(shuffleFileId);
+        ByteBuffer cachedIndex = cachedIndexes.get(shuffleKey).get(shuffleFileId);
+        cachedIndex.flip();
+        indexBuf = ByteBuffer.allocateDirect(cachedIndex.capacity());
+        indexBuf.put(cachedIndex);
         indexBuf.flip();
       } else {
         try (FileInputStream indexStream = new FileInputStream(indexFileName)) {
@@ -371,6 +374,7 @@ public class PartitionFilesSorter {
         }
       }
       Map<Integer, List<ShuffleBlockInfo>> indexMap = readIndex(indexBuf);
+      cleanBuffer(indexBuf);
       return new FileInfo(new File(sortedFileName),
         getChunkOffsets(startMapIndex, endMapIndex, indexMap));
     }
@@ -415,6 +419,7 @@ public class PartitionFilesSorter {
     private Map<Integer, List<ShuffleBlockInfo>> readIndex(ByteBuffer indexBuf) {
       Map<Integer, List<ShuffleBlockInfo>> indexMap = new HashMap<>();
       while (indexBuf.hasRemaining()) {
+        indexBuf.getInt();
         int mapId = indexBuf.getInt();
         int count = indexBuf.getInt();
         List<ShuffleBlockInfo> blockInfos = new ArrayList<>();

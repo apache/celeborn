@@ -743,10 +743,10 @@ object Utils extends Logging {
 
   def toShuffleSplitMode(mode: Int): ShuffleSplitMode = {
     mode match {
-      case 0 => ShuffleSplitMode.sort
+      case 0 => ShuffleSplitMode.soft
       case 1 => ShuffleSplitMode.hard
       case _ => logWarning(s"invalid shuffle mode ${mode}, fallback to tolerant")
-        ShuffleSplitMode.sort
+        ShuffleSplitMode.soft
     }
   }
 }
