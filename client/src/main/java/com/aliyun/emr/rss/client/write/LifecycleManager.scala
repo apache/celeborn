@@ -800,9 +800,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           })
         }
         // remove failed slot from total slots, close transport client
-        val transportClient = workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client
-        if (null != transportClient && transportClient.isActive) {
-          transportClient.close()
+        if (workerInfo.endpoint != null) {
+          val transportClient = workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client
+          if (null != transportClient && transportClient.isActive) {
+            transportClient.close()
+          }
         }
       })
 
@@ -1022,7 +1024,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def handleGetBlacklist(msg: GetBlacklist): Unit = {
     val res = requestGetBlacklist(rssHARetryClient, msg)
     if (res.statusCode == StatusCode.Success) {
-      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist}" +
+      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unkown workers: ${res.unknownWorkers}")
       blacklist.clear()
       if (res.blacklist != null) {
