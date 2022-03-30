@@ -194,7 +194,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     case PartitionSplit(applicationId, shuffleId, reduceId, epoch, oldPartition) =>
       logDebug(s"Received split request, " +
         s"$applicationId, $shuffleId, ${reduceId}, $epoch, $oldPartition")
-      handleShuffleSplitRequest(context, applicationId, shuffleId, reduceId, epoch, oldPartition)
+      handlePartitionSplitRequest(context, applicationId, shuffleId, reduceId, epoch, oldPartition)
 
     case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
       logDebug(s"Received MapperEnd request, " +
@@ -479,7 +479,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     null
   }
 
-  private def handleShuffleSplitRequest(
+  private def handlePartitionSplitRequest(
     context: RpcCallContext,
     applicationId: String,
     shuffleId: Int,

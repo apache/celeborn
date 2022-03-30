@@ -91,10 +91,10 @@ public class RetryingChunkClient {
 
     long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
     if (location != null) {
-      this.replicas.add(new Replica(timeoutMs, shuffleKey, location,
+      replicas.add(new Replica(timeoutMs, shuffleKey, location,
         clientFactory, startMapIndex, endMapIndex));
       if (location.getPeer() != null) {
-        this.replicas.add(new Replica(timeoutMs, shuffleKey, location.getPeer(),
+        replicas.add(new Replica(timeoutMs, shuffleKey, location.getPeer(),
           clientFactory, startMapIndex, endMapIndex));
       }
     }
