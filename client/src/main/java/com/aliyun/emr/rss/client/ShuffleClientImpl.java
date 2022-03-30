@@ -85,6 +85,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private static final Random rand = new Random();
 
   private final RssConf conf;
+  private final int registerShuffleMaxRetries;
+  private final int registerShuffleRetryWait;
   private final int maxInFlight;
   private final int pushBufferSize;
 
@@ -131,6 +133,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   public ShuffleClientImpl(RssConf conf) {
     super();
     this.conf = conf;
+    registerShuffleMaxRetries = RssConf.registerShuffleMaxRetry(conf);
+    registerShuffleRetryWait = RssConf.registerShuffleRetryWait(conf);
     maxInFlight = RssConf.pushDataMaxReqsInFlight(conf);
     pushBufferSize = RssConf.pushDataBufferSize(conf);
 
@@ -244,7 +248,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
       String appId, int shuffleId, int numMappers, int numPartitions) {
-    int numRetries = 3;
+    int numRetries = registerShuffleMaxRetries;
     while (numRetries > 0) {
       try {
         RegisterShuffleResponse response = driverRssMetaService.<RegisterShuffleResponse>askSync(
@@ -267,7 +271,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
 
       try {
-        TimeUnit.SECONDS.sleep(3);
+        TimeUnit.SECONDS.sleep(registerShuffleRetryWait);
       } catch (InterruptedException e) {
         break;
       }

@@ -147,6 +147,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.numSlots` | -1 | int | |
 | `rss.rpc.max.parallelism` | 1024 | int | |
 | `rss.register.shuffle.max.retry` | 3 | int | |
+| `rss.register.shuffle.retry.wait` | 3000 | int | |
 | `rss.flush.timeout` | 240 s | String | |
 | `rss.expire.nonEmptyDir.duration` | 3 d | String | |
 | `rss.expire.nonEmptyDir.cleanUp.threshold` | 10 | int | |
