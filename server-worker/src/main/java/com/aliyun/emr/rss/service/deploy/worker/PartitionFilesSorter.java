@@ -164,8 +164,8 @@ public class PartitionFilesSorter {
     }
   }
 
-  public void cleanup(HashSet<String> expirtedShuffleKeys) {
-    for (String expiredShuffleKey : expirtedShuffleKeys) {
+  public void cleanup(HashSet<String> expiredShuffleKeys) {
+    for (String expiredShuffleKey : expiredShuffleKeys) {
       sortingShuffleFiles.remove(expiredShuffleKey);
       sortedShuffleFiles.remove(expiredShuffleKey);
       cachedIndexMaps.remove(expiredShuffleKey);
