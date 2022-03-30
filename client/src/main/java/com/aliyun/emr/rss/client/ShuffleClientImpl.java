@@ -148,7 +148,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     int retryThreadNum = RssConf.pushDataRetryThreadNum(conf);
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
 
-    int splitPoolSize = RssConf.shuffleClientSplitPoolSize(conf);
+    int splitPoolSize = RssConf.clientSplitPoolSize(conf);
     partitionSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
   }
 

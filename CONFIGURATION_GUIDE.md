@@ -190,10 +190,9 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.offheap.memory.critical.ratio` | 0.9 | float | Worker direct memory usage critical level ratio |
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
-| `rss.shuffle.split.threshold` | 256m | String | Shuffle file split size, max value is 1.6GB |
-| `rss.shuffle.split.mode` | soft | String | sort, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold  |
-| `rss.shuffle.client.split.pool.size` | 8 | int | Thread number to process shuffle split request in shuffle client. |
-| `rss.shuffle.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
-| `rss.shuffle.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
-| `rss.shuffle.sort.single.file.max.ratio` | 0.3 | double | Max ratio of single shuffle file to sort in memory. If a shuffle file is larger than limit, it will be sorted on disk. |
+| `rss.partition.split.threshold` | 256m | String | Shuffle file split size, max value is 1.6GB |
+| `rss.partition.split.mode` | soft | String | sort, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold  |
+| `rss.client.split.pool.size` | 8 | int | Thread number to process shuffle split request in shuffle client. |
+| `rss.partition.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
+| `rss.partition.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
 | `rss.worker.offheap.sort.reserve.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|

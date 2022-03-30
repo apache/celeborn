@@ -48,6 +48,8 @@ public class PartitionFilesSorter {
   private static Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
+  // due to bytebuffer limitations, we set max partition split size to 1.6GB
+  public static int MAX_PARTITION_SPLIT_SIZE = (int) (1.6 * 1024 * 1024 * 1024);
 
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
@@ -58,7 +60,6 @@ public class PartitionFilesSorter {
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
   protected final long sortTimeout;
   protected final long fetchChunkSize;
-  protected final double maxSingleSortFileRatio;
   protected final long maxSingleFileInMemSize;
   protected final long reserveMemoryForOffHeapSort;
 
@@ -67,11 +68,11 @@ public class PartitionFilesSorter {
   private final Thread fileSorterSchedulerThread;
 
   PartitionFilesSorter(MemoryTracker memoryTracker, long sortTimeOut, long fetchChunkSize,
-    double maxSingleSortFileRatio, long reserveMemoryForOffHeapSort) {
+    double maxSortMemoryRatio, long reserveMemoryForOffHeapSort) {
     this.sortTimeout = sortTimeOut;
     this.fetchChunkSize = fetchChunkSize;
-    this.maxSingleSortFileRatio = maxSingleSortFileRatio;
-    this.maxSingleFileInMemSize = (long) (maxSingleSortFileRatio * VM.maxDirectMemory());
+    this.maxSingleFileInMemSize = Math.min((long) (maxSortMemoryRatio * VM.maxDirectMemory()),
+      MAX_PARTITION_SPLIT_SIZE);
     this.reserveMemoryForOffHeapSort = reserveMemoryForOffHeapSort;
 
     fileSorterSchedulerThread = new Thread(() -> {
@@ -136,32 +137,30 @@ public class PartitionFilesSorter {
             logger.info("scheduler thread is interrupted means worker is shutting down.");
             return null;
           }
-
-          long sortStartTime = System.currentTimeMillis();
-          while (!fileSorter.sortStatus.equals(SortStatus.success)) {
-            try {
-              Thread.sleep(50);
-              if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-                logger.error("waiting file {} to sort timeout", fileId);
-                return null;
-              }
-              if (fileSorter.sortStatus.equals(SortStatus.failure)) {
-                return null;
-              }
-            } catch (InterruptedException e) {
-              logger.info("scheduler thread is interrupted means worker is shutting down.");
-              return null;
-            }
-          }
         }
       }
 
-      if (sorted.contains(fileId)) {
-        return resolve(shuffleKey, fileId, sortedFileName, indexFileName,
-          startMapIndex, endMapIndex);
+      long sortStartTime = System.currentTimeMillis();
+      while (!sorted.contains(fileId)) {
+        if (sorting.contains(fileId)) {
+          try {
+            Thread.sleep(50);
+            if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
+              logger.error("sort file {} timeout", fileId);
+              return null;
+            }
+          } catch (InterruptedException e) {
+            logger.error("sort scheduler thread is interrupted means worker is shutting down.", e);
+            return null;
+          }
+        } else {
+          logger.error("file {} sort failed", fileId);
+          return null;
+        }
       }
 
-      return null;
+      return resolve(shuffleKey, fileId, sortedFileName, indexFileName,
+        startMapIndex, endMapIndex);
     }
   }
 
@@ -315,7 +314,6 @@ public class PartitionFilesSorter {
     private final String fileId;
     private final String shuffleKey;
     private final boolean inMemSort;
-    private SortStatus sortStatus = SortStatus.sorting;
 
     FileSorter(File originFile, long originFileLen, boolean inMemSort,
       String fileId, String shuffleKey) {
@@ -412,11 +410,9 @@ public class PartitionFilesSorter {
           logger.warn("clean origin file failed, origin file is : {}",
             originFile.getAbsolutePath());
         }
-        sortStatus = SortStatus.success;
         logger.debug("sort complete for {} {}", shuffleKey, originFile.getName());
       } catch (Exception e) {
         logger.error("sort shuffle file {} error", originFile.getName(), e);
-        sortStatus = SortStatus.failure;
       } finally {
         sortingShuffleFiles.get(shuffleKey).remove(fileId);
       }
@@ -429,11 +425,5 @@ public class PartitionFilesSorter {
     public boolean inMemSort() {
       return inMemSort;
     }
-  }
-
-  enum SortStatus {
-    sorting,
-    success,
-    failure;
   }
 }

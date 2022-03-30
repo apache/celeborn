@@ -718,13 +718,14 @@ object RssConf extends Logging {
     conf.getDouble("rss.slots.usage.overload.percent", 0.95)
   }
 
-  def shuffleSplitThreshold(conf: RssConf): Long = {
-    val threshold = conf.getSizeAsBytes("rss.shuffle.split.threshold", "256m")
-    Math.min(threshold, 1717986918)
+  def partitionSplitThreshold(conf: RssConf): Long = {
+    val threshold = conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
+    // due to bytebuffer limitations, we set max partition split size to 1.6GB
+    Math.min(threshold, (1.6 * 1024 * 1024 * 1024).toInt)
   }
 
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
-    val modeStr = conf.get("rss.shuffle.split.mode", "soft")
+    val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
       case "soft" => PartitionSplitMode.soft
       case "hard" => PartitionSplitMode.hard
@@ -733,29 +734,16 @@ object RssConf extends Logging {
     }
   }
 
-  def shuffleClientSplitPoolSize(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.client.split.pool.size",
-      Math.max(8, Runtime.getRuntime().availableProcessors()))
+  def clientSplitPoolSize(conf: RssConf): Int = {
+    conf.getInt("rss.client.split.pool.size", 8)
   }
 
-  def shuffleSortSchedulerSize(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.sort.scheduler.size", 8)
+  def partitionSortTimeout(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
 
-  def shuffleSortSchedulerTaskLimit(conf: RssConf): Int = {
-    conf.getInt("rss.shuffle.sort.scheduler.task.limit", 10240)
-  }
-
-  def shuffleSortTimeout(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.shuffle.sort.timeout", "220s")
-  }
-
-  def shuffleSortMaxMemoryRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.shuffle.sort.memory.max.ratio", 0.5)
-  }
-
-  def shuffleSortSingleFileMaxRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.shuffle.sort.single.file.max.ratio", 0.3)
+  def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.5)
   }
 
   def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {

@@ -33,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{shuffleSortMaxMemoryRatio, shuffleSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
+import com.aliyun.emr.rss.common.RssConf.{partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -70,13 +70,13 @@ private[deploy] class Worker(
   val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf),
-    shuffleSortMaxMemoryRatio(conf))
+    partitionSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
   private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
-    shuffleSortTimeout(conf),
+    partitionSortTimeout(conf),
     RssConf.workerFetchChunkSize(conf),
-    RssConf.shuffleSortSingleFileMaxRatio(conf),
+    RssConf.partitionSortMaxMemoryRatio(conf),
     RssConf.memoryForSortLargeFile(conf))
 
   private val (pushServer, pushClientFactory) = {
