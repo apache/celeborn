@@ -48,7 +48,7 @@ public class PartitionFilesSorter {
   private static Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
-  // due to bytebuffer limitations, we set max partition split size to 1.6GB
+  // Due to bytebuffer allocate limitations, we set max partition split size to 1.6GB
   public static int MAX_PARTITION_SPLIT_SIZE = (int) (1.6 * 1024 * 1024 * 1024);
 
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
