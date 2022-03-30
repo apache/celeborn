@@ -86,7 +86,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final RssConf conf;
   private final int registerShuffleMaxRetries;
-  private final int registerShuffleRetryWait;
+  private final long registerShuffleRetryWait;
   private final int maxInFlight;
   private final int pushBufferSize;
 
