@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,17 +47,6 @@ import com.aliyun.emr.rss.common.unsafe.Platform;
 
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
-
-  public static RssInputStream create(
-      RssConf conf,
-      TransportClientFactory clientFactory,
-      String shuffleKey,
-      PartitionLocation[] locations,
-      int[] attempts,
-      int attemptNumber) throws IOException {
-    return create(conf, clientFactory, shuffleKey, locations, attempts,
-      attemptNumber, 0, Integer.MAX_VALUE);
-  }
 
   public static RssInputStream create(
       RssConf conf,
@@ -133,17 +123,6 @@ public abstract class RssInputStream extends InputStream {
         String shuffleKey,
         PartitionLocation[] locations,
         int[] attempts,
-        int attemptNumber) throws IOException {
-      this(conf, clientFactory, shuffleKey, locations,
-        attempts, attemptNumber, 0, Integer.MAX_VALUE);
-    }
-
-    RssInputStreamImpl(
-        RssConf conf,
-        TransportClientFactory clientFactory,
-        String shuffleKey,
-        PartitionLocation[] locations,
-        int[] attempts,
         int attemptNumber,
         int startMapIndex,
         int endMapIndex) throws IOException {
@@ -151,7 +130,10 @@ public abstract class RssInputStream extends InputStream {
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
 
-      List<PartitionLocation> shuffledLocations = Arrays.asList(locations);
+      List<PartitionLocation> shuffledLocations =
+        new ArrayList() {{
+          addAll(Arrays.asList(locations));
+        }};
       Collections.shuffle(shuffledLocations);
       this.locations = shuffledLocations.toArray(new PartitionLocation[locations.length]);
 
