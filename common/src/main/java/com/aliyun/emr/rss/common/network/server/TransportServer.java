@@ -114,6 +114,7 @@ public class TransportServer implements Closeable {
       .option(ChannelOption.SO_REUSEADDR, !SystemUtils.IS_OS_WINDOWS)
       .option(ChannelOption.TCP_NODELAY, true)
       .childOption(ChannelOption.TCP_NODELAY, true)
+      .childOption(ChannelOption.SO_KEEPALIVE, true)
       .childOption(ChannelOption.ALLOCATOR, allocator);
 
     this.metrics = new NettyMemoryMetrics(
