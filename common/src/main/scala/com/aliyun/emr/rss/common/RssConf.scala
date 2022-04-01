@@ -719,9 +719,7 @@ object RssConf extends Logging {
   }
 
   def partitionSplitThreshold(conf: RssConf): Long = {
-    val threshold = conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
-    // Due to bytebuffer allocate limitations, we set max partition split size to 1.6GB
-    Math.min(threshold, (1.6 * 1024 * 1024 * 1024).toInt)
+    conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
