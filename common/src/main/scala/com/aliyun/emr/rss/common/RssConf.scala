@@ -17,13 +17,13 @@
 
 package com.aliyun.emr.rss.common
 
-
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -580,7 +580,8 @@ object RssConf extends Logging {
   }
 
   def pushDataRetryThreadNum(conf: RssConf): Int = {
-    conf.getInt("rss.pushdata.retry.thread.num", 8)
+    conf.getInt("rss.pushdata.retry.thread.num",
+      Math.max(8, Runtime.getRuntime().availableProcessors()))
   }
 
   def metricsSystemEnable(conf: RssConf): Boolean = {
@@ -639,10 +640,6 @@ object RssConf extends Logging {
         s" values is $port, which may cause port conflicts and startup failure.")
     }
     port
-  }
-
-  def reviveWaitMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.driver.revive.waitMs", "1s")
   }
 
   def closeIdleConnections(conf: RssConf): Boolean = {
@@ -725,16 +722,38 @@ object RssConf extends Logging {
     conf.getDouble("rss.slots.usage.overload.percent", 0.95)
   }
 
-  def supportAdaptiveQueryExecution(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.support.adaptiveQueryExecution", false)
+  def partitionSplitThreshold(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
-  def trafficControlEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.traffic.control.enabled", true)
+  def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
+    val modeStr = conf.get("rss.partition.split.mode", "soft")
+    modeStr match {
+      case "soft" => PartitionSplitMode.soft
+      case "hard" => PartitionSplitMode.hard
+      case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
+        PartitionSplitMode.soft
+    }
+  }
+
+  def clientSplitPoolSize(conf: RssConf): Int = {
+    conf.getInt("rss.client.split.pool.size", 8)
+  }
+
+  def partitionSortTimeout(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
+  }
+
+  def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.5)
   }
 
   def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {
     conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
+  }
+
+  def memoryForSortLargeFile(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.reserveforLargeSortFile.memory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {

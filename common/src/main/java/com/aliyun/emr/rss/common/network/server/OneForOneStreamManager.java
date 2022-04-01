@@ -105,6 +105,7 @@ public class OneForOneStreamManager extends StreamManager {
   @Override
   public ManagedBuffer openStream(String streamChunkId) {
     Pair<Long, Integer> streamChunkIdPair = parseStreamChunkId(streamChunkId);
+    logger.debug("StreamManager open stream {}", streamChunkId);
     return getChunk(streamChunkIdPair.getLeft(), streamChunkIdPair.getRight());
   }
 

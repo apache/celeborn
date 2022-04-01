@@ -54,7 +54,7 @@ trait MiniClusterFeature extends Logging {
     val conf = new RssConf()
     conf.set("rss.metrics.system.enabled", "false")
     conf.set("rss.master.prometheus.metric.port", s"${workerPromethusPort.incrementAndGet()}")
-    if(map!=null) {
+    if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
     }
 

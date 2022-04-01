@@ -64,7 +64,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
   private void pauseAllChannels() {
     channels.stream().forEach(c -> {
       if (c.config().isAutoRead()) {
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
           logger.debug("Worker memory level is critical," +
                          " channel : {} stop receive data.", c);
         }
@@ -76,7 +76,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
   private void resumeAllChannels() {
     channels.stream().forEach(c -> {
       if (!c.config().isAutoRead()) {
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
           logger.debug("Worker memory level is normal," +
                          " channel : {} start receive data.", c);
         }
@@ -102,7 +102,7 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
 
   @Override
   public void onMemoryCritical() {
-    logger.debug("Channel limiter execute rate control action");
+    logger.info("Channel limiter execute rate control action");
     pauseAllChannels();
   }
 }

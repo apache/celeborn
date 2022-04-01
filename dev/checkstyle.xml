@@ -133,5 +133,8 @@
     <module name="UnusedImports"/>
     <module name="RedundantImport"/>
     <module name="RedundantModifier"/>
+    <module name="RequireThis">
+      <property name="checkMethods" value="false"/>
+    </module>
   </module>
 </module>

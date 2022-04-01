@@ -209,7 +209,7 @@ public class RssShuffleWriterSuiteJ {
     final ShuffleClient client = new DummyShuffleClient(tempFile);
 
     final HashBasedShuffleWriter<Integer, String, String> writer = new HashBasedShuffleWriter<>(
-        handle, taskContext, conf, client);
+      handle, taskContext, conf, client, metrics.shuffleWriteMetrics());
     assertEquals(useUnsafe, writer.canUseFastWrite());
 
     AtomicInteger total = new AtomicInteger(0);

@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.rss;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import javax.annotation.Nullable;
+import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
 import scala.Product2;
@@ -39,6 +39,7 @@ import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.PartitionIdPassthrough;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
+import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
 import org.apache.spark.unsafe.Platform;
 import org.slf4j.Logger;
@@ -61,15 +62,13 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
-  private final ShuffleClient essShuffleClient;
+  private final ShuffleClient rssShuffleClient;
   private final int numMappers;
   private final int numPartitions;
 
   private final long pushBufferSize;
   private SortBasedPusher sortBasedPusher;
 
-  @Nullable
-  private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
   /**
@@ -88,9 +87,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final MyByteArrayOutputStream serBuffer;
   private final SerializationStream serOutputStream;
 
-  private final long[] mapStatusLengths;
+  private final LongAdder[] mapStatusLengths;
   private final long[] mapStatusRecords;
-  private final long[] tmpLengths;
   private final long[] tmpRecords;
 
   /**
@@ -103,15 +101,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
-      ShuffleDependency dep,
+      ShuffleDependency<K, V, C>  dep,
       String appId,
       int numMappers,
       TaskContext taskContext,
       RssConf conf,
-      ShuffleClient client,
-      long[] mapStatusLengths,
-      long[] mapStatusRecords,
-      MapStatus mapStatus) throws IOException {
+      ShuffleClient client) throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
     this.appId = appId;
@@ -122,21 +117,22 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.taskContext = taskContext;
     this.numMappers = numMappers;
     this.numPartitions = dep.partitioner().numPartitions();
-    this.essShuffleClient = client;
-    this.mapStatus = mapStatus;
+    this.rssShuffleClient = client;
 
     serBuffer = new MyByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
 
-    this.mapStatusLengths = mapStatusLengths;
-    this.mapStatusRecords = mapStatusRecords;
-    tmpLengths = new long[partitioner.numPartitions()];
-    tmpRecords = new long[partitioner.numPartitions()];
+    this.mapStatusLengths = new LongAdder[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      mapStatusLengths[i] = new LongAdder();
+    }
+    this.mapStatusRecords = new long[numPartitions];
+    tmpRecords = new long[numPartitions];
 
     pushBufferSize = RssConf.pushDataBufferSize(conf);
 
     sortBasedPusher = new SortBasedPusher(taskContext.taskMemoryManager(),
-      essShuffleClient,
+      rssShuffleClient,
       appId,
       shuffleId,
       mapId,
@@ -145,7 +141,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       numMappers,
       numPartitions,
       conf,
-      writeMetrics::incBytesWritten);
+      writeMetrics::incBytesWritten,
+      mapStatusLengths);
   }
 
   @Override
@@ -173,6 +170,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void fastWrite0(scala.collection.Iterator iterator) throws IOException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
+    SQLMetric dataSize = SparkUtils
+      .getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
+
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -180,6 +180,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
       final int rowSize = row.getSizeInBytes();
       final int serializedRecordSize = 4 + rowSize;
+      if (dataSize != null) {
+        dataSize.add(serializedRecordSize);
+      }
 
       if (serializedRecordSize > pushBufferSize) {
         byte[] giantBuffer = new byte[serializedRecordSize];
@@ -193,7 +196,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           rowSize, partitionId, true);
         writeMetrics.incWriteTime(System.nanoTime() - insertStartTime);
       }
-      tmpLengths[partitionId] += serializedRecordSize;
       tmpRecords[partitionId] += 1;
     }
   }
@@ -221,7 +223,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           serializedRecordSize, partitionId, false);
         writeMetrics.incWriteTime(System.nanoTime() - insertStartTime);
       }
-      tmpLengths[partitionId] += serializedRecordSize;
       tmpRecords[partitionId] += 1;
     }
   }
@@ -229,7 +230,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.info("Push giant record, size {}.", numBytes);
     long pushStartTime = System.nanoTime();
-    int bytesWritten = essShuffleClient.pushData(
+    int bytesWritten = rssShuffleClient.pushData(
         appId,
         shuffleId,
         mapId,
@@ -241,6 +242,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         numMappers,
         numPartitions
     );
+    mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
@@ -252,23 +254,19 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sortBasedPusher.close();
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
-    essShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
+    rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
 
     updateMapStatus();
 
     long waitStartTime = System.nanoTime();
-    essShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext
+    rssShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext
         .attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
-
-    BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
   }
 
   private void updateMapStatus() {
     long recordsWritten = 0;
     for (int i = 0; i < partitioner.numPartitions(); i++) {
-      mapStatusLengths[i] += tmpLengths[i];
-      tmpLengths[i] = 0;
       mapStatusRecords[i] += tmpRecords[i];
       recordsWritten += tmpRecords[i];
       tmpRecords[i] = 0;
@@ -280,12 +278,14 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public Option<MapStatus> stop(boolean success) {
     try {
       taskContext.taskMetrics().incPeakExecutionMemory(peakMemoryUsedBytes);
-
       if (stopping) {
         return Option.apply(null);
       } else {
         stopping = true;
         if (success) {
+          BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
+          MapStatus mapStatus = SparkUtils.createMapStatus(bmId,
+            SparkUtils.unwrap(mapStatusLengths), mapStatusRecords);
           if (mapStatus == null) {
             throw new IllegalStateException("Cannot call stop(true) without having called write()");
           }
@@ -294,8 +294,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           return Option.apply(null);
         }
       }
+    } catch (IOException e) {
+      return Option.apply(null);
     } finally {
-      essShuffleClient.cleanup(appId, shuffleId, mapId, taskContext.attemptNumber());
+      rssShuffleClient.cleanup(appId, shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 

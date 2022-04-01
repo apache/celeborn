@@ -15,11 +15,30 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.common.protocol;
 
-import com.aliyun.emr.rss.common.network.server.FileInfo;
+public enum PartitionSplitMode {
+  // soft means shuffle file reach split threshold and will receive data until shuffle split
+  // request complete.
+  soft(0),
+  // hard means shuffle file reach split threshold and will stop receive data
+  hard(1);
 
-public interface OpenStreamHandler {
-  FileInfo handleOpenStream(String shuffleKey, String partitionId, int startMapIndex,
-    int endMapIndex);
+  private final byte value;
+
+  PartitionSplitMode(int value) {
+    assert (value >= 0 && value < 256);
+    this.value = (byte) value;
+  }
+
+  public final byte getValue() {
+    return value;
+  }
+
+  @Override
+  public String toString() {
+    return "ShuffleSplitMode{" +
+             "value=" + name() +
+             '}';
+  }
 }

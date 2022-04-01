@@ -42,8 +42,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
-import com.aliyun.emr.rss.common.protocol.PartitionLocation
-import com.aliyun.emr.rss.common.protocol.TransportMessages
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, TransportMessages}
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbWorkerResource
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
@@ -733,8 +732,21 @@ object Utils extends Logging {
         StatusCode.PushDataFailMain
       case 20 =>
         StatusCode.PushDataFailPartitionNotFound
+      case 21 =>
+        StatusCode.HardSplit
+      case 22 =>
+        StatusCode.SoftSplit
       case _ =>
         null
+    }
+  }
+
+  def toShuffleSplitMode(mode: Int): PartitionSplitMode = {
+    mode match {
+      case 0 => PartitionSplitMode.soft
+      case 1 => PartitionSplitMode.hard
+      case _ => logWarning(s"invalid shuffle mode ${mode}, fallback to soft")
+        PartitionSplitMode.soft
     }
   }
 }

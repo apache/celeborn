@@ -245,7 +245,7 @@ public class StateMachine extends BaseStateMachine {
       CompletableFuture<ResourceResponse> future = CompletableFuture.supplyAsync(
         () -> runCommand(request, trxLogIndex), executorService);
       future.thenApply(response -> {
-        if(!response.getSuccess()) {
+        if (!response.getSuccess()) {
           LOG.warn("Failed to apply log {} for this raft group {}!",
               request.getCmdType(), this.raftGroupId);
         }

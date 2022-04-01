@@ -296,8 +296,7 @@ public class RssShuffleWriterSuiteJ {
       }
     } else {
       final SortBasedShuffleWriter<Integer, String, String> writer =
-          new SortBasedShuffleWriter<>(dependency, appId, numPartitions, taskContext, conf,
-              client, new long[numPartitions], new long[numPartitions], mapStatus);
+          new SortBasedShuffleWriter<>(dependency, appId, numPartitions, taskContext, conf, client);
 
       AtomicInteger total = new AtomicInteger(0);
       Iterator iterator = getIterator(approximateSize, total, useUnsafe, false);

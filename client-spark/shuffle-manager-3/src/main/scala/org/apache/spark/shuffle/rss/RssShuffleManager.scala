@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.rss
 
 import io.netty.util.internal.ConcurrentSet
 import org.apache.spark._
-import org.apache.spark.shuffle._
+import org.apache.spark.shuffle.{ShuffleReadMetricsReporter, _}
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.Utils
 
@@ -33,7 +33,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
   private lazy val isDriver: Boolean = SparkEnv.get.executorId == SparkContext.DRIVER_IDENTIFIER
 
   // Read RssConf from SparkConf
-  private lazy val essConf = RssShuffleManager.fromSparkConf(conf)
+  private lazy val rssConf = RssShuffleManager.fromSparkConf(conf)
 
   private var newAppId: Option[String] = None
   private var lifecycleManager: Option[LifecycleManager] = None
@@ -55,9 +55,9 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     if (isDriver && lifecycleManager.isEmpty) {
       lifecycleManager.synchronized {
         if (lifecycleManager.isEmpty) {
-          val metaSystem = new LifecycleManager(appId, essConf)
+          val metaSystem = new LifecycleManager(appId, rssConf)
           lifecycleManager = Some(metaSystem)
-          rssShuffleClient = Some(ShuffleClient.get(metaSystem.self, essConf))
+          rssShuffleClient = Some(ShuffleClient.get(metaSystem.self, rssConf))
         }
       }
     }
@@ -118,19 +118,15 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     handle match {
       case h: RssShuffleHandle[K@unchecked, V@unchecked, _] =>
-        val client = ShuffleClient.get(h.essMetaServiceHost, h.essMetaServicePort, essConf)
-        if (RssConf.shuffleWriterMode(essConf) == "sort") {
-          val bmId = SparkEnv.get.blockManager.shuffleServerId
-          val mapStatusLengths = new Array[Long](h.dependency.partitioner.numPartitions)
-          val mapStatusRecords = new Array[Long](h.dependency.partitioner.numPartitions)
-          val mapStatus = SparkUtils.createMapStatus(bmId, mapStatusLengths, context.taskAttemptId)
+        val client = ShuffleClient.get(h.essMetaServiceHost, h.essMetaServicePort, rssConf)
+        if (RssConf.shuffleWriterMode(rssConf) == "sort") {
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMappers,
-            context, essConf, client, mapStatusLengths, mapStatusRecords, mapStatus)
-        } else if (RssConf.shuffleWriterMode(essConf) == "hash") {
-          new HashBasedShuffleWriter(h, context, essConf, client)
+            context, rssConf, client, metrics)
+        } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
+          new HashBasedShuffleWriter(h, context, rssConf, client, metrics)
         } else {
           throw new UnsupportedOperationException(
-            s"Unrecognized shuffle write mode! ${RssConf.shuffleWriterMode(essConf)}")
+            s"Unrecognized shuffle write mode! ${RssConf.shuffleWriterMode(rssConf)}")
         }
       case _ => sortShuffleManager.getWriter(handle, mapId, context, metrics)
     }
@@ -153,8 +149,11 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           handle.asInstanceOf[RssShuffleHandle[K, _, C]],
           startPartition,
           endPartition,
+          startMapIndex,
+          endMapIndex,
           context,
-          essConf)
+          rssConf,
+          metrics)
       case _ =>
         RssShuffleManager.invokeGetReaderMethod(
           sortShuffleManagerName,
@@ -185,8 +184,9 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           handle.asInstanceOf[RssShuffleHandle[K, _, C]],
           startPartition,
           endPartition,
-          context,
-          essConf)
+          context = context,
+          conf = rssConf,
+          metrics = metrics)
       case _ =>
         RssShuffleManager.invokeGetReaderMethod(
           sortShuffleManagerName,
@@ -210,8 +210,15 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       endPartition: Int,
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
-    throw new UnsupportedOperationException("Currently RSS do NOT support skew join Optimization," +
-      "Please set spark.sql.adaptive.skewJoin.enabled to false")
+    new RssShuffleReader(
+      handle.asInstanceOf[RssShuffleHandle[K, _, C]],
+      startPartition,
+      endPartition,
+      startMapIndex,
+      endMapIndex,
+      context = context,
+      conf = rssConf,
+      metrics)
   }
 }
 

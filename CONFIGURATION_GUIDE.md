@@ -173,7 +173,6 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.prometheus.metric.port` | 9096 | int | |
 | `rss.merge.push.data.threshold` | 1 MiB | String | |
 | `rss.driver.metaService.port` | 0 | int | |
-| `rss.driver.revive.waitMs` | 1 s | String | |
 | `rss.worker.closeIdleConnections` | true | bool | |
 | `rss.ha.enabled` | false | bool | |
 | `rss.ha.master.hosts` | `rss.master.host` 的值 | String | |
@@ -189,7 +188,12 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.create.file.writer.retry.count` | 3 | Int | Worker create FileWriter retry count |
 | `rss.disk.space.safe.watermark.size` | 0GB | String | Disk usage watermark size in GB, size must be Long |
 | `rss.worker.status.check.timeout` | 10s | String | Worker device check timeout |
-| `rss.traffic.control.enabled` | true | bool | Flow control |
 | `rss.worker.offheap.memory.critical.ratio` | 0.9 | float | Worker direct memory usage critical level ratio |
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
+| `rss.partition.split.threshold` | 256m | String | Shuffle file split size |
+| `rss.partition.split.mode` | soft | String | sort, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold  |
+| `rss.client.split.pool.size` | 8 | int | Thread number to process shuffle split request in shuffle client. |
+| `rss.partition.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
+| `rss.partition.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
+| `rss.worker.offheap.sort.reserve.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|
