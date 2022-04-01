@@ -12,6 +12,9 @@ on:
 jobs:
   build_rss_on_spark_2:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        maven: [ '3.6.3' ]
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 8
@@ -29,6 +32,9 @@ jobs:
       run: mvn test -Pspark-2 -Plog4j-1
   build_rss_on_spark_3:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        maven: [ '3.6.3' ]
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 8
