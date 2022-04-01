@@ -182,6 +182,7 @@ spark.rss.shuffle.writer.mode hash
 # we recommend set spark.rss.push.data.replicate to true to enable server-side data replication 
 spark.rss.push.data.replicate true
 
+# Support for Spark AQE only tested under Spark 3
 # we recommend set localShuffleReader to false to get better performance of RSS
 spark.sql.adaptive.localShuffleReader.enabled false
 
