@@ -41,10 +41,10 @@ class MasterSuite extends AnyFunSuite
 
   test("test single node startup functionality") {
     val conf = new RssConf()
-    conf.set("rss.ha.enable", "false")
+    conf.set("rss.ha.enabled", "false")
     conf.set("rss.ha.storage.dir", getTmpDir())
     conf.set("rss.worker.base.dirs", getTmpDir())
-    conf.set("rss.metrics.system.enable", "true")
+    conf.set("rss.metrics.system.enabled", "true")
     conf.set("rss.master.prometheus.metric.port", "11112")
 
     val args = Array("-h", "localhost", "-p", "9097")

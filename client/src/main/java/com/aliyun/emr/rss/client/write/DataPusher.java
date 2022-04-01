@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -49,6 +50,7 @@ public class DataPusher {
   private final Consumer<Integer> afterPush;
 
   private volatile boolean terminated;
+  private LongAdder[] mapStatusLengths;
 
   public DataPusher(
       String appId,
@@ -60,7 +62,8 @@ public class DataPusher {
       int numPartitions,
       RssConf conf,
       ShuffleClient client,
-      Consumer<Integer> afterPush) throws IOException {
+      Consumer<Integer> afterPush,
+      LongAdder[] mapStatusLengths) throws IOException {
     final int capacity = RssConf.pushDataQueueCapacity(conf);
     final int bufferSize = RssConf.pushDataBufferSize(conf);
 
@@ -84,6 +87,7 @@ public class DataPusher {
     this.numPartitions = numPartitions;
     this.client = client;
     this.afterPush = afterPush;
+    this.mapStatusLengths = mapStatusLengths;
 
     new Thread("DataPusher-" + taskId) {
       private void reclaimTask(PushTask task) throws InterruptedException {
@@ -177,6 +181,7 @@ public class DataPusher {
         numPartitions
     );
     afterPush.accept(bytesWritten);
+    mapStatusLengths[task.getPartitionId()].add(bytesWritten);
   }
 
   private void waitIdleQueueFullWithLock() {

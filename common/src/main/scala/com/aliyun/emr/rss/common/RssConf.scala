@@ -17,13 +17,13 @@
 
 package com.aliyun.emr.rss.common
 
-
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -508,6 +508,10 @@ object RssConf extends Logging {
     conf.getInt("rss.register.shuffle.max.retry", 3)
   }
 
+  def registerShuffleRetryWait(conf: RssConf): Long = {
+    conf.getTimeAsSeconds("rss.register.shuffle.retry.wait", "3s")
+  }
+
   def flushTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.flush.timeout", "120s")
   }
@@ -576,11 +580,12 @@ object RssConf extends Logging {
   }
 
   def pushDataRetryThreadNum(conf: RssConf): Int = {
-    conf.getInt("rss.pushdata.retry.thread.num", 8)
+    conf.getInt("rss.pushdata.retry.thread.num",
+      Math.max(8, Runtime.getRuntime().availableProcessors()))
   }
 
   def metricsSystemEnable(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.metrics.system.enable", defaultValue = true)
+    conf.getBoolean("rss.metrics.system.enabled", defaultValue = true)
   }
 
   def metricsTimerSlidingSize(conf: RssConf): Int = {
@@ -635,10 +640,6 @@ object RssConf extends Logging {
         s" values is $port, which may cause port conflicts and startup failure.")
     }
     port
-  }
-
-  def reviveWaitMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.driver.revive.waitMs", "1s")
   }
 
   def closeIdleConnections(conf: RssConf): Boolean = {
@@ -702,7 +703,7 @@ object RssConf extends Logging {
    * Ratis related config
    */
   def haEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.ha.enable", false)
+    conf.getBoolean("rss.ha.enabled", false)
   }
 
   def haMasterHosts(conf: RssConf): String = {
@@ -721,16 +722,38 @@ object RssConf extends Logging {
     conf.getDouble("rss.slots.usage.overload.percent", 0.95)
   }
 
-  def supportAdaptiveQueryExecution(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.support.adaptiveQueryExecution", false)
+  def partitionSplitThreshold(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
-  def trafficControlEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.traffic.control.enabled", true)
+  def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
+    val modeStr = conf.get("rss.partition.split.mode", "soft")
+    modeStr match {
+      case "soft" => PartitionSplitMode.soft
+      case "hard" => PartitionSplitMode.hard
+      case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
+        PartitionSplitMode.soft
+    }
+  }
+
+  def clientSplitPoolSize(conf: RssConf): Int = {
+    conf.getInt("rss.client.split.pool.size", 8)
+  }
+
+  def partitionSortTimeout(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
+  }
+
+  def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.5)
   }
 
   def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {
     conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
+  }
+
+  def memoryForSortLargeFile(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.reserveforLargeSortFile.memory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
@@ -790,7 +813,7 @@ object RssConf extends Logging {
   val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT = "15s"
 
   // Ratis snapshot configurations
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.autoTrigger.enable"
+  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.auto.trigger.enabled"
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = false
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY = "rss.ha.ratis.snapshot.auto.trigger.threshold"
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT = 200000

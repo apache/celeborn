@@ -39,6 +39,7 @@ public class MemoryTracker {
 
   private long maxDirectorMemory = VM.maxDirectMemory();
   private long offheapMemoryCriticalThreshold = 0;
+  private long maxSortMemory = 0;
   private List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
   private ScheduledExecutorService checkService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
@@ -50,12 +51,14 @@ public class MemoryTracker {
     .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
       .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong nettyMemoryCounter = null;
+  private AtomicLong sortMemoryCounter = new AtomicLong(0);
   private LongAdder memoryCriticalCount = new LongAdder();
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
-    int reportInterval) {
+    int reportInterval, double maxSortRatio) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryTracker(directMemoryCriticalRatio, checkInterval, reportInterval);
+      _INSTANCE = new MemoryTracker(directMemoryCriticalRatio, checkInterval, reportInterval,
+        maxSortRatio);
     }
     return _INSTANCE;
   }
@@ -70,12 +73,14 @@ public class MemoryTracker {
     return _INSTANCE;
   }
 
-  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval) {
+  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval,
+    double maxSortMemRatio) {
     assert directMemoryCriticalRatio > 0 && directMemoryCriticalRatio < 1;
     offheapMemoryCriticalThreshold = (long) (maxDirectorMemory * directMemoryCriticalRatio);
     assert offheapMemoryCriticalThreshold > 0;
 
     initDirectMemoryIndicator();
+    maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
@@ -89,7 +94,7 @@ public class MemoryTracker {
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.debug("Track all direct memory usage :{}/{}",
+    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}",
         toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory)), reportInterval,
       reportInterval, TimeUnit.SECONDS);
 
@@ -123,7 +128,7 @@ public class MemoryTracker {
   }
 
   public boolean directMemoryCritical() {
-    if (nettyMemoryCounter.get() > offheapMemoryCriticalThreshold) {
+    if (nettyMemoryCounter.get() + sortMemoryCounter.get() > offheapMemoryCriticalThreshold) {
       memoryCriticalCount.increment();
       return true;
     } else {
@@ -133,6 +138,24 @@ public class MemoryTracker {
 
   public interface MemoryTrackerListener {
     void onMemoryCritical();
+  }
+
+  public void reserveSortMemory(long fileLen) {
+    sortMemoryCounter.addAndGet(fileLen);
+  }
+
+  public boolean sortMemoryReady() {
+    return !directMemoryCritical() && sortMemoryCounter.get() < maxSortMemory;
+  }
+
+  public void releaseSortMemory(long size) {
+    synchronized (this) {
+      if (sortMemoryCounter.get() - size < 0) {
+        sortMemoryCounter.set(0);
+      } else {
+        sortMemoryCounter.addAndGet(-1L * size);
+      }
+    }
   }
 
   public long getMaxDirectorMemory() {

@@ -27,8 +27,8 @@ class GroupSortTest extends SparkTestBase {
   @Test
   def test(): Unit = {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-    val saprkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    val resultWithoutRss = groupBy(saprkSession)
+    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+    val resultWithoutRss = groupBy(sparkSession)
 
     val resultWithRss = groupBy(SparkSession.builder()
       .config(updateSparkConf(sparkConf, true)).getOrCreate())

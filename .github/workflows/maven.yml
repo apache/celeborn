@@ -14,35 +14,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Set up JDK 8
-      uses: actions/setup-java@v2
+    - name: Setup Maven Action
+      uses: s4u/setup-maven-action@v1.3.1
       with:
-        java-version: '8'
-        distribution: 'adopt'
+        java-version: 8
+        maven-version: 3.6.3
     - name: Build with Maven
-      run: mvn install -DskipTests -Pspark-2
+      run: mvn install -DskipTests -Pspark-2 -Plog4j-1
     - name: Check Java Code Style
       run: mvn checkstyle:check -Pspark-2
     - name: Check Scale Code Style
       run: mvn scalastyle:check -Pspark-2
     - name: Unit Test
-      run: mvn test -Pspark-2
+      run: mvn test -Pspark-2 -Plog4j-1
   build_rss_on_spark_3:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Set up JDK 8
-      uses: actions/setup-java@v2
+    - name: Setup Maven Action
+      uses: s4u/setup-maven-action@v1.3.1
       with:
-        java-version: '8'
-        distribution: 'adopt'
+        java-version: 8
+        maven-version: 3.6.3
     - name: Build with Maven
-      run: mvn install -DskipTests -Pspark-3
+      run: mvn install -DskipTests -Pspark-3 -Plog4j-1
     - name: Check Java Code Style
       run: mvn checkstyle:check -Pspark-3
     - name: Check Scale Code Style
       run: mvn scalastyle:check -Pspark-3
     - name: Unit Test
-      run: mvn test -Pspark-3
+      run: mvn test -Pspark-3 -Plog4j-1
     needs: build_rss_on_spark_2
 

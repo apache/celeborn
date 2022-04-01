@@ -26,18 +26,18 @@ import com.aliyun.emr.rss.common.internal.Logging
 
 class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
-  private lazy val essConf = RssShuffleManager.fromSparkConf(sparkConf)
+  private lazy val rssConf = RssShuffleManager.fromSparkConf(sparkConf)
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-      applyAQEFallbackPolicy() || applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
+       applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
   }
 
   /**
    * if rss.force.fallback is true, fallback to external shuffle
    * @return return rss.force.fallback
    */
-  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(essConf)
+  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(rssConf)
 
   /**
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
@@ -45,7 +45,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * @return return if shuffle partitions bigger than limit
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = RssConf.maxPartitionNumSupported(essConf)
+    val confNumPartitions = RssConf.maxPartitionNumSupported(rssConf)
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
       logInfo(s"Shuffle num of partitions: $numPartitions" +
@@ -56,27 +56,12 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
   }
 
   /**
-   * if AQE is enabled, fallback to external shuffle
-   * @return if AQE is support by rss
-   */
-  def applyAQEFallbackPolicy(): Boolean = {
-    val needFallback = !RssConf.supportAdaptiveQueryExecution(essConf) &&
-      sparkConf.get(SQLConf.ADAPTIVE_EXECUTION_ENABLED) &&
-      (sparkConf.get(SQLConf.LOCAL_SHUFFLE_READER_ENABLED) ||
-        sparkConf.get(SQLConf.SKEW_JOIN_ENABLED))
-    if (needFallback) {
-      logInfo(s"Rss current does not support AQE, need fallback to spark shuffle")
-    }
-    needFallback
-  }
-
-  /**
    * if rss cluster is under high load, fallback to external shuffle
    * @return if rss cluster's slots used percent is overhead the limit
    */
   def applyClusterLoadFallbackPolicy(lifeCycleManager: LifecycleManager, numPartitions: Int):
     Boolean = {
-    if (!RssConf.clusterLoadFallbackEnabled(essConf)) {
+    if (!RssConf.clusterLoadFallbackEnabled(rssConf)) {
       return false
     }
 

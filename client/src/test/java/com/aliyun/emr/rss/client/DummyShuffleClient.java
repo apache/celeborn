@@ -85,7 +85,7 @@ public class DummyShuffleClient extends ShuffleClient {
       String applicationId,
       int shuffleId,
       int mapId,
-      int attemptId) throws IOException {
+      int attemptId) {
 
   }
 
@@ -95,7 +95,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int numMappers) throws IOException {
+      int numMappers) {
 
   }
 
@@ -109,7 +109,15 @@ public class DummyShuffleClient extends ShuffleClient {
       String applicationId,
       int shuffleId,
       int reduceId,
-      int attemptNumber) throws IOException {
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex) {
+    return null;
+  }
+
+  @Override
+  public RssInputStream readPartition(String applicationId, int shuffleId,
+      int reduceId, int attemptNumber) {
     return null;
   }
 

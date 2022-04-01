@@ -27,9 +27,9 @@ class SqlHashTest extends SparkTestBase {
   @Test
   def test(): Unit = {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-    val saprkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     logInfo("run sql test without rss")
-    val resultWithoutRss = runsql(saprkSession)
+    val resultWithoutRss = runsql(sparkSession)
 
     logInfo("run sql test with hash rss")
     val resultWithHashRss = runsql(SparkSession.builder()

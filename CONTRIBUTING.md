@@ -5,10 +5,10 @@ Any contributions from the open-source community to improve this project are wel
 This project uses check-style plugins. Run some checks before you create a new pull request.
 ```shell
 mvn clean 
-mvn install -DskipTests -Pspark-2
+mvn install -DskipTests -Pspark-2 -Plog4j-1/-Plog4j-2
 mvn checkstyle:check -Pspark-2
 mvn scalastyle:check -Pspark-2
-mvn test -Pspark-2
+mvn test -Pspark-2 -Plog4j-1/-Plog4j-2
 ```
 
 ## How to Contribute

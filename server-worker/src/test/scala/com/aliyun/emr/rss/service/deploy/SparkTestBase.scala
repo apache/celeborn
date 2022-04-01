@@ -55,7 +55,6 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     }
     tuple._7.stop()
     tuple._8.shutdown()
-//    Thread.sleep(3000L)
     tuple._13.channel().close()
     tuple._1.stop()
     tuple._2.shutdown()

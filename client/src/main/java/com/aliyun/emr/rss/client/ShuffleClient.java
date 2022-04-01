@@ -160,8 +160,18 @@ public abstract class ShuffleClient implements Cloneable {
    * @param applicationId
    * @param shuffleId
    * @param reduceId
+   * @param startMapIndex
+   * @param endMapIndex
    * @return
    */
+  public abstract RssInputStream readPartition(
+      String applicationId,
+      int shuffleId,
+      int reduceId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex) throws IOException;
+
   public abstract RssInputStream readPartition(
       String applicationId,
       int shuffleId,

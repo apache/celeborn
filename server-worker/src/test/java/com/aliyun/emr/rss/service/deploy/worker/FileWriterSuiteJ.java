@@ -54,6 +54,7 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
 
@@ -64,6 +65,8 @@ public class FileWriterSuiteJ {
   private static final int CHUNK_SIZE = 1024;
   private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
   public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
+  public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
+  public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
 
   private static File tempDir = null;
   private static DiskFlusher flusher = null;
@@ -89,7 +92,7 @@ public class FileWriterSuiteJ {
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
     flusher = new DiskFlusher(tempDir, 100, source, DeviceMonitor$.MODULE$.EmptyMonitor());
-    MemoryTracker memoryTracker = MemoryTracker.initialize(0.9, 10, 10);
+    MemoryTracker.initialize(0.9, 10, 10, 0.6);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
@@ -144,7 +147,8 @@ public class FileWriterSuiteJ {
     }
 
     @Override
-    public FileInfo handleOpenStream(String shuffleKey, String partitionId) {
+    public FileInfo handleOpenStream(String shuffleKey, String partitionId, int startMapIndex,
+      int endMapIndex) {
       return fileInfo;
     }
   }
@@ -153,11 +157,13 @@ public class FileWriterSuiteJ {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
     ByteBuffer openMessage = ByteBuffer.allocate(
-      4 + shuffleKeyBytes.length + 4 + fileNameBytes.length);
+      4 + shuffleKeyBytes.length + 4 + fileNameBytes.length + 8 + 8);
     openMessage.putInt(shuffleKeyBytes.length);
     openMessage.put(shuffleKeyBytes);
     openMessage.putInt(fileNameBytes.length);
     openMessage.put(fileNameBytes);
+    openMessage.putInt(0);
+    openMessage.putInt(Integer.MAX_VALUE);
     openMessage.flip();
     return openMessage;
   }
@@ -209,7 +215,8 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(), DeviceMonitor$.MODULE$.EmptyMonitor());
+      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -243,7 +250,8 @@ public class FileWriterSuiteJ {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(), DeviceMonitor$.MODULE$.EmptyMonitor());
+      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -281,7 +289,8 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(), DeviceMonitor$.MODULE$.EmptyMonitor());
+      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -308,8 +317,7 @@ public class FileWriterSuiteJ {
     long bytesWritten = writer.close();
     assertEquals(length.get(), bytesWritten);
 
-    FileInfo fileInfo = new FileInfo(writer.getFile(),
-      writer.getChunkOffsets(), writer.getFileLength());
+    FileInfo fileInfo = new FileInfo(writer.getFile(), writer.getChunkOffsets());
 
     setupChunkServer(fileInfo);
 

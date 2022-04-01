@@ -318,14 +318,14 @@ public class RssHARetryClientSuiteJ {
 
   private RssConf prepareForRssConfWithoutHA() {
     return rssConf.clone()
-      .set("rss.ha.enable", "false")
+      .set("rss.ha.enabled", "false")
       .set("rss.master.host", masterHost);
   }
 
   private RssConf prepareForRssConfWithHA() {
     String masterHosts = "host1,host2,host3";
     return rssConf.clone()
-      .set("rss.ha.enable", "true")
+      .set("rss.ha.enabled", "true")
       .set("rss.ha.master.hosts", masterHosts)
       .set("rss.ha.client.maxTries", "5");
   }

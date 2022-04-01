@@ -64,11 +64,15 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
   public void receive(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
     String shuffleKey = readString(message);
     String fileName = readString(message);
+    int startMapIndex = message.getInt();
+    int endMapIndex = message.getInt();
 
     // metrics start
     source.startTimer(WorkerSource.OpenStreamTime(), shuffleKey);
-    FileInfo fileInfo = handler.handleOpenStream(shuffleKey, fileName);
+    FileInfo fileInfo = handler.handleOpenStream(shuffleKey, fileName, startMapIndex, endMapIndex);
     if (fileInfo != null) {
+      logger.debug("Received chunk fetch request {} {} {} {} get file info {}", shuffleKey,
+        fileName, startMapIndex, endMapIndex, fileInfo);
       try {
         ManagedBufferIterator iterator = new ManagedBufferIterator(fileInfo, conf);
         long streamId = streamManager.registerStream(
@@ -78,7 +82,8 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
         response.putLong(streamId);
         response.putInt(fileInfo.numChunks);
         if (fileInfo.numChunks == 0) {
-          logger.debug("Chunk size is 0! fileName " + fileName);
+          logger.debug("StreamId {} fileName {} startMapIndex {} endMapIndex {} is empty.",
+            streamId, fileName, startMapIndex, endMapIndex);
         }
         response.flip();
         callback.onSuccess(response);

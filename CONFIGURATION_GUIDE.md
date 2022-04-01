@@ -52,14 +52,14 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 | rss.rpc.io.serverThreads | min{64, availableCores} |  |
 | rss.master.port.maxretry | 1 | When RSS master port is occupied,we will retry for maxretry times. |
 | rss.rpc.io.numConnectionsPerPeer | 1 | Connections between hosts are reused in order to reduce connection. |
-| rss.ha.enable | true | When true, RSS will activate raft implementation and sync shared data on master clusters. |
+| rss.ha.enabled | true | When true, RSS will activate raft implementation and sync shared data on master clusters. |
 | rss.ha.master.hosts | | Master hosts address list. |
 | rss.ha.service.id | | When this config is empty, RSS master will refuse to startup. |
 | rss.ha.nodes.{serviceId} |  | Nodes list that deploy RSS master. ServiceId is `rss.ha.service.id` |
 | rss.ha.address.{serviceId}.{node} | localhost:9872 | RSS master's rpc address for raft implementation. Port can be ignored and defaults to 9872 |
 | rss.ha.port | 9872 | Rpc port between multi master |
 | rss.ha.storage.dir | /tmp/ratis | Directory of RSS master to store ratis metadata. |
-| rss.ha.ratis.snapshot.autoTrigger.enable | true | Weather to enable raft implementation's snapshot. |
+| rss.ha.ratis.snapshot.auto.trigger.enabled | true | Weather to enable raft implementation's snapshot. |
 | rss.ha.ratis.snapshot.auto.trigger.threshold | 200000 |  |
 
 ### RSS Worker Configurations
@@ -81,7 +81,7 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 
 | Item | Default | Description |
 | :---: | :---: | :--: |
-| rss.metrics.system.enable | true |  |
+| rss.metrics.system.enabled | true |  |
 | rss.master.prometheus.metric.port | 9098 |  |
 | rss.worker.prometheus.metric.port | 9096 |  |
  
@@ -147,6 +147,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.numSlots` | -1 | int | |
 | `rss.rpc.max.parallelism` | 1024 | int | |
 | `rss.register.shuffle.max.retry` | 3 | int | |
+| `rss.register.shuffle.retry.wait` | 3s | int | |
 | `rss.flush.timeout` | 240 s | String | |
 | `rss.expire.nonEmptyDir.duration` | 3 d | String | |
 | `rss.expire.nonEmptyDir.cleanUp.threshold` | 10 | int | |
@@ -163,7 +164,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.register.worker.timeout` | 180 s | String | |
 | `rss.master.port.maxretry` | 1 | int | |
 | `rss.pushdata.retry.thread.num` | 8 | int | |
-| `rss.metrics.system.enable` | true | bool | |
+| `rss.metrics.system.enabled` | true | bool | |
 | `rss.metrics.system.timer.sliding.size` | 4000 | int | |
 | `rss.metrics.system.sample.rate` | 1 | double | |
 | `rss.metrics.system.sliding.window.size` | 4096 | int | |
@@ -172,9 +173,8 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.prometheus.metric.port` | 9096 | int | |
 | `rss.merge.push.data.threshold` | 1 MiB | String | |
 | `rss.driver.metaService.port` | 0 | int | |
-| `rss.driver.revive.waitMs` | 1 s | String | |
 | `rss.worker.closeIdleConnections` | true | bool | |
-| `rss.ha.enable` | false | bool | |
+| `rss.ha.enabled` | false | bool | |
 | `rss.ha.master.hosts` | `rss.master.host` 的值 | String | |
 | `rss.ha.service.id` | | String | |
 | `rss.ha.nodes.<serviceId>` | | String | |
@@ -188,7 +188,12 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.create.file.writer.retry.count` | 3 | Int | Worker create FileWriter retry count |
 | `rss.disk.space.safe.watermark.size` | 0GB | String | Disk usage watermark size in GB, size must be Long |
 | `rss.worker.status.check.timeout` | 10s | String | Worker device check timeout |
-| `rss.traffic.control.enabled` | true | bool | Flow control |
 | `rss.worker.offheap.memory.critical.ratio` | 0.9 | float | Worker direct memory usage critical level ratio |
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
+| `rss.partition.split.threshold` | 256m | String | Shuffle file split size |
+| `rss.partition.split.mode` | soft | String | sort, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold  |
+| `rss.client.split.pool.size` | 8 | int | Thread number to process shuffle split request in shuffle client. |
+| `rss.partition.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
+| `rss.partition.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
+| `rss.worker.offheap.sort.reserve.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|

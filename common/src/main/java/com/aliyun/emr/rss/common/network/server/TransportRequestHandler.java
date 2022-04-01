@@ -345,7 +345,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       });
     } catch (Exception e) {
       logger.error("Error while invoking RpcHandler#receive() on PushData " + req, e);
-      channel.writeAndFlush(e);
+      channel.writeAndFlush(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
     } finally {
       req.body().release();
     }
@@ -361,7 +361,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
         @Override
         public void onFailure(Throwable e) {
-          logger.error("[processPushMergedData] Process pushData onFailure! ShuffleKey: " +
+          logger.error("[processPushMergedData] Process PushMergedData onFailure! ShuffleKey: " +
                   req.shuffleKey +
                   ", partitionUniqueId: " + JavaUtils.mkString(req.partitionUniqueIds, ","), e);
           respond(new RpcFailure(req.requestId, e.getMessage()));
@@ -369,7 +369,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       });
     } catch (Exception e) {
       logger.error("Error while invoking RpcHandler#receive() on PushMergedData " + req, e);
-      channel.writeAndFlush(e);
+      channel.writeAndFlush(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
     } finally {
       req.body().release();
     }

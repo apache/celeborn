@@ -22,14 +22,7 @@ import java.nio.ByteBuffer
 import java.util.{ArrayList => jArrayList}
 import java.util.{List => jList}
 import java.util.{HashSet => jHashSet}
-import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CancellationException, CompletableFuture, ConcurrentHashMap, ExecutionException, LinkedBlockingQueue, ScheduledFuture, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
 
@@ -40,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{trafficControlEnabled, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
+import com.aliyun.emr.rss.common.RssConf.{partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -52,7 +45,7 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
 import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, TransportServerBootstrap}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -74,15 +67,21 @@ private[deploy] class Worker(
     source
   }
 
+  val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
+    workerDirectMemoryPressureCheckIntervalMs(conf),
+    workerDirectMemoryReportIntervalSecond(conf),
+    partitionSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
-  if (RssConf.trafficControlEnabled(conf)) {
-    val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
-      workerDirectMemoryPressureCheckIntervalMs(conf), workerDirectMemoryReportIntervalSecond(conf))
-    memoryTracker.registerMemoryListener(localStorageManager)
-    workerSource.addGauge(WorkerSource.DirectMemory, _ => memoryTracker.getMaxDirectorMemory)
-    workerSource.addGauge(WorkerSource.MemoryCriticalCount,
-      _ => memoryTracker.getMemoryCriticalCounter)
-  }
+  memoryTracker.registerMemoryListener(localStorageManager)
+  workerSource.addGauge(WorkerSource.DirectMemory, _ => memoryTracker.getMaxDirectorMemory)
+  workerSource.addGauge(WorkerSource.MemoryCriticalCount,
+    _ => memoryTracker.getMemoryCriticalCounter)
+
+  private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
+    partitionSortTimeout(conf),
+    RssConf.workerFetchChunkSize(conf),
+    RssConf.partitionSortMaxMemoryRatio(conf),
+    RssConf.memoryForSortLargeFile(conf))
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -94,7 +93,7 @@ private[deploy] class Worker(
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
     val clientBootstraps = new jArrayList[TransportClientBootstrap]()
     (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps,
-      trafficControlEnabled(conf)), transportContext.createClientFactory(clientBootstraps))
+      true), transportContext.createClientFactory(clientBootstraps))
   }
 
   private val fetchServer = {
@@ -217,6 +216,7 @@ private[deploy] class Worker(
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
+    partitionsSorter.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -229,7 +229,8 @@ private[deploy] class Worker(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations) =>
+    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
+    splitMode) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
@@ -237,7 +238,8 @@ private[deploy] class Worker(
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
-        handleReserveSlots(context, applicationId, shuffleId, masterLocations, slaveLocations)
+        handleReserveSlots(context, applicationId, shuffleId, masterLocations,
+          slaveLocations, splitThreashold, splitMode)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -271,7 +273,9 @@ private[deploy] class Worker(
       applicationId: String,
       shuffleId: Int,
       masterLocations: jList[PartitionLocation],
-      slaveLocations: jList[PartitionLocation]): Unit = {
+      slaveLocations: jList[PartitionLocation],
+      splitThreshold: Long,
+      splitMode: PartitionSplitMode): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -283,7 +287,8 @@ private[deploy] class Worker(
     try {
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location)
+        val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
+          splitThreshold, splitMode)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -302,7 +307,8 @@ private[deploy] class Worker(
     try {
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location)
+        val writer = localStorageManager.createWriter(applicationId, shuffleId,
+          location, splitThreshold, splitMode)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -634,6 +640,17 @@ private[deploy] class Worker(
       callback.onFailure(new Exception(message, exception))
       return
     }
+    if (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold()) {
+      logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
+        s" needs to split. Shuffle split threshold ${fileWriter.getSplitThreshold()}")
+      fileWriter.setSplitFlag()
+      if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
+      } else {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
+        return
+      }
+    }
     fileWriter.incrementPendingWrites()
 
     // for master, send data to slave
@@ -755,7 +772,7 @@ private[deploy] class Worker(
     val fileWriterWithException = fileWriters.find(_.getException != null)
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
-      logWarning(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
+      logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
           s" has Exception $exception")
       val message = if (isMaster) {
         StatusCode.PushDataFailMain.getMessage()
@@ -839,16 +856,17 @@ private[deploy] class Worker(
     }
   }
 
-  override def handleOpenStream(
-      shuffleKey: String, fileName: String): FileInfo = {
-    logDebug(s"Open file $fileName for $shuffleKey")
+  override def handleOpenStream(shuffleKey: String, fileName: String, startMapIndex: Int,
+    endMapIndex: Int): FileInfo = {
+    logInfo(s"Open file $fileName for $shuffleKey with" +
+      s" startMapIndex ${startMapIndex} endMapIndex ${endMapIndex}")
     // find FileWriter responsible for the data
     val fileWriter = localStorageManager.getWriter(shuffleKey, fileName)
     if (fileWriter eq null) {
       logWarning(s"File $fileName for $shuffleKey was not found!")
       return null
     }
-    new FileInfo(fileWriter.getFile, fileWriter.getChunkOffsets, fileWriter.getFileLength)
+    partitionsSorter.openStream(shuffleKey, fileName, fileWriter, startMapIndex, endMapIndex);
   }
 
   private def registerWithMaster() {
@@ -909,6 +927,7 @@ private[deploy] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
+      partitionsSorter.cleanup(expiredShuffleKeys)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
 

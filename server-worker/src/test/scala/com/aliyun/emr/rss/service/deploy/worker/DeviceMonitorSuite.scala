@@ -57,10 +57,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
   dirs.add(workingDir3)
   dirs.add(workingDir4)
 
-  val essConf = new RssConf()
-  essConf.set("rss.disk.check.interval", "3600s")
+  val rssConf = new RssConf()
+  rssConf.set("rss.disk.check.interval", "3600s")
   val localStorageManager = mock[DeviceObserver]
-  val deviceMonitor = new LocalDeviceMonitor(essConf, localStorageManager, dirs)
+  val deviceMonitor = new LocalDeviceMonitor(rssConf, localStorageManager, dirs)
     .asInstanceOf[LocalDeviceMonitor]
 
   val vdaDeviceInfo = new DeviceInfo("vda")

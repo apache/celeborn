@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
+import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 
 /*
@@ -66,6 +68,10 @@ public final class FileWriter extends DeviceObserver {
 
   private final DeviceMonitor deviceMonitor;
   private final AbstractSource source; // metrics
+
+  private long splitThreshold = 0;
+  private final AtomicBoolean splitted = new AtomicBoolean(false);
+  private final PartitionSplitMode splitMode;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -107,7 +113,9 @@ public final class FileWriter extends DeviceObserver {
       long flushBufferSize,
       AbstractSource workerSource,
       RssConf rssConf,
-      DeviceMonitor deviceMonitor) throws IOException {
+      DeviceMonitor deviceMonitor,
+      long splitThreshold,
+      PartitionSplitMode splitMode) throws IOException {
     this.file = file;
     this.flusher = flusher;
     this.dataRootDir = workingDir;
@@ -115,10 +123,13 @@ public final class FileWriter extends DeviceObserver {
     this.nextBoundary = chunkSize;
     this.chunkOffsets.add(0L);
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
+    this.splitThreshold = splitThreshold;
     this.flushBufferSize = flushBufferSize;
     this.deviceMonitor = deviceMonitor;
+    this.splitMode = splitMode;
     channel = new FileOutputStream(file).getChannel();
     source = workerSource;
+    logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
   }
 
@@ -249,6 +260,15 @@ public final class FileWriter extends DeviceObserver {
     }
     file.delete();
 
+    if (splitted.get()) {
+      String indexFileStr = file.getAbsolutePath() + PartitionFilesSorter.INDEX_SUFFIX;
+      String sortedFileStr = file.getAbsolutePath() + PartitionFilesSorter.SORTED_SUFFIX;
+      File indexFile = new File(indexFileStr);
+      File sortedFile = new File(sortedFileStr);
+      indexFile.delete();
+      sortedFile.delete();
+    }
+
     // unregister from DeviceMonitor
     deviceMonitor.unregisterFileWriter(this);
   }
@@ -342,5 +362,17 @@ public final class FileWriter extends DeviceObserver {
         takeBuffer();
       }
     }
+  }
+
+  public void setSplitFlag() {
+    splitted.set(true);
+  }
+
+  public long getSplitThreshold() {
+    return splitThreshold;
+  }
+
+  public PartitionSplitMode getSplitMode() {
+    return splitMode;
   }
 }

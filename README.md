@@ -43,12 +43,12 @@ RSS supports Spark2.x(>=2.4.0), Spark3.x(>=3.0.1) and only tested under Java8(JD
 
 Build for Spark 2    
 `
-./dev/make-distribution.sh -Pspark-2
+./dev/make-distribution.sh -Pspark-2 -Plog4j-1/-Plog4j-2
 `
 
 Build for Spark 3  
 `
-./dev/make-distribution.sh -Pspark-3
+./dev/make-distribution.sh -Pspark-3 -Plog4j-1/-Plog4j-2
 `
 
 package rss-${project.version}-bin-release.tgz will be generated.
@@ -90,7 +90,7 @@ RSS_WORKER_OFFHEAP_MEMORY=4g
 EXAMPLE: single master cluster
 ```properties
 rss.master.address master-host:port
-rss.metrics.system.enable true
+rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 512
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
@@ -98,13 +98,13 @@ rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
   
 EXAMPLE: HA cluster
 ```properties
-rss.metrics.system.enable true
+rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 4096
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
 rss.master.port 9097
 
-rss.ha.enable true
+rss.ha.enabled true
 rss.ha.service.id dev-cluster
 rss.ha.nodes.dev-cluster node1,node2,node3
 rss.ha.address.dev-cluster.node1 host1
@@ -182,10 +182,13 @@ spark.rss.shuffle.writer.mode hash
 # we recommend set spark.rss.push.data.replicate to true to enable server-side data replication 
 spark.rss.push.data.replicate true
 
-# Note: RSS didn`t support Spark AQE now, but we`ll support it soon.
-spark.sql.adaptive.enabled false
+# Support for Spark AQE only tested under Spark 3
+# we recommend set localShuffleReader to false to get better performance of RSS
 spark.sql.adaptive.localShuffleReader.enabled false
-spark.sql.adaptive.skewJoin.enabled false 
+
+# we recommend enable aqe support to gain better performance
+spark.sql.adaptive.enabled true
+spark.sql.adaptive.skewJoin.enabled true 
 ```
 
 ### Best Practice
