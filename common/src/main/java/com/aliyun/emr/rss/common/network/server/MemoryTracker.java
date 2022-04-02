@@ -52,7 +52,7 @@ public class MemoryTracker {
       .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong nettyMemoryCounter = null;
   private AtomicLong sortMemoryCounter = new AtomicLong(0);
-  private LongAdder memoryCriticalCount = new LongAdder();
+  private LongAdder memoryCriticalCounter = new LongAdder();
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
     int reportInterval, double maxSortRatio) {
@@ -129,7 +129,7 @@ public class MemoryTracker {
 
   public boolean directMemoryCritical() {
     if (nettyMemoryCounter.get() + sortMemoryCounter.get() > offheapMemoryCriticalThreshold) {
-      memoryCriticalCount.increment();
+      memoryCriticalCounter.increment();
       return true;
     } else {
       return false;
@@ -163,6 +163,6 @@ public class MemoryTracker {
   }
 
   public long getMemoryCriticalCounter() {
-    return memoryCriticalCount.sum();
+    return memoryCriticalCounter.sum();
   }
 }
