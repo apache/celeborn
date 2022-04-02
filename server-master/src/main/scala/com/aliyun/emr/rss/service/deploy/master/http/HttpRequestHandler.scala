@@ -24,7 +24,7 @@ import io.netty.handler.codec.http.{DefaultFullHttpResponse, FullHttpRequest, Ht
 import io.netty.util.CharsetUtil
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.server.common.metrics.sink.PrometheusHttpRequestHandler
+import com.aliyun.emr.rss.common.metrics.sink.PrometheusHttpRequestHandler
 import com.aliyun.emr.rss.service.deploy.master.Master
 
 @Sharable

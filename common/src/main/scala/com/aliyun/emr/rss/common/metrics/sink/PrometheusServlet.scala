@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.sink
+package com.aliyun.emr.rss.common.metrics.sink
 
 import java.util.Properties
 
@@ -26,7 +26,7 @@ import io.netty.channel.ChannelHandler.Sharable
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.server.common.metrics.source.Source
+import com.aliyun.emr.rss.common.metrics.source.Source
 
 class PrometheusServlet(val property: Properties,
   val registry: MetricRegistry,

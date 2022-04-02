@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.sink
+package com.aliyun.emr.rss.common.metrics.sink
 
 import java.util.{Locale, Properties}
 import java.util.concurrent.TimeUnit
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.graphite.{Graphite, GraphiteReporter, GraphiteUDP}
 
-import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
+import com.aliyun.emr.rss.common.metrics.MetricsSystem
 
 private class GraphiteSink(val property: Properties, val registry: MetricRegistry) extends Sink {
   val GRAPHITE_DEFAULT_PERIOD = 10

@@ -15,10 +15,16 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics
+package com.aliyun.emr.rss.common.metrics.sink
 
-import com.codahale.metrics.Histogram
-import com.codahale.metrics.Reservoir
+import java.util.Properties
 
-class RssHistogram(val reservoir: Reservoir) extends Histogram(reservoir) {
+import com.codahale.metrics.MetricRegistry
+
+class PrometheusSink(val property: Properties, val registry: MetricRegistry) extends Sink {
+  override def start(): Unit = { }
+
+  override def stop(): Unit = { }
+
+  override def report(): Unit = { }
 }

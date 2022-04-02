@@ -15,21 +15,9 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.source
+package com.aliyun.emr.rss.common.metrics
 
-import com.aliyun.emr.rss.common.RssConf
+import com.codahale.metrics.{Reservoir, Timer}
 
-class NetWorkSource(essConf: RssConf, role: String) extends AbstractSource(essConf, role) {
-  override val sourceName = s"com.aliyun.emr.rss.common.network"
-
-  import NetWorkSource._
-  // add timer
-  addTimer(FetchChunkTime)
-
-  // start cleaner
-  startCleaner()
-}
-
-object NetWorkSource {
-  val FetchChunkTime = "FetchChunkTime"
+class RssTimer(val reservoir: Reservoir) extends Timer(reservoir) {
 }
