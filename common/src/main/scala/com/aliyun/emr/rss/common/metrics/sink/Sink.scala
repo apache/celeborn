@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics
+package com.aliyun.emr.rss.common.metrics.sink
 
-import com.codahale.metrics.Reservoir
-import com.codahale.metrics.Timer
+trait Sink {
+  def start(): Unit
 
-class RssTimer(val reservoir: Reservoir) extends Timer(reservoir) {
+  def stop(): Unit
+
+  def report(): Unit
 }

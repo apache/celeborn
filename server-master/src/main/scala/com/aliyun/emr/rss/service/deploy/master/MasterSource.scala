@@ -19,8 +19,8 @@ package com.aliyun.emr.rss.service.deploy.master
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource
+import com.aliyun.emr.rss.common.metrics.MetricsSystem
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 
 class MasterSource(essConf: RssConf)
     extends AbstractSource(essConf, MetricsSystem.ROLE_MASTER) with Logging {

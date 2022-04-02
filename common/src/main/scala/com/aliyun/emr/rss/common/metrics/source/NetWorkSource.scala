@@ -15,16 +15,21 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.sink
+package com.aliyun.emr.rss.common.metrics.source
 
-import java.util.Properties
+import com.aliyun.emr.rss.common.RssConf
 
-import com.codahale.metrics.MetricRegistry
+class NetWorkSource(essConf: RssConf, role: String) extends AbstractSource(essConf, role) {
+  override val sourceName = s"network"
 
-class PrometheusSink(val property: Properties, val registry: MetricRegistry) extends Sink {
-  override def start(): Unit = { }
+  import NetWorkSource._
+  // add timer
+  addTimer(FetchChunkTime)
 
-  override def stop(): Unit = { }
+  // start cleaner
+  startCleaner()
+}
 
-  override def report(): Unit = { }
+object NetWorkSource {
+  val FetchChunkTime = "FetchChunkTime"
 }

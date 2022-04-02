@@ -38,6 +38,8 @@ import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
+import com.aliyun.emr.rss.common.metrics.MetricsSystem
+import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
@@ -50,8 +52,6 @@ import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.unsafe.Platform
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
-import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.server.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
 private[deploy] class Worker(
@@ -73,6 +73,9 @@ private[deploy] class Worker(
     partitionSortMaxMemoryRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
+  workerSource.addGauge(WorkerSource.DirectMemory, _ => memoryTracker.getMaxDirectorMemory)
+  workerSource.addGauge(WorkerSource.MemoryCriticalCount,
+    _ => memoryTracker.getMemoryCriticalCounter)
   private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
     partitionSortTimeout(conf),
     RssConf.workerFetchChunkSize(conf),
@@ -98,7 +101,7 @@ private[deploy] class Worker(
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     val rpcHandler = new ChunkFetchRpcHandler(transportConf, workerSource, this)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, rpcHandler, closeIdleConnections)
+      new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
     transportContext.createServer(RssConf.fetchServerPort(conf), serverBootstraps)
   }

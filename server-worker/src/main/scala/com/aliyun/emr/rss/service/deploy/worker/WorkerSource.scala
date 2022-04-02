@@ -19,8 +19,8 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.server.common.metrics.source.AbstractSource
+import com.aliyun.emr.rss.common.metrics.MetricsSystem
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 
 class WorkerSource(essConf: RssConf)
     extends AbstractSource(essConf, MetricsSystem.ROLE_WOKRER) with Logging {
@@ -38,6 +38,7 @@ class WorkerSource(essConf: RssConf)
   addTimer(SlavePushDataTime)
 
   addTimer(FetchChunkTime)
+  addTimer(OpenStreamTime)
   addTimer(TakeBufferTime)
 
   // start cleaner thread
@@ -53,7 +54,10 @@ object WorkerSource {
 
   val FlushDataTime = "FlushDataTime"
 
+  val OpenStreamTime = "OpenStreamTime"
+
   val FetchChunkTime = "FetchChunkTime"
+
 
   // push data
   val MasterPushDataTime = "MasterPushDataTime"
@@ -69,4 +73,7 @@ object WorkerSource {
   val TotalSlots = "TotalSlots"
   val SlotsUsed = "SlotsUsed"
   val SlotsAvailable = "SlotsAvailable"
+
+  val DirectMemory = "DirectMemory"
+  val MemoryCriticalCount = "MemoryCriticalCount"
 }

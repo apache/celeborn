@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.metrics.sink
+package com.aliyun.emr.rss.common.metrics.sink
 
 import java.io.File
 import java.util.{Locale, Properties}
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 import com.codahale.metrics.{CsvReporter, MetricRegistry}
 
-import com.aliyun.emr.rss.server.common.metrics.MetricsSystem
+import com.aliyun.emr.rss.common.metrics.MetricsSystem
 
 class CsvSink(val property: Properties, val registry: MetricRegistry) extends Sink {
   val CSV_KEY_PERIOD = "period"
