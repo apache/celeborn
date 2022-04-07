@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 
 /*
@@ -199,10 +200,11 @@ public final class FileWriter extends DeviceObserver {
       return;
     }
 
+    final int numBytes = data.readableBytes();
+    MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
-      final int numBytes = data.readableBytes();
       if (flushBuffer.readableBytes() != 0 &&
-        flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
+            flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
         takeBuffer();
       }

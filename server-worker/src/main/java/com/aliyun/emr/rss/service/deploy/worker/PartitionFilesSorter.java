@@ -36,21 +36,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.misc.VM;
 import sun.nio.ch.DirectBuffer;
 
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 
 public class PartitionFilesSorter {
-  private static Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
+  private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
-  // Due to bytebuffer allocate limitations, we set max partition split size to 1.6GB
-  public static int MAX_PARTITION_SPLIT_SIZE = (int) (1.6 * 1024 * 1024 * 1024);
-
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
@@ -60,47 +57,44 @@ public class PartitionFilesSorter {
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
   protected final long sortTimeout;
   protected final long fetchChunkSize;
-  protected final long maxSingleFileInMemSize;
-  protected final long reserveMemoryForOffHeapSort;
+  protected final long reserveMemoryForSingleSort;
+  protected final AbstractSource source;
 
   private final ExecutorService fileSorterExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
   private final Thread fileSorterSchedulerThread;
 
   PartitionFilesSorter(MemoryTracker memoryTracker, long sortTimeOut, long fetchChunkSize,
-    double maxSortMemoryRatio, long reserveMemoryForOffHeapSort) {
+    long reserveMemoryForSingleSort, AbstractSource source) {
     this.sortTimeout = sortTimeOut;
     this.fetchChunkSize = fetchChunkSize;
-    this.maxSingleFileInMemSize = Math.min((long) (maxSortMemoryRatio * VM.maxDirectMemory()),
-      MAX_PARTITION_SPLIT_SIZE);
-    this.reserveMemoryForOffHeapSort = reserveMemoryForOffHeapSort;
+    this.reserveMemoryForSingleSort = reserveMemoryForSingleSort;
+    this.source = source;
 
     fileSorterSchedulerThread = new Thread(() -> {
       try {
         while (true) {
           FileSorter task = shuffleSortTaskDeque.take();
-          if (task.inMemSort()) {
-            memoryTracker.reserveSortMemory(task.getOriginFileLen());
-          } else {
-            memoryTracker.reserveSortMemory(reserveMemoryForOffHeapSort);
-          }
+          memoryTracker.reserveSortMemory(reserveMemoryForSingleSort);
           while (!memoryTracker.sortMemoryReady()) {
             Thread.sleep(20);
           }
           fileSorterExecutors.submit(() -> {
+            source.startTimer(WorkerSource.SortTime(), task.fileId);
             task.sort();
-            if (task.inMemSort()) {
-              memoryTracker.releaseSortMemory(task.getOriginFileLen());
-            } else {
-              memoryTracker.releaseSortMemory(reserveMemoryForOffHeapSort);
-            }
+            source.stopTimer(WorkerSource.SortTime(), task.fileId);
+            memoryTracker.releaseSortMemory(reserveMemoryForSingleSort);
           });
         }
       } catch (InterruptedException e) {
-        logger.warn("sort file failed, detail :", e);
+        logger.warn("Sort thread is shutting down, detail :", e);
       }
     });
     fileSorterSchedulerThread.start();
+  }
+
+  public int getSortingCount() {
+    return shuffleSortTaskDeque.size();
   }
 
   public FileInfo openStream(String shuffleKey, String fileName, FileWriter fileWriter,
@@ -117,7 +111,6 @@ public class PartitionFilesSorter {
       Set<String> sorting =
         sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
-      boolean sortInMem = fileWriter.getFileLength() < maxSingleFileInMemSize;
       String sortedFileName = fileWriter.getFile().getAbsolutePath() + SORTED_SUFFIX;
       String indexFileName = fileWriter.getFile().getAbsolutePath() + INDEX_SUFFIX;
 
@@ -129,7 +122,7 @@ public class PartitionFilesSorter {
       synchronized (sorting) {
         if (!sorting.contains(fileId)) {
           FileSorter fileSorter = new FileSorter(fileWriter.getFile(), fileWriter.getFileLength(),
-            sortInMem, fileId, shuffleKey);
+            fileId, shuffleKey);
           sorting.add(fileId);
           try {
             shuffleSortTaskDeque.put(fileSorter);
@@ -276,7 +269,7 @@ public class PartitionFilesSorter {
 
   public FileInfo resolve(String shuffleKey, String fileId, String sortedFileName,
     String indexFileName, int startMapIndex, int endMapIndex) {
-    Map<Integer, List<ShuffleBlockInfo>> indexMap = null;
+    Map<Integer, List<ShuffleBlockInfo>> indexMap;
     if (cachedIndexMaps.containsKey(shuffleKey) &&
           cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
       indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
@@ -313,50 +306,34 @@ public class PartitionFilesSorter {
     private final long originFileLen;
     private final String fileId;
     private final String shuffleKey;
-    private final boolean inMemSort;
 
-    FileSorter(File originFile, long originFileLen, boolean inMemSort,
-      String fileId, String shuffleKey) {
+    FileSorter(File originFile, long originFileLen, String fileId, String shuffleKey) {
       this.originFile = originFile;
       this.sortedFileName = originFile.getAbsolutePath() + SORTED_SUFFIX;
       this.indexFileName = originFile.getAbsolutePath() + INDEX_SUFFIX;
       this.originFileLen = originFileLen;
-      this.inMemSort = inMemSort;
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
     }
 
     public void sort() {
       try (FileChannel originFileChannel = new FileInputStream(originFile).getChannel();
-           FileChannel sortedFileChannel = new FileOutputStream(sortedFileName).getChannel();) {
+           FileChannel sortedFileChannel = new FileOutputStream(sortedFileName).getChannel()) {
         int batchHeaderLen = 16;
-        byte[] batchHeader = new byte[batchHeaderLen];
 
         Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
-        ByteBuffer headerBuf = null;
-        ByteBuffer originFileBuf = null;
-        if (inMemSort) {
-          originFileBuf = ByteBuffer.allocateDirect((int) originFileLen);
-          readFully(originFileChannel, originFileBuf, originFile.getAbsolutePath());
-          originFileBuf.flip();
-        } else {
-          headerBuf = ByteBuffer.allocate(batchHeaderLen);
-        }
+        ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
+        ByteBuffer paddingBuf = ByteBuffer.allocateDirect((int) reserveMemoryForSingleSort);
 
         int index = 0;
         while (index != originFileLen) {
           final int blockStartIndex = index;
-          if (inMemSort) {
-            originFileBuf.get(batchHeader);
-          } else {
-            readFully(originFileChannel, headerBuf, originFile.getAbsolutePath());
-            batchHeader = headerBuf.array();
-            headerBuf.rewind();
-          }
+          readFully(originFileChannel, headerBuf, originFile.getAbsolutePath());
+          byte[] batchHeader = headerBuf.array();
+          headerBuf.rewind();
 
-          // header is 4 integers: mapId, attemptId, nextBatchId, compressedBlockTotalSize
           int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
           final int compressedSize = Platform.getInt(batchHeader,
             Platform.BYTE_ARRAY_OFFSET + 12);
@@ -370,11 +347,9 @@ public class PartitionFilesSorter {
           singleMapIdShuffleBlockList.add(blockInfo);
 
           index += batchHeaderLen + compressedSize;
-          if (inMemSort) {
-            originFileBuf.position(index);
-          } else {
-            originFileChannel.position(index);
-          }
+          paddingBuf.clear();
+          paddingBuf.limit(compressedSize);
+          readFully(originFileChannel, paddingBuf, originFile.getAbsolutePath());
         }
 
         int fileIndex = 0;
@@ -390,19 +365,12 @@ public class PartitionFilesSorter {
             sortedBlock.offset = fileIndex;
             sortedBlock.length = length;
             sortedShuffleBlocks.add(sortedBlock);
-            if (inMemSort) {
-              originFileBuf.limit(offset + length);
-              originFileBuf.position(offset);
-              fileIndex += sortedFileChannel.write(originFileBuf.slice());
-            } else {
-              fileIndex += transferFully(originFileChannel, sortedFileChannel, offset, length);
-            }
+            fileIndex += transferFully(originFileChannel, sortedFileChannel, offset, length);
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
-        if (inMemSort) {
-          ((DirectBuffer) originFileBuf).cleaner().clean();
-        }
+
+        ((DirectBuffer) paddingBuf).cleaner().clean();
 
         writeIndex(sortedBlockInfoMap, indexFileName);
         sortedShuffleFiles.get(shuffleKey).add(fileId);
@@ -416,14 +384,6 @@ public class PartitionFilesSorter {
       } finally {
         sortingShuffleFiles.get(shuffleKey).remove(fileId);
       }
-    }
-
-    public long getOriginFileLen() {
-      return originFileLen;
-    }
-
-    public boolean inMemSort() {
-      return inMemSort;
     }
   }
 }

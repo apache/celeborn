@@ -74,6 +74,12 @@ object WorkerSource {
   val SlotsUsed = "SlotsUsed"
   val SlotsAvailable = "SlotsAvailable"
 
-  val DirectMemory = "DirectMemory"
+  // memory
+  val NettyMemory = "NettyMemory"
+  val SortTime = "SortTime"
+  val SortMemory = "SortMemory"
+  val SortingFiles = "SortingFiles"
+  val DiskBuffer = "DiskBuffer"
+
   val MemoryCriticalCount = "MemoryCriticalCount"
 }

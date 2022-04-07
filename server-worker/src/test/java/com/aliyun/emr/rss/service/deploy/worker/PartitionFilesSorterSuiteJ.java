@@ -34,12 +34,12 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
 
+import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 
 public class PartitionFilesSorterSuiteJ {
-
   private File shuffleFile;
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
   private String originFileName;
@@ -83,7 +83,7 @@ public class PartitionFilesSorterSuiteJ {
     originFileLen = channel.size();
     System.out.println(shuffleFile.getAbsolutePath() + " filelen " + originFileLen);
 
-    MemoryTracker.initialize(0.9, 10, 10, 0.6);
+    MemoryTracker.initialize(0.9, 10, 10, 0.6, 0.35);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
@@ -96,25 +96,14 @@ public class PartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void inMemTest() throws InterruptedException {
-    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE, 0.5, 1024 * 1024);
-    FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 4, 5);
-    Thread.sleep(1000);
-    System.out.println(info.toString());
-    Assert.assertTrue(info.numChunks > 0);
-  }
-
-  @Test
   public void offMemTest() throws InterruptedException {
+    RssConf conf = new RssConf();
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE, 0.1, 1024 * 1024);
+      sortTimeout, CHUNK_SIZE,  1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
       fileWriter, 4, 5);
     Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
   }
-
 }

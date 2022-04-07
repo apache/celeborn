@@ -33,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
+import com.aliyun.emr.rss.common.RssConf.{diskBufferMaxRatio, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -70,17 +70,18 @@ private[deploy] class Worker(
   val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf),
-    partitionSortMaxMemoryRatio(conf))
+    partitionSortMaxMemoryRatio(conf),
+    diskBufferMaxRatio(conf))
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
-  workerSource.addGauge(WorkerSource.DirectMemory, _ => memoryTracker.getMaxDirectorMemory)
+  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
   workerSource.addGauge(WorkerSource.MemoryCriticalCount,
     _ => memoryTracker.getMemoryCriticalCounter)
   private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
     partitionSortTimeout(conf),
     RssConf.workerFetchChunkSize(conf),
-    RssConf.partitionSortMaxMemoryRatio(conf),
-    RssConf.memoryForSortLargeFile(conf))
+    RssConf.memoryReservedForSingleSort(conf),
+    workerSource)
 
   private val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
@@ -137,6 +138,9 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.TotalSlots, _ => workerInfo.numSlots)
   workerSource.addGauge(WorkerSource.SlotsUsed, _ => workerInfo.usedSlots())
   workerSource.addGauge(WorkerSource.SlotsAvailable, _ => workerInfo.freeSlots())
+  workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
+  workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
+  workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
 
   // Threads
   private val forwardMessageScheduler =

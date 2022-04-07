@@ -745,15 +745,19 @@ object RssConf extends Logging {
   }
 
   def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.5)
+    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
+  }
+
+  def diskBufferMaxRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.disk.buffer.max.ratio", 0.35)
   }
 
   def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {
     conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
   }
 
-  def memoryForSortLargeFile(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.reserveforLargeSortFile.memory", "1mb")
+  def memoryReservedForSingleSort(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.reserveForSingleSort.memory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {

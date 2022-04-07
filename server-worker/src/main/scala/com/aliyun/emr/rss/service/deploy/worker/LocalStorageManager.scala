@@ -34,6 +34,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
+import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -107,6 +108,7 @@ private[worker] final class DiskFlusher(
   }
 
   def returnBuffer(buffer: CompositeByteBuf): Unit = {
+    MemoryTracker.instance().releaseDiskBuffer(buffer.readableBytes())
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 

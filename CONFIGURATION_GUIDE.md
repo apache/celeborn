@@ -195,5 +195,6 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.partition.split.mode` | soft | String | sort, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold  |
 | `rss.client.split.pool.size` | 8 | int | Thread number to process shuffle split request in shuffle client. |
 | `rss.partition.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
-| `rss.partition.sort.memory.max.ratio` | 0.5 | double | Max ratio of sort memory |
-| `rss.worker.offheap.sort.reserve.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|
+| `rss.partition.sort.memory.max.ratio` | 0.1 | double | Max ratio of sort memory |
+| `rss.worker.reserveForSingleSort.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|
+| `rss.disk.buffer.max.ratio` | 0.35 | double | Max disk buffer size.|

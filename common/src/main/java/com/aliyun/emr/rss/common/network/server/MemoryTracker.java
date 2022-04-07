@@ -39,6 +39,7 @@ public class MemoryTracker {
 
   private long maxDirectorMemory = VM.maxDirectMemory();
   private long offheapMemoryCriticalThreshold = 0;
+  private long diskBufferThreshold = 0;
   private long maxSortMemory = 0;
   private List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
   private ScheduledExecutorService checkService = Executors
@@ -52,13 +53,14 @@ public class MemoryTracker {
       .setNameFormat("MemoryTracker-action-thread").build());
   private AtomicLong nettyMemoryCounter = null;
   private AtomicLong sortMemoryCounter = new AtomicLong(0);
+  private AtomicLong diskBufferCounter = new AtomicLong(0);
   private LongAdder memoryCriticalCounter = new LongAdder();
 
   public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
-    int reportInterval, double maxSortRatio) {
+    int reportInterval, double maxSortRatio, double maxDiskBufferRatio) {
     if (_INSTANCE == null) {
       _INSTANCE = new MemoryTracker(directMemoryCriticalRatio, checkInterval, reportInterval,
-        maxSortRatio);
+        maxSortRatio, maxDiskBufferRatio);
     }
     return _INSTANCE;
   }
@@ -74,13 +76,13 @@ public class MemoryTracker {
   }
 
   private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval,
-    double maxSortMemRatio) {
-    assert directMemoryCriticalRatio > 0 && directMemoryCriticalRatio < 1;
+    double maxSortMemRatio, double maxDiskBufferRatio) {
+
     offheapMemoryCriticalThreshold = (long) (maxDirectorMemory * directMemoryCriticalRatio);
-    assert offheapMemoryCriticalThreshold > 0;
+    diskBufferThreshold = (long) (maxDiskBufferRatio * maxDirectorMemory);
+    maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
 
     initDirectMemoryIndicator();
-    maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
@@ -129,7 +131,8 @@ public class MemoryTracker {
 
   public boolean directMemoryCritical() {
     boolean isCritical =
-      nettyMemoryCounter.get() + sortMemoryCounter.get() > offheapMemoryCriticalThreshold;
+      nettyMemoryCounter.get() + sortMemoryCounter.get() > offheapMemoryCriticalThreshold &&
+             diskBufferCounter.get() > diskBufferThreshold;
     if (isCritical) {
       memoryCriticalCounter.add(1);
     }
@@ -158,8 +161,24 @@ public class MemoryTracker {
     }
   }
 
-  public long getMaxDirectorMemory() {
-    return nettyMemoryCounter.get();
+  public void incrementDiskBuffer(int size) {
+    diskBufferCounter.addAndGet(size);
+  }
+
+  public void releaseDiskBuffer(int size) {
+    diskBufferCounter.addAndGet(size * -1);
+  }
+
+  public AtomicLong getNettyMemoryCounter() {
+    return nettyMemoryCounter;
+  }
+
+  public AtomicLong getSortMemoryCounter() {
+    return sortMemoryCounter;
+  }
+
+  public AtomicLong getDiskBufferCounter() {
+    return diskBufferCounter;
   }
 
   public long getMemoryCriticalCounter() {
