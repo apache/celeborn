@@ -117,26 +117,18 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     val resultWithOutRss = inputRdd.combineByKey((k: Int) => (k, 1),
       (acc: (Int, Int), v: Int) => (acc._1 + v, acc._2 + 1),
       (acc1: (Int, Int), acc2: (Int, Int)) => (acc1._1 + acc2._1, acc1._2 + acc2._2)).collectAsMap()
-
-    Thread.sleep(3000L)
-    sparkSession.stop()
     resultWithOutRss
   }
 
   def repartition(sparkSession: SparkSession): collection.Map[Char, Int] = {
     val inputRdd = sparkSession.sparkContext.parallelize(sampleSeq, 2)
     val result = inputRdd.repartition(8).reduceByKey((acc, v) => acc + v).collectAsMap()
-    Thread.sleep(3000L)
-    sparkSession.stop()
     result
   }
 
   def groupBy(sparkSession: SparkSession): collection.Map[Char, String] = {
     val inputRdd = sparkSession.sparkContext.parallelize(sampleSeq, 2)
     val result = inputRdd.groupByKey().sortByKey().collectAsMap()
-
-    Thread.sleep(3000L)
-    sparkSession.stop()
     result.map(k=>(k._1,k._2.toList.sorted.mkString(","))).toMap
   }
 
@@ -146,9 +138,6 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     df.createOrReplaceTempView("tmp")
     val result = sparkSession.sql("select fa,count(fb) from tmp group by fa order by fa")
     val outMap = result.collect().map(row => row.getString(0) -> row.getLong(1)).toMap
-
-    Thread.sleep(3000L)
-    sparkSession.stop()
     outMap
   }
 }
