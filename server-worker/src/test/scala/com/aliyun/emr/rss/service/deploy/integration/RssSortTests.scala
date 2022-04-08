@@ -19,25 +19,43 @@ package com.aliyun.emr.rss.service.deploy.integration
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 import com.aliyun.emr.rss.service.deploy.SparkTestBase
+import com.aliyun.emr.rss.service.deploy.integration.RssHashTests.{clearMiniCluster, logInfo, setupRssMiniCluster, tuple}
 
-class GroupHashTest extends SparkTestBase {
+class RssSortTests extends SparkTestBase {
+
   @Test
   def test(): Unit = {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    val resultWithoutRss = groupBy(sparkSession)
+    val combineResult = combine(sparkSession)
+    val groupbyResult = groupBy(sparkSession)
+    val repartitionResult = repartition(sparkSession)
+    val sqlResult = runsql(sparkSession)
 
-    val resultWithHashRss = groupBy(SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate())
+    Thread.sleep(3000L)
+    sparkSession.stop()
 
-    assert(resultWithoutRss.equals(resultWithHashRss))
+    val rssSparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, true)).getOrCreate()
+    val rssCombineResult = combine(rssSparkSession)
+    val rssGroupbyResult = groupBy(rssSparkSession)
+    val rssRepartitionResult = repartition(rssSparkSession)
+    val rssSqlResult = runsql(rssSparkSession)
+
+    assert(combineResult.equals(rssCombineResult))
+    assert(groupbyResult.equals(rssGroupbyResult))
+    assert(repartitionResult.equals(rssRepartitionResult))
+    assert(combineResult.equals(rssCombineResult))
+    assert(sqlResult.equals(rssSqlResult))
+
+    rssSparkSession.stop()
   }
 }
 
-object GroupHashTest extends SparkTestBase {
+object RssSortTests extends SparkTestBase {
   @BeforeClass
   def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
@@ -50,3 +68,5 @@ object GroupHashTest extends SparkTestBase {
     clearMiniCluster(tuple)
   }
 }
+
+
