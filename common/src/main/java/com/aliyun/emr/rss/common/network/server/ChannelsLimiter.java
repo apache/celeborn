@@ -17,69 +17,46 @@
 
 package com.aliyun.emr.rss.common.network.server;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
-public class GlobalChannelLimiter extends ChannelDuplexHandler
+public class ChannelsLimiter extends ChannelDuplexHandler
   implements MemoryTracker.MemoryTrackerListener {
-  private static final long DEFAULT_CHECK_INTERVAL = 10;
-  private static Logger logger = LoggerFactory.getLogger(GlobalChannelLimiter.class);
-  private ConcurrentSet<Channel> channels = new ConcurrentSet<>();
-  private ScheduledExecutorService checkExecutor = Executors.newSingleThreadScheduledExecutor(
-    new ThreadFactoryBuilder().setDaemon(true)
-    .setNameFormat("GlobalChannelLimiter-check-thread").build());
-  private MemoryTracker memoryTracker = MemoryTracker.instance();
-  private static GlobalChannelLimiter globalChannelLimiter = new GlobalChannelLimiter();
 
-  public static GlobalChannelLimiter globalChannelLimiter() {
-    return globalChannelLimiter;
-  }
+  private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
+  private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
+  private final MemoryTracker memoryTracker = MemoryTracker.instance();
+  private final String moduleName;
 
-  private GlobalChannelLimiter() {
-    checkExecutor.scheduleAtFixedRate(() -> {
-      if (channels.isEmpty()) {
-        return;
-      }
-      if (memoryTracker.directMemoryCritical()) {
-        pauseAllChannels();
-      } else {
-        resumeAllChannels();
-      }
-    }, DEFAULT_CHECK_INTERVAL, DEFAULT_CHECK_INTERVAL, TimeUnit.MILLISECONDS);
-
+  public ChannelsLimiter(String moduleName) {
+    this.moduleName = moduleName;
     memoryTracker.registerMemoryListener(this);
   }
 
   private void pauseAllChannels() {
-    channels.stream().forEach(c -> {
+    channels.forEach(c -> {
       if (c.config().isAutoRead()) {
-        if (logger.isDebugEnabled()) {
-          logger.debug("Worker memory level is critical," +
-                         " channel : {} stop receive data.", c);
-        }
         c.config().setAutoRead(false);
       }
     });
   }
 
+  private void trimCache(){
+    channels.forEach(c->c.pipeline().fireUserEventTriggered(new TrimCache()));
+  }
+
   private void resumeAllChannels() {
-    channels.stream().forEach(c -> {
+    channels.forEach(c -> {
       if (!c.config().isAutoRead()) {
-        if (logger.isDebugEnabled()) {
-          logger.debug("Worker memory level is normal," +
-                         " channel : {} start receive data.", c);
-        }
         c.config().setAutoRead(true);
       }
     });
@@ -101,8 +78,37 @@ public class GlobalChannelLimiter extends ChannelDuplexHandler
   }
 
   @Override
-  public void onMemoryCritical() {
-    logger.info("Channel limiter execute rate control action");
-    pauseAllChannels();
+  public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+    if (evt instanceof TrimCache) {
+      ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
+    }
+  }
+
+  @Override
+  public void onPause(String moduleName) {
+    if (this.moduleName.equals(moduleName)) {
+      logger.info(this.moduleName + "Channels pause read.");
+      pauseAllChannels();
+    }
+  }
+
+  @Override
+  public void onResume(String moduleName) {
+    if(moduleName.equalsIgnoreCase("all")){
+      logger.info(this.moduleName + "Channels resume read.");
+      resumeAllChannels();
+    }
+    if (this.moduleName.equals(moduleName)) {
+      logger.info(this.moduleName + "Channels resume read.");
+      resumeAllChannels();
+    }
+  }
+
+  @Override
+  public void onTrim() {
+    trimCache();
+  }
+
+  class TrimCache{
   }
 }

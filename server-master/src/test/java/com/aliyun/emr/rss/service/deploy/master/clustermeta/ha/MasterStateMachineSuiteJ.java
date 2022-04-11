@@ -49,9 +49,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     RequestSlotsRequest requestSlots = RequestSlotsRequest.newBuilder()
       .setShuffleKey("appId-1-1")
       .setHostName("hostname")
-            .addWorkerInfo(WorkerInfo.encodeToPbStr("host1", 1, 2, 3, 10))
-            .addWorkerInfo(WorkerInfo.encodeToPbStr("host2", 2, 3, 4, 10))
-            .addWorkerInfo(WorkerInfo.encodeToPbStr("host3", 3, 4, 5, 10))
+      .addWorkerInfo(WorkerInfo.encodeToPbStr("host1", 1, 2, 3, 10, 13))
+      .addWorkerInfo(WorkerInfo.encodeToPbStr("host2", 2, 3, 4, 11, 14))
+      .addWorkerInfo(WorkerInfo.encodeToPbStr("host3", 3, 4, 5, 12, 15))
       .build();
 
     ResourceRequest request = ResourceRequest.newBuilder()
@@ -153,9 +153,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null,null);
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
-    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 100, null);
-    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 100, null);
-    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 100, null);
+    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, 100, null);
+    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, 100, null);
+    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, 100, null);
 
     String host1 = "host1";
     String host2 = "host2";

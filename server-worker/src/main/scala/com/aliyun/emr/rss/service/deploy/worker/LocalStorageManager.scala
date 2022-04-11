@@ -20,7 +20,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, Executors, ExecutorService, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
@@ -28,6 +28,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
 
 import com.aliyun.emr.rss.common.RssConf
@@ -208,6 +209,8 @@ private[worker] final class LocalStorageManager(
     }
     flushers
   }
+  private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+    .setNameFormat("StorageManager-action-thread").build)
 
   deviceMonitor.startCheck()
 
@@ -516,9 +519,23 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  override def onMemoryCritical(): Unit = {
+  private def flushFileWriters(): Unit = {
     writers.entrySet().asScala.foreach(u =>
       u.getValue.asScala
         .foreach(f => f._2.flushOnMemoryPressure()))
+  }
+
+  override def onPause(moduleName: String): Unit = {
+  }
+
+  override def onResume(moduleName: String): Unit = {
+  }
+
+  override def onTrim(): Unit = {
+    actionService.submit(new Runnable {
+      override def run(): Unit = {
+        flushFileWriters()
+      }
+    })
   }
 }

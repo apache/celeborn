@@ -30,6 +30,7 @@ class WorkerInfo(
     val rpcPort: Int,
     val pushPort: Int,
     val fetchPort: Int,
+    val replicatePort: Int,
     var numSlots: Int,
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
 
@@ -39,8 +40,8 @@ class WorkerInfo(
   // key: shuffleKey   value: slots allocated for the shuffle
   lazy val shuffleSlots = new util.HashMap[String, Int]()
 
-  def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int) {
-    this(host, rpcPort, pushPort, fetchPort, -1, null)
+  def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
+    this(host, rpcPort, pushPort, fetchPort, replicatePort, -1, null)
   }
 
   def isActive: Boolean = {
@@ -95,9 +96,10 @@ class WorkerInfo(
     numSlots == other.numSlots &&
       slotsUsed == other.slotsUsed &&
       rpcPort == other.rpcPort &&
-      pushPort == pushPort &&
+      pushPort == other.pushPort &&
       host == other.host &&
-      fetchPort == other.fetchPort
+      fetchPort == other.fetchPort &&
+      replicatePort == other.replicatePort
   }
 
   def setupEndpoint(endpointRef: RpcEndpointRef): Unit = {
@@ -107,11 +109,12 @@ class WorkerInfo(
   }
 
   def readableAddress(): String = {
-    s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:FetchPort:$fetchPort"
+    s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
+      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort"
   }
 
   def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort"
+    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
   override def toString(): String = {
@@ -120,6 +123,7 @@ class WorkerInfo(
        |RpcPort: $rpcPort
        |PushPort: $pushPort
        |FetchPort: $fetchPort
+       |ReplicatePort: $replicatePort
        |TotalSlots: $numSlots
        |SlotsUsed: $slotsUsed
        |SlotsAvailable: ${numSlots - slotsUsed}
@@ -144,9 +148,9 @@ class WorkerInfo(
 object WorkerInfo {
   private val SPLIT: String = "-"
 
-  def encodeToPbStr(host: String, rpcPort: Int
-                    , pushPort: Int, fetchPort: Int, allocatedSize: Int): String = {
-    s"${host}$SPLIT$rpcPort$SPLIT$pushPort$SPLIT$fetchPort$SPLIT${allocatedSize}"
+  def encodeToPbStr(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int,
+    replicatePort: Int, allocatedSize: Int): String = {
+    s"$host$SPLIT$rpcPort$SPLIT$pushPort$SPLIT$fetchPort$SPLIT$replicatePort$SPLIT$allocatedSize"
   }
 
   def decodeFromPbMessage(pbStrList: util.List[String]): util.HashMap[WorkerInfo, Integer] = {
@@ -155,19 +159,19 @@ object WorkerInfo {
     pbStrList.asScala.foreach { str =>
       val splits = str.split(SPLIT)
       map.put(new WorkerInfo(splits(0), splits(1).toInt, splits(2).toInt,
-        splits(3).toInt, -1, null), splits(4).toInt)
+        splits(3).toInt, splits(4).toInt, -1, null), splits(5).toInt)
     }
     map
   }
 
   def fromUniqueId(id: String): WorkerInfo = {
-    val Array(host, rpcPort, pushPort, fetchPort) = id.split(":")
-    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
+    val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
+    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
   }
 
   def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
-    new WorkerInfo(pbWorker.getHost, pbWorker.getRpcPort,
-      pbWorker.getPushPort, pbWorker.getFetchPort, pbWorker.getNumSlots, null)
+    new WorkerInfo(pbWorker.getHost, pbWorker.getRpcPort, pbWorker.getPushPort,
+      pbWorker.getFetchPort, pbWorker.getReplicatePort, pbWorker.getNumSlots, null)
   }
 
   def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
@@ -176,6 +180,7 @@ object WorkerInfo {
       .setRpcPort(workerInfo.rpcPort)
       .setFetchPort(workerInfo.fetchPort)
       .setPushPort(workerInfo.pushPort)
+      .setReplicatePort(workerInfo.replicatePort)
       .setNumSlots(workerInfo.numSlots)
       .build()
   }

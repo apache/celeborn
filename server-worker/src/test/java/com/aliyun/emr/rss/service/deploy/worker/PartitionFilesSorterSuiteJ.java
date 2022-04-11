@@ -83,7 +83,7 @@ public class PartitionFilesSorterSuiteJ {
     originFileLen = channel.size();
     System.out.println(shuffleFile.getAbsolutePath() + " filelen " + originFileLen);
 
-    MemoryTracker.initialize(0.9, 10, 10, 0.6, 0.35);
+    MemoryTracker.initialize(0.8, 10, 10, 0.6, 0.9, 0.5, 10);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
@@ -99,7 +99,7 @@ public class PartitionFilesSorterSuiteJ {
   public void offMemTest() throws InterruptedException {
     RssConf conf = new RssConf();
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE,  1024 * 1024, new WorkerSource(conf));
+      sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
       fileWriter, 4, 5);
     Thread.sleep(1000);

@@ -113,6 +113,7 @@ public class MasterUtil {
             workers.get(nextSlaveInd).rpcPort(),
             workers.get(nextSlaveInd).pushPort(),
             workers.get(nextSlaveInd).fetchPort(),
+            workers.get(nextSlaveInd).replicatePort(),
             PartitionLocation.Mode.Slave
         );
       }
@@ -123,6 +124,7 @@ public class MasterUtil {
           workers.get(nextMasterInd).rpcPort(),
           workers.get(nextMasterInd).pushPort(),
           workers.get(nextMasterInd).fetchPort(),
+          workers.get(nextMasterInd).replicatePort(),
           PartitionLocation.Mode.Master,
           slaveLocation
       );

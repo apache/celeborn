@@ -43,14 +43,14 @@ class WorkerInfoSuite extends RssFunSuite {
   }
 
   test("Serialize/Deserialize WorkerInfo to String correctly.") {
-    val (h1, p1, p2, p3, a1) = ("h1", 1, 2, 3, 10)
-    val (h2, p4, p5, p6, a2) = ("h2", 4, 5, 6, 20)
-    val (h3, p7, p8, p9, a3) = ("h3", 7, 8, 9, 30)
+    val (h1, p1, p2, p3, a1, b1) = ("h1", 1, 2, 3, 10, 11)
+    val (h2, p4, p5, p6, a2, b2) = ("h2", 4, 5, 6, 20, 21)
+    val (h3, p7, p8, p9, a3, b3) = ("h3", 7, 8, 9, 30, 31)
 
     val pbList = new jArrayList[String](3)
-    pbList.add(WorkerInfo.encodeToPbStr(h1, p1, p2, p3, a1))
-    pbList.add(WorkerInfo.encodeToPbStr(h2, p4, p5, p6, a2))
-    pbList.add(WorkerInfo.encodeToPbStr(h3, p7, p8, p9, a3))
+    pbList.add(WorkerInfo.encodeToPbStr(h1, p1, p2, p3, a1, b1))
+    pbList.add(WorkerInfo.encodeToPbStr(h2, p4, p5, p6, a2, b2))
+    pbList.add(WorkerInfo.encodeToPbStr(h3, p7, p8, p9, a3, b3))
 
     val workerInfos = WorkerInfo.decodeFromPbMessage(pbList)
     assertEquals(
@@ -64,7 +64,7 @@ class WorkerInfoSuite extends RssFunSuite {
   private def check(
                      host: String, rpcPort: Int, pushPort: Int, fetchPort: Int
                      , allocateSize: Int, workerInfos: jMap[WorkerInfo, Integer]): Unit = {
-    val worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, -1, null)
+    val worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, -1 , -1, null)
     val realWorker = workerInfos.get(worker)
     assertNotNull(s"Worker $worker didn't exist.", realWorker)
     assertEquals(allocateSize, realWorker.intValue())
@@ -72,7 +72,7 @@ class WorkerInfoSuite extends RssFunSuite {
 
   test("multi-thread modify same WorkerInfo.") {
     val numSlots = 10000
-    val worker = new WorkerInfo("localhost", 10000, 10001, 10002, numSlots, null)
+    val worker = new WorkerInfo("localhost", 10000, 10001, 10002, -1 , numSlots, null)
 
     val allocatedSlots = new AtomicInteger(0)
     val shuffleKey = "appId-shuffleId"
@@ -136,32 +136,32 @@ class WorkerInfoSuite extends RssFunSuite {
   }
 
   test("WorkerInfo not equals when host different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null)
-    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, -1 , null)
+    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, -1 , null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when rpc port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null)
-    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, -1 , null)
+    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, -1 , null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when push port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null)
-    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, -1 , null)
+    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, -1 , null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when fetch port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, -1 , null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, -1 , null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo equals when numSlots different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, -1 , null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, -1 , null)
     assertEquals(worker1, worker2)
   }
 }

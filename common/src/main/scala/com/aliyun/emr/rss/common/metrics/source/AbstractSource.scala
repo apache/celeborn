@@ -22,7 +22,7 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-import com.codahale.metrics._
+import com.codahale.metrics.{Gauge, _}
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
@@ -62,6 +62,10 @@ abstract class AbstractSource(essConf: RssConf, role: String)
     val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
     val gauge = metricRegistry.gauge(name, supplier)
     namedGauges.add(NamedGauge(name, gauge))
+  }
+
+  def addGauge[T](name: String, guage: Gauge[T]): Unit = {
+    namedGauges.add(NamedGauge(name, guage))
   }
 
   protected val namedTimers =

@@ -34,9 +34,9 @@ public class MasterUtilSuiteJ {
 
   private List<WorkerInfo> prepareWorkers(int numSlots) {
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1", 9, 10, 110, numSlots, null));
-    workers.add(new WorkerInfo("host2", 9, 11, 111, numSlots, null));
-    workers.add(new WorkerInfo("host3", 9, 12, 112, numSlots, null));
+    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, numSlots, null));
+    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, numSlots, null));
+    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, numSlots, null));
     return workers;
   }
 

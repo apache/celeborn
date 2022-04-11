@@ -19,9 +19,7 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -40,6 +38,7 @@ import com.aliyun.emr.rss.common.rpc.RpcEndpointAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef;
+import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.AbstractMetaManager;
 
 public class RatisMasterStatusSystemSuiteJ {
@@ -51,7 +50,7 @@ public class RatisMasterStatusSystemSuiteJ {
   protected static HAMasterMetaManager STATUSSYSTEM3 = null;
 
   private static RpcEndpointRef dummyRef = new NettyRpcEndpointRef(new RssConf(),
-      RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
+    RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
 
   protected static RpcEnv mockRpcEnv = Mockito.mock(RpcEnv.class);
   protected static RpcEndpointRef mockRpcEndpoint = Mockito.mock(RpcEndpointRef.class);
@@ -61,7 +60,7 @@ public class RatisMasterStatusSystemSuiteJ {
   @BeforeClass
   public static void init() throws IOException, InterruptedException {
     Mockito.when(mockRpcEnv.setupEndpointRef(Mockito.any(), Mockito.any()))
-        .thenReturn(mockRpcEndpoint);
+      .thenReturn(mockRpcEndpoint);
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
 
     STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new RssConf());
@@ -97,16 +96,14 @@ public class RatisMasterStatusSystemSuiteJ {
     int ratisPort2 = 9873;
     int ratisPort3 = 9874;
 
-    ServerSocket s = new ServerSocket();
-    s.bind(new InetSocketAddress(InetAddress.getByName(null), 0), 1);
-    String localHost = ((InetSocketAddress) s.getLocalSocketAddress()).getHostName();
+    String localHost = Utils.localHostName();
 
     InetSocketAddress rpcAddress1 = new InetSocketAddress(
-        localHost, 9872);
+      localHost, 9872);
     InetSocketAddress rpcAddress2 = new InetSocketAddress(
-        localHost, 9873);
+      localHost, 9873);
     InetSocketAddress rpcAddress3 = new InetSocketAddress(
-        localHost, 9874);
+      localHost, 9874);
     NodeDetails nodeDetails1 = new NodeDetails.Builder()
         .setRpcAddress(rpcAddress1)
         .setRatisPort(ratisPort1)
@@ -154,7 +151,7 @@ public class RatisMasterStatusSystemSuiteJ {
     RATISSERVER2.start();
     RATISSERVER3.start();
 
-    Thread.sleep(15000L);
+    Thread.sleep(15 * 1000);
   }
 
   @Test
@@ -163,25 +160,28 @@ public class RatisMasterStatusSystemSuiteJ {
     if (RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader()) {
       hasLeader = true;
     }
-    assert hasLeader;
+    Assert.assertEquals(hasLeader, true);
   }
 
   private static String HOSTNAME1 = "host1";
   private static int RPCPORT1 = 1111;
   private static int PUSHPORT1 = 1112;
   private static int FETCHPORT1 = 1113;
+  private static int REPLICATEPORT1 = 1114;
   private static int NUMSLOTS1 = 10;
 
   private static String HOSTNAME2 = "host2";
   private static int RPCPORT2 = 2111;
   private static int PUSHPORT2 = 2112;
   private static int FETCHPORT2 = 2113;
+  private static int REPLICATEPORT2 = 2114;
   private static int NUMSLOTS2 = 10;
 
   private static String HOSTNAME3 = "host3";
   private static int RPCPORT3 = 3111;
   private static int PUSHPORT3 = 3112;
   private static int FETCHPORT3 = 3113;
+  private static int REPLICATEPORT3 = 3114;
   private static int NUMSLOTS3 = 10;
 
   private AtomicLong callerId = new AtomicLong();
@@ -191,7 +191,7 @@ public class RatisMasterStatusSystemSuiteJ {
 
   private String getNewReqeustId() {
     return RssHARetryClient.encodeRequestId(UUID.randomUUID().toString(),
-        callerId.incrementAndGet());
+      callerId.incrementAndGet());
   }
 
   public HAMasterMetaManager pickLeaderStatusSystem() {
@@ -210,91 +210,96 @@ public class RatisMasterStatusSystemSuiteJ {
   @Test
   public void testHandleRegisterWorker() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(STATUSSYSTEM1.workers.size(), 3);
-    assert STATUSSYSTEM1.workers.size() == 3;
-    assert STATUSSYSTEM2.workers.size() == 3;
-    assert STATUSSYSTEM3.workers.size() == 3;
+    Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
   }
 
   @Test
   public void testHandleWorkerLost() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
 
-    statusSystem.handleWorkerLost(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, getNewReqeustId());
+    statusSystem.handleWorkerLost(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.workers.size() == 2;
-    assert STATUSSYSTEM2.workers.size() == 2;
-    assert STATUSSYSTEM3.workers.size() == 2;
+    Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.workers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.workers.size());
   }
 
   @Test
   public void testHandleRequestSlots() {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, NUMSLOTS1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, NUMSLOTS2, dummyRef);
     WorkerInfo workerInfo3 = new WorkerInfo(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, dummyRef);
+      REPLICATEPORT3, NUMSLOTS3, dummyRef);
 
     Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
     workersToAllocate.put(workerInfo1, 5);
     workersToAllocate.put(workerInfo2, 5);
+    workersToAllocate.put(workerInfo3, 5);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assert (statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1)).findFirst()
-        .get().usedSlots() == 5);
-    assert (statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2)).findFirst()
-        .get().usedSlots() == 5);
-    assert (statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME3)).findFirst()
-        .get().usedSlots() == 0);
+    Assert.assertEquals(5,
+      statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1)).findFirst()
+        .get().usedSlots());
+    Assert.assertEquals(5,
+      statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2)).findFirst()
+        .get().usedSlots());
+    Assert.assertEquals(5,
+      statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME3)).findFirst()
+        .get().usedSlots());
   }
 
   @Test
   public void testHandleReleaseSlots() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert 3 == STATUSSYSTEM1.workers.size();
-    assert 3 == STATUSSYSTEM2.workers.size();
-    assert 3 == STATUSSYSTEM3.workers.size();
+    Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
 
     Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
@@ -306,7 +311,8 @@ public class RatisMasterStatusSystemSuiteJ {
     Thread.sleep(3000L);
 
     List<String> workerIds = new ArrayList<>();
-    workerIds.add(HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1);
+    workerIds.add(HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 +
+                    ":" + REPLICATEPORT1);
 
     List<Integer> workerSlots = new ArrayList<>();
     workerSlots.add(3);
@@ -314,31 +320,31 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert 2 == STATUSSYSTEM1.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
-        .findFirst().get().usedSlots();
-    assert 2 == STATUSSYSTEM2.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
-        .findFirst().get().usedSlots();
-    assert 2 == STATUSSYSTEM3.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
-        .findFirst().get().usedSlots();
+    Assert.assertEquals(2, STATUSSYSTEM1.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
+        .findFirst().get().usedSlots());
+    Assert.assertEquals(2, STATUSSYSTEM2.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
+         .findFirst().get().usedSlots());
+    Assert.assertEquals(2, STATUSSYSTEM3.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
+         .findFirst().get().usedSlots());
   }
 
   @Test
   public void testHandleAppLost() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
 
     Thread.sleep(3000L);
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, NUMSLOTS1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, NUMSLOTS2, dummyRef);
 
     Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
     workersToAllocate.put(workerInfo1, 5);
@@ -347,34 +353,34 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.registeredShuffle.size() == 1;
-    assert STATUSSYSTEM2.registeredShuffle.size() == 1;
-    assert STATUSSYSTEM3.registeredShuffle.size() == 1;
+    Assert.assertEquals(1, STATUSSYSTEM1.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.registeredShuffle.size());
 
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.registeredShuffle.isEmpty();
-    assert STATUSSYSTEM2.registeredShuffle.isEmpty();
-    assert STATUSSYSTEM3.registeredShuffle.isEmpty();
+    Assert.assertEquals(true, STATUSSYSTEM1.registeredShuffle.isEmpty());
+    Assert.assertEquals(true, STATUSSYSTEM2.registeredShuffle.isEmpty());
+    Assert.assertEquals(true, STATUSSYSTEM3.registeredShuffle.isEmpty());
   }
 
   @Test
   public void testHandleUnRegisterShuffle() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, NUMSLOTS1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, NUMSLOTS2, dummyRef);
 
     Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
     workersToAllocate.put(workerInfo1, 5);
@@ -383,80 +389,80 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.registeredShuffle.size() == 1;
-    assert STATUSSYSTEM2.registeredShuffle.size() == 1;
-    assert STATUSSYSTEM3.registeredShuffle.size() == 1;
+    Assert.assertEquals(1, STATUSSYSTEM1.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.registeredShuffle.size());
 
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.registeredShuffle.isEmpty();
-    assert STATUSSYSTEM2.registeredShuffle.isEmpty();
-    assert STATUSSYSTEM3.registeredShuffle.isEmpty();
+    Assert.assertEquals(true, STATUSSYSTEM1.registeredShuffle.isEmpty());
+    Assert.assertEquals(true, STATUSSYSTEM2.registeredShuffle.isEmpty());
+    Assert.assertEquals(true, STATUSSYSTEM3.registeredShuffle.isEmpty());
   }
 
   @Test
   public void testHandleAppHeartbeat() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
     long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
-    assert STATUSSYSTEM1.appHeartbeatTime.get(APPID1) == dummy;
-    assert STATUSSYSTEM2.appHeartbeatTime.get(APPID1) == dummy;
-    assert STATUSSYSTEM3.appHeartbeatTime.get(APPID1) == dummy;
+    Assert.assertEquals(new Long(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(new Long(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(new Long(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(appId2, dummy, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.appHeartbeatTime.get(appId2) == dummy;
-    assert STATUSSYSTEM2.appHeartbeatTime.get(appId2) == dummy;
-    assert STATUSSYSTEM3.appHeartbeatTime.get(appId2) == dummy;
+    Assert.assertEquals(new Long(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(new Long(dummy), STATUSSYSTEM2.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(new Long(dummy), STATUSSYSTEM3.appHeartbeatTime.get(appId2));
 
-    assert STATUSSYSTEM1.appHeartbeatTime.size() == 2;
-    assert STATUSSYSTEM2.appHeartbeatTime.size() == 2;
-    assert STATUSSYSTEM3.appHeartbeatTime.size() == 2;
+    Assert.assertEquals(2, STATUSSYSTEM1.appHeartbeatTime.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.appHeartbeatTime.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.appHeartbeatTime.size());
   }
 
   @Test
   public void testHandleWorkerHeartBeat() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
 
-    statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        0, 1, getNewReqeustId());
+    statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      0, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert STATUSSYSTEM1.blacklist.size() == 1;
-    assert STATUSSYSTEM2.blacklist.size() == 1;
-    assert STATUSSYSTEM3.blacklist.size() == 1;
+    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
 
-    statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        0, 1, getNewReqeustId());
+    statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      0, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert statusSystem.blacklist.size() == 2;
-    assert STATUSSYSTEM1.blacklist.size() == 2;
-    assert STATUSSYSTEM2.blacklist.size() == 2;
-    assert STATUSSYSTEM3.blacklist.size() == 2;
+    Assert.assertEquals(2, statusSystem.blacklist.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.blacklist.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.blacklist.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
 
-    statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        1, 1, getNewReqeustId());
+    statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      1, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    assert statusSystem.blacklist.size() == 1;
-    assert STATUSSYSTEM1.blacklist.size() == 1;
-    assert STATUSSYSTEM2.blacklist.size() == 1;
-    assert STATUSSYSTEM3.blacklist.size() == 1;
+    Assert.assertEquals(1, statusSystem.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
   }
 
   @Before
@@ -486,27 +492,27 @@ public class RatisMasterStatusSystemSuiteJ {
   @Test
   public void testHandleReportWorkerFailure() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    assert null != statusSystem;
+    Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, getNewReqeustId());
-    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-        NUMSLOTS3, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
+      NUMSLOTS1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
+      NUMSLOTS2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
+      NUMSLOTS3, getNewReqeustId());
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-        NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, NUMSLOTS1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-        NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, NUMSLOTS2, dummyRef);
 
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);
 
     statusSystem.handleReportWorkerFailure(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
-    assert 1 == STATUSSYSTEM1.blacklist.size();
-    assert 1 == STATUSSYSTEM2.blacklist.size();
-    assert 1 == STATUSSYSTEM3.blacklist.size();
+    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
   }
 }

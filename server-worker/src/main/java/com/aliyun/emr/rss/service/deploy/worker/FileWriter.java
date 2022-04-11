@@ -204,7 +204,7 @@ public final class FileWriter extends DeviceObserver {
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
       if (flushBuffer.readableBytes() != 0 &&
-            flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
+        flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
         takeBuffer();
       }

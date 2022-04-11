@@ -80,6 +80,7 @@ object WorkerSource {
   val SortMemory = "SortMemory"
   val SortingFiles = "SortingFiles"
   val DiskBuffer = "DiskBuffer"
-
-  val MemoryCriticalCount = "MemoryCriticalCount"
+  val ReplicateBuffer = "ReplicateBuffer"
+  val PauseFlowInCount = "PauseFlowIn"
+  val PauseFlowInAndReplicateCount = "PauseFlowInAndReplicate"
 }

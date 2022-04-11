@@ -33,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{diskBufferMaxRatio, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerOffheapMemoryCriticalRatio}
+import com.aliyun.emr.rss.common.RssConf.{memoryTrimActionThreshold, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerPauseFlowInRatio, workerPauseRepcaliteRatio, workerResumeFlowInRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -44,7 +44,7 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
-import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, FileInfo, MemoryTracker, TransportServerBootstrap}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -67,16 +67,17 @@ private[deploy] class Worker(
     source
   }
 
-  val memoryTracker = MemoryTracker.initialize(workerOffheapMemoryCriticalRatio(conf),
+  val memoryTracker = MemoryTracker.initialize(workerPauseFlowInRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf),
     partitionSortMaxMemoryRatio(conf),
-    diskBufferMaxRatio(conf))
+    workerPauseRepcaliteRatio(conf),
+    workerResumeFlowInRatio(conf),
+    memoryTrimActionThreshold(conf))
+
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
-  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.MemoryCriticalCount,
-    _ => memoryTracker.getMemoryCriticalCounter)
+
   private val partitionsSorter = new PartitionFilesSorter(memoryTracker,
     partitionSortTimeout(conf),
     RssConf.workerFetchChunkSize(conf),
@@ -88,12 +89,28 @@ private[deploy] class Worker(
     val numThreads = conf.getInt("rss.push.io.threads", localStorageManager.numDisks * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val rpcHandler = new PushDataRpcHandler(transportConf, this)
+    val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, rpcHandler, closeIdleConnections)
+      new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource,
+        pushServerLimiter)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
     val clientBootstraps = new jArrayList[TransportClientBootstrap]()
-    (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps,
-      true), transportContext.createClientFactory(clientBootstraps))
+    (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps),
+      transportContext.createClientFactory(clientBootstraps))
+  }
+
+  private val replicateServer = {
+    val closeIdleConnections = RssConf.closeIdleConnections(conf)
+    val numThreads = conf.getInt("rss.replicate.io.threads", localStorageManager.numDisks * 2)
+    val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE,
+      numThreads)
+    val rpcHandler = new PushDataRpcHandler(transportConf, this)
+    val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
+    val transportContext: TransportContext =
+      new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource,
+        replicateLimiter)
+    val serverBootstraps = new jArrayList[TransportServerBootstrap]()
+    transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps)
   }
 
   private val fetchServer = {
@@ -111,10 +128,12 @@ private[deploy] class Worker(
   private val rpcPort = rpcEnv.address.port
   private val pushPort = pushServer.getPort
   private val fetchPort = fetchServer.getPort
+  private val replicatePort = replicateServer.getPort
 
   Utils.checkHost(host)
   assert(pushPort > 0)
   assert(fetchPort > 0)
+  assert(replicatePort > 0)
 
   // whether this Worker registered to Master succesfully
   private val registered = new AtomicBoolean(false)
@@ -124,7 +143,7 @@ private[deploy] class Worker(
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
 
   // worker info
-  private val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort,
+  private val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
     RssConf.workerNumSlots(conf, localStorageManager.numDisks), self)
 
   private val partitionLocationInfo = new PartitionLocationInfo
@@ -141,6 +160,12 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
+  workerSource.addGauge(WorkerSource.ReplicateBuffer,
+    _ => memoryTracker.getReplicateBufferCounter.get())
+  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
+  workerSource.addGauge(WorkerSource.PauseFlowInCount, _ => memoryTracker.getPauseFlowInCounter)
+  workerSource.addGauge(WorkerSource.PauseFlowInAndReplicateCount,
+    _ => memoryTracker.getPauseFlowInAndReplicateCounter)
 
   // Threads
   private val forwardMessageScheduler =
@@ -171,13 +196,15 @@ private[deploy] class Worker(
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
     val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots, shuffleKeys)
+      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots,
+        shuffleKeys)
       , classOf[HeartbeatResponse])
     cleanTaskQueue.put(response.expiredShuffleKeys)
   }
 
   override def onStart(): Unit = {
-    logInfo(s"Starting Worker $host:$pushPort:$fetchPort with ${workerInfo.numSlots} slots.")
+    logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
+      s" with ${workerInfo.numSlots} slots.")
     registerWithMaster()
 
     // start heartbeat
@@ -226,7 +253,7 @@ private[deploy] class Worker(
     }
 
     rssHARetryClient.close()
-    pushServer.close()
+    replicateServer.close()
     fetchServer.close()
     logInfo("RSS Worker is stopped.")
   }
@@ -299,7 +326,7 @@ private[deploy] class Worker(
         logError(s"CreateWriter for $shuffleKey failed.", e)
     }
     if (masterPartitions.size() < masterLocations.size()) {
-      val msg = (s"Not all master partition satisfied for $shuffleKey")
+      val msg = s"Not all master partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
       masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
       context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
@@ -575,6 +602,7 @@ private[deploy] class Worker(
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.Master
+    val bodySize = pushData.body().size()
 
     val key = s"${pushData.requestId}"
     if (isMaster) {
@@ -594,6 +622,7 @@ private[deploy] class Worker(
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
+          memoryTracker.releaseReplicateBuffer(bodySize)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
@@ -611,6 +640,7 @@ private[deploy] class Worker(
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location")
         workerSource.incCounter(WorkerSource.PushDataFailCount)
+        memoryTracker.releaseReplicateBuffer(bodySize)
         callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage(), e))
       }
     }
@@ -662,24 +692,26 @@ private[deploy] class Worker(
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
           val peer = location.getPeer
-          val peerWorker = new WorkerInfo(peer.getHost,
-            peer.getRpcPort, peer.getPushPort, peer.getFetchPort, -1, null)
+          val peerWorker = new WorkerInfo(peer.getHost, peer.getRpcPort, peer.getPushPort,
+            peer.getFetchPort, peer.getReplicatePort, -1, null)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
             return
           }
           try {
-            val client = pushClientFactory.createClient(
-              peer.getHost, peer.getPushPort, location.getReduceId)
+            val client = pushClientFactory.createClient(peer.getHost, peer.getReplicatePort,
+              location.getReduceId)
             val newPushData = new PushData(
               PartitionLocation.Mode.Slave.mode(),
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
+            memoryTracker.increaseReplicateBuffer(bodySize)
             client.pushData(newPushData, wrappedCallback)
           } catch {
             case e: Exception =>
+              memoryTracker.releaseReplicateBuffer(bodySize)
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               wrappedCallback.onFailure(e)
@@ -713,6 +745,7 @@ private[deploy] class Worker(
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.Master
+    val bodySize = pushMergedData.body().size()
 
     val key = s"${pushMergedData.requestId}"
     if (isMaster) {
@@ -725,6 +758,7 @@ private[deploy] class Worker(
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
+          memoryTracker.releaseReplicateBuffer(bodySize)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
@@ -741,6 +775,7 @@ private[deploy] class Worker(
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
+        memoryTracker.releaseReplicateBuffer(bodySize)
         callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage, e))
       }
     }
@@ -795,7 +830,7 @@ private[deploy] class Worker(
           val location = locations.head
           val peer = location.getPeer
           val peerWorker = new WorkerInfo(peer.getHost,
-            peer.getRpcPort, peer.getPushPort, peer.getFetchPort, -1, null)
+            peer.getRpcPort, peer.getPushPort, peer.getFetchPort, peer.getReplicatePort, -1, null)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
@@ -803,16 +838,18 @@ private[deploy] class Worker(
           }
           try {
             val client = pushClientFactory.createClient(
-              peer.getHost, peer.getPushPort, location.getReduceId)
+              peer.getHost, peer.getReplicatePort, location.getReduceId)
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.Slave.mode(),
               shuffleKey,
               pushMergedData.partitionUniqueIds,
               batchOffsets,
               pushMergedData.body)
+            memoryTracker.increaseReplicateBuffer(bodySize)
             client.pushMergedData(newPushMergedData, wrappedCallback)
           } catch {
             case e: Exception =>
+              memoryTracker.releaseReplicateBuffer(bodySize)
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               wrappedCallback.onFailure(e)
@@ -879,7 +916,7 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp = try {
         rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, rpcPort, pushPort, fetchPort, workerInfo.numSlots),
+          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots),
           classOf[RegisterWorkerResponse]
         )
       } catch {

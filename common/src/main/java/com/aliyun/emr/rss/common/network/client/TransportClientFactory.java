@@ -26,7 +26,6 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.codahale.metrics.MetricSet;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -103,11 +102,7 @@ public class TransportClientFactory implements Closeable {
     this.pooledAllocator = NettyUtils.createPooledByteBufAllocator(
       conf.preferDirectBufs(), false /* allowCache */, conf.clientThreads());
     this.metrics = new NettyMemoryMetrics(
-      this.pooledAllocator, conf.getModuleName() + "-client", conf);
-  }
-
-  public MetricSet getAllMetrics() {
-    return metrics;
+      this.pooledAllocator, conf.getModuleName() + "-client", conf, null);
   }
 
   /**

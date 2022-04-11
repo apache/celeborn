@@ -24,13 +24,13 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 
 public interface IMetadataHandler {
   void handleRequestSlots(
-      String shuffleKey,
-      String hostName,
-      Map<WorkerInfo, Integer> workerToAllocatedSlots,
-      String requestId);
+    String shuffleKey,
+    String hostName,
+    Map<WorkerInfo, Integer> workerToAllocatedSlots,
+    String requestId);
 
   void handleReleaseSlots(
-          String shuffleKey, List<String> workerIds, List<Integer> slots, String requestId);
+    String shuffleKey, List<String> workerIds, List<Integer> slots, String requestId);
 
   void handleUnRegisterShuffle(String shuffleKey, String requestId);
 
@@ -38,13 +38,14 @@ public interface IMetadataHandler {
 
   void handleAppLost(String appId, String requestId);
 
-  void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort, String requestId);
+  void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort, int replicatePort,
+    String requestId);
 
-  void handleWorkerHeartBeat(String host, int rpcPort,
-           int pushPort, int fetchPort, int numSlots, long time, String requestId);
+  void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, int numSlots, long time, String requestId);
 
-  void handleRegisterWorker(
-      String host, int rpcPort, int pushPort, int fetchPort, int numSlots, String requestId);
+  void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, int numSlots, String requestId);
 
   void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);
 }

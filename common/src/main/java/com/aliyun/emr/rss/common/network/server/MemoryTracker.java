@@ -33,34 +33,53 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.VM;
 
+import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
+
 public class MemoryTracker {
-  private static Logger logger = LoggerFactory.getLogger(MemoryTracker.class);
+  private static final Logger logger = LoggerFactory.getLogger(MemoryTracker.class);
   private static volatile MemoryTracker _INSTANCE = null;
+  private final long maxDirectorMemory = VM.maxDirectMemory();
+  private long pauseFlowInThreshold;
+  private long pauseReplicateThreshold;
+  private long resumeFlowInThreshold;
+  private long maxSortMemory;
+  private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
-  private long maxDirectorMemory = VM.maxDirectMemory();
-  private long offheapMemoryCriticalThreshold = 0;
-  private long diskBufferThreshold = 0;
-  private long maxSortMemory = 0;
-  private List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
-  private ScheduledExecutorService checkService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
+  private final ScheduledExecutorService checkService = Executors
+    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
       .setNameFormat("MemoryTracker-check-thread").build());
-  private ScheduledExecutorService reportService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setDaemon(true)
+  private final ScheduledExecutorService reportService = Executors
+    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
       .setNameFormat("MemoryTracker-report-thread").build());
-  private ExecutorService actionService = Executors
-    .newFixedThreadPool(4, new ThreadFactoryBuilder().setDaemon(true)
+  private final ExecutorService actionService = Executors
+    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
       .setNameFormat("MemoryTracker-action-thread").build());
-  private AtomicLong nettyMemoryCounter = null;
-  private AtomicLong sortMemoryCounter = new AtomicLong(0);
-  private AtomicLong diskBufferCounter = new AtomicLong(0);
-  private LongAdder memoryCriticalCounter = new LongAdder();
 
-  public static MemoryTracker initialize(double directMemoryCriticalRatio, int checkInterval,
-    int reportInterval, double maxSortRatio, double maxDiskBufferRatio) {
+  private AtomicLong nettyMemoryCounter = null;
+  private final AtomicLong sortMemoryCounter = new AtomicLong(0);
+  private final AtomicLong diskBufferCounter = new AtomicLong(0);
+  private final AtomicLong replicateBufferCounter = new AtomicLong(0);
+  private final LongAdder pauseFlowInCounter = new LongAdder();
+  private final LongAdder pauseFlowInAndReplicateCounter = new LongAdder();
+  private MemoryTrackerAction memoryTrackerAction = MemoryTrackerAction.resume;
+  private int trimCount = 0;
+
+  public static MemoryTracker initialize(
+    double pauseFlowInRatio,
+    int checkInterval,
+    int reportInterval,
+    double maxSortRatio,
+    double pauseReplicateRatio,
+    double resumeFlowInRatio,
+    int trimActionThreshold) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryTracker(directMemoryCriticalRatio, checkInterval, reportInterval,
-        maxSortRatio, maxDiskBufferRatio);
+      _INSTANCE = new MemoryTracker(pauseReplicateRatio,
+        checkInterval,
+        reportInterval,
+        maxSortRatio,
+        pauseFlowInRatio,
+        resumeFlowInRatio,
+        trimActionThreshold);
     }
     return _INSTANCE;
   }
@@ -75,36 +94,85 @@ public class MemoryTracker {
     return _INSTANCE;
   }
 
-  private MemoryTracker(double directMemoryCriticalRatio, int checkInterval, int reportInterval,
-    double maxSortMemRatio, double maxDiskBufferRatio) {
-
-    offheapMemoryCriticalThreshold = (long) (maxDirectorMemory * directMemoryCriticalRatio);
-    diskBufferThreshold = (long) (maxDiskBufferRatio * maxDirectorMemory);
+  private MemoryTracker(
+    double pauseFlowInRatio,
+    int checkInterval,
+    int reportInterval,
+    double maxSortMemRatio,
+    double pauseReplicateRatio,
+    double resumeFlowInRatio,
+    int trimActionThreshold) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
+    pauseFlowInThreshold = (long) (maxDirectorMemory * pauseFlowInRatio);
+    pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
+    resumeFlowInThreshold = (long) (maxDirectorMemory * resumeFlowInRatio);
 
     initDirectMemoryIndicator();
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
-        if (directMemoryCritical()) {
-          logger.info("Trigger storage memory critical action");
-          actionService.submit(() -> memoryTrackerListeners
-            .forEach(MemoryTrackerListener::onMemoryCritical));
+        MemoryTrackerAction lastAction = memoryTrackerAction;
+        memoryTrackerAction = currentMemoryAction();
+        if (lastAction != memoryTrackerAction) {
+          if (memoryTrackerAction == MemoryTrackerAction.pauseFlowIn) {
+            pauseFlowInCounter.increment();
+            actionService.submit(() -> {
+              logger.info("Trigger pauseFlowIn action");
+              memoryTrackerListeners.forEach(memoryTrackerListener ->
+                memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
+              memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+              memoryTrackerListeners.forEach(memoryTrackerListener ->
+                memoryTrackerListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
+            });
+          } else if (memoryTrackerAction == MemoryTrackerAction.pauseFlowInAndReplicate) {
+            pauseFlowInAndReplicateCounter.increment();
+            actionService.submit(() -> {
+              logger.info("Trigger pauseReplicateAndFlowIn action");
+              memoryTrackerListeners.forEach(memoryTrackerListener ->
+                memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
+              memoryTrackerListeners.forEach(memoryTrackerListener ->
+                memoryTrackerListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
+              memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+            });
+          } else {
+            actionService.submit(() -> {
+              logger.info("Trigger resume action");
+              memoryTrackerListeners.forEach(memoryTrackerListener ->
+                memoryTrackerListener.onResume("all"));
+            });
+          }
+        } else {
+          if (memoryTrackerAction != MemoryTrackerAction.resume) {
+            if (trimCount++ % trimActionThreshold == 0) {
+              actionService.submit(() -> {
+                logger.info("Trigger trim action");
+                memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+              });
+              trimCount = 0;
+            }
+          }
         }
       } catch (Exception e) {
-        logger.error("Storage memory release on high pressure with error , detail : {}", e);
+        logger.error("Memory tracker check error", e);
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}",
-        toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory)), reportInterval,
-      reportInterval, TimeUnit.SECONDS);
+    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}," +
+        "disk buffer size:{}, sort memory size : {}, replicate buffer size : {}",
+        toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory),
+        toMb(diskBufferCounter.get()), toMb(sortMemoryCounter.get()),
+        toMb(replicateBufferCounter.get())),
+      reportInterval, reportInterval, TimeUnit.SECONDS);
 
     logger.info("Memory tracker initialized with :  " +
                   "\n max direct memory : {} ({} MB)" +
-                  "\n direct memory critical : {} ({} MB)",
+                  "\n pause flowin memory : {} ({} MB)" +
+                  "\n pause replication memory : {} ({} MB)" +
+                  "\n resume flowin memory : {} ({} MB)",
       maxDirectorMemory, toMb(maxDirectorMemory),
-      offheapMemoryCriticalThreshold, toMb(offheapMemoryCriticalThreshold));
+      pauseFlowInThreshold, toMb(pauseFlowInThreshold),
+      pauseReplicateThreshold, toMb(pauseReplicateThreshold),
+      resumeFlowInThreshold, toMb(resumeFlowInThreshold));
   }
 
   private double toMb(long bytes) {
@@ -123,24 +191,39 @@ public class MemoryTracker {
       field.setAccessible(true);
       nettyMemoryCounter = ((AtomicLong) field.get(PlatformDependent.class));
     } catch (Exception e) {
-      logger.error("Fatal error, get netty_direct_memory failed, worker should stop, detail : {}",
-        e);
+      logger.error("Fatal error, get netty_direct_memory failed, worker should stop", e);
       System.exit(-1);
     }
   }
 
-  public boolean directMemoryCritical() {
-    boolean isCritical =
-      nettyMemoryCounter.get() + sortMemoryCounter.get() > offheapMemoryCriticalThreshold &&
-             diskBufferCounter.get() > diskBufferThreshold;
-    if (isCritical) {
-      memoryCriticalCounter.add(1);
+  public MemoryTrackerAction currentMemoryAction() {
+    boolean pauseFlowIn =
+      nettyMemoryCounter.get() + sortMemoryCounter.get() > pauseFlowInThreshold;
+    boolean pauseReplication =
+      nettyMemoryCounter.get() + sortMemoryCounter.get() > pauseReplicateThreshold;
+    if (pauseFlowIn) {
+      if (pauseReplication) {
+        return MemoryTrackerAction.pauseFlowInAndReplicate;
+      } else {
+        return MemoryTrackerAction.pauseFlowIn;
+      }
+    } else {
+      boolean resumeFlowIn =
+        nettyMemoryCounter.get() + sortMemoryCounter.get() < resumeFlowInThreshold;
+      if (resumeFlowIn) {
+        return MemoryTrackerAction.resume;
+      } else {
+        return MemoryTrackerAction.pauseFlowIn;
+      }
     }
-    return isCritical;
   }
 
   public interface MemoryTrackerListener {
-    void onMemoryCritical();
+    void onPause(String moduleName);
+
+    void onResume(String moduleName);
+
+    void onTrim();
   }
 
   public void reserveSortMemory(long fileLen) {
@@ -148,7 +231,8 @@ public class MemoryTracker {
   }
 
   public boolean sortMemoryReady() {
-    return !directMemoryCritical() && sortMemoryCounter.get() < maxSortMemory;
+    return (currentMemoryAction().equals(MemoryTrackerAction.resume)) &&
+             sortMemoryCounter.get() < maxSortMemory;
   }
 
   public void releaseSortMemory(long size) {
@@ -181,7 +265,27 @@ public class MemoryTracker {
     return diskBufferCounter;
   }
 
-  public long getMemoryCriticalCounter() {
-    return memoryCriticalCounter.sum();
+  public long getPauseFlowInCounter() {
+    return pauseFlowInCounter.sum();
+  }
+
+  public long getPauseFlowInAndReplicateCounter(){
+    return pauseFlowInAndReplicateCounter.sum();
+  }
+
+  public AtomicLong getReplicateBufferCounter() {
+    return replicateBufferCounter;
+  }
+
+  public void increaseReplicateBuffer(long size) {
+    replicateBufferCounter.addAndGet(size);
+  }
+
+  public void releaseReplicateBuffer(long size) {
+    replicateBufferCounter.addAndGet(-1 * size);
+  }
+
+  enum MemoryTrackerAction {
+    resume, pauseFlowInAndReplicate, pauseFlowIn
   }
 }

@@ -65,7 +65,8 @@ message PbPartitionLocation {
   int32 rpcPort = 5;
   int32 pushPort = 6;
   int32 fetchPort = 7;
-  PbPartitionLocation peer = 8;
+  int32 replicatePort = 8;
+  PbPartitionLocation peer = 9;
 }
 
 message PbWorkerResource {
@@ -78,7 +79,8 @@ message PbWorkerInfo {
   int32 rpcPort = 2;
   int32 pushPort = 3;
   int32 fetchPort = 4;
-  int32 numSlots = 5;
+  int32 replicatePort = 5;
+  int32 numSlots = 6;
 }
 
 message PbFileGroup {
@@ -90,7 +92,8 @@ message PbRegisterWorker {
   int32 rpcPort = 2;
   int32 pushPort = 3;
   int32 fetchPort = 4;
-  int32 numSlots = 5;
+  int32 replicatePort = 5;
+  int32 numSlots = 6;
   string requestId = 9;
 }
 
@@ -99,9 +102,10 @@ message PbHeartbeatFromWorker {
   int32 rpcPort = 2;
   int32 pushPort = 3;
   int32 fetchPort = 4;
-  int32 numSlots = 5;
-  repeated string shuffleKeys = 8;
-  string requestId = 9;
+  int32 replicatePort = 5;
+  int32 numSlots = 6;
+  repeated string shuffleKeys = 7;
+  string requestId = 8;
 }
 
 message PbHeartbeatResponse {
@@ -310,7 +314,8 @@ message PbWorkerLost {
   int32 rpcPort = 2;
   int32 pushPort = 3;
   int32 fetchPort = 4;
-  string requestId = 5;
+  int32 replicatePort = 5;
+  string requestId = 6;
 }
 
 message PbWorkerLostResponse {

@@ -22,7 +22,6 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.codahale.metrics.MetricSet;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.netty.bootstrap.ServerBootstrap;
@@ -54,9 +53,8 @@ public class TransportServer implements Closeable {
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
   private int port = -1;
-  private NettyMemoryMetrics metrics;
-  private boolean limiterEnabled = false;
-  private AbstractSource source = null;
+  private NettyMemoryMetrics nettyMetric;
+  private AbstractSource source;
 
   public TransportServer(
     TransportContext context,
@@ -65,30 +63,11 @@ public class TransportServer implements Closeable {
     RpcHandler appRpcHandler,
     List<TransportServerBootstrap> bootstraps,
     AbstractSource source) {
-    this(context, hostToBind, portToBind, appRpcHandler, bootstraps, false);
-    this.source = source;
-  }
-  /**
-   * Creates a TransportServer that binds to the given host and the given port, or to any available
-   * if 0. If you don't want to bind to any special host, set "hostToBind" to null.
-   * */
-  public TransportServer(
-      TransportContext context,
-      String hostToBind,
-      int portToBind,
-      RpcHandler appRpcHandler,
-      List<TransportServerBootstrap> bootstraps) {
-    this(context, hostToBind, portToBind, appRpcHandler, bootstraps, false);
-  }
-
-  public TransportServer(TransportContext context, String hostToBind,
-    int portToBind, RpcHandler appRpcHandler, List<TransportServerBootstrap> bootstraps,
-    boolean limiterEnabled) {
-    this.limiterEnabled = limiterEnabled;
     this.context = context;
     this.conf = context.getConf();
     this.appRpcHandler = appRpcHandler;
     this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
+    this.source = source;
 
     boolean shouldClose = true;
     try {
@@ -99,6 +78,19 @@ public class TransportServer implements Closeable {
         JavaUtils.closeQuietly(this);
       }
     }
+  }
+
+  /**
+   * Creates a TransportServer that binds to the given host and the given port, or to any available
+   * if 0. If you don't want to bind to any special host, set "hostToBind" to null.
+   * */
+  public TransportServer(
+      TransportContext context,
+      String hostToBind,
+      int portToBind,
+      RpcHandler appRpcHandler,
+      List<TransportServerBootstrap> bootstraps) {
+    this(context, hostToBind, portToBind, appRpcHandler, bootstraps, null);
   }
 
   public int getPort() {
@@ -128,8 +120,8 @@ public class TransportServer implements Closeable {
       .childOption(ChannelOption.SO_KEEPALIVE, true)
       .childOption(ChannelOption.ALLOCATOR, allocator);
 
-    this.metrics = new NettyMemoryMetrics(
-      allocator, conf.getModuleName() + "-server", conf);
+    this.nettyMetric = new NettyMemoryMetrics(
+      allocator, conf.getModuleName() + "-server", conf, source);
 
     if (conf.backLog() > 0) {
       bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());
@@ -162,13 +154,13 @@ public class TransportServer implements Closeable {
         for (TransportServerBootstrap bootstrap : bootstraps) {
           rpcHandler = bootstrap.doBootstrap(ch, rpcHandler);
         }
-        context.initializePipeline(ch, rpcHandler, limiterEnabled);
+        context.initializePipeline(ch, rpcHandler);
       }
     });
   }
 
-  public MetricSet getAllMetrics() {
-    return metrics;
+  public NettyMemoryMetrics getNettyMetric() {
+    return nettyMetric;
   }
 
   @Override

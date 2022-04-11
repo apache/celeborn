@@ -24,8 +24,8 @@ public class MetaUtil {
   }
 
   public static WorkerInfo addrToInfo(ResourceProtos.WorkerAddress address) {
-    return new WorkerInfo(address.getHost(),
-      address.getRpcPort(), address.getPushPort(), address.getFetchPort());
+    return new WorkerInfo(address.getHost(), address.getRpcPort(), address.getPushPort(),
+      address.getFetchPort(), address.getReplicatePort());
   }
 
   public static ResourceProtos.WorkerAddress infoToAddr(WorkerInfo info) {
@@ -34,6 +34,7 @@ public class MetaUtil {
       .setRpcPort(info.rpcPort())
       .setPushPort(info.pushPort())
       .setFetchPort(info.fetchPort())
+      .setReplicatePort(info.replicatePort())
       .build();
   }
 }
