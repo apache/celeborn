@@ -250,10 +250,10 @@ public class PartitionFilesSorter {
       if (blockInfos != null) {
         for (ShuffleBlockInfo info : blockInfos) {
           if (sortedChunkOffset.size() == 0) {
-            sortedChunkOffset.add( info.offset);
+            sortedChunkOffset.add(info.offset);
           }
           if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1) > fetchChunkSize) {
-            sortedChunkOffset.add( info.offset);
+            sortedChunkOffset.add(info.offset);
           }
           lastBlock = info;
         }
