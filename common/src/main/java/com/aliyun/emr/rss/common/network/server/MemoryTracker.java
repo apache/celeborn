@@ -209,8 +209,7 @@ public class MemoryTracker {
         return MemoryTrackerStat.pausePushDataAndResumeReplicate;
       }
     } else {
-      boolean resumeFlowIn =
-        nettyMemoryCounter.get() + sortMemoryCounter.get() < resumeFlowInThreshold;
+      boolean resumeFlowIn = memoryUsage < resumeFlowInThreshold;
       if (resumeFlowIn) {
         underPressure = false;
         return MemoryTrackerStat.resumeAll;
