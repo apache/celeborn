@@ -889,8 +889,6 @@ private[deploy] class Worker(
 
   override def handleOpenStream(shuffleKey: String, fileName: String, startMapIndex: Int,
     endMapIndex: Int): FileInfo = {
-    logInfo(s"Open file $fileName for $shuffleKey with" +
-      s" startMapIndex ${startMapIndex} endMapIndex ${endMapIndex}")
     // find FileWriter responsible for the data
     val fileWriter = localStorageManager.getWriter(shuffleKey, fileName)
     if (fileWriter eq null) {

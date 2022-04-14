@@ -102,8 +102,6 @@ public class PartitionFilesSorter {
     if (endMapIndex == Integer.MAX_VALUE) {
       return new FileInfo(fileWriter.getFile(), fileWriter.getChunkOffsets());
     } else {
-      logger.info("read shuffle {} file {} startMapIndex {} endMapIndex {}", shuffleKey,
-        fileWriter.getFile().getAbsolutePath(), startMapIndex, endMapIndex);
       String fileId = shuffleKey + "-" + fileName;
 
       Set<String> sorted =
