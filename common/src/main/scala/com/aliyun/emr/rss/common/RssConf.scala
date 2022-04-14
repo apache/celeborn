@@ -752,16 +752,16 @@ object RssConf extends Logging {
     conf.getInt("rss.memory.trim.action.threshold", 10)
   }
 
-  def workerPauseFlowInRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.worker.offheap.memory.pause.flow.ratio", 0.8)
+  def workerPausePushDataRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.pause.pushdata.memory.ratio", 0.85)
   }
 
   def workerPauseRepcaliteRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.worker.offheap.memory.pause.replicate.ratio", 0.9)
+    conf.getDouble("rss.pause.replicate.memory.ratio", 0.95)
   }
 
   def workerResumeFlowInRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.worker.offheap.memory.resume.replicate.ratio", 0.5)
+    conf.getDouble("rss.resume.flowin.memory.ratio", 0.5)
   }
 
   def memoryReservedForSingleSort(conf: RssConf): Long = {

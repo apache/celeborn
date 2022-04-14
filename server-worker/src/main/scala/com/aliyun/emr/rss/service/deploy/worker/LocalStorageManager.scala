@@ -20,7 +20,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, Executors, ExecutorService, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 

@@ -40,6 +40,7 @@ class WorkerSource(essConf: RssConf)
   addTimer(FetchChunkTime)
   addTimer(OpenStreamTime)
   addTimer(TakeBufferTime)
+  addTimer(SortTime)
 
   // start cleaner thread
   startCleaner()

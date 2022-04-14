@@ -39,10 +39,10 @@ public class MemoryTracker {
   private static final Logger logger = LoggerFactory.getLogger(MemoryTracker.class);
   private static volatile MemoryTracker _INSTANCE = null;
   private final long maxDirectorMemory = VM.maxDirectMemory();
-  private long pauseFlowInThreshold;
-  private long pauseReplicateThreshold;
-  private long resumeFlowInThreshold;
-  private long maxSortMemory;
+  private final long pausePushDataThreshold;
+  private final long pauseReplicateThreshold;
+  private final long resumeFlowInThreshold;
+  private final long maxSortMemory;
   private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService = Executors
@@ -61,11 +61,12 @@ public class MemoryTracker {
   private final AtomicLong replicateBufferCounter = new AtomicLong(0);
   private final LongAdder pauseFlowInCounter = new LongAdder();
   private final LongAdder pauseFlowInAndReplicateCounter = new LongAdder();
-  private MemoryTrackerAction memoryTrackerAction = MemoryTrackerAction.resume;
+  private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
+  private boolean underPressure;
   private int trimCount = 0;
 
   public static MemoryTracker initialize(
-    double pauseFlowInRatio,
+    double pausePushData,
     int checkInterval,
     int reportInterval,
     double maxSortRatio,
@@ -77,7 +78,7 @@ public class MemoryTracker {
         checkInterval,
         reportInterval,
         maxSortRatio,
-        pauseFlowInRatio,
+        pausePushData,
         resumeFlowInRatio,
         trimActionThreshold);
     }
@@ -103,7 +104,7 @@ public class MemoryTracker {
     double resumeFlowInRatio,
     int trimActionThreshold) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
-    pauseFlowInThreshold = (long) (maxDirectorMemory * pauseFlowInRatio);
+    pausePushDataThreshold = (long) (maxDirectorMemory * pauseFlowInRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
     resumeFlowInThreshold = (long) (maxDirectorMemory * resumeFlowInRatio);
 
@@ -111,10 +112,10 @@ public class MemoryTracker {
 
     checkService.scheduleWithFixedDelay(() -> {
       try {
-        MemoryTrackerAction lastAction = memoryTrackerAction;
-        memoryTrackerAction = currentMemoryAction();
-        if (lastAction != memoryTrackerAction) {
-          if (memoryTrackerAction == MemoryTrackerAction.pauseFlowIn) {
+        MemoryTrackerStat lastAction = memoryTrackerStat;
+        memoryTrackerStat = currentMemoryAction();
+        if (lastAction != memoryTrackerStat) {
+          if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndResumeReplicate) {
             pauseFlowInCounter.increment();
             actionService.submit(() -> {
               logger.info("Trigger pauseFlowIn action");
@@ -124,7 +125,7 @@ public class MemoryTracker {
               memoryTrackerListeners.forEach(memoryTrackerListener ->
                 memoryTrackerListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
             });
-          } else if (memoryTrackerAction == MemoryTrackerAction.pauseFlowInAndReplicate) {
+          } else if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndReplicate) {
             pauseFlowInAndReplicateCounter.increment();
             actionService.submit(() -> {
               logger.info("Trigger pauseReplicateAndFlowIn action");
@@ -142,7 +143,7 @@ public class MemoryTracker {
             });
           }
         } else {
-          if (memoryTrackerAction != MemoryTrackerAction.resume) {
+          if (memoryTrackerStat != MemoryTrackerStat.resumeAll) {
             if (trimCount++ % trimActionThreshold == 0) {
               actionService.submit(() -> {
                 logger.info("Trigger trim action");
@@ -170,7 +171,7 @@ public class MemoryTracker {
                   "\n pause replication memory : {} ({} MB)" +
                   "\n resume flowin memory : {} ({} MB)",
       maxDirectorMemory, toMb(maxDirectorMemory),
-      pauseFlowInThreshold, toMb(pauseFlowInThreshold),
+      pausePushDataThreshold, toMb(pausePushDataThreshold),
       pauseReplicateThreshold, toMb(pauseReplicateThreshold),
       resumeFlowInThreshold, toMb(resumeFlowInThreshold));
   }
@@ -196,24 +197,29 @@ public class MemoryTracker {
     }
   }
 
-  public MemoryTrackerAction currentMemoryAction() {
-    boolean pauseFlowIn =
-      nettyMemoryCounter.get() + sortMemoryCounter.get() > pauseFlowInThreshold;
-    boolean pauseReplication =
-      nettyMemoryCounter.get() + sortMemoryCounter.get() > pauseReplicateThreshold;
+  public MemoryTrackerStat currentMemoryAction() {
+    long memoryUsage =  nettyMemoryCounter.get() + sortMemoryCounter.get();
+    boolean pauseFlowIn = memoryUsage > pausePushDataThreshold;
+    boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
     if (pauseFlowIn) {
+      underPressure = true;
       if (pauseReplication) {
-        return MemoryTrackerAction.pauseFlowInAndReplicate;
+        return MemoryTrackerStat.pausePushDataAndReplicate;
       } else {
-        return MemoryTrackerAction.pauseFlowIn;
+        return MemoryTrackerStat.pausePushDataAndResumeReplicate;
       }
     } else {
       boolean resumeFlowIn =
         nettyMemoryCounter.get() + sortMemoryCounter.get() < resumeFlowInThreshold;
       if (resumeFlowIn) {
-        return MemoryTrackerAction.resume;
+        underPressure = false;
+        return MemoryTrackerStat.resumeAll;
       } else {
-        return MemoryTrackerAction.pauseFlowIn;
+        if (underPressure) {
+          return MemoryTrackerStat.pausePushDataAndResumeReplicate;
+        } else {
+          return MemoryTrackerStat.resumeAll;
+        }
       }
     }
   }
@@ -231,7 +237,7 @@ public class MemoryTracker {
   }
 
   public boolean sortMemoryReady() {
-    return (currentMemoryAction().equals(MemoryTrackerAction.resume)) &&
+    return (currentMemoryAction().equals(MemoryTrackerStat.resumeAll)) &&
              sortMemoryCounter.get() < maxSortMemory;
   }
 
@@ -285,7 +291,7 @@ public class MemoryTracker {
     replicateBufferCounter.addAndGet(-1 * size);
   }
 
-  enum MemoryTrackerAction {
-    resume, pauseFlowInAndReplicate, pauseFlowIn
+  enum MemoryTrackerStat {
+    resumeAll, pausePushDataAndReplicate, pausePushDataAndResumeReplicate
   }
 }

@@ -33,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{memoryTrimActionThreshold, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerPauseFlowInRatio, workerPauseRepcaliteRatio, workerResumeFlowInRatio}
+import com.aliyun.emr.rss.common.RssConf.{memoryTrimActionThreshold, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerPausePushDataRatio, workerPauseRepcaliteRatio, workerResumeFlowInRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -67,7 +67,8 @@ private[deploy] class Worker(
     source
   }
 
-  val memoryTracker = MemoryTracker.initialize(workerPauseFlowInRatio(conf),
+  val memoryTracker = MemoryTracker.initialize(
+    workerPausePushDataRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf),
     partitionSortMaxMemoryRatio(conf),

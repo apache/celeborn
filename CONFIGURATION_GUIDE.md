@@ -197,10 +197,10 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.partition.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
 | `rss.memory.trim.action.threshold` | 10 | int |  |
 | `rss.partition.sort.memory.max.ratio` | 0.1 | double | Max ratio of sort memory |
-| `rss.worker.offheap.memory.pause.flow.ratio` | 0.8 | double | If direct memory usage reach 
+| `rss.pause.pushdata.memory.ratio` | 0.85 | double | If direct memory usage reach 
 this limit, worker will stop receive from executor |
-| `rss.worker.offheap.memory.pause.replicate.ratio` | 0.9 | double |  If direct memory usage reach
+| `rss.pause.replicate.memory.ratio` | 0.95 | double |  If direct memory usage reach
 this limit, worker will stop receive from executor and other worker |
-| `rss.worker.offheap.memory.resume.replicate.ratio` | 0.5 | double |  If direct memory usage reach
-is less than limit, worker will resume receive|
+| `rss.resume.flowin.memory.ratio` | 0.5 | double |  If direct memory usage is less than this 
+limit, worker will resume receive|
 | `rss.worker.reserveForSingleSort.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|

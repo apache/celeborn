@@ -22,7 +22,7 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-import com.codahale.metrics.{Gauge, _}
+import com.codahale.metrics._
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging

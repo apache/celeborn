@@ -34,11 +34,11 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
-  private final MemoryTracker memoryTracker = MemoryTracker.instance();
   private final String moduleName;
 
   public ChannelsLimiter(String moduleName) {
     this.moduleName = moduleName;
+    MemoryTracker memoryTracker = MemoryTracker.instance();
     memoryTracker.registerMemoryListener(this);
   }
 
@@ -94,7 +94,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   @Override
   public void onResume(String moduleName) {
-    if(moduleName.equalsIgnoreCase("all")){
+    if (moduleName.equalsIgnoreCase("all")) {
       logger.info(this.moduleName + "Channels resume read.");
       resumeAllChannels();
     }

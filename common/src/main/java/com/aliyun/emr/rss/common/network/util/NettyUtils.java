@@ -112,7 +112,8 @@ public class NettyUtils {
       allowDirectBufs && PlatformDependent.directBufferPreferred(),
       Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
       Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
-      PooledByteBufAllocator.defaultPageSize(), PooledByteBufAllocator.defaultMaxOrder(),
+      PooledByteBufAllocator.defaultPageSize(),
+      PooledByteBufAllocator.defaultMaxOrder(),
       allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
       allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
       allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false
