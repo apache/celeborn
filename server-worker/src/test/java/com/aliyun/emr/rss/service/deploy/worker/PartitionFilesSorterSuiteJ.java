@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Random;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
@@ -111,6 +112,7 @@ public class PartitionFilesSorterSuiteJ {
   }
 
   @Test
+  @Ignore
   public void testLargeFile() throws InterruptedException, IOException {
     prepare(true);
     RssConf conf = new RssConf();
@@ -118,7 +120,7 @@ public class PartitionFilesSorterSuiteJ {
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
       fileWriter, 5, 10);
-    Thread.sleep(1000);
+    Thread.sleep(30000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
     clean();
