@@ -58,7 +58,6 @@ public class MemoryTracker {
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
-  private final AtomicLong replicateBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
@@ -160,10 +159,9 @@ public class MemoryTracker {
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
     reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}," +
-        "disk buffer size:{}, sort memory size : {}, replicate buffer size : {}",
+        "disk buffer size:{}, sort memory size : {}",
         toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory),
-        toMb(diskBufferCounter.get()), toMb(sortMemoryCounter.get()),
-        toMb(replicateBufferCounter.get())),
+        toMb(diskBufferCounter.get()), toMb(sortMemoryCounter.get())),
       reportInterval, reportInterval, TimeUnit.SECONDS);
 
     logger.info("Memory tracker initialized with :  " +
@@ -277,18 +275,6 @@ public class MemoryTracker {
 
   public long getPausePushDataAndReplicateCounter(){
     return pausePushDataAndReplicateCounter.sum();
-  }
-
-  public AtomicLong getReplicateBufferCounter() {
-    return replicateBufferCounter;
-  }
-
-  public void increaseReplicateBuffer(long size) {
-    replicateBufferCounter.addAndGet(size);
-  }
-
-  public void releaseReplicateBuffer(long size) {
-    replicateBufferCounter.addAndGet(-1 * size);
   }
 
   enum MemoryTrackerStat {

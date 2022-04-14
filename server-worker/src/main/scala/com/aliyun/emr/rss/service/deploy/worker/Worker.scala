@@ -161,8 +161,6 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
-  workerSource.addGauge(WorkerSource.ReplicateBuffer,
-    _ => memoryTracker.getReplicateBufferCounter.get())
   workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
   workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryTracker.getPausePushDataCounter)
   workerSource.addGauge(WorkerSource.PausePushDataAndReplicateCount,
@@ -706,12 +704,9 @@ private[deploy] class Worker(
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
-            memoryTracker.increaseReplicateBuffer(bodySize)
             client.pushData(newPushData, wrappedCallback)
-            memoryTracker.releaseReplicateBuffer(bodySize)
           } catch {
             case e: Exception =>
-              memoryTracker.releaseReplicateBuffer(bodySize)
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               wrappedCallback.onFailure(e)
@@ -843,12 +838,9 @@ private[deploy] class Worker(
               pushMergedData.partitionUniqueIds,
               batchOffsets,
               pushMergedData.body)
-            memoryTracker.increaseReplicateBuffer(bodySize)
             client.pushMergedData(newPushMergedData, wrappedCallback)
-            memoryTracker.releaseReplicateBuffer(bodySize)
           } catch {
             case e: Exception =>
-              memoryTracker.releaseReplicateBuffer(bodySize)
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               wrappedCallback.onFailure(e)
