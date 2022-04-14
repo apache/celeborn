@@ -671,8 +671,6 @@ private[deploy] class Worker(
       return
     }
     if (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold()) {
-      logInfo(s"[handlePushData] fileWriter ${fileWriter}" +
-        s" needs to split. Shuffle split threshold ${fileWriter.getSplitThreshold()}")
       fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
