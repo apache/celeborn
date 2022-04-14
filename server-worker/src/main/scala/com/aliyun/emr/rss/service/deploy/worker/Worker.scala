@@ -623,7 +623,6 @@ private[deploy] class Worker(
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
-          memoryTracker.releaseReplicateBuffer(bodySize)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
@@ -641,7 +640,6 @@ private[deploy] class Worker(
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location")
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        memoryTracker.releaseReplicateBuffer(bodySize)
         callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage(), e))
       }
     }
@@ -710,6 +708,7 @@ private[deploy] class Worker(
               pushData.body)
             memoryTracker.increaseReplicateBuffer(bodySize)
             client.pushData(newPushData, wrappedCallback)
+            memoryTracker.releaseReplicateBuffer(bodySize)
           } catch {
             case e: Exception =>
               memoryTracker.releaseReplicateBuffer(bodySize)
@@ -759,7 +758,6 @@ private[deploy] class Worker(
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
-          memoryTracker.releaseReplicateBuffer(bodySize)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
@@ -776,7 +774,6 @@ private[deploy] class Worker(
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        memoryTracker.releaseReplicateBuffer(bodySize)
         callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage, e))
       }
     }
@@ -848,6 +845,7 @@ private[deploy] class Worker(
               pushMergedData.body)
             memoryTracker.increaseReplicateBuffer(bodySize)
             client.pushMergedData(newPushMergedData, wrappedCallback)
+            memoryTracker.releaseReplicateBuffer(bodySize)
           } catch {
             case e: Exception =>
               memoryTracker.releaseReplicateBuffer(bodySize)
