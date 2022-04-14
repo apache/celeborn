@@ -87,7 +87,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   @Override
   public void onPause(String moduleName) {
     if (this.moduleName.equals(moduleName)) {
-      logger.info(this.moduleName + "Channels pause read.");
+      logger.info(this.moduleName + " channels pause read.");
       pauseAllChannels();
     }
   }
@@ -95,11 +95,11 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   @Override
   public void onResume(String moduleName) {
     if (moduleName.equalsIgnoreCase("all")) {
-      logger.info(this.moduleName + "Channels resume read.");
+      logger.info(this.moduleName + " channels resume read.");
       resumeAllChannels();
     }
     if (this.moduleName.equals(moduleName)) {
-      logger.info(this.moduleName + "Channels resume read.");
+      logger.info(this.moduleName + " channels resume read.");
       resumeAllChannels();
     }
   }
