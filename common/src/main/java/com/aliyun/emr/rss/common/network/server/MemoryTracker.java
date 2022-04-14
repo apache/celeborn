@@ -66,20 +66,21 @@ public class MemoryTracker {
   private int trimCount = 0;
 
   public static MemoryTracker initialize(
-    double pausePushData,
-    int checkInterval,
-    int reportInterval,
-    double maxSortRatio,
+    double pausePushDataRatio,
     double pauseReplicateRatio,
     double resumeFlowInRatio,
+    double maxSortRatio,
+    int checkInterval,
+    int reportInterval,
     int trimActionThreshold) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryTracker(pauseReplicateRatio,
+      _INSTANCE = new MemoryTracker(
+        pauseReplicateRatio,
+        pausePushDataRatio,
+        resumeFlowInRatio,
+        maxSortRatio,
         checkInterval,
         reportInterval,
-        maxSortRatio,
-        pausePushData,
-        resumeFlowInRatio,
         trimActionThreshold);
     }
     return _INSTANCE;
@@ -97,11 +98,11 @@ public class MemoryTracker {
 
   private MemoryTracker(
     double pauseFlowInRatio,
-    int checkInterval,
-    int reportInterval,
-    double maxSortMemRatio,
     double pauseReplicateRatio,
     double resumeFlowInRatio,
+    double maxSortMemRatio,
+    int checkInterval,
+    int reportInterval,
     int trimActionThreshold) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pauseFlowInRatio);

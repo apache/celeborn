@@ -69,11 +69,11 @@ private[deploy] class Worker(
 
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),
-    workerDirectMemoryPressureCheckIntervalMs(conf),
-    workerDirectMemoryReportIntervalSecond(conf),
-    partitionSortMaxMemoryRatio(conf),
     workerPauseRepcaliteRatio(conf),
     workerResumeFlowInRatio(conf),
+    partitionSortMaxMemoryRatio(conf),
+    workerDirectMemoryPressureCheckIntervalMs(conf),
+    workerDirectMemoryReportIntervalSecond(conf),
     memoryTrimActionThreshold(conf))
 
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
