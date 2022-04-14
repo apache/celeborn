@@ -21,30 +21,33 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.MetricSet;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocatorMetric;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 
 /**
  * A Netty memory metrics class to collect metrics from Netty PooledByteBufAllocator.
  */
-public class NettyMemoryMetrics implements MetricSet {
+public class NettyMemoryMetrics {
+  private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
   private final PooledByteBufAllocator pooledAllocator;
 
   private final boolean verboseMetricsEnabled;
 
-  private final Map<String, Metric> allMetrics;
-
   private final String metricPrefix;
+
+  private final AbstractSource source;
 
   @VisibleForTesting
   static final Set<String> VERBOSE_METRICS = new HashSet<>();
+
   static {
     VERBOSE_METRICS.addAll(Arrays.asList(
       "numAllocations",
@@ -66,12 +69,13 @@ public class NettyMemoryMetrics implements MetricSet {
   }
 
   public NettyMemoryMetrics(PooledByteBufAllocator pooledAllocator,
-      String metricPrefix,
-      TransportConf conf) {
+    String metricPrefix,
+    TransportConf conf,
+    AbstractSource source) {
     this.pooledAllocator = pooledAllocator;
-    this.allMetrics = new HashMap<>();
     this.metricPrefix = metricPrefix;
     this.verboseMetricsEnabled = conf.verboseMetrics();
+    this.source = source;
 
     registerMetrics(this.pooledAllocator);
   }
@@ -80,22 +84,24 @@ public class NettyMemoryMetrics implements MetricSet {
     PooledByteBufAllocatorMetric pooledAllocatorMetric = allocator.metric();
 
     // Register general metrics.
-    allMetrics.put(MetricRegistry.name(metricPrefix, "usedHeapMemory"),
-      (Gauge<Long>) () -> pooledAllocatorMetric.usedHeapMemory());
-    allMetrics.put(MetricRegistry.name(metricPrefix, "usedDirectMemory"),
-      (Gauge<Long>) () -> pooledAllocatorMetric.usedDirectMemory());
+    if (source != null) {
+      logger.debug("setup netty metrics");
+      source.addGauge(MetricRegistry.name(metricPrefix, "usedHeapMemory"),
+        pooledAllocatorMetric::usedHeapMemory);
+      source.addGauge(MetricRegistry.name(metricPrefix, "usedDirectMemory"),
+        pooledAllocatorMetric::usedDirectMemory);
+      if (verboseMetricsEnabled) {
+        int directArenaIndex = 0;
+        for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
+          registerArenaMetric(metric, "directArena" + directArenaIndex);
+          directArenaIndex++;
+        }
 
-    if (verboseMetricsEnabled) {
-      int directArenaIndex = 0;
-      for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
-        registerArenaMetric(metric, "directArena" + directArenaIndex);
-        directArenaIndex++;
-      }
-
-      int heapArenaIndex = 0;
-      for (PoolArenaMetric metric : pooledAllocatorMetric.heapArenas()) {
-        registerArenaMetric(metric, "heapArena" + heapArenaIndex);
-        heapArenaIndex++;
+        int heapArenaIndex = 0;
+        for (PoolArenaMetric metric : pooledAllocatorMetric.heapArenas()) {
+          registerArenaMetric(metric, "heapArena" + heapArenaIndex);
+          heapArenaIndex++;
+        }
       }
     }
   }
@@ -118,7 +124,7 @@ public class NettyMemoryMetrics implements MetricSet {
       Class<?> returnType = m.getReturnType();
       String metricName = MetricRegistry.name(metricPrefix, arenaName, m.getName());
       if (returnType.equals(int.class)) {
-        allMetrics.put(metricName, (Gauge<Integer>) () -> {
+        source.addGauge(metricName, () -> {
           try {
             return (Integer) m.invoke(arenaMetric);
           } catch (Exception e) {
@@ -127,7 +133,7 @@ public class NettyMemoryMetrics implements MetricSet {
         });
 
       } else if (returnType.equals(long.class)) {
-        allMetrics.put(metricName, (Gauge<Long>) () -> {
+        source.addGauge(metricName, () -> {
           try {
             return (Long) m.invoke(arenaMetric);
           } catch (Exception e) {
@@ -136,10 +142,5 @@ public class NettyMemoryMetrics implements MetricSet {
         });
       }
     }
-  }
-
-  @Override
-  public Map<String, Metric> getMetrics() {
-    return Collections.unmodifiableMap(allMetrics);
   }
 }

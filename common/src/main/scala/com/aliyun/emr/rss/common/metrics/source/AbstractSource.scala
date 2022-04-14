@@ -64,6 +64,10 @@ abstract class AbstractSource(essConf: RssConf, role: String)
     namedGauges.add(NamedGauge(name, gauge))
   }
 
+  def addGauge[T](name: String, guage: Gauge[T]): Unit = {
+    namedGauges.add(NamedGauge(name, guage))
+  }
+
   protected val namedTimers =
     new ConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])]()
 

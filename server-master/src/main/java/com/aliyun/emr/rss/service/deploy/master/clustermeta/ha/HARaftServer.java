@@ -91,7 +91,6 @@ public class HARaftServer {
   private final StateMachine masterStateMachine;
 
   private final ScheduledExecutorService scheduledRoleChecker;
-  private long roleCheckInitialDelayMs = 1000; // 1 second default
   private long roleCheckIntervalMs;
   private ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
@@ -152,7 +151,7 @@ public class HARaftServer {
           cachedPeerRole.get() == RaftProtos.RaftPeerRole.LEADER) {
         updateServerRole();
       }
-    }, roleCheckInitialDelayMs, roleCheckIntervalMs, TimeUnit.MILLISECONDS);
+    }, roleCheckIntervalMs, roleCheckIntervalMs, TimeUnit.MILLISECONDS);
   }
 
   public static HARaftServer newMasterRatisServer(
@@ -365,7 +364,7 @@ public class HARaftServer {
         RssConf.HA_RATIS_MINIMUM_TIMEOUT_DEFAULT());
     final TimeDuration serverMinTimeout = TimeDuration.valueOf(
         serverMinTimeoutDuration, TimeUnit.SECONDS);
-    long serverMaxTimeoutDuration = serverMinTimeout.toLong(TimeUnit.MILLISECONDS) + 200;
+    long serverMaxTimeoutDuration = serverMinTimeout.toLong(TimeUnit.SECONDS) + 2;
     final TimeDuration serverMaxTimeout = TimeDuration.valueOf(
         serverMaxTimeoutDuration, TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setTimeoutMin(properties, serverMinTimeout);
@@ -373,19 +372,6 @@ public class HARaftServer {
 
     // Set the number of maximum cached segments
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
-
-    // Set the ratis leader election timeout
-    long leaderElectionMinTimeoutduration = conf.getTimeAsSeconds(
-        RssConf.HA_LEADER_ELECTION_MINIMUM_TIMEOUT_DURATION_KEY(),
-        RssConf.HA_LEADER_ELECTION_MINIMUM_TIMEOUT_DURATION_DEFAULT());
-    final TimeDuration leaderElectionMinTimeout = TimeDuration.valueOf(
-        leaderElectionMinTimeoutduration, TimeUnit.SECONDS);
-    RaftServerConfigKeys.Rpc.setTimeoutMin(properties,
-        leaderElectionMinTimeout);
-    long leaderElectionMaxTimeout = leaderElectionMinTimeout.toLong(
-        TimeUnit.MILLISECONDS) + 200;
-    RaftServerConfigKeys.Rpc.setTimeoutMax(properties,
-        TimeDuration.valueOf(leaderElectionMaxTimeout, TimeUnit.MILLISECONDS));
 
     long nodeFailureTimeoutDuration = conf.getTimeAsSeconds(
         RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_KEY(),
@@ -399,7 +385,6 @@ public class HARaftServer {
     this.roleCheckIntervalMs = conf.getTimeAsMs(
         RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY(),
         RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT());
-    this.roleCheckInitialDelayMs = leaderElectionMinTimeout.toLong(TimeUnit.MILLISECONDS);
 
     // snapshot retention
     int numSnapshotFilesRetained = conf.getInt(

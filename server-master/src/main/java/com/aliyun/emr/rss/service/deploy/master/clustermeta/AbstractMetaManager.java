@@ -116,9 +116,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     appHeartbeatTime.remove(appId);
   }
 
-  public void updateWorkerLostMeta(String host,int rpcPort, int pushPort,int fetchPort) {
+  public void updateWorkerLostMeta(String host,int rpcPort, int pushPort,int fetchPort,
+    int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
-            fetchPort, -1, null);
+            fetchPort, replicatePort, -1, null);
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
@@ -129,10 +130,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.remove(worker);
   }
 
-  public void updateWorkerHeartBeatMeta(String host, int rpcPort,
-                                        int pushPort, int fetchPort, int numSlots, long time) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
-            fetchPort, numSlots, null);
+  public void updateWorkerHeartBeatMeta(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, int numSlots, long time) {
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
+      null);
     synchronized (workers) {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(info -> {
@@ -150,9 +151,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateRegisterWorkerMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int numSlots) {
-    WorkerInfo workerInfo = new WorkerInfo(host, rpcPort, pushPort,
-        fetchPort, numSlots, null);
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, int numSlots) {
+    WorkerInfo workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
+      numSlots, null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
 
     try {

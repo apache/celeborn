@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.protocol;
 
 public class TransportModuleConstants {
   public static final String PUSH_MODULE = "push";
+  public static final String REPLICATE_MODULE = "replicate";
   public static final String FETCH_MODULE = "fetch";
   public static final String RPC_MODULE = "rpc";
   public static final String FILE_MODULE = "files";

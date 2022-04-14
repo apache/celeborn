@@ -43,18 +43,19 @@ sealed trait Message extends Serializable{
       case RemoveExpiredShuffle =>
         new TransportMessage(TransportMessages.MessageType.REMOVE_EXPIRED_SHUFFLE, null)
 
-      case RegisterWorker(host, rpcPort, pushPort, fetchPort, numSlots, requestId) =>
+      case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots, requestId) =>
         val payload = TransportMessages.PbRegisterWorker.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
           .setPushPort(pushPort)
           .setFetchPort(fetchPort)
+          .setReplicatePort(replicatePort)
           .setNumSlots(numSlots)
           .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_WORKER, payload)
 
-      case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, numSlots,
+      case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
       shuffleKeys, requestId) =>
         val payload = TransportMessages.PbHeartbeatFromWorker.newBuilder()
           .setHost(host)
@@ -62,6 +63,7 @@ sealed trait Message extends Serializable{
           .setPushPort(pushPort)
           .setFetchPort(fetchPort)
           .setNumSlots(numSlots)
+          .setReplicatePort(replicatePort)
           .addAllShuffleKeys(shuffleKeys)
           .setRequestId(requestId)
           .build().toByteArray
@@ -190,12 +192,13 @@ sealed trait Message extends Serializable{
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
-      case WorkerLost(host, rpcPort, pushPort, fetchPort, requestId) =>
+      case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
         val payload = TransportMessages.PbWorkerLost.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
           .setPushPort(pushPort)
           .setFetchPort(fetchPort)
+          .setReplicatePort(replicatePort)
           .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.WORKER_LOST, payload)
@@ -444,6 +447,7 @@ object ControlMessages extends Logging{
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
+      replicatePort: Int,
       numSlots: Int,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
@@ -453,6 +457,7 @@ object ControlMessages extends Logging{
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
+      replicatePort : Int,
       numSlots: Int,
       shuffleKeys: util.HashSet[String],
     override var requestId: String = ZERO_UUID) extends MasterRequestMessage
@@ -543,7 +548,7 @@ object ControlMessages extends Logging{
     extends MasterMessage
 
   case class WorkerLost(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int,
-                        override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+    replicatePort: Int, override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class WorkerLostResponse(success: Boolean) extends MasterMessage
 
@@ -652,7 +657,8 @@ object ControlMessages extends Logging{
       case REGISTER_WORKER =>
         val pbRegisterWorker = PbRegisterWorker.parseFrom(message.getPayload)
         RegisterWorker(pbRegisterWorker.getHost, pbRegisterWorker.getRpcPort,
-          pbRegisterWorker.getPushPort, pbRegisterWorker.getFetchPort, pbRegisterWorker.getNumSlots,
+          pbRegisterWorker.getPushPort, pbRegisterWorker.getFetchPort,
+          pbRegisterWorker.getReplicatePort, pbRegisterWorker.getNumSlots,
           pbRegisterWorker.getRequestId)
 
       case HEARTBEAT_FROM_WORKER =>
@@ -663,7 +669,8 @@ object ControlMessages extends Logging{
         }
         HeartbeatFromWorker(pbHeartbeatFromWorker.getHost, pbHeartbeatFromWorker.getRpcPort,
           pbHeartbeatFromWorker.getPushPort, pbHeartbeatFromWorker.getFetchPort,
-          pbHeartbeatFromWorker.getNumSlots, shuffleKeys, pbHeartbeatFromWorker.getRequestId)
+          pbHeartbeatFromWorker.getReplicatePort, pbHeartbeatFromWorker.getNumSlots, shuffleKeys,
+          pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
         val pbHeartBeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
@@ -899,7 +906,7 @@ object ControlMessages extends Logging{
       case WORKER_LOST =>
         val pbWorkerLost = PbWorkerLost.parseFrom(message.getPayload)
         WorkerLost(pbWorkerLost.getHost, pbWorkerLost.getRpcPort, pbWorkerLost.getPushPort,
-          pbWorkerLost.getFetchPort, pbWorkerLost.getRequestId)
+          pbWorkerLost.getFetchPort, pbWorkerLost.getReplicatePort, pbWorkerLost.getRequestId)
 
       case WORKER_LOST_RESPONSE =>
         val pbWorkerLostResponse = PbWorkerLostResponse.parseFrom(message.getPayload)

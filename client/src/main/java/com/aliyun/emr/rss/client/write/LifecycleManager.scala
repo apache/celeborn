@@ -34,6 +34,7 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{HashMap, ListBuffer}
+import scala.collection.mutable
 import scala.util.Random
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -193,7 +194,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     case PartitionSplit(applicationId, shuffleId, reduceId, epoch, oldPartition) =>
       logDebug(s"Received split request, " +
-        s"$applicationId, $shuffleId, ${reduceId}, $epoch, $oldPartition")
+        s"$applicationId, $shuffleId, $reduceId, $epoch, $oldPartition")
       handlePartitionSplitRequest(context, applicationId, shuffleId, reduceId, epoch, oldPartition)
 
     case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
@@ -405,7 +406,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         if (latestLoc != null) {
           context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
           logInfo(s"New partition found, old partition $reduceId-$oldEpoch return it." +
-            s" shuffleId: $shuffleId ${latestLoc}")
+            s" shuffleId: $shuffleId $latestLoc")
           return
         }
         // no newer partition, register and allocate
@@ -498,11 +499,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         if (latestLoc != null) {
           context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
           logInfo(s"Split request found new partition, old partition $reduceId-$oldEpoch" +
-            s" return it. shuffleId: $shuffleId ${latestLoc}")
+            s" return it. shuffleId: $shuffleId $latestLoc")
           return
         }
         val set = new util.HashSet[RpcCallContext]()
-        set.add(context);
+        set.add(context)
         shuffleSplitting.put(reduceId, set)
       }
     }
@@ -795,7 +796,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    recordWorkerFailure(failed);
+    recordWorkerFailure(failed)
 
     failed
   }
@@ -812,7 +813,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       var retrySuccess = true
       logWarning("ReserveSlots failed once, retry again")
       // get failed partition locations
-      val failedPartitionLocations = new HashMap[Int, PartitionLocation]()
+      val failedPartitionLocations = new mutable.HashMap[Int, PartitionLocation]()
       failed.asScala.foreach(workerInfo => {
         val (failedMasterLocations, failedSlaveLocations) = slots.remove(workerInfo)
         if (null != failedMasterLocations) {
@@ -860,7 +861,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           // remove from slots
           destroyPartitionLocations.foreach(partition => {
             var tmpWorkerInfo = new WorkerInfo(partition.getHost, partition.getRpcPort, partition
-              .getPushPort, partition.getFetchPort)
+              .getPushPort, partition.getFetchPort, partition.getReplicatePort)
             val workerInfoWithRpcRef = workInfos.find(worker => worker.equals(tmpWorkerInfo))
               .getOrElse({
                 logWarning(s"Cannot find workInfo from previous success workResource:" +
@@ -982,6 +983,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         candidates(masterIndex).rpcPort,
         candidates(masterIndex).pushPort,
         candidates(masterIndex).fetchPort,
+        candidates(masterIndex).replicatePort,
         PartitionLocation.Mode.Master)
 
       if (ShouldReplicate) {
@@ -993,6 +995,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           candidates(slaveIndex).rpcPort,
           candidates(slaveIndex).pushPort,
           candidates(slaveIndex).fetchPort,
+          candidates(slaveIndex).replicatePort,
           PartitionLocation.Mode.Slave,
           masterLocation
         )

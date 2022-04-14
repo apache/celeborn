@@ -711,7 +711,7 @@ object RssConf extends Logging {
   }
 
   def haClientMaxTries(conf: RssConf): Int = {
-    conf.getInt("rss.ha.client.maxTries", 3)
+    conf.getInt("rss.ha.client.maxTries", 15)
   }
 
   def haStorageDir(conf: RssConf): String = {
@@ -745,15 +745,27 @@ object RssConf extends Logging {
   }
 
   def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.5)
+    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
   }
 
-  def workerOffheapMemoryCriticalRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.worker.offheap.memory.critical.ratio", 0.9)
+  def memoryTrimActionThreshold(conf: RssConf): Int = {
+    conf.getInt("rss.memory.trim.action.threshold", 10)
   }
 
-  def memoryForSortLargeFile(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.reserveforLargeSortFile.memory", "1mb")
+  def workerPausePushDataRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.pause.pushdata.memory.ratio", 0.85)
+  }
+
+  def workerPauseRepcaliteRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.pause.replicate.memory.ratio", 0.95)
+  }
+
+  def workerResumeRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.resume.memory.ratio", 0.5)
+  }
+
+  def memoryReservedForSingleSort(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.reserveForSingleSort.memory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
@@ -776,7 +788,7 @@ object RssConf extends Logging {
   val HA_RATIS_PORT_DEFAULT = 9872
 
   val HA_RPC_TYPE_KEY: String = "rss.ha.rpc.type"
-  val HA_RPC_TYPE_DEFAULT: String = "GRPC"
+  val HA_RPC_TYPE_DEFAULT: String = "NETTY"
 
   val HA_RATIS_STORAGE_DIR: String = "rss.ha.storage.dir"
   val HA_RATIS_STORAGE_DIR_DEFAULT: String = "/tmp/ratis"
@@ -800,17 +812,14 @@ object RssConf extends Logging {
   val HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_KEY = "rss.ratis.server.retry.cache.timeout"
   val HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_DEFAULT = "600s"
   val HA_RATIS_MINIMUM_TIMEOUT_KEY = "rss.ratis.minimum.timeout"
-  val HA_RATIS_MINIMUM_TIMEOUT_DEFAULT = "1s"
+  val HA_RATIS_MINIMUM_TIMEOUT_DEFAULT = "3s"
 
   //  Ratis Leader Election configurations
-  val HA_LEADER_ELECTION_MINIMUM_TIMEOUT_DURATION_KEY =
-    "rss.ratis.leader.election.minimum.timeout.duration"
-  val HA_LEADER_ELECTION_MINIMUM_TIMEOUT_DURATION_DEFAULT = "1s"
   val HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_KEY = "rss.ratis.server.failure.timeout.duration"
   val HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_DEFAULT = "120s"
 
   val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY = "rss.ratis.server.role.check.interval"
-  val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT = "15s"
+  val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT = "1s"
 
   // Ratis snapshot configurations
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.auto.trigger.enabled"

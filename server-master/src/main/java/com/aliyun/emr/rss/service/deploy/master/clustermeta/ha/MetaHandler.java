@@ -72,7 +72,7 @@ public class MetaHandler {
     try {
       switch (cmdType) {
         default:
-          throw new IOException("Can not parse this command!" + request.toString());
+          throw new IOException("Can not parse this command!" + request);
       }
     } catch (IOException e) {
       LOG.warn("Handle meta read request " + cmdType + " failed!", e);
@@ -98,6 +98,7 @@ public class MetaHandler {
       int rpcPort;
       int pushPort;
       int fetchPort;
+      int replicatePort;
       int numSlots;
       switch (cmdType) {
         case RequestSlots:
@@ -140,8 +141,9 @@ public class MetaHandler {
           rpcPort = request.getWorkerLostRequest().getRpcPort();
           pushPort = request.getWorkerLostRequest().getPushPort();
           fetchPort = request.getWorkerLostRequest().getFetchPort();
+          replicatePort = request.getWorkerLostRequest().getReplicatePort();
           LOG.debug("Handle worker lost for {} {}", host, pushPort);
-          metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort);
+          metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
         case WorkerHeartBeat:
@@ -150,11 +152,12 @@ public class MetaHandler {
           pushPort = request.getWorkerHeartBeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartBeatRequest().getFetchPort();
           numSlots = request.getWorkerHeartBeatRequest().getNumSlots();
-
-          LOG.debug("Handle worker heartbeat for {} {} {} {} {}",
-                   host, rpcPort, pushPort, fetchPort, numSlots);
+          replicatePort = request.getWorkerHeartBeatRequest().getReplicatePort();
+          LOG.debug("Handle worker heartbeat for {} {} {} {} {} {}",
+                   host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
           time = request.getWorkerHeartBeatRequest().getTime();
-          metaSystem.updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, numSlots, time);
+          metaSystem.updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
+            numSlots, time);
           break;
 
         case RegisterWorker:
@@ -162,10 +165,12 @@ public class MetaHandler {
           rpcPort = request.getRegisterWorkerRequest().getRpcPort();
           pushPort = request.getRegisterWorkerRequest().getPushPort();
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
+          replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           numSlots = request.getRegisterWorkerRequest().getNumSlots();
-          LOG.debug("Handle worker register for {} {} {} {} {}",
-                  host, rpcPort, pushPort, fetchPort, numSlots);
-          metaSystem.updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, numSlots);
+          LOG.debug("Handle worker register for {} {} {} {} {} {}",
+                  host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
+          metaSystem.updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
+            numSlots);
           break;
 
         case ReportWorkerFailure:
@@ -177,7 +182,7 @@ public class MetaHandler {
           break;
 
         default:
-          throw new IOException("Can not parse this command!" + request.toString());
+          throw new IOException("Can not parse this command!" + request);
       }
       responseBuilder.setStatus(ResourceProtos.Status.OK);
     } catch (IOException e) {

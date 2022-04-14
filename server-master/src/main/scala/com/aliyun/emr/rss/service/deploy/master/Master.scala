@@ -136,10 +136,10 @@ private[deploy] class Master(
     case CheckForApplicationTimeOut =>
       logDebug("Received CheckForApplicationTimeOut request.")
       executeWithLeaderChecker(null, timeoutDeadApplications())
-    case WorkerLost(host, rpcPort, pushPort, fetchPort, requestId) =>
+    case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
       logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
-      executeWithLeaderChecker(null
-        , handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, requestId))
+      executeWithLeaderChecker(null, handleWorkerLost(null, host, rpcPort,
+        pushPort, fetchPort, replicatePort, requestId))
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -147,10 +147,11 @@ private[deploy] class Master(
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(context, handleHeartBeatFromApplication(context, appId, requestId))
 
-    case RegisterWorker(host, rpcPort, pushPort, fetchPort, numSlots, requestId) =>
-      logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort $numSlots.")
-      executeWithLeaderChecker(context,
-        handleRegisterWorker(context, host, rpcPort, pushPort, fetchPort, numSlots, requestId))
+    case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots, requestId) =>
+      logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
+        s" $numSlots.")
+      executeWithLeaderChecker(context, handleRegisterWorker(context, host, rpcPort, pushPort,
+        fetchPort, replicatePort, numSlots, requestId))
 
     case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
       logDebug(s"Received RequestSlots request $requestSlots.")
@@ -175,11 +176,11 @@ private[deploy] class Master(
       logDebug(s"Received ApplicationLost request $requestId, $appId.")
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
-    case HeartbeatFromWorker(host, rpcPort, pushPort
-    , fetchPort, numSlots, shuffleKeys, requestId) =>
+    case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
+    shuffleKeys, requestId) =>
       logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
-      executeWithLeaderChecker(context, handleHeartBeatFromWorker(
-        context, host, rpcPort, pushPort, fetchPort, numSlots, shuffleKeys, requestId))
+      executeWithLeaderChecker(context, handleHeartBeatFromWorker(context, host, rpcPort, pushPort,
+        fetchPort, replicatePort, numSlots, shuffleKeys, requestId))
 
     case GetWorkerInfos =>
       logDebug("Received GetWorkerInfos request")
@@ -203,8 +204,8 @@ private[deploy] class Master(
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
-        self.send(WorkerLost(worker.host, worker.rpcPort
-          , worker.pushPort, worker.fetchPort, RssHARetryClient.genRequestId()))
+        self.send(WorkerLost(worker.host, worker.rpcPort, worker.pushPort, worker.fetchPort,
+          worker.replicatePort, RssHARetryClient.genRequestId()))
       }
       ind += 1
     }
@@ -235,11 +236,12 @@ private[deploy] class Master(
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
+      replicatePort: Int,
       numSlots: Int,
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(host, rpcPort,
-      pushPort, fetchPort, -1, null)
+    val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
+      -1, null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
@@ -247,11 +249,11 @@ private[deploy] class Master(
     if (worker == null) {
       logWarning(
         s"""Received heartbeat from unknown worker!
-           | Worker details :  $host:$rpcPort$pushPort$fetchPort.""".stripMargin)
+           | Worker details :  $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.""".stripMargin)
       return
     }
 
-    statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, numSlots,
+    statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
       System.currentTimeMillis(), requestId)
 
     val expiredShuffleKeys = new util.HashSet[String]
@@ -264,11 +266,10 @@ private[deploy] class Master(
     context.reply(HeartbeatResponse(expiredShuffleKeys))
   }
 
-  private def handleWorkerLost(context: RpcCallContext, host: String
-                               , rpcPort: Int, pushPort: Int, fetchPort: Int
-                               , requestId: String): Unit = {
+  private def handleWorkerLost(context: RpcCallContext, host: String, rpcPort: Int, pushPort: Int,
+    fetchPort: Int, replicatePort: Int, requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host,
-      rpcPort, pushPort, fetchPort, -1, null)
+      rpcPort, pushPort, fetchPort, replicatePort, -1, null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
@@ -279,7 +280,7 @@ private[deploy] class Master(
       return
     }
 
-    statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, requestId)
+    statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
 
     if (context != null) {
       context.reply(WorkerLostResponse(true))
@@ -292,23 +293,26 @@ private[deploy] class Master(
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
+      replicatePort: Int,
       numSlots: Int,
       requestId: String): Unit = {
     val workerToRegister = new WorkerInfo(host, rpcPort,
-      pushPort, fetchPort, numSlots, null)
+      pushPort, fetchPort, replicatePort, numSlots, null)
     val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
       if (!statusSystem.workerLostEvents.contains(hostPort)) {
-        self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, RssHARetryClient.genRequestId()))
+        self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
+          RssHARetryClient.genRequestId()))
       }
       context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
     } else if (statusSystem.workerLostEvents.contains(hostPort)) {
       logWarning(s"Receive RegisterWorker while worker $hostPort in workerLostEvents.")
       context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
     } else {
-      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, numSlots, requestId)
+      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        numSlots, requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
     }
@@ -507,7 +511,7 @@ private[deploy] class Master(
       case e: Exception =>
         logError(s"AskSync GetWorkerInfos failed.", e)
         val result = new util.ArrayList[WorkerInfo]
-        result.add(new WorkerInfo("unknown", -1, -1, -1, 0, null))
+        result.add(new WorkerInfo("unknown", -1, -1, -1, -1, 0, null))
         GetWorkerInfosResponse(StatusCode.Failed, result.asScala: _*)
     }
   }

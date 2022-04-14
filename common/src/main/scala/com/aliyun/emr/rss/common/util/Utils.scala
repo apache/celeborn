@@ -42,7 +42,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, TransportMessages}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbWorkerResource
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
@@ -648,8 +648,9 @@ object Utils extends Logging {
   WorkerResource = {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach(item => {
-      val Array(host, rpcPort, pushPort, fetchPort) = item._1.split(":")
-      val workerInfo = new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt)
+      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = item._1.split(":")
+      val workerInfo = new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt,
+        replicatePort.toInt)
       val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
         .getMasterPartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
       val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
@@ -673,18 +674,19 @@ object Utils extends Logging {
   }
 
   def toTransportMessage(message: Any): Any = {
-    if (message.isInstanceOf[Message]) {
-      message.asInstanceOf[Message].toTransportMessage()
-    } else {
-      message
+    message match {
+      case transportMessage: Message =>
+        transportMessage.toTransportMessage()
+      case _ =>
+        message
     }
   }
 
   def fromTransportMessage(message: Any): Any = {
-    if (message.isInstanceOf[TransportMessage]) {
-      ControlMessages.fromTransportMessage(message.asInstanceOf[TransportMessage])
-    } else {
-      message
+    message match {
+      case transportMessage: TransportMessage =>
+        ControlMessages.fromTransportMessage(transportMessage)
+      case _ => message
     }
   }
 
@@ -745,7 +747,7 @@ object Utils extends Logging {
     mode match {
       case 0 => PartitionSplitMode.soft
       case 1 => PartitionSplitMode.hard
-      case _ => logWarning(s"invalid shuffle mode ${mode}, fallback to soft")
+      case _ => logWarning(s"invalid shuffle mode $mode, fallback to soft")
         PartitionSplitMode.soft
     }
   }

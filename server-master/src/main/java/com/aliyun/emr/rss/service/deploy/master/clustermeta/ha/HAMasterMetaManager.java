@@ -64,9 +64,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setShuffleKey(shuffleKey)
               .setHostName(hostName);
       for (WorkerInfo workerInfo : workerToAllocatedSlots.keySet()) {
-        builder.addWorkerInfo(WorkerInfo.encodeToPbStr(
-                workerInfo.host(), workerInfo.rpcPort(), workerInfo.pushPort(),
-                workerInfo.fetchPort(), workerToAllocatedSlots.get(workerInfo)));
+        builder.addWorkerInfo(WorkerInfo.encodeToPbStr(workerInfo.host(), workerInfo.rpcPort(),
+          workerInfo.pushPort(), workerInfo.fetchPort(), workerInfo.replicatePort(),
+          workerToAllocatedSlots.get(workerInfo)));
       }
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.RequestSlots)
@@ -147,8 +147,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerLost(String host,
-                               int rpcPort, int pushPort, int fetchPort, String requestId) {
+  public void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerLost)
@@ -159,6 +159,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                               .setRpcPort(rpcPort)
                               .setPushPort(pushPort)
                               .setFetchPort(fetchPort)
+                              .setReplicatePort(replicatePort)
                               .build())
               .build());
     } catch (ServiceException e) {
@@ -167,8 +168,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerHeartBeat(String host,
-          int rpcPort, int pushPort, int fetchPort, int numSlots, long time, String requestId) {
+  public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, int numSlots, long time, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartBeat)
@@ -179,6 +180,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                               .setRpcPort(rpcPort)
                               .setPushPort(pushPort)
                               .setFetchPort(fetchPort)
+                              .setReplicatePort(replicatePort)
                               .setNumSlots(numSlots)
                               .setTime(time)
                               .build())
@@ -189,9 +191,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleRegisterWorker(String host, int rpcPort,
-                                   int pushPort, int fetchPort,
-                                   int numSlots, String requestId) {
+  public void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, int numSlots, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.RegisterWorker)
@@ -202,6 +203,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                   .setRpcPort(rpcPort)
                   .setPushPort(pushPort)
                   .setFetchPort(fetchPort)
+                  .setReplicatePort(replicatePort)
                   .setNumSlots(numSlots)
                   .build())
           .build());

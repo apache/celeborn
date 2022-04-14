@@ -62,15 +62,17 @@ public class ShuffleClientSuiteJ {
   private static final int MASTER_RPC_PORT = 1234;
   private static final int MASTER_PUSH_PORT = 1235;
   private static final int MASTER_FETCH_PORT = 1236;
+  private static final int MASTER_REPLICATE_PORT = 1237;
   private static final int SLAVE_RPC_PORT = 4321;
   private static final int SLAVE_PUSH_PORT = 4322;
   private static final int SLAVE_FETCH_PORT = 4323;
+  private static final int SLAVE_REPLICATE_PORT = 4324;
   private static final PartitionLocation masterLocation = new PartitionLocation(
-    0, 1, "localhost",
-    MASTER_RPC_PORT, MASTER_PUSH_PORT, MASTER_FETCH_PORT, PartitionLocation.Mode.Master);
+    0, 1, "localhost", MASTER_RPC_PORT, MASTER_PUSH_PORT, MASTER_FETCH_PORT,
+    MASTER_REPLICATE_PORT, PartitionLocation.Mode.Master);
   private static final PartitionLocation slaveLocation = new PartitionLocation(
-    0, 1, "localhost",
-    SLAVE_RPC_PORT, SLAVE_PUSH_PORT, SLAVE_FETCH_PORT, PartitionLocation.Mode.Slave);
+    0, 1, "localhost", SLAVE_RPC_PORT, SLAVE_PUSH_PORT, SLAVE_FETCH_PORT,
+    SLAVE_REPLICATE_PORT, PartitionLocation.Mode.Slave);
 
   private static byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
   private final int BATCH_HEADER_SIZE = 4 * 4;

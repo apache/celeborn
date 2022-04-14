@@ -25,7 +25,6 @@ import com.aliyun.emr.rss.service.deploy.SparkTestBase
 import com.aliyun.emr.rss.service.deploy.integration.RssHashTests.{clearMiniCluster, logInfo, setupRssMiniCluster, tuple}
 
 class RssSortTests extends SparkTestBase {
-
   @Test
   def test(): Unit = {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
@@ -68,5 +67,3 @@ object RssSortTests extends SparkTestBase {
     clearMiniCluster(tuple)
   }
 }
-
-

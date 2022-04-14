@@ -20,7 +20,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
@@ -28,12 +28,14 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
+import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -107,6 +109,7 @@ private[worker] final class DiskFlusher(
   }
 
   def returnBuffer(buffer: CompositeByteBuf): Unit = {
+    MemoryTracker.instance().releaseDiskBuffer(buffer.readableBytes())
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 
@@ -206,6 +209,8 @@ private[worker] final class LocalStorageManager(
     }
     flushers
   }
+  private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+    .setNameFormat("StorageManager-action-thread").build)
 
   deviceMonitor.startCheck()
 
@@ -514,9 +519,23 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  override def onMemoryCritical(): Unit = {
+  private def flushFileWriters(): Unit = {
     writers.entrySet().asScala.foreach(u =>
       u.getValue.asScala
         .foreach(f => f._2.flushOnMemoryPressure()))
+  }
+
+  override def onPause(moduleName: String): Unit = {
+  }
+
+  override def onResume(moduleName: String): Unit = {
+  }
+
+  override def onTrim(): Unit = {
+    actionService.submit(new Runnable {
+      override def run(): Unit = {
+        flushFileWriters()
+      }
+    })
   }
 }

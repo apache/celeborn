@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
@@ -74,28 +75,39 @@ public class TransportContext {
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
   private static final MessageDecoder DECODER = MessageDecoder.INSTANCE;
 
-  private AbstractSource source = null;
-
-  public TransportContext(TransportConf conf, RpcHandler rpcHandler) {
-    this(conf, rpcHandler, false);
-  }
+  private AbstractSource source;
+  private ChannelHandler channelHandler;
 
   public TransportContext(
       TransportConf conf,
       RpcHandler rpcHandler,
-      boolean closeIdleConnections) {
+      boolean closeIdleConnections,
+      AbstractSource source,
+      ChannelHandler channelHandler) {
     this.conf = conf;
     this.rpcHandler = rpcHandler;
     this.closeIdleConnections = closeIdleConnections;
+    this.source = source;
+    this.channelHandler = channelHandler;
   }
 
   public TransportContext(
       TransportConf conf,
       RpcHandler rpcHandler,
       boolean closeIdleConnections,
-      AbstractSource source){
-    this(conf, rpcHandler, closeIdleConnections);
-    this.source = source;
+      AbstractSource source) {
+    this(conf, rpcHandler, closeIdleConnections, source, null);
+  }
+
+  public TransportContext(TransportConf conf, RpcHandler rpcHandler) {
+    this(conf, rpcHandler, false, null, null);
+  }
+
+  public TransportContext(
+      TransportConf conf,
+      RpcHandler rpcHandler,
+      boolean closeIdleConnections) {
+    this(conf, rpcHandler, closeIdleConnections, null, null);
   }
 
   /**
@@ -114,12 +126,6 @@ public class TransportContext {
   /** Create a server which will attempt to bind to a specific port. */
   public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps) {
     return new TransportServer(this, null, port, rpcHandler, bootstraps, source);
-  }
-
-  public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps,
-    boolean limiterEnabled) {
-    return new TransportServer(this, null, port, rpcHandler, bootstraps,
-      limiterEnabled);
   }
 
   /** Create a server which will attempt to bind to a specific host and port. */
@@ -152,6 +158,10 @@ public class TransportContext {
       SocketChannel channel,
       RpcHandler channelRpcHandler) {
     try {
+      if (channelHandler != null) {
+        channel.pipeline()
+          .addLast("limiter", channelHandler);
+      }
       TransportChannelHandler channelHandler = createChannelHandler(channel, channelRpcHandler);
       channel.pipeline()
         .addLast("encoder", ENCODER)
@@ -162,20 +172,6 @@ public class TransportContext {
         // would require more logic to guarantee if this were not part of the same event loop.
         .addLast("handler", channelHandler);
       return channelHandler;
-    } catch (RuntimeException e) {
-      logger.error("Error while initializing Netty pipeline", e);
-      throw e;
-    }
-  }
-
-  public void initializePipeline(SocketChannel channel, RpcHandler handler,
-    boolean limiterEnabled) {
-    try {
-      if (limiterEnabled) {
-        channel.pipeline()
-          .addLast("limiter", GlobalChannelLimiter.globalChannelLimiter());
-      }
-      initializePipeline(channel, handler);
     } catch (RuntimeException e) {
       logger.error("Error while initializing Netty pipeline", e);
       throw e;

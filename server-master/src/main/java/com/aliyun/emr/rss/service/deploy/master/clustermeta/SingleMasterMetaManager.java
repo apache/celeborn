@@ -72,20 +72,20 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerLost(String host, int rpcPort,
-                               int pushPort, int fetchPort, String requestId) {
-    updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort);
+    int pushPort, int fetchPort, int replicatePort, String requestId) {
+    updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
   @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-                                    int numSlots, long time, String requestId) {
-    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, numSlots, time);
+    int replicatePort, int numSlots, long time, String requestId) {
+    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots, time);
   }
 
   @Override
-  public void handleRegisterWorker(
-      String host, int rpcPort, int pushPort, int fetchPort, int numSlots, String requestId) {
-    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, numSlots);
+  public void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, int numSlots, String requestId) {
+    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
   }
 
   @Override

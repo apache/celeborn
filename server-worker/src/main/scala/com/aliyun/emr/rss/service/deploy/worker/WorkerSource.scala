@@ -40,6 +40,7 @@ class WorkerSource(essConf: RssConf)
   addTimer(FetchChunkTime)
   addTimer(OpenStreamTime)
   addTimer(TakeBufferTime)
+  addTimer(SortTime)
 
   // start cleaner thread
   startCleaner()
@@ -74,6 +75,12 @@ object WorkerSource {
   val SlotsUsed = "SlotsUsed"
   val SlotsAvailable = "SlotsAvailable"
 
-  val DirectMemory = "DirectMemory"
-  val MemoryCriticalCount = "MemoryCriticalCount"
+  // memory
+  val NettyMemory = "NettyMemory"
+  val SortTime = "SortTime"
+  val SortMemory = "SortMemory"
+  val SortingFiles = "SortingFiles"
+  val DiskBuffer = "DiskBuffer"
+  val PausePushDataCount = "PausePushData"
+  val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
 }
