@@ -179,7 +179,7 @@ public class PartitionFilesSorter {
     int indexSize = 0;
     for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : indexMap.entrySet()) {
       indexSize += 8;
-      indexSize += entry.getValue().size() * 8;
+      indexSize += entry.getValue().size() * 16;
     }
 
     ByteBuffer indexBuf = ByteBuffer.allocateDirect(indexSize);
@@ -189,8 +189,8 @@ public class PartitionFilesSorter {
       indexBuf.putInt(mapId);
       indexBuf.putInt(list.size());
       list.forEach(info -> {
-        indexBuf.putInt(info.offset);
-        indexBuf.putInt(info.length);
+        indexBuf.putLong(info.offset);
+        indexBuf.putLong(info.length);
       });
     }
 
@@ -207,8 +207,8 @@ public class PartitionFilesSorter {
       int count = indexBuf.getInt();
       List<ShuffleBlockInfo> blockInfos = new ArrayList<>();
       for (int i = 0; i < count; i++) {
-        int offset = indexBuf.getInt();
-        int length = indexBuf.getInt();
+        long offset = indexBuf.getLong();
+        long length = indexBuf.getLong();
         ShuffleBlockInfo info = new ShuffleBlockInfo();
         info.offset = offset;
         info.length = length;
@@ -223,14 +223,15 @@ public class PartitionFilesSorter {
     throws IOException {
     while (buffer.hasRemaining()) {
       if (-1 == channel.read(buffer)) {
-        throw new IOException("Unexpected EOF, file name : " + filePath);
+        throw new IOException("Unexpected EOF, file name : " + filePath +
+          " position :" + channel.position() + " buffer size :" + buffer.limit());
       }
     }
   }
 
-  private int transferFully(FileChannel originChannel, FileChannel targetChannel,
-    int offset, int length) throws IOException {
-    int transferedSize = 0;
+  private long transferFully(FileChannel originChannel, FileChannel targetChannel,
+    long offset, long length) throws IOException {
+    long transferedSize = 0;
     while (transferedSize != length) {
       transferedSize += originChannel.transferTo(offset + transferedSize,
         length - transferedSize, targetChannel);
@@ -249,10 +250,10 @@ public class PartitionFilesSorter {
       if (blockInfos != null) {
         for (ShuffleBlockInfo info : blockInfos) {
           if (sortedChunkOffset.size() == 0) {
-            sortedChunkOffset.add((long) info.offset);
+            sortedChunkOffset.add( info.offset);
           }
           if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1) > fetchChunkSize) {
-            sortedChunkOffset.add((long) info.offset);
+            sortedChunkOffset.add( info.offset);
           }
           lastBlock = info;
         }
@@ -295,8 +296,8 @@ public class PartitionFilesSorter {
   }
 
   class ShuffleBlockInfo {
-    protected int offset;
-    protected int length;
+    protected long offset;
+    protected long length;
   }
 
   class FileSorter {
@@ -327,9 +328,9 @@ public class PartitionFilesSorter {
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
         ByteBuffer paddingBuf = ByteBuffer.allocateDirect((int) reserveMemoryForSingleSort);
 
-        int index = 0;
+        long index = 0;
         while (index != originFileLen) {
-          final int blockStartIndex = index;
+          final long blockStartIndex = index;
           readFully(originFileChannel, headerBuf, originFile.getAbsolutePath());
           byte[] batchHeader = headerBuf.array();
           headerBuf.rewind();
@@ -352,15 +353,15 @@ public class PartitionFilesSorter {
           readFully(originFileChannel, paddingBuf, originFile.getAbsolutePath());
         }
 
-        int fileIndex = 0;
+        long fileIndex = 0;
         for (Map.Entry<Integer, List<ShuffleBlockInfo>>
                originBlockInfoEntry : originShuffleBlockInfos.entrySet()) {
           int mapId = originBlockInfoEntry.getKey();
           List<ShuffleBlockInfo> originShuffleBlocks = originBlockInfoEntry.getValue();
           List<ShuffleBlockInfo> sortedShuffleBlocks = new ArrayList<>();
           for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
-            int offset = blockInfo.offset;
-            int length = blockInfo.length;
+            long offset = blockInfo.offset;
+            long length = blockInfo.length;
             ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
             sortedBlock.offset = fileIndex;
             sortedBlock.length = length;

@@ -27,9 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
@@ -47,8 +45,7 @@ public class PartitionFilesSorterSuiteJ {
   private FileWriter fileWriter;
   private long sortTimeout = 16 * 1000;
 
-  @Before
-  public void prepare() throws IOException {
+  public void prepare(boolean largefile) throws IOException {
     byte[] batchHeader = new byte[16];
     Random random = new Random();
     shuffleFile = File.createTempFile("RSS", "sort-suite");
@@ -59,7 +56,11 @@ public class PartitionFilesSorterSuiteJ {
     Map<Integer, Integer> batchIds = new HashMap<>();
 
     int maxMapId = 50;
-    for (int i = 0; i < 1000; i++) {
+    int mapCount = 1000;
+    if (largefile) {
+      mapCount = 15000;
+    }
+    for (int i = 0; i < mapCount; i++) {
       int mapId = random.nextInt(maxMapId);
       int currentAttemptId = 0;
       int batchId = batchIds.compute(mapId, (k, v) -> {
@@ -81,7 +82,8 @@ public class PartitionFilesSorterSuiteJ {
       channel.write(ByteBuffer.wrap(mockedData));
     }
     originFileLen = channel.size();
-    System.out.println(shuffleFile.getAbsolutePath() + " filelen " + originFileLen);
+    System.out.println(shuffleFile.getAbsolutePath() +
+                         " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
     fileWriter = Mockito.mock(FileWriter.class);
@@ -90,20 +92,35 @@ public class PartitionFilesSorterSuiteJ {
     when(fileWriter.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
   }
 
-  @After
-  public void teardown() {
+  public void clean() {
     shuffleFile.delete();
   }
 
   @Test
-  public void offMemTest() throws InterruptedException {
+  public void testSmallFile() throws InterruptedException, IOException {
+    prepare(false);
     RssConf conf = new RssConf();
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 4, 5);
+      fileWriter, 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
+    clean();
+  }
+
+  @Test
+  public void testLargeFile() throws InterruptedException, IOException {
+    prepare(true);
+    RssConf conf = new RssConf();
+    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
+      sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
+    FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
+      fileWriter, 5, 10);
+    Thread.sleep(1000);
+    System.out.println(info.toString());
+    Assert.assertTrue(info.numChunks > 0);
+    clean();
   }
 }
