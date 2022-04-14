@@ -41,7 +41,7 @@ public class MemoryTracker {
   private final long maxDirectorMemory = VM.maxDirectMemory();
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
-  private final long resumeFlowInThreshold;
+  private final long resumeThreshold;
   private final long maxSortMemory;
   private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
@@ -59,8 +59,8 @@ public class MemoryTracker {
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final AtomicLong replicateBufferCounter = new AtomicLong(0);
-  private final LongAdder pauseFlowInCounter = new LongAdder();
-  private final LongAdder pauseFlowInAndReplicateCounter = new LongAdder();
+  private final LongAdder pausePushDataCounter = new LongAdder();
+  private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
   private boolean underPressure;
   private int trimCount = 0;
@@ -68,7 +68,7 @@ public class MemoryTracker {
   public static MemoryTracker initialize(
     double pausePushDataRatio,
     double pauseReplicateRatio,
-    double resumeFlowInRatio,
+    double resumeRatio,
     double maxSortRatio,
     int checkInterval,
     int reportInterval,
@@ -77,7 +77,7 @@ public class MemoryTracker {
       _INSTANCE = new MemoryTracker(
         pauseReplicateRatio,
         pausePushDataRatio,
-        resumeFlowInRatio,
+        resumeRatio,
         maxSortRatio,
         checkInterval,
         reportInterval,
@@ -97,17 +97,17 @@ public class MemoryTracker {
   }
 
   private MemoryTracker(
-    double pauseFlowInRatio,
+    double pausePushDataRatio,
     double pauseReplicateRatio,
-    double resumeFlowInRatio,
+    double resumeRatio,
     double maxSortMemRatio,
     int checkInterval,
     int reportInterval,
     int trimActionThreshold) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
-    pausePushDataThreshold = (long) (maxDirectorMemory * pauseFlowInRatio);
+    pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
-    resumeFlowInThreshold = (long) (maxDirectorMemory * resumeFlowInRatio);
+    resumeThreshold = (long) (maxDirectorMemory * resumeRatio);
 
     initDirectMemoryIndicator();
 
@@ -117,9 +117,9 @@ public class MemoryTracker {
         memoryTrackerStat = currentMemoryAction();
         if (lastAction != memoryTrackerStat) {
           if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndResumeReplicate) {
-            pauseFlowInCounter.increment();
+            pausePushDataCounter.increment();
             actionService.submit(() -> {
-              logger.info("Trigger pauseFlowIn action");
+              logger.info("Trigger pausePushDataAndResumeReplicate action");
               memoryTrackerListeners.forEach(memoryTrackerListener ->
                 memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
               memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
@@ -127,9 +127,9 @@ public class MemoryTracker {
                 memoryTrackerListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
             });
           } else if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndReplicate) {
-            pauseFlowInAndReplicateCounter.increment();
+            pausePushDataAndReplicateCounter.increment();
             actionService.submit(() -> {
-              logger.info("Trigger pauseReplicateAndFlowIn action");
+              logger.info("Trigger pausePushDataAndReplicate action");
               memoryTrackerListeners.forEach(memoryTrackerListener ->
                 memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
               memoryTrackerListeners.forEach(memoryTrackerListener ->
@@ -168,13 +168,13 @@ public class MemoryTracker {
 
     logger.info("Memory tracker initialized with :  " +
                   "\n max direct memory : {} ({} MB)" +
-                  "\n pause flowin memory : {} ({} MB)" +
+                  "\n pause pushdata memory : {} ({} MB)" +
                   "\n pause replication memory : {} ({} MB)" +
-                  "\n resume flowin memory : {} ({} MB)",
+                  "\n resume memory : {} ({} MB)",
       maxDirectorMemory, toMb(maxDirectorMemory),
       pausePushDataThreshold, toMb(pausePushDataThreshold),
       pauseReplicateThreshold, toMb(pauseReplicateThreshold),
-      resumeFlowInThreshold, toMb(resumeFlowInThreshold));
+      resumeThreshold, toMb(resumeThreshold));
   }
 
   private double toMb(long bytes) {
@@ -200,9 +200,9 @@ public class MemoryTracker {
 
   public MemoryTrackerStat currentMemoryAction() {
     long memoryUsage =  nettyMemoryCounter.get() + sortMemoryCounter.get();
-    boolean pauseFlowIn = memoryUsage > pausePushDataThreshold;
+    boolean pausePushData = memoryUsage > pausePushDataThreshold;
     boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
-    if (pauseFlowIn) {
+    if (pausePushData) {
       underPressure = true;
       if (pauseReplication) {
         return MemoryTrackerStat.pausePushDataAndReplicate;
@@ -210,8 +210,8 @@ public class MemoryTracker {
         return MemoryTrackerStat.pausePushDataAndResumeReplicate;
       }
     } else {
-      boolean resumeFlowIn = memoryUsage < resumeFlowInThreshold;
-      if (resumeFlowIn) {
+      boolean resume = memoryUsage < resumeThreshold;
+      if (resume) {
         underPressure = false;
         return MemoryTrackerStat.resumeAll;
       } else {
@@ -271,12 +271,12 @@ public class MemoryTracker {
     return diskBufferCounter;
   }
 
-  public long getPauseFlowInCounter() {
-    return pauseFlowInCounter.sum();
+  public long getPausePushDataCounter() {
+    return pausePushDataCounter.sum();
   }
 
-  public long getPauseFlowInAndReplicateCounter(){
-    return pauseFlowInAndReplicateCounter.sum();
+  public long getPausePushDataAndReplicateCounter(){
+    return pausePushDataAndReplicateCounter.sum();
   }
 
   public AtomicLong getReplicateBufferCounter() {

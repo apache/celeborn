@@ -82,6 +82,6 @@ object WorkerSource {
   val SortingFiles = "SortingFiles"
   val DiskBuffer = "DiskBuffer"
   val ReplicateBuffer = "ReplicateBuffer"
-  val PauseFlowInCount = "PauseFlowIn"
-  val PauseFlowInAndReplicateCount = "PauseFlowInAndReplicate"
+  val PausePushDataCount = "PausePushData"
+  val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
 }

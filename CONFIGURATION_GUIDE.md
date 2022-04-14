@@ -201,6 +201,6 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 this limit, worker will stop receive from executor |
 | `rss.pause.replicate.memory.ratio` | 0.95 | double |  If direct memory usage reach
 this limit, worker will stop receive from executor and other worker |
-| `rss.resume.flowin.memory.ratio` | 0.5 | double |  If direct memory usage is less than this 
+| `rss.resume.memory.ratio` | 0.5 | double |  If direct memory usage is less than this 
 limit, worker will resume receive|
 | `rss.worker.reserveForSingleSort.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|

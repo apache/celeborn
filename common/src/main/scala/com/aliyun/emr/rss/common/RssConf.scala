@@ -760,8 +760,8 @@ object RssConf extends Logging {
     conf.getDouble("rss.pause.replicate.memory.ratio", 0.95)
   }
 
-  def workerResumeFlowInRatio(conf: RssConf): Double = {
-    conf.getDouble("rss.resume.flowin.memory.ratio", 0.5)
+  def workerResumeRatio(conf: RssConf): Double = {
+    conf.getDouble("rss.resume.memory.ratio", 0.5)
   }
 
   def memoryReservedForSingleSort(conf: RssConf): Long = {

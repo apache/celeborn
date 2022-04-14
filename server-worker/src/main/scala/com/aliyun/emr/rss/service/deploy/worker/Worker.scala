@@ -33,7 +33,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.{memoryTrimActionThreshold, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerPausePushDataRatio, workerPauseRepcaliteRatio, workerResumeFlowInRatio}
+import com.aliyun.emr.rss.common.RssConf.{memoryTrimActionThreshold, partitionSortMaxMemoryRatio, partitionSortTimeout, workerDirectMemoryPressureCheckIntervalMs, workerDirectMemoryReportIntervalSecond, workerPausePushDataRatio, workerPauseRepcaliteRatio, workerResumeRatio}
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -70,7 +70,7 @@ private[deploy] class Worker(
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),
     workerPauseRepcaliteRatio(conf),
-    workerResumeFlowInRatio(conf),
+    workerResumeRatio(conf),
     partitionSortMaxMemoryRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf),
@@ -164,9 +164,9 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.ReplicateBuffer,
     _ => memoryTracker.getReplicateBufferCounter.get())
   workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.PauseFlowInCount, _ => memoryTracker.getPauseFlowInCounter)
-  workerSource.addGauge(WorkerSource.PauseFlowInAndReplicateCount,
-    _ => memoryTracker.getPauseFlowInAndReplicateCounter)
+  workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryTracker.getPausePushDataCounter)
+  workerSource.addGauge(WorkerSource.PausePushDataAndReplicateCount,
+    _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   // Threads
   private val forwardMessageScheduler =
