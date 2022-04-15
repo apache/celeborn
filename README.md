@@ -117,7 +117,8 @@ rss.ha.master.hosts host1,host2,host3
 5. Start RSS master
 `$RSS_HOME/sbin/start-master.sh`
 6. Start RSS worker
-`$RSS_HOME/sbin/start-worker.sh`
+For single master cluster : `$RSS_HOME/sbin/start-worker.sh rss://masterhost:port`
+For HA cluster :`$RSS_HOME/sbin/start-worker.sh`
 7. If RSS start success, the output of Master's log should be like this: 
 ```angular2html
 21/12/21 20:06:18,964 INFO [main] Dispatcher: Dispatcher numThreads: 64
