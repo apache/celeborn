@@ -112,6 +112,14 @@
                                     <pattern>com.google.protobuf</pattern>
                                     <shadedPattern>com.aliyun.emr.com.google.protobuf</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>com.google.common</pattern>
+                                    <shadedPattern>com.aliyun.emr.com.google.common</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.netty</pattern>
+                                    <shadedPattern>com.aliyun.emr.io.netty</shadedPattern>
+                                </relocation>
                             </relocations>
                             <artifactSet>
                                 <includes>
@@ -122,6 +130,8 @@
                                     <include>com.aliyun.emr:shuffle-manager-common</include>
                                     <include>com.aliyun.emr:rss-shuffle-manager</include>
                                     <include>com.google.protobuf:protobuf-java</include>
+                                    <include>com.google.guava:guava</include>
+                                    <include>io.netty:*</include>
                                 </includes>
                             </artifactSet>
                             <filters>
