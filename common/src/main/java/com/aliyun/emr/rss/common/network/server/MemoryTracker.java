@@ -74,8 +74,8 @@ public class MemoryTracker {
     int trimActionThreshold) {
     if (_INSTANCE == null) {
       _INSTANCE = new MemoryTracker(
-        pauseReplicateRatio,
         pausePushDataRatio,
+        pauseReplicateRatio,
         resumeRatio,
         maxSortRatio,
         checkInterval,
