@@ -17,15 +17,23 @@
 
 package com.aliyun.emr.rss.common.network.buffer;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
+import java.util.UUID;
 
 import com.google.common.base.Objects;
 import com.google.common.io.ByteStreams;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.DefaultFileRegion;
 
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.LimitedInputStream;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
@@ -38,12 +46,15 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
   private final File file;
   private final long offset;
   private final long length;
+  private final AbstractSource source;
 
-  public FileSegmentManagedBuffer(TransportConf conf, File file, long offset, long length) {
+  public FileSegmentManagedBuffer(TransportConf conf, File file, long offset, long length,
+    AbstractSource source) {
     this.conf = conf;
     this.file = file;
     this.offset = offset;
     this.length = length;
+    this.source = source;
   }
 
   @Override
@@ -54,11 +65,15 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
   @Override
   public ByteBuffer nioByteBuffer() throws IOException {
     FileChannel channel = null;
+    String tmpId = UUID.randomUUID().toString();
     try {
       channel = new RandomAccessFile(file, "r").getChannel();
       // Just copy the buffer if it's sufficiently small, as memory mapping has a high overhead.
       if (length < conf.memoryMapBytes()) {
-        ByteBuffer buf = ByteBuffer.allocate((int) length);
+        if (source != null) {
+          source.startTimer(NetWorkSource.FileSegmentReadTime(), tmpId);
+        }
+        ByteBuffer buf = ByteBuffer.allocateDirect((int)length);
         channel.position(offset);
         while (buf.remaining() != 0) {
           if (channel.read(buf) == -1) {
@@ -67,10 +82,20 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
               offset, file.getAbsoluteFile(), buf.remaining()));
           }
         }
+        if (source != null) {
+          source.stopTimer(NetWorkSource.FileSegmentReadTime(), tmpId);
+        }
         buf.flip();
         return buf;
       } else {
-        return channel.map(FileChannel.MapMode.READ_ONLY, offset, length);
+        if (source != null) {
+          source.startTimer(NetWorkSource.FileSegmentMapTime(), tmpId);
+        }
+        ByteBuffer buf = channel.map(FileChannel.MapMode.READ_ONLY, offset, length);
+        if (source != null) {
+          source.stopTimer(NetWorkSource.FileSegmentMapTime(), tmpId);
+        }
+        return buf;
       }
     } catch (IOException e) {
       String errorMessage = "Error in reading " + this;
@@ -83,7 +108,7 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
         // ignore
       }
       throw new IOException(errorMessage, e);
-    } finally {
+    }finally {
       JavaUtils.closeQuietly(channel);
     }
   }
@@ -124,12 +149,20 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
 
   @Override
   public Object convertToNetty() throws IOException {
-    if (conf.lazyFileDescriptor()) {
-      return new DefaultFileRegion(file, offset, length);
+    if (conf.sendFileSegmentPreferTransfer()) {
+      if (conf.lazyFileDescriptor()) {
+        return new DefaultFileRegion(file, offset, length);
+      } else {
+        FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+        return new DefaultFileRegion(fileChannel, offset, length);
+      }
     } else {
-      FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
-      return new DefaultFileRegion(fileChannel, offset, length);
+      return Unpooled.wrappedBuffer(nioByteBuffer());
     }
+  }
+
+  public boolean isSortedFiles() {
+    return file.getAbsolutePath().endsWith("sorted");
   }
 
   public File getFile() { return file; }

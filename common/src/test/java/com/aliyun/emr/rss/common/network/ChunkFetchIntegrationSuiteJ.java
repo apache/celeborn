@@ -31,6 +31,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
 import com.aliyun.emr.rss.common.network.buffer.FileSegmentManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
@@ -80,8 +83,9 @@ public class ChunkFetchIntegrationSuiteJ {
       Closeables.close(fp, shouldSuppressIOException);
     }
 
+    AbstractSource source = new NetWorkSource(new RssConf(),"test");
     final TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
-    fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
+    fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25, source);
 
     streamManager = new StreamManager() {
       @Override
@@ -90,7 +94,7 @@ public class ChunkFetchIntegrationSuiteJ {
         if (chunkIndex == BUFFER_CHUNK_INDEX) {
           return new NioManagedBuffer(buf);
         } else if (chunkIndex == FILE_CHUNK_INDEX) {
-          return new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
+          return new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25,source);
         } else {
           throw new IllegalArgumentException("Invalid chunk index: " + chunkIndex);
         }

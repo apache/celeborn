@@ -75,7 +75,7 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
       logger.debug("Received chunk fetch request {} {} {} {} get file info {}", shuffleKey,
         fileName, startMapIndex, endMapIndex, fileInfo);
       try {
-        ManagedBufferIterator iterator = new ManagedBufferIterator(fileInfo, conf);
+        ManagedBufferIterator iterator = new ManagedBufferIterator(fileInfo, conf, source);
         long streamId = streamManager.registerStream(
             client.getClientId(), iterator, client.getChannel());
 

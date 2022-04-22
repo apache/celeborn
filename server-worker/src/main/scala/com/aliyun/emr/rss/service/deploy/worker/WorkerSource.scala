@@ -23,7 +23,7 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 
 class WorkerSource(essConf: RssConf)
-    extends AbstractSource(essConf, MetricsSystem.ROLE_WOKRER) with Logging {
+  extends AbstractSource(essConf, MetricsSystem.ROLE_WOKRER) with Logging {
   override val sourceName = "worker"
 
   import WorkerSource._
@@ -37,10 +37,14 @@ class WorkerSource(essConf: RssConf)
   addTimer(MasterPushDataTime)
   addTimer(SlavePushDataTime)
 
-  addTimer(FetchChunkTime)
   addTimer(OpenStreamTime)
   addTimer(TakeBufferTime)
   addTimer(SortTime)
+
+  addTimer(LoadChunkTime)
+  addTimer(SendChunkTime)
+  addTimer(FileSegmentReadTime)
+  addTimer(FileSegmentMapTime)
 
   // start cleaner thread
   startCleaner()
@@ -56,9 +60,6 @@ object WorkerSource {
   val FlushDataTime = "FlushDataTime"
 
   val OpenStreamTime = "OpenStreamTime"
-
-  val FetchChunkTime = "FetchChunkTime"
-
 
   // push data
   val MasterPushDataTime = "MasterPushDataTime"
@@ -83,4 +84,9 @@ object WorkerSource {
   val DiskBuffer = "DiskBuffer"
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
+
+  val LoadChunkTime = "LoadChunkTime"
+  val SendChunkTime = "SendChunkTime"
+  val FileSegmentReadTime = "FileSegmentReadTime"
+  val FileSegmentMapTime = "FileSegmentMapTime"
 }

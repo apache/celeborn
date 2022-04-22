@@ -104,6 +104,9 @@ If you have 8192 mapper tasks , you could set `spark.rss.push.data.maxReqsInFlig
 If `rss.worker.flush.buffer` is 256 KB, we can have total slots up to 327680 slots.
 So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 65530 slots.
 
+(Experimental)If rss workers run on HDD server, try to set `rss.send.filesegment.prefer.transfer=false` and
+`rss.storage.memoryMapThreshold=16m` to disable transfer calls to gain better performance. 
+
 ## APPENDIX RSS Configuration List
 
 ### Environment Variables(rss-env.sh)

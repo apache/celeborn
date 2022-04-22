@@ -48,7 +48,7 @@ private[rss] class NettyStreamManager(rpcEnv: NettyRpcEnv)
     }
 
     if (file != null && file.isFile()) {
-      new FileSegmentManagedBuffer(rpcEnv.transportConf, file, 0, file.length())
+      new FileSegmentManagedBuffer(rpcEnv.transportConf, file, 0, file.length(), null)
     } else {
       null
     }

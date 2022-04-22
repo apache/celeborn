@@ -71,7 +71,8 @@ class MessageWithHeader extends AbstractFileRegion {
       ByteBuf header,
       Object body,
       long bodyLength) {
-    Preconditions.checkArgument(body instanceof ByteBuf || body instanceof FileRegion,
+    Preconditions.checkArgument(body instanceof ByteBuf || body instanceof FileRegion
+                                  || body instanceof ByteBuffer,
       "Body must be a ByteBuf or a FileRegion.");
     this.managedBuffer = managedBuffer;
     this.header = header;
@@ -119,7 +120,7 @@ class MessageWithHeader extends AbstractFileRegion {
     long writtenBody = 0;
     if (body instanceof FileRegion) {
       writtenBody = ((FileRegion) body).transferTo(target, totalBytesTransferred - headerLength);
-    } else if (body instanceof ByteBuf) {
+    }else if (body instanceof ByteBuf) {
       writtenBody = copyByteBuf((ByteBuf) body, target);
     }
     totalBytesTransferred += writtenBody;

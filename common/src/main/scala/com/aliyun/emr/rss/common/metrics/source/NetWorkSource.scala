@@ -24,12 +24,18 @@ class NetWorkSource(essConf: RssConf, role: String) extends AbstractSource(essCo
 
   import NetWorkSource._
   // add timer
-  addTimer(FetchChunkTime)
+  addTimer(LoadChunkTime)
+  addTimer(SendChunkTime)
+  addTimer(FileSegmentReadTime)
+  addTimer(FileSegmentMapTime)
 
   // start cleaner
   startCleaner()
 }
 
 object NetWorkSource {
-  val FetchChunkTime = "FetchChunkTime"
+  val LoadChunkTime = "LoadChunkTime"
+  val SendChunkTime = "SendChunkTime"
+  val FileSegmentReadTime = "FileSegmentReadTime"
+  val FileSegmentMapTime = "FileSegmentMapTime"
 }

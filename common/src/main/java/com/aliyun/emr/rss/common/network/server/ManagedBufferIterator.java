@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.Iterator;
 
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.buffer.FileSegmentManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
@@ -35,8 +36,10 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
   private final TransportConf conf;
 
   private int index = 0;
+  private AbstractSource source;
 
-  public ManagedBufferIterator(FileInfo fileInfo, TransportConf conf) throws IOException {
+  public ManagedBufferIterator(FileInfo fileInfo, TransportConf conf, AbstractSource source)
+    throws IOException {
     file = fileInfo.file;
     numChunks = fileInfo.numChunks;
     if (numChunks > 0) {
@@ -50,6 +53,7 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
     }
     chunkTracker = new BitSet(numChunks);
     chunkTracker.clear();
+    this.source = source;
     this.conf = conf;
   }
 
@@ -83,6 +87,6 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
     }
     final long offset = offsets[chunkIndex];
     final long length = offsets[chunkIndex + 1] - offset;
-    return new FileSegmentManagedBuffer(conf, file, offset, length);
+    return new FileSegmentManagedBuffer(conf, file, offset, length, source);
   }
 }

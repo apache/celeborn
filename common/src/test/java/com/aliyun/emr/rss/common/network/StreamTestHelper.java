@@ -25,6 +25,9 @@ import java.util.Random;
 
 import com.google.common.io.Files;
 
+import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
 import com.aliyun.emr.rss.common.network.buffer.FileSegmentManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
@@ -40,6 +43,7 @@ class StreamTestHelper {
   final ByteBuffer emptyBuffer;
   final ByteBuffer smallBuffer;
   final ByteBuffer largeBuffer;
+  AbstractSource source = new NetWorkSource(new RssConf(),"test");
 
   private static ByteBuffer createBuffer(int bufSize) {
     ByteBuffer buf = ByteBuffer.allocate(bufSize);
@@ -86,7 +90,7 @@ class StreamTestHelper {
   public ManagedBuffer openStream(TransportConf conf, String streamId) {
     switch (streamId) {
       case "file":
-        return new FileSegmentManagedBuffer(conf, testFile, 0, testFile.length());
+        return new FileSegmentManagedBuffer(conf, testFile, 0, testFile.length(), source);
       default:
         return new NioManagedBuffer(srcBuffer(streamId));
     }

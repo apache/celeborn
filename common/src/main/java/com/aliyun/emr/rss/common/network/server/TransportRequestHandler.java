@@ -161,7 +161,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processFetchRequest(final ChunkFetchRequest req) {
     if (source != null) {
-      source.startTimer(NetWorkSource.FetchChunkTime(), req.toString());
+      source.startTimer(NetWorkSource.LoadChunkTime(), req.toString());
     }
     if (logger.isTraceEnabled()) {
       logger.trace("Received req from {} to fetch block {}", NettyUtils.getRemoteAddress(channel),
@@ -173,7 +173,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
         chunksBeingTransferred, maxChunksBeingTransferred);
       channel.close();
       if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+        source.stopTimer(NetWorkSource.LoadChunkTime(), req.toString());
       }
       return;
     }
@@ -181,22 +181,24 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     try {
       streamManager.checkAuthorization(reverseClient, req.streamChunkId.streamId);
       buf = streamManager.getChunk(req.streamChunkId.streamId, req.streamChunkId.chunkIndex);
+      if (source != null) {
+        source.stopTimer(NetWorkSource.LoadChunkTime(), req.toString());
+      }
     } catch (Exception e) {
       logger.error(String.format("Error opening block %s for request from %s",
         req.streamChunkId, NettyUtils.getRemoteAddress(channel)), e);
       respond(new ChunkFetchFailure(req.streamChunkId, Throwables.getStackTraceAsString(e)));
       if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+        source.stopTimer(NetWorkSource.LoadChunkTime(), req.toString());
       }
       return;
     }
 
     streamManager.chunkBeingSent(req.streamChunkId.streamId);
+    source.startTimer(NetWorkSource.SendChunkTime(), req.toString());
     respond(new ChunkFetchSuccess(req.streamChunkId, buf)).addListener(future -> {
       streamManager.chunkSent(req.streamChunkId.streamId);
-      if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
-      }
+      source.stopTimer(NetWorkSource.SendChunkTime(), req.toString());
     });
   }
 

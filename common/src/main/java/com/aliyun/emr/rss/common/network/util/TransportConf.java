@@ -197,6 +197,10 @@ public class TransportConf {
     return conf.getBoolean("rss.network.crypto.enabled", false);
   }
 
+  public Boolean sendFileSegmentPreferTransfer() {
+    return conf.getBoolean("rss.send.filesegment.prefer.transfer", true);
+  }
+
   /**
    * The cipher transformation to use for encrypting session data.
    */
