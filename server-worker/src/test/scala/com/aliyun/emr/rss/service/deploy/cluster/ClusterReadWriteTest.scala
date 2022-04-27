@@ -48,14 +48,14 @@ class ClusterReadWriteTest extends MiniClusterFeature {
     val OFFSET1 = 0
     val LENGTH1 = DATA1.length
 
-    val dataSize1 = shuffleClient.pushData(APP, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 1, 1)
+    val dataSize1 = shuffleClient.writeData(APP, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 1, 1)
     logInfo(s"push data data size ${dataSize1}")
 
     val STR2 = RandomStringUtils.random(32 * 1024)
     val DATA2 = STR2.getBytes(StandardCharsets.UTF_8)
     val OFFSET2 = 0
     val LENGTH2 = DATA2.length
-    val dataSize2 = shuffleClient.pushData(APP, 1, 0, 0, 0, DATA2, OFFSET2, LENGTH2, 1, 1)
+    val dataSize2 = shuffleClient.writeData(APP, 1, 0, 0, 0, DATA2, OFFSET2, LENGTH2, 1, 1)
     logInfo(s"push data data size ${dataSize2}")
 
     val STR3 = RandomStringUtils.random(32 * 1024)

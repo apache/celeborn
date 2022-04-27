@@ -257,7 +257,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", numBytes);
     long pushStartTime = System.nanoTime();
-    int bytesWritten = rssShuffleClient.pushData(
+    int bytesWritten = rssShuffleClient.writeData(
         appId,
         shuffleId,
         mapId,
@@ -295,7 +295,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void close() throws IOException {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     dataPusher.waitOnTermination();
-    rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
 
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,

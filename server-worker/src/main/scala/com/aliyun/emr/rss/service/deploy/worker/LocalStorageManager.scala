@@ -37,7 +37,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.PartitionLocation
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 private[worker] case class FlushTask(
@@ -321,12 +321,12 @@ private[worker] final class LocalStorageManager(
 
   @throws[IOException]
   def createWriter(appId: String, shuffleId: Int, location: PartitionLocation,
-    splitThreshold: Long, splitMode: PartitionSplitMode): FileWriter = {
+    splitThreshold: Long, splitEnabled: Boolean): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
     createWriter(appId, shuffleId, location.getReduceId, location.getEpoch,
-      location.getMode, splitThreshold, splitMode)
+      location.getMode, splitThreshold, splitEnabled)
   }
 
   @throws[IOException]
@@ -337,7 +337,7 @@ private[worker] final class LocalStorageManager(
     epoch: Int,
     mode: PartitionLocation.Mode,
     splitThreshold: Long,
-    splitMode: PartitionSplitMode): FileWriter = {
+    splitEnabled: Boolean): FileWriter = {
     val fileName = s"$reduceId-$epoch-${mode.mode()}"
 
     var retryCount = 0
@@ -356,7 +356,7 @@ private[worker] final class LocalStorageManager(
           throw new RssException("create app shuffle data dir or file failed")
         }
         val fileWriter = new FileWriter(file, diskFlushers.get(dir), dir, fetchChunkSize,
-          writerFlushBufferSize, workerSource, conf, deviceMonitor, splitThreshold, splitMode)
+          writerFlushBufferSize, workerSource, conf, deviceMonitor, splitThreshold, splitEnabled)
         deviceMonitor.registerFileWriter(fileWriter)
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)

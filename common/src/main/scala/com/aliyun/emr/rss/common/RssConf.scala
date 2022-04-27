@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.PartitionSplitMode
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -726,14 +725,8 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
-  def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
-    val modeStr = conf.get("rss.partition.split.mode", "soft")
-    modeStr match {
-      case "soft" => PartitionSplitMode.soft
-      case "hard" => PartitionSplitMode.hard
-      case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
-        PartitionSplitMode.soft
-    }
+  def partitionSplitEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.partition.split.enabled", true)
   }
 
   def clientSplitPoolSize(conf: RssConf): Int = {

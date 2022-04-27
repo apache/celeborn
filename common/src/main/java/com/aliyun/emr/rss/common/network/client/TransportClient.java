@@ -202,21 +202,7 @@ public class TransportClient implements Closeable {
     return requestId;
   }
 
-  public ChannelFuture pushData(PushData pushData, RpcResponseCallback callback) {
-    if (logger.isTraceEnabled()) {
-      logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
-    }
-
-    long requestId = dataRequestId();
-    handler.addRpcRequest(requestId, callback);
-
-    pushData.requestId = requestId;
-
-    RpcChannelListener listener = new RpcChannelListener(requestId, callback);
-    return channel.writeAndFlush(pushData).addListener(listener);
-  }
-
-  public ChannelFuture pushMergedData(PushMergedData pushMergedData, RpcResponseCallback callback) {
+  public ChannelFuture pushMergedData(MergedData mergedData, RpcResponseCallback callback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
@@ -224,16 +210,16 @@ public class TransportClient implements Closeable {
     long requestId = dataRequestId();
     handler.addRpcRequest(requestId, callback);
 
-    pushMergedData.requestId = requestId;
+    mergedData.requestId = requestId;
 
     RpcChannelListener listener = new RpcChannelListener(requestId, callback);
-    return channel.writeAndFlush(pushMergedData).addListener(listener);
+    return channel.writeAndFlush(mergedData).addListener(listener);
   }
 
-  public ByteBuffer pushMergedDataSync(PushMergedData pushMergedData, long timeoutMs) {
+  public ByteBuffer pushMergedDataSync(MergedData mergedData, long timeoutMs) {
     final SettableFuture<ByteBuffer> result = SettableFuture.create();
 
-    pushMergedData(pushMergedData, new RpcResponseCallback() {
+    pushMergedData(mergedData, new RpcResponseCallback() {
       @Override
       public void onSuccess(ByteBuffer response) {
         ByteBuffer copy = ByteBuffer.allocate(response.remaining());

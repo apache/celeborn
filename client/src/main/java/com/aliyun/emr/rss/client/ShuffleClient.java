@@ -94,7 +94,7 @@ public abstract class ShuffleClient implements Cloneable {
    * @param offset
    * @param length
    */
-  public abstract int pushData(
+  public abstract int writeData(
       String applicationId,
       int shuffleId,
       int mapId,

@@ -45,8 +45,7 @@ public enum StatusCode {
   PushDataFailMain(19),
   PushDataFailPartitionNotFound(20),
 
-  HardSplit(21),
-  SoftSplit(22);
+  Split(22);
 
   private final byte value;
 
@@ -69,8 +68,6 @@ public enum StatusCode {
       msg = "PushDataFailNonCriticalCause";
     } else if (value == PushDataFailPartitionNotFound.getValue()) {
       msg = "PushDataFailPartitionNotFound";
-    } else if (value == HardSplit.getValue()) {
-      msg = "PartitionFileSplit";
     }
     return msg;
   }

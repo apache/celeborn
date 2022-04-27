@@ -259,7 +259,7 @@ message PbReserveSlots {
   repeated PbPartitionLocation masterLocations = 3;
   repeated PbPartitionLocation slaveLocations = 4;
   int64 splitThreshold = 5;
-  int32 splitMode = 6;
+  bool splitEnabled = 6;
 }
 
 message PbReserveSlotsResponse {

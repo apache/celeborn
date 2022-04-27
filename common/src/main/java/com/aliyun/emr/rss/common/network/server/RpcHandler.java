@@ -26,8 +26,7 @@ import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.StreamCallback;
 import com.aliyun.emr.rss.common.network.client.StreamCallbackWithID;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.protocol.PushData;
-import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
+import com.aliyun.emr.rss.common.network.protocol.MergedData;
 
 /**
  * Handler for sendRPC() messages sent by {@link TransportClient}s.
@@ -84,16 +83,9 @@ public abstract class RpcHandler {
     throw new UnsupportedOperationException();
   }
 
-  public void receivePushData(
-      TransportClient client,
-      PushData pushData,
-      RpcResponseCallback callback) {
-    throw new UnsupportedOperationException();
-  }
-
   public void receivePushMergedData(
       TransportClient client,
-      PushMergedData pushMergedData,
+      MergedData mergedData,
       RpcResponseCallback callback) {
     throw new UnsupportedOperationException();
   }

@@ -24,8 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.protocol.PushData;
-import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
+import com.aliyun.emr.rss.common.network.protocol.MergedData;
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
@@ -36,10 +35,10 @@ public final class PushDataRpcHandler extends RpcHandler {
   private static final Logger logger = LoggerFactory.getLogger(PushDataRpcHandler.class);
 
   private final TransportConf conf;
-  private final PushDataHandler handler;
+  private final PushHandler handler;
   private final OneForOneStreamManager streamManager;
 
-  public PushDataRpcHandler(TransportConf conf, PushDataHandler handler) {
+  public PushDataRpcHandler(TransportConf conf, PushHandler handler) {
     this.conf = conf;
     this.handler = handler;
     streamManager = new OneForOneStreamManager();
@@ -51,15 +50,9 @@ public final class PushDataRpcHandler extends RpcHandler {
   }
 
   @Override
-  public void receivePushData(
-      TransportClient client, PushData pushData, RpcResponseCallback callback) {
-    handler.handlePushData(pushData, callback);
-  }
-
-  @Override
   public void receivePushMergedData(
-      TransportClient client, PushMergedData pushMergedData, RpcResponseCallback callback) {
-    handler.handlePushMergedData(pushMergedData, callback);
+      TransportClient client, MergedData mergedData, RpcResponseCallback callback) {
+    handler.handleMergedData(mergedData, callback);
   }
 
   @Override

@@ -45,7 +45,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val GetBlacklistDelayMs = RssConf.getBlacklistDelayMs(conf)
   private val ShouldReplicate = RssConf.replicate(conf)
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
-  private val splitMode = RssConf.partitionSplitMode(conf)
+  private val splitEnabled = RssConf.partitionSplitEnabled(conf)
 
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
 
@@ -437,16 +437,20 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       List(oldPartition), candidates)
     if (slots == null) {
       logError("[Update partition] failed for slot not available.")
-      contexts.remove(reduceId).asScala.foreach(
-        _.reply(ChangeLocationResponse(StatusCode.SlotNotAvailable, null)))
+      val set = contexts.synchronized {
+        contexts.remove(reduceId)
+      }
+      set.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.SlotNotAvailable, null)))
       return
     }
 
     val reserveSlotsSuccess = reserveSlotsWithRetry(applicationId, shuffleId, candidates, slots)
     if (!reserveSlotsSuccess) {
       logError(s"[Update partition] failed for $shuffleId.")
-      contexts.remove(reduceId).asScala.foreach(
-        _.reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null)))
+      val set = contexts.synchronized {
+        contexts.remove(reduceId)
+      }
+      set.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null)))
       return
     }
 
@@ -463,8 +467,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
     logInfo(s"[Update partition] success for $shuffleId $location.")
-    contexts.remove(reduceId).asScala.foreach(
-      _.reply(ChangeLocationResponse(StatusCode.Success, location)))
+    val set = contexts.synchronized {
+      contexts.remove(reduceId)
+    }
+    set.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.Success, location)))
     logInfo(s"Renew $shuffleId $reduceId partition success.")
   }
 
@@ -782,7 +788,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       } else {
         val res = requestReserveSlots(entry._1.endpoint,
           ReserveSlots(applicationId, shuffleId, entry._2._1, entry._2._2, splitThreshold,
-            splitMode))
+            splitEnabled))
         if (res.status.equals(StatusCode.Success)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +

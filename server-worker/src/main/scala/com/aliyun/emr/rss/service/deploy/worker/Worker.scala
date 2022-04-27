@@ -43,9 +43,9 @@ import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
-import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
+import com.aliyun.emr.rss.common.network.protocol.MergedData
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, FileInfo, MemoryTracker, TransportServerBootstrap}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -58,7 +58,7 @@ private[deploy] class Worker(
                               override val rpcEnv: RpcEnv,
                               val conf: RssConf,
                               val metricsSystem: MetricsSystem)
-  extends RpcEndpoint with PushDataHandler with OpenStreamHandler with Registerable with Logging {
+  extends RpcEndpoint with PushHandler with OpenStreamHandler with Registerable with Logging {
 
   private val workerSource = {
     val source = new WorkerSource(conf)
@@ -259,7 +259,7 @@ private[deploy] class Worker(
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode) =>
+    splitEnabled) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
@@ -268,7 +268,7 @@ private[deploy] class Worker(
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode)
+          slaveLocations, splitThreashold, splitEnabled)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -304,7 +304,7 @@ private[deploy] class Worker(
       masterLocations: jList[PartitionLocation],
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
-      splitMode: PartitionSplitMode): Unit = {
+      splitEnabled: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -317,7 +317,7 @@ private[deploy] class Worker(
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
-          splitThreshold, splitMode)
+          splitThreshold, splitEnabled)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -337,7 +337,7 @@ private[deploy] class Worker(
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId,
-          location, splitThreshold, splitMode)
+          location, splitThreshold, splitEnabled)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -596,149 +596,14 @@ private[deploy] class Worker(
     (mapId, attemptId)
   }
 
-  override def handlePushData(pushData: PushData, callback: RpcResponseCallback): Unit = {
-    val shuffleKey = pushData.shuffleKey
-    val mode = PartitionLocation.getMode(pushData.mode)
-    val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
-    val isMaster = mode == PartitionLocation.Mode.Master
-    val bodySize = pushData.body().size()
-
-    val key = s"${pushData.requestId}"
-    if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
-    } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
-    }
-
-    // find FileWriter responsible for the data
-    val location = if (isMaster) {
-      partitionLocationInfo.getMasterLocation(shuffleKey, pushData.partitionUniqueId)
-    } else {
-      partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
-    }
-
-    val wrappedCallback = new RpcResponseCallback() {
-      override def onSuccess(response: ByteBuffer): Unit = {
-        if (isMaster) {
-          workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
-          if (response.remaining() > 0) {
-            val resp = ByteBuffer.allocate(response.remaining())
-            resp.put(response)
-            resp.flip()
-            callback.onSuccess(resp)
-          } else {
-            callback.onSuccess(response)
-          }
-        } else {
-          workerSource.stopTimer(WorkerSource.SlavePushDataTime, key)
-          callback.onSuccess(response)
-        }
-      }
-
-      override def onFailure(e: Throwable): Unit = {
-        logError(s"[handlePushData.onFailure] partitionLocation: $location")
-        workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage(), e))
-      }
-    }
-
-    if (location == null) {
-      val (mapId, attemptId) = getMapAttempt(body)
-      if (shuffleMapperAttempts.containsKey(shuffleKey) &&
-          -1 != shuffleMapperAttempts.get(shuffleKey)(mapId)) {
-        // partition data has already been committed
-        logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
-          s" attempt $attemptId), but this mapper has already been ended.")
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.StageEnded.getValue)))
-      } else {
-        val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
-          s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
-        logWarning(s"[handlePushData] $msg")
-        callback.onFailure(new Exception(StatusCode.PushDataFailPartitionNotFound.getMessage()))
-      }
-      return
-    }
-    val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-    val exception = fileWriter.getException
-    if (exception != null) {
-      logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
-      val message = if (isMaster) {
-        StatusCode.PushDataFailMain.getMessage()
-      } else {
-        StatusCode.PushDataFailSlave.getMessage()
-      }
-      callback.onFailure(new Exception(message, exception))
-      return
-    }
-    if (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold()) {
-      fileWriter.setSplitFlag()
-      if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
-      } else {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
-        return
-      }
-    }
-    fileWriter.incrementPendingWrites()
-
-    // for master, send data to slave
-    if (location.getPeer != null && isMaster) {
-      pushData.body().retain()
-      replicateThreadPool.submit(new Runnable {
-        override def run(): Unit = {
-          val peer = location.getPeer
-          val peerWorker = new WorkerInfo(peer.getHost, peer.getRpcPort, peer.getPushPort,
-            peer.getFetchPort, peer.getReplicatePort, -1, null)
-          if (unavailablePeers.containsKey(peerWorker)) {
-            pushData.body().release()
-            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
-            return
-          }
-          try {
-            val client = pushClientFactory.createClient(peer.getHost, peer.getReplicatePort,
-              location.getReduceId)
-            val newPushData = new PushData(
-              PartitionLocation.Mode.Slave.mode(),
-              shuffleKey,
-              pushData.partitionUniqueId,
-              pushData.body)
-            client.pushData(newPushData, wrappedCallback)
-          } catch {
-            case e: Exception =>
-              pushData.body().release()
-              unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(e)
-          }
-        }
-      })
-    } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-    }
-
-    try {
-      fileWriter.write(body)
-    } catch {
-      case e: AlreadyClosedException =>
-        fileWriter.decrementPendingWrites()
-        val (mapId, attemptId) = getMapAttempt(body)
-        val endedAttempt = if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-          shuffleMapperAttempts.get(shuffleKey)(mapId)
-        } else -1
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by ${e.getMessage}")
-      case e: Exception =>
-        logError("Exception encountered when write.", e)
-    }
-  }
-
-  override def handlePushMergedData(
-      pushMergedData: PushMergedData, callback: RpcResponseCallback): Unit = {
+  override def handleMergedData(
+      pushMergedData: MergedData, callback: RpcResponseCallback): Unit = {
     val shuffleKey = pushMergedData.shuffleKey
     val mode = PartitionLocation.getMode(pushMergedData.mode)
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.Master
-    val bodySize = pushMergedData.body().size()
+    val isFinalPush = pushMergedData.finalPush
 
     val key = s"${pushMergedData.requestId}"
     if (isMaster) {
@@ -798,9 +663,10 @@ private[deploy] class Worker(
     }
 
     val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
-    val fileWriterWithException = fileWriters.find(_.getException != null)
+      .zip(0 until locations.size)
+    val fileWriterWithException = fileWriters.find(_._1.getException != null)
     if (fileWriterWithException.nonEmpty) {
-      val exception = fileWriterWithException.get.getException
+      val exception = fileWriterWithException.get._1.getException
       logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
           s" has Exception $exception")
       val message = if (isMaster) {
@@ -811,7 +677,27 @@ private[deploy] class Worker(
       callback.onFailure(new Exception(message, exception))
       return
     }
-    fileWriters.foreach(_.incrementPendingWrites())
+
+    val neededFileWriters = if (isMaster && !isFinalPush) {
+      val shouldSplit = fileWriters.filter(p => p._1.getFileLength > p._1.getSplitThreshold)
+      if (!shouldSplit.isEmpty) {
+        shouldSplit.foreach(_._1.setSplitFlag())
+        val splitIndex = shouldSplit.map(_._2)
+        val retMsg = ByteBuffer.allocate(1 + 4 + 4 * splitIndex.length)
+        if (shouldSplit.head._1.getSplitEnabled) {
+          retMsg.put(StatusCode.Split.getValue)
+        }
+        retMsg.putInt(splitIndex.length)
+        splitIndex.foreach(retMsg.putInt(_))
+        retMsg.flip()
+        callback.onSuccess(retMsg)
+      }
+      fileWriters
+    } else {
+      fileWriters
+    }
+
+    neededFileWriters.foreach(_._1.incrementPendingWrites())
 
     // for master, send data to slave
     if (locations.head.getPeer != null && isMaster) {
@@ -830,12 +716,13 @@ private[deploy] class Worker(
           try {
             val client = pushClientFactory.createClient(
               peer.getHost, peer.getReplicatePort, location.getReduceId)
-            val newPushMergedData = new PushMergedData(
+            val newPushMergedData = new MergedData(
               PartitionLocation.Mode.Slave.mode(),
               shuffleKey,
               pushMergedData.partitionUniqueIds,
               batchOffsets,
-              pushMergedData.body)
+              pushMergedData.body,
+              false)
             client.pushMergedData(newPushMergedData, wrappedCallback)
           } catch {
             case e: Exception =>
@@ -852,10 +739,10 @@ private[deploy] class Worker(
     var index = 0
     var fileWriter: FileWriter = null
     var alreadyClosed = false
-    while (index < fileWriters.length) {
-      fileWriter = fileWriters(index)
+    while (index < neededFileWriters.length) {
+      fileWriter = neededFileWriters(index)._1
       val offset = body.readerIndex() + batchOffsets(index)
-      val length = if (index == fileWriters.length - 1) {
+      val length = if (index == neededFileWriters.length - 1) {
         body.readableBytes() - batchOffsets(index)
       } else {
         batchOffsets(index + 1) - batchOffsets(index)

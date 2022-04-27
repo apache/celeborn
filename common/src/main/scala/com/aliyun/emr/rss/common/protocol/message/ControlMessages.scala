@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, TransportMessages}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, TransportMessages}
 import com.aliyun.emr.rss.common.protocol.TransportMessages._
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
 import com.aliyun.emr.rss.common.util.Utils
@@ -303,7 +303,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REREGISTER_WORKER_RESPONSE, payload)
 
       case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations,
-      splitThreshold, splitMode) =>
+      splitThreshold, splitEnabled) =>
         val payload = TransportMessages.PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -312,7 +312,7 @@ sealed trait Message extends Serializable{
           .addAllSlaveLocations(slaveLocations.asScala
             .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
           .setSplitThreshold(splitThreshold)
-          .setSplitMode(splitMode.getValue)
+          .setSplitEnabled(splitEnabled)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.RESERVE_SLOTS, payload)
 
@@ -599,7 +599,7 @@ object ControlMessages extends Logging{
       masterLocations: util.List[PartitionLocation],
       slaveLocations: util.List[PartitionLocation],
       splitThreshold: Long,
-      splitMode: PartitionSplitMode)
+      splitEnabled: Boolean)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -839,7 +839,7 @@ object ControlMessages extends Logging{
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
           new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
-          pbReserveSlots.getSplitThreshold, Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode))
+          pbReserveSlots.getSplitThreshold, pbReserveSlots.getSplitEnabled)
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)

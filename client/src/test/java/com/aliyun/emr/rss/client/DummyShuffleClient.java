@@ -46,7 +46,7 @@ public class DummyShuffleClient extends ShuffleClient {
   public void setupMetaServiceRef(RpcEndpointRef endpointRef) {}
 
   @Override
-  public int pushData(
+  public int writeData(
       String applicationId,
       int shuffleId,
       int mapId,

@@ -83,11 +83,8 @@ public final class MessageDecoder extends MessageToMessageDecoder<ByteBuf> {
       case UploadStream:
         return UploadStream.decode(in);
 
-      case PushData:
-        return PushData.decode(in);
-
       case PushMergedData:
-        return PushMergedData.decode(in);
+        return MergedData.decode(in);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);

@@ -255,7 +255,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record for partition {}, size {}.", partitionId, numBytes);
     long pushStartTime = System.nanoTime();
-    int bytesWritten = rssShuffleClient.pushData(
+    int bytesWritten = rssShuffleClient.writeData(
         appId,
         shuffleId,
         mapId,

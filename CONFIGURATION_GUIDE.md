@@ -192,7 +192,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.memory.check.interval` | 10 | int | Timeunit is millisecond |
 | `rss.worker.memory.report.interval` | 10s | String | Timeunit is second |
 | `rss.partition.split.threshold` | 256m | String | Shuffle file split size |
-| `rss.partition.split.mode` | soft | String | sort, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold  |
+| `rss.partition.split.enabled` | true | bool | true means shuffle file will split |
 | `rss.client.split.pool.size` | 8 | int | Thread number to process shuffle split request in shuffle client. |
 | `rss.partition.sort.timeout` | 220 | int | Timeout for a shuffle file to sort |
 | `rss.memory.trim.action.threshold` | 10 | int |  |

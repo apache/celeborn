@@ -82,7 +82,7 @@ public class ShuffleClientSuiteJ {
 
     setupEnv();
 
-    int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
+    int pushDataLen = shuffleClient.writeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
       TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
       TEST_BUF1.length, 1, 1);
 
@@ -275,7 +275,6 @@ public class ShuffleClientSuiteJ {
       }
     };
 
-    when(client.pushData(any(), any())).thenAnswer(t -> mockedFuture);
     when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort(),
       TEST_REDUCRE_ID)).thenAnswer(t ->
       client);

@@ -15,30 +15,11 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.protocol;
+package com.aliyun.emr.rss.service.deploy.worker;
 
-public enum PartitionSplitMode {
-  // soft means shuffle file reach split threshold and will receive data until shuffle split
-  // request complete.
-  soft(0),
-  // hard means shuffle file reach split threshold and will stop receive data
-  hard(1);
+import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
+import com.aliyun.emr.rss.common.network.protocol.MergedData;
 
-  private final byte value;
-
-  PartitionSplitMode(int value) {
-    assert (value >= 0 && value < 256);
-    this.value = (byte) value;
-  }
-
-  public final byte getValue() {
-    return value;
-  }
-
-  @Override
-  public String toString() {
-    return "ShuffleSplitMode{" +
-             "value=" + name() +
-             '}';
-  }
+public interface PushHandler {
+  void handleMergedData(MergedData mergedData, RpcResponseCallback callback);
 }

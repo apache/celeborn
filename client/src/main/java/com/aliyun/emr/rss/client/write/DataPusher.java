@@ -113,7 +113,7 @@ public class DataPusher {
             if (task == null) {
               continue;
             }
-            pushData(task);
+            writeData(task);
             reclaimTask(task);
           } catch (InterruptedException e) {
             exception.set(new IOException(e));
@@ -167,8 +167,8 @@ public class DataPusher {
     }
   }
 
-  private void pushData(PushTask task) throws IOException {
-    int bytesWritten = client.pushData(
+  private void writeData(PushTask task) throws IOException {
+    int bytesWritten = client.writeData(
         appId,
         shuffleId,
         mapId,

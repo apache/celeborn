@@ -130,13 +130,9 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       processStreamRequest((StreamRequest) request);
     } else if (request instanceof UploadStream) {
       processStreamUpload((UploadStream) request);
-    } else if (request instanceof PushData) {
+    } else if (request instanceof MergedData) {
       if (checkRegistered(request)) {
-        processPushData((PushData) request);
-      }
-    } else if (request instanceof PushMergedData) {
-      if (checkRegistered(request)) {
-        processPushMergedData((PushMergedData) request);
+        processPushMergedData((MergedData) request);
       }
     } else {
       throw new IllegalArgumentException("Unknown request type: " + request);
@@ -328,30 +324,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     }
   }
 
-  private void processPushData(PushData req) {
-    try {
-      rpcHandler.receivePushData(reverseClient, req, new RpcResponseCallback() {
-        @Override
-        public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
-        }
-
-        @Override
-        public void onFailure(Throwable e) {
-          logger.error("[processPushData] Process pushData onFailure! ShuffleKey: "
-                  + req.shuffleKey + ", partitionUniqueId: " + req.partitionUniqueId, e);
-          respond(new RpcFailure(req.requestId, e.getMessage()));
-        }
-      });
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() on PushData " + req, e);
-      channel.writeAndFlush(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-    } finally {
-      req.body().release();
-    }
-  }
-
-  private void processPushMergedData(PushMergedData req) {
+  private void processPushMergedData(MergedData req) {
     try {
       rpcHandler.receivePushMergedData(reverseClient, req, new RpcResponseCallback() {
         @Override
