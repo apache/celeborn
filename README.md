@@ -1,4 +1,7 @@
 # Aliyun Remote Shuffle Service
+
+[![Join the chat at https://gitter.im/RemoteShuffleServiceCommunity/community](https://badges.gitter.im/RemoteShuffleServiceCommunity/community.svg)](https://gitter.im/RemoteShuffleServiceCommunity/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Aliyun Remote Shuffle Service(RSS) is dedicated to improving the efficiency and elasticity of
 different map-reduce engines. RSS provides an elastic and high efficient
 management service for shuffle data.  
