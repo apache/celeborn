@@ -637,6 +637,9 @@ private[deploy] class Worker(
     }
 
     // find FileWriters responsible for the data
+    logDebug(s"[handleMergedData] received merged data batch id :" +
+      s" ${pushMergedData.groupedBatchId} " +
+      s"unique ids:${pushMergedData.partitionUniqueIds.mkString(",")}")
     val locations = pushMergedData.partitionUniqueIds.map { id =>
       val loc = if (isMaster) {
         partitionLocationInfo.getMasterLocation(shuffleKey, id)
@@ -654,7 +657,7 @@ private[deploy] class Worker(
         } else {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId, uniqueId $id)."
-          logWarning(s"[handlePushMergedData] $msg")
+          logWarning(s"[handleMergedData] $msg")
           wrappedCallback.onFailure(new Exception(msg))
         }
         return
@@ -667,7 +670,7 @@ private[deploy] class Worker(
     val fileWriterWithException = fileWriters.find(_._1.getException != null)
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get._1.getException
-      logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
+      logDebug(s"[handleMergedData] fileWriter ${fileWriterWithException}" +
           s" has Exception $exception")
       val message = if (isMaster) {
         StatusCode.PushDataFailMain.getMessage()
@@ -679,8 +682,11 @@ private[deploy] class Worker(
     }
 
     val neededFileWriters = if (isMaster && !isFinalPush) {
-      val shouldSplit = fileWriters.filter(p => p._1.getFileLength > p._1.getSplitThreshold)
+      val shouldSplit = fileWriters.filter(p => p._1.getFileLength > p._1.getSplitThreshold
+        && p._1.getSplitEnabled)
       if (!shouldSplit.isEmpty) {
+        logDebug(s"[handleMergedData] split partitions " +
+          s"${shouldSplit.size} ${shouldSplit.map(_._2).mkString(",")}")
         shouldSplit.foreach(_._1.setSplitFlag())
         val splitIndex = shouldSplit.map(_._2)
         val retMsg = ByteBuffer.allocate(1 + 4 + 4 * splitIndex.length)
@@ -722,7 +728,8 @@ private[deploy] class Worker(
               pushMergedData.partitionUniqueIds,
               batchOffsets,
               pushMergedData.body,
-              false)
+              false,
+              pushMergedData.groupedBatchId)
             client.pushMergedData(newPushMergedData, wrappedCallback)
           } catch {
             case e: Exception =>

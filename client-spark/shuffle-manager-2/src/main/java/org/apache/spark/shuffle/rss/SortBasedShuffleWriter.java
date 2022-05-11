@@ -26,6 +26,7 @@ import scala.Product2;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkEnv;
@@ -286,6 +287,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
           MapStatus mapStatus = SparkUtils.createMapStatus(bmId,
             SparkUtils.unwrap(mapStatusLengths), mapStatusRecords);
+          logger.info("Shuffle map result bm:{} stat:{} attemptId:{}", bmId,
+            StringUtils.join(SparkUtils.unwrap(mapStatusLengths), ','),
+            taskContext.taskAttemptId());
           if (mapStatus == null) {
             throw new IllegalStateException("Cannot call stop(true) without having called write()");
           }

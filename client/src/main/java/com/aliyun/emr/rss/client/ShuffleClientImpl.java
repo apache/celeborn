@@ -23,6 +23,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -244,7 +245,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       throw pushState.exception.get();
     }
 
-    ConcurrentSet<Integer> inFlightBatches = pushState.inFlightBatches;
+    ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches = pushState.inFlightBatches;
     long timeoutMs = RssConf.limitInFlightTimeoutMs(conf);
     long delta = RssConf.limitInFlightSleepDeltaMs(conf);
     long times = timeoutMs / delta;
@@ -541,7 +542,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int port = Integer.parseInt(splits[1]);
 
     int groupedBatchId = pushState.batchId.addAndGet(1);
-    pushState.inFlightBatches.add(groupedBatchId);
+    pushState.inFlightBatches.put(groupedBatchId, batches.get(0).loc);
 
     final int numBatches = batches.size();
     final String[] partitionUniqueIds = new String[numBatches];
@@ -560,13 +561,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     NettyManagedBuffer buffer = new NettyManagedBuffer(byteBuf);
     String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     MergedData mergedData = new MergedData(
-      MASTER_MODE, shuffleKey, partitionUniqueIds, offsets, buffer, finalPush);
+      MASTER_MODE, shuffleKey, partitionUniqueIds, offsets, buffer, finalPush, groupedBatchId);
 
     RpcResponseCallback callback = new RpcResponseCallback() {
       @Override
       public void onSuccess(ByteBuffer response) {
-        logger.debug("Push data success for map {} attempt {} grouped batch {}.",
-          mapId, attemptId, groupedBatchId);
+        logger.debug("Push data success for map {} attempt {} grouped batch {} size {}.",
+          mapId, attemptId, groupedBatchId, buffer.size());
         pushState.inFlightBatches.remove(groupedBatchId);
         if (response.remaining() > 0 && response.get() == StatusCode.StageEnded.getValue()) {
           mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
@@ -590,19 +591,19 @@ public class ShuffleClientImpl extends ShuffleClient {
     RpcResponseCallback wrappedCallback = new RpcResponseCallback() {
       @Override
       public void onSuccess(ByteBuffer response) {
-        if (response.remaining() > 0) {
-          byte reason = response.get();
-          if (reason == StatusCode.Split.getValue()) {
-            int size = response.getInt();
-            for (int i = 0; i < size; i++) {
-              PartitionLocation oldLocation = batches.get(response.getInt()).loc;
-              splitPartition(shuffleId, oldLocation.getReduceId(), applicationId, oldLocation);
-            }
+        if (response.remaining() > 0 && response.get() == StatusCode.Split.getValue()) {
+          int size = response.getInt();
+          Set<PartitionLocation> splitedLocations = new HashSet<>();
+          for (int i = 0; i < size; i++) {
+            splitedLocations.add(batches.get(i).loc);
           }
-        } else {
-          response.rewind();
-          callback.onSuccess(response);
+          for (PartitionLocation oldLocation : splitedLocations) {
+            logger.debug("split partition {}", oldLocation);
+            splitPartition(shuffleId, oldLocation.getReduceId(), applicationId, oldLocation);
+          }
         }
+        response.rewind();
+        callback.onSuccess(response);
       }
 
       @Override

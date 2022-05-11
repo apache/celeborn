@@ -466,12 +466,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       slaves.get(0).getPeer
     }
 
-    logInfo(s"[Update partition] success for $shuffleId $location.")
     val set = contexts.synchronized {
       contexts.remove(reduceId)
     }
     set.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.Success, location)))
-    logInfo(s"Renew $shuffleId $reduceId partition success.")
+    logDebug(s"[Update partition] success for $shuffleId $location.")
   }
 
   private def getLatestPartition(shuffleId: Int, reduceId: Int, epoch: Int): PartitionLocation = {
@@ -514,7 +513,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    logInfo(s"Relocate partition for shuffle split  ${Utils.makeShuffleKey(applicationId,
+    logDebug(s"Relocate partition for shuffle split  ${Utils.makeShuffleKey(applicationId,
       shuffleId)}, oldPartition: $oldPartition")
 
     handleChangePartitionLocation(shuffleSplitting, applicationId, shuffleId, reduceId,

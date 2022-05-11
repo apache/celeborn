@@ -35,6 +35,7 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
   public final String[] partitionUniqueIds;
   public final int[] batchOffsets;
   public boolean finalPush;
+  public int groupedBatchId;
 
   public MergedData(
       byte mode,
@@ -42,8 +43,9 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
       String[] partitionIds,
       int[] batchOffsets,
       ManagedBuffer body,
-      boolean finalPush) {
-    this(0L, mode, shuffleKey, partitionIds, batchOffsets, body,finalPush);
+      boolean finalPush,
+      int groupedBatchId) {
+    this(0L, mode, shuffleKey, partitionIds, batchOffsets, body,finalPush, groupedBatchId);
   }
 
   private MergedData(
@@ -53,7 +55,8 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
       String[] partitionUniqueIds,
       int[] batchOffsets,
       ManagedBuffer body,
-      boolean finalPush) {
+      boolean finalPush,
+      int groupedBatchId) {
     super(body, true);
     this.requestId = requestId;
     this.mode = mode;
@@ -61,6 +64,7 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
     this.partitionUniqueIds = partitionUniqueIds;
     this.batchOffsets = batchOffsets;
     this.finalPush = finalPush;
+    this.groupedBatchId = groupedBatchId;
   }
 
   @Override
@@ -72,7 +76,7 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
   public int encodedLength() {
     return 8 + 1 + Encoders.Strings.encodedLength(shuffleKey) +
         Encoders.StringArrays.encodedLength(partitionUniqueIds) +
-        Encoders.IntArrays.encodedLength(batchOffsets) + 1;
+        Encoders.IntArrays.encodedLength(batchOffsets) + 1 + 4;
   }
 
   @Override
@@ -83,6 +87,7 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
     Encoders.StringArrays.encode(buf, partitionUniqueIds);
     Encoders.IntArrays.encode(buf, batchOffsets);
     buf.writeBoolean(finalPush);
+    buf.writeInt(groupedBatchId);
   }
 
   public static MergedData decode(ByteBuf buf) {
@@ -92,6 +97,7 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
     String[] partitionIds = Encoders.StringArrays.decode(buf);
     int[] batchOffsets = Encoders.IntArrays.decode(buf);
     boolean finalPush = buf.readBoolean();
+    int groupedBatchId = buf.readInt();
     return new MergedData(
         requestId,
         mode,
@@ -99,7 +105,8 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
         partitionIds,
         batchOffsets,
         new NettyManagedBuffer(buf.retain()),
-        finalPush);
+        finalPush,
+        groupedBatchId);
   }
 
   @Override
