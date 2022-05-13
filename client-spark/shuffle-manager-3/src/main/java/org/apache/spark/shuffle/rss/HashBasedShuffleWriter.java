@@ -294,6 +294,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void close() throws IOException {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
+    long pushMergedDataTime = System.nanoTime();
     dataPusher.waitOnTermination();
     rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
 
@@ -322,6 +323,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       }
     }
     rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
+    writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
 
     updateMapStatus();
 
