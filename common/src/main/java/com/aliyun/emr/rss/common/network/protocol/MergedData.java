@@ -45,7 +45,7 @@ public final class MergedData extends AbstractMessage implements RequestMessage 
       ManagedBuffer body,
       boolean finalPush,
       int groupedBatchId) {
-    this(0L, mode, shuffleKey, partitionIds, batchOffsets, body,finalPush, groupedBatchId);
+    this(0L, mode, shuffleKey, partitionIds, batchOffsets, body, finalPush, groupedBatchId);
   }
 
   private MergedData(

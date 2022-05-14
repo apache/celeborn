@@ -116,7 +116,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     appHeartbeatTime.remove(appId);
   }
 
-  public void updateWorkerLostMeta(String host,int rpcPort, int pushPort,int fetchPort,
+  public void updateWorkerLostMeta(String host, int rpcPort, int pushPort, int fetchPort,
     int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
             fetchPort, replicatePort, -1, null);

@@ -37,7 +37,7 @@ public class PushState {
   private int pushBufferSize;
 
   public final AtomicInteger batchId = new AtomicInteger();
-  public final ConcurrentHashMap<Integer,PartitionLocation> inFlightBatches =
+  public final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
     new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();

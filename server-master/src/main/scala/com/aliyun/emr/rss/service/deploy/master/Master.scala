@@ -301,7 +301,7 @@ private[deploy] class Master(
     val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
-        s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
+        s" ${workerToRegister.toString()} already exists, trigger WorkerLost.")
       if (!statusSystem.workerLostEvents.contains(hostPort)) {
         self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
           RssHARetryClient.genRequestId()))
