@@ -203,7 +203,7 @@ See more detail in [CONFIGURATIONS](CONFIGURATION_GUIDE.md)
 ### Support Spark Dynamic Allocation
 We provide a patch to enable users to use Spark with both dynamic allocation and Remote Shuffle Service.
 For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_RDA_spark2.patch).  
-For Spark3.x, set `spark.dynamicAllocation.shuffleTracking.enabled=true`.  
+For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_RDA_spark3.patch).  
 
 ## Contribution
 This is an active open-source project. We are always open to developers who want to use the system or contribute to it.  
