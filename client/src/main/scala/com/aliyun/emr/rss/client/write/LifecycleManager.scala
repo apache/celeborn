@@ -17,20 +17,6 @@
 
 package com.aliyun.emr.rss.client.write
 
-import io.netty.util.internal.ConcurrentSet
-
-import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.haclient.RssHARetryClient
-import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
-import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
-import com.aliyun.emr.rss.common.protocol.message.StatusCode
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
-import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
@@ -38,6 +24,20 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
+
+import io.netty.util.internal.ConcurrentSet
+
+import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.haclient.RssHARetryClient
+import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
+import com.aliyun.emr.rss.common.protocol.message.StatusCode
+import com.aliyun.emr.rss.common.rpc._
+import com.aliyun.emr.rss.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
+import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
 
