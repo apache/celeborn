@@ -257,7 +257,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sortBasedPusher.close();
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
+    long pushMergedDataTime = System.nanoTime();
     rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
+    writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
 
     updateMapStatus();
 
