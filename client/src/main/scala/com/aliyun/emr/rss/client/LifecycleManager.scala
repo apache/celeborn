@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.client
 
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
