@@ -55,7 +55,6 @@ class BlacklistManager(rpcEnv: RpcEnv,
           }
           if (worker.endpoint != null) {
             iter.remove()
-            blacklists.remove(worker)
           }
         }
 
@@ -68,6 +67,7 @@ class BlacklistManager(rpcEnv: RpcEnv,
           }
           if (!workerUsed) {
             unknownIter.remove()
+            blacklists.remove(unknownWorker)
           }
         }
 
@@ -99,7 +99,7 @@ class BlacklistManager(rpcEnv: RpcEnv,
     if (blacklist != null) {
       this.blacklists.removeIf(new Predicate[WorkerInfo]() {
         override def test(t: WorkerInfo): Boolean = {
-          t.endpoint != null;
+          t.endpoint != null
         }
       })
       this.blacklists.addAll(blacklist)
