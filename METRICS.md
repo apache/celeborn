@@ -56,13 +56,13 @@ scrape_configs:
 
 ## Implementation
 
-RSS master metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`
-RSS worker metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`
-and `com.aliyun.emr.rss.common.metrics.source.NetWorkSource`
+RSS master metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`  
+RSS worker metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`  
+and `com.aliyun.emr.rss.common.metrics.source.NetWorkSource`  
 
 ## Grafana Dashboard
 
-We provide a grafana dashboard for RSS. [Grafana-Dashboard](assets/grafana/rss-dashboard.json)
+We provide a grafana dashboard for RSS [Grafana-Dashboard](assets/grafana/rss-dashboard.json).  
 Here are some snapshots:
 ![d1](assets/img/dashboard1.png)
 ![d2](assets/img/dashboard2.png)
