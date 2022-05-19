@@ -286,7 +286,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       throw pushState.exception.get();
     }
 
-    ConcurrentSet<Integer> inFlightBatches = pushState.inFlightBatches;
+    ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches = pushState.inFlightBatches;
     long timeoutMs = RssConf.limitInFlightTimeoutMs(conf);
     long delta = RssConf.limitInFlightSleepDeltaMs(conf);
     long times = timeoutMs / delta;
@@ -466,7 +466,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitMaxInFlight(mapKey, pushState, maxInFlight);
 
       // add inFlight requests
-      pushState.inFlightBatches.add(nextBatchId);
+      pushState.inFlightBatches.put(nextBatchId, loc);
 
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -676,7 +676,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int port = Integer.parseInt(splits[1]);
 
     int groupedBatchId = pushState.batchId.addAndGet(1);
-    pushState.inFlightBatches.add(groupedBatchId);
+    pushState.inFlightBatches.put(groupedBatchId, batches.get(0).loc);
 
     final int numBatches = batches.size();
     final String[] partitionUniqueIds = new String[numBatches];
