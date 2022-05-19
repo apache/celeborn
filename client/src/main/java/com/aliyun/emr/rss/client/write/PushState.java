@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
-import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
