@@ -439,16 +439,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       List(oldPartition), candidates)
     if (slots == null) {
       logError("[Update partition] failed for slot not available.")
-      contexts.remove(reduceId).asScala.foreach(
-        _.reply(ChangeLocationResponse(StatusCode.SlotNotAvailable, null)))
+      contexts.synchronized {
+        contexts.remove(reduceId)
+      }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.SlotNotAvailable, null)))
       return
     }
 
     val reserveSlotsSuccess = reserveSlotsWithRetry(applicationId, shuffleId, candidates, slots)
     if (!reserveSlotsSuccess) {
       logError(s"[Update partition] failed for $shuffleId.")
-      contexts.remove(reduceId).asScala.foreach(
-        _.reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null)))
+      contexts.synchronized {
+        contexts.remove(reduceId)
+      }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null)))
       return
     }
 
@@ -464,10 +466,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       slaves.get(0).getPeer
     }
 
-    logInfo(s"[Update partition] success for $shuffleId $location.")
-    contexts.remove(reduceId).asScala.foreach(
-      _.reply(ChangeLocationResponse(StatusCode.Success, location)))
-    logInfo(s"Renew $shuffleId $reduceId partition success.")
+    logDebug(s"[Update partition] success for $shuffleId $location.")
+    contexts.synchronized {
+      contexts.remove(reduceId)
+    }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.Success, location)))
+    logDebug(s"Renew $shuffleId $reduceId partition success.")
   }
 
   private def getLatestPartition(shuffleId: Int, reduceId: Int, epoch: Int): PartitionLocation = {
@@ -494,13 +497,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     shuffleSplitting.synchronized {
       if (shuffleSplitting.containsKey(reduceId)) {
         shuffleSplitting.get(reduceId).add(context)
-        logInfo(s"For $shuffleId, same $reduceId-$oldEpoch is splitting, register context")
+        logDebug(s"For $shuffleId, same $reduceId-$oldEpoch is splitting, register context")
         return
       } else {
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
         if (latestLoc != null) {
           context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
-          logInfo(s"Split request found new partition, old partition $reduceId-$oldEpoch" +
+          logDebug(s"Split request found new partition, old partition $reduceId-$oldEpoch" +
             s" return it. shuffleId: $shuffleId $latestLoc")
           return
         }
@@ -510,7 +513,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    logInfo(s"Relocate partition for shuffle split  ${Utils.makeShuffleKey(applicationId,
+    logDebug(s"Relocate partition for shuffle split  ${Utils.makeShuffleKey(applicationId,
       shuffleId)}, oldPartition: $oldPartition")
 
     handleChangePartitionLocation(shuffleSplitting, applicationId, shuffleId, reduceId,

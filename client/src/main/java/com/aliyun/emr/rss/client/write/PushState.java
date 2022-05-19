@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
-import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +37,8 @@ public class PushState {
   private int pushBufferSize;
 
   public final AtomicInteger batchId = new AtomicInteger();
-  public final ConcurrentSet<Integer> inFlightBatches = new ConcurrentSet<>();
+  public final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
+    new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
