@@ -26,10 +26,6 @@ scrape_configs:
 
 3.You need to install Grafana server(https://grafana.com/)
 
-## Grafana Dashboard
-
-We provide a grafana dashboard for RSS. [Grafana-Dashboard](assets/grafana/rss-dashboard.json)
-
 ## Details
 
 | MetricName | Role | Description |
@@ -56,11 +52,27 @@ We provide a grafana dashboard for RSS. [Grafana-Dashboard](assets/grafana/rss-d
 | SortingFiles      | worker      | This value means the count of sorting shuffle files.      |
 | DiskBuffer      | worker      | Disk buffers are part of netty used memory, means data need to write to disk but haven't been written to disk.      |
 | PausePushData      | worker      | PausePushData means the count of worker stopped receiving data from client.      |
-| PausePushDataAndReplicate      | worker      | PausePushDataAndReplicate means the count of worker stopped receiving data from client and other
-workers.      |
+| PausePushDataAndReplicate      | worker      | PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.      |
 
 ## Implementation
 
 RSS master metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`
 RSS worker metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`
 and `com.aliyun.emr.rss.common.metrics.source.NetWorkSource`
+
+## Grafana Dashboard
+
+We provide a grafana dashboard for RSS. [Grafana-Dashboard](assets/grafana/rss-dashboard.json)
+Here are some snapshots:
+![d1](assets/img/dashboard1.png)
+![d2](assets/img/dashboard2.png)
+![d3](assets/img/dashboard3.png)
+![d4](assets/img/dashboard4.png)
+![d5](assets/img/dashboard5.png)
+![d6](assets/img/dashboard6.png)
+![d7](assets/img/dashboard7.png)
+![d8](assets/img/dashboard8.png)
+![d9](assets/img/dashboard9.png)
+![d10](assets/img/dashboard10.png)
+![d11](assets/img/dashboard11.png)
+![d12](assets/img/dashboard12.png)
