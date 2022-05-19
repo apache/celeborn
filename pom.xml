@@ -41,7 +41,7 @@
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <javaxservlet.version>3.1.0</javaxservlet.version>
     <!-- Apache Ratis version -->
-    <ratis.version>2.0.0</ratis.version>
+    <ratis.version>2.2.0</ratis.version>
     <!-- ProtocolBuffer version, used to verify the protoc version and -->
     <!-- define the protobuf JAR version                               -->
     <protobuf.version>3.5.1</protobuf.version><!-- Maven protoc compiler -->
@@ -162,7 +162,7 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-all</artifactId>
-        <version>4.1.73.Final</version>
+        <version>4.1.77.Final</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
