@@ -97,6 +97,8 @@ rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 512
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
+# If your hosts have disk raid or use lvm, set rss.device.monitor.enabled to false
+rss.device.monitor.enabled false
 ```   
   
 EXAMPLE: HA cluster
@@ -106,6 +108,8 @@ rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 4096
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
 rss.master.port 9097
+# If your hosts have disk raid or use lvm, set rss.device.monitor.enabled to false
+rss.device.monitor.enabled false
 
 rss.ha.enabled true
 rss.ha.service.id dev-cluster
@@ -181,6 +185,8 @@ spark.rss.master.address rss-master-host:9097
 spark.shuffle.service.enabled false
 
 # optional:hash,sort
+# Hash shuffle writer use (partition count) * (rss.push.data.buffer.size) * (spark.executor.cores) memory.
+# Sort shuffle writer use less memory than hash shuffle writer, If your shuffle partition count is large, try to use sort hash writer.  
 spark.rss.shuffle.writer.mode hash
 
 # we recommend set spark.rss.push.data.replicate to true to enable server-side data replication 
@@ -204,6 +210,9 @@ See more detail in [CONFIGURATIONS](CONFIGURATION_GUIDE.md)
 We provide a patch to enable users to use Spark with both dynamic allocation and Remote Shuffle Service.
 For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_RDA_spark2.patch).  
 For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_RDA_spark3.patch).  
+
+### Metrics
+RSS have various metrics. [METRICS](METRICS.md) 
 
 ## Contribution
 This is an active open-source project. We are always open to developers who want to use the system or contribute to it.  
