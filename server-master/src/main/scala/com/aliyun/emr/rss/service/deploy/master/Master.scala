@@ -85,13 +85,13 @@ private[deploy] class Master(
       _ => statusSystem.workers.size())
     // worker slots count
     source.addGauge(MasterSource.WorkerSlotsCount,
-      _ => statusSystem.workers.asScala.map(_.numSlots).sum)
+      _ => workersSnapShot.asScala.map(_.numSlots).sum)
     // worker slots used count
     source.addGauge(MasterSource.WorkerSlotsUsedCount,
-      _ => statusSystem.workers.asScala.map(_.usedSlots()).sum)
+      _ => workersSnapShot.asScala.map(_.usedSlots()).sum)
     // slots overload worker count
     source.addGauge(MasterSource.OverloadWorkerCount,
-      _ => statusSystem.workers.asScala.count { worker =>
+      _ => workersSnapShot.asScala.count { worker =>
          worker.usedSlots / worker.numSlots >= clusterSlotsUsageLimit
       })
 
