@@ -79,10 +79,11 @@ private[deploy] class Master(
     // blacklist worker count
     source.addGauge(MasterSource.BlacklistedWorkerCount,
       _ => statusSystem.blacklist.size())
-    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
+
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
+    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
     // worker slots count
     source.addGauge(MasterSource.WorkerSlotsCount,
       _ => workersSnapShot.asScala.map(_.numSlots).sum)
