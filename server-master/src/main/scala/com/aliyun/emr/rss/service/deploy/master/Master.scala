@@ -79,16 +79,22 @@ private[deploy] class Master(
     // blacklist worker count
     source.addGauge(MasterSource.BlacklistedWorkerCount,
       _ => statusSystem.blacklist.size())
+
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val (totalSlots, usedSlots, overloadWorkerCount) = getClusterLoad
+    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
     // worker slots count
-    source.addGauge(MasterSource.WorkerSlotsCount, _ => totalSlots)
+    source.addGauge(MasterSource.WorkerSlotsCount,
+      _ => workersSnapShot.asScala.map(_.numSlots).sum)
     // worker slots used count
-    source.addGauge(MasterSource.WorkerSlotsUsedCount, _ => usedSlots)
+    source.addGauge(MasterSource.WorkerSlotsUsedCount,
+      _ => workersSnapShot.asScala.map(_.usedSlots()).sum)
     // slots overload worker count
-    source.addGauge(MasterSource.OverloadWorkerCount, _ => overloadWorkerCount)
+    source.addGauge(MasterSource.OverloadWorkerCount,
+      _ => workersSnapShot.asScala.count { worker =>
+         worker.usedSlots / worker.numSlots >= clusterSlotsUsageLimit
+      })
 
     metricsSystem.registerSource(source)
     source
