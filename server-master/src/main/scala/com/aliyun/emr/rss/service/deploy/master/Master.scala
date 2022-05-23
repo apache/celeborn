@@ -83,7 +83,6 @@ private[deploy] class Master(
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val (totalSlots, usedSlots, overloadWorkerCount) = getClusterLoad
     // worker slots count
     source.addGauge(MasterSource.WorkerSlotsCount,
       _ => statusSystem.workers.asScala.map(_.numSlots).sum)
