@@ -39,7 +39,7 @@ import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
+import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, NetWorkSource}
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClientBootstrap}
@@ -55,15 +55,17 @@ import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
 private[deploy] class Worker(
-                              override val rpcEnv: RpcEnv,
-                              val conf: RssConf,
-                              val metricsSystem: MetricsSystem)
+    override val rpcEnv: RpcEnv,
+    val conf: RssConf,
+    val metricsSystem: MetricsSystem)
   extends RpcEndpoint with PushDataHandler with OpenStreamHandler with Registerable with Logging {
 
   private val workerSource = {
     val source = new WorkerSource(conf)
     metricsSystem.registerSource(source)
     metricsSystem.registerSource(new NetWorkSource(conf, MetricsSystem.ROLE_WOKRER))
+    metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WOKRER))
+    metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WOKRER))
     source
   }
 

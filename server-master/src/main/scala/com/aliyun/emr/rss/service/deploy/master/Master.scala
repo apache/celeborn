@@ -30,6 +30,7 @@ import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
+import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -41,10 +42,10 @@ import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMast
 import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
 
 private[deploy] class Master(
-                              override val rpcEnv: RpcEnv,
-                              address: RpcAddress,
-                              val conf: RssConf,
-                              val metricsSystem: MetricsSystem)
+    override val rpcEnv: RpcEnv,
+    address: RpcAddress,
+    val conf: RssConf,
+    val metricsSystem: MetricsSystem)
   extends RpcEndpoint with Logging {
 
   private val statusSystem = if (haEnabled(conf)) {
@@ -97,6 +98,8 @@ private[deploy] class Master(
       })
 
     metricsSystem.registerSource(source)
+    metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
+    metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
     source
   }
 
