@@ -22,8 +22,6 @@ import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
 
-import org.apache.spark.annotation.DeveloperApi
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
@@ -136,7 +134,6 @@ private[rss] class JavaSerializerInstance(
  * Spark. It is intended to be used to serialize/de-serialize data within a single
  * Spark application.
  */
-@DeveloperApi
 class JavaSerializer(conf: RssConf) extends Serializer with Externalizable {
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)
   private var extraDebugInfo = conf.getBoolean("spark.serializer.extraDebugInfo", true)
