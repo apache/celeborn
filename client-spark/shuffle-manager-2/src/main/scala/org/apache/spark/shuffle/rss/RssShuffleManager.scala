@@ -18,7 +18,8 @@
 package org.apache.spark.shuffle.rss
 
 import java.lang.reflect.Method
-import java.util.concurrent.atomic.LongAdder
+import java.util
+import java.util.concurrent.ConcurrentHashMap
 
 import io.netty.util.internal.ConcurrentSet
 import org.apache.spark._
@@ -49,6 +50,10 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
   private val sortShuffleIds = new ConcurrentSet[Int]()
 
   private lazy val fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(conf)
+
+  // (shuffleId -> sendBuffer) Only used on Executors
+  private val reusedSendBuffers =
+    new ConcurrentHashMap[Integer, util.LinkedList[Array[Array[Byte]]]]
 
   private def initializeLifecycleManager(appId: String): Unit = {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
@@ -104,7 +109,9 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMaps, context,
             rssConf, client)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
-          new HashBasedShuffleWriter(h, mapId, context, rssConf, client)
+          reusedSendBuffers.putIfAbsent(handle.shuffleId, new util.LinkedList[Array[Array[Byte]]]())
+          new HashBasedShuffleWriter(h, mapId, context, rssConf, client,
+            reusedSendBuffers.get(h.shuffleId))
         } else {
           throw new UnsupportedOperationException(
             s"Unrecognized shuffle write mode! ${RssConf.shuffleWriterMode(rssConf)}")
@@ -165,7 +172,11 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       sortShuffleManager.unregisterShuffle(shuffleId)
     } else {
       newAppId match {
-        case Some(id) => rssShuffleClient.exists(_.unregisterShuffle(id, shuffleId, isDriver))
+        case Some(id) =>
+          if (!isDriver) {
+            reusedSendBuffers.remove(shuffleId)
+          }
+          rssShuffleClient.exists(_.unregisterShuffle(id, shuffleId, isDriver))
         case None => true
       }
     }

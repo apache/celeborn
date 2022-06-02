@@ -17,6 +17,9 @@
 
 package org.apache.spark.shuffle.rss
 
+import java.util
+import java.util.concurrent.ConcurrentHashMap
+
 import io.netty.util.internal.ConcurrentSet
 import org.apache.spark._
 import org.apache.spark.shuffle.{ShuffleReadMetricsReporter, _}
@@ -27,9 +30,6 @@ import com.aliyun.emr.rss.client.ShuffleClient
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-
-import java.util
-import java.util.concurrent.{ConcurrentHashMap}
 
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
@@ -51,7 +51,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
   private lazy val fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(conf)
 
   // (shuffleId -> sendBuffer) Only used on Executors
-  private val reusedSendBuffers = new ConcurrentHashMap[Integer, util.LinkedList[Array[Array[Byte]]]]
+  private val reusedSendBuffers =
+    new ConcurrentHashMap[Integer, util.LinkedList[Array[Array[Byte]]]]
 
   private def initializeLifecycleManager(appId: String): Unit = {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
@@ -134,7 +135,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
             context, rssConf, client, metrics)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
           reusedSendBuffers.putIfAbsent(handle.shuffleId, new util.LinkedList[Array[Array[Byte]]]())
-          new HashBasedShuffleWriter(h, context, rssConf, client, metrics, reusedSendBuffers.get(handle.shuffleId))
+          new HashBasedShuffleWriter(h, context, rssConf, client, metrics,
+            reusedSendBuffers.get(handle.shuffleId))
         } else {
           throw new UnsupportedOperationException(
             s"Unrecognized shuffle write mode! ${RssConf.shuffleWriterMode(rssConf)}")

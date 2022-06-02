@@ -116,8 +116,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       RssConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      LinkedList<byte[][]> reusedSendBuffers
-  ) throws IOException {
+      LinkedList<byte[][]> reusedSendBuffers) throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
     this.appId = handle.newAppId();
@@ -145,12 +144,11 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.reusedSendBuffers = reusedSendBuffers;
     synchronized(reusedSendBuffers) {
       if (!reusedSendBuffers.isEmpty()) {
-        logger.info("non empty");
         sendBuffers = reusedSendBuffers.remove();
-      } else {
-        logger.info("empty");
-        sendBuffers = new byte[numPartitions][];
       }
+    }
+    if (sendBuffers == null) {
+      sendBuffers = new byte[numPartitions][];
     }
     sendOffsets = new int[numPartitions];
 

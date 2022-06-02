@@ -426,7 +426,7 @@ object RssConf extends Logging {
   }
 
   def pushDataMaxReqsInFlight(conf: RssConf): Int = {
-    conf.getInt("rss.push.data.maxReqsInFlight", 64)
+    conf.getInt("rss.push.data.maxReqsInFlight", 32)
   }
 
   def fetchChunkTimeoutMs(conf: RssConf): Long = {
