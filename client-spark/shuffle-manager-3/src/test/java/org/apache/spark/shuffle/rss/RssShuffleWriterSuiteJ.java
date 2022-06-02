@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -209,7 +210,7 @@ public class RssShuffleWriterSuiteJ {
     final ShuffleClient client = new DummyShuffleClient(tempFile);
 
     final HashBasedShuffleWriter<Integer, String, String> writer = new HashBasedShuffleWriter<>(
-      handle, taskContext, conf, client, metrics.shuffleWriteMetrics());
+      handle, taskContext, conf, client, metrics.shuffleWriteMetrics(), new LinkedList<>());
     assertEquals(useUnsafe, writer.canUseFastWrite());
 
     AtomicInteger total = new AtomicInteger(0);
