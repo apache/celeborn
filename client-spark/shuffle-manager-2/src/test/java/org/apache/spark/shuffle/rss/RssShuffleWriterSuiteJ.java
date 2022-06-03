@@ -232,7 +232,7 @@ public class RssShuffleWriterSuiteJ {
 
     if (hashWriter) {
       final HashBasedShuffleWriter<Integer, String, String> writer = new HashBasedShuffleWriter<>(
-          handle, mapId, taskContext, conf, client);
+          handle, mapId, taskContext, conf, client, SendBufferPool.get(1));
 
       AtomicInteger total = new AtomicInteger(0);
       Iterator iterator = getIterator(approximateSize, total, useUnsafe, false);

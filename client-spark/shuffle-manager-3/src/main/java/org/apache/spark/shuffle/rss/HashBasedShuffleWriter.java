@@ -57,6 +57,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private static final int DEFAULT_INITIAL_SER_BUFFER_SIZE = 1024 * 1024;
 
+  private final int SEND_BUFFER_INIT_SIZE;
   private final int SEND_BUFFER_SIZE;
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
@@ -95,6 +96,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
+  private SendBufferPool sendBufferPool;
+
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true
    * and then call stop() with success = false if they get an exception, we want to make sure
@@ -111,8 +114,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       TaskContext taskContext,
       RssConf conf,
       ShuffleClient client,
-      ShuffleWriteMetricsReporter metrics
-  ) throws IOException {
+      ShuffleWriteMetricsReporter metrics,
+      SendBufferPool sendBufferPool) throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
     this.appId = handle.newAppId();
@@ -134,9 +137,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     tmpRecords = new long[numPartitions];
 
+    SEND_BUFFER_INIT_SIZE = RssConf.pushDataBufferInitialSize(conf);
     SEND_BUFFER_SIZE = RssConf.pushDataBufferSize(conf);
 
-    sendBuffers = new byte[numPartitions][];
+    this.sendBufferPool = sendBufferPool;
+    sendBuffers = sendBufferPool.aquireBuffer(numPartitions);
+    if (sendBuffers == null) {
+      logger.info("Aquire failed");
+      sendBuffers = new byte[numPartitions][];
+    }
     sendOffsets = new int[numPartitions];
 
     dataPusher = new DataPusher(
@@ -192,13 +201,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(rowSize);
       }
 
-      byte[] buffer = sendBuffers[partitionId];
-      if (buffer == null) {
-        buffer = new byte[SEND_BUFFER_SIZE];
-        sendBuffers[partitionId] = buffer;
-        peakMemoryUsedBytes += SEND_BUFFER_SIZE;
-      }
-
       if (serializedRecordSize > SEND_BUFFER_SIZE) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -206,7 +208,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             giantBuffer, Platform.BYTE_ARRAY_OFFSET + 4, rowSize);
         pushGiantRecord(partitionId, giantBuffer, serializedRecordSize);
       } else {
-        int offset = getOrUpdateOffset(partitionId, buffer, serializedRecordSize);
+        int offset = getOrUpdateOffset(partitionId, serializedRecordSize);
+        byte[] buffer = getOrCreateBuffer(partitionId);
         Platform.putInt(buffer, Platform.BYTE_ARRAY_OFFSET + offset, Integer.reverseBytes(rowSize));
         Platform.copyMemory(row.getBaseObject(), row.getBaseOffset(),
             buffer, Platform.BYTE_ARRAY_OFFSET + offset + 4, rowSize);
@@ -231,12 +234,11 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      byte[] buffer = getOrCreateBuffer(partitionId);
-
       if (serializedRecordSize > SEND_BUFFER_SIZE) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
-        int offset = getOrUpdateOffset(partitionId, buffer, serializedRecordSize);
+        int offset = getOrUpdateOffset(partitionId, serializedRecordSize);
+        byte[] buffer = getOrCreateBuffer(partitionId);
         System.arraycopy(serBuffer.getBuf(), 0, buffer, offset, serializedRecordSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
@@ -247,9 +249,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private byte[] getOrCreateBuffer(int partitionId) {
     byte[] buffer = sendBuffers[partitionId];
     if (buffer == null) {
-      buffer = new byte[SEND_BUFFER_SIZE];
+      buffer = new byte[SEND_BUFFER_INIT_SIZE];
       sendBuffers[partitionId] = buffer;
-      peakMemoryUsedBytes += SEND_BUFFER_SIZE;
+      peakMemoryUsedBytes += SEND_BUFFER_INIT_SIZE;
     }
     return buffer;
   }
@@ -275,9 +277,20 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private int getOrUpdateOffset(
-      int partitionId, byte[] buffer, int serializedRecordSize) throws IOException {
+      int partitionId, int serializedRecordSize) throws IOException {
     int offset = sendOffsets[partitionId];
-    if ((SEND_BUFFER_SIZE - offset) < serializedRecordSize) {
+    byte[] buffer = getOrCreateBuffer(partitionId);
+    while ((buffer.length - offset) <
+      serializedRecordSize && buffer.length < SEND_BUFFER_SIZE) {
+
+      byte[] newBuffer = new byte[Math.min(buffer.length * 2, SEND_BUFFER_SIZE)];
+      peakMemoryUsedBytes += newBuffer.length - buffer.length;
+      System.arraycopy(buffer, 0, newBuffer, 0, offset);
+      sendBuffers[partitionId] = newBuffer;
+      buffer = newBuffer;
+    }
+
+    if ((buffer.length - offset) < serializedRecordSize) {
       flushSendBuffer(partitionId, buffer, offset);
       updateMapStatus();
       offset = 0;
@@ -301,7 +314,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,
     //     we now push merged data by task thread will not introduce any contention
-    for (int i = 0; i < sendBuffers.length; i++) {
+    for (int i = 0; i < numPartitions; i++) {
       final int size = sendOffsets[i];
       if (size > 0) {
         int bytesWritten = rssShuffleClient.mergeData(
@@ -327,6 +340,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     updateMapStatus();
 
+    sendBufferPool.returnBuffer(sendBuffers);
     sendBuffers = null;
     sendOffsets = null;
 

@@ -414,6 +414,9 @@ object RssConf extends Logging {
 
   // Conf getters
 
+  def pushDataBufferInitialSize(conf: RssConf): Int = {
+    conf.getSizeAsBytes("rss.push.data.buffer.initial.size", "8k").toInt
+  }
   def pushDataBufferSize(conf: RssConf): Int = {
     conf.getSizeAsBytes("rss.push.data.buffer.size", "64k").toInt
   }

@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.rss
 
 import io.netty.util.internal.ConcurrentSet
 import org.apache.spark._
+import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.shuffle.{ShuffleReadMetricsReporter, _}
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.Utils
@@ -31,6 +32,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
   private lazy val isDriver: Boolean = SparkEnv.get.executorId == SparkContext.DRIVER_IDENTIFIER
+  private val cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
 
   // Read RssConf from SparkConf
   private lazy val rssConf = RssShuffleManager.fromSparkConf(conf)
@@ -93,7 +95,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       sortShuffleManager.unregisterShuffle(shuffleId)
     } else {
       newAppId match {
-        case Some(id) => rssShuffleClient.exists(_.unregisterShuffle(id, shuffleId, isDriver))
+        case Some(id) =>
+          rssShuffleClient.exists(_.unregisterShuffle(id, shuffleId, isDriver))
         case None => true
       }
     }
@@ -123,7 +126,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMappers,
             context, rssConf, client, metrics)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
-          new HashBasedShuffleWriter(h, context, rssConf, client, metrics)
+          new HashBasedShuffleWriter(h, context, rssConf, client, metrics,
+            SendBufferPool.get(cores))
         } else {
           throw new UnsupportedOperationException(
             s"Unrecognized shuffle write mode! ${RssConf.shuffleWriterMode(rssConf)}")
