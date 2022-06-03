@@ -19,7 +19,6 @@ package org.apache.spark.shuffle.rss;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 
@@ -97,7 +96,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
-  private LinkedList<byte[][]> reusedSendBuffers;
+  private SendBufferPool sendBufferPool;
 
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true
@@ -116,7 +115,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       RssConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      LinkedList<byte[][]> reusedSendBuffers) throws IOException {
+      SendBufferPool sendBufferPool) throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
     this.appId = handle.newAppId();
@@ -141,13 +140,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     SEND_BUFFER_INIT_SIZE = RssConf.pushDataBufferInitialSize(conf);
     SEND_BUFFER_SIZE = RssConf.pushDataBufferSize(conf);
 
-    this.reusedSendBuffers = reusedSendBuffers;
-    synchronized(reusedSendBuffers) {
-      if (!reusedSendBuffers.isEmpty()) {
-        sendBuffers = reusedSendBuffers.remove();
-      }
-    }
+    this.sendBufferPool = sendBufferPool;
+    sendBuffers = sendBufferPool.aquireBuffer(numPartitions);
     if (sendBuffers == null) {
+      logger.info("Aquire failed");
       sendBuffers = new byte[numPartitions][];
     }
     sendOffsets = new int[numPartitions];
@@ -344,9 +340,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     updateMapStatus();
 
-    synchronized (reusedSendBuffers) {
-      reusedSendBuffers.add(sendBuffers);
-    }
+    sendBufferPool.returnBuffer(sendBuffers);
     sendBuffers = null;
     sendOffsets = null;
 
