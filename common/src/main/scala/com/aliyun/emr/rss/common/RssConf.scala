@@ -697,7 +697,7 @@ object RssConf extends Logging {
    * @return the threshold value of system load
    */
   def workerSystemLoadThreshold(conf: RssConf): Double = {
-    conf.getDouble("rss.worker.systemLoad.threshold", 0.9)
+    conf.getDouble("rss.worker.systemLoad.threshold", 0.95)
   }
 
   def workerStatusCheckTimeout(conf: RssConf): Long = {

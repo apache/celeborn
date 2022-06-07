@@ -189,7 +189,7 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
         try {
           if (DeviceMonitor.checkSystemLoad(essConf)) {
             // When system high load, remove all working dirs.
-            observedDevices.values().forEach { device =>
+            observedDevices.values().asScala.foreach { device =>
               device.notifyObserversOnError(
                 device.mountInfos.flatMap(mount => mount.dirInfos),
                 DeviceErrorType.SystemHighLoad)
