@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.io.{BufferedReader, File, FileInputStream, IOException, InputStreamReader}
+import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.nio.charset.Charset
 import java.util
@@ -211,7 +211,9 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
                     logger.error(s"${entry.mountPoint} read-write error, notify observers")
                     // We think that if one dir in device has read-write problem, if possible all
                     // dirs in this device have the problem
-                    device.notifyObserversOnError(entry.dirInfos, DeviceErrorType.ReadOrWriteFailure)
+                    device.notifyObserversOnError(
+                      entry.dirInfos,
+                      DeviceErrorType.ReadOrWriteFailure)
                   } else {
                     device.notifyObserversOnHealthy(entry.dirInfos)
                   }
