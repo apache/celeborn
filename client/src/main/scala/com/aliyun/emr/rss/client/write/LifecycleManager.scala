@@ -48,6 +48,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val ShouldReplicate = RssConf.replicate(conf)
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
+  private val defaultStorageHint = RssConf.defaultStorageHint(conf)
 
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
 
@@ -787,7 +788,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       } else {
         val res = requestReserveSlots(entry._1.endpoint,
           ReserveSlots(applicationId, shuffleId, entry._2._1, entry._2._2, splitThreshold,
-            splitMode))
+            splitMode, defaultStorageHint))
         if (res.status.equals(StatusCode.Success)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +

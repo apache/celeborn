@@ -204,3 +204,4 @@ this limit, worker will stop receive from executor and other worker |
 | `rss.resume.memory.ratio` | 0.5 | double |  If direct memory usage is less than this 
 limit, worker will resume receive|
 | `rss.worker.reserveForSingleSort.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|
+| `rss.storage.hint.default` | memory | string | Available enumerations : void,memory,ssd,hdd,hdfs,oss |
