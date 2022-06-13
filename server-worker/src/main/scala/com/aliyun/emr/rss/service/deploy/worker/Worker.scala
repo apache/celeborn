@@ -393,7 +393,6 @@ private[deploy] class Worker(
               val bytes = fileWriter.close()
               if (bytes > 0L) {
                 logDebug(s"FileName ${fileWriter.getFile.getAbsoluteFile}, size $bytes")
-                val uniqueIdWithLocation = uniqueId ;
                 committedIds.add(uniqueId)
               }
             } catch {
