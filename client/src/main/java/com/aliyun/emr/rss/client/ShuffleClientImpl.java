@@ -506,16 +506,17 @@ public class ShuffleClientImpl extends ShuffleClient {
                 mapId, attemptId, nextBatchId);
               splitPartition(shuffleId, reduceId, applicationId, loc);
               callback.onSuccess(response);
-            }
-            if (reason == StatusCode.HardSplit.getValue()) {
+            } else if (reason == StatusCode.HardSplit.getValue()) {
               logger.debug("Push data split for map {} attempt {} batch {}.",
                 mapId, attemptId, nextBatchId);
               pushDataRetryPool.submit(() -> submitRetryPushData(applicationId, shuffleId, mapId,
                 attemptId, body, nextBatchId, loc, this, pushState,
                 StatusCode.HardSplit));
+            } else {
+              response.rewind();
+              callback.onSuccess(response);
             }
           } else {
-            response.rewind();
             callback.onSuccess(response);
           }
         }
