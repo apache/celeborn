@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.PartitionSplitMode
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -778,6 +778,17 @@ object RssConf extends Logging {
   def workerDirectMemoryReportIntervalSecond(conf: RssConf): Int = {
     Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval",
       "10s")).toInt
+  }
+
+  def storageHint(conf: RssConf): PartitionLocation.StorageHint = {
+    val default = PartitionLocation.StorageHint.MEMORY
+    val hintStr = conf.get("rss.storage.hint", "memory").toUpperCase
+    if (PartitionLocation.StorageHint.values().mkString.toUpperCase.contains(hintStr)) {
+      logWarning(s"storage hint is invalid ${hintStr}")
+      PartitionLocation.StorageHint.valueOf(hintStr)
+    } else {
+      default
+    }
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

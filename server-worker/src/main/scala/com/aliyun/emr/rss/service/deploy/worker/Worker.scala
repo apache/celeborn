@@ -19,9 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.util.{ArrayList => jArrayList}
-import java.util.{List => jList}
-import java.util.{HashSet => jHashSet}
+import java.util.{ArrayList => jArrayList, HashSet => jHashSet, List => jList}
 import java.util.concurrent.{CancellationException, CompletableFuture, ConcurrentHashMap, ExecutionException, LinkedBlockingQueue, ScheduledFuture, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
@@ -46,6 +44,7 @@ import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportC
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, FileInfo, MemoryTracker, TransportServerBootstrap}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -261,7 +260,7 @@ private[deploy] class Worker(
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode) =>
+    splitMode, storageHint) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
@@ -270,7 +269,7 @@ private[deploy] class Worker(
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode)
+          slaveLocations, splitThreashold, splitMode, storageHint)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -306,7 +305,8 @@ private[deploy] class Worker(
       masterLocations: jList[PartitionLocation],
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
-      splitMode: PartitionSplitMode): Unit = {
+      splitMode: PartitionSplitMode,
+      storageHint: StorageHint): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"

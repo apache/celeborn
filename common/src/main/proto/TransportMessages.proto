@@ -67,6 +67,7 @@ message PbPartitionLocation {
   int32 fetchPort = 7;
   int32 replicatePort = 8;
   PbPartitionLocation peer = 9;
+  int32 storageHintOrdinal = 10;
 }
 
 message PbWorkerResource {
@@ -260,6 +261,7 @@ message PbReserveSlots {
   repeated PbPartitionLocation slaveLocations = 4;
   int64 splitThreshold = 5;
   int32 splitMode = 6;
+  int32 storageHintOrdinal = 7;
 }
 
 message PbReserveSlotsResponse {
