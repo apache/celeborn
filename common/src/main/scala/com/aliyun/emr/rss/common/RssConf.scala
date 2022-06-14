@@ -782,7 +782,7 @@ object RssConf extends Logging {
 
   def defaultStorageHint(conf: RssConf): PartitionLocation.StorageHint = {
     val default = PartitionLocation.StorageHint.MEMORY
-    val hintStr = conf.get("rss.storage.hint.default", "memory").toUpperCase
+    val hintStr = conf.get("rss.storage.hint", "memory").toUpperCase
     if (PartitionLocation.StorageHint.values().mkString.toUpperCase.contains(hintStr)) {
       logWarning(s"storage hint is invalid ${hintStr}")
       PartitionLocation.StorageHint.valueOf(hintStr)
