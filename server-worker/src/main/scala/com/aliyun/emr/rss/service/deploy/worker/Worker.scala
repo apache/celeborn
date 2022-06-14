@@ -145,8 +145,7 @@ private[deploy] class Worker(
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
 
   // worker info
-  private val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    RssConf.workerNumSlots(conf, localStorageManager.numDisks), self)
+  private val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, self)
 
   private val partitionLocationInfo = new PartitionLocationInfo
 
@@ -156,9 +155,7 @@ private[deploy] class Worker(
 
   workerSource.addGauge(
     WorkerSource.RegisteredShuffleCount, _ => partitionLocationInfo.shuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.TotalSlots, _ => workerInfo.numSlots)
   workerSource.addGauge(WorkerSource.SlotsUsed, _ => workerInfo.usedSlots())
-  workerSource.addGauge(WorkerSource.SlotsAvailable, _ => workerInfo.freeSlots())
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
@@ -186,25 +183,19 @@ private[deploy] class Worker(
   private var sendHeartbeatTask: ScheduledFuture[_] = _
   private var checkFastfailTask: ScheduledFuture[_] = _
 
-  def updateNumSlots(numSlots: Int): Unit = {
-    workerInfo.setNumSlots(numSlots)
-    heartBeatToMaster()
-  }
-
   def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
     val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots,
-        shuffleKeys)
-      , classOf[HeartbeatResponse])
+      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        localStorageManager.getDiskSnapshot().asJava, shuffleKeys), classOf[HeartbeatResponse])
     cleanTaskQueue.put(response.expiredShuffleKeys)
   }
 
   override def onStart(): Unit = {
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
-      s" with ${workerInfo.numSlots} slots.")
+      s" with ${workerInfo.disks}.")
     registerWithMaster()
 
     // start heartbeat
@@ -358,7 +349,9 @@ private[deploy] class Worker(
     // reserve success, update status
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
-    workerInfo.allocateSlots(shuffleKey, masterPartitions.size() + slavePartitions.size())
+    val diskAllocationMap = (masterPartitions.asScala ++ slavePartitions.asScala)
+      .groupBy(_.getDiskHint).map(i => i._1 -> new Integer(i._2.size))
+    workerInfo.allocateSlots(shuffleKey, diskAllocationMap.asJava)
     logInfo(s"Reserved ${masterPartitions.size()} master location and ${slavePartitions.size()}" +
       s" slave location for $shuffleKey master: ${masterPartitions}\nslave: ${slavePartitions}.")
     context.reply(ReserveSlotsResponse(StatusCode.Success))
@@ -369,7 +362,9 @@ private[deploy] class Worker(
       uniqueIds: jList[String],
       committedIds: ConcurrentSet[String],
       failedIds: ConcurrentSet[String],
-      master: Boolean = true): CompletableFuture[Void] = {
+      writtenList: LinkedBlockingQueue[Long],
+      master: Boolean = true
+      ): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
 
     if (uniqueIds != null) {
@@ -390,9 +385,10 @@ private[deploy] class Worker(
               }
 
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-              val bytes = fileWriter.close()
-              if (bytes > 0L) {
-                logDebug(s"FileName ${fileWriter.getFile.getAbsoluteFile}, size $bytes")
+              val writtenBytes = fileWriter.close()
+              if (writtenBytes > 0L) {
+                logDebug(s"FileName ${fileWriter.getFile.getAbsoluteFile}, size $writtenBytes")
+                writtenList.add(writtenBytes)
                 committedIds.add(uniqueId)
               }
             } catch {
@@ -425,7 +421,7 @@ private[deploy] class Worker(
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(CommitFilesResponse(
         StatusCode.ShuffleNotRegistered, new jArrayList[String](), new jArrayList[String](),
-        masterIds, slaveIds))
+        masterIds, slaveIds, 0, 0))
       return
     }
 
@@ -439,8 +435,10 @@ private[deploy] class Worker(
     val failedMasterIds = new ConcurrentSet[String]()
     val failedSlaveIds = new ConcurrentSet[String]()
 
-    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds)
-    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, false)
+    val committedWrittenSize = new LinkedBlockingQueue[Long]()
+
+    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds, committedWrittenSize)
+    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, committedWrittenSize, false)
 
     val future = if (masterFuture != null && slaveFuture != null) {
       CompletableFuture.allOf(masterFuture, slaveFuture)
@@ -457,24 +455,26 @@ private[deploy] class Worker(
       val numSlotsReleased =
         partitionLocationInfo.removeMasterPartitions(shuffleKey, masterIds) +
         partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
-      workerInfo.releaseSlots(shuffleKey, numSlotsReleased)
 
       val committedMasterIdList = new jArrayList[String](committedMasterIds)
       val committedSlaveIdList = new jArrayList[String](committedSlaveIds)
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
       // reply
+      val totalWritten = committedWrittenSize.asScala.sum
+      val fileCount = committedWrittenSize.size()
+      committedWrittenSize.clear()
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(
-          StatusCode.Success, committedMasterIdList, committedSlaveIdList,
-          new jArrayList[String](), new jArrayList[String]()))
+        context.reply(CommitFilesResponse(StatusCode.Success, committedMasterIdList,
+          committedSlaveIdList, new jArrayList[String](), new jArrayList[String](),
+          totalWritten, fileCount))
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
         context.reply(CommitFilesResponse(StatusCode.PartialSuccess, committedMasterIdList,
-          committedSlaveIdList, failedMasterIdList, failedSlaveIdList))
+          committedSlaveIdList, failedMasterIdList, failedSlaveIdList, totalWritten, fileCount))
       }
     }
 
@@ -690,7 +690,7 @@ private[deploy] class Worker(
         override def run(): Unit = {
           val peer = location.getPeer
           val peerWorker = new WorkerInfo(peer.getHost, peer.getRpcPort, peer.getPushPort,
-            peer.getFetchPort, peer.getReplicatePort, -1, null)
+            peer.getFetchPort, peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
@@ -823,7 +823,7 @@ private[deploy] class Worker(
           val location = locations.head
           val peer = location.getPeer
           val peerWorker = new WorkerInfo(peer.getHost,
-            peer.getRpcPort, peer.getPushPort, peer.getFetchPort, peer.getReplicatePort, -1, null)
+            peer.getRpcPort, peer.getPushPort, peer.getFetchPort, peer.getReplicatePort, null)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
@@ -905,7 +905,7 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp = try {
         rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots),
+          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.disks),
           classOf[RegisterWorkerResponse]
         )
       } catch {

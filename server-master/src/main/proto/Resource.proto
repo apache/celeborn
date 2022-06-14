@@ -1,7 +1,7 @@
 syntax = "proto2";
 option java_package = "com.aliyun.emr.rss.service.deploy.master.clustermeta";
 option java_outer_classname = "ResourceProtos";
-option java_generic_services = true;
+option java_generic_services = false;
 option java_generate_equals_and_hash = true;
 package deploy.master.meta;
 
@@ -15,12 +15,13 @@ enum Type {
   WorkerHeartBeat = 18;
   RegisterWorker = 19;
   ReportWorkerFailure = 20 ;
+  UpdatePartitionSize = 21;
 }
 
 message ResourceRequest {
   required Type cmdType = 1; // Type of the command
 
-  optional string requestId = 2 [default=""];
+  optional string requestId = 2 [default = ""];
 
   optional RequestSlotsRequest requestSlotsRequest = 10;
   optional ReleaseSlotsRequest releaseSlotsRequest = 11;
@@ -35,14 +36,14 @@ message ResourceRequest {
 
 message RequestSlotsRequest {
   required string shuffleKey = 1;
-  required string hostName   = 2;
+  required string hostName = 2;
   repeated string workerInfo = 3;
 }
 
 message ReleaseSlotsRequest {
   required string shuffleKey = 1;
   repeated string workerIds = 2;
-  repeated int32 slots = 3;
+  repeated string slots = 3;
 }
 
 message UnregisterShuffleRequest {
@@ -56,6 +57,13 @@ message AppHeartbeatRequest {
 
 message AppLostRequest {
   required string appId = 1;
+}
+
+message DiskInfo {
+  required string mountPoint = 1;
+  required int64 usableSpace = 2;
+  required double flushTime = 3;
+  required int64 usedSlots = 4;
 }
 
 message WorkerLostRequest {
@@ -72,7 +80,7 @@ message WorkerHeartBeatRequest {
   required int32 pushPort = 3;
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
-  required int32 numSlots = 6;
+  map<string, DiskInfo> disks = 6;
   required int64 time = 7;
 }
 
@@ -82,7 +90,7 @@ message RegisterWorkerRequest {
   required int32 pushPort = 3;
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
-  required int32 numSlots = 6;
+  map<string, DiskInfo> disks = 6;
 }
 
 message ReportWorkerFailureRequest {
@@ -99,13 +107,13 @@ message WorkerAddress{
 
 enum Status {
   OK = 1;
-  INTERNAL_ERROR= 2;
+  INTERNAL_ERROR = 2;
 }
 
 message ResourceResponse {
   required Type cmdType = 1; // Type of the command
 
-  optional bool success = 2 [default=true];
+  optional bool success = 2 [default = true];
 
   optional string message = 3;
 

@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.service.deploy.master;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,16 +28,23 @@ import scala.Tuple2;
 
 import org.junit.Test;
 
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
 public class MasterUtilSuiteJ {
 
   private List<WorkerInfo> prepareWorkers(int numSlots) {
+    Map<String, DiskInfo> disks = new HashMap<>();
+    for (int i = 0; i < numSlots; i++) {
+      disks.put("/mnt/disk" + i, new DiskInfo(100 * 1024 * 1024, 1099.0, 0));
+      disks.put("/mnt/disk" + i, new DiskInfo(100 * 1024 * 1024, 1099.0, 0));
+      disks.put("/mnt/disk" + i, new DiskInfo(100 * 1024 * 1024, 1099.0, 0));
+    }
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, numSlots, null));
-    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, numSlots, null));
-    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, numSlots, null));
+    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, disks, null));
+    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, disks, null));
+    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, disks, null));
     return workers;
   }
 
@@ -99,7 +107,7 @@ public class MasterUtilSuiteJ {
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        MasterUtil.offerSlots(shuffleKey, workers, reduceIds, shouldReplicate);
+      MasterUtil.offerSlots(workers, reduceIds, shouldReplicate, 10 * 1024 * 1024 * 1024);
 
     if (expectSuccess) {
       assert usedWorkers == slots.size() : "Offer slots, expect to return "

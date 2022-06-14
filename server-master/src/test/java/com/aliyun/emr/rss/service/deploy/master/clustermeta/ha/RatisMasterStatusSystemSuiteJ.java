@@ -20,15 +20,19 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
 
 import com.aliyun.emr.rss.common.RssConf;
@@ -407,14 +411,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(new Long(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(new Long(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(new Long(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(new Long(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));

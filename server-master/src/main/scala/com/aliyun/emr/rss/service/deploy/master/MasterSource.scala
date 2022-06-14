@@ -35,14 +35,12 @@ object MasterSource {
 
   val WorkerCount = "WorkerCount"
 
-  val WorkerSlotsCount = "WorkerSlotsCount"
-
   val WorkerSlotsUsedCount = "WorkerSlotsUsedCount"
-
-  val OverloadWorkerCount = "OverloadWorkerCount"
 
   val BlacklistedWorkerCount = "BlacklistedWorkerCount"
 
   val RegisteredShuffleCount = "RegisteredShuffleCount"
+
+  val PartitionSize = "PartitionSize"
 
 }

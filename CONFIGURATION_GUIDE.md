@@ -12,16 +12,14 @@ Off-heap memory requirement can be estimated as below:
 
 ```math
 numDirs = `rss.worker.base.dirs`   the amount of directory will be used by RSS storage
-queueCapacity = `rss.worker.flush.queue.capacity`   the amount of disk flush buffers per directory 
 bufferSize = `rss.worker.flush.buffer.size`   the amount of memory will be used by a single flush buffer 
-
-off-heap-memory = numDirs * queueCapacity * bufferSize + network memory
+off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
 ```
 
-For example, if an RSS worker has 10 storage directories, each directory has a queue whose capacity
-is 4096, and the buffer size is set to 256 kilobytes. The necessary off-heap memory is 10 gigabytes.
+For example, if an RSS worker has 10 storage directories or disks and the buffer size is set to 256 kilobytes.
+The necessary off-heap memory is 10 gigabytes. 
 NetWorker memory will be consumed when netty reads from a TPC channel, there will need some extra
-memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * queueCapacity * bufferSize * 1.2)`.
+memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
 
 ### Client-Side Configurations
 
@@ -32,7 +30,6 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 | spark.rss.master.host | | Single master: host of RSS Master|
 | spark.rss.master.port | | Port of RSS Master|
 | spark.rss.push.data.buffer.size | 64k | Amount of reducer partition buffer memory. Buffered data will be sent to RSS worker if buffer is full. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000,buffer size is 64K and task will consume up to 64K * 2000 = 125 M heap memory.|
-| spark.rss.push.data.queue.capacity | 512 | Push buffer queue size for a task. The maximum memory is `spark.rss.push.data.buffer.size` * `spark.rss.push.data.queue.capacity`(64K * 512 = 32M) |
 | spark.rss.push.data.maxReqsInFlight | 32 | Amount of netty in-flight requests. The maximum memory is `rss.push.data.maxReqsInFlight` * `spark.rss.push.data.buffer.size` * compression ratio(1 in worst case)(64K * 32 = 2M ) |
 | spark.rss.limit.inflight.timeout | 240s | Timeout for netty in-flight requests to be done. |
 | spark.rss.fetch.chunk.timeout | 120s | Timeout for a task to fetch chunk. |
@@ -44,7 +41,7 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 
 | Item | Default | Description |
 | :---: | :---: | :--: |
-| rss.worker.timeout | 120s | |
+| rss.worker.timeout | 60s | |
 | rss.application.timeout | 120s | |
 | rss.stage.end.timeout | 120s | |
 | rss.shuffle.writer.mode | hash | RSS support two different shuffle writers. Hash-based shuffle writer works fine when shuffle partition count is normal. Sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. |
@@ -66,9 +63,8 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs * q
 
 | Item | Default | Description |
 | :---: | :---: | :--: |
-| rss.worker.base.dirs | | Directory list to store shuffle data. For the sake of performance, there should be no more than 2 directories on the same disk partition. |
+| rss.worker.base.dirs | | Directory list to store shuffle data. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 directories on the same disk partition if you are using HDD. There can be 4 or more directories can run on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]
 | rss.worker.flush.buffer.size | 256K |  |
-| rss.worker.flush.queue.capacity | 512 | Size of buffer queue attached to each storage directory. Each flush buffer queue consumes `rss.worker.flush.buffer.size` * `rss.worker.flush.queue.capacity`(256K * 512 = 128M) off-heap memory. This config can be used to estimate RSS worker's off-heap memory demands. |
 | rss.worker.fetch.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128 M and the data will need 16 fetch chunk requests to fetch. |
 | rss.push.io.threads | `rss.worker.base.dirs` * 2 | |
 | rss.fetch.io.threads | `rss.worker.base.dirs` * 2 | |
@@ -144,7 +140,6 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.flush.buffer.size` | 256 KiB | String | |
 | `rss.worker.flush.queue.capacity` | 512 | int | |
 | `rss.worker.fetch.chunk.size` | 8 MiB | String | |
-| `rss.worker.numSlots` | -1 | int | |
 | `rss.rpc.max.parallelism` | 1024 | int | |
 | `rss.register.shuffle.max.retry` | 3 | int | |
 | `rss.register.shuffle.retry.wait` | 3s | int | |
@@ -205,3 +200,5 @@ this limit, worker will stop receive from executor and other worker |
 limit, worker will resume receive|
 | `rss.worker.reserveForSingleSort.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|
 | `rss.storage.hint` | memory | string | Available enumerations : memory,ssd,hdd,hdfs,oss |
+| `rss.partition.size` | int | string | Estimated partition size, default is 64m, and it will change according to runtime stats. |
+| `rss.disk.flusher.useMountPoint` | bool | true | True means that each disk will get one disk flush. False means that a disk flush will be attached to a working directory. |

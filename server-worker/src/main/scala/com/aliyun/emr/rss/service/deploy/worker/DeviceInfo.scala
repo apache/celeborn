@@ -29,6 +29,7 @@ import com.aliyun.emr.rss.common.util.Utils.runCommand
 
 class MountInfo(val mountPoint: String, val deviceInfo: DeviceInfo) extends Serializable {
   val dirInfos: ListBuffer[File] = new ListBuffer[File]()
+  val mountPointFile = new File(mountPoint)
 
   def addDir(dir: File): Unit = {
     dirInfos.append(dir)

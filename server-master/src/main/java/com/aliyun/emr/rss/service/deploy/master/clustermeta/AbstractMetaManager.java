@@ -17,23 +17,35 @@
 
 package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
+import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.util.Utils;
-import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -48,8 +60,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   // workerLost events
   public final ConcurrentSet<WorkerInfo> workerLostEvents = new ConcurrentSet<>();
 
+
   protected RpcEnv rpcEnv;
   protected RssConf conf;
+
+  public long defaultPartitionSize = RssConf.partitionSize(conf);
+  public long partitionSize = defaultPartitionSize;
+  public final LongAdder partitionTotalWritten = new LongAdder();
+  public final LongAdder partitionTotalFileCount = new LongAdder();
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, List<String> workerInfos) {
@@ -69,7 +87,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     if (workerInfos != null) {
       synchronized (workers) {
-        HashMap<WorkerInfo, Integer> allocatedMap = WorkerInfo.decodeFromPbMessage(workerInfos);
+        HashMap<WorkerInfo, HashMap<String, Integer>> allocatedMap = WorkerInfo.decodeFromPbMessage(workerInfos);
         workers.forEach(workerInfo -> {
           if (allocatedMap.containsKey(workerInfo)) {
             workerInfo.allocateSlots(shuffleKey, allocatedMap.get(workerInfo));
@@ -84,14 +102,21 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateReleaseSlotsMeta(String shuffleKey, List<String> workerIds,
-                                     List<Integer> slots) {
+    List<String> slots) {
     if (workerIds != null && !workerIds.isEmpty()) {
       for (int i = 0; i < workerIds.size(); i++) {
         WorkerInfo worker = WorkerInfo.fromUniqueId(workerIds.get(i));
-        for (WorkerInfo w : workers) {
-          if (w.equals(worker))  {
+        for (int j = 0; j < workers.size(); j++) {
+          WorkerInfo w = workers.get(j);
+          String diskStr = slots.get(j);
+          String[] diskParts = diskStr.split(",");
+          Map<String, Integer> disks = new HashMap<>();
+          for (int k = 0; k < diskParts.length; k += 2) {
+            disks.put(diskParts[k], Integer.parseInt(diskParts[k + 1]));
+          }
+          if (w.equals(worker)) {
             LOG.info("release slots for worker " + w + ", to release: " + slots.get(i));
-            w.releaseSlots(shuffleKey, slots.get(i));
+            w.releaseSlots(shuffleKey, disks);
           }
         }
       }
@@ -119,7 +144,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateWorkerLostMeta(String host,int rpcPort, int pushPort,int fetchPort,
     int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
-            fetchPort, replicatePort, -1, null);
+            fetchPort, replicatePort, null);
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
@@ -131,29 +156,50 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateWorkerHeartBeatMeta(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, int numSlots, long time) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
+    int replicatePort, Map<String, DiskInfo> disks, long time) {
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks,
       null);
     synchronized (workers) {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(info -> {
+        Map<String, DiskInfo> diskMaps = disks;
+        Map<String, DiskInfo> oldDiskMaps = info.disks();
+
+        for (Map.Entry<String, DiskInfo> diskInfoEntry : diskMaps.entrySet()) {
+          String mountPoint = diskInfoEntry.getKey();
+          if (oldDiskMaps.containsKey(mountPoint)) {
+            oldDiskMaps.get(mountPoint).usedSlots_$eq(Math.max(
+              oldDiskMaps.get(mountPoint).usedSlots(), diskMaps.get(mountPoint).usedSlots()));
+          } else {
+            oldDiskMaps.put(mountPoint, diskInfoEntry.getValue());
+          }
+        }
+
+        Set<String> nonExistsMountPoints = new HashSet<>();
+        nonExistsMountPoints.addAll(oldDiskMaps.keySet());
+        nonExistsMountPoints.removeAll(diskMaps.keySet());
+        if (!nonExistsMountPoints.isEmpty()) {
+          for (String nonExistsMountPoint : nonExistsMountPoints) {
+            oldDiskMaps.remove(nonExistsMountPoint);
+          }
+        }
+
         info.lastHeartbeat_$eq(time);
-        info.setNumSlots(numSlots);
       });
     }
-    if (numSlots == 0 && !blacklist.contains(worker)) {
-      LOG.warn("Worker: {} num total slots is 0, add to blacklist", worker.toString());
+    if (!blacklist.contains(worker) && disks.isEmpty()) {
+      LOG.warn("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
-    } else if (numSlots > 0) {
+    } else if (disks.size() > 0) {
       // only unblack if numSlots larger than 0
       blacklist.remove(worker);
     }
   }
 
   public void updateRegisterWorkerMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, int numSlots) {
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, Map<String,DiskInfo> disks) {
     WorkerInfo workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-      numSlots, null);
+      disks, null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
 
     try {
@@ -285,6 +331,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     synchronized (this.workers) {
       failedWorkers.retainAll(this.workers);
       this.blacklist.addAll(failedWorkers);
+    }
+  }
+
+  public void updatePartitionSize() {
+    long tmpTotalWritten = partitionTotalWritten.sumThenReset();
+    long tmpFileCount = partitionTotalFileCount.sumThenReset();
+    if (tmpFileCount != 0) {
+      partitionSize = tmpTotalWritten / tmpFileCount;
+    } else {
+      partitionSize = defaultPartitionSize;
     }
   }
 }

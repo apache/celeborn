@@ -17,18 +17,22 @@
 
 package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 
 public class MetaUtil {
   private MetaUtil() {
   }
 
-  public static WorkerInfo addrToInfo(ResourceProtos.WorkerAddress address) {
+  public static WorkerInfo addressToInfo(ResourceProtos.WorkerAddress address) {
     return new WorkerInfo(address.getHost(), address.getRpcPort(), address.getPushPort(),
       address.getFetchPort(), address.getReplicatePort());
   }
 
-  public static ResourceProtos.WorkerAddress infoToAddr(WorkerInfo info) {
+  public static ResourceProtos.WorkerAddress infoToAddress(WorkerInfo info) {
     return ResourceProtos.WorkerAddress.newBuilder()
       .setHost(info.host())
       .setRpcPort(info.rpcPort())
@@ -36,5 +40,20 @@ public class MetaUtil {
       .setFetchPort(info.fetchPort())
       .setReplicatePort(info.replicatePort())
       .build();
+  }
+
+  public static Map<String, DiskInfo> fromPbDiskInfos(Map<String, ResourceProtos.DiskInfo> diskInfos) {
+    Map<String, DiskInfo> map = new HashMap<>();
+    diskInfos.forEach((k, v) -> map.put(k,
+      new DiskInfo(v.getMountPoint(), v.getUsableSpace(), v.getFlushTime(), v.getUsedSlots())));
+    return map;
+  }
+
+  public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(Map<String, DiskInfo> diskInfos) {
+    Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
+    diskInfos.forEach((k, v) -> map.put(k,
+      ResourceProtos.DiskInfo.newBuilder().setUsableSpace(v.usableSpace())
+        .setFlushTime(v.flushTime()).setUsedSlots(v.usedSlots()).build()));
+    return map;
   }
 }

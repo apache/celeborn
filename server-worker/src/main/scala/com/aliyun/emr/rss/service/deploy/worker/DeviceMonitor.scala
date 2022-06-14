@@ -49,7 +49,8 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
-                         dirs: util.ArrayList[File]) extends DeviceMonitor {
+  deviceInfos: util.HashMap[String, DeviceInfo], mountInfos: util.HashMap[String, MountInfo])
+  extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
@@ -163,16 +164,12 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
 
   // (deviceName -> ObservedDevice)
   var observedDevices: util.HashMap[DeviceInfo, ObservedDevice] = _
-  // (mount filesystem -> MountInfo)
-  var mountInfos: util.HashMap[String, MountInfo] = _
 
   val diskCheckInterval = diskCheckIntervalMs(essConf)
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
   def init(): Unit = {
-    val (deviceInfos, mountInfos) = DeviceInfo.getDeviceAndMountInfos(dirs)
-    this.mountInfos = mountInfos
     this.observedDevices = new util.HashMap[DeviceInfo, ObservedDevice]()
     deviceInfos.asScala.foreach(entry => {
       val observedDevice = new ObservedDevice(entry._2)
@@ -259,10 +256,11 @@ object DeviceMonitor {
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
   def createDeviceMonitor(essConf: RssConf, deviceObserver: DeviceObserver,
-                          dirs: util.ArrayList[File]): DeviceMonitor = {
+    deviceInfos: util.HashMap[String, DeviceInfo], mountInfos: util.HashMap[String, MountInfo])
+  : DeviceMonitor = {
     try {
       if (RssConf.deviceMonitorEnabled(essConf)) {
-        val monitor = new LocalDeviceMonitor(essConf, deviceObserver, dirs)
+        val monitor = new LocalDeviceMonitor(essConf, deviceObserver, deviceInfos,mountInfos)
         monitor.init()
         logger.info("Device monitor init success")
         monitor

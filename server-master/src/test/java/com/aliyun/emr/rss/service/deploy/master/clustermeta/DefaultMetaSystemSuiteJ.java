@@ -17,7 +17,11 @@
 
 package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.After;
@@ -227,11 +231,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleAppHeartbeat() {
     long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
     assert statusSystem.appHeartbeatTime.get(APPID1) == dummy;
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
     assert statusSystem.appHeartbeatTime.get(appId2) == dummy;
 
     assert statusSystem.appHeartbeatTime.size()==2;
