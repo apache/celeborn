@@ -780,7 +780,7 @@ object RssConf extends Logging {
       "10s")).toInt
   }
 
-  def defaultStorageHint(conf: RssConf): PartitionLocation.StorageHint = {
+  def storageHint(conf: RssConf): PartitionLocation.StorageHint = {
     val default = PartitionLocation.StorageHint.MEMORY
     val hintStr = conf.get("rss.storage.hint", "memory").toUpperCase
     if (PartitionLocation.StorageHint.values().mkString.toUpperCase.contains(hintStr)) {
