@@ -21,12 +21,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -482,8 +477,8 @@ public class ShuffleClientImpl extends ShuffleClient {
               .add(mapKey);
           }
           pushState.removeFuture(nextBatchId);
-          logger.debug("Push data success for map {} attempt {} batch {}.",
-            mapId, attemptId, nextBatchId);
+          logger.debug("Push data to {}:{} success for map {} attempt {} batch {}.",
+              loc.getHost(), loc.getPushPort(), mapId, attemptId, nextBatchId);
         }
 
         @Override
@@ -491,8 +486,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState.exception.compareAndSet(null,
               new IOException("Revived PushData failed!", e));
           pushState.removeFuture(nextBatchId);
-          logger.debug("Push data failed for map {} attempt {} batch {}.",
-              mapId, attemptId, nextBatchId);
+          logger.error("Push data to " + loc.getHost() + ":" + loc.getPushPort() +
+              " failed for map " + mapId + " attempt " + attemptId +
+              " batch " + nextBatchId + ".", e);
         }
       };
 
@@ -526,6 +522,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           if (pushState.exception.get() != null) {
             return;
           }
+          logger.error("Push data to " + loc.getHost() + ":" + loc.getPushPort() +
+              " failed for map " + mapId + " attempt " + attemptId +
+              " batch " + nextBatchId + ".", e);
           // async retry push data
           if (!mapperEnded(shuffleId, mapId, attemptId)) {
             pushDataRetryPool.submit(() ->
@@ -713,10 +712,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       @Override
       public void onFailure(Throwable e) {
-        String errorMsg = (revived ? "Revived push" : "Push") + " merged data failed!";
+        String errorMsg = (revived ? "Revived push" : "Push") + " merged data to " +
+            host + ":" + port + " failed for map " + mapId + " attempt " + attemptId +
+            " batches " + Arrays.toString(batchIds) + ".";
         pushState.exception.compareAndSet(null, new IOException(errorMsg, e));
         if (logger.isDebugEnabled()) {
-          for (int batchId: batchIds) {
+          for (int batchId : batchIds) {
             logger.debug("Push data failed for map {} attempt {} batch {}.",
                 mapId, attemptId, batchId);
           }
@@ -739,6 +740,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           callback.onFailure(e);
           return;
         }
+        logger.error((revived ? "Revived push" : "Push") + " merged data to " +
+            host + ":" + port + " failed for map " + mapId + " attempt " + attemptId +
+            " batches " + Arrays.toString(batchIds) + ".", e);
         pushState.inFlightBatches.remove(groupedBatchId);
         if (!mapperEnded(shuffleId, mapId, attemptId)) {
           pushDataRetryPool.submit(() ->
