@@ -205,3 +205,6 @@ this limit, worker will stop receive from executor and other worker |
 limit, worker will resume receive|
 | `rss.worker.reserveForSingleSort.memory` | 1mb | string | Reserve memory when sorting a shuffle file off-heap.|
 | `rss.storage.hint` | memory | string | Available enumerations : memory,ssd,hdd,hdfs,oss |
+| `rss.rpc.askTimeout` | 240s | string | Timeout for sending rpc messages. |
+| `rss.rpc.lookupTimeout` | 30s | string | Timeout for creating new connection. This value should be less than `rss.worker.timeout` to avoid worker lost in HA mode. |
+| `rss.haclient.rpc.askTimeout` | 30s | string | Timeout for HA client sending rpc messages. This value should be less than `rss.worker.timeout` to avoid worker lost in HA mode. |
