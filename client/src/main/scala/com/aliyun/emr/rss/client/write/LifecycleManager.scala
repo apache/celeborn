@@ -897,6 +897,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                 slavePartitionLocations.remove(partition)
                 destroyResource.computeIfAbsent(workerInfoWithRpcRef, newMapFunc)._2.add(partition)
               }
+              if (slots.containsKey(workerInfoWithRpcRef) && masterPartitionLocations.isEmpty &&
+                slavePartitionLocations.isEmpty) {
+                slots.remove(workerInfoWithRpcRef)
+              }
             }
           })
           if (!destroyResource.isEmpty) {
