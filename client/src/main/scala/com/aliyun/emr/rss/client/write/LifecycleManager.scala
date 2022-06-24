@@ -905,6 +905,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                 slavePartitionLocations.remove(partition)
                 destroyResource.computeIfAbsent(workerInfoWithRpcRef, newMapFunc)._2.add(partition)
               }
+              if (slots.containsKey(workerInfoWithRpcRef) && masterPartitionLocations.isEmpty &&
+                slavePartitionLocations.isEmpty) {
+                slots.remove(workerInfoWithRpcRef)
+              }
             }
           })
           if (!destroyResource.isEmpty) {
@@ -1125,8 +1129,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       endpoint.askSync[ReserveSlotsResponse](message)
     } catch {
       case e: Exception =>
-        val msg = s"Exception when askSync ReserveSlots for $shuffleKey, ${e.getMessage}"
-        ReserveSlotsResponse(StatusCode.Failed, msg)
+        val msg = s"Exception when askSync ReserveSlots for $shuffleKey."
+        logError(msg, e)
+        ReserveSlotsResponse(StatusCode.Failed, msg + s" ${e.getMessage}")
     }
   }
 

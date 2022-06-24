@@ -202,3 +202,6 @@ limit, worker will resume receive|
 | `rss.storage.hint` | memory | string | Available enumerations : memory,ssd,hdd,hdfs,oss |
 | `rss.partition.size` | int | string | Estimated partition size, default is 64m, and it will change according to runtime stats. |
 | `rss.disk.flusher.useMountPoint` | bool | true | True means that each disk will get one disk flush. False means that a disk flush will be attached to a working directory. |
+| `rss.rpc.askTimeout` | 240s | string | Timeout for sending rpc messages. |
+| `rss.rpc.lookupTimeout` | 30s | string | Timeout for creating new connection. This value should be less than `rss.worker.timeout` to avoid worker lost in HA mode. |
+| `rss.haclient.rpc.askTimeout` | 30s | string | Timeout for HA client sending rpc messages. This value should be less than `rss.worker.timeout` to avoid worker lost in HA mode. |
