@@ -23,7 +23,7 @@
 
   <groupId>com.aliyun.emr</groupId>
   <artifactId>remote-shuffle-service</artifactId>
-  <version>1.0.0</version>
+  <version>0.1.0</version>
   <packaging>pom</packaging>
 
   <name>Aliyun E-MapReduce Shuffle Service Project Parent POM</name>
