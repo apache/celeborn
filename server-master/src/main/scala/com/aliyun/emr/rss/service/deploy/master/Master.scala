@@ -94,7 +94,11 @@ private[deploy] class Master(
     // slots overload worker count
     source.addGauge(MasterSource.OverloadWorkerCount,
       _ => workersSnapShot.asScala.count { worker =>
-         worker.usedSlots / worker.numSlots >= clusterSlotsUsageLimit
+        if (worker.numSlots > 0) {
+          worker.usedSlots / worker.numSlots >= clusterSlotsUsageLimit
+        } else {
+          true
+        }
       })
 
     metricsSystem.registerSource(source)
