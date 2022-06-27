@@ -114,7 +114,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
           val appHeartbeat = HeartBeatFromApplication(appId, ZERO_UUID)
           rssHARetryClient.send(appHeartbeat)
-          logDebug("Successfully send app heartbeat.")
+          logInfo("Successfully send app heartbeat.")
         } catch {
           case it: InterruptedException =>
             logWarning("Interrupted while sending app heartbeat.")
