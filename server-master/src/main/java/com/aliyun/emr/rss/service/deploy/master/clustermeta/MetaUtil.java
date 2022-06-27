@@ -52,8 +52,9 @@ public class MetaUtil {
   public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(Map<String, DiskInfo> diskInfos) {
     Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
     diskInfos.forEach((k, v) -> map.put(k,
-      ResourceProtos.DiskInfo.newBuilder().setUsableSpace(v.usableSpace())
-        .setFlushTime(v.flushTime()).setUsedSlots(v.usedSlots()).build()));
+      ResourceProtos.DiskInfo.newBuilder().setMountPoint(v.mountPoint())
+        .setUsableSpace(v.usableSpace()).setFlushTime(v.flushTime()).setUsedSlots(v.usedSlots())
+        .build()));
     return map;
   }
 }

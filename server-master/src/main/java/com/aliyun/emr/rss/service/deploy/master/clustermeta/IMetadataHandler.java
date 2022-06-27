@@ -31,7 +31,7 @@ public interface IMetadataHandler {
     String requestId);
 
   void handleReleaseSlots(
-    String shuffleKey, List<String> workerIds, List<String> slots, String requestId);
+    String shuffleKey, List<String> workerIds, List<String> slotStrings, String requestId);
 
   void handleUnRegisterShuffle(String shuffleKey, String requestId);
 

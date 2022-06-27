@@ -40,14 +40,36 @@ public class MasterUtil {
   private static double mid30Ratio = 0.32;
   private static double last40Ratio = 0.27;
 
-  public static Map<WorkerInfo, Integer> workerToAllocatedSlots(
+  public static Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots(
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
     Iterator<WorkerInfo> workers = slots.keySet().iterator();
-    Map<WorkerInfo, Integer> workerToSlots = new HashMap<>();
+    Map<WorkerInfo, Map<String, Integer>> workerToSlots = new HashMap<>();
     while (workers.hasNext()) {
       WorkerInfo worker = workers.next();
-      workerToSlots.put(worker,
-        slots.get(worker)._1.size() + slots.get(worker)._2.size());
+      workerToSlots.compute(worker, (k,v)->{
+        if (v == null) {
+          v = new HashMap<>();
+        }
+        for (PartitionLocation location : slots.get(worker)._1) {
+          v.compute(location.getDiskHint(), (hint, slot) -> {
+            if (slot == null) {
+              slot = 0;
+            }
+            slot = slot + 1;
+            return slot;
+          });
+        }
+        for (PartitionLocation location : slots.get(worker)._2) {
+          v.compute(location.getDiskHint(), (hint, slot) -> {
+            if (slot == null) {
+              slot = 0;
+            }
+            slot = slot + 1;
+            return slot;
+          });
+        }
+        return v;
+      });
     }
     return workerToSlots;
   }

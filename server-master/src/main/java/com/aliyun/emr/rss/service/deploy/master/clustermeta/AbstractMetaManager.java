@@ -64,8 +64,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   protected RpcEnv rpcEnv;
   protected RssConf conf;
 
-  public long defaultPartitionSize = RssConf.partitionSize(conf);
-  public long partitionSize = defaultPartitionSize;
+  public long defaultPartitionSize;
+  public long partitionSize;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
 
@@ -108,13 +108,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         WorkerInfo worker = WorkerInfo.fromUniqueId(workerIds.get(i));
         for (int j = 0; j < workers.size(); j++) {
           WorkerInfo w = workers.get(j);
-          String diskStr = slots.get(j);
-          String[] diskParts = diskStr.split(",");
-          Map<String, Integer> disks = new HashMap<>();
-          for (int k = 0; k < diskParts.length; k += 2) {
-            disks.put(diskParts[k], Integer.parseInt(diskParts[k + 1]));
-          }
           if (w.equals(worker)) {
+            String diskStr = slots.get(j);
+            String[] diskParts = diskStr.split(",");
+            Map<String, Integer> disks = new HashMap<>();
+            for (int k = 0; k < diskParts.length; k++) {
+              String[] parts = diskParts[k].split(":");
+              disks.put(parts[0], Integer.parseInt(parts[1]));
+            }
             LOG.info("release slots for worker " + w + ", to release: " + slots.get(i));
             w.releaseSlots(shuffleKey, disks);
           }

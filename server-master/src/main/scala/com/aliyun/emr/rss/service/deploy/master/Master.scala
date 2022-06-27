@@ -311,6 +311,7 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val workerToRegister = new WorkerInfo(host, rpcPort,
       pushPort, fetchPort, replicatePort, disks, null)
+    disks.asScala.values.foreach(disk => disk.totalSlots = disk.usableSpace / statusSystem.partitionSize)
     val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +

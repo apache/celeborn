@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
@@ -172,26 +173,44 @@ public class RatisMasterStatusSystemSuiteJ {
   private static int PUSHPORT1 = 1112;
   private static int FETCHPORT1 = 1113;
   private static int REPLICATEPORT1 = 1114;
-  private static int NUMSLOTS1 = 10;
+  private static Map<String, DiskInfo> disks1 = new HashMap(){};
 
   private static String HOSTNAME2 = "host2";
   private static int RPCPORT2 = 2111;
   private static int PUSHPORT2 = 2112;
   private static int FETCHPORT2 = 2113;
   private static int REPLICATEPORT2 = 2114;
-  private static int NUMSLOTS2 = 10;
+  private static Map<String,DiskInfo> disks2 = new HashMap<>();
 
   private static String HOSTNAME3 = "host3";
   private static int RPCPORT3 = 3111;
   private static int PUSHPORT3 = 3112;
   private static int FETCHPORT3 = 3113;
   private static int REPLICATEPORT3 = 3114;
-  private static int NUMSLOTS3 = 10;
+  private static Map<String,DiskInfo> disks3 = new HashMap<>();
 
   private AtomicLong callerId = new AtomicLong();
   private static String APPID1 = "appId1";
   private static int SHUFFLEID1 = 1;
   private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+
+  @BeforeClass
+  public static void prepare() {
+    disks1.put("disk1", new DiskInfo("disk1", 1024 * 1024 * 1024 * 64, 100, 0));
+    disks1.put("disk2", new DiskInfo("disk2", 1024 * 1024 * 1024 * 64, 200, 0));
+    disks1.put("disk3", new DiskInfo("disk3", 1024 * 1024 * 1024 * 64, 300, 0));
+    disks1.put("disk4", new DiskInfo("disk4", 1024 * 1024 * 1024 * 64, 400, 0));
+
+    disks2.put("disk1", new DiskInfo("disk1", 1024 * 1024 * 1024 * 64, 100, 0));
+    disks2.put("disk2", new DiskInfo("disk2", 1024 * 1024 * 1024 * 64, 200, 0));
+    disks2.put("disk3", new DiskInfo("disk3", 1024 * 1024 * 1024 * 64, 300, 0));
+    disks2.put("disk4", new DiskInfo("disk4", 1024 * 1024 * 1024 * 64, 400, 0));
+
+    disks3.put("disk1", new DiskInfo("disk1", 1024 * 1024 * 1024 * 64, 100, 0));
+    disks3.put("disk2", new DiskInfo("disk2", 1024 * 1024 * 1024 * 64, 200, 0));
+    disks3.put("disk3", new DiskInfo("disk3", 1024 * 1024 * 1024 * 64, 300, 0));
+    disks3.put("disk4", new DiskInfo("disk4", 1024 * 1024 * 1024 * 64, 400, 0));
+  }
 
   private String getNewReqeustId() {
     return RssHARetryClient.encodeRequestId(UUID.randomUUID().toString(),
@@ -216,12 +235,13 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
+
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(STATUSSYSTEM1.workers.size(), 3);
@@ -236,11 +256,11 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
 
     statusSystem.handleWorkerLost(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
       getNewReqeustId());
@@ -257,23 +277,29 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-      REPLICATEPORT1, NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, disks1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-      REPLICATEPORT2, NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, disks2, dummyRef);
     WorkerInfo workerInfo3 = new WorkerInfo(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
-      REPLICATEPORT3, NUMSLOTS3, dummyRef);
+      REPLICATEPORT3, disks3, dummyRef);
 
-    Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
-    workersToAllocate.put(workerInfo1, 5);
-    workersToAllocate.put(workerInfo2, 5);
-    workersToAllocate.put(workerInfo3, 5);
+    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocation1 = new HashMap<>();
+    allocation1.put("disk1", 15);
+    Map<String, Integer> allocation2 = new HashMap<>();
+    allocation2.put("disk2", 25);
+    Map<String, Integer> allocation3 = new HashMap<>();
+    allocation3.put("disk3", 35);
+    workersToAllocate.put(workerInfo1, allocation1);
+    workersToAllocate.put(workerInfo2, allocation2);
+    workersToAllocate.put(workerInfo3, allocation3);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
@@ -294,22 +320,24 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
 
-    Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
+    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocations = new HashMap<>();
+    allocations.put("disk1", 5);
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
-        .findFirst().get(), 5);
+                            .findFirst().get(), allocations);
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2))
-        .findFirst().get(), 5);
+                            .findFirst().get(), allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
@@ -318,8 +346,8 @@ public class RatisMasterStatusSystemSuiteJ {
     workerIds.add(HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 +
                     ":" + REPLICATEPORT1);
 
-    List<Integer> workerSlots = new ArrayList<>();
-    workerSlots.add(3);
+    List<String> workerSlots = new ArrayList<>();
+    workerSlots.add("disk1:3");
 
     statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
     Thread.sleep(3000L);
@@ -338,21 +366,22 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
 
     Thread.sleep(3000L);
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-      REPLICATEPORT1, NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, disks1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-      REPLICATEPORT2, NUMSLOTS2, dummyRef);
-
-    Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
-    workersToAllocate.put(workerInfo1, 5);
-    workersToAllocate.put(workerInfo2, 5);
+      REPLICATEPORT2, disks2, dummyRef);
+    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String,Integer> allocations = new HashMap<>();
+    allocations.put("disk1", 5);
+    workersToAllocate.put(workerInfo1, allocations);
+    workersToAllocate.put(workerInfo2, allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
@@ -375,20 +404,22 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-      REPLICATEPORT1, NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, disks1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-      REPLICATEPORT2, NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, disks2, dummyRef);
 
-    Map<WorkerInfo, Integer> workersToAllocate = new HashMap<>();
-    workersToAllocate.put(workerInfo1, 5);
-    workersToAllocate.put(workerInfo2, 5);
+    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocations = new HashMap<>();
+    allocations.put("disk1", 5);
+    workersToAllocate.put(workerInfo1, allocations);
+    workersToAllocate.put(workerInfo2, allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
@@ -436,14 +467,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      0, 1, getNewReqeustId());
+      disks1, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
@@ -451,7 +482,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      0, 1, getNewReqeustId());
+      disks2, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, statusSystem.blacklist.size());
@@ -460,7 +491,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      1, 1, getNewReqeustId());
+      disks3, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, statusSystem.blacklist.size());
@@ -499,16 +530,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      NUMSLOTS1, getNewReqeustId());
+      disks1, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      NUMSLOTS2, getNewReqeustId());
+      disks2, getNewReqeustId());
     statusSystem.handleRegisterWorker(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3,
-      NUMSLOTS3, getNewReqeustId());
+      disks3, getNewReqeustId());
 
     WorkerInfo workerInfo1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1,
-      REPLICATEPORT1, NUMSLOTS1, dummyRef);
+      REPLICATEPORT1, disks1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
-      REPLICATEPORT2, NUMSLOTS2, dummyRef);
+      REPLICATEPORT2, disks2, dummyRef);
 
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);

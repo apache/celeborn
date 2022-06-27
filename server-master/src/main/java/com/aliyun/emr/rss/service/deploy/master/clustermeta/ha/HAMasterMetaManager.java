@@ -44,6 +44,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public HAMasterMetaManager(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
+    this.defaultPartitionSize = RssConf.partitionSize(conf);
+    this.partitionSize = defaultPartitionSize;
   }
 
   public HARaftServer getRatisServer() {
@@ -82,7 +84,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-                                 List<String> slots, String requestId) {
+                                 List<String> slotStrings, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.ReleaseSlots)
@@ -91,7 +93,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
             ResourceProtos.ReleaseSlotsRequest.newBuilder()
                           .setShuffleKey(shuffleKey)
                           .addAllWorkerIds(workerIds)
-                          .addAllSlots(slots)
+                          .addAllSlots(slotStrings)
                           .build())
               .build());
 

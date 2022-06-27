@@ -52,8 +52,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-                                 List<String> slots, String requestId) {
-    updateReleaseSlotsMeta(shuffleKey, workerIds, slots);
+                                 List<String> slotStrings, String requestId) {
+    updateReleaseSlotsMeta(shuffleKey, workerIds, slotStrings);
   }
 
   @Override

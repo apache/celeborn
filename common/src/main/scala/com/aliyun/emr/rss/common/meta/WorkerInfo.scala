@@ -27,8 +27,9 @@ import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbDiskInfo, PbWorke
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
-class DiskInfo(val mountPoint: String, val usableSpace: Long, val flushTime: Double, var usedSlots: Long) {
-  var totalSlots = 0L
+class DiskInfo(val mountPoint: String, val usableSpace: Long, val flushTime: Double,
+  var usedSlots: Long) extends Serializable {
+  var totalSlots: Long = 0
   lazy val shuffleSlots = new util.HashMap[String, Integer]()
 
   def availableSlots(): Long = {
@@ -180,10 +181,10 @@ object WorkerInfo {
     val allocationsMap = new util.HashMap[String, Integer]()
     pbStrList.asScala.foreach { str =>
       val splits = str.split(SPLIT)
-      val allocationsMapSize = splits(6).toInt
+      val allocationsMapSize = splits(5).toInt
       if (allocationsMapSize > 0) {
-        var index = 7
-        while (index < splits.size) {
+        var index = 5
+        while (index < splits.size - 1) {
           val mountPoint = splits(index + 1)
           val slots = splits(index + 2).toInt
           allocationsMap.put(mountPoint, slots)
