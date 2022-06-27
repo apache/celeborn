@@ -574,6 +574,10 @@ object RssConf extends Logging {
     conf.getInt("rss.fetchserver.port", 0)
   }
 
+  def replicateServerPort(conf: RssConf): Int = {
+    conf.getInt("rss.replicateserver.port", 0)
+  }
+
   def registerWorkerTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.register.worker.timeout", "180s")
   }
