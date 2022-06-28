@@ -437,7 +437,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def handleChangePartitionLocation(
       contexts: ConcurrentHashMap[Integer, util.Set[RpcCallContext]],
-      applicationId: String, shuffleId: Int, reduceId: Int, oldPartition: PartitionLocation): Unit = {
+      applicationId: String,
+      shuffleId: Int,
+      reduceId: Int,
+      oldPartition: PartitionLocation): Unit = {
     val candidates = workersNotBlacklisted(shuffleId)
     val slots = reallocateSlotsFromCandidates(
       List(oldPartition), candidates)
