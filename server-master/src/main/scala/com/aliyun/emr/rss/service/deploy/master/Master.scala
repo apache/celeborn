@@ -315,12 +315,12 @@ private[deploy] class Master(
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
-      if (!statusSystem.workerLostEvents.contains(hostPort)) {
+      if (!statusSystem.workerLostEvents.contains(workerToRegister)) {
         self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
           RssHARetryClient.genRequestId()))
       }
       context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
-    } else if (statusSystem.workerLostEvents.contains(hostPort)) {
+    } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $hostPort in workerLostEvents.")
       context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
     } else {
