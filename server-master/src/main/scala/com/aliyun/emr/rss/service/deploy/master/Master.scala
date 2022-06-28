@@ -311,17 +311,17 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val workerToRegister = new WorkerInfo(host, rpcPort,
       pushPort, fetchPort, replicatePort, numSlots, null)
-    val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
-      if (!statusSystem.workerLostEvents.contains(hostPort)) {
+      if (!statusSystem.workerLostEvents.contains(workerToRegister)) {
         self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
           RssHARetryClient.genRequestId()))
       }
       context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
-    } else if (statusSystem.workerLostEvents.contains(hostPort)) {
-      logWarning(s"Receive RegisterWorker while worker $hostPort in workerLostEvents.")
+    } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
+      logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
+        s"in workerLostEvents.")
       context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
     } else {
       statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
