@@ -266,8 +266,10 @@ private[deploy] class Worker(
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
             s" master number: ${masterLocations.size()}, slave number: ${slaveLocations.size()}")
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
-          s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString("[", ",", "]")}; " +
-          s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString("[", ",", "]")}.")
+          s"master partitions: " +
+          s"${masterLocations.asScala.map(_.getUniqueId).mkString("[", ",", "]")}; " +
+          s"slave partitions: " +
+          s"${slaveLocations.asScala.map(_.getUniqueId).mkString("[", ",", "]")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
           slaveLocations, splitThreashold, splitMode, storageHint)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
