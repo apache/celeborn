@@ -449,6 +449,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.application.timeout", "120s")
   }
 
+  def applicationHeatbeatIntervalMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.application.heartbeatInterval", "10s")
+  }
+
   def removeShuffleDelayMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.remove.shuffle.delay", "60s")
   }
@@ -572,6 +576,10 @@ object RssConf extends Logging {
 
   def fetchServerPort(conf: RssConf): Int = {
     conf.getInt("rss.fetchserver.port", 0)
+  }
+
+  def replicateServerPort(conf: RssConf): Int = {
+    conf.getInt("rss.replicateserver.port", 0)
   }
 
   def registerWorkerTimeoutMs(conf: RssConf): Long = {

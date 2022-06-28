@@ -84,6 +84,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private var getBlacklist: ScheduledFuture[_] = _
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
+  private val heartbeatIntervalMs = RssConf.applicationHeatbeatIntervalMs(conf)
   private val heartbeatThread = ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
   private val responseCheckerThread = ThreadUtils.
@@ -113,7 +114,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
           val appHeartbeat = HeartBeatFromApplication(appId, ZERO_UUID)
           rssHARetryClient.send(appHeartbeat)
-          logDebug("Successfully send app heartbeat.")
+          logInfo("Successfully send app heartbeat.")
         } catch {
           case it: InterruptedException =>
             logWarning("Interrupted while sending app heartbeat.")
@@ -123,7 +124,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             logError("Error while send heartbeat", t)
         }
       }
-    }, 0, 30, TimeUnit.SECONDS)
+    }, 0, heartbeatIntervalMs, TimeUnit.MILLISECONDS)
   }
 
   override def onStart(): Unit = {
@@ -950,7 +951,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           // destroy success buffers
           val destroyAfterRetry = retrySlots.asScala.filterKeys(!failedAfterRetry.contains(_)).toMap
           destroyBuffersWithRetry(applicationId, shuffleId,
-            destroyAfterRetry.asInstanceOf[WorkerResource])
+            new WorkerResource(destroyAfterRetry.asJava))
         }
       }
 

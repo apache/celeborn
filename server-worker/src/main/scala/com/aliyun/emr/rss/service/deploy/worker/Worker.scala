@@ -112,7 +112,7 @@ private[deploy] class Worker(
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource,
         replicateLimiter)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
-    transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps)
+    transportContext.createServer(RssConf.replicateServerPort(conf), serverBootstraps)
   }
 
   private val fetchServer = {
