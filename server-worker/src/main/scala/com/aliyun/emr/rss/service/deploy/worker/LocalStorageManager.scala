@@ -64,7 +64,6 @@ private[worker] final class DiskFlusher(
   private var lastBeginFlushTime: Long = -1
   def getLastFlushTime: Long = lastBeginFlushTime
 
-  @volatile
   var stopFlag = new AtomicBoolean(false)
 
   private val worker = new Thread(s"$this") {
