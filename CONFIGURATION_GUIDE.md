@@ -174,7 +174,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.prometheus.metric.port` | 9096 | int | |
 | `rss.merge.push.data.threshold` | 1 MiB | String | |
 | `rss.driver.metaService.port` | 0 | int | |
-| `rss.worker.closeIdleConnections` | true | bool | |
+| `rss.worker.closeIdleConnections` | false | bool | |
 | `rss.ha.enabled` | false | bool | |
 | `rss.ha.master.hosts` | `rss.master.host` 的值 | String | |
 | `rss.ha.service.id` | | String | |
