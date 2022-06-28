@@ -654,7 +654,7 @@ object RssConf extends Logging {
   }
 
   def closeIdleConnections(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = true)
+    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = false)
   }
 
   def replicateFastFailDurationMs(conf: RssConf): Long = {
