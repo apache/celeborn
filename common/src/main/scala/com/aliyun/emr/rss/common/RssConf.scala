@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -548,6 +549,10 @@ object RssConf extends Logging {
       val number = RssConf.workerBaseDirNumber(conf)
       (1 to number).map(i => s"$prefix$i").toArray
     }
+  }
+
+  def diskFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.thread.count", 1)
   }
 
   def workerBaseDirPrefix(conf: RssConf): String = {

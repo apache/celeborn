@@ -193,11 +193,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         })
       when(df2.notifyError("vda", null, DeviceErrorType.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
-          df2.stopFlag = true
+          df2.stopFlag.set(true)
         })
       when(df4.notifyError("vdb", null, DeviceErrorType.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
-          df4.stopFlag = true
+          df4.stopFlag.set(true)
         })
 
       deviceMonitor.observedDevices.get(vdaDeviceInfo).
