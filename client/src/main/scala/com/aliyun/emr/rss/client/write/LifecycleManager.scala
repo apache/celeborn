@@ -949,7 +949,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         } else {
           // destroy success buffers
           val destroyAfterRetry = retrySlots.asScala.filterKeys(!failedAfterRetry.contains(_)).toMap
-          destroyBuffersWithRetry(applicationId, shuffleId, new WorkerResource(destroyAfterRetry.asJava))
+          destroyBuffersWithRetry(applicationId, shuffleId,
+            new WorkerResource(destroyAfterRetry.asJava))
         }
       }
 
