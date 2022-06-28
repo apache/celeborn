@@ -266,8 +266,8 @@ private[deploy] class Worker(
         logInfo(s"Received ReserveSlots request, $shuffleKey," +
             s" master number: ${masterLocations.size()}, slave number: ${slaveLocations.size()}")
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
-          s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
-          s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
+          s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString("[", ",", "]")}; " +
+          s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString("[", ",", "]")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
           slaveLocations, splitThreashold, splitMode, storageHint)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
@@ -276,8 +276,11 @@ private[deploy] class Worker(
     case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
-        logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
-          s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
+        logInfo(s"Received CommitFiles request, $shuffleKey," +
+          s" master number: ${masterIds.size()}, slave number: ${slaveIds.size()}")
+        logDebug(s"Received CommitFiles request, $shuffleKey, " +
+          s"master files ${masterIds.asScala.mkString("[", ",", "]")}; " +
+          s"slave files ${slaveIds.asScala.mkString("[", ",", "]")}.")
         val commitFilesTimeMs = Utils.timeIt({
           handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts)
         })
@@ -286,15 +289,15 @@ private[deploy] class Worker(
       }
 
     case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request.")
+      logInfo("Received GetWorkerInfos request.")
       handleGetWorkerInfos(context)
 
     case ThreadDump =>
-      logDebug("Receive ThreadDump request.")
+      logInfo("Receive ThreadDump request.")
       handleThreadDump(context)
 
     case Destroy(shuffleKey, masterLocations, slaveLocations) =>
-      logDebug(s"Receive Destroy request, $shuffleKey.")
+      logInfo(s"Receive Destroy request, $shuffleKey.")
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
@@ -429,7 +432,7 @@ private[deploy] class Worker(
       return
     }
 
-    logDebug(s"[handleCommitFiles] ${shuffleKey} -> ${mapAttempts.mkString(",")}")
+    logDebug(s"[handleCommitFiles] ${shuffleKey} -> ${mapAttempts.mkString("[", ",", "]")}")
     // close and flush files.
     shuffleMapperAttempts.putIfAbsent(shuffleKey, mapAttempts)
 

@@ -144,68 +144,72 @@ private[deploy] class Master(
 
   override def receive: PartialFunction[Any, Unit] = {
     case CheckForWorkerTimeOut =>
-      logDebug("Received CheckForWorkerTimeOut request.")
+      logInfo("Received CheckForWorkerTimeOut request.")
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
-      logDebug("Received CheckForApplicationTimeOut request.")
+      logInfo("Received CheckForApplicationTimeOut request.")
       executeWithLeaderChecker(null, timeoutDeadApplications())
     case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
-      logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
+      logInfo(s"Received WorkerLost request $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
       executeWithLeaderChecker(null, handleWorkerLost(null, host, rpcPort,
         pushPort, fetchPort, replicatePort, requestId))
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case HeartBeatFromApplication(appId, requestId) =>
-      logDebug(s"Received heartbeat from app $appId")
+      logInfo(s"Received HeartBeatFromApplication $appId")
       executeWithLeaderChecker(context, handleHeartBeatFromApplication(context, appId, requestId))
 
     case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots, requestId) =>
-      logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
-        s" $numSlots.")
+      logInfo(s"Received RegisterWorker request $requestId, " +
+        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort $numSlots.")
       executeWithLeaderChecker(context, handleRegisterWorker(context, host, rpcPort, pushPort,
         fetchPort, replicatePort, numSlots, requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
-      logDebug(s"Received RequestSlots request $requestSlots.")
+    case requestSlots @ RequestSlots(
+      applicationId, shuffleId, reduceIdList, hostname, shouldReplicate, requestId) =>
+      logInfo(s"Received RequestSlots request $requestId, $applicationId, $shuffleId, " +
+        s"$hostname, $shouldReplicate reduceIds ${reduceIdList.asScala.mkString("[", ",", "]")}.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
     case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
-      logDebug(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
-          s"workers ${workerIds.asScala.mkString(",")}, slots ${slots.asScala.mkString(",")}")
+      logInfo(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
+        s"workers ${workerIds.asScala.mkString("[", ",", "]")}, " +
+        s"slots ${slots.asScala.mkString("[", ",", "]")}")
       executeWithLeaderChecker(context,
         handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
 
     case UnregisterShuffle(applicationId, shuffleId, requestId) =>
-      logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
+      logInfo(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
       executeWithLeaderChecker(context,
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
 
     case msg: GetBlacklist =>
-      logDebug(s"Received Blacklist request")
+      logInfo(s"Received GetBlacklist request")
       executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
 
     case ApplicationLost(appId, requestId) =>
-      logDebug(s"Received ApplicationLost request $requestId, $appId.")
+      logInfo(s"Received ApplicationLost request $requestId, $appId.")
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
     shuffleKeys, requestId) =>
-      logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
+      logInfo(s"Received HeartbeatFromWorker request " +
+        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
       executeWithLeaderChecker(context, handleHeartBeatFromWorker(context, host, rpcPort, pushPort,
         fetchPort, replicatePort, numSlots, shuffleKeys, requestId))
 
     case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request")
+      logInfo("Received GetWorkerInfos request")
       executeWithLeaderChecker(context, handleGetWorkerInfos(context))
 
     case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
-      logDebug("Received ReportNodeFailure request ")
+      logInfo("Received ReportNodeFailure request ")
       executeWithLeaderChecker(context,
         handleReportNodeFailure(context, failedWorkers, requestId))
 
     case GetClusterLoadStatus(numPartitions: Int) =>
-      logInfo(s"Received GetClusterLoad request")
+      logInfo(s"Received GetClusterLoadStatus request")
       executeWithLeaderChecker(context, handleGetClusterLoadStatus(context, numPartitions))
   }
 
@@ -262,7 +266,7 @@ private[deploy] class Master(
     if (worker == null) {
       logWarning(
         s"""Received heartbeat from unknown worker!
-           | Worker details :  $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.""".stripMargin)
+           | Worker details: $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.""".stripMargin)
       return
     }
 
@@ -272,7 +276,8 @@ private[deploy] class Master(
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
-        logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
+        logWarning(s"Shuffle $shuffleKey expired on " +
+          s"$host:$rpcPort:$pushPort:$fetchPort$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
@@ -281,8 +286,7 @@ private[deploy] class Master(
 
   private def handleWorkerLost(context: RpcCallContext, host: String, rpcPort: Int, pushPort: Int,
     fetchPort: Int, replicatePort: Int, requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(host,
-      rpcPort, pushPort, fetchPort, replicatePort, -1, null)
+    val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, -1, null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
@@ -313,8 +317,8 @@ private[deploy] class Master(
       pushPort, fetchPort, replicatePort, numSlots, null)
     val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
-      logWarning(s"Receive RegisterWorker while worker" +
-        s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
+      logWarning(s"Receive RegisterWorker while worker " +
+        s"${workerToRegister.toString()} already exists, trigger WorkerLost.")
       if (!statusSystem.workerLostEvents.contains(hostPort)) {
         self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
           RssHARetryClient.genRequestId()))
@@ -356,8 +360,8 @@ private[deploy] class Master(
     statusSystem.handleRequestSlots(shuffleKey, requestSlots.hostname,
       Utils.workerToAllocatedSlots(slots.asInstanceOf[WorkerResource]), requestSlots.requestId)
 
-    logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
-      s" on ${slots.size()} workers.")
+    logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey " +
+      s"on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
     val extraSlotsSize = Math.min(RssConf.offerSlotsExtraSize(conf), workersNotSelected.size)
@@ -394,7 +398,7 @@ private[deploy] class Master(
     requestId: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
-    logInfo(s"Unregister shuffle $shuffleKey")
+    logInfo(s"[handleUnregisterShuffle] Unregister shuffle $shuffleKey")
     context.reply(UnregisterShuffleResponse(StatusCode.Success))
   }
 
@@ -409,16 +413,18 @@ private[deploy] class Master(
     context.reply(GetWorkerInfosResponse(StatusCode.Success, workersSnapShot.asScala: _*))
   }
 
-  private def handleReportNodeFailure(context: RpcCallContext,
-                                      failedWorkers: util.List[WorkerInfo],
-                                      requestId: String): Unit = {
-    logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
-        s"${statusSystem.blacklist}")
+  private def handleReportNodeFailure(
+      context: RpcCallContext,
+      failedWorkers: util.List[WorkerInfo],
+      requestId: String): Unit = {
+    logInfo(s"[handleReportNodeFailure] Receive ReportNodeFailure $failedWorkers, " +
+      s"current blacklist ${statusSystem.blacklist}")
     statusSystem.handleReportWorkerFailure(failedWorkers, requestId)
     context.reply(OneWayMessageResponse)
   }
 
   def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
+    logInfo(s"[handleApplicationLost] Application $appId lost")
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
@@ -430,6 +436,7 @@ private[deploy] class Master(
 
   private def handleHeartBeatFromApplication(
       context: RpcCallContext, appId: String, requestId: String): Unit = {
+    logInfo(s"[handleHeartBeatFromApplication] Heartbeat from application $appId")
     statusSystem.handleAppHeartbeat(appId, System.currentTimeMillis(), requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -440,8 +447,8 @@ private[deploy] class Master(
 
     val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
     val result = totalUsedRatio >= clusterSlotsUsageLimit
-    logInfo(s"Current cluster slots usage:$totalUsedRatio, conf:$clusterSlotsUsageLimit, " +
-        s"overload:$result")
+    logInfo(s"[handleGetClusterLoadStatus] Current cluster slots usage:$totalUsedRatio, " +
+      s"conf:$clusterSlotsUsageLimit, overload:$result")
     context.reply(GetClusterLoadStatusResponse(result))
   }
 
