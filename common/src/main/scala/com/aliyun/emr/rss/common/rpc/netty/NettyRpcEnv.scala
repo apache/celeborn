@@ -42,13 +42,13 @@ import com.aliyun.emr.rss.common.serializer.{JavaSerializer, JavaSerializerInsta
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
 
 class NettyRpcEnv(
-                   val conf: RssConf,
-                   javaSerializerInstance: JavaSerializerInstance,
-                   host: String,
-                   numUsableCores: Int) extends RpcEnv(conf) with Logging {
+    val conf: RssConf,
+    javaSerializerInstance: JavaSerializerInstance,
+    host: String,
+    numUsableCores: Int) extends RpcEnv(conf) with Logging {
 
   private[rss] val transportConf = Utils.fromRssConf(
-    conf.clone.set("rss.rpc.io.numConnectionsPerPeer", "1"),
+    conf.clone,
     TransportModuleConstants.RPC_MODULE,
     conf.getInt("rss.rpc.io.threads", numUsableCores))
 
