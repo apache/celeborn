@@ -24,7 +24,6 @@ import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
-import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {

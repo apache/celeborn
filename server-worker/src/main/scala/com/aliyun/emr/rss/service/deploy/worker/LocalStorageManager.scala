@@ -21,7 +21,7 @@ import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -61,11 +61,12 @@ private[worker] final class DiskFlusher(
     bufferQueue.put(Unpooled.compositeBuffer(256))
   }
 
-  private val lastBeginFlushTime: AtomicLong = new AtomicLong(-1)
-  def getLastFlushTime: Long = lastBeginFlushTime.get()
+  @volatile
+  private var lastBeginFlushTime: Long = -1
+  def getLastFlushTime: Long = lastBeginFlushTime
 
-  var stopFlag = new AtomicBoolean(false)
-  val rand = new Random
+  val stopFlag = new AtomicBoolean(false)
+  val rand = new Random()
 
   private val worker = new Thread(s"$this") {
     override def run(): Unit = {
@@ -73,11 +74,11 @@ private[worker] final class DiskFlusher(
         val task = workingQueue.take()
         writeActionPool.submit(new Runnable {
           override def run(): Unit = {
-            val key = s"DiskFlusher-$workingDir-${rand.nextInt}"
+            val key = s"DiskFlusher-$workingDir-${rand.nextInt()}"
             workerSource.sample(WorkerSource.FlushDataTime, key) {
               if (!task.notifier.hasException) {
                 try {
-                  lastBeginFlushTime.set(System.nanoTime())
+                  lastBeginFlushTime = System.nanoTime()
                   task.fileChannel.write(task.buffer.nioBuffers())
                 } catch {
                   case _: ClosedByInterruptException =>
@@ -87,7 +88,7 @@ private[worker] final class DiskFlusher(
                     logError(s"$this write failed, report to DeviceMonitor, exeption: $e")
                     reportError(workingDir, e, DeviceErrorType.ReadOrWriteFailure)
                 }
-                lastBeginFlushTime.set(-1)
+                lastBeginFlushTime = -1
               }
               returnBuffer(task.buffer)
               task.notifier.numPendingFlushes.decrementAndGet()
