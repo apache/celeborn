@@ -95,7 +95,7 @@ EXAMPLE: single master cluster
 rss.master.address master-host:port
 rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
-rss.worker.flush.queue.capacity 512
+rss.worker.flush.queue.capacity 4096
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
 # If your hosts have disk raid or use lvm, set rss.device.monitor.enabled to false
 rss.device.monitor.enabled false
@@ -224,6 +224,6 @@ If you need to fully restart an RSS cluster in HA mode, you must clean ratis met
 Here are some instructions:
 1. Stop all workers.
 2. Stop all masters.
-3. Clean all master`s ratis meta storage directory.
+3. Clean all master`s ratis meta storage directory(rss.ha.storage.dir).
 4. Start all masters.
 5. Start all workers.
