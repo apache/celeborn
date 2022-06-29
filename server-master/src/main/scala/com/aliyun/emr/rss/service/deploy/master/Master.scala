@@ -260,15 +260,12 @@ private[deploy] class Master(
       .find(_ == targetWorker)
       .orNull
     if (worker == null) {
-      logWarning(
-        s"""Received heartbeat from unknown worker!
-           | Worker details :  $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.""".stripMargin)
-      return
+      logWarning(s"Received heartbeat from unknown worker " +
+        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+    } else {
+      statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
+        System.currentTimeMillis(), requestId)
     }
-
-    statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-      System.currentTimeMillis(), requestId)
-
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
