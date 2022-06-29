@@ -17,9 +17,8 @@
 
 package com.aliyun.rss.common.metrics.sink
 
-import com.codahale.metrics.MetricRegistry
-
 import java.util.Properties
+
 import scala.collection.mutable
 
 import com.codahale.metrics.MetricRegistry

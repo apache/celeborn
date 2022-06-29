@@ -17,15 +17,13 @@
 
 package com.aliyun.rss.common.util
 
-import java.io.{File, FileInputStream, IOException, InputStreamReader}
+import java.io.{File, FileInputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.{Locale, Properties, UUID}
-import java.util
-import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeUnit, TimeoutException}
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
@@ -33,10 +31,6 @@ import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
-
-
-
-
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 

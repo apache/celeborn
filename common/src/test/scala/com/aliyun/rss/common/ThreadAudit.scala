@@ -51,11 +51,11 @@ trait ThreadAudit extends Logging {
     "threadDeathWatcher.*",
 
     /**
-     * During creation [[com.aliyun.emr.rss.common.rpc.netty.NettyRpcEnv]]
+     * During creation [[com.aliyun.rss.common.rpc.netty.NettyRpcEnv]]
      * creates event loops. One is wrapped inside
-     * [[com.aliyun.emr.rss.common.network.server.TransportServer]]
-     * the other one is inside [[com.aliyun.emr.rss.common.network.client.TransportClient]].
-     * Calling [[com.aliyun.emr.rss.common.rpc.netty.NettyRpcEnv#shutdown]] will shut down the
+     * [[com.aliyun.rss.common.network.server.TransportServer]]
+     * the other one is inside [[com.aliyun.rss.common.network.client.TransportClient]].
+     * Calling [[com.aliyun.rss.common.rpc.netty.NettyRpcEnv#shutdown]] will shut down the
      * thread pool of this event group asynchronously. In each case proper stopping is checked
      * manually.
      */
@@ -63,17 +63,17 @@ trait ThreadAudit extends Logging {
     "rpc-server.*",
 
     /**
-     * During [[com.aliyun.emr.rss.common.network.TransportContext]] construction a separate event loop could
+     * During [[com.aliyun.rss.common.network.TransportContext]] construction a separate event loop could
      * be created for handling ChunkFetchRequest.
-     * Calling [[com.aliyun.emr.rss.common.network.TransportContext#close]] will shut down the thread pool
+     * Calling [[com.aliyun.rss.common.network.TransportContext#close]] will shut down the thread pool
      * of this event group asynchronously. In each case proper stopping is checked manually.
      */
     "shuffle-chunk-fetch-handler.*",
 
     /**
      * During [[SparkContext]] creation BlockManager creates event loops. One is wrapped inside
-     * [[com.aliyun.emr.rss.common.network.server.TransportServer]]
-     * the other one is inside [[com.aliyun.emr.rss.common.network.client.TransportClient]].
+     * [[com.aliyun.rss.common.network.server.TransportServer]]
+     * the other one is inside [[com.aliyun.rss.common.network.client.TransportClient]].
      * Calling [[SparkContext#stop]] will shut down the thread pool of this event group
      * asynchronously. In each case proper stopping is checked manually.
      */
@@ -105,7 +105,7 @@ trait ThreadAudit extends Logging {
   }
 
   protected def doThreadPostAudit(): Unit = {
-    val shortSuiteName = this.getClass.getName.replaceAll("com.aliyun.emr", "c.a.e")
+    val shortSuiteName = this.getClass.getName.replaceAll("com.aliyun", "c.a.e")
 
     if (threadNamesSnapshot.nonEmpty) {
       val remainingThreadNames = runningThreadNames().diff(threadNamesSnapshot)

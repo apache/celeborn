@@ -1,0 +1,29 @@
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: Remote Shuffle Service CI
+
+on:
+  push:
+    branches: [ fusion ]
+  pull_request:
+    branches: [ fusion ]
+
+jobs:
+  build_rss:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Maven Action
+      uses: s4u/setup-maven-action@v1.3.1
+      with:
+        java-version: 8
+        maven-version: 3.6.3
+    - name: Build with Maven
+      run: mvn install -DskipTests -Plog4j-1
+    - name: Check Java Code Style
+      run: mvn checkstyle:check -Plog4j-1
+    - name: Check Scale Code Style
+      run: mvn scalastyle:check -Plog4j-1
+    - name: Unit Test
+      run: mvn test -Plog4j-1

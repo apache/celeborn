@@ -17,16 +17,17 @@
 
 package com.aliyun.rss.common.util
 
-import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
-
 import java.util.concurrent._
+
 import scala.collection.TraversableLike
 import scala.collection.generic.CanBuildFrom
+import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.forkjoin.{ForkJoinPool => SForkJoinPool, ForkJoinWorkerThread => SForkJoinWorkerThread}
-import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
+
+import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 
 import com.aliyun.rss.common.exception.RssException
 
