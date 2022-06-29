@@ -550,6 +550,10 @@ object RssConf extends Logging {
     }
   }
 
+  def diskFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.thread.count", 1)
+  }
+
   def workerBaseDirPrefix(conf: RssConf): String = {
     conf.get("rss.worker.base.dir.prefix", "/mnt/disk")
   }

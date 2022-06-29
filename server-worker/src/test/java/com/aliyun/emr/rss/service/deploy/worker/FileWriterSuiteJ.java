@@ -91,7 +91,7 @@ public class FileWriterSuiteJ {
     }).when(source)
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
-    flusher = new DiskFlusher(tempDir, 100, source, DeviceMonitor$.MODULE$.EmptyMonitor());
+    flusher = new DiskFlusher(tempDir, 100, source, DeviceMonitor$.MODULE$.EmptyMonitor(), 2);
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
   }
 
@@ -281,7 +281,7 @@ public class FileWriterSuiteJ {
   @Test
   public void testHugeBufferQueueSize() throws IOException {
     File file = getTemporaryFile();
-    flusher = new DiskFlusher(file, 100_0000, source, DeviceMonitor$.MODULE$.EmptyMonitor());
+    flusher = new DiskFlusher(file, 100_0000, source, DeviceMonitor$.MODULE$.EmptyMonitor(), 2);
   }
 
   @Test
