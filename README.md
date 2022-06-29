@@ -217,3 +217,13 @@ RSS have various metrics. [METRICS](METRICS.md)
 ## Contribution
 This is an active open-source project. We are always open to developers who want to use the system or contribute to it.  
 See more detail in [Contributing](CONTRIBUTING.md).
+
+## NOTICE
+If you need to fully restart an RSS cluster in HA mode, you must clean ratis meta storage first because ratis meta will store expired states of the last running cluster.
+
+Here are some instructions:
+1. Stop all workers.
+2. Stop all masters.
+3. Clean all master`s ratis meta storage directory.
+4. Start all masters.
+5. Start all workers.
