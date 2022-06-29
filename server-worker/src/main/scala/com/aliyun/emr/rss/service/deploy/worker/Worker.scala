@@ -200,6 +200,9 @@ private[deploy] class Worker(
         shuffleKeys)
       , classOf[HeartbeatResponse])
     cleanTaskQueue.put(response.expiredShuffleKeys)
+    if (!response.registered) {
+      logError("Current worker not registered in master")
+    }
   }
 
   override def onStart(): Unit = {

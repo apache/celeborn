@@ -255,20 +255,17 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
       -1, null)
-    val worker: WorkerInfo = workersSnapShot
+    val registered = workersSnapShot
       .asScala
       .find(_ == targetWorker)
-      .orNull
-    if (worker == null) {
-      logWarning(
-        s"""Received heartbeat from unknown worker!
-           | Worker details :  $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.""".stripMargin)
-      return
+      .isDefined
+    if (!registered) {
+      logWarning(s"Received heartbeat from unknown worker " +
+        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+    } else {
+      statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort,
+        numSlots, System.currentTimeMillis(), requestId)
     }
-
-    statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-      System.currentTimeMillis(), requestId)
-
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
@@ -276,7 +273,7 @@ private[deploy] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys))
+    context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
   }
 
   private def handleWorkerLost(context: RpcCallContext, host: String, rpcPort: Int, pushPort: Int,
