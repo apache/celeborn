@@ -263,8 +263,8 @@ private[deploy] class Master(
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
     } else {
-      statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-        System.currentTimeMillis(), requestId)
+      statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort,
+        numSlots, System.currentTimeMillis(), requestId)
     }
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
