@@ -259,7 +259,7 @@ private[deploy] class Master(
       .asScala
       .find(_ == targetWorker)
       .isDefined
-    if (registered) {
+    if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
     } else {
