@@ -21,12 +21,13 @@ import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
@@ -60,11 +61,11 @@ private[worker] final class DiskFlusher(
     bufferQueue.put(Unpooled.compositeBuffer(256))
   }
 
-  @volatile
-  private var lastBeginFlushTime: Long = -1
-  def getLastFlushTime: Long = lastBeginFlushTime
+  private val lastBeginFlushTime: AtomicLong = new AtomicLong(-1)
+  def getLastFlushTime: Long = lastBeginFlushTime.get()
 
   var stopFlag = new AtomicBoolean(false)
+  val rand = new Random
 
   private val worker = new Thread(s"$this") {
     override def run(): Unit = {
@@ -72,11 +73,11 @@ private[worker] final class DiskFlusher(
         val task = workingQueue.take()
         writeActionPool.submit(new Runnable {
           override def run(): Unit = {
-            val key = s"DiskFlusher-$workingDir"
+            val key = s"DiskFlusher-$workingDir-${rand.nextInt}"
             workerSource.sample(WorkerSource.FlushDataTime, key) {
               if (!task.notifier.hasException) {
                 try {
-                  lastBeginFlushTime = System.nanoTime()
+                  lastBeginFlushTime.set(System.nanoTime())
                   task.fileChannel.write(task.buffer.nioBuffers())
                 } catch {
                   case _: ClosedByInterruptException =>
@@ -86,7 +87,7 @@ private[worker] final class DiskFlusher(
                     logError(s"$this write failed, report to DeviceMonitor, exeption: $e")
                     reportError(workingDir, e, DeviceErrorType.ReadOrWriteFailure)
                 }
-                lastBeginFlushTime = -1
+                lastBeginFlushTime.set(-1)
               }
               returnBuffer(task.buffer)
               task.notifier.numPendingFlushes.decrementAndGet()
