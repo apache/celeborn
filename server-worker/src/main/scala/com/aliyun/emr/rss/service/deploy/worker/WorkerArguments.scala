@@ -28,7 +28,7 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
   var port = 0
   // var master: String = null
   // for local testing.
-  var master: String = s"rss://$host:9097"
+  var master: String = null
   var propertiesFile: String = null
 
   parse(args.toList)
@@ -58,9 +58,6 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
       parse(tail)
 
     case Nil =>
-      if (master == null) {  // No positional argument was given
-        printUsageAndExit(1)
-      }
 
     case _ =>
       printUsageAndExit(1)
