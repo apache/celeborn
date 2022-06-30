@@ -257,6 +257,9 @@ public class ShuffleClientImpl extends ShuffleClient {
             result.put(partitionLoc.getReduceId(), partitionLoc);
           }
           return result;
+        } else {
+          logger.warn("Register shuffle {} failed, remain retry times {}",
+              Utils.makeShuffleKey(appId, shuffleId), numRetries);
         }
       } catch (Exception e) {
         logger.error("Exception raised while registering shuffle {} with {} mapper and" +
