@@ -19,7 +19,7 @@ package com.aliyun.rss.common.metrics.source
 
 import com.aliyun.rss.common.RssConf
 
-class NetWorkSource(essConf: RssConf, role: String) extends AbstractSource(essConf, role) {
+class NetWorkSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
   override val sourceName = s"network"
 
   import NetWorkSource._

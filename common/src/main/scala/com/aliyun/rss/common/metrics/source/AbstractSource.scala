@@ -37,18 +37,20 @@ case class NamedHistogram(name: String, histogram: Histogram)
 
 case class NamedTimer(name: String, timer: Timer)
 
-abstract class AbstractSource(essConf: RssConf, role: String)
+abstract class AbstractSource(rssConf: RssConf, role: String)
   extends Source with Logging {
   override val metricRegistry = new MetricRegistry()
 
-  val slidingWindowSize: Int = RssConf.metricsSlidingWindowSize(essConf)
+  val slidingWindowSize: Int = RssConf.metricsSlidingWindowSize(rssConf)
 
-  val sampleRate: Double = RssConf.metricsSampleRate(essConf)
+  val sampleRate: Double = RssConf.metricsSampleRate(rssConf)
+  val samplePerfCritical: Boolean = RssConf.metricsSystemSamplePerfCritical(rssConf)
 
-  val samplePerfCritical: Boolean = RssConf.metricsSystemSamplePerfCritical(essConf)
+  val namedTimerCapacity: Int = RssConf.metricsNamedTimerCapacity(rssConf)
+  val namedTimerExpireTime: Long = RssConf.metricsNamedTimerExpireTime(rssConf)
+  val namedTimerCleanerInterval: Long = RssConf.metricsNamedTimerCleanerInterval(rssConf)
 
-  final val InnerMetricsSize = RssConf.innerMetricsSize(essConf)
-
+  final val InnerMetricsSize = RssConf.innerMetricsSize(rssConf)
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
   val timerSupplier = new TimerSupplier(slidingWindowSize)
@@ -172,10 +174,9 @@ abstract class AbstractSource(essConf: RssConf, role: String)
   }
 
   private def clearOldValues(map: ConcurrentHashMap[String, Long]): Unit = {
-    if (map.size > 5000) {
-      // remove values has existed more than 15 min
-      // 50000 values may be 1MB more or less
-      val threshTime = System.nanoTime() - 900000000000L
+    if (map.size > namedTimerCapacity) {
+      // remove values has expired
+      val threshTime = System.currentTimeMillis() - namedTimerExpireTime
       val it = map.entrySet().iterator
       while (it.hasNext) {
         val entry = it.next()
@@ -195,7 +196,7 @@ abstract class AbstractSource(essConf: RssConf, role: String)
           } catch {
             case t: Throwable => logError(s"clearer quit with $t")
           } finally {
-            Thread.sleep(600000 /* 10min */)
+            Thread.sleep(namedTimerCleanerInterval)
           }
         }
       }

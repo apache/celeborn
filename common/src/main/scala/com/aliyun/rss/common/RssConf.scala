@@ -427,6 +427,18 @@ object RssConf extends Logging {
     conf.getInt("rss.metrics.system.sliding.window.size", 4096)
   }
 
+  def metricsNamedTimerCapacity(conf: RssConf): Int = {
+    conf.getInt("rss.metrics.system.namedTimer.capacity", 5000)
+  }
+
+  def metricsNamedTimerExpireTime(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.metrics.system.namedTimer.expire.time", "15min")
+  }
+
+  def metricsNamedTimerCleanerInterval(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.metrics.system.namedTimer.cleaner.interval", "10min")
+  }
+
   def innerMetricsSize(conf: RssConf): Int = {
     conf.getInt("rss.inner.metrics.size", 4096)
   }
