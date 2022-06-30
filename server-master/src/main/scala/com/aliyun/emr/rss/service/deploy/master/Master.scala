@@ -255,20 +255,17 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
       -1, null)
-    val worker: WorkerInfo = workersSnapShot
+    val registered = workersSnapShot
       .asScala
       .find(_ == targetWorker)
-      .orNull
-    if (worker == null) {
-      logWarning(
-        s"""Received heartbeat from unknown worker!
-           | Worker details :  $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.""".stripMargin)
-      return
+      .isDefined
+    if (!registered) {
+      logWarning(s"Received heartbeat from unknown worker " +
+        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+    } else {
+      statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort,
+        numSlots, System.currentTimeMillis(), requestId)
     }
-
-    statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-      System.currentTimeMillis(), requestId)
-
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
@@ -276,7 +273,7 @@ private[deploy] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys))
+    context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
   }
 
   private def handleWorkerLost(context: RpcCallContext, host: String, rpcPort: Int, pushPort: Int,
@@ -311,17 +308,17 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val workerToRegister = new WorkerInfo(host, rpcPort,
       pushPort, fetchPort, replicatePort, numSlots, null)
-    val hostPort = workerToRegister.pushPort
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
-      if (!statusSystem.workerLostEvents.contains(hostPort)) {
+      if (!statusSystem.workerLostEvents.contains(workerToRegister)) {
         self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
           RssHARetryClient.genRequestId()))
       }
       context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
-    } else if (statusSystem.workerLostEvents.contains(hostPort)) {
-      logWarning(s"Receive RegisterWorker while worker $hostPort in workerLostEvents.")
+    } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
+      logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
+        s"in workerLostEvents.")
       context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
     } else {
       statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,

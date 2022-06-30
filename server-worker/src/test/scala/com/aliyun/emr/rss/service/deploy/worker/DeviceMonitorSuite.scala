@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.{File, IOException}
 import java.util.{ArrayList => jArrayList}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._
@@ -152,6 +153,12 @@ class DeviceMonitorSuite extends AnyFunSuite {
       val df2 = mock[DiskFlusher]
       val df3 = mock[DiskFlusher]
       val df4 = mock[DiskFlusher]
+
+      when(df1.stopFlag).thenReturn(new AtomicBoolean(false))
+      when(df2.stopFlag).thenReturn(new AtomicBoolean(false))
+      when(df3.stopFlag).thenReturn(new AtomicBoolean(false))
+      when(df4.stopFlag).thenReturn(new AtomicBoolean(false))
+
       when(df1.workingDir).thenReturn(workingDir1)
       when(df2.workingDir).thenReturn(workingDir2)
       when(df3.workingDir).thenReturn(workingDir3)
@@ -193,11 +200,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         })
       when(df2.notifyError("vda", null, DeviceErrorType.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
-          df2.stopFlag = true
+          df2.stopFlag.set(true)
         })
       when(df4.notifyError("vdb", null, DeviceErrorType.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
-          df4.stopFlag = true
+          df4.stopFlag.set(true)
         })
 
       deviceMonitor.observedDevices.get(vdaDeviceInfo).

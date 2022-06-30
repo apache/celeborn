@@ -449,6 +449,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.application.timeout", "120s")
   }
 
+  def applicationHeatbeatIntervalMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.application.heartbeatInterval", "10s")
+  }
+
   def removeShuffleDelayMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.remove.shuffle.delay", "60s")
   }
@@ -544,6 +548,10 @@ object RssConf extends Logging {
       val number = RssConf.workerBaseDirNumber(conf)
       (1 to number).map(i => s"$prefix$i").toArray
     }
+  }
+
+  def diskFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.thread.count", 1)
   }
 
   def workerBaseDirPrefix(conf: RssConf): String = {
@@ -650,7 +658,7 @@ object RssConf extends Logging {
   }
 
   def closeIdleConnections(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = true)
+    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = false)
   }
 
   def replicateFastFailDurationMs(conf: RssConf): Long = {

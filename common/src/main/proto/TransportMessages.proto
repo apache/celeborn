@@ -111,6 +111,7 @@ message PbHeartbeatFromWorker {
 
 message PbHeartbeatResponse {
   repeated string expiredShuffleKeys = 1;
+  bool registered = 2;
 }
 
 message PbRegisterShuffle {
