@@ -19,22 +19,16 @@ package com.aliyun.emr.rss.common.network.client;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.Channel;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.network.protocol.*;
 import com.aliyun.emr.rss.common.network.server.MessageHandler;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
-import com.aliyun.emr.rss.common.network.util.TransportFrameDecoder;
 
 /**
  * Handler that processes server responses, in response to requests issued from a
@@ -51,9 +45,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
 
-  private final Queue<Pair<String, StreamCallback>> streamCallbacks;
-  private volatile boolean streamActive;
-
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
 
@@ -61,7 +52,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.channel = channel;
     this.outstandingFetches = new ConcurrentHashMap<>();
     this.outstandingRpcs = new ConcurrentHashMap<>();
-    this.streamCallbacks = new ConcurrentLinkedQueue<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
   }
 
@@ -83,16 +73,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingRpcs.remove(requestId);
   }
 
-  public void addStreamCallback(String streamId, StreamCallback callback) {
-    timeOfLastRequestNs.set(System.nanoTime());
-    streamCallbacks.offer(ImmutablePair.of(streamId, callback));
-  }
-
-  @VisibleForTesting
-  public void deactivateStream() {
-    streamActive = false;
-  }
-
   /**
    * Fire the failure callback for all outstanding requests. This is called when we have an
    * uncaught exception or pre-mature connection termination.
@@ -112,18 +92,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
     }
-    for (Pair<String, StreamCallback> entry : streamCallbacks) {
-      try {
-        entry.getValue().onFailure(entry.getKey(), cause);
-      } catch (Exception e) {
-        logger.warn("StreamCallback.onFailure throws exception", e);
-      }
-    }
 
     // It's OK if new fetches appear, as they will fail immediately.
     outstandingFetches.clear();
     outstandingRpcs.clear();
-    streamCallbacks.clear();
   }
 
   @Override
@@ -199,46 +171,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         outstandingRpcs.remove(resp.requestId);
         listener.onFailure(new RuntimeException(resp.errorString));
       }
-    } else if (message instanceof StreamResponse) {
-      StreamResponse resp = (StreamResponse) message;
-      Pair<String, StreamCallback> entry = streamCallbacks.poll();
-      if (entry != null) {
-        StreamCallback callback = entry.getValue();
-        if (resp.byteCount > 0) {
-          StreamInterceptor<ResponseMessage> interceptor = new StreamInterceptor<>(
-            this, resp.streamId, resp.byteCount, callback);
-          try {
-            TransportFrameDecoder frameDecoder = (TransportFrameDecoder)
-              channel.pipeline().get(TransportFrameDecoder.HANDLER_NAME);
-            frameDecoder.setInterceptor(interceptor);
-            streamActive = true;
-          } catch (Exception e) {
-            logger.error("Error installing stream handler.", e);
-            deactivateStream();
-          }
-        } else {
-          try {
-            callback.onComplete(resp.streamId);
-          } catch (Exception e) {
-            logger.warn("Error in stream handler onComplete().", e);
-          }
-        }
-      } else {
-        logger.error("Could not find callback for StreamResponse.");
-      }
-    } else if (message instanceof StreamFailure) {
-      StreamFailure resp = (StreamFailure) message;
-      Pair<String, StreamCallback> entry = streamCallbacks.poll();
-      if (entry != null) {
-        StreamCallback callback = entry.getValue();
-        try {
-          callback.onFailure(resp.streamId, new RuntimeException(resp.error));
-        } catch (IOException ioe) {
-          logger.warn("Error in stream failure handler.", ioe);
-        }
-      } else {
-        logger.warn("Stream failure with unknown callback: {}", resp.error);
-      }
     } else {
       throw new IllegalStateException("Unknown response type: " + message.type());
     }
@@ -246,8 +178,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   /** Returns total number of outstanding requests (fetch requests + rpcs) */
   public int numOutstandingRequests() {
-    return outstandingFetches.size() + outstandingRpcs.size() + streamCallbacks.size() +
-      (streamActive ? 1 : 0);
+    return outstandingFetches.size() + outstandingRpcs.size();
   }
 
   /** Returns the time in nanoseconds of when the last request was sent out. */

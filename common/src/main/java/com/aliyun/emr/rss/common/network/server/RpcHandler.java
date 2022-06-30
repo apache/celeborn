@@ -23,8 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
-import com.aliyun.emr.rss.common.network.client.StreamCallback;
-import com.aliyun.emr.rss.common.network.client.StreamCallbackWithID;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.protocol.PushData;
 import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
@@ -53,36 +51,6 @@ public abstract class RpcHandler {
       TransportClient client,
       ByteBuffer message,
       RpcResponseCallback callback);
-
-  /**
-   * Receive a single RPC message which includes data that is to be received as a stream. Any
-   * exception thrown while in this method will be sent back to the client in string form as a
-   * standard RPC failure.
-   *
-   * Neither this method nor #receive will be called in parallel for a single TransportClient
-   * (i.e., channel).
-   *
-   * An error while reading data from the stream
-   * ({@link StreamCallback#onData(String, ByteBuffer)})
-   * will fail the entire channel.  A failure in "post-processing" the stream in
-   * {@link StreamCallback#onComplete(String)} will result in an
-   * rpcFailure, but the channel will remain active.
-   *
-   * @param client A channel client which enables the handler to make requests back to the sender
-   *               of this RPC. This will always be the exact same object for a particular channel.
-   * @param messageHeader The serialized bytes of the header portion of the RPC.  This is in meant
-   *                      to be relatively small, and will be buffered entirely in memory, to
-   *                      facilitate how the streaming portion should be received.
-   * @param callback Callback which should be invoked exactly once upon success or failure of the
-   *                 RPC.
-   * @return a StreamCallback for handling the accompanying streaming data
-   */
-  public StreamCallbackWithID receiveStream(
-      TransportClient client,
-      ByteBuffer messageHeader,
-      RpcResponseCallback callback) {
-    throw new UnsupportedOperationException();
-  }
 
   public void receivePushData(
       TransportClient client,

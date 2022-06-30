@@ -328,26 +328,6 @@ class NettyRpcEnv(
 
   override def fileServer: RpcEnvFileServer = streamManager
 
-  override def openChannel(uri: String): ReadableByteChannel = {
-    val parsedUri = new URI(uri)
-    require(parsedUri.getHost() != null, "Host name must be defined.")
-    require(parsedUri.getPort() > 0, "Port must be defined.")
-    require(parsedUri.getPath() != null && parsedUri.getPath().nonEmpty, "Path must be defined.")
-
-    val pipe = Pipe.open()
-    val source = new FileDownloadChannel(pipe.source())
-    Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-      val client = downloadClient(parsedUri.getHost(), parsedUri.getPort())
-      val callback = new FileDownloadCallback(pipe.sink(), source, client)
-      client.stream(parsedUri.getPath(), callback)
-    })(catchBlock = {
-      pipe.sink().close()
-      source.close()
-    })
-
-    source
-  }
-
   private def downloadClient(host: String, port: Int): TransportClient = {
     if (fileDownloadFactory == null) synchronized {
       if (fileDownloadFactory == null) {
@@ -405,29 +385,6 @@ class NettyRpcEnv(
     override def close(): Unit = source.close()
 
     override def isOpen(): Boolean = source.isOpen()
-
-  }
-
-  private class FileDownloadCallback(
-      sink: WritableByteChannel,
-      source: FileDownloadChannel,
-      client: TransportClient) extends StreamCallback {
-
-    override def onData(streamId: String, buf: ByteBuffer): Unit = {
-      while (buf.remaining() > 0) {
-        sink.write(buf)
-      }
-    }
-
-    override def onComplete(streamId: String): Unit = {
-      sink.close()
-    }
-
-    override def onFailure(streamId: String, cause: Throwable): Unit = {
-      logDebug(s"Error downloading stream $streamId.", cause)
-      source.setError(cause)
-      sink.close()
-    }
 
   }
 }
