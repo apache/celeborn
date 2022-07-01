@@ -408,7 +408,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
         if (latestLoc != null) {
           context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
-          logTrace(s"New partition found, old partition $reduceId-$oldEpoch return it." +
+          logDebug(s"New partition found, old partition $reduceId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
         }
@@ -470,7 +470,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     contexts.synchronized {
       contexts.remove(reduceId)
     }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.Success, location)))
-    logTrace(s"Renew $shuffleId $reduceId partition success.")
+    logDebug(s"Renew $shuffleId $reduceId partition success.")
   }
 
   private def getLatestPartition(shuffleId: Int, reduceId: Int, epoch: Int): PartitionLocation = {
@@ -510,7 +510,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    logTrace(s"Relocate partition for shuffle split ${Utils.makeShuffleKey(applicationId,
+    logDebug(s"Relocate partition for shuffle split ${Utils.makeShuffleKey(applicationId,
       shuffleId)}, oldPartition: $oldPartition")
 
     handleChangePartitionLocation(shuffleSplitting, applicationId, shuffleId, reduceId,
@@ -785,7 +785,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           ReserveSlots(applicationId, shuffleId, entry._2._1, entry._2._2, splitThreshold,
             splitMode, storageHint))
         if (res.status.equals(StatusCode.Success)) {
-          logTrace(s"Successfully allocated " +
+          logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${entry._1.readableAddress}.")
         } else {
