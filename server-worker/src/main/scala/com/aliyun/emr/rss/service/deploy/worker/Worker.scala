@@ -263,8 +263,6 @@ private[deploy] class Worker(
     splitMode, storageHint) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
-        logInfo(s"Received ReserveSlots request, $shuffleKey," +
-            s" master number: ${masterLocations.size()}, slave number: ${slaveLocations.size()}")
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
@@ -286,15 +284,12 @@ private[deploy] class Worker(
       }
 
     case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request.")
       handleGetWorkerInfos(context)
 
     case ThreadDump =>
-      logDebug("Receive ThreadDump request.")
       handleThreadDump(context)
 
     case Destroy(shuffleKey, masterLocations, slaveLocations) =>
-      logDebug(s"Receive Destroy request, $shuffleKey.")
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
@@ -376,7 +371,6 @@ private[deploy] class Worker(
       uniqueIds.asScala.foreach { uniqueId =>
         val task = CompletableFuture.runAsync(new Runnable {
           override def run(): Unit = {
-            logDebug(s"Committing $shuffleKey $uniqueId")
             try {
               val location = if (master) {
                 partitionLocationInfo.getMasterLocation(shuffleKey, uniqueId)
@@ -392,7 +386,6 @@ private[deploy] class Worker(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
-                logDebug(s"FileName ${fileWriter.getFile.getAbsoluteFile}, size $bytes")
                 committedIds.add(uniqueId)
               }
             } catch {
@@ -429,7 +422,6 @@ private[deploy] class Worker(
       return
     }
 
-    logDebug(s"[handleCommitFiles] ${shuffleKey} -> ${mapAttempts.mkString(",")}")
     // close and flush files.
     shuffleMapperAttempts.putIfAbsent(shuffleKey, mapAttempts)
 
@@ -511,13 +503,11 @@ private[deploy] class Worker(
           } else {
             // finish, cancel timeout job first.
             timeout.cancel()
-            logDebug(s"Handle commitFiles successfully $shuffleKey, reply message.")
             reply()
           }
         }
       }, asyncReplyPool)) // should not use commitThreadPool in case of block by commit files.
     } else {
-      logDebug(s"All future is null, reply directly for $shuffleKey.")
       // If both of two futures are null, then reply directly.
       reply()
     }
@@ -899,7 +889,6 @@ private[deploy] class Worker(
   }
 
   private def registerWithMaster() {
-    logDebug("Trying to register with master.")
     var registerTimeout = RssConf.registerWorkerTimeoutMs(conf)
     val delta = 2000
     while (registerTimeout > 0) {
