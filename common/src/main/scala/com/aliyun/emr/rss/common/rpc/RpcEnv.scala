@@ -130,15 +130,6 @@ abstract class RpcEnv(conf: RssConf) {
    * RpcEnv is not operating in server mode.
    */
   def fileServer: RpcEnvFileServer
-
-  /**
-   * Open a channel to download a file from the given URI. If the URIs returned by the
-   * RpcEnvFileServer use the "spark" scheme, this method will be called by the Utils class to
-   * retrieve the files.
-   *
-   * @param uri URI with location of the file.
-   */
-  def openChannel(uri: String): ReadableByteChannel
 }
 
 /**

@@ -18,7 +18,6 @@
 package com.aliyun.emr.rss.common.network.util;
 
 import java.util.Locale;
-import java.util.Properties;
 
 import com.google.common.primitives.Ints;
 
@@ -181,105 +180,6 @@ public class TransportConf {
    */
   public boolean verboseMetrics() {
     return conf.getBoolean(RSS_NETWORK_VERBOSE_METRICS, false);
-  }
-
-  /**
-   * Maximum number of retries when binding to a port before giving up.
-   */
-  public int portMaxRetries() {
-    return conf.getInt("rss.port.maxRetries", 16);
-  }
-
-  /**
-   * Enables strong encryption. Also enables the new auth protocol, used to negotiate keys.
-   */
-  public boolean encryptionEnabled() {
-    return conf.getBoolean("rss.network.crypto.enabled", false);
-  }
-
-  /**
-   * The cipher transformation to use for encrypting session data.
-   */
-  public String cipherTransformation() {
-    return conf.get("rss.network.crypto.cipher", "AES/CTR/NoPadding");
-  }
-
-  /**
-   * The key generation algorithm. This should be an algorithm that accepts a "PBEKeySpec"
-   * as input. The default value (PBKDF2WithHmacSHA1) is available in Java 7.
-   */
-  public String keyFactoryAlgorithm() {
-    return conf.get("rss.network.crypto.keyFactoryAlgorithm", "PBKDF2WithHmacSHA1");
-  }
-
-  /**
-   * How many iterations to run when generating keys.
-   *
-   * See some discussion about this at: http://security.stackexchange.com/q/3959
-   * The default value was picked for speed, since it assumes that the secret has good entropy
-   * (128 bits by default), which is not generally the case with user passwords.
-   */
-  public int keyFactoryIterations() {
-    return conf.getInt("rss.network.crypto.keyFactoryIterations", 1024);
-  }
-
-  /**
-   * Encryption key length, in bits.
-   */
-  public int encryptionKeyLength() {
-    return conf.getInt("rss.network.crypto.keyLength", 128);
-  }
-
-  /**
-   * Initial vector length, in bytes.
-   */
-  public int ivLength() {
-    return conf.getInt("rss.network.crypto.ivLength", 16);
-  }
-
-  /**
-   * The algorithm for generated secret keys. Nobody should really need to change this,
-   * but configurable just in case.
-   */
-  public String keyAlgorithm() {
-    return conf.get("rss.network.crypto.keyAlgorithm", "AES");
-  }
-
-  /**
-   * Whether to fall back to SASL if the new auth protocol fails. Enabled by default for
-   * backwards compatibility.
-   */
-  public boolean saslFallback() {
-    return conf.getBoolean("rss.network.crypto.saslFallback", true);
-  }
-
-  /**
-   * Whether to enable SASL-based encryption when authenticating using SASL.
-   */
-  public boolean saslEncryption() {
-    return conf.getBoolean("rss.authenticate.enableSaslEncryption", false);
-  }
-
-  /**
-   * Maximum number of bytes to be encrypted at a time when SASL encryption is used.
-   */
-  public int maxSaslEncryptedBlockSize() {
-    return Ints.checkedCast(JavaUtils.byteStringAsBytes(
-      conf.get("rss.network.sasl.maxEncryptedBlockSize", "64k")));
-  }
-
-  /**
-   * Whether the server should enforce encryption on SASL-authenticated connections.
-   */
-  public boolean saslServerAlwaysEncrypt() {
-    return conf.getBoolean("rss.network.sasl.serverAlwaysEncrypt", false);
-  }
-
-  /**
-   * The commons-crypto configuration for the module.
-   */
-  public Properties cryptoConf() {
-    return CryptoUtils.toCryptoConf("rss.network.crypto.config.", conf.getAll());
   }
 
   /**

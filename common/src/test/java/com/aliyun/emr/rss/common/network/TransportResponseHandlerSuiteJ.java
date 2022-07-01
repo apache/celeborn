@@ -17,10 +17,8 @@
 
 package com.aliyun.emr.rss.common.network;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import io.netty.channel.Channel;
 import io.netty.channel.local.LocalChannel;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -29,10 +27,8 @@ import static org.mockito.Mockito.*;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
-import com.aliyun.emr.rss.common.network.client.StreamCallback;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
 import com.aliyun.emr.rss.common.network.protocol.*;
-import com.aliyun.emr.rss.common.network.util.TransportFrameDecoder;
 
 public class TransportResponseHandlerSuiteJ {
   @Test
@@ -111,53 +107,5 @@ public class TransportResponseHandlerSuiteJ {
     handler.handle(new RpcFailure(12345, "oh no"));
     verify(callback, times(1)).onFailure(any());
     assertEquals(0, handler.numOutstandingRequests());
-  }
-
-  @Test
-  public void testActiveStreams() throws Exception {
-    Channel c = new LocalChannel();
-    c.pipeline().addLast(TransportFrameDecoder.HANDLER_NAME, new TransportFrameDecoder());
-    TransportResponseHandler handler = new TransportResponseHandler(c);
-
-    StreamResponse response = new StreamResponse("stream", 1234L, null);
-    StreamCallback cb = mock(StreamCallback.class);
-    handler.addStreamCallback("stream", cb);
-    assertEquals(1, handler.numOutstandingRequests());
-    handler.handle(response);
-    assertEquals(1, handler.numOutstandingRequests());
-    handler.deactivateStream();
-    assertEquals(0, handler.numOutstandingRequests());
-
-    StreamFailure failure = new StreamFailure("stream", "uh-oh");
-    handler.addStreamCallback("stream", cb);
-    assertEquals(1, handler.numOutstandingRequests());
-    handler.handle(failure);
-    assertEquals(0, handler.numOutstandingRequests());
-  }
-
-  @Test
-  public void failOutstandingStreamCallbackOnClose() throws Exception {
-    Channel c = new LocalChannel();
-    c.pipeline().addLast(TransportFrameDecoder.HANDLER_NAME, new TransportFrameDecoder());
-    TransportResponseHandler handler = new TransportResponseHandler(c);
-
-    StreamCallback cb = mock(StreamCallback.class);
-    handler.addStreamCallback("stream-1", cb);
-    handler.channelInactive();
-
-    verify(cb).onFailure(eq("stream-1"), isA(IOException.class));
-  }
-
-  @Test
-  public void failOutstandingStreamCallbackOnException() throws Exception {
-    Channel c = new LocalChannel();
-    c.pipeline().addLast(TransportFrameDecoder.HANDLER_NAME, new TransportFrameDecoder());
-    TransportResponseHandler handler = new TransportResponseHandler(c);
-
-    StreamCallback cb = mock(StreamCallback.class);
-    handler.addStreamCallback("stream-1", cb);
-    handler.exceptionCaught(new IOException("Oops!"));
-
-    verify(cb).onFailure(eq("stream-1"), isA(IOException.class));
   }
 }
