@@ -193,7 +193,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         numPartitions)
 
     case Revive(applicationId, shuffleId, mapId, attemptId, reduceId, epoch, oldPartition, cause) =>
-      logInfo(s"Received Revive request, " +
+      logDebug(s"Received Revive request, " +
         s"$applicationId, $shuffleId, $mapId, $attemptId, ,$reduceId," +
         s" $epoch, $oldPartition, $cause.")
       handleRevive(context, applicationId, shuffleId, mapId, attemptId,
