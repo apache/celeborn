@@ -173,7 +173,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logInfo("Received RemoveExpiredShuffle request.")
       removeExpiredShuffle()
     case msg @ GetBlacklist(localBlacklist) =>
-      logDebug(s"Received GetBlacklist request " +
+      logInfo(s"Received GetBlacklist request " +
         s"workers: ${localBlacklist.asScala.mkString("[", ",", "]")}.")
       handleGetBlacklist(msg)
     case StageEnd(applicationId, shuffleId) =>
