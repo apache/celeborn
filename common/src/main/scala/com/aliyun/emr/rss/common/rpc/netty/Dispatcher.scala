@@ -196,7 +196,7 @@ private[rss] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extend
   /** Thread pool used for dispatching messages. */
   private val threadpool: ThreadPoolExecutor = {
     val availableCores =
-      if (numUsableCores > 0) numUsableCores else Math.max(4,
+      if (numUsableCores > 0) numUsableCores else Math.max(16,
         Runtime.getRuntime.availableProcessors())
     val numThreads = nettyEnv.conf.getInt("rss.rpc.dispatcher.numThreads", availableCores)
     val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "dispatcher-event-loop")

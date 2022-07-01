@@ -18,9 +18,8 @@
 package com.aliyun.emr.rss.common.rpc.netty
 
 import java.io._
-import java.net.{InetSocketAddress, URI}
+import java.net.{InetSocketAddress}
 import java.nio.ByteBuffer
-import java.nio.channels.{Pipe, ReadableByteChannel, WritableByteChannel}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.Nullable
@@ -36,7 +35,6 @@ import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.client._
 import com.aliyun.emr.rss.common.network.server._
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
-import com.aliyun.emr.rss.common.protocol.message.Message
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
@@ -66,16 +64,6 @@ class NettyRpcEnv(
   }
 
   val clientFactory = transportContext.createClientFactory(createClientBootstraps())
-
-  /**
-   * A separate client factory for file downloads. This avoids using the same RPC handler as
-   * the main RPC context, so that events caused by these clients are kept isolated from the
-   * main RPC traffic.
-   *
-   * It also allows for different configuration of certain properties, such as the number of
-   * connections per peer.
-   */
-  @volatile private var fileDownloadFactory: TransportClientFactory = _
 
   private val timeoutScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("netty-rpc-env-timeout")
@@ -315,77 +303,12 @@ class NettyRpcEnv(
     if (clientConnectionExecutor != null) {
       clientConnectionExecutor.shutdownNow()
     }
-    if (fileDownloadFactory != null) {
-      fileDownloadFactory.close()
-    }
   }
 
   override def deserialize[T](deserializationAction: () => T): T = {
     NettyRpcEnv.currentEnv.withValue(this) {
       deserializationAction()
     }
-  }
-
-  override def fileServer: RpcEnvFileServer = streamManager
-
-  private def downloadClient(host: String, port: Int): TransportClient = {
-    if (fileDownloadFactory == null) synchronized {
-      if (fileDownloadFactory == null) {
-        val module = TransportModuleConstants.FILE_MODULE
-        val prefix = "spark.rpc.io."
-        val clone = conf.clone()
-
-        // Copy any RPC configuration that is not overridden in the spark.files namespace.
-        conf.getAll.foreach { case (key, value) =>
-          if (key.startsWith(prefix)) {
-            val opt = key.substring(prefix.length())
-            clone.setIfMissing(s"spark.$module.io.$opt", value)
-          }
-        }
-
-        val ioThreads = clone.getInt("spark.files.io.threads", 1)
-        val downloadConf = Utils.fromRssConf(clone, module, ioThreads)
-        val downloadContext = new TransportContext(downloadConf, new NoOpRpcHandler(), true)
-        fileDownloadFactory = downloadContext.createClientFactory(createClientBootstraps())
-      }
-    }
-    fileDownloadFactory.createClient(host, port)
-  }
-
-  private class FileDownloadChannel(source: Pipe.SourceChannel) extends ReadableByteChannel {
-
-    @volatile private var error: Throwable = _
-
-    def setError(e: Throwable): Unit = {
-      // This setError callback is invoked by internal RPC threads in order to propagate remote
-      // exceptions to application-level threads which are reading from this channel. When an
-      // RPC error occurs, the RPC system will call setError() and then will close the
-      // Pipe.SinkChannel corresponding to the other end of the `source` pipe. Closing of the pipe
-      // sink will cause `source.read()` operations to return EOF, unblocking the application-level
-      // reading thread. Thus there is no need to actually call `source.close()` here in the
-      // onError() callback and, in fact, calling it here would be dangerous because the close()
-      // would be asynchronous with respect to the read() call and could trigger race-conditions
-      // that lead to data corruption. See the PR for SPARK-22982 for more details on this topic.
-      error = e
-    }
-
-    override def read(dst: ByteBuffer): Int = {
-      Try(source.read(dst)) match {
-        // See the documentation above in setError(): if an RPC error has occurred then setError()
-        // will be called to propagate the RPC error and then `source`'s corresponding
-        // Pipe.SinkChannel will be closed, unblocking this read. In that case, we want to propagate
-        // the remote RPC exception (and not any exceptions triggered by the pipe close, such as
-        // ChannelClosedException), hence this `error != null` check:
-        case _ if error != null => throw error
-        case Success(bytesRead) => bytesRead
-        case Failure(readErr) => throw readErr
-      }
-    }
-
-    override def close(): Unit = source.close()
-
-    override def isOpen(): Boolean = source.isOpen()
-
   }
 }
 
