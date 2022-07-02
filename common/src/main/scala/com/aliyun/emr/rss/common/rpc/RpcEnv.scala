@@ -124,12 +124,6 @@ abstract class RpcEnv(conf: RssConf) {
    * that contains [[RpcEndpointRef]]s, the deserialization codes should be wrapped by this method.
    */
   def deserialize[T](deserializationAction: () => T): T
-
-  /**
-   * Return the instance of the file server used to serve files. This may be `null` if the
-   * RpcEnv is not operating in server mode.
-   */
-  def fileServer: RpcEnvFileServer
 }
 
 /**

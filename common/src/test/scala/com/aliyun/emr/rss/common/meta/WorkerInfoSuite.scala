@@ -56,9 +56,9 @@ class WorkerInfoSuite extends RssFunSuite {
     assertEquals(
       "The number of WorkerInfo decoded from string is wrong.", pbList.size(), workerInfos.size())
 
-    check(h1, p1, p2, p3, a1, workerInfos)
-    check(h2, p4, p5, p6, a2, workerInfos)
-    check(h3, p7, p8, p9, a3, workerInfos)
+    check(h1, p1, p2, p3, b1, workerInfos)
+    check(h2, p4, p5, p6, b2, workerInfos)
+    check(h3, p7, p8, p9, b3, workerInfos)
   }
 
   private def check(
