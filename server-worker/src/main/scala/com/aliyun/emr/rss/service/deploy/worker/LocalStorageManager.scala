@@ -277,7 +277,7 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  def isolateDirs(dirs: ListBuffer[File], errorType: DeviceErrorType): Unit = this.synchronized {
+  private def isolateDirs(dirs: ListBuffer[File], errorType: DeviceErrorType): Unit = this.synchronized {
     val availableDisks = numDisks()
     dirs.foreach { dir =>
       workingDirs.synchronized {
