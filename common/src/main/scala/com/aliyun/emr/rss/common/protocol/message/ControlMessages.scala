@@ -75,9 +75,10 @@ sealed trait Message extends Serializable{
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.HEARTBEAT_FROM_WORKER, payload)
 
-      case HeartbeatResponse(expiredShuffleKeys) =>
+      case HeartbeatResponse(expiredShuffleKeys, registered) =>
         val payload = TransportMessages.PbHeartbeatResponse.newBuilder()
           .addAllExpiredShuffleKeys(expiredShuffleKeys)
+          .setRegistered(registered)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.HEARTBEAT_RESPONSE, payload)
 
@@ -471,7 +472,9 @@ object ControlMessages extends Logging{
       shuffleKeys: util.HashSet[String],
     override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
-  case class HeartbeatResponse(expiredShuffleKeys: util.HashSet[String]) extends MasterMessage
+  case class HeartbeatResponse(
+      expiredShuffleKeys: util.HashSet[String],
+      registered: Boolean) extends MasterMessage
 
   case class RegisterShuffle(
       applicationId: String,
@@ -696,7 +699,7 @@ object ControlMessages extends Logging{
         if (pbHeartBeatResponse.getExpiredShuffleKeysCount > 0) {
           expiredShuffleKeys.addAll(pbHeartBeatResponse.getExpiredShuffleKeysList)
         }
-        HeartbeatResponse(expiredShuffleKeys)
+        HeartbeatResponse(expiredShuffleKeys, pbHeartBeatResponse.getRegistered)
 
       case REGISTER_SHUFFLE =>
         val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)

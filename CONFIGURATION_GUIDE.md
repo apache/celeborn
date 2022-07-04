@@ -17,9 +17,9 @@ off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
 ```
 
 For example, if an RSS worker has 10 storage directories or disks and the buffer size is set to 256 kilobytes.
-The necessary off-heap memory is 10 gigabytes. 
-NetWorker memory will be consumed when netty reads from a TPC channel, there will need some extra
-memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
+The necessary off-heap memory is 10 gigabytes.
+NetWork memory will be consumed when netty reads from a TPC channel, there will need some extra
+memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
 
 ### Client-Side Configurations
 
@@ -36,6 +36,9 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs  * 
 | spark.rss.fetch.chunk.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. |
 | spark.rss.data.io.threads | 8 | Amount of thread count for task to push data.  |
 | spark.rss.push.data.replicate | true | When true the RSS worker will replicate shuffle data to another RSS worker to ensure shuffle data won't be lost after the node failure. |
+| spark.rss.application.heartbeatInterval | 10s | Application heartbeat interval. |
+| spark.rss.stage.end.timeout | 240s | Time out for StageEnd. |
+| spark.rss.shuffle.writer.mode | hash | RSS support two different shuffle writers. Hash-based shuffle writer works fine when shuffle partition count is normal. Sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. |
 
 ### RSS Master Configurations
 
@@ -43,13 +46,11 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs  * 
 | :---: | :---: | :--: |
 | rss.worker.timeout | 60s | |
 | rss.application.timeout | 120s | |
-| rss.stage.end.timeout | 120s | |
-| rss.shuffle.writer.mode | hash | RSS support two different shuffle writers. Hash-based shuffle writer works fine when shuffle partition count is normal. Sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. |
 | rss.rpc.io.clientThreads | min{64, availableCores} |  |
 | rss.rpc.io.serverThreads | min{64, availableCores} |  |
 | rss.master.port.maxretry | 1 | When RSS master port is occupied,we will retry for maxretry times. |
 | rss.rpc.io.numConnectionsPerPeer | 1 | Connections between hosts are reused in order to reduce connection. |
-| rss.ha.enabled | true | When true, RSS will activate raft implementation and sync shared data on master clusters. |
+| rss.ha.enabled | false | When true, RSS will activate raft implementation and sync shared data on master clusters. |
 | rss.ha.master.hosts | | Master hosts address list. |
 | rss.ha.service.id | | When this config is empty, RSS master will refuse to startup. |
 | rss.ha.nodes.{serviceId} |  | Nodes list that deploy RSS master. ServiceId is `rss.ha.service.id` |
@@ -92,7 +93,7 @@ memory. In conclusion, RSS worker off-heap memory should be set to `(numDirs  * 
 
 Assume we have a cluster described as below:
 5 RSS Workers with 20 GB off-heap memory and 10 disks.
-As we need to reserver 20% off-heap memory for netty, so we could assume 16 GB off-heap memory can be used for flush buffers.
+As we need to reserve 20% off-heap memory for netty, so we could assume 16 GB off-heap memory can be used for flush buffers.
 
 If `spark.rss.push.data.buffer.size` is 64 KB, we can have in-flight requests up to 1310720.
 If you have 8192 mapper tasks , you could set `spark.rss.push.data.maxReqsInFlight=160` to gain performance improvements.
@@ -168,7 +169,7 @@ So we should set `rss.worker.flush.queue.capacity=6553` and each RSS worker has 
 | `rss.worker.prometheus.metric.port` | 9096 | int | |
 | `rss.merge.push.data.threshold` | 1 MiB | String | |
 | `rss.driver.metaService.port` | 0 | int | |
-| `rss.worker.closeIdleConnections` | true | bool | |
+| `rss.worker.closeIdleConnections` | false | bool | |
 | `rss.ha.enabled` | false | bool | |
 | `rss.ha.master.hosts` | `rss.master.host` 的值 | String | |
 | `rss.ha.service.id` | | String | |

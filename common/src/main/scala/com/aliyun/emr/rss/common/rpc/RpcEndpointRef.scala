@@ -30,8 +30,6 @@ import com.aliyun.emr.rss.common.util.RpcUtils
 abstract class RpcEndpointRef(conf: RssConf)
   extends Serializable with Logging {
 
-  private[this] val maxRetries = RpcUtils.numRetries(conf)
-  private[this] val retryWaitMs = RpcUtils.retryWaitMs(conf)
   private[this] val defaultAskTimeout = RpcUtils.askRpcTimeout(conf)
 
   /**

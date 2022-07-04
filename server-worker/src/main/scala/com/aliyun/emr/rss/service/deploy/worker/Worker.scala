@@ -112,7 +112,7 @@ private[deploy] class Worker(
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource,
         replicateLimiter)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
-    transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps)
+    transportContext.createServer(RssConf.replicateServerPort(conf), serverBootstraps)
   }
 
   private val fetchServer = {
@@ -191,6 +191,9 @@ private[deploy] class Worker(
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
         localStorageManager.getDiskSnapshot().asJava, shuffleKeys), classOf[HeartbeatResponse])
     cleanTaskQueue.put(response.expiredShuffleKeys)
+    if (!response.registered) {
+      logError("Current worker not registered in master")
+    }
   }
 
   override def onStart(): Unit = {
@@ -254,8 +257,6 @@ private[deploy] class Worker(
     splitMode, storageHint) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
-        logInfo(s"Received ReserveSlots request, $shuffleKey," +
-            s" master number: ${masterLocations.size()}, slave number: ${slaveLocations.size()}")
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
@@ -277,15 +278,12 @@ private[deploy] class Worker(
       }
 
     case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request.")
       handleGetWorkerInfos(context)
 
     case ThreadDump =>
-      logDebug("Receive ThreadDump request.")
       handleThreadDump(context)
 
     case Destroy(shuffleKey, masterLocations, slaveLocations) =>
-      logDebug(s"Receive Destroy request, $shuffleKey.")
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
@@ -371,7 +369,6 @@ private[deploy] class Worker(
       uniqueIds.asScala.foreach { uniqueId =>
         val task = CompletableFuture.runAsync(new Runnable {
           override def run(): Unit = {
-            logDebug(s"Committing $shuffleKey $uniqueId")
             try {
               val location = if (master) {
                 partitionLocationInfo.getMasterLocation(shuffleKey, uniqueId)
@@ -389,6 +386,8 @@ private[deploy] class Worker(
               if (writtenBytes > 0L) {
                 logDebug(s"FileName ${fileWriter.getFile.getAbsoluteFile}, size $writtenBytes")
                 writtenList.add(writtenBytes)
+              val bytes = fileWriter.close()
+              if (bytes > 0L) {
                 committedIds.add(uniqueId)
               }
             } catch {
@@ -425,7 +424,6 @@ private[deploy] class Worker(
       return
     }
 
-    logDebug(s"[handleCommitFiles] ${shuffleKey} -> ${mapAttempts.mkString(",")}")
     // close and flush files.
     shuffleMapperAttempts.putIfAbsent(shuffleKey, mapAttempts)
 
@@ -511,13 +509,11 @@ private[deploy] class Worker(
           } else {
             // finish, cancel timeout job first.
             timeout.cancel()
-            logDebug(s"Handle commitFiles successfully $shuffleKey, reply message.")
             reply()
           }
         }
       }, asyncReplyPool)) // should not use commitThreadPool in case of block by commit files.
     } else {
-      logDebug(s"All future is null, reply directly for $shuffleKey.")
       // If both of two futures are null, then reply directly.
       reply()
     }
@@ -899,7 +895,6 @@ private[deploy] class Worker(
   }
 
   private def registerWithMaster() {
-    logDebug("Trying to register with master.")
     var registerTimeout = RssConf.registerWorkerTimeoutMs(conf)
     val delta = 2000
     while (registerTimeout > 0) {
@@ -976,7 +971,9 @@ private[deploy] object Worker extends Logging {
     // much as possible. Therefore, if the user manually specifies the address of the Master when
     // starting the Worker, we should set it in the parameters and automatically calculate what the
     // address of the Master should be used in the end.
-    conf.set("rss.master.address", RpcAddress.fromRssURL(workerArgs.master).toString)
+    if (workerArgs.master != null) {
+      conf.set("rss.master.address", RpcAddress.fromRssURL(workerArgs.master).toString)
+    }
 
     val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
 

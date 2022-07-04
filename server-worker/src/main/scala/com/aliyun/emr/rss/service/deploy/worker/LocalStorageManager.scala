@@ -22,12 +22,13 @@ import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
-import java.util.function
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.netty.buffer.CompositeByteBuf
@@ -56,25 +57,26 @@ private[worker] final class DiskFlusher(
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueue = new LinkedBlockingQueue[FlushTask]()
   private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
+  private val writeActionPool = ThreadUtils.newDaemonFixedThreadPool(threadCount,
+    workingDir.getName + "-flusher")
   private val flushCount = new LongAdder
   private val flushTotalTime = new LongAdder
   private val usedSlots = new LongAdder
-  private val writeActionPool = ThreadUtils.newDaemonFixedThreadPool(threadCount, workingDir.getName + "-flusher")
 
   @volatile
   private var lastBeginFlushTime: Long = -1
   def getLastFlushTime: Long = lastBeginFlushTime
 
-  @volatile
-  var stopFlag = false
+  val stopFlag = new AtomicBoolean(false)
+  val rand = new Random()
 
   private val worker = new Thread(s"$this") {
     override def run(): Unit = {
-      while (!stopFlag) {
+      while (!stopFlag.get()) {
         val task = workingQueue.take()
         writeActionPool.submit(new Runnable {
           override def run(): Unit = {
-            val key = s"DiskFlusher-$workingDir"
+            val key = s"DiskFlusher-$workingDir-${rand.nextInt()}"
             workerSource.sample(WorkerSource.FlushDataTime, key) {
               if (!task.notifier.hasException) {
                 try {
@@ -84,11 +86,11 @@ private[worker] final class DiskFlusher(
                   flushCount.increment()
                   flushTotalTime.add(flushUsedTime)
                 } catch {
-                  // InterruptedIOException when notifyError
+
                   case _: ClosedByInterruptException =>
                   case e: IOException =>
                     task.notifier.setException(e)
-                    stopFlag = true
+                    stopFlag .set(true)
                     logError(s"$this write failed, report to DeviceMonitor, exeption: $e")
                     reportError(workingDir, e, DeviceErrorType.ReadOrWriteFailure)
                 }
@@ -153,10 +155,11 @@ private[worker] final class DiskFlusher(
   override def notifyError(deviceName: String, dirs: ListBuffer[File] = null,
     deviceErrorType: DeviceErrorType): Unit = {
     logError(s"$this is notified Device $deviceName Error $deviceErrorType! Stop Flusher.")
-    stopFlag = true
+    stopFlag.set(true)
     try {
       writeActionPool.shutdown()
       worker.interrupt()
+      writeActionPool.shutdown()
     } catch {
       case e: Exception =>
         logError(s"Exception when interrupt worker: $worker, $e")

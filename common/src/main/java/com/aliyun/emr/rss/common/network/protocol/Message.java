@@ -36,8 +36,7 @@ public interface Message extends Encodable {
   enum Type implements Encodable {
     ChunkFetchRequest(0), ChunkFetchSuccess(1), ChunkFetchFailure(2),
     RpcRequest(3), RpcResponse(4), RpcFailure(5),
-    StreamRequest(6), StreamResponse(7), StreamFailure(8),
-    OneWayMessage(9), UploadStream(10), PushData(11), PushMergedData(12), User(-1);
+    OneWayMessage(9), PushData(11), PushMergedData(12);
 
     private final byte id;
 
@@ -61,11 +60,7 @@ public interface Message extends Encodable {
         case 3: return RpcRequest;
         case 4: return RpcResponse;
         case 5: return RpcFailure;
-        case 6: return StreamRequest;
-        case 7: return StreamResponse;
-        case 8: return StreamFailure;
         case 9: return OneWayMessage;
-        case 10: return UploadStream;
         case 11: return PushData;
         case 12: return PushMergedData;
         case -1: throw new IllegalArgumentException("User type messages cannot be decoded.");
