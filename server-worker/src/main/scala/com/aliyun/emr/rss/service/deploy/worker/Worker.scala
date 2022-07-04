@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 import io.netty.buffer.ByteBuf
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.{AlreadyClosedException, RssException}
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
@@ -64,6 +65,8 @@ private[deploy] class Worker(
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   private val workerSource = new WorkerSource(conf, metricsSystem)
   private val memoryTracker = MemoryTracker.initialize(conf)
+  private val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
+  private val partitionLocationInfo = new PartitionLocationInfo
   private val localStorageManager = new LocalStorageManager(conf, workerSource, this)
   memoryTracker.registerMemoryListener(localStorageManager)
 
@@ -87,7 +90,10 @@ private[deploy] class Worker(
   private val commitThreadPool = ThreadUtils.newDaemonCachedThreadPool(
     "Worker-CommitFiles", RssConf.workerAsyncCommitFileThreads(conf))
   private val asyncReplyPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
+
   private val diskFlushTimer = new HashedWheelTimer()
+  // (workerInfo -> last connect timeout timestamp)
+  private val unavailablePeers = new ConcurrentHashMap[WorkerInfo, Long]()
 
   private var logAvailableFlushBuffersTask: ScheduledFuture[_] = _
   private var sendHeartbeatTask: ScheduledFuture[_] = _
@@ -96,8 +102,6 @@ private[deploy] class Worker(
   private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
   private val workerSlotsNum = RssConf.workerNumSlots(conf, localStorageManager.numDisks)
   private val replicateFastFailDuration = RssConf.replicateFastFailDurationMs(conf)
-
-  private val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
 
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
@@ -113,11 +117,6 @@ private[deploy] class Worker(
   // worker info
   private val workerInfo = new WorkerInfo(
     host, rpcPort, pushPort, fetchPort, replicatePort, workerSlotsNum, self)
-
-  private val partitionLocationInfo = new PartitionLocationInfo
-
-  // (workerInfo -> last connect timeout timestamp)
-  private val unavailablePeers = new ConcurrentHashMap[WorkerInfo, Long]()
 
   workerSource.addGauge(REGISTERED_SHUFFLE_COUNT, _ => partitionLocationInfo.shuffleKeySet.size())
   workerSource.addGauge(TOTAL_SLOTS, _ => workerInfo.numSlots)
