@@ -73,8 +73,7 @@ private[deploy] class Worker(
   private val defaultIOThread = localStorageManager.numDisks * 2
   private val pushServer = createTransportServer(
     conf, PUSH_MODULE, RssConf.pushServerPort(conf), defaultIOThread, true)
-  private val pushClientFactory = createTransportClientFactory(
-    conf, PUSH_MODULE, defaultIOThread, true)
+  private val pushClientFactory = createTransportClientFactory(conf, PUSH_MODULE, defaultIOThread)
   private val replicateServer = createTransportServer(
     conf, REPLICATE_MODULE, RssConf.replicateServerPort(conf), defaultIOThread, true)
   private val fetchServer = createTransportServer(
@@ -907,15 +906,16 @@ private[deploy] class Worker(
       module: String,
       port: Int,
       defaultIOThreads: Int,
-      hasLimiter: Boolean): TransportServer = {
+      isPushDataServe: Boolean): TransportServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
     val numThreads = conf.getInt(s"rss.$module.io.threads", defaultIOThreads)
     val transportConf = Utils.fromRssConf(conf, module, numThreads)
-    val rpcHandler = new PushDataRpcHandler(transportConf, this)
-    val transportContext = if (hasLimiter) {
+    val transportContext = if (isPushDataServe) {
       val limiter = new ChannelsLimiter(module)
+      val rpcHandler = new PushDataRpcHandler(transportConf, this)
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource, limiter)
     } else {
+      val rpcHandler = new ChunkFetchRpcHandler(transportConf, workerSource, this)
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource)
     }
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
@@ -925,18 +925,14 @@ private[deploy] class Worker(
   private def createTransportClientFactory(
       conf: RssConf,
       module: String,
-      defaultIOThreads: Int,
-      hashLimiter: Boolean): TransportClientFactory = {
+      defaultIOThreads: Int): TransportClientFactory = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
     val numThreads = conf.getInt(s"rss.$module.io.threads", defaultIOThreads)
     val transportConf = Utils.fromRssConf(conf, module, numThreads)
     val rpcHandler = new PushDataRpcHandler(transportConf, this)
-    val transportContext = if (hashLimiter) {
-      val limiter = new ChannelsLimiter(module)
-      new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource, limiter)
-    } else {
-      new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource)
-    }
+    val limiter = new ChannelsLimiter(module)
+    val transportContext = new TransportContext(
+      transportConf, rpcHandler, closeIdleConnections, workerSource, limiter)
     val clientBootstraps = new jArrayList[TransportClientBootstrap]()
     transportContext.createClientFactory(clientBootstraps)
   }
