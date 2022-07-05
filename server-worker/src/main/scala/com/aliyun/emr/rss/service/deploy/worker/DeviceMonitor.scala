@@ -69,7 +69,7 @@ class LocalDeviceMonitor(
 
     val sysBlockDir = RssConf.sysBlockDir(essConf)
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
-    val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/in-flight")
+    val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
     var lastReadComplete: Long = -1
     var lastWriteComplete: Long = -1
