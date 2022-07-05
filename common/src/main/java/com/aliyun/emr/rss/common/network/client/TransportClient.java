@@ -113,6 +113,13 @@ public class TransportClient implements Closeable {
     this.clientId = id;
   }
 
+  public void fetchChunk(
+    long streamId,
+    int chunkIndex,
+    ChunkReceivedCallback callback) {
+    fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, callback);
+  }
+
   /**
    * Requests a single chunk from the remote side, from the pre-negotiated streamId.
    *
@@ -126,28 +133,32 @@ public class TransportClient implements Closeable {
    * @param streamId Identifier that refers to a stream in the remote StreamManager. This should
    *                 be agreed upon by client and server beforehand.
    * @param chunkIndex 0-based index of the chunk to fetch
+   * @param offset offset from the beginning of the chunk to fetch
+   * @param len size to fetch
    * @param callback Callback invoked upon successful receipt of chunk, or upon any failure.
    */
   public void fetchChunk(
       long streamId,
       int chunkIndex,
+      int offset,
+      int len,
       ChunkReceivedCallback callback) {
     if (logger.isDebugEnabled()) {
       logger.debug("Sending fetch chunk request {} to {}.",
         chunkIndex, NettyUtils.getRemoteAddress(channel));
     }
 
-    StreamChunkId streamChunkId = new StreamChunkId(streamId, chunkIndex);
-    StdChannelListener listener = new StdChannelListener(streamChunkId) {
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
+    StdChannelListener listener = new StdChannelListener(streamChunkSlice) {
       @Override
       protected void handleFailure(String errorMsg, Throwable cause) {
-        handler.removeFetchRequest(streamChunkId);
+        handler.removeFetchRequest(streamChunkSlice);
         callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
       }
     };
-    handler.addFetchRequest(streamChunkId, callback);
+    handler.addFetchRequest(streamChunkSlice, callback);
 
-    channel.writeAndFlush(new ChunkFetchRequest(streamChunkId)).addListener(listener);
+    channel.writeAndFlush(new ChunkFetchRequest(streamChunkSlice)).addListener(listener);
   }
 
   /**

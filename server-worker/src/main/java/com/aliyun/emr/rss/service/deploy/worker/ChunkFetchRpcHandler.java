@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
-import com.aliyun.emr.rss.common.network.server.ManagedBufferIterator;
+import com.aliyun.emr.rss.common.network.server.FileManagedBuffers;
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
@@ -75,9 +75,9 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
       logger.debug("Received chunk fetch request {} {} {} {} get file info {}", shuffleKey,
         fileName, startMapIndex, endMapIndex, fileInfo);
       try {
-        ManagedBufferIterator iterator = new ManagedBufferIterator(fileInfo, conf);
+        FileManagedBuffers buffers = new FileManagedBuffers(fileInfo, conf);
         long streamId = streamManager.registerStream(
-            client.getClientId(), iterator, client.getChannel());
+            client.getClientId(), buffers, client.getChannel());
 
         ByteBuffer response = ByteBuffer.allocate(8 + 4);
         response.putLong(streamId);
