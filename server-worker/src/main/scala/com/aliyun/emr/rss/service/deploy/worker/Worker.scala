@@ -96,10 +96,10 @@ private[deploy] class Worker(
   private val unavailablePeers = new ConcurrentHashMap[WorkerInfo, Long]()
 
   private var logAvailableFlushBuffersTask: ScheduledFuture[_] = _
-  private var sendHeartbeatTask: ScheduledFuture[_] = _
-  private var checkFastFailTask: ScheduledFuture[_] = _
+  private var heartbeater: ScheduledFuture[_] = _
+  private var fastFailTaskChecker: ScheduledFuture[_] = _
 
-  private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
+  private val heartbeatIntervalMs = RssConf.workerTimeoutMs(conf) / 4
   private val workerSlotsNum = RssConf.workerNumSlots(conf, localStorageManager.numDisks)
   private val replicateFastFailDuration = RssConf.replicateFastFailDurationMs(conf)
 
@@ -155,13 +155,13 @@ private[deploy] class Worker(
     registerWithMaster()
 
     // start heartbeat
-    sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
+    heartbeater = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
       override def run(): Unit = Utils.tryLogNonFatalError {
         heartBeatToMaster()
       }
-    }, HEARTBEAT_MILLIS, HEARTBEAT_MILLIS, TimeUnit.MILLISECONDS)
+    }, heartbeatIntervalMs, heartbeatIntervalMs, TimeUnit.MILLISECONDS)
 
-    checkFastFailTask = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
+    fastFailTaskChecker = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
       override def run(): Unit = Utils.tryLogNonFatalError {
         unavailablePeers.entrySet().asScala.foreach(entry => {
           if (System.currentTimeMillis() - entry.getValue > replicateFastFailDuration) {
@@ -175,17 +175,17 @@ private[deploy] class Worker(
   override def onStop(): Unit = {
     logInfo("Stopping RSS Worker.")
 
-    if (sendHeartbeatTask != null) {
-      sendHeartbeatTask.cancel(true)
-      sendHeartbeatTask = null
+    if (heartbeater != null) {
+      heartbeater.cancel(true)
+      heartbeater = null
     }
     if (logAvailableFlushBuffersTask != null) {
       logAvailableFlushBuffersTask.cancel(true)
       logAvailableFlushBuffersTask = null
     }
-    if (checkFastFailTask != null) {
-      checkFastFailTask.cancel(true)
-      checkFastFailTask = null
+    if (fastFailTaskChecker != null) {
+      fastFailTaskChecker.cancel(true)
+      fastFailTaskChecker = null
     }
 
     forwardMessageScheduler.shutdownNow()
@@ -902,17 +902,17 @@ private[deploy] class Worker(
     registered.get()
   }
 
-  def createTransportServer(
+  private def createTransportServer(
       conf: RssConf,
       module: String,
       port: Int,
       defaultIOThreads: Int,
-      limit: Boolean): TransportServer = {
+      hasLimiter: Boolean): TransportServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
     val numThreads = conf.getInt(s"rss.$module.io.threads", defaultIOThreads)
     val transportConf = Utils.fromRssConf(conf, module, numThreads)
     val rpcHandler = new PushDataRpcHandler(transportConf, this)
-    val transportContext = if (limit) {
+    val transportContext = if (hasLimiter) {
       val limiter = new ChannelsLimiter(module)
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource, limiter)
     } else {
@@ -922,16 +922,16 @@ private[deploy] class Worker(
     transportContext.createServer(port, serverBootstraps)
   }
 
-  def createTransportClientFactory(
+  private def createTransportClientFactory(
       conf: RssConf,
       module: String,
-      defaultThreads: Int,
-      limit: Boolean): TransportClientFactory = {
+      defaultIOThreads: Int,
+      hashLimiter: Boolean): TransportClientFactory = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt(s"rss.$module.io.threads", defaultThreads)
+    val numThreads = conf.getInt(s"rss.$module.io.threads", defaultIOThreads)
     val transportConf = Utils.fromRssConf(conf, module, numThreads)
     val rpcHandler = new PushDataRpcHandler(transportConf, this)
-    val transportContext = if (limit) {
+    val transportContext = if (hashLimiter) {
       val limiter = new ChannelsLimiter(module)
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource, limiter)
     } else {
