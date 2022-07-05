@@ -58,7 +58,7 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-    essConf: RssConf,
+    rssConf: RssConf,
     observer: DeviceObserver,
     dirs: util.ArrayList[File]) extends DeviceMonitor {
 
@@ -68,7 +68,7 @@ class LocalDeviceMonitor(
     var mounts: ListBuffer[MountInfo] = deviceInfo.mounts
     val observers: ConcurrentSet[DeviceObserver] = new ConcurrentSet[DeviceObserver]()
 
-    val sysBlockDir = RssConf.sysBlockDir(essConf)
+    val sysBlockDir = RssConf.sysBlockDir(rssConf)
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -181,7 +181,7 @@ class LocalDeviceMonitor(
   // (mount filesystem -> MountInfo)
   var mounts: util.HashMap[String, MountInfo] = _
 
-  val diskCheckInterval = diskCheckIntervalMs(essConf)
+  val diskCheckInterval = diskCheckIntervalMs(rssConf)
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -210,10 +210,10 @@ class LocalDeviceMonitor(
               device.notifyObserversOnError(checkDirs, IoHang)
             } else {
               device.mounts.foreach { entry =>
-                if (DeviceMonitor.checkDiskUsage(essConf, entry.mountPoint)) {
+                if (DeviceMonitor.checkDiskUsage(rssConf, entry.mountPoint)) {
                   logger.error(s"${entry.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(entry.mountedDirs)
-                } else if (DeviceMonitor.checkDiskReadAndWrite(essConf, entry.mountedDirs)) {
+                } else if (DeviceMonitor.checkDiskReadAndWrite(rssConf, entry.mountedDirs)) {
                   logger.error(s"${entry.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
@@ -275,12 +275,12 @@ object DeviceMonitor {
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
   def createDeviceMonitor(
-      essConf: RssConf,
+      rssConf: RssConf,
       deviceObserver: DeviceObserver,
       dirs: util.ArrayList[File]): DeviceMonitor = {
     try {
-      if (RssConf.deviceMonitorEnabled(essConf)) {
-        val monitor = new LocalDeviceMonitor(essConf, deviceObserver, dirs)
+      if (RssConf.deviceMonitorEnabled(rssConf)) {
+        val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, dirs)
         monitor.init()
         logger.info("Device monitor init success")
         monitor
