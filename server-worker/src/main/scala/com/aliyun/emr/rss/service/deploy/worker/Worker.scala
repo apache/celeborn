@@ -199,9 +199,20 @@ private[deploy] class Worker(
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots,
         shuffleKeys)
       , classOf[HeartbeatResponse])
-    cleanTaskQueue.put(response.expiredShuffleKeys)
-    if (!response.registered) {
-      logError("Current worker not registered in master")
+    if (response.registered) {
+      cleanTaskQueue.put(response.expiredShuffleKeys)
+    } else {
+      logError("Worker not registered in master, clean all shuffle data and register again.")
+      // Clean all shuffle related metadata and data
+      cleanup(shuffleKeys)
+      try {
+        registerWithMaster()
+      } catch {
+        case e: Throwable =>
+          logError("Re-register worker failed after worker lost.", e)
+          // Register failed then stop server
+          stop()
+      }
     }
   }
 
@@ -937,7 +948,7 @@ private[deploy] class Worker(
   cleaner.setDaemon(true)
   cleaner.start()
 
-  private def cleanup(expiredShuffleKeys: jHashSet[String]): Unit = {
+  private def cleanup(expiredShuffleKeys: jHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         partition.asInstanceOf[WorkingPartition].getFileWriter.destroy()
@@ -948,10 +959,9 @@ private[deploy] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
-      partitionsSorter.cleanup(expiredShuffleKeys)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
-
+    partitionsSorter.cleanup(expiredShuffleKeys)
     localStorageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
