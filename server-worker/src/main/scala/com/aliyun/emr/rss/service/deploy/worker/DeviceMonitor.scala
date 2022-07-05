@@ -34,6 +34,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
+import com.aliyun.emr.rss.service.deploy.worker.DeviceErrorType._
 
 trait DeviceMonitor {
   def startCheck() {}
@@ -96,9 +97,9 @@ class LocalDeviceMonitor(
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach { ob =>
         deviceErrorType match {
-          case DeviceErrorType.FlushTimeout =>
+          case FlushTimeout =>
             ob.notifySlowFlush(dirs)
-          case DeviceErrorType.IoHang | DeviceErrorType.ReadOrWriteFailure =>
+          case IoHang | ReadOrWriteFailure =>
             ob.notifyError(deviceInfo.name, dirs, deviceErrorType)
           case _ => // do nothing
         }
@@ -206,7 +207,7 @@ class LocalDeviceMonitor(
             if (device.checkIoHang()) {
               logger.error(s"Encounter disk io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
-              device.notifyObserversOnError(checkDirs, DeviceErrorType.IoHang)
+              device.notifyObserversOnError(checkDirs, IoHang)
             } else {
               device.mounts.foreach { entry =>
                 if (DeviceMonitor.checkDiskUsage(essConf, entry.mountPoint)) {
@@ -216,7 +217,7 @@ class LocalDeviceMonitor(
                   logger.error(s"${entry.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
-                  device.notifyObserversOnError(entry.mountedDirs, DeviceErrorType.ReadOrWriteFailure)
+                  device.notifyObserversOnError(entry.mountedDirs, ReadOrWriteFailure)
                 } else {
                   device.notifyObserversOnHealthy(entry.mountedDirs)
                 }

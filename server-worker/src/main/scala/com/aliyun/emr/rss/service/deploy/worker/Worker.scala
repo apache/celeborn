@@ -20,8 +20,8 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.{ArrayList => jArrayList, HashSet => jHashSet, List => jList}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.concurrent._
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
@@ -42,8 +42,8 @@ import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportC
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData}
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, FileInfo, MemoryTracker, TransportServer, TransportServerBootstrap}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, RpcNameConstants}
-import com.aliyun.emr.rss.common.protocol.TransportModuleConstants._
 import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
+import com.aliyun.emr.rss.common.protocol.TransportModuleConstants._
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._

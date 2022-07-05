@@ -70,8 +70,8 @@ class DeviceInfo(val name: String) extends Serializable {
 object DeviceInfo {
   val logger = LoggerFactory.getLogger(classOf[DeviceInfo])
 
-  def getDeviceAndMountInformation(
-      workingDirs: util.List[File]): (util.HashMap[String, DeviceInfo], util.HashMap[String, MountInfo]) = {
+  def getDeviceAndMountInformation(workingDirs: util.List[File]):
+  (util.HashMap[String, DeviceInfo], util.HashMap[String, MountInfo]) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()
     val allMounts = new util.HashMap[String, MountInfo]()
 

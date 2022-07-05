@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
-import java.util.{ArrayList, Set => JSet, HashSet => JHashSet}
+import java.util.{ArrayList, HashSet => JHashSet, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.function.IntUnaryOperator
@@ -277,7 +277,9 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  private def isolateDirs(dirs: ListBuffer[File], errorType: DeviceErrorType): Unit = this.synchronized {
+  private def isolateDirs(
+      dirs: ListBuffer[File],
+      errorType: DeviceErrorType): Unit = this.synchronized {
     val availableDisks = numDisks()
     dirs.foreach { dir =>
       workingDirs.synchronized {
