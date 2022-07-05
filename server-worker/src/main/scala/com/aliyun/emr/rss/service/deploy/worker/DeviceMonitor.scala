@@ -98,7 +98,7 @@ class LocalDeviceMonitor(
         deviceErrorType match {
           case DeviceErrorType.FlushTimeout =>
             ob.notifySlowFlush(dirs)
-          case DeviceErrorType.IoHang || DeviceErrorType.ReadOrWriteFailure =>
+          case DeviceErrorType.IoHang | DeviceErrorType.ReadOrWriteFailure =>
             ob.notifyError(deviceInfo.name, dirs, deviceErrorType)
           case _ => // do nothing
         }
