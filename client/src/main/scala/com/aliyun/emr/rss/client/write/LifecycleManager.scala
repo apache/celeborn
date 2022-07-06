@@ -18,6 +18,7 @@
 package com.aliyun.emr.rss.client.write
 
 import java.util
+import java.util.{List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -971,18 +972,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def newMapFunc =
-    new util.function.Function[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])] {
+    new util.function.Function[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] {
       override def apply(w: WorkerInfo):
       (util.List[PartitionLocation], util.List[PartitionLocation]) =
         (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
     }
 
   private def allocateFromCandidates(
-      masterIndex: Int,
       reduceId: Int,
       oldEpochId: Int,
       candidates: List[WorkerInfo],
       slots: WorkerResource): Unit = {
+    val masterIndex = Random.nextInt(candidates.size)
     val masterLocation = new PartitionLocation(
       reduceId,
       oldEpochId + 1,
@@ -1024,7 +1025,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       return null
     }
     val slots = new WorkerResource()
-    allocateFromCandidates( Random.nextInt(candidates.size), reduceId, oldEpochId, candidates, slots)
+    allocateFromCandidates(reduceId, oldEpochId, candidates, slots)
     slots
   }
 
@@ -1036,22 +1037,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       return null
     }
 
-    val newMapFunc =
-      new util.function.Function[WorkerInfo,
-        (util.List[PartitionLocation], util.List[PartitionLocation])] {
-        override def apply(w: WorkerInfo):
-        (util.List[PartitionLocation], util.List[PartitionLocation]) =
-          (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
-      }
-
     val slots = new WorkerResource()
-    oldPartitions.foreach { partitionLocation =>
-      val masterIndex = Random.nextInt(candidates.size)
-      allocateFromCandidates(
-        Random.nextInt(candidates.size),
-        partitionLocation.getReduceId,
-        partitionLocation.getEpoch,
-        candidates, slots)
+    oldPartitions.foreach { partition =>
+      allocateFromCandidates(partition.getReduceId, partition.getEpoch, candidates, slots)
     }
     slots
   }
