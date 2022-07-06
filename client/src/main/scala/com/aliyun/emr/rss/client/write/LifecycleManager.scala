@@ -973,8 +973,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def newMapFunc =
     new util.function.Function[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] {
-      override def apply(w: WorkerInfo):
-      (util.List[PartitionLocation], util.List[PartitionLocation]) =
+      override def apply(w: WorkerInfo): (JList[PartitionLocation], JList[PartitionLocation]) =
         (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
     }
 
