@@ -88,9 +88,9 @@ sealed trait Message extends Serializable{
       case RegisterShuffleResponse(status, partitionLocations) =>
         val builder = TransportMessages.PbRegisterShuffleResponse.newBuilder()
           .setStatus(status.getValue)
-        if (partitionLocations != null) {
+        if (!partitionLocations.isEmpty) {
           builder.addAllPartitionLocations(partitionLocations.iterator().asScala
-            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
@@ -125,7 +125,7 @@ sealed trait Message extends Serializable{
       case RequestSlotsResponse(status, workerResource) =>
         val builder = TransportMessages.PbRequestSlotsResponse.newBuilder()
           .setStatus(status.getValue)
-        if (workerResource != null) {
+        if (!workerResource.isEmpty) {
           builder.putAllWorkerResource(
             Utils.convertWorkerResourceToPbWorkerResource(workerResource))
         }
@@ -182,12 +182,12 @@ sealed trait Message extends Serializable{
       case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
         val builder = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
           .setStatus(status.getValue)
-        if (fileGroup != null) {
+        if (!fileGroup.isEmpty) {
           builder.addAllFileGroup(fileGroup.map(arr => PbFileGroup.newBuilder()
-            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation(_)).toIterable.asJava)
+            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation).toIterable.asJava)
             .build()).toIterable.asJava)
         }
-        if (attempts != null) {
+        if (!attempts.isEmpty) {
           builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
         }
         val payload = builder.build().toByteArray
@@ -255,7 +255,7 @@ sealed trait Message extends Serializable{
 
       case GetBlacklist(localBlacklist) =>
         val payload = TransportMessages.PbGetBlacklist.newBuilder()
-          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_))
+          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo)
             .toList.asJava)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST, payload)
@@ -263,12 +263,12 @@ sealed trait Message extends Serializable{
       case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
         val builder = TransportMessages.PbGetBlacklistResponse.newBuilder()
           .setStatus(statusCode.getValue)
-        if (blacklist != null) {
-          builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+        if (!blacklist.isEmpty) {
+          builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
         }
-        if (unknownWorkers != null) {
+        if (!unknownWorkers.isEmpty) {
           builder.addAllUnknownWorkers(unknownWorkers.asScala
-            .map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+            .map(WorkerInfo.toPbWorkerInfo).toList.asJava)
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
@@ -286,7 +286,7 @@ sealed trait Message extends Serializable{
 
       case ReportWorkerFailure(failed, requestId) =>
         val payload = TransportMessages.PbReportWorkerFailure.newBuilder()
-          .addAllFailed(failed.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+          .addAllFailed(failed.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
           .setRequestId(requestId).build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REPORT_WORKER_FAILURE, payload)
 
@@ -309,9 +309,9 @@ sealed trait Message extends Serializable{
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
           .addAllMasterLocations(masterLocations.asScala
-            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
           .addAllSlaveLocations(slaveLocations.asScala
-            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
           .setSplitThreshold(splitThreshold)
           .setSplitMode(splitMode.getValue)
           .setStorageHintOrdinal(storageHint.ordinal())
@@ -338,16 +338,16 @@ sealed trait Message extends Serializable{
       failedMasterIds, failedSlaveIds) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
-        if (committedMasterIds != null) {
+        if (!committedMasterIds.isEmpty) {
           builder.addAllCommittedMasterIds(committedMasterIds)
         }
-        if (committedSlaveIds != null) {
+        if (!committedSlaveIds.isEmpty) {
           builder.addAllCommittedSlaveIds(committedSlaveIds)
         }
-        if (failedMasterIds != null) {
+        if (!failedMasterIds.isEmpty) {
           builder.addAllFailedMasterIds(failedMasterIds)
         }
-        if (failedSlaveIds != null) {
+        if (!failedSlaveIds.isEmpty) {
           builder.addAllFailedSlaveIds(failedSlaveIds)
         }
         val payload = builder.build().toByteArray
@@ -364,10 +364,10 @@ sealed trait Message extends Serializable{
       case DestroyResponse(status, failedMasters, failedSlaves) =>
         val builder = TransportMessages.PbDestroyResponse.newBuilder()
           .setStatus(status.getValue)
-        if (failedMasters != null) {
+        if (!failedMasters.isEmpty) {
           builder.addAllFailedMasters(failedMasters)
         }
-        if (failedSlaves != null) {
+        if (!failedSlaves.isEmpty) {
           builder.addAllFailedSlaves(failedSlaves)
         }
         val payload = builder.build().toByteArray
@@ -386,7 +386,7 @@ sealed trait Message extends Serializable{
       case GetWorkerInfosResponse(status, workerInfos@_*) =>
         val payload = TransportMessages.PbGetWorkerInfosResponse.newBuilder()
           .setStatus(status.getValue)
-          .addAllWorkerInfos(workerInfos.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+          .addAllWorkerInfos(workerInfos.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_WORKER_INFO_RESPONSE, payload)
 
@@ -476,24 +476,24 @@ object ControlMessages extends Logging{
     extends MasterMessage
 
   case class RegisterShuffleResponse(
-    status: StatusCode,
-    partitionLocations: util.List[PartitionLocation])
+      status: StatusCode,
+      partitionLocations: util.List[PartitionLocation])
     extends MasterMessage
 
   case class RequestSlots(
-    applicationId: String,
-    shuffleId: Int,
-    reduceIdList: util.ArrayList[Integer],
-    hostname: String,
-    shouldReplicate: Boolean,
-    override var requestId: String = ZERO_UUID)
+      applicationId: String,
+      shuffleId: Int,
+      reduceIdList: util.ArrayList[Integer],
+      hostname: String,
+      shouldReplicate: Boolean,
+      override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
   case class ReleaseSlots(
-    applicationId: String,
-    shuffleId: Int,
-    workerIds: util.List[String],
-    slots: util.List[Integer],
+      applicationId: String,
+      shuffleId: Int,
+      workerIds: util.List[String],
+      slots: util.List[Integer],
     override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -501,8 +501,8 @@ object ControlMessages extends Logging{
     extends MasterMessage
 
   case class RequestSlotsResponse(
-    status: StatusCode,
-    workerResource: WorkerResource)
+      status: StatusCode,
+      workerResource: WorkerResource)
     extends MasterMessage
 
   trait ChangeLocationRequest
@@ -611,11 +611,11 @@ object ControlMessages extends Logging{
       status: StatusCode, reason: String = "") extends WorkerMessage
 
   case class CommitFiles(
-    applicationId: String,
-    shuffleId: Int,
-    masterIds: util.List[String],
-    slaveIds: util.List[String],
-    mapAttempts: Array[Int])
+      applicationId: String,
+      shuffleId: Int,
+      masterIds: util.List[String],
+      slaveIds: util.List[String],
+      mapAttempts: Array[Int])
     extends WorkerMessage
 
   case class CommitFilesResponse(
@@ -695,7 +695,7 @@ object ControlMessages extends Logging{
         val partitionLocations = new util.ArrayList[PartitionLocation]()
         if (pbRegisterShuffleResponse.getPartitionLocationsCount > 0) {
           partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
-            .asScala.map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+            .asScala.map(PartitionLocation.fromPbPartitionLocation).toList.asJava)
         }
         RegisterShuffleResponse(Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
           partitionLocations)
@@ -719,12 +719,9 @@ object ControlMessages extends Logging{
 
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
-        val workerResource = if (pbRequestSlotsResponse.getWorkerResourceCount > 0) {
-          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap)
-        } else {
-          null
-        }
-        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus), workerResource)
+        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
+          Utils.convertPbWorkerResourceToWorkerResource(
+            pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
@@ -761,16 +758,11 @@ object ControlMessages extends Logging{
       case GET_REDUCER_FILE_GROUP_RESPONSE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
-        val fileGroup = if (pbGetReducerFileGroupResponse.getFileGroupCount > 0) {
-          pbGetReducerFileGroupResponse.getFileGroupList.asScala
-            .map(fg => fg.getLocaltionsList.asScala
-              .map(PartitionLocation.fromPbPartitionLocation(_)).toArray).toArray
-        } else null
-        val attempts = if (pbGetReducerFileGroupResponse.getAttemptsCount > 0) {
-          pbGetReducerFileGroupResponse.getAttemptsList().asScala.map(Int.unbox(_)).toArray
-        } else null
         GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
-          fileGroup, attempts)
+          pbGetReducerFileGroupResponse.getFileGroupList.asScala.map { fg =>
+            fg.getLocaltionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).toArray
+          }.toArray,
+          pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(Int.unbox(_)).toArray)
 
       case UNREGISTER_SHUFFLE =>
         val pbUnregisterShuffle = PbUnregisterShuffle.parseFrom(message.getPayload)
@@ -796,21 +788,16 @@ object ControlMessages extends Logging{
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
-          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava))
+        GetBlacklist(pbGetBlacklist.getLocalBlackListList.asScala
+          .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
-        val blacklist = if (pbGetBlacklistResponse.getBlacklistCount > 0) {
-          pbGetBlacklistResponse.getBlacklistList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava
-        } else null
-        val unkownList = if (pbGetBlacklistResponse.getUnknownWorkersCount > 0) {
-          pbGetBlacklistResponse.getUnknownWorkersList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava
-        } else null
         GetBlacklistResponse(Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
-          blacklist, unkownList)
+          pbGetBlacklistResponse.getBlacklistList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava,
+          pbGetBlacklistResponse.getUnknownWorkersList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
       case GET_CLUSTER_LOAD_STATUS =>
         val pbGetClusterLoadStats = PbGetClusterLoadStatus.parseFrom(message.getPayload)
@@ -823,8 +810,8 @@ object ControlMessages extends Logging{
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
-        ReportWorkerFailure(new util.ArrayList[WorkerInfo](pbReportWorkerFailure.getFailedList
-          .asScala.map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava),
+        ReportWorkerFailure(pbReportWorkerFailure.getFailedList
+          .asScala.map(WorkerInfo.fromPbWorkerInfo).toList.asJava,
           pbReportWorkerFailure.getRequestId)
 
       case REGISTER_WORKER_RESPONSE =>
@@ -840,11 +827,12 @@ object ControlMessages extends Logging{
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         ReserveSlots(pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getMasterLocationsList.asScala
-            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
-            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
-          pbReserveSlots.getSplitThreshold, Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
+          pbReserveSlots.getMasterLocationsList.asScala
+            .map(PartitionLocation.fromPbPartitionLocation).toList.asJava,
+          pbReserveSlots.getSlaveLocationsList.asScala
+            .map(PartitionLocation.fromPbPartitionLocation).toList.asJava,
+          pbReserveSlots.getSplitThreshold,
+          Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
           PartitionLocation.StorageHint.values()(pbReserveSlots.getStorageHintOrdinal))
 
       case RESERVE_SLOTS_RESPONSE =>
@@ -888,7 +876,7 @@ object ControlMessages extends Logging{
         val pbGetWorkerInfoResponse = PbGetWorkerInfosResponse.parseFrom(message.getPayload)
         GetWorkerInfosResponse(Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
           pbGetWorkerInfoResponse.getWorkerInfosList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList: _* )
+            .map(WorkerInfo.fromPbWorkerInfo).toList: _* )
 
       case THREAD_DUMP =>
         ThreadDump

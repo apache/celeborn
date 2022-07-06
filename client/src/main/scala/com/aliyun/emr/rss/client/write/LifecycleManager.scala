@@ -266,7 +266,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       registerShuffleRequest.synchronized {
         val set = registerShuffleRequest.get(shuffleId)
         set.asScala.foreach { context =>
-          context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, null))
+          context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, List.empty.asJava))
         }
         registerShuffleRequest.remove(shuffleId)
       }
@@ -308,7 +308,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       registerShuffleRequest.synchronized {
         val set = registerShuffleRequest.get(shuffleId)
         set.asScala.foreach { context =>
-          context.reply(RegisterShuffleResponse(StatusCode.ReserveSlotFailed, null))
+          context.reply(
+            RegisterShuffleResponse(StatusCode.ReserveSlotFailed, List.empty.asJava))
         }
         registerShuffleRequest.remove(shuffleId)
       }
@@ -363,7 +364,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
-    if (cause == StatusCode.PushDataFailMain) {
+    if (cause == StatusCode.PushDataFailMain && oldPartition != null) {
       failedWorker.add(oldPartition.getWorker)
     }
     if (!failedWorker.isEmpty) {
@@ -436,8 +437,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     contexts: ConcurrentHashMap[Integer, util.Set[RpcCallContext]],
     applicationId: String, shuffleId: Int, reduceId: Int, oldPartition: PartitionLocation): Unit = {
     val candidates = workersNotBlacklisted(shuffleId)
-    val slots = reallocateSlotsFromCandidates(
-      List(oldPartition), candidates)
+    val slots = reallocateSlotsFromCandidates(Option(oldPartition).toList, candidates)
     if (slots == null) {
       logError("[Update partition] failed for slot not available.")
       contexts.synchronized {
@@ -570,20 +570,19 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       Thread.sleep(50)
       if (timeout <= 0) {
         logError(s"StageEnd Timeout! $shuffleId.")
-        context.reply(GetReducerFileGroupResponse(StatusCode.Failed, null, null))
+        context.reply(GetReducerFileGroupResponse(StatusCode.Failed, Array.empty, Array.empty))
         return
       }
       timeout = timeout - delta
     }
 
     if (dataLostShuffleSet.contains(shuffleId)) {
-      context.reply(GetReducerFileGroupResponse(StatusCode.Failed, null, null))
+      context.reply(GetReducerFileGroupResponse(StatusCode.Failed, Array.empty, Array.empty))
     } else {
-      val shuffleFileGroup = reducerFileGroupsMap.get(shuffleId)
       context.reply(GetReducerFileGroupResponse(
         StatusCode.Success,
-        shuffleFileGroup,
-        shuffleMapperAttempts.get(shuffleId)
+        reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+        shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)
       ))
     }
   }
@@ -649,20 +648,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         }
 
         // record committed partitionIds
-        if (res.committedMasterIds != null) {
-          committedMasterIds.addAll(res.committedMasterIds)
-        }
-        if (res.committedSlaveIds != null) {
-          committedSlaveIds.addAll(res.committedSlaveIds)
-        }
+        committedMasterIds.addAll(res.committedMasterIds)
+        committedSlaveIds.addAll(res.committedSlaveIds)
 
         // record failed partitions
-        if (res.failedMasterIds != null) {
-          failedMasterIds.addAll(res.failedMasterIds)
-        }
-        if (res.failedSlaveIds != null) {
-          failedSlaveIds.addAll(res.failedSlaveIds)
-        }
+        failedMasterIds.addAll(res.failedMasterIds)
+        failedSlaveIds.addAll(res.failedSlaveIds)
       }
     }
 
@@ -1064,12 +1055,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unkown workers: ${res.unknownWorkers}")
       blacklist.clear()
-      if (res.blacklist != null) {
-        blacklist.addAll(res.blacklist)
-      }
-      if (res.unknownWorkers != null) {
-        blacklist.addAll(res.unknownWorkers)
-      }
+      blacklist.addAll(res.blacklist)
+      blacklist.addAll(res.unknownWorkers)
     }
   }
 
@@ -1095,7 +1082,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync RegisterShuffle for $shuffleKey failed.", e)
-        RequestSlotsResponse(StatusCode.Failed, null)
+        RequestSlotsResponse(StatusCode.Failed, new WorkerResource())
     }
   }
 
@@ -1129,7 +1116,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
-        CommitFilesResponse(StatusCode.Failed, null, null, message.masterIds, message.slaveIds)
+        CommitFilesResponse(StatusCode.Failed, List.empty.asJava, List.empty.asJava, message.masterIds, message.slaveIds)
     }
   }
 
@@ -1163,7 +1150,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync GetBlacklist failed.", e)
-        GetBlacklistResponse(StatusCode.Failed, null, null)
+        GetBlacklistResponse(StatusCode.Failed, List.empty.asJava, List.empty.asJava)
     }
   }
 
