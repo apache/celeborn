@@ -441,7 +441,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       oldEpochId: Int,
       oldPartition: PartitionLocation): Unit = {
     val candidates = workersNotBlacklisted(shuffleId)
-    val slots = if(oldPartition != null) {
+    val slots = if (oldPartition != null) {
       reallocateSlotsFromCandidates(List(oldPartition), candidates)
     } else {
       reallocateForNonExistPartitionLocation(reduceId, oldEpochId, candidates)
