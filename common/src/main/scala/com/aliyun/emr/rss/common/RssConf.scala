@@ -449,6 +449,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.application.timeout", "120s")
   }
 
+  def applicationHeatbeatIntervalMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.application.heartbeatInterval", "10s")
+  }
+
   def removeShuffleDelayMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.remove.shuffle.delay", "60s")
   }
@@ -546,6 +550,10 @@ object RssConf extends Logging {
     }
   }
 
+  def diskFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.thread.count", 1)
+  }
+
   def workerBaseDirPrefix(conf: RssConf): String = {
     conf.get("rss.worker.base.dir.prefix", "/mnt/disk")
   }
@@ -572,6 +580,10 @@ object RssConf extends Logging {
 
   def fetchServerPort(conf: RssConf): Int = {
     conf.getInt("rss.fetchserver.port", 0)
+  }
+
+  def replicateServerPort(conf: RssConf): Int = {
+    conf.getInt("rss.replicateserver.port", 0)
   }
 
   def registerWorkerTimeoutMs(conf: RssConf): Long = {
@@ -620,6 +632,10 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.prometheus.metric.port", 9096)
   }
 
+  def workerRPCPort(conf: RssConf): Int = {
+    conf.getInt("rss.worker.rpc.port", 0)
+  }
+
   def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
     conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
   }
@@ -646,7 +662,7 @@ object RssConf extends Logging {
   }
 
   def closeIdleConnections(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = true)
+    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = false)
   }
 
   def replicateFastFailDurationMs(conf: RssConf): Long = {

@@ -124,21 +124,6 @@ abstract class RpcEnv(conf: RssConf) {
    * that contains [[RpcEndpointRef]]s, the deserialization codes should be wrapped by this method.
    */
   def deserialize[T](deserializationAction: () => T): T
-
-  /**
-   * Return the instance of the file server used to serve files. This may be `null` if the
-   * RpcEnv is not operating in server mode.
-   */
-  def fileServer: RpcEnvFileServer
-
-  /**
-   * Open a channel to download a file from the given URI. If the URIs returned by the
-   * RpcEnvFileServer use the "spark" scheme, this method will be called by the Utils class to
-   * retrieve the files.
-   *
-   * @param uri URI with location of the file.
-   */
-  def openChannel(uri: String): ReadableByteChannel
 }
 
 /**

@@ -38,7 +38,7 @@ import com.aliyun.emr.rss.common.network.server.*;
 public class TransportRequestHandlerSuiteJ {
 
   @Test
-  public void handleFetchRequestAndStreamRequest() throws Exception {
+  public void handleFetchRequest() throws Exception {
     RpcHandler rpcHandler = new NoOpRpcHandler();
     OneForOneStreamManager streamManager = (OneForOneStreamManager) (rpcHandler.getStreamManager());
     Channel channel = Mockito.mock(Channel.class);
@@ -97,22 +97,7 @@ public class TransportRequestHandlerSuiteJ {
     // Finish flushing the response for request0.
     responseAndPromisePairs.get(0).getRight().finish(true);
 
-    RequestMessage request2 = new StreamRequest(String.format("%d_%d", streamId, 2));
-    requestHandler.handle(request2);
-    assert responseAndPromisePairs.size() == 3;
-    assert responseAndPromisePairs.get(2).getLeft() instanceof StreamResponse;
-    assert ((StreamResponse) (responseAndPromisePairs.get(2).getLeft())).body() ==
-      managedBuffers.get(2);
-
-    // Request3 will trigger the close of channel, because the number of max chunks being
-    // transferred is 2;
-    RequestMessage request3 = new StreamRequest(String.format("%d_%d", streamId, 3));
-    requestHandler.handle(request3);
-    Mockito.verify(channel, Mockito.times(1)).close();
-    assert responseAndPromisePairs.size() == 3;
-
-    streamManager.connectionTerminated(channel);
-    assert streamManager.numStreamStates() == 0;
+    assert responseAndPromisePairs.size() == 2;
   }
 
   private class ExtendedChannelPromise extends DefaultChannelPromise {

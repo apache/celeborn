@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -39,7 +38,6 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.protocol.*;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
@@ -153,33 +151,6 @@ public class TransportClient implements Closeable {
   }
 
   /**
-   * Request to stream the data with the given stream ID from the remote end.
-   *
-   * @param streamId The stream to fetch.
-   * @param callback Object to call with the stream data.
-   */
-  public void stream(String streamId, StreamCallback callback) {
-    StdChannelListener listener = new StdChannelListener(streamId) {
-      @Override
-      protected void handleFailure(String errorMsg, Throwable cause) throws Exception {
-        callback.onFailure(streamId, new IOException(errorMsg, cause));
-      }
-    };
-    if (logger.isDebugEnabled()) {
-      logger.debug("Sending stream request for {} to {}.",
-        streamId, NettyUtils.getRemoteAddress(channel));
-    }
-
-    // Need to synchronize here so that the callback is added to the queue and the RPC is
-    // written to the socket atomically, so that callbacks are called in the right order
-    // when responses arrive.
-    synchronized (this) {
-      handler.addStreamCallback(streamId, callback);
-      channel.writeAndFlush(new StreamRequest(streamId)).addListener(listener);
-    }
-  }
-
-  /**
    * Sends an opaque message to the RpcHandler on the server-side. The callback will be invoked
    * with the server's response or upon any failure.
    *
@@ -192,7 +163,7 @@ public class TransportClient implements Closeable {
       logger.trace("Sending RPC to {}", NettyUtils.getRemoteAddress(channel));
     }
 
-    long requestId = dataRequestId();
+    long requestId = requestId();
     handler.addRpcRequest(requestId, callback);
 
     RpcChannelListener listener = new RpcChannelListener(requestId, callback);
@@ -207,7 +178,7 @@ public class TransportClient implements Closeable {
       logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
     }
 
-    long requestId = dataRequestId();
+    long requestId = requestId();
     handler.addRpcRequest(requestId, callback);
 
     pushData.requestId = requestId;
@@ -221,68 +192,13 @@ public class TransportClient implements Closeable {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
 
-    long requestId = dataRequestId();
+    long requestId = requestId();
     handler.addRpcRequest(requestId, callback);
 
     pushMergedData.requestId = requestId;
 
     RpcChannelListener listener = new RpcChannelListener(requestId, callback);
     return channel.writeAndFlush(pushMergedData).addListener(listener);
-  }
-
-  public ByteBuffer pushMergedDataSync(PushMergedData pushMergedData, long timeoutMs) {
-    final SettableFuture<ByteBuffer> result = SettableFuture.create();
-
-    pushMergedData(pushMergedData, new RpcResponseCallback() {
-      @Override
-      public void onSuccess(ByteBuffer response) {
-        ByteBuffer copy = ByteBuffer.allocate(response.remaining());
-        copy.put(response);
-        copy.flip();
-        result.set(copy);
-      }
-
-      @Override
-      public void onFailure(Throwable e) {
-        result.setException(e);
-      }
-    });
-
-    try {
-      return result.get(timeoutMs, TimeUnit.MILLISECONDS);
-    } catch (ExecutionException e) {
-      throw Throwables.propagate(e.getCause());
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  /**
-   * Send data to the remote end as a stream.  This differs from stream() in that this is a request
-   * to *send* data to the remote end, not to receive it from the remote.
-   *
-   * @param meta meta data associated with the stream, which will be read completely on the
-   *             receiving end before the stream itself.
-   * @param data this will be streamed to the remote end to allow for transferring large amounts
-   *             of data without reading into memory.
-   * @param callback handles the reply -- onSuccess will only be called when both message and data
-   *                 are received successfully.
-   */
-  public long uploadStream(
-      ManagedBuffer meta,
-      ManagedBuffer data,
-      RpcResponseCallback callback) {
-    if (logger.isTraceEnabled()) {
-      logger.trace("Sending RPC to {}", NettyUtils.getRemoteAddress(channel));
-    }
-
-    long requestId = requestId();
-    handler.addRpcRequest(requestId, callback);
-
-    RpcChannelListener listener = new RpcChannelListener(requestId, callback);
-    channel.writeAndFlush(new UploadStream(requestId, meta, data)).addListener(listener);
-
-    return requestId;
   }
 
   /**
@@ -361,12 +277,8 @@ public class TransportClient implements Closeable {
       .toString();
   }
 
-  public static long requestId() {
-    return Math.abs(UUID.randomUUID().getLeastSignificantBits());
-  }
-
   private static final AtomicLong counter = new AtomicLong();
-  public static long dataRequestId() {
+  public static long requestId() {
     return counter.getAndIncrement();
   }
 
@@ -394,8 +306,8 @@ public class TransportClient implements Closeable {
               NettyUtils.getRemoteAddress(channel), timeTaken);
         }
       } else {
-        String errorMsg = String.format("Failed to send RPC %s to %s: %s", requestId,
-            NettyUtils.getRemoteAddress(channel), future.cause());
+        String errorMsg = String.format("Failed to send RPC %s to %s: %s, channel will be closed",
+          requestId, NettyUtils.getRemoteAddress(channel), future.cause());
         logger.warn(errorMsg);
         channel.close();
         try {
@@ -406,7 +318,9 @@ public class TransportClient implements Closeable {
       }
     }
 
-    protected void handleFailure(String errorMsg, Throwable cause) throws Exception {}
+    protected void handleFailure(String errorMsg, Throwable cause) {
+      logger.error("Error encountered " + errorMsg, cause);
+    }
   }
 
   private class RpcChannelListener extends StdChannelListener {
@@ -425,5 +339,4 @@ public class TransportClient implements Closeable {
       callback.onFailure(new IOException(errorMsg, cause));
     }
   }
-
 }

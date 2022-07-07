@@ -39,6 +39,10 @@ public class PartitionLocation implements Serializable {
     NON_EXISTS, MEMORY, HDD, SDD, HDFS, OSS
   }
 
+  public enum Type {
+    REDUCE_PARTITION, MAP_PARTITION, MAPGROUP_REDUCE_PARTITION
+  }
+
   public static PartitionLocation.Mode getMode(byte mode) {
     if (mode == 0) {
       return Mode.Master;

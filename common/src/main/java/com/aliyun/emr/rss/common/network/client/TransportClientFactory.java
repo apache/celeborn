@@ -119,7 +119,7 @@ public class TransportClientFactory implements Closeable {
    *
    * Concurrency: This method is safe to call from multiple threads.
    */
-  public TransportClient createClient(String remoteHost, int remotePort, int reduceId)
+  public TransportClient createClient(String remoteHost, int remotePort, int partitionId)
     throws IOException, InterruptedException {
     // Get connection from the connection pool first.
     // If it is not found or not active, create a new one.
@@ -135,7 +135,7 @@ public class TransportClientFactory implements Closeable {
     }
 
     int clientIndex =
-      reduceId < 0 ? rand.nextInt(numConnectionsPerPeer) : reduceId % numConnectionsPerPeer;
+      partitionId < 0 ? rand.nextInt(numConnectionsPerPeer) : partitionId % numConnectionsPerPeer;
     TransportClient cachedClient = clientPool.clients[clientIndex];
 
     if (cachedClient != null && cachedClient.isActive()) {
