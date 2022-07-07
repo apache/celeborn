@@ -720,7 +720,8 @@ object ControlMessages extends Logging{
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
         RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
-          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap))
+          Utils.convertPbWorkerResourceToWorkerResource(
+            pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
