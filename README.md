@@ -181,7 +181,7 @@ spark.shuffle.manager org.apache.spark.shuffle.rss.RssShuffleManager
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
 # if you are running HA cluster ,set spark.rss.master.address to any RSS master
-spark.rss.master.address rss-master-host:9097
+spark.rss.master.address rss-master-host:rss-master-port
 spark.shuffle.service.enabled false
 
 # optional:hash,sort
