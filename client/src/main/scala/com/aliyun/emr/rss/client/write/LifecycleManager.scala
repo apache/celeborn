@@ -312,9 +312,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       try {
         workerInfo.endpoint = rpcEnv.setupEndpointRef(
           RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
-        workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client =
-          rpcEnv.asInstanceOf[NettyRpcEnv].clientFactory.createClient(workerInfo.host,
-            workerInfo.rpcPort)
       } catch {
         case t: Throwable =>
           logError(s"Init rpc client for $workerInfo failed", t)
@@ -865,13 +862,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
               failedPartitionLocations += (reduceId -> failedSlave)
             }
           })
-        }
-        // remove failed slot from total slots, close transport client
-        if (workerInfo.endpoint != null) {
-          val transportClient = workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client
-          if (null != transportClient && transportClient.isActive) {
-            transportClient.close()
-          }
         }
       })
 

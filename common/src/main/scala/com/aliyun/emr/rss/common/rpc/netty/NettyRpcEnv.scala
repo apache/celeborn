@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.common.rpc.netty
 
 import java.io._
-import java.net.{InetSocketAddress}
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
@@ -26,7 +26,7 @@ import javax.annotation.Nullable
 
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
-import scala.util.{DynamicVariable, Failure, Success, Try}
+import scala.util.{DynamicVariable, Failure, Success}
 import scala.util.control.NonFatal
 
 import com.google.common.base.Throwables
