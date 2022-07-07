@@ -640,7 +640,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         val masterIds = masterParts.asScala.map(_.getUniqueId).asJava
         val slaveIds = slaveParts.asScala.map(_.getUniqueId).asJava
 
-        val res = requestCommitFiles(worker,
+        val res = requestCommitFiles(worker.endpoint,
           CommitFiles(applicationId, shuffleId, masterIds, slaveIds,
             shuffleMapperAttempts.get(shuffleId)))
 
@@ -1123,15 +1123,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def requestCommitFiles(
-      workerInfo: WorkerInfo,
-      message: CommitFiles): CommitFilesResponse = {
+    endpoint: RpcEndpointRef, message: CommitFiles): CommitFilesResponse = {
     try {
-      var transportClient = workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client
-      if (transportClient == null || !transportClient.isActive) {
-        transportClient = rpcEnv.asInstanceOf[NettyRpcEnv].clientFactory
-          .createClient(workerInfo.host, workerInfo.rpcPort)
-      }
-      workerInfo.endpoint.askSync[CommitFilesResponse](message)
+      endpoint.askSync[CommitFilesResponse](message)
     } catch {
       case e: Exception =>
         logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
