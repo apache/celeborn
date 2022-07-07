@@ -36,7 +36,6 @@ import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -285,9 +284,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       try {
         workerInfo.endpoint = rpcEnv.setupEndpointRef(
           RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
-        workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client =
-          rpcEnv.asInstanceOf[NettyRpcEnv].clientFactory.createClient(workerInfo.host,
-            workerInfo.rpcPort)
       } catch {
         case t: Throwable =>
           logError(s"Init rpc client for $workerInfo failed", t)
@@ -829,13 +825,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
               failedPartitionLocations += (reduceId -> failedSlave)
             }
           })
-        }
-        // remove failed slot from total slots, close transport client
-        if (workerInfo.endpoint != null) {
-          val transportClient = workerInfo.endpoint.asInstanceOf[NettyRpcEndpointRef].client
-          if (null != transportClient && transportClient.isActive) {
-            transportClient.close()
-          }
         }
       })
 
