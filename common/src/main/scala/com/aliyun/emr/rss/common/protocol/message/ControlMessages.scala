@@ -125,7 +125,7 @@ sealed trait Message extends Serializable{
       case RequestSlotsResponse(status, workerResource) =>
         val builder = TransportMessages.PbRequestSlotsResponse.newBuilder()
           .setStatus(status.getValue)
-        if (workerResource != null) {
+        if (!workerResource.isEmpty) {
           builder.putAllWorkerResource(
             Utils.convertWorkerResourceToPbWorkerResource(workerResource))
         }
@@ -719,12 +719,8 @@ object ControlMessages extends Logging{
 
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
-        val workerResource = if (pbRequestSlotsResponse.getWorkerResourceCount > 0) {
-          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap)
-        } else {
-          null
-        }
-        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus), workerResource)
+        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
+          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)

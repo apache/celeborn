@@ -271,6 +271,16 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         registerShuffleRequest.remove(shuffleId)
       }
       return
+    } else if (res.workerResource.isEmpty && numPartitions > 0) {
+      logError(s"OfferSlots for $shuffleId success but return empty slots!")
+      registerShuffleRequest.synchronized {
+        val set = registerShuffleRequest.get(shuffleId)
+        set.asScala.foreach { context =>
+          context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, null))
+        }
+        registerShuffleRequest.remove(shuffleId)
+      }
+      return
     } else {
       logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
       logDebug(s" Slots Info: ${res.workerResource}")
