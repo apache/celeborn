@@ -18,6 +18,7 @@
 package com.aliyun.emr.rss.client.write
 
 import java.util
+import java.util.{List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -359,7 +360,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
-    if (cause == StatusCode.PushDataFailMain) {
+    if (cause == StatusCode.PushDataFailMain && oldPartition != null) {
       failedWorker.add(oldPartition.getWorker)
     }
     if (!failedWorker.isEmpty) {
@@ -418,7 +419,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     logWarning(s"Do Revive for shuffle ${
       Utils.makeShuffleKey(applicationId, shuffleId)}, oldPartition: $oldPartition, cause: $cause")
     blacklistPartition(oldPartition, cause)
-    handleChangePartitionLocation(shuffleReviving, applicationId, shuffleId, reduceId,
+    handleChangePartitionLocation(shuffleReviving, applicationId, shuffleId, reduceId, oldEpoch,
       oldPartition)
   }
 
@@ -429,11 +430,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
   private def handleChangePartitionLocation(
-    contexts: ConcurrentHashMap[Integer, util.Set[RpcCallContext]],
-    applicationId: String, shuffleId: Int, reduceId: Int, oldPartition: PartitionLocation): Unit = {
+      contexts: ConcurrentHashMap[Integer, util.Set[RpcCallContext]],
+      applicationId: String,
+      shuffleId: Int,
+      reduceId: Int,
+      oldEpochId: Int,
+      oldPartition: PartitionLocation): Unit = {
     val candidates = workersNotBlacklisted(shuffleId)
-    val slots = reallocateSlotsFromCandidates(
-      List(oldPartition), candidates)
+    val slots = if (oldPartition != null) {
+      reallocateSlotsFromCandidates(List(oldPartition), candidates)
+    } else {
+      reallocateForNonExistPartitionLocation(reduceId, oldEpochId, candidates)
+    }
     if (slots == null) {
       logError("[Update partition] failed for slot not available.")
       contexts.synchronized {
@@ -509,7 +517,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     logDebug(s"Relocate partition for shuffle split ${Utils.makeShuffleKey(applicationId,
       shuffleId)}, oldPartition: $oldPartition")
 
-    handleChangePartitionLocation(shuffleSplitting, applicationId, shuffleId, reduceId,
+    handleChangePartitionLocation(shuffleSplitting, applicationId, shuffleId, reduceId, oldEpoch,
       oldPartition)
   }
 
@@ -952,55 +960,75 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     retryReserveSlotsSuccess
   }
 
-  def reallocateSlotsFromCandidates(oldPartitions: List[PartitionLocation],
-    candidates: List[WorkerInfo]): WorkerResource = {
+  private def newMapFunc =
+    new util.function.Function[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] {
+      override def apply(w: WorkerInfo): (JList[PartitionLocation], JList[PartitionLocation]) =
+        (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
+    }
+
+  private def allocateFromCandidates(
+      reduceId: Int,
+      oldEpochId: Int,
+      candidates: List[WorkerInfo],
+      slots: WorkerResource): Unit = {
+    val masterIndex = Random.nextInt(candidates.size)
+    val masterLocation = new PartitionLocation(
+      reduceId,
+      oldEpochId + 1,
+      candidates(masterIndex).host,
+      candidates(masterIndex).rpcPort,
+      candidates(masterIndex).pushPort,
+      candidates(masterIndex).fetchPort,
+      candidates(masterIndex).replicatePort,
+      PartitionLocation.Mode.Master)
+
+    if (ShouldReplicate) {
+      val slaveIndex = (masterIndex + 1) % candidates.size
+      val slaveLocation = new PartitionLocation(
+        reduceId,
+        oldEpochId + 1,
+        candidates(slaveIndex).host,
+        candidates(slaveIndex).rpcPort,
+        candidates(slaveIndex).pushPort,
+        candidates(slaveIndex).fetchPort,
+        candidates(slaveIndex).replicatePort,
+        PartitionLocation.Mode.Slave,
+        masterLocation
+      )
+      masterLocation.setPeer(slaveLocation)
+      val masterAndSlavePairs = slots.computeIfAbsent(candidates(slaveIndex), newMapFunc)
+      masterAndSlavePairs._2.add(slaveLocation)
+    }
+
+    val masterAndSlavePairs = slots.computeIfAbsent(candidates(masterIndex), newMapFunc)
+    masterAndSlavePairs._1.add(masterLocation)
+  }
+
+  def reallocateForNonExistPartitionLocation(
+      reduceId: Int,
+      oldEpochId: Int,
+      candidates: List[WorkerInfo]): WorkerResource = {
+    if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
+      logError("Not enough candidates for revive")
+      return null
+    }
+    val slots = new WorkerResource()
+    allocateFromCandidates(reduceId, oldEpochId, candidates, slots)
+    slots
+  }
+
+  def reallocateSlotsFromCandidates(
+      oldPartitions: List[PartitionLocation],
+      candidates: List[WorkerInfo]): WorkerResource = {
     if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
       logError("Not enough candidates for revive")
       return null
     }
 
-    val newMapFunc =
-      new util.function.Function[WorkerInfo,
-        (util.List[PartitionLocation], util.List[PartitionLocation])] {
-        override def apply(w: WorkerInfo):
-        (util.List[PartitionLocation], util.List[PartitionLocation]) =
-          (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
-      }
-
     val slots = new WorkerResource()
-    oldPartitions.foreach(partitionLocation => {
-      val masterIndex = Random.nextInt(candidates.size)
-      val masterLocation = new PartitionLocation(
-        partitionLocation.getReduceId,
-        partitionLocation.getEpoch + 1,
-        candidates(masterIndex).host,
-        candidates(masterIndex).rpcPort,
-        candidates(masterIndex).pushPort,
-        candidates(masterIndex).fetchPort,
-        candidates(masterIndex).replicatePort,
-        PartitionLocation.Mode.Master)
-
-      if (ShouldReplicate) {
-        val slaveIndex = (masterIndex + 1) % candidates.size
-        val slaveLocation = new PartitionLocation(
-          partitionLocation.getReduceId,
-          partitionLocation.getEpoch + 1,
-          candidates(slaveIndex).host,
-          candidates(slaveIndex).rpcPort,
-          candidates(slaveIndex).pushPort,
-          candidates(slaveIndex).fetchPort,
-          candidates(slaveIndex).replicatePort,
-          PartitionLocation.Mode.Slave,
-          masterLocation
-        )
-        masterLocation.setPeer(slaveLocation)
-        val masterAndSlavePairs = slots.computeIfAbsent(candidates(slaveIndex), newMapFunc)
-        masterAndSlavePairs._2.add(slaveLocation)
-      }
-
-      val masterAndSlavePairs = slots.computeIfAbsent(candidates(masterIndex), newMapFunc)
-      masterAndSlavePairs._1.add(masterLocation)
-    })
+    oldPartitions.foreach { partition =>
+      allocateFromCandidates(partition.getReduceId, partition.getEpoch, candidates, slots)
+    }
     slots
   }
 
