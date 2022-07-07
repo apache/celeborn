@@ -142,10 +142,7 @@ class NettyRpcEnv(
   }
 
   private def postToOutbox(receiver: NettyRpcEndpointRef, message: OutboxMessage): Unit = {
-    if (receiver.client != null) {
-      if (!receiver.client.isActive) {
-        receiver.client = clientFactory.createClient(receiver.address.host, receiver.address.port)
-      }
+    if (receiver.client != null && receiver.client.isActive) {
       message.sendWith(receiver.client)
     } else {
       require(receiver.address != null,
