@@ -338,16 +338,16 @@ sealed trait Message extends Serializable{
       failedMasterIds, failedSlaveIds) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
-        if (committedMasterIds != null) {
+        if (!committedMasterIds.isEmpty) {
           builder.addAllCommittedMasterIds(committedMasterIds)
         }
-        if (committedSlaveIds != null) {
+        if (!committedSlaveIds.isEmpty) {
           builder.addAllCommittedSlaveIds(committedSlaveIds)
         }
-        if (failedMasterIds != null) {
+        if (!failedMasterIds.isEmpty) {
           builder.addAllFailedMasterIds(failedMasterIds)
         }
-        if (failedSlaveIds != null) {
+        if (!failedSlaveIds.isEmpty) {
           builder.addAllFailedSlaveIds(failedSlaveIds)
         }
         val payload = builder.build().toByteArray
@@ -848,7 +848,7 @@ object ControlMessages extends Logging{
         val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
         CommitFiles(pbCommitFiles.getApplicationId, pbCommitFiles.getShuffleId,
           pbCommitFiles.getMasterIdsList, pbCommitFiles.getSlaveIdsList,
-          pbCommitFiles.getMapAttemptsList.asScala.map(Int.unbox(_)).toArray)
+          pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray)
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)

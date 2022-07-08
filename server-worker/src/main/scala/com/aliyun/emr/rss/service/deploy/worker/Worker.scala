@@ -431,7 +431,7 @@ private[deploy] class Worker(
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(CommitFilesResponse(
-        StatusCode.ShuffleNotRegistered, new jArrayList[String](), new jArrayList[String](),
+        StatusCode.ShuffleNotRegistered, List.empty.asJava, List.empty.asJava,
         masterIds, slaveIds))
       return
     }
@@ -475,7 +475,7 @@ private[deploy] class Worker(
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
         context.reply(CommitFilesResponse(
           StatusCode.Success, committedMasterIdList, committedSlaveIdList,
-          new jArrayList[String](), new jArrayList[String]()))
+          List.empty.asJava, List.empty.asJava))
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
