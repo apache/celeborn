@@ -1030,23 +1030,31 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     slots
   }
 
-  def destroyBuffersWithRetry(applicationId: String, shuffleId: Int,
-    worker: WorkerResource): (util.List[String], util.List[String]) = {
+  def destroyBuffersWithRetry(
+      applicationId: String,
+      shuffleId: Int,
+      worker: WorkerResource): (util.List[String], util.List[String]) = {
     val failedMasters = new util.LinkedList[String]()
     val failedSlaves = new util.LinkedList[String]()
 
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    worker.asScala.foreach(entry => {
-      var res = requestDestroy(entry._1.endpoint,
-        Destroy(shuffleKey, entry._2._1.asScala.map(_.getUniqueId).asJava,
-          entry._2._2.asScala.map(_.getUniqueId).asJava))
-      if (res.status != StatusCode.Success) {
-        res = requestDestroy(entry._1.endpoint,
-          Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
+    worker.asScala.foreach { case (workerInfo, (masterLocation, slaveLocation)) =>
+      val destroy = Destroy(shuffleKey,
+        masterLocation.asScala.map(_.getUniqueId).asJava,
+        slaveLocation.asScala.map(_.getUniqueId).asJava)
+      var res = requestDestroy(workerInfo.endpoint, destroy)
+      res.status match {
+        case StatusCode.Success => // do nothing
+        case StatusCode.PartialSuccess | StatusCode.ShuffleNotRegistered | StatusCode.Failed =>
+          logDebug(s"Request $destroy return ${res.status} for " +
+            s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
+          res = requestDestroy(workerInfo.endpoint,
+            Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
+        case _ => // won't happen
       }
-      if (null != res.failedMasters) failedMasters.addAll(res.failedMasters)
-      if (null != res.failedSlaves) failedSlaves.addAll(res.failedSlaves)
-    })
+      failedMasters.addAll(res.failedMasters)
+      failedSlaves.addAll(res.failedSlaves)
+    }
     (failedMasters, failedSlaves)
   }
 
