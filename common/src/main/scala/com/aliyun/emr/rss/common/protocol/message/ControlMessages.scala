@@ -338,18 +338,10 @@ sealed trait Message extends Serializable{
       failedMasterIds, failedSlaveIds) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
-        if (committedMasterIds != null) {
-          builder.addAllCommittedMasterIds(committedMasterIds)
-        }
-        if (committedSlaveIds != null) {
-          builder.addAllCommittedSlaveIds(committedSlaveIds)
-        }
-        if (failedMasterIds != null) {
-          builder.addAllFailedMasterIds(failedMasterIds)
-        }
-        if (failedSlaveIds != null) {
-          builder.addAllFailedSlaveIds(failedSlaveIds)
-        }
+        builder.addAllCommittedMasterIds(committedMasterIds)
+        builder.addAllCommittedSlaveIds(committedSlaveIds)
+        builder.addAllFailedMasterIds(failedMasterIds)
+        builder.addAllFailedSlaveIds(failedSlaveIds)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES_RESPONSE, payload)
 
@@ -848,7 +840,7 @@ object ControlMessages extends Logging{
         val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
         CommitFiles(pbCommitFiles.getApplicationId, pbCommitFiles.getShuffleId,
           pbCommitFiles.getMasterIdsList, pbCommitFiles.getSlaveIdsList,
-          pbCommitFiles.getMapAttemptsList.asScala.map(Int.unbox(_)).toArray)
+          pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray)
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)

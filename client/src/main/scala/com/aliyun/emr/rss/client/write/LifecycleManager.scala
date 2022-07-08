@@ -591,9 +591,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def handleStageEnd(
-    context: RpcCallContext,
-    applicationId: String,
-    shuffleId: Int): Unit = {
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int): Unit = {
     // check whether shuffle has registered
     if (!registeredShuffle.contains(shuffleId)) {
       logInfo(s"[handleStageEnd]" +
@@ -642,29 +642,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         val masterIds = masterParts.asScala.map(_.getUniqueId).asJava
         val slaveIds = slaveParts.asScala.map(_.getUniqueId).asJava
 
-        val res = requestCommitFiles(worker.endpoint,
-          CommitFiles(applicationId, shuffleId, masterIds, slaveIds,
-            shuffleMapperAttempts.get(shuffleId)))
+        val commitFiles = CommitFiles(applicationId, shuffleId, masterIds,
+          slaveIds, shuffleMapperAttempts.get(shuffleId))
+        val res = requestCommitFiles(worker.endpoint, commitFiles)
 
-        if (res.status != StatusCode.Success) {
-          commitFilesFailedWorkers.add(worker)
+        res.status match {
+          case StatusCode.Success => // do nothing
+          case StatusCode.PartialSuccess | StatusCode.ShuffleNotRegistered | StatusCode.Failed =>
+            logDebug(s"Request $commitFiles return ${res.status} for " +
+              s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
+            commitFilesFailedWorkers.add(worker)
+          case _ => // won't happen
         }
 
         // record committed partitionIds
-        if (res.committedMasterIds != null) {
-          committedMasterIds.addAll(res.committedMasterIds)
-        }
-        if (res.committedSlaveIds != null) {
-          committedSlaveIds.addAll(res.committedSlaveIds)
-        }
+        committedMasterIds.addAll(res.committedMasterIds)
+        committedSlaveIds.addAll(res.committedSlaveIds)
 
         // record failed partitions
-        if (res.failedMasterIds != null) {
-          failedMasterIds.addAll(res.failedMasterIds)
-        }
-        if (res.failedSlaveIds != null) {
-          failedSlaveIds.addAll(res.failedSlaveIds)
-        }
+        failedMasterIds.addAll(res.failedMasterIds)
+        failedSlaveIds.addAll(res.failedSlaveIds)
       }
     }
 
@@ -1134,13 +1131,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def requestCommitFiles(
-    endpoint: RpcEndpointRef, message: CommitFiles): CommitFilesResponse = {
+      endpoint: RpcEndpointRef,
+      message: CommitFiles): CommitFilesResponse = {
     try {
       endpoint.askSync[CommitFilesResponse](message)
     } catch {
       case e: Exception =>
         logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
-        CommitFilesResponse(StatusCode.Failed, null, null, message.masterIds, message.slaveIds)
+        CommitFilesResponse(StatusCode.Failed, List.empty.asJava, List.empty.asJava,
+          message.masterIds, message.slaveIds)
     }
   }
 
