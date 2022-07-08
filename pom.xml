@@ -507,9 +507,6 @@
         <spark.version>3.0.1</spark.version>
         <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -532,7 +529,7 @@
         <log4j.version>1.2.17</log4j.version>
       </properties>
       <activation>
-        <activeByDefault>true</activeByDefault>
+        <activeByDefault>false</activeByDefault>
       </activation>
       <dependencies>
         <dependency>
