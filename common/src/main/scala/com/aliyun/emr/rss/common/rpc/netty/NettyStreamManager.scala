@@ -32,7 +32,7 @@ private[rss] class NettyStreamManager(rpcEnv: NettyRpcEnv)
   private val jars = new ConcurrentHashMap[String, File]()
   private val dirs = new ConcurrentHashMap[String, File]()
 
-  override def getChunk(streamId: Long, chunkIndex: Int): ManagedBuffer = {
+  override def getChunk(streamId: Long, chunkIndex: Int, offset: Int, len: Int): ManagedBuffer = {
     throw new UnsupportedOperationException()
   }
 

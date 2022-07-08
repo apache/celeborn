@@ -142,7 +142,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       if (req instanceof RpcRequest) {
         respond(new RpcFailure(((RpcRequest)req).requestId, Throwables.getStackTraceAsString(e)));
       } else if (req instanceof ChunkFetchRequest) {
-        respond(new ChunkFetchFailure(((ChunkFetchRequest)req).streamChunkId,
+        respond(new ChunkFetchFailure(((ChunkFetchRequest)req).streamChunkSlice,
             Throwables.getStackTraceAsString(e)));
       } else if (req instanceof OneWayMessage) {
         logger.warn("Ignore OneWayMessage since worker is not registered!");
@@ -158,7 +158,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     }
     if (logger.isTraceEnabled()) {
       logger.trace("Received req from {} to fetch block {}", NettyUtils.getRemoteAddress(channel),
-        req.streamChunkId);
+        req.streamChunkSlice);
     }
     long chunksBeingTransferred = streamManager.chunksBeingTransferred();
     if (chunksBeingTransferred >= maxChunksBeingTransferred) {
@@ -172,21 +172,22 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     }
     ManagedBuffer buf;
     try {
-      streamManager.checkAuthorization(reverseClient, req.streamChunkId.streamId);
-      buf = streamManager.getChunk(req.streamChunkId.streamId, req.streamChunkId.chunkIndex);
+      streamManager.checkAuthorization(reverseClient, req.streamChunkSlice.streamId);
+      buf = streamManager.getChunk(req.streamChunkSlice.streamId, req.streamChunkSlice.chunkIndex,
+        req.streamChunkSlice.offset, req.streamChunkSlice.len);
     } catch (Exception e) {
       logger.error(String.format("Error opening block %s for request from %s",
-        req.streamChunkId, NettyUtils.getRemoteAddress(channel)), e);
-      respond(new ChunkFetchFailure(req.streamChunkId, Throwables.getStackTraceAsString(e)));
+        req.streamChunkSlice, NettyUtils.getRemoteAddress(channel)), e);
+      respond(new ChunkFetchFailure(req.streamChunkSlice, Throwables.getStackTraceAsString(e)));
       if (source != null) {
         source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
       }
       return;
     }
 
-    streamManager.chunkBeingSent(req.streamChunkId.streamId);
-    respond(new ChunkFetchSuccess(req.streamChunkId, buf)).addListener(future -> {
-      streamManager.chunkSent(req.streamChunkId.streamId);
+    streamManager.chunkBeingSent(req.streamChunkSlice.streamId);
+    respond(new ChunkFetchSuccess(req.streamChunkSlice, buf)).addListener(future -> {
+      streamManager.chunkSent(req.streamChunkSlice.streamId);
       if (source != null) {
         source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
       }

@@ -59,18 +59,14 @@ public class TransportRequestHandlerSuiteJ {
     managedBuffers.add(new TestManagedBuffer(30));
     managedBuffers.add(new TestManagedBuffer(40));
 
-    ManagedBufferIterator iterator = Mockito.mock(ManagedBufferIterator.class);
-    Mockito.when(iterator.chunk(Mockito.anyInt()))
+    FileManagedBuffers iterator = Mockito.mock(FileManagedBuffers.class);
+    Mockito.when(iterator.chunk(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt()))
       .thenReturn(managedBuffers.get(0))
       .thenReturn(managedBuffers.get(1))
       .thenReturn(managedBuffers.get(2))
       .thenReturn(managedBuffers.get(3));
-    Mockito.when(iterator.hasNext())
-      .thenReturn(true).thenReturn(true)
-      .thenReturn(true).thenReturn(true)
-      .thenReturn(true).thenReturn(true)
-      .thenReturn(true).thenReturn(true)
-      .thenReturn(false);
+    Mockito.when(iterator.numChunks())
+      .thenReturn(4);
 
     long streamId = streamManager.registerStream("test-app", iterator, channel);
 
@@ -80,14 +76,14 @@ public class TransportRequestHandlerSuiteJ {
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, reverseClient,
       rpcHandler, 2L);
 
-    RequestMessage request0 = new ChunkFetchRequest(new StreamChunkId(streamId, 0));
+    RequestMessage request0 = new ChunkFetchRequest(new StreamChunkSlice(streamId, 0));
     requestHandler.handle(request0);
     assert responseAndPromisePairs.size() == 1;
     assert responseAndPromisePairs.get(0).getLeft() instanceof ChunkFetchSuccess;
     assert ((ChunkFetchSuccess) (responseAndPromisePairs.get(0).getLeft())).body() ==
       managedBuffers.get(0);
 
-    RequestMessage request1 = new ChunkFetchRequest(new StreamChunkId(streamId, 1));
+    RequestMessage request1 = new ChunkFetchRequest(new StreamChunkSlice(streamId, 1));
     requestHandler.handle(request1);
     assert responseAndPromisePairs.size() == 2;
     assert responseAndPromisePairs.get(1).getLeft() instanceof ChunkFetchSuccess;
