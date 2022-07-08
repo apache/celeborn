@@ -55,7 +55,7 @@ public class RpcIntegrationSuiteJ {
     testData = new StreamTestHelper();
     rpcHandler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
@@ -71,7 +71,7 @@ public class RpcIntegrationSuiteJ {
       }
 
       @Override
-      public void receive(TransportClient client, ByteBuffer message) {
+      public void receiveRpc(TransportClient client, ByteBuffer message) {
         oneWayMsgs.add(JavaUtils.bytesToString(message));
       }
 

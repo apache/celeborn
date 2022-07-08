@@ -113,7 +113,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   public void handle(RequestMessage request) {
     if (request instanceof ChunkFetchRequest) {
       if (checkRegistered(request)) {
-        processFetchRequest((ChunkFetchRequest) request);
+        rpcHandler.receiveRequestMessage(reverseClient, request);
       }
     } else if (request instanceof RpcRequest) {
       if (checkRegistered(request)) {
@@ -152,51 +152,9 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     return true;
   }
 
-  private void processFetchRequest(final ChunkFetchRequest req) {
-    if (source != null) {
-      source.startTimer(NetWorkSource.FetchChunkTime(), req.toString());
-    }
-    if (logger.isTraceEnabled()) {
-      logger.trace("Received req from {} to fetch block {}", NettyUtils.getRemoteAddress(channel),
-        req.streamChunkSlice);
-    }
-    long chunksBeingTransferred = streamManager.chunksBeingTransferred();
-    if (chunksBeingTransferred >= maxChunksBeingTransferred) {
-      logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
-        chunksBeingTransferred, maxChunksBeingTransferred);
-      channel.close();
-      if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
-      }
-      return;
-    }
-    ManagedBuffer buf;
-    try {
-      streamManager.checkAuthorization(reverseClient, req.streamChunkSlice.streamId);
-      buf = streamManager.getChunk(req.streamChunkSlice.streamId, req.streamChunkSlice.chunkIndex,
-        req.streamChunkSlice.offset, req.streamChunkSlice.len);
-    } catch (Exception e) {
-      logger.error(String.format("Error opening block %s for request from %s",
-        req.streamChunkSlice, NettyUtils.getRemoteAddress(channel)), e);
-      respond(new ChunkFetchFailure(req.streamChunkSlice, Throwables.getStackTraceAsString(e)));
-      if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
-      }
-      return;
-    }
-
-    streamManager.chunkBeingSent(req.streamChunkSlice.streamId);
-    respond(new ChunkFetchSuccess(req.streamChunkSlice, buf)).addListener(future -> {
-      streamManager.chunkSent(req.streamChunkSlice.streamId);
-      if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
-      }
-    });
-  }
-
   private void processRpcRequest(final RpcRequest req) {
     try {
-      rpcHandler.receive(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
+      rpcHandler.receiveRpc(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
         @Override
         public void onSuccess(ByteBuffer response) {
           respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
@@ -264,7 +222,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processOneWayMessage(OneWayMessage req) {
     try {
-      rpcHandler.receive(reverseClient, req.body().nioByteBuffer());
+      rpcHandler.receiveRpc(reverseClient, req.body().nioByteBuffer());
     } catch (Exception e) {
       logger.error("Error while invoking RpcHandler#receive() for one-way message.", e);
     } finally {
@@ -284,7 +242,6 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       } else {
         logger.warn(String.format("Fail to sending result %s to %s; closing connection",
           result, remoteAddress), future.cause());
-        channel.close();
       }
     });
   }

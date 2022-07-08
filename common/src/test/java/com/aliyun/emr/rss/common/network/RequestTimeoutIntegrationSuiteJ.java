@@ -92,7 +92,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     final int responseSize = 16;
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
@@ -139,7 +139,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     final int responseSize = 16;
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
@@ -195,7 +195,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     };
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {

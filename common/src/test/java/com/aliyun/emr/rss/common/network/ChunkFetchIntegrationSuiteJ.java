@@ -98,7 +98,7 @@ public class ChunkFetchIntegrationSuiteJ {
     };
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
