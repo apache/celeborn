@@ -263,7 +263,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val res = requestSlotsWithRetry(applicationId, shuffleId, reduceIdList)
     res.status match {
       case StatusCode.Failed =>
-        logError(s"OfferSlots RPC request failed for $shuffleId failed!")
+        logError(s"OfferSlots RPC request failed for $shuffleId!")
         registerShuffleRequest.synchronized {
           val set = registerShuffleRequest.get(shuffleId)
           set.asScala.foreach { context =>
