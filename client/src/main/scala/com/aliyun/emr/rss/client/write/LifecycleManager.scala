@@ -563,8 +563,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def handleGetReducerFileGroup(
-    context: RpcCallContext,
-    shuffleId: Int): Unit = {
+      context: RpcCallContext,
+      shuffleId: Int): Unit = {
     logDebug(s"Wait for StageEnd, $shuffleId.")
     var timeout = RssConf.stageEndTimeout(conf)
     val delta = 50
@@ -572,20 +572,21 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       Thread.sleep(50)
       if (timeout <= 0) {
         logError(s"StageEnd Timeout! $shuffleId.")
-        context.reply(GetReducerFileGroupResponse(StatusCode.Failed, null, null))
+        context.reply(
+          GetReducerFileGroupResponse(StatusCode.StageEndTimeOut, Array.empty, Array.empty))
         return
       }
       timeout = timeout - delta
     }
 
     if (dataLostShuffleSet.contains(shuffleId)) {
-      context.reply(GetReducerFileGroupResponse(StatusCode.Failed, null, null))
+      context.reply(
+        GetReducerFileGroupResponse(StatusCode.ShuffleDataLost, Array.empty, Array.empty))
     } else {
-      val shuffleFileGroup = reducerFileGroupsMap.get(shuffleId)
       context.reply(GetReducerFileGroupResponse(
         StatusCode.Success,
-        shuffleFileGroup,
-        shuffleMapperAttempts.get(shuffleId)
+        reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+        shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)
       ))
     }
   }
