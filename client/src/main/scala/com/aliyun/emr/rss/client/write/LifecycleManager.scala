@@ -1075,16 +1075,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def handleGetBlacklist(msg: GetBlacklist): Unit = {
     val res = requestGetBlacklist(rssHARetryClient, msg)
-    res.statusCode match {
-      case StatusCode.Success =>
-        logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
-          s"unkown workers: ${res.unknownWorkers}")
-        blacklist.clear()
-        blacklist.addAll(res.blacklist)
-        blacklist.addAll(res.unknownWorkers)
-      case StatusCode.Failed =>
-        logError(s"GetBlacklist RPC request failed!")
-      case _ => // won't happen
+    if (res.statusCode == StatusCode.Success) {
+      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
+        s"unkown workers: ${res.unknownWorkers}")
+      blacklist.clear()
+      blacklist.addAll(res.blacklist)
+      blacklist.addAll(res.unknownWorkers)
     }
   }
 
