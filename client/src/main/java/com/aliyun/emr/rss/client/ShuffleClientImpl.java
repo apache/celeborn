@@ -853,12 +853,12 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroupResponse response =
           driverRssMetaService.<GetReducerFileGroupResponse>askSync(getReducerFileGroup, classTag);
 
-        if (response != null && response.status() == StatusCode.Success) {
+        if (response.status() == StatusCode.Success) {
           return new ReduceFileGroups(response.fileGroup(), response.attempts());
-        } else if (response != null && response.status() == StatusCode.StageEndTimeOut) {
+        } else if (response.status() == StatusCode.StageEndTimeOut) {
           logger.warn("Request {} return {} for {}",
             getReducerFileGroup, StatusCode.StageEndTimeOut.toString(), shuffleKey);
-        } else if (response != null && response.status() == StatusCode.ShuffleDataLost) {
+        } else if (response.status() == StatusCode.ShuffleDataLost) {
           logger.warn("Request {} return {} for {}",
             getReducerFileGroup, StatusCode.ShuffleDataLost.toString(), shuffleKey);
         }
