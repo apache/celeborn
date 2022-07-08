@@ -261,26 +261,23 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val reduceIdList = new util.ArrayList[Integer]
     (0 until numPartitions).foreach(x => reduceIdList.add(new Integer(x)))
     val res = requestSlotsWithRetry(applicationId, shuffleId, reduceIdList)
+
+    def reply(response: RegisterShuffleResponse): Unit = {
+      registerShuffleRequest.synchronized {
+        val set = registerShuffleRequest.get(shuffleId)
+        set.asScala.foreach(_.reply(response))
+        registerShuffleRequest.remove(shuffleId)
+      }
+    }
+
     res.status match {
       case StatusCode.Failed =>
         logError(s"OfferSlots RPC request failed for $shuffleId!")
-        registerShuffleRequest.synchronized {
-          val set = registerShuffleRequest.get(shuffleId)
-          set.asScala.foreach { context =>
-            context.reply(RegisterShuffleResponse(StatusCode.Failed, List.empty.asJava))
-          }
-          registerShuffleRequest.remove(shuffleId)
-        }
+        reply(RegisterShuffleResponse(StatusCode.Failed, List.empty.asJava))
         return
       case StatusCode.SlotNotAvailable =>
         logError(s"OfferSlots for $shuffleId failed!")
-        registerShuffleRequest.synchronized {
-          val set = registerShuffleRequest.get(shuffleId)
-          set.asScala.foreach { context =>
-            context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, List.empty.asJava))
-          }
-          registerShuffleRequest.remove(shuffleId)
-        }
+        reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, List.empty.asJava))
         return
       case StatusCode.Success =>
         logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
@@ -318,13 +315,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // reserve buffers failed, clear allocated resources
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
-      registerShuffleRequest.synchronized {
-        val set = registerShuffleRequest.get(shuffleId)
-        set.asScala.foreach { context =>
-          context.reply(RegisterShuffleResponse(StatusCode.ReserveSlotFailed, List.empty.asJava))
-        }
-        registerShuffleRequest.remove(shuffleId)
-      }
+      reply(RegisterShuffleResponse(StatusCode.ReserveSlotFailed, List.empty.asJava))
       // tell Master to release slots
       requestReleaseSlots(rssHARetryClient, ReleaseSlots(applicationId, shuffleId,
         new util.ArrayList[String](), new util.ArrayList[Integer]()))
@@ -364,13 +355,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     reducerFileGroupsMap.put(shuffleId, new Array[Array[PartitionLocation]](numPartitions))
 
     logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
-    registerShuffleRequest.synchronized {
-      val set = registerShuffleRequest.get(shuffleId)
-      set.asScala.foreach { context =>
-        context.reply(RegisterShuffleResponse(StatusCode.Success, locations.asJava))
-      }
-      registerShuffleRequest.remove(shuffleId)
-    }
+    reply(RegisterShuffleResponse(StatusCode.Success, locations.asJava))
   }
 
   def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
