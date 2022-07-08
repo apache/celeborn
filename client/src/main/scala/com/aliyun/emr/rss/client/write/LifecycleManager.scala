@@ -1079,12 +1079,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unkown workers: ${res.unknownWorkers}")
       blacklist.clear()
-      if (res.blacklist != null) {
-        blacklist.addAll(res.blacklist)
-      }
-      if (res.unknownWorkers != null) {
-        blacklist.addAll(res.unknownWorkers)
-      }
+      blacklist.addAll(res.blacklist)
+      blacklist.addAll(res.unknownWorkers)
     }
   }
 
@@ -1171,14 +1167,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestGetBlacklist(rssHARetryClient: RssHARetryClient,
-    msg: GetBlacklist): GetBlacklistResponse = {
+  private def requestGetBlacklist(
+      rssHARetryClient: RssHARetryClient,
+      msg: GetBlacklist): GetBlacklistResponse = {
     try {
       rssHARetryClient.askSync[GetBlacklistResponse](msg, classOf[GetBlacklistResponse])
     } catch {
       case e: Exception =>
         logError(s"AskSync GetBlacklist failed.", e)
-        GetBlacklistResponse(StatusCode.Failed, null, null)
+        GetBlacklistResponse(StatusCode.Failed, List.empty.asJava, List.empty.asJava)
     }
   }
 

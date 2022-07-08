@@ -255,7 +255,7 @@ sealed trait Message extends Serializable{
 
       case GetBlacklist(localBlacklist) =>
         val payload = TransportMessages.PbGetBlacklist.newBuilder()
-          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_))
+          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo)
             .toList.asJava)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST, payload)
@@ -263,12 +263,12 @@ sealed trait Message extends Serializable{
       case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
         val builder = TransportMessages.PbGetBlacklistResponse.newBuilder()
           .setStatus(statusCode.getValue)
-        if (blacklist != null) {
-          builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+        if (!blacklist.isEmpty) {
+          builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
         }
-        if (unknownWorkers != null) {
+        if (!unknownWorkers.isEmpty) {
           builder.addAllUnknownWorkers(unknownWorkers.asScala
-            .map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+            .map(WorkerInfo.toPbWorkerInfo).toList.asJava)
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
@@ -793,21 +793,16 @@ object ControlMessages extends Logging{
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
-          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava))
+        GetBlacklist(pbGetBlacklist.getLocalBlackListList.asScala
+          .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
-        val blacklist = if (pbGetBlacklistResponse.getBlacklistCount > 0) {
-          pbGetBlacklistResponse.getBlacklistList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava
-        } else null
-        val unkownList = if (pbGetBlacklistResponse.getUnknownWorkersCount > 0) {
-          pbGetBlacklistResponse.getUnknownWorkersList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava
-        } else null
         GetBlacklistResponse(Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
-          blacklist, unkownList)
+          pbGetBlacklistResponse.getBlacklistList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava,
+          pbGetBlacklistResponse.getUnknownWorkersList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
       case GET_CLUSTER_LOAD_STATUS =>
         val pbGetClusterLoadStats = PbGetClusterLoadStatus.parseFrom(message.getPayload)
