@@ -338,18 +338,10 @@ sealed trait Message extends Serializable{
       failedMasterIds, failedSlaveIds) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
-        if (!committedMasterIds.isEmpty) {
-          builder.addAllCommittedMasterIds(committedMasterIds)
-        }
-        if (!committedSlaveIds.isEmpty) {
-          builder.addAllCommittedSlaveIds(committedSlaveIds)
-        }
-        if (!failedMasterIds.isEmpty) {
-          builder.addAllFailedMasterIds(failedMasterIds)
-        }
-        if (!failedSlaveIds.isEmpty) {
-          builder.addAllFailedSlaveIds(failedSlaveIds)
-        }
+        builder.addAllCommittedMasterIds(committedMasterIds)
+        builder.addAllCommittedSlaveIds(committedSlaveIds)
+        builder.addAllFailedMasterIds(failedMasterIds)
+        builder.addAllFailedSlaveIds(failedSlaveIds)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES_RESPONSE, payload)
 
