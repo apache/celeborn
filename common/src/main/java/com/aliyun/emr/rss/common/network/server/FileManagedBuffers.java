@@ -20,13 +20,12 @@ package com.aliyun.emr.rss.common.network.server;
 import java.io.File;
 import java.io.IOException;
 import java.util.BitSet;
-import java.util.Iterator;
 
 import com.aliyun.emr.rss.common.network.buffer.FileSegmentManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
-public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
+public class FileManagedBuffers {
   private final File file;
   private final long[] offsets;
   private final int numChunks;
@@ -34,9 +33,9 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
   private final BitSet chunkTracker;
   private final TransportConf conf;
 
-  private int index = 0;
+  private volatile boolean fullyRead = false;
 
-  public ManagedBufferIterator(FileInfo fileInfo, TransportConf conf) throws IOException {
+  public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) throws IOException {
     file = fileInfo.file;
     numChunks = fileInfo.numChunks;
     if (numChunks > 0) {
@@ -53,11 +52,8 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
     this.conf = conf;
   }
 
-  @Override
-  public boolean hasNext() {
-    synchronized (chunkTracker) {
-      return chunkTracker.cardinality() < numChunks;
-    }
+  public int numChunks() {
+    return numChunks;
   }
 
   public boolean hasAlreadyRead(int chunkIndex) {
@@ -66,23 +62,27 @@ public class ManagedBufferIterator implements Iterator<ManagedBuffer> {
     }
   }
 
-  @Override
-  public ManagedBuffer next() {
-    // This method is only used to clear the Managed Buffer when streamManager.connectionTerminated
-    // is called.
-    synchronized (chunkTracker) {
-      index = chunkTracker.nextClearBit(index);
-    }
-    assert index < numChunks;
-    return chunk(index);
-  }
-
-  public ManagedBuffer chunk(int chunkIndex) {
+  public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
     synchronized (chunkTracker) {
       chunkTracker.set(chunkIndex, true);
     }
-    final long offset = offsets[chunkIndex];
-    final long length = offsets[chunkIndex + 1] - offset;
-    return new FileSegmentManagedBuffer(conf, file, offset, length);
+    // offset of the beginning of the chunk in the file
+    final long chunkOffset = offsets[chunkIndex];
+    final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
+    assert offset < chunkLength;
+    long length = Math.min(chunkLength - offset, len);
+    if (len + offset >= chunkLength) {
+      synchronized (chunkTracker) {
+        chunkTracker.set(chunkIndex);
+      }
+      if (chunkIndex == numChunks - 1) {
+        fullyRead = true;
+      }
+    }
+    return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+  }
+
+  public boolean isFullyRead() {
+    return fullyRead;
   }
 }

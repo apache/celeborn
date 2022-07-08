@@ -85,7 +85,7 @@ public class ChunkFetchIntegrationSuiteJ {
 
     streamManager = new StreamManager() {
       @Override
-      public ManagedBuffer getChunk(long streamId, int chunkIndex) {
+      public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
         assertEquals(STREAM_ID, streamId);
         if (chunkIndex == BUFFER_CHUNK_INDEX) {
           return new NioManagedBuffer(buf);

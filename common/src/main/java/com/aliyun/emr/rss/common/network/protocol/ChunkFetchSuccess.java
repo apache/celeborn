@@ -31,11 +31,11 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
  * Similarly, the client-side decoding will reuse the Netty ByteBuf as the buffer.
  */
 public final class ChunkFetchSuccess extends AbstractResponseMessage {
-  public final StreamChunkId streamChunkId;
+  public final StreamChunkSlice streamChunkSlice;
 
-  public ChunkFetchSuccess(StreamChunkId streamChunkId, ManagedBuffer buffer) {
+  public ChunkFetchSuccess(StreamChunkSlice streamChunkSlice, ManagedBuffer buffer) {
     super(buffer, true);
-    this.streamChunkId = streamChunkId;
+    this.streamChunkSlice = streamChunkSlice;
   }
 
   @Override
@@ -43,38 +43,38 @@ public final class ChunkFetchSuccess extends AbstractResponseMessage {
 
   @Override
   public int encodedLength() {
-    return streamChunkId.encodedLength();
+    return streamChunkSlice.encodedLength();
   }
 
   /** Encoding does NOT include 'buffer' itself. See {@link MessageEncoder}. */
   @Override
   public void encode(ByteBuf buf) {
-    streamChunkId.encode(buf);
+    streamChunkSlice.encode(buf);
   }
 
   @Override
   public ResponseMessage createFailureResponse(String error) {
-    return new ChunkFetchFailure(streamChunkId, error);
+    return new ChunkFetchFailure(streamChunkSlice, error);
   }
 
   /** Decoding uses the given ByteBuf as our data, and will retain() it. */
   public static ChunkFetchSuccess decode(ByteBuf buf) {
-    StreamChunkId streamChunkId = StreamChunkId.decode(buf);
+    StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
     buf.retain();
     NettyManagedBuffer managedBuf = new NettyManagedBuffer(buf.duplicate());
-    return new ChunkFetchSuccess(streamChunkId, managedBuf);
+    return new ChunkFetchSuccess(streamChunkSlice, managedBuf);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamChunkId, body());
+    return Objects.hashCode(streamChunkSlice, body());
   }
 
   @Override
   public boolean equals(Object other) {
     if (other instanceof ChunkFetchSuccess) {
       ChunkFetchSuccess o = (ChunkFetchSuccess) other;
-      return streamChunkId.equals(o.streamChunkId) && super.equals(o);
+      return streamChunkSlice.equals(o.streamChunkSlice) && super.equals(o);
     }
     return false;
   }
@@ -82,7 +82,7 @@ public final class ChunkFetchSuccess extends AbstractResponseMessage {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkId)
+      .add("streamChunkId", streamChunkSlice)
       .add("buffer", body())
       .toString();
   }

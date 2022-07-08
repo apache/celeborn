@@ -41,7 +41,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   private final Channel channel;
 
-  private final Map<StreamChunkId, ChunkReceivedCallback> outstandingFetches;
+  private final Map<StreamChunkSlice, ChunkReceivedCallback> outstandingFetches;
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
 
@@ -55,13 +55,13 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.timeOfLastRequestNs = new AtomicLong(0);
   }
 
-  public void addFetchRequest(StreamChunkId streamChunkId, ChunkReceivedCallback callback) {
+  public void addFetchRequest(StreamChunkSlice streamChunkSlice, ChunkReceivedCallback callback) {
     updateTimeOfLastRequest();
-    outstandingFetches.put(streamChunkId, callback);
+    outstandingFetches.put(streamChunkSlice, callback);
   }
 
-  public void removeFetchRequest(StreamChunkId streamChunkId) {
-    outstandingFetches.remove(streamChunkId);
+  public void removeFetchRequest(StreamChunkSlice streamChunkSlice) {
+    outstandingFetches.remove(streamChunkSlice);
   }
 
   public void addRpcRequest(long requestId, RpcResponseCallback callback) {
@@ -78,7 +78,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
    * uncaught exception or pre-mature connection termination.
    */
   private void failOutstandingRequests(Throwable cause) {
-    for (Map.Entry<StreamChunkId, ChunkReceivedCallback> entry : outstandingFetches.entrySet()) {
+    for (Map.Entry<StreamChunkSlice, ChunkReceivedCallback> entry : outstandingFetches.entrySet()) {
       try {
         entry.getValue().onFailure(entry.getKey().chunkIndex, cause);
       } catch (Exception e) {
@@ -126,26 +126,26 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   public void handle(ResponseMessage message) throws Exception {
     if (message instanceof ChunkFetchSuccess) {
       ChunkFetchSuccess resp = (ChunkFetchSuccess) message;
-      ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkId);
+      ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkSlice);
       if (listener == null) {
         logger.warn("Ignoring response for block {} from {} since it is not outstanding",
-          resp.streamChunkId, NettyUtils.getRemoteAddress(channel));
+          resp.streamChunkSlice, NettyUtils.getRemoteAddress(channel));
         resp.body().release();
       } else {
-        outstandingFetches.remove(resp.streamChunkId);
-        listener.onSuccess(resp.streamChunkId.chunkIndex, resp.body());
+        outstandingFetches.remove(resp.streamChunkSlice);
+        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
         resp.body().release();
       }
     } else if (message instanceof ChunkFetchFailure) {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
-      ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkId);
+      ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkSlice);
       if (listener == null) {
         logger.warn("Ignoring response for block {} from {} ({}) since it is not outstanding",
-          resp.streamChunkId, NettyUtils.getRemoteAddress(channel), resp.errorString);
+          resp.streamChunkSlice, NettyUtils.getRemoteAddress(channel), resp.errorString);
       } else {
-        outstandingFetches.remove(resp.streamChunkId);
-        listener.onFailure(resp.streamChunkId.chunkIndex, new ChunkFetchFailureException(
-          "Failure while fetching " + resp.streamChunkId + ": " + resp.errorString));
+        outstandingFetches.remove(resp.streamChunkSlice);
+        listener.onFailure(resp.streamChunkSlice.chunkIndex, new ChunkFetchFailureException(
+          "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
