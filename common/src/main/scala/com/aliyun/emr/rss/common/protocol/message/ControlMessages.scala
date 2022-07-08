@@ -364,12 +364,8 @@ sealed trait Message extends Serializable{
       case DestroyResponse(status, failedMasters, failedSlaves) =>
         val builder = TransportMessages.PbDestroyResponse.newBuilder()
           .setStatus(status.getValue)
-        if (!failedMasters.isEmpty) {
-          builder.addAllFailedMasters(failedMasters)
-        }
-        if (!failedSlaves.isEmpty) {
-          builder.addAllFailedSlaves(failedSlaves)
-        }
+        builder.addAllFailedMasters(failedMasters)
+        builder.addAllFailedSlaves(failedSlaves)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.DESTROY_RESPONSE, payload)
 
