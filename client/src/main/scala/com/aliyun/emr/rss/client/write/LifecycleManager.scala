@@ -271,6 +271,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           }
           registerShuffleRequest.remove(shuffleId)
         }
+        return
       case StatusCode.SlotNotAvailable =>
         logError(s"OfferSlots for $shuffleId failed!")
         registerShuffleRequest.synchronized {
