@@ -271,22 +271,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         registerShuffleRequest.remove(shuffleId)
       }
       return
-    } else if (res.workerResource.isEmpty && numPartitions > 0) {
-      logError(s"OfferSlots for $shuffleId success but return empty slots!")
-      registerShuffleRequest.synchronized {
-        val set = registerShuffleRequest.get(shuffleId)
-        set.asScala.foreach { context =>
-          context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, null))
-        }
-        registerShuffleRequest.remove(shuffleId)
-      }
-      return
     } else {
       logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
       logDebug(s" Slots Info: ${res.workerResource}")
     }
 
-    // reserve buffers
+    // Reserve slots for each PartitionLocation. When response status is SUCCESS, WorkerResource
+    // won't be empty since master will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
     val connectFailedWorkers = new util.ArrayList[WorkerInfo]()
@@ -1127,7 +1118,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       endpoint.askSync[DestroyResponse](message)
     } catch {
       case e: Exception =>
-        logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
+        logError(s"AskSync Destroy for ${message.shufy} failed.", e)
         DestroyResponse(StatusCode.Failed, message.masterLocations, message.slaveLocations)
     }
   }
