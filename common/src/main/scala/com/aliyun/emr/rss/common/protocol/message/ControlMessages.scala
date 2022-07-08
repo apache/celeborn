@@ -88,9 +88,9 @@ sealed trait Message extends Serializable{
       case RegisterShuffleResponse(status, partitionLocations) =>
         val builder = TransportMessages.PbRegisterShuffleResponse.newBuilder()
           .setStatus(status.getValue)
-        if (partitionLocations != null) {
+        if (!partitionLocations.isEmpty) {
           builder.addAllPartitionLocations(partitionLocations.iterator().asScala
-            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
@@ -125,7 +125,7 @@ sealed trait Message extends Serializable{
       case RequestSlotsResponse(status, workerResource) =>
         val builder = TransportMessages.PbRequestSlotsResponse.newBuilder()
           .setStatus(status.getValue)
-        if (workerResource != null) {
+        if (!workerResource.isEmpty) {
           builder.putAllWorkerResource(
             Utils.convertWorkerResourceToPbWorkerResource(workerResource))
         }
@@ -695,7 +695,7 @@ object ControlMessages extends Logging{
         val partitionLocations = new util.ArrayList[PartitionLocation]()
         if (pbRegisterShuffleResponse.getPartitionLocationsCount > 0) {
           partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
-            .asScala.map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+            .asScala.map(PartitionLocation.fromPbPartitionLocation).toList.asJava)
         }
         RegisterShuffleResponse(Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
           partitionLocations)
@@ -719,12 +719,9 @@ object ControlMessages extends Logging{
 
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
-        val workerResource = if (pbRequestSlotsResponse.getWorkerResourceCount > 0) {
-          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap)
-        } else {
-          null
-        }
-        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus), workerResource)
+        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
+          Utils.convertPbWorkerResourceToWorkerResource(
+            pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
