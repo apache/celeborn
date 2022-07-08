@@ -257,6 +257,12 @@ public class ShuffleClientImpl extends ShuffleClient {
             result.put(partitionLoc.getReduceId(), partitionLoc);
           }
           return result;
+        } else if (response.status().equals(StatusCode.SlotNotAvailable)) {
+          logger.warn("LifecycleManager request slots return {}, retry again," +
+              " remain retry times {}", StatusCode.SlotNotAvailable.toString(), numRetries - 1);
+        } else {
+          logger.error("LifecycleManager request slots return {}, retry again," +
+              " remain retry times {}", StatusCode.Failed.toString(), numRetries - 1);
         }
       } catch (Exception e) {
         logger.error("Exception raised while registering shuffle {} with {} mapper and" +

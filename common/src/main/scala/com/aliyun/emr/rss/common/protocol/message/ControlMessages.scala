@@ -88,9 +88,9 @@ sealed trait Message extends Serializable{
       case RegisterShuffleResponse(status, partitionLocations) =>
         val builder = TransportMessages.PbRegisterShuffleResponse.newBuilder()
           .setStatus(status.getValue)
-        if (partitionLocations != null) {
+        if (!partitionLocations.isEmpty) {
           builder.addAllPartitionLocations(partitionLocations.iterator().asScala
-            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
@@ -695,7 +695,7 @@ object ControlMessages extends Logging{
         val partitionLocations = new util.ArrayList[PartitionLocation]()
         if (pbRegisterShuffleResponse.getPartitionLocationsCount > 0) {
           partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
-            .asScala.map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+            .asScala.map(PartitionLocation.fromPbPartitionLocation).toList.asJava)
         }
         RegisterShuffleResponse(Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
           partitionLocations)

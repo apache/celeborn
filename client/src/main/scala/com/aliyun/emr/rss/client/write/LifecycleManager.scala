@@ -261,19 +261,30 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val reduceIdList = new util.ArrayList[Integer]
     (0 until numPartitions).foreach(x => reduceIdList.add(new Integer(x)))
     val res = requestSlotsWithRetry(applicationId, shuffleId, reduceIdList)
-    if (res.status != StatusCode.Success) {
-      logError(s"OfferSlots for $shuffleId failed!")
-      registerShuffleRequest.synchronized {
-        val set = registerShuffleRequest.get(shuffleId)
-        set.asScala.foreach { context =>
-          context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, null))
+    res.status match {
+      case StatusCode.Failed =>
+        logError(s"OfferSlots RPC request failed for $shuffleId failed!")
+        registerShuffleRequest.synchronized {
+          val set = registerShuffleRequest.get(shuffleId)
+          set.asScala.foreach { context =>
+            context.reply(RegisterShuffleResponse(StatusCode.Failed, List.empty.asJava))
+          }
+          registerShuffleRequest.remove(shuffleId)
         }
-        registerShuffleRequest.remove(shuffleId)
-      }
-      return
-    } else {
-      logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
-      logDebug(s" Slots Info: ${res.workerResource}")
+      case StatusCode.SlotNotAvailable =>
+        logError(s"OfferSlots for $shuffleId failed!")
+        registerShuffleRequest.synchronized {
+          val set = registerShuffleRequest.get(shuffleId)
+          set.asScala.foreach { context =>
+            context.reply(RegisterShuffleResponse(StatusCode.SlotNotAvailable, List.empty.asJava))
+          }
+          registerShuffleRequest.remove(shuffleId)
+        }
+        return
+      case StatusCode.Success =>
+        logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
+        logDebug(s" Slots Info: ${res.workerResource}")
+      case _ => // won't happen
     }
 
     // Reserve slots for each PartitionLocation. When response status is SUCCESS, WorkerResource
@@ -309,7 +320,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       registerShuffleRequest.synchronized {
         val set = registerShuffleRequest.get(shuffleId)
         set.asScala.foreach { context =>
-          context.reply(RegisterShuffleResponse(StatusCode.ReserveSlotFailed, null))
+          context.reply(RegisterShuffleResponse(StatusCode.ReserveSlotFailed, List.empty.asJava))
         }
         registerShuffleRequest.remove(shuffleId)
       }
