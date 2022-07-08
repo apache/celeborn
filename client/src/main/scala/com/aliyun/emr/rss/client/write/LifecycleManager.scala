@@ -1096,7 +1096,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync RegisterShuffle for $shuffleKey failed.", e)
-        RequestSlotsResponse(StatusCode.Failed, null)
+        RequestSlotsResponse(StatusCode.Failed, new WorkerResource())
     }
   }
 
