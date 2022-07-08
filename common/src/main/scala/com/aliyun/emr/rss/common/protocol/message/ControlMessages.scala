@@ -182,16 +182,12 @@ sealed trait Message extends Serializable{
       case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
         val builder = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
           .setStatus(status.getValue)
-        if (!fileGroup.isEmpty) {
-          builder.addAllFileGroup(fileGroup.map { arr =>
-            PbFileGroup.newBuilder()
-              .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation).toIterable.asJava)
-              .build()
-          }.toIterable.asJava)
-        }
-        if (!attempts.isEmpty) {
-          builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
-        }
+        builder.addAllFileGroup(fileGroup.map { arr =>
+          PbFileGroup.newBuilder()
+            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation).toIterable.asJava)
+            .build()
+        }.toIterable.asJava)
+        builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
