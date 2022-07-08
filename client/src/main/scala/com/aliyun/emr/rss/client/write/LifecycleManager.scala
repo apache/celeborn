@@ -1118,7 +1118,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       endpoint.askSync[DestroyResponse](message)
     } catch {
       case e: Exception =>
-        logError(s"AskSync Destroy for ${message.shufy} failed.", e)
+        logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
         DestroyResponse(StatusCode.Failed, message.masterLocations, message.slaveLocations)
     }
   }
