@@ -46,7 +46,7 @@ public final class PushDataRpcHandler extends RpcHandler {
   }
 
   @Override
-  public void receive(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
+  public void receiveRpc(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
     throw new UnsupportedOperationException("PushDataRpcHandler");
   }
 

@@ -523,7 +523,7 @@ private[rss] class NettyRpcHandler(
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
 
-  override def receive(
+  override def receiveRpc(
       client: TransportClient,
       message: ByteBuffer,
       callback: RpcResponseCallback): Unit = {
@@ -531,7 +531,7 @@ private[rss] class NettyRpcHandler(
     dispatcher.postRemoteMessage(messageToDispatch, callback)
   }
 
-  override def receive(
+  override def receiveRpc(
       client: TransportClient,
       message: ByteBuffer): Unit = {
     val messageToDispatch = internalReceive(client, message)

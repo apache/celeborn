@@ -37,11 +37,16 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
+import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
+import com.aliyun.emr.rss.common.network.protocol.StreamChunkSlice;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
+
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
@@ -92,7 +97,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     final int responseSize = 16;
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
@@ -139,7 +144,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     final int responseSize = 16;
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
@@ -195,11 +200,21 @@ public class RequestTimeoutIntegrationSuiteJ {
     };
     RpcHandler handler = new RpcHandler() {
       @Override
-      public void receive(
+      public void receiveRpc(
           TransportClient client,
           ByteBuffer message,
           RpcResponseCallback callback) {
         throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void receiveRequestMessage(
+        TransportClient client,
+        RequestMessage msg) {
+        StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+        ManagedBuffer buf = manager.getChunk(slice.streamId, slice.chunkIndex,
+          slice.offset, slice.len);
+        client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
       }
 
       @Override
