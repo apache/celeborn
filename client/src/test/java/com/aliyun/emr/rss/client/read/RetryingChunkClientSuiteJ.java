@@ -29,10 +29,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -380,11 +382,8 @@ public class RetryingChunkClientSuiteJ {
 
     @Override
     public ByteBuffer sendRpcSync(ByteBuffer message, long timeoutMs) {
-      ByteBuffer buffer = ByteBuffer.allocate(8 + 4);
-      buffer.putLong(streamId);
-      buffer.putInt(numChunks);
-      buffer.flip();
-      return buffer;
+      StreamHandle handle = new StreamHandle(streamId, numChunks);
+      return handle.toByteBuffer();
     }
 
     @Override

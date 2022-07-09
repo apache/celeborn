@@ -32,10 +32,7 @@ import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.protocol.ChunkFetchFailure;
-import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
-import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
-import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
+import com.aliyun.emr.rss.common.network.protocol.*;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.FileManagedBuffers;
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
@@ -70,10 +67,13 @@ public final class ChunkFetchHandler extends RpcHandler {
 
   @Override
   public void receiveRpc(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
-    String shuffleKey = readString(message);
-    String fileName = readString(message);
-    int startMapIndex = message.getInt();
-    int endMapIndex = message.getInt();
+    AbstractMessage msg = AbstractMessage.fromByteBuffer(message);
+    assert msg instanceof OpenBlocks;
+    OpenBlocks openBlocks = (OpenBlocks) msg;
+    String shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8);
+    String fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8);
+    int startMapIndex = openBlocks.startMapIndex;
+    int endMapIndex = openBlocks.endMapIndex;
 
     // metrics start
     source.startTimer(WorkerSource.OpenStreamTime(), shuffleKey);
@@ -87,15 +87,12 @@ public final class ChunkFetchHandler extends RpcHandler {
         long streamId = streamManager.registerStream(
             client.getClientId(), buffers, client.getChannel());
 
-        ByteBuffer response = ByteBuffer.allocate(8 + 4);
-        response.putLong(streamId);
-        response.putInt(fileInfo.numChunks);
+        StreamHandle streamHandle = new StreamHandle(streamId, fileInfo.numChunks);
         if (fileInfo.numChunks == 0) {
           logger.debug("StreamId {} fileName {} startMapIndex {} endMapIndex {} is empty.",
             streamId, fileName, startMapIndex, endMapIndex);
         }
-        response.flip();
-        callback.onSuccess(response);
+        callback.onSuccess(streamHandle.toByteBuffer());
       } catch (IOException e) {
         callback.onFailure(
             new RssException("Chunk offsets meta exception ", e));
