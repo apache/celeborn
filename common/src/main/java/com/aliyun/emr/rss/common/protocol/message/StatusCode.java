@@ -46,7 +46,10 @@ public enum StatusCode {
   PushDataFailPartitionNotFound(20),
 
   HardSplit(21),
-  SoftSplit(22);
+  SoftSplit(22),
+
+  StageEndTimeOut(23),
+  ShuffleDataLost(24);
 
   private final byte value;
 
