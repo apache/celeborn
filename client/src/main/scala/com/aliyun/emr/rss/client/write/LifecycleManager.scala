@@ -1043,14 +1043,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         masterLocation.asScala.map(_.getUniqueId).asJava,
         slaveLocation.asScala.map(_.getUniqueId).asJava)
       var res = requestDestroy(workerInfo.endpoint, destroy)
-      res.status match {
-        case StatusCode.Success => // do nothing
-        case StatusCode.PartialSuccess | StatusCode.ShuffleNotRegistered | StatusCode.Failed =>
-          logDebug(s"Request $destroy return ${res.status} for " +
-            s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-          res = requestDestroy(workerInfo.endpoint,
-            Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
-        case _ => // won't happen
+      if (res.status != StatusCode.Success) {
+        logDebug(s"Request $destroy return ${res.status} for " +
+          s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
+        res = requestDestroy(workerInfo.endpoint,
+          Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
       }
       failedMasters.addAll(res.failedMasters)
       failedSlaves.addAll(res.failedSlaves)
