@@ -28,14 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
-import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
-import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.protocol.*;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
-import com.aliyun.emr.rss.common.network.util.NettyUtils;
 
 /**
  * A handler that processes requests from clients and writes chunk data back. Each handler is

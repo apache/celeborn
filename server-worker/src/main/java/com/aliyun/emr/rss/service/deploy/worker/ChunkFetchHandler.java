@@ -119,7 +119,8 @@ public final class ChunkFetchHandler extends RpcHandler {
       source.startTimer(NetWorkSource.FetchChunkTime(), req.toString());
     }
     if (logger.isTraceEnabled()) {
-      logger.trace("Received req from {} to fetch block {}", NettyUtils.getRemoteAddress(client.getChannel()),
+      logger.trace("Received req from {} to fetch block {}",
+        NettyUtils.getRemoteAddress(client.getChannel()),
         req.streamChunkSlice);
     }
     long chunksBeingTransferred = streamManager.chunksBeingTransferred();
@@ -148,12 +149,13 @@ public final class ChunkFetchHandler extends RpcHandler {
     }
 
     streamManager.chunkBeingSent(req.streamChunkSlice.streamId);
-    client.getChannel().writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf)).addListener(future -> {
-      streamManager.chunkSent(req.streamChunkSlice.streamId);
-      if (source != null) {
-        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
-      }
-    });
+    client.getChannel().writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
+      .addListener(future -> {
+        streamManager.chunkSent(req.streamChunkSlice.streamId);
+        if (source != null) {
+          source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+        }
+      });
   }
 
   @Override

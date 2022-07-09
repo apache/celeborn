@@ -38,6 +38,10 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
+import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
+import com.aliyun.emr.rss.common.network.protocol.StreamChunkSlice;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
@@ -103,6 +107,16 @@ public class ChunkFetchIntegrationSuiteJ {
           ByteBuffer message,
           RpcResponseCallback callback) {
         throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void receiveRequestMessage(
+        TransportClient client,
+        RequestMessage msg) {
+        StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+        ManagedBuffer buf = streamManager.getChunk(slice.streamId, slice.chunkIndex,
+          slice.offset, slice.len);
+        client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
       }
 
       @Override
