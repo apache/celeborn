@@ -261,13 +261,9 @@ sealed trait Message extends Serializable{
       case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
         val builder = TransportMessages.PbGetBlacklistResponse.newBuilder()
           .setStatus(statusCode.getValue)
-        if (!blacklist.isEmpty) {
-          builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
-        }
-        if (!unknownWorkers.isEmpty) {
-          builder.addAllUnknownWorkers(unknownWorkers.asScala
-            .map(WorkerInfo.toPbWorkerInfo).toList.asJava)
-        }
+        builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
+        builder.addAllUnknownWorkers(
+          unknownWorkers.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
 
@@ -354,12 +350,8 @@ sealed trait Message extends Serializable{
       case DestroyResponse(status, failedMasters, failedSlaves) =>
         val builder = TransportMessages.PbDestroyResponse.newBuilder()
           .setStatus(status.getValue)
-        if (failedMasters != null) {
-          builder.addAllFailedMasters(failedMasters)
-        }
-        if (failedSlaves != null) {
-          builder.addAllFailedSlaves(failedSlaves)
-        }
+        builder.addAllFailedMasters(failedMasters)
+        builder.addAllFailedSlaves(failedSlaves)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.DESTROY_RESPONSE, payload)
 
