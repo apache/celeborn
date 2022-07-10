@@ -41,7 +41,7 @@ import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
 import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
 import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 import com.aliyun.emr.rss.common.network.protocol.StreamChunkSlice;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -95,7 +95,7 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutInactiveRequests() throws Exception {
     final Semaphore semaphore = new Semaphore(1);
     final int responseSize = 16;
-    RpcHandler handler = new RpcHandler() {
+    BaseHandler handler = new BaseHandler() {
       @Override
       public void receiveRpc(
           TransportClient client,
@@ -110,8 +110,8 @@ public class RequestTimeoutIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return defaultManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
@@ -142,7 +142,7 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutCleanlyClosesClient() throws Exception {
     final Semaphore semaphore = new Semaphore(0);
     final int responseSize = 16;
-    RpcHandler handler = new RpcHandler() {
+    BaseHandler handler = new BaseHandler() {
       @Override
       public void receiveRpc(
           TransportClient client,
@@ -157,8 +157,8 @@ public class RequestTimeoutIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return defaultManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
@@ -198,7 +198,7 @@ public class RequestTimeoutIntegrationSuiteJ {
         return new NioManagedBuffer(ByteBuffer.wrap(response));
       }
     };
-    RpcHandler handler = new RpcHandler() {
+    BaseHandler handler = new BaseHandler() {
       @Override
       public void receiveRpc(
           TransportClient client,
@@ -218,8 +218,8 @@ public class RequestTimeoutIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return manager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 

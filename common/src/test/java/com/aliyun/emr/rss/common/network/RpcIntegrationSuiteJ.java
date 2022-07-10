@@ -33,9 +33,7 @@ import static org.junit.Assert.*;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
-import com.aliyun.emr.rss.common.network.server.StreamManager;
+import com.aliyun.emr.rss.common.network.server.BaseHandler;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -45,7 +43,7 @@ public class RpcIntegrationSuiteJ {
   static TransportConf conf;
   static TransportServer server;
   static TransportClientFactory clientFactory;
-  static RpcHandler rpcHandler;
+  static BaseHandler rpcHandler;
   static List<String> oneWayMsgs;
   static StreamTestHelper testData;
 
@@ -53,7 +51,7 @@ public class RpcIntegrationSuiteJ {
   public static void setUp() throws Exception {
     conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     testData = new StreamTestHelper();
-    rpcHandler = new RpcHandler() {
+    rpcHandler = new BaseHandler() {
       @Override
       public void receiveRpc(
           TransportClient client,
@@ -76,7 +74,9 @@ public class RpcIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() { return new OneForOneStreamManager(); }
+      public boolean checkRegistered() {
+        return true;
+      }
     };
     TransportContext context = new TransportContext(conf, rpcHandler);
     server = context.createServer();

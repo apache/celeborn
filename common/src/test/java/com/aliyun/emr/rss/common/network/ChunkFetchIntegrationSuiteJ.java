@@ -42,7 +42,7 @@ import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
 import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
 import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 import com.aliyun.emr.rss.common.network.protocol.StreamChunkSlice;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -100,7 +100,7 @@ public class ChunkFetchIntegrationSuiteJ {
         }
       }
     };
-    RpcHandler handler = new RpcHandler() {
+    BaseHandler handler = new BaseHandler() {
       @Override
       public void receiveRpc(
           TransportClient client,
@@ -120,8 +120,8 @@ public class ChunkFetchIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return streamManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
     TransportContext context = new TransportContext(conf, handler);

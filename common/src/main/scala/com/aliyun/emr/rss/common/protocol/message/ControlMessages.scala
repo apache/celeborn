@@ -772,7 +772,7 @@ object ControlMessages extends Logging{
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
         GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
-          .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava))
+          .map(WorkerInfo.fromPbWorkerInfo).toList.asJava))
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)

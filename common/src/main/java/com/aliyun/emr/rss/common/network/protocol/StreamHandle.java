@@ -20,53 +20,47 @@ package com.aliyun.emr.rss.common.network.protocol;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
-import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
-import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
-import com.aliyun.emr.rss.common.network.server.BaseHandler;
-
 /**
- * A RPC that does not expect a reply, which is handled by a remote
- * {@link BaseHandler}.
+ * Identifier for a fixed number of chunks to read from a stream created by an "open blocks"
+ * message.
  */
-public final class OneWayMessage extends AbstractMessage implements RequestMessage {
+public final class StreamHandle extends AbstractMessage {
+  public final long streamId;
+  public final int numChunks;
 
-  public OneWayMessage(ManagedBuffer body) {
-    super(body, true);
+  public StreamHandle(long streamId, int numChunks) {
+    this.streamId = streamId;
+    this.numChunks = numChunks;
   }
 
   @Override
-  public Type type() { return Type.OneWayMessage; }
+  public Type type() { return Type.StreamHandle; }
 
   @Override
   public int encodedLength() {
-    // The integer (a.k.a. the body size) is not really used, since that information is already
-    // encoded in the frame length. But this maintains backwards compatibility with versions of
-    // RpcRequest that use Encoders.ByteArrays.
-    return 4;
+    return 8 + 4;
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    // See comment in encodedLength().
-    buf.writeInt((int) body().size());
+    buf.writeLong(streamId);
+    buf.writeInt(numChunks);
   }
 
-  public static OneWayMessage decode(ByteBuf buf) {
-    // See comment in encodedLength().
-    buf.readInt();
-    return new OneWayMessage(new NettyManagedBuffer(buf.retain()));
+  public static StreamHandle decode(ByteBuf buf) {
+    return new StreamHandle(buf.readLong(), buf.readInt());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(body());
+    return Objects.hashCode(streamId, numChunks);
   }
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof OneWayMessage) {
-      OneWayMessage o = (OneWayMessage) other;
-      return super.equals(o);
+    if (other instanceof StreamHandle) {
+      StreamHandle o = (StreamHandle) other;
+      return streamId == o.streamId && numChunks == o.numChunks;
     }
     return false;
   }
@@ -74,7 +68,8 @@ public final class OneWayMessage extends AbstractMessage implements RequestMessa
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("body", body())
+      .add("streamId", streamId)
+      .add("numChunks", numChunks)
       .toString();
   }
 }

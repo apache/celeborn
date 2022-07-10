@@ -24,14 +24,12 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.protocol.PushData;
-import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
 import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 
 /**
  * Handler for sendRPC() messages sent by {@link TransportClient}s.
  */
-public abstract class RpcHandler {
+public abstract class BaseHandler {
 
   private static final RpcResponseCallback ONE_WAY_CALLBACK = new OneWayRpcCallback();
 
@@ -61,29 +59,9 @@ public abstract class RpcHandler {
     throw new UnsupportedOperationException();
   }
 
-  public void receivePushData(
-      TransportClient client,
-      PushData pushData,
-      RpcResponseCallback callback) {
-    throw new UnsupportedOperationException();
-  }
-
-  public void receivePushMergedData(
-      TransportClient client,
-      PushMergedData pushMergedData,
-      RpcResponseCallback callback) {
-    throw new UnsupportedOperationException();
-  }
-
   public boolean checkRegistered() {
-    return true;
+    throw new UnsupportedOperationException();
   }
-
-  /**
-   * Returns the StreamManager which contains the state about which streams are currently being
-   * fetched by a TransportClient.
-   */
-  public abstract StreamManager getStreamManager();
 
   /**
    * Receives an RPC message that does not expect a reply. The default implementation will
@@ -124,7 +102,6 @@ public abstract class RpcHandler {
     public void onFailure(Throwable e) {
       logger.error("Error response provided for one-way RPC.", e);
     }
-
   }
 
 }

@@ -32,5 +32,5 @@ public interface TransportServerBootstrap {
    * @param rpcHandler The RPC handler for the server.
    * @return The RPC handler to use for the channel.
    */
-  RpcHandler doBootstrap(Channel channel, RpcHandler rpcHandler);
+  BaseHandler doBootstrap(Channel channel, BaseHandler rpcHandler);
 }

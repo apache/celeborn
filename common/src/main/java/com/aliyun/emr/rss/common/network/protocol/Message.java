@@ -35,7 +35,7 @@ public interface Message extends Encodable {
   /** Preceding every serialized Message is its type, which allows us to deserialize it. */
   enum Type implements Encodable {
     ChunkFetchRequest(0), ChunkFetchSuccess(1), ChunkFetchFailure(2),
-    RpcRequest(3), RpcResponse(4), RpcFailure(5),
+    RpcRequest(3), RpcResponse(4), RpcFailure(5), OpenBlocks(6), StreamHandle(7),
     OneWayMessage(9), PushData(11), PushMergedData(12);
 
     private final byte id;
@@ -60,6 +60,8 @@ public interface Message extends Encodable {
         case 3: return RpcRequest;
         case 4: return RpcResponse;
         case 5: return RpcFailure;
+        case 6: return OpenBlocks;
+        case 7: return StreamHandle;
         case 9: return OneWayMessage;
         case 11: return PushData;
         case 12: return PushMergedData;

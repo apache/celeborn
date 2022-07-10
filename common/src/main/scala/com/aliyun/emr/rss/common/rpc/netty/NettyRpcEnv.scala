@@ -518,7 +518,7 @@ private[rss] case class RpcFailure(e: Throwable)
 private[rss] class NettyRpcHandler(
     dispatcher: Dispatcher,
     nettyEnv: NettyRpcEnv,
-    streamManager: StreamManager) extends RpcHandler with Logging {
+    streamManager: StreamManager) extends BaseHandler with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
@@ -560,8 +560,6 @@ private[rss] class NettyRpcHandler(
   override def checkRegistered(): Boolean = {
     nettyEnv.checkRegistered()
   }
-
-  override def getStreamManager: StreamManager = streamManager
 
   override def exceptionCaught(cause: Throwable, client: TransportClient): Unit = {
     val addr = client.getChannel.remoteAddress().asInstanceOf[InetSocketAddress]

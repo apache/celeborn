@@ -37,6 +37,9 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
+import com.aliyun.emr.rss.common.network.protocol.AbstractMessage;
+import com.aliyun.emr.rss.common.network.protocol.OpenBlocks;
+import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
@@ -238,8 +241,7 @@ class Replica {
   private final PartitionLocation location;
   private final TransportClientFactory clientFactory;
 
-  private long streamId;
-  private int numChunks;
+  private StreamHandle streamHandle;
   private TransportClient client;
   private int startMapIndex;
   private int endMapIndex;
@@ -272,20 +274,20 @@ class Replica {
     if (client == null || !client.isActive()) {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
 
-      ByteBuffer openMessage = createOpenMessage();
-      ByteBuffer response = client.sendRpcSync(openMessage, timeoutMs);
-      streamId = response.getLong();
-      numChunks = response.getInt();
+      OpenBlocks openBlocks = new OpenBlocks(shuffleKey, location.getFileName(),
+        startMapIndex, endMapIndex);
+      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+      streamHandle = (StreamHandle) AbstractMessage.fromByteBuffer(response);
     }
     return client;
   }
 
   public long getStreamId() {
-    return streamId;
+    return streamHandle.streamId;
   }
 
   public int getNumChunks() {
-    return numChunks;
+    return streamHandle.numChunks;
   }
 
   @Override

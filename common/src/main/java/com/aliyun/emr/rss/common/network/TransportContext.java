@@ -57,7 +57,7 @@ public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
   private final TransportConf conf;
-  private final RpcHandler rpcHandler;
+  private final BaseHandler rpcHandler;
   private final boolean closeIdleConnections;
 
   /**
@@ -80,7 +80,7 @@ public class TransportContext {
 
   public TransportContext(
       TransportConf conf,
-      RpcHandler rpcHandler,
+      BaseHandler rpcHandler,
       boolean closeIdleConnections,
       AbstractSource source,
       ChannelHandler channelHandler) {
@@ -93,19 +93,19 @@ public class TransportContext {
 
   public TransportContext(
       TransportConf conf,
-      RpcHandler rpcHandler,
+      BaseHandler rpcHandler,
       boolean closeIdleConnections,
       AbstractSource source) {
     this(conf, rpcHandler, closeIdleConnections, source, null);
   }
 
-  public TransportContext(TransportConf conf, RpcHandler rpcHandler) {
+  public TransportContext(TransportConf conf, BaseHandler rpcHandler) {
     this(conf, rpcHandler, false, null, null);
   }
 
   public TransportContext(
       TransportConf conf,
-      RpcHandler rpcHandler,
+      BaseHandler rpcHandler,
       boolean closeIdleConnections) {
     this(conf, rpcHandler, closeIdleConnections, null, null);
   }
@@ -156,7 +156,7 @@ public class TransportContext {
    */
   public TransportChannelHandler initializePipeline(
       SocketChannel channel,
-      RpcHandler channelRpcHandler) {
+      BaseHandler channelRpcHandler) {
     try {
       if (channelHandler != null) {
         channel.pipeline()
@@ -183,7 +183,7 @@ public class TransportContext {
    * ResponseMessages. The channel is expected to have been successfully created, though certain
    * properties (such as the remoteAddress()) may not be available yet.
    */
-  private TransportChannelHandler createChannelHandler(Channel channel, RpcHandler rpcHandler) {
+  private TransportChannelHandler createChannelHandler(Channel channel, BaseHandler rpcHandler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,

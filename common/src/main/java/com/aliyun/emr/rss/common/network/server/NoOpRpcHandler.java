@@ -23,7 +23,7 @@ import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 
 /** An RpcHandler suitable for a client-only TransportContext, which cannot receive RPCs. */
-public class NoOpRpcHandler extends RpcHandler {
+public class NoOpRpcHandler extends BaseHandler {
   private final StreamManager streamManager;
 
   public NoOpRpcHandler() {
@@ -34,7 +34,4 @@ public class NoOpRpcHandler extends RpcHandler {
   public void receiveRpc(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
     throw new UnsupportedOperationException("Cannot handle messages");
   }
-
-  @Override
-  public StreamManager getStreamManager() { return streamManager; }
 }

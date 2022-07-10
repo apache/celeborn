@@ -17,7 +17,11 @@
 
 package com.aliyun.emr.rss.common.network.protocol;
 
+import java.nio.ByteBuffer;
+
 import com.google.common.base.Objects;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 
@@ -51,4 +55,24 @@ public abstract class AbstractMessage implements Message {
     return isBodyInFrame == other.isBodyInFrame && Objects.equal(body, other.body);
   }
 
+  public ByteBuffer toByteBuffer() {
+    // Allow room for encoded message, plus the type byte
+    ByteBuf buf = Unpooled.buffer(encodedLength() + 1);
+    buf.writeByte(type().id());
+    encode(buf);
+    assert buf.writableBytes() == 0 : "Writable bytes remain: " + buf.writableBytes();
+    return buf.nioBuffer();
+  }
+
+  public static AbstractMessage fromByteBuffer(ByteBuffer msg) {
+    ByteBuf buf = Unpooled.wrappedBuffer(msg);
+    Type type = Type.decode(buf);
+    switch (type) {
+      case OpenBlocks:
+        return OpenBlocks.decode(buf);
+      case StreamHandle:
+        return StreamHandle.decode(buf);
+      default: throw new IllegalArgumentException("Unknown message type: " + type);
+    }
+  }
 }
