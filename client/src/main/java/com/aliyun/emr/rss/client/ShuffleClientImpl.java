@@ -872,7 +872,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + reduceId + "!";
       logger.error(msg);
       throw new IOException(msg);
-    } else if (fileGroups.partitionGroups == null) {
+    } else if (fileGroups.partitionGroups.length == 0) {
       logger.warn("Shuffle data is empty for shuffle {} reduce {}.", shuffleId, reduceId);
       return RssInputStream.empty();
     } else {
