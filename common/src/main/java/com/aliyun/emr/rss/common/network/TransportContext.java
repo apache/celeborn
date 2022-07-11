@@ -57,7 +57,7 @@ public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
   private final TransportConf conf;
-  private final BaseHandler handler;
+  private final BaseMessageHandler handler;
   private final boolean closeIdleConnections;
 
   /**
@@ -80,7 +80,7 @@ public class TransportContext {
 
   public TransportContext(
       TransportConf conf,
-      BaseHandler handler,
+      BaseMessageHandler handler,
       boolean closeIdleConnections,
       AbstractSource source,
       ChannelHandler channelHandler) {
@@ -93,19 +93,19 @@ public class TransportContext {
 
   public TransportContext(
       TransportConf conf,
-      BaseHandler handler,
+      BaseMessageHandler handler,
       boolean closeIdleConnections,
       AbstractSource source) {
     this(conf, handler, closeIdleConnections, source, null);
   }
 
-  public TransportContext(TransportConf conf, BaseHandler handler) {
+  public TransportContext(TransportConf conf, BaseMessageHandler handler) {
     this(conf, handler, false, null, null);
   }
 
   public TransportContext(
       TransportConf conf,
-      BaseHandler handler,
+      BaseMessageHandler handler,
       boolean closeIdleConnections) {
     this(conf, handler, closeIdleConnections, null, null);
   }
@@ -156,7 +156,7 @@ public class TransportContext {
    */
   public TransportChannelHandler initializePipeline(
       SocketChannel channel,
-      BaseHandler channelRpcHandler) {
+      BaseMessageHandler channelRpcHandler) {
     try {
       if (channelHandler != null) {
         channel.pipeline()
@@ -183,7 +183,8 @@ public class TransportContext {
    * ResponseMessages. The channel is expected to have been successfully created, though certain
    * properties (such as the remoteAddress()) may not be available yet.
    */
-  private TransportChannelHandler createChannelHandler(Channel channel, BaseHandler handler) {
+  private TransportChannelHandler createChannelHandler(
+      Channel channel, BaseMessageHandler handler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,

@@ -17,20 +17,34 @@
 
 package com.aliyun.emr.rss.common.network.server;
 
-import io.netty.channel.Channel;
+import com.aliyun.emr.rss.common.network.client.TransportClient;
+import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 
 /**
- * A bootstrap which is executed on a TransportServer's client channel once a client connects
- * to the server. This allows customizing the client channel to allow for things such as SASL
- * authentication.
+ * Handler for sendRPC() messages sent by {@link TransportClient}s.
  */
-public interface TransportServerBootstrap {
+public class BaseMessageHandler {
+
+  public void receive(
+    TransportClient client,
+    RequestMessage msg) {
+    throw new UnsupportedOperationException();
+  }
+
+  public boolean checkRegistered() {
+    throw new UnsupportedOperationException();
+  }
+
   /**
-   * Customizes the channel to include new features, if needed.
-   *
-   * @param channel The connected channel opened by the client.
-   * @param handler The RPC handler for the server.
-   * @return The RPC handler to use for the channel.
+   * Invoked when the channel associated with the given client is active.
    */
-  BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler handler);
+  public void channelActive(TransportClient client) { }
+
+  /**
+   * Invoked when the channel associated with the given client is inactive.
+   * No further requests will come from this client.
+   */
+  public void channelInactive(TransportClient client) { }
+
+  public void exceptionCaught(Throwable cause, TransportClient client) { }
 }

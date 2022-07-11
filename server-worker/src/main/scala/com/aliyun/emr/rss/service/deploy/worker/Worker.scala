@@ -119,12 +119,12 @@ private[deploy] class Worker(
     transportContext.createServer(RssConf.replicateServerPort(conf), serverBootstraps)
   }
 
-  var fetchHandler: ChunkFetchHandler = _
+  var fetchHandler: FetchHandler = _
   private val fetchServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
     val numThreads = conf.getInt("rss.fetch.io.threads", localStorageManager.numDisks * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
-    fetchHandler = new ChunkFetchHandler(transportConf)
+    fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
       new TransportContext(transportConf, fetchHandler, closeIdleConnections, workerSource)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()

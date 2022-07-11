@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -30,10 +31,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.server.BaseHandler;
+import com.aliyun.emr.rss.common.network.protocol.*;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -43,7 +46,7 @@ public class RpcIntegrationSuiteJ {
   static TransportConf conf;
   static TransportServer server;
   static TransportClientFactory clientFactory;
-  static BaseHandler handler;
+  static BaseMessageHandler handler;
   static List<String> oneWayMsgs;
   static StreamTestHelper testData;
 
@@ -51,26 +54,49 @@ public class RpcIntegrationSuiteJ {
   public static void setUp() throws Exception {
     conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     testData = new StreamTestHelper();
-    handler = new BaseHandler() {
+    handler = new BaseMessageHandler() {
       @Override
-      public void receiveRpc(
+      public void receive(
           TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
-        String msg = JavaUtils.bytesToString(message);
-        String[] parts = msg.split("/");
-        if (parts[0].equals("hello")) {
-          callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
-        } else if (parts[0].equals("return error")) {
-          callback.onFailure(new RuntimeException("Returned: " + parts[1]));
-        } else if (parts[0].equals("throw error")) {
-          throw new RuntimeException("Thrown: " + parts[1]);
-        }
-      }
+          RequestMessage message) {
+        if (message instanceof RpcRequest) {
+          String msg;
+          RpcRequest r = (RpcRequest) message;
+          RpcResponseCallback callback = new RpcResponseCallback() {
+            @Override
+            public void onSuccess(ByteBuffer response) {
+              client.getChannel().writeAndFlush(new RpcResponse(r.requestId,
+                new NioManagedBuffer(response)));
+            }
 
-      @Override
-      public void receiveRpc(TransportClient client, ByteBuffer message) {
-        oneWayMsgs.add(JavaUtils.bytesToString(message));
+            @Override
+            public void onFailure(Throwable e) {
+              client.getChannel().writeAndFlush(new RpcFailure(r.requestId,
+                Throwables.getStackTraceAsString(e)));
+            }
+          };
+          try {
+            msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+          String[] parts = msg.split("/");
+          if (parts[0].equals("hello")) {
+            callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
+          } else if (parts[0].equals("return error")) {
+            callback.onFailure(new RuntimeException("Returned: " + parts[1]));
+          } else if (parts[0].equals("throw error")) {
+            callback.onFailure(new RuntimeException("Thrown: " + parts[1]));
+          }
+        } else if (message instanceof OneWayMessage) {
+          String msg;
+          try {
+            msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+          oneWayMsgs.add(msg);
+        }
       }
 
       @Override

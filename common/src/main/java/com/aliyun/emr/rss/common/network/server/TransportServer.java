@@ -47,7 +47,7 @@ public class TransportServer implements Closeable {
 
   private final TransportContext context;
   private final TransportConf conf;
-  private final BaseHandler appRpcHandler;
+  private final BaseMessageHandler appRpcHandler;
   private final List<TransportServerBootstrap> bootstraps;
 
   private ServerBootstrap bootstrap;
@@ -58,7 +58,7 @@ public class TransportServer implements Closeable {
     TransportContext context,
     String hostToBind,
     int portToBind,
-    BaseHandler appRpcHandler,
+    BaseMessageHandler appRpcHandler,
     List<TransportServerBootstrap> bootstraps,
     AbstractSource source) {
     this.context = context;
@@ -85,7 +85,7 @@ public class TransportServer implements Closeable {
       TransportContext context,
       String hostToBind,
       int portToBind,
-      BaseHandler appRpcHandler,
+      BaseMessageHandler appRpcHandler,
       List<TransportServerBootstrap> bootstraps) {
     this(context, hostToBind, portToBind, appRpcHandler, bootstraps, null);
   }
@@ -144,7 +144,7 @@ public class TransportServer implements Closeable {
     bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
       @Override
       protected void initChannel(SocketChannel ch) {
-        BaseHandler handler = appRpcHandler;
+        BaseMessageHandler handler = appRpcHandler;
         for (TransportServerBootstrap bootstrap : bootstraps) {
           handler = bootstrap.doBootstrap(ch, handler);
         }

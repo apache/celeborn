@@ -30,12 +30,12 @@ import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
-import com.aliyun.emr.rss.common.network.server.BaseHandler
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.unsafe.Platform
 
-class PushDataHandler extends BaseHandler with Logging {
+class PushDataHandler extends BaseMessageHandler with Logging {
 
   var workerSource: WorkerSource = _
   var partitionLocationInfo: PartitionLocationInfo = _
@@ -55,7 +55,7 @@ class PushDataHandler extends BaseHandler with Logging {
     registered = worker.registered
   }
 
-  override def receiveRequestMessage(client: TransportClient, msg: RequestMessage): Unit =
+  override def receive(client: TransportClient, msg: RequestMessage): Unit =
     msg match {
       case pushData: PushData =>
         try {
@@ -240,8 +240,8 @@ class PushDataHandler extends BaseHandler with Logging {
   }
 
   def handlePushMergedData(
-        pushMergedData: PushMergedData,
-        callback: RpcResponseCallback): Unit = {
+    pushMergedData: PushMergedData,
+    callback: RpcResponseCallback): Unit = {
     val shuffleKey = pushMergedData.shuffleKey
     val mode = PartitionLocation.getMode(pushMergedData.mode)
     val batchOffsets = pushMergedData.batchOffsets

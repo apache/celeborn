@@ -29,16 +29,17 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
+import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
-import com.aliyun.emr.rss.common.network.server.{BaseHandler, FileInfo}
+import com.aliyun.emr.rss.common.network.server.{BaseMessageHandler, FileInfo}
 import com.aliyun.emr.rss.common.network.server.FileManagedBuffers
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager
 import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.network.util.TransportConf
 
-class ChunkFetchHandler(val conf: TransportConf) extends BaseHandler with Logging {
+class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()
   var source: WorkerSource = _
   var localStorageManager: LocalStorageManager = _
@@ -67,12 +68,17 @@ class ChunkFetchHandler(val conf: TransportConf) extends BaseHandler with Loggin
     }
   }
 
-  override def receiveRpc(
-      client: TransportClient,
-      message: ByteBuffer,
-      callback: RpcResponseCallback): Unit = {
-    val msg = AbstractMessage.fromByteBuffer(message)
-    assert(msg.isInstanceOf[OpenStream])
+  override def receive(client: TransportClient, msg: RequestMessage): Unit = {
+    msg match {
+      case r: ChunkFetchRequest =>
+        handleChunkFetchRequest(client, r)
+      case r: RpcRequest =>
+        handleOpenStream(client, r)
+    }
+  }
+
+  def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
+    val msg = AbstractMessage.fromByteBuffer(request.body().nioByteBuffer())
     val openBlocks = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
@@ -81,6 +87,7 @@ class ChunkFetchHandler(val conf: TransportConf) extends BaseHandler with Loggin
     // metrics start
     source.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
+
     if (fileInfo != null) {
       logDebug(s"Received chunk fetch request $shuffleKey $fileName" +
         s"$startMapIndex $endMapIndex get file info $fileInfo")
@@ -92,23 +99,25 @@ class ChunkFetchHandler(val conf: TransportConf) extends BaseHandler with Loggin
           logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
             s" $startMapIndex endMapIndex $endMapIndex is empty.")
         }
-        callback.onSuccess(streamHandle.toByteBuffer)
+        client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+          new NioManagedBuffer(streamHandle.toByteBuffer)))
       } catch {
         case e: IOException =>
-          callback.onFailure(new RssException("Chunk offsets meta exception ", e))
+          client.getChannel.writeAndFlush(new RpcFailure(request.requestId,
+            Throwables.getStackTraceAsString(new RssException("Chunk offsets meta exception ", e))))
       } finally {
         // metrics end
         source.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        request.body().release()
       }
     } else {
       source.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
-      callback.onFailure(new FileNotFoundException)
+      client.getChannel.writeAndFlush(new RpcFailure(request.requestId,
+        Throwables.getStackTraceAsString(new FileNotFoundException)))
     }
   }
 
-  override def receiveRequestMessage(client: TransportClient, msg: RequestMessage): Unit = {
-    assert(msg.isInstanceOf[ChunkFetchRequest])
-    val req = msg.asInstanceOf[ChunkFetchRequest]
+  def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
     source.startTimer(NetWorkSource.FetchChunkTime, req.toString)
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")

@@ -98,7 +98,7 @@ public class FileWriterSuiteJ {
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
-    ChunkFetchHandler handler = new ChunkFetchHandler(transConf) {
+    FetchHandler handler = new FetchHandler(transConf) {
       @Override
       public FileInfo openStream(
         String shuffleKey,

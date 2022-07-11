@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.common.network.server;
 
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.nio.ByteBuffer;
 
 import com.google.common.base.Throwables;
 import io.netty.channel.Channel;
@@ -27,8 +26,6 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.protocol.*;
 
@@ -50,12 +47,12 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   private final TransportClient reverseClient;
 
   /** Handles all RPC messages. */
-  private final BaseHandler msgHandler;
+  private final BaseMessageHandler msgHandler;
 
   public TransportRequestHandler(
       Channel channel,
       TransportClient reverseClient,
-      BaseHandler msgHandler) {
+      BaseMessageHandler msgHandler) {
     this.channel = channel;
     this.reverseClient = reverseClient;
     this.msgHandler = msgHandler;
@@ -78,28 +75,8 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   @Override
   public void handle(RequestMessage request) {
-    if (request instanceof ChunkFetchRequest) {
-      if (checkRegistered(request)) {
-        msgHandler.receiveRequestMessage(reverseClient, request);
-      }
-    } else if (request instanceof RpcRequest) {
-      if (checkRegistered(request)) {
-        processRpcRequest((RpcRequest) request);
-      }
-    } else if (request instanceof OneWayMessage) {
-      if (checkRegistered(request)) {
-        processOneWayMessage((OneWayMessage) request);
-      }
-    } else if (request instanceof PushData) {
-      if (checkRegistered(request)) {
-        msgHandler.receiveRequestMessage(reverseClient, request);
-      }
-    } else if (request instanceof PushMergedData) {
-      if (checkRegistered(request)) {
-        msgHandler.receiveRequestMessage(reverseClient, request);
-      }
-    } else {
-      throw new IllegalArgumentException("Unknown request type: " + request);
+    if (checkRegistered(request)) {
+      msgHandler.receive(reverseClient, request);
     }
   }
 
@@ -117,37 +94,6 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       return false;
     }
     return true;
-  }
-
-  private void processRpcRequest(final RpcRequest req) {
-    try {
-      msgHandler.receiveRpc(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
-        @Override
-        public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
-        }
-
-        @Override
-        public void onFailure(Throwable e) {
-          respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-        }
-      });
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() on RPC id " + req.requestId, e);
-      respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-    } finally {
-      req.body().release();
-    }
-  }
-
-  private void processOneWayMessage(OneWayMessage req) {
-    try {
-      msgHandler.receiveRpc(reverseClient, req.body().nioByteBuffer());
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() for one-way message.", e);
-    } finally {
-      req.body().release();
-    }
   }
 
   /**
