@@ -28,9 +28,14 @@ import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 
 object ShuffleClientHelper extends Logging {
-  def sendShuffleSplitAsync(endpointRef: RpcEndpointRef, message: PartitionSplit,
-    executors: ExecutorService, splittingSet: java.util.Set[Integer], reducerId: Int,
-    shuffleId: Int, shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
+  def sendShuffleSplitAsync(
+      endpointRef: RpcEndpointRef,
+      message: PartitionSplit,
+      executors: ExecutorService,
+      splittingSet: java.util.Set[Integer],
+      reducerId: Int,
+      shuffleId: Int,
+      shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
     endpointRef.ask[ChangeLocationResponse](message).onComplete {
       case Success(value) =>
         if (value.status == StatusCode.Success) {

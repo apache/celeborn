@@ -23,7 +23,6 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 import io.netty.util.internal.ConcurrentSet
@@ -58,6 +57,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
   private val dataLostShuffleSet = new ConcurrentSet[Int]()
   private val stageEndShuffleSet = new ConcurrentSet[Int]()
+  // maintain each shuffle's map relation of WorkerInfo and partition location
   private val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
@@ -72,7 +72,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]()
 
   // register shuffle request waiting for response
-  private val registerShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
+  private val registeringShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
 
   // blacklist
   private val blacklist = new ConcurrentSet[WorkerInfo]()
@@ -220,21 +220,22 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    |        START OF EVENT HANDLER                              |
    * ========================================================== */
 
-  def handleRegisterShuffle(
-    context: RpcCallContext,
-    applicationId: String,
-    shuffleId: Int,
-    numMappers: Int,
-    numPartitions: Int): Unit = {
-    // check if same request already exists for the same shuffle.
-    // If do, just register and return
-    registerShuffleRequest.synchronized {
-      if (registerShuffleRequest.containsKey(shuffleId)) {
+  private def handleRegisterShuffle(
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      numMappers: Int,
+      numPartitions: Int): Unit = {
+    registeringShuffleRequest.synchronized {
+      if (registeringShuffleRequest.containsKey(shuffleId)) {
+        // If same request already exists in the registering request list for the same shuffle,
+        // just register and return.
         logDebug("[handleRegisterShuffle] request for same shuffleKey exists, just register")
-        registerShuffleRequest.get(shuffleId).add(context)
+        registeringShuffleRequest.get(shuffleId).add(context)
         return
       } else {
-        // check if shuffle is registered
+        // If shuffle is registered, reply this shuffle's partition location and return.
+        // Else add this request to registeringShuffleRequest.
         if (registeredShuffle.contains(shuffleId)) {
           val initialLocs = workerSnapshots(shuffleId)
             .values()
@@ -249,27 +250,29 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           }
           context.reply(RegisterShuffleResponse(StatusCode.Success, initialLocs))
           return
+        } else {
+          logInfo(s"New shuffle request, shuffleId $shuffleId, numPartitions: $numPartitions.")
+          val set = new util.HashSet[RpcCallContext]()
+          set.add(context)
+          registeringShuffleRequest.put(shuffleId, set)
         }
-        logInfo(s"New shuffle request, shuffleId $shuffleId, numPartitions: $numPartitions.")
-        val set = new util.HashSet[RpcCallContext]()
-        set.add(context)
-        registerShuffleRequest.put(shuffleId, set)
       }
     }
 
-    // get slots from Master
-    val reduceIdList = new util.ArrayList[Integer]
-    (0 until numPartitions).foreach(x => reduceIdList.add(new Integer(x)))
-    val res = requestSlotsWithRetry(applicationId, shuffleId, reduceIdList)
-
+    // Reply to all RegisterShuffle request for current shuffle id.
     def reply(response: RegisterShuffleResponse): Unit = {
-      registerShuffleRequest.synchronized {
-        val set = registerShuffleRequest.get(shuffleId)
-        set.asScala.foreach(_.reply(response))
-        registerShuffleRequest.remove(shuffleId)
+      registeringShuffleRequest.synchronized {
+        registeringShuffleRequest.asScala
+          .get(shuffleId)
+          .foreach(_.asScala.foreach(_.reply(response)))
+        registeringShuffleRequest.remove(shuffleId)
       }
     }
 
+    // First, request to get allocated slots from Master
+    val reduceIdList = new util.ArrayList[Integer]
+    (0 until numPartitions).foreach(idx => reduceIdList.add(new Integer(idx)))
+    val res = requestSlotsWithRetry(applicationId, shuffleId, reduceIdList)
     res.status match {
       case StatusCode.Failed =>
         logError(s"OfferSlots RPC request failed for $shuffleId!")
@@ -283,6 +286,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
         logDebug(s" Slots Info: ${res.workerResource}")
       case _ => // won't happen
+        throw new UnsupportedOperationException()
     }
 
     // Reserve slots for each PartitionLocation. When response status is SUCCESS, WorkerResource
@@ -290,55 +294,52 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
     val connectFailedWorkers = new util.ArrayList[WorkerInfo]()
-    slots.asScala.foreach(entry => {
-      val workerInfo = entry._1
+
+    // Second, for each worker, try to initialize the endpoint.
+    slots.asScala.foreach { case (workerInfo, _) =>
       try {
-        workerInfo.endpoint = rpcEnv.setupEndpointRef(
-          RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
+        workerInfo.endpoint =
+          rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
       } catch {
         case t: Throwable =>
           logError(s"Init rpc client for $workerInfo failed", t)
           connectFailedWorkers.add(workerInfo)
       }
-    })
+    }
 
     candidatesWorkers.removeAll(connectFailedWorkers)
-
     recordWorkerFailure(connectFailedWorkers)
 
+    // Third, for each slots, LifecycleManager shou ask Worker to reserve the slot
+    // and prepare the pushing data env.
     val reserveSlotsSuccess = reserveSlotsWithRetry(applicationId, shuffleId,
       candidatesWorkers.asScala.toList, slots)
 
-    // reserve buffers failed, clear allocated resources
+    // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
       reply(RegisterShuffleResponse(StatusCode.ReserveSlotFailed, List.empty.asJava))
       // tell Master to release slots
-      requestReleaseSlots(rssHARetryClient, ReleaseSlots(applicationId, shuffleId,
-        new util.ArrayList[String](), new util.ArrayList[Integer]()))
+      requestReleaseSlots(rssHARetryClient,
+        ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
       return
     } else {
       logInfo(s"ReserveSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} success!")
       logDebug(s"Allocated Slots: $slots")
     }
 
+    // Forth, register shuffle success, update status
     val allocatedWorkers = new ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]()
-    slots.asScala.foreach(entry => {
-      val workerInfo = entry._1
-      // create client
-      val masterLocations = entry._2._1
-      val slaveLocations = entry._2._2
+    slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
       val partitionLocationInfo = new PartitionLocationInfo()
       partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
       partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
       allocatedWorkers.put(workerInfo, partitionLocationInfo)
-    })
-
+    }
     shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
-
-    // register shuffle success, update status
     registeredShuffle.add(shuffleId)
-    val locations = slots.asScala.flatMap(_._2._1.asScala).toList
+
+
     shuffleMapperAttempts.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
@@ -351,11 +352,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     reducerFileGroupsMap.put(shuffleId, new Array[Array[PartitionLocation]](numPartitions))
 
+    // Fifth, reply the allocated partition location to ShuffleClient.
     logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
-    reply(RegisterShuffleResponse(StatusCode.Success, locations.asJava))
+    val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toList
+    reply(RegisterShuffleResponse(StatusCode.Success, allMasterPartitionLocations.asJava))
   }
 
-  def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
+  private def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
     if (cause == StatusCode.PushDataFailMain && oldPartition != null) {
@@ -367,21 +370,23 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def handleRevive(
-    context: RpcCallContext,
-    applicationId: String,
-    shuffleId: Int,
-    mapId: Int,
-    attemptId: Int,
-    reduceId: Int,
-    oldEpoch: Int,
-    oldPartition: PartitionLocation,
-    cause: StatusCode): Unit = {
-    // check whether shuffle has registered
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      reduceId: Int,
+      oldEpoch: Int,
+      oldPartition: PartitionLocation,
+      cause: StatusCode): Unit = {
+    // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
       context.reply(ChangeLocationResponse(StatusCode.ShuffleNotRegistered, null))
       return
     }
+
+    // If shuffle registered and corresponding map finished, reply MapEnd and return.
     if (shuffleMapperAttempts.containsKey(shuffleId)
       && shuffleMapperAttempts.get(shuffleId)(mapId) != -1) {
       logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
@@ -399,18 +404,19 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           s"register context.")
         return
       } else {
-        // check if new slot for the partition has allocated
+        // If new slot for the partition has been allocated, reply and return.
+        // Else register and allocate for it.
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
-        if (latestLoc != null) {
-          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
+        if (latestLoc.isDefined) {
+          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc.get))
           logDebug(s"New partition found, old partition $reduceId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
+        } else {
+          val set = new util.HashSet[RpcCallContext]()
+          set.add(context)
+          shuffleReviving.put(reduceId, set)
         }
-        // no newer partition, register and allocate
-        val set = new util.HashSet[RpcCallContext]()
-        set.add(context)
-        shuffleReviving.put(reduceId, set)
       }
     }
 
@@ -434,67 +440,73 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       reduceId: Int,
       oldEpochId: Int,
       oldPartition: PartitionLocation): Unit = {
+
+    def reply(response: ChangeLocationResponse): Unit = {
+      contexts.synchronized {
+        contexts.remove(reduceId)
+      }.asScala.foreach(_.reply(response))
+    }
+
     val candidates = workersNotBlacklisted(shuffleId)
-    val slots = if (oldPartition != null) {
+    if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
+      logError("[Update partition] failed for not enough candidates for revive.")
+      reply(ChangeLocationResponse(StatusCode.SlotNotAvailable, null))
+      return null
+    }
+
+    val revivedLocation = if (oldPartition != null) {
       reallocateSlotsFromCandidates(List(oldPartition), candidates)
     } else {
-      reallocateForNonExistPartitionLocation(reduceId, oldEpochId, candidates)
-    }
-    if (slots == null) {
-      logError("[Update partition] failed for slot not available.")
-      contexts.synchronized {
-        contexts.remove(reduceId)
-      }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.SlotNotAvailable, null)))
-      return
+      reallocateForNonExistPartitionLocationFromCandidate(reduceId, oldEpochId, candidates)
     }
 
-    val reserveSlotsSuccess = reserveSlotsWithRetry(applicationId, shuffleId, candidates, slots)
-    if (!reserveSlotsSuccess) {
+    if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, revivedLocation)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      contexts.synchronized {
-        contexts.remove(reduceId)
-      }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null)))
+      reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null))
       return
     }
 
-    slots.asScala.foreach(entry => {
-      val partitionLocationInfo = workerSnapshots(shuffleId).get(entry._1)
-      partitionLocationInfo.addMasterPartitions(shuffleId.toString, entry._2._1)
-      partitionLocationInfo.addSlavePartitions(shuffleId.toString, entry._2._2)
-    })
-    val (masters, slaves) = slots.asScala.head._2
-    val location = if (masters != null && masters.size() > 0) {
-      masters.get(0)
+    // Add all re-allocated slots to worker snapshots.
+    revivedLocation.asScala.foreach { case (workInfo, (masterLocations, slaveLocations)) =>
+      workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
+        partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+        partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
+      }
+    }
+    val (masterLocations, slavePartitions) = revivedLocation.asScala.head._2
+    // reply the master location of this partition.
+    val revivedMasterLocation = if (masterLocations != null && masterLocations.size() > 0) {
+      masterLocations.asScala.head
     } else {
-      slaves.get(0).getPeer
+      slavePartitions.asScala.head.getPeer
     }
 
-    contexts.synchronized {
-      contexts.remove(reduceId)
-    }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.Success, location)))
+    reply(ChangeLocationResponse(StatusCode.Success, revivedMasterLocation))
     logDebug(s"Renew $shuffleId $reduceId partition success.")
   }
 
-  private def getLatestPartition(shuffleId: Int, reduceId: Int, epoch: Int): PartitionLocation = {
+  private def getLatestPartition(
+      shuffleId: Int,
+      reduceId: Int,
+      epoch: Int): Option[PartitionLocation] = {
     val locs = workerSnapshots(shuffleId).values().asScala
       .flatMap(_.getLocationWithMaxEpoch(shuffleId.toString, reduceId))
     if (!locs.isEmpty) {
       val latestLoc = locs.maxBy(_.getEpoch)
       if (latestLoc.getEpoch > epoch) {
-        return latestLoc
+        return Some(latestLoc)
       }
     }
-    null
+    None
   }
 
   private def handlePartitionSplitRequest(
-    context: RpcCallContext,
-    applicationId: String,
-    shuffleId: Int,
-    reduceId: Int,
-    oldEpoch: Int,
-    oldPartition: PartitionLocation
-  ): Unit = {
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      reduceId: Int,
+      oldEpoch: Int,
+      oldPartition: PartitionLocation): Unit = {
     val shuffleSplitting = splitting.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
     shuffleSplitting.synchronized {
       if (shuffleSplitting.containsKey(reduceId)) {
@@ -502,8 +514,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         return
       } else {
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
-        if (latestLoc != null) {
-          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
+        if (latestLoc.isDefined) {
+          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc.get))
           return
         }
         val set = new util.HashSet[RpcCallContext]()
@@ -520,12 +532,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def handleMapperEnd(
-    context: RpcCallContext,
-    applicationId: String,
-    shuffleId: Int,
-    mapId: Int,
-    attemptId: Int,
-    numMappers: Int): Unit = {
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      numMappers: Int): Unit = {
     var askStageEnd: Boolean = false
     // update max attemptId
     shuffleMapperAttempts.synchronized {
@@ -534,7 +546,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       if (attempts == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
         attempts = new Array[Int](numMappers)
-        0 until numMappers foreach (ind => attempts(ind) = -1)
+        0 until numMappers foreach (idx => attempts(idx) = -1)
         shuffleMapperAttempts.put(shuffleId, attempts)
       }
 
@@ -668,13 +680,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
     // release resources and clear worker info
-    workerSnapshots(shuffleId).asScala.foreach { w2p =>
-      val partitionLocationInfo = w2p._2
+    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
       partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
       partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
     }
-    requestReleaseSlots(rssHARetryClient, ReleaseSlots(applicationId, shuffleId,
-      new util.ArrayList[String](), new util.ArrayList[Integer]()))
+    requestReleaseSlots(rssHARetryClient,
+      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
 
     def hasCommonFailedIds(): Boolean = {
       if (!ShouldReplicate && failedMasterIds.size() != 0) {
@@ -740,7 +751,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  def handleUnregisterShuffle(context: RpcCallContext, appId: String, shuffleId: Int): Unit = {
+  private def handleUnregisterShuffle(
+      context: RpcCallContext,
+      appId: String,
+      shuffleId: Int): Unit = {
     // if StageEnd has not been handled, trigger StageEnd
     if (!stageEndShuffleSet.contains(shuffleId)) {
       logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
@@ -750,13 +764,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (partitionExists(shuffleId)) {
       logWarning(s"Partition exists for shuffle $shuffleId, " +
         "maybe caused by task rerun or speculative.")
-      workerSnapshots(shuffleId).asScala.foreach { w2p =>
-        val partitionLocationInfo = w2p._2
+      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
         partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
         partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
       }
-      requestReleaseSlots(rssHARetryClient, ReleaseSlots(appId, shuffleId,
-        new util.ArrayList[String](), new util.ArrayList[Integer]()))
+      requestReleaseSlots(rssHARetryClient,
+        ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
 
     // add shuffleKey to delay shuffle removal set
@@ -772,144 +785,176 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    |        END OF EVENT HANDLER                                |
    * ========================================================== */
 
-  def reserveSlots(
-    applicationId: String, shuffleId: Int, slots: WorkerResource): util.List[WorkerInfo] = {
-    val failed = new util.ArrayList[WorkerInfo]()
+  /**
+   * After getting WorkerResource, LifecycleManger needs to ask each Worker to
+   * reserve corresponding slot and prepare push data env in Worker side.
+   *
+   * @param applicationId Application ID
+   * @param shuffleId Application shuffle id
+   * @param slots WorkerResource to reserve slots
+   * @return List of reserving slot failed workers
+   */
+  private def reserveSlots(
+      applicationId: String,
+      shuffleId: Int,
+      slots: WorkerResource): util.List[WorkerInfo] = {
+    val reserveSlotFailedWorkers = new util.ArrayList[WorkerInfo]()
 
-    slots.asScala.foreach { entry =>
-      if (blacklist.contains(entry._1)) {
-        logWarning(s"[reserve buffer] failed due to blacklist: ${entry._1}")
-        failed.add(entry._1)
+    slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
+      if (blacklist.contains(workerInfo)) {
+        logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
+        reserveSlotFailedWorkers.add(workerInfo)
       } else {
-        val res = requestReserveSlots(entry._1.endpoint,
-          ReserveSlots(applicationId, shuffleId, entry._2._1, entry._2._2, splitThreshold,
+        val res = requestReserveSlots(workerInfo.endpoint,
+          ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
             splitMode, storageHint))
         if (res.status.equals(StatusCode.Success)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-            s" from worker ${entry._1.readableAddress}.")
+            s" from worker ${workerInfo.readableAddress}.")
         } else {
           logError(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-            s" from worker ${entry._1.readableAddress}. Reason: ${res.reason}")
-          failed.add(entry._1)
+            s" from worker ${workerInfo.readableAddress}. Reason: ${res.reason}")
+          reserveSlotFailedWorkers.add(workerInfo)
         }
       }
     }
 
-    recordWorkerFailure(failed)
-
-    failed
+    recordWorkerFailure(reserveSlotFailedWorkers)
+    reserveSlotFailedWorkers
   }
 
   /**
-   * reserve buffer with retry, retry on another node will cause slots inconsistent
+   * When enabling replicate, if one of the partition location reserve slots failed,
+   * LifecycleManager also needs to release another corresponding partition location.
+   * To release the corresponding partition location, LifecycleManager should:
+   *   1. Remove the peer partition location of failed partition location from slots.
+   *   2. Request the Worker to destroy the slot's FileWriter.
+   *   3. Request the Master to release the worker slots status.
+   *
+   * @param applicationId application id
+   * @param shuffleId shuffle id
+   * @param slots allocated WorkerResource
+   * @param failedPartitionLocations reserve slot failed partition location
    */
-  def reserveSlotsWithRetry(applicationId: String, shuffleId: Int, candidates: List[WorkerInfo],
-    slots: WorkerResource): Boolean = {
+  private def releasePeerPartitionLocation(
+      applicationId: String,
+      shuffleId: Int,
+      slots: WorkerResource,
+      failedPartitionLocations: mutable.HashMap[Int, PartitionLocation]) = {
+    val destroyResource = new WorkerResource
+    failedPartitionLocations.values
+      .flatMap { partition => Option(partition.getPeer) }
+      .foreach { partition =>
+        var destroyWorkerInfo = partition.getWorker
+        val workerInfoWithRpcRef = slots.keySet().asScala.find(_.equals(destroyWorkerInfo))
+          .getOrElse {
+            logWarning(s"Cannot find workInfo from previous success workResource:" +
+              s" ${destroyWorkerInfo.readableAddress()}, init according to partition info")
+            try {
+              destroyWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
+                RpcAddress.apply(destroyWorkerInfo.host, destroyWorkerInfo.rpcPort),
+                WORKER_EP)
+            } catch {
+              case t: Throwable =>
+                logError(s"Init rpc client failed for ${destroyWorkerInfo.readableAddress}", t)
+                destroyWorkerInfo = null
+            }
+            destroyWorkerInfo
+          }
+        if (slots.containsKey(workerInfoWithRpcRef)) {
+          val (masterPartitionLocations, slavePartitionLocations) = slots.get(workerInfoWithRpcRef)
+          partition.getMode match {
+            case PartitionLocation.Mode.Master =>
+              masterPartitionLocations.remove(partition)
+              destroyResource.computeIfAbsent(workerInfoWithRpcRef, newLocationFunc)
+                ._1.add(partition)
+            case PartitionLocation.Mode.Slave =>
+              slavePartitionLocations.remove(partition)
+              destroyResource.computeIfAbsent(workerInfoWithRpcRef, newLocationFunc)
+                ._2.add(partition)
+          }
+          if (masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty) {
+            slots.remove(workerInfoWithRpcRef)
+          }
+        }
+      }
+    if (!destroyResource.isEmpty) {
+      destroyBuffersWithRetry(applicationId, shuffleId, destroyResource)
+      logInfo(s"Destroyed peer partitions for reserve buffer failed workers " +
+        s"${Utils.makeShuffleKey(applicationId, shuffleId)}, $destroyResource")
+
+      val workerIds = new util.ArrayList[String]()
+      val workerAllocatedSlotsSizes = new util.ArrayList[Integer]()
+      Utils.workerToAllocatedSlotsSize(destroyResource).asScala
+        .foreach { case (workerInfo, size) =>
+        workerIds.add(workerInfo.toUniqueId())
+        workerAllocatedSlotsSizes.add(size)
+      }
+      val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerAllocatedSlotsSizes)
+      requestReleaseSlots(rssHARetryClient, msg)
+      logInfo(s"Released slots for reserve buffer failed workers " +
+        s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
+        s"${Utils.makeShuffleKey(applicationId, shuffleId)}, ")
+    }
+  }
+
+  /**
+   * Collect all allocated partition locations on reserving slot failed workers.
+   * For each reduce id, we only need to maintain one of the pair locations
+   * even if enabling replicate. If RSS want to release the failed partition location,
+   * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
+   *
+   * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots
+   * @param slots the slots tried to reserve a slot
+   * @return
+   */
+  def getFailedPartitionLocations(
+      reserveFailedWorkers: util.List[WorkerInfo],
+      slots: WorkerResource): mutable.HashMap[Int, PartitionLocation] = {
+    val failedPartitionLocations = new mutable.HashMap[Int, PartitionLocation]()
+    reserveFailedWorkers.asScala.foreach { workerInfo =>
+      val (failedMasterLocations, failedSlaveLocations) = slots.remove(workerInfo)
+      if (null != failedMasterLocations) {
+        failedMasterLocations.asScala.foreach { failedMasterLocation =>
+          failedPartitionLocations += (failedMasterLocation.getReduceId -> failedMasterLocation)
+        }
+      }
+      if (null != failedSlaveLocations) {
+        failedSlaveLocations.asScala.foreach { failedSlaveLocation =>
+          val reduceId = failedSlaveLocation.getReduceId
+          if (!failedPartitionLocations.contains(reduceId)) {
+            failedPartitionLocations += (reduceId -> failedSlaveLocation)
+          }
+        }
+      }
+    }
+    failedPartitionLocations
+  }
+
+  /**
+   * reserve buffer with retry, retry on another node will cause slots to be inconsistent
+   */
+  private def reserveSlotsWithRetry(
+      applicationId: String,
+      shuffleId: Int,
+      candidates: List[WorkerInfo],
+      slots: WorkerResource): Boolean = {
     // reserve buffers
-    val failed = reserveSlots(applicationId, shuffleId, slots)
+    val reserveFailedWorkers = reserveSlots(applicationId, shuffleId, slots)
 
-    val retryReserveSlotsSuccess = if (!failed.isEmpty) {
-      var retrySuccess = true
+    val finalSuccess = if (!reserveFailedWorkers.isEmpty) {
       logWarning("ReserveSlots failed once, retry again")
-      // get failed partition locations
-      val failedPartitionLocations = new mutable.HashMap[Int, PartitionLocation]()
-      failed.asScala.foreach(workerInfo => {
-        val (failedMasterLocations, failedSlaveLocations) = slots.remove(workerInfo)
-        if (null != failedMasterLocations) {
-          failedMasterLocations.asScala.foreach(failedMaster => {
-            failedPartitionLocations += (failedMaster.getReduceId -> failedMaster)
-          })
-        }
-        if (null != failedSlaveLocations) {
-          failedSlaveLocations.asScala.foreach(failedSlave => {
-            val reduceId = failedSlave.getReduceId
-            if (!failedPartitionLocations.contains(reduceId)) {
-              failedPartitionLocations += (reduceId -> failedSlave)
-            }
-          })
-        }
-      })
+      val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, slots)
 
-      val newMapFunc = new util.function.Function[WorkerInfo,
-        (util.List[PartitionLocation], util.List[PartitionLocation])] {
-        override def apply(w: WorkerInfo):
-        (util.List[PartitionLocation], util.List[PartitionLocation]) =
-          (new util.LinkedList[PartitionLocation](),
-            new util.LinkedList[PartitionLocation]())
-      }
-
+      // When enable replicate, if one of the partition location reserve slots failed,
+      // we also need to release another corresponding partition location.
       if (ShouldReplicate && failedPartitionLocations.nonEmpty && !slots.isEmpty) {
-        // get partition locations that need to destroy
-        val destroyPartitionLocations = ListBuffer[PartitionLocation]()
-        failedPartitionLocations.values.foreach(partition => {
-          if (null != partition.getPeer) {
-            destroyPartitionLocations.append(partition.getPeer)
-          }
-        })
-        // destroy success buffers those another peer is failed
-        if (destroyPartitionLocations.nonEmpty) {
-          val destroyResource = new WorkerResource
-          val workInfos = slots.keySet().asScala
-          // remove from slots
-          destroyPartitionLocations.foreach(partition => {
-            var tmpWorkerInfo = new WorkerInfo(partition.getHost, partition.getRpcPort, partition
-              .getPushPort, partition.getFetchPort, partition.getReplicatePort)
-            val workerInfoWithRpcRef = workInfos.find(worker => worker.equals(tmpWorkerInfo))
-              .getOrElse({
-                logWarning(s"Cannot find workInfo from previous success workResource:" +
-                  s" ${tmpWorkerInfo.readableAddress()}, init according to partition info")
-                try {
-                  tmpWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
-                    RpcAddress.apply(tmpWorkerInfo.host, tmpWorkerInfo.rpcPort),
-                    WORKER_EP)
-                } catch {
-                  case t: Throwable =>
-                    logWarning(s"Init rpc client failed for ${tmpWorkerInfo
-                      .readableAddress()}, exception: ${t.getMessage}")
-                    tmpWorkerInfo = null
-                }
-                tmpWorkerInfo
-              })
-            if (null != workerInfoWithRpcRef) {
-              val (masterPartitionLocations, slavePartitionLocations) =
-                slots.getOrDefault(workerInfoWithRpcRef, (null, null))
-              if (partition.getMode.equals(PartitionLocation.Mode.Master) &&
-                null != masterPartitionLocations) {
-                masterPartitionLocations.remove(partition)
-                destroyResource.computeIfAbsent(workerInfoWithRpcRef, newMapFunc)._1.add(partition)
-              }
-              if (partition.getMode.equals(PartitionLocation.Mode.Slave) &&
-                null != slavePartitionLocations) {
-                slavePartitionLocations.remove(partition)
-                destroyResource.computeIfAbsent(workerInfoWithRpcRef, newMapFunc)._2.add(partition)
-              }
-              if (slots.containsKey(workerInfoWithRpcRef) && masterPartitionLocations.isEmpty &&
-                slavePartitionLocations.isEmpty) {
-                slots.remove(workerInfoWithRpcRef)
-              }
-            }
-          })
-          if (!destroyResource.isEmpty) {
-            destroyBuffersWithRetry(applicationId, shuffleId, destroyResource)
-            logInfo(s"Destroyed peer partitions for reserve buffer failed workers " +
-              s"${Utils.makeShuffleKey(applicationId, shuffleId)}, $destroyResource")
-
-            val workerIds = new util.ArrayList[String]()
-            val slots = new util.ArrayList[Integer]()
-            Utils.workerToAllocatedSlots(destroyResource).asScala.foreach(entry => {
-              workerIds.add(entry._1.toUniqueId())
-              slots.add(entry._2)
-            })
-            val msg = ReleaseSlots(applicationId, shuffleId, workerIds, slots)
-            requestReleaseSlots(rssHARetryClient, msg)
-            logInfo(s"Released slots for reserve buffer failed workers " +
-              s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
-              s"${Utils.makeShuffleKey(applicationId, shuffleId)}, ")
-          }
-        }
+        releasePeerPartitionLocation(applicationId, shuffleId, slots, failedPartitionLocations)
       }
+
+      var retrySuccess = true
       // get retryCandidates resource and retry reserve buffer
       val retryCandidates = new util.HashSet(slots.keySet())
       // add candidates to avoid revive action passed in slots only 2 worker
@@ -917,51 +962,64 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // remove blacklist from retryCandidates
       retryCandidates.removeAll(blacklist)
 
-      val retrySlots = reallocateSlotsFromCandidates(failedPartitionLocations.values.toList,
-        retryCandidates.asScala.toList)
 
-      if (null == retrySlots) {
+      if (retryCandidates.size < 1 || (ShouldReplicate && retryCandidates.size < 2)) {
+        logError("Retry reserve slots failed caused by no enough slots.")
         retrySuccess = false
       } else {
         // retry another worker if failed
-        val failedAfterRetry = reserveSlots(applicationId, shuffleId, retrySlots)
-        retrySuccess = failedAfterRetry.isEmpty
+        val retrySlots = reallocateSlotsFromCandidates(failedPartitionLocations.values.toList,
+          retryCandidates.asScala.toList)
+        val retryReserveFailedWorkers = reserveSlots(applicationId, shuffleId, retrySlots)
+        retrySuccess = retryReserveFailedWorkers.isEmpty
         if (retrySuccess) {
-          // add success buffers to slots
-          retrySlots.asScala.foreach(entry => {
-            val (masterPartitionLocations, slavePartitionLocations) =
-              slots.computeIfAbsent(entry._1, newMapFunc)
-            if (null != entry._2._1) masterPartitionLocations.addAll(entry._2._1)
-            if (null != entry._2._2) slavePartitionLocations.addAll(entry._2._2)
-          })
+          // Add success buffers to slots
+          retrySlots.asScala
+            .foreach { case (workerInfo, (retryMasterLocations, retrySlaveLocations)) =>
+              val (masterPartitionLocations, slavePartitionLocations) =
+                slots.computeIfAbsent(workerInfo, newLocationFunc)
+              masterPartitionLocations.addAll(retryMasterLocations)
+              slavePartitionLocations.addAll(retrySlaveLocations)
+            }
         } else {
-          // destroy success buffers
-          val destroyAfterRetry = retrySlots.asScala.filterKeys(!failedAfterRetry.contains(_)).toMap
+          // Destroy the buffer that reserve slot success.
+          val retryReserveSlotsSucceedLocations =
+            retrySlots.asScala.filterKeys(!retryReserveFailedWorkers.contains(_)).toMap
           destroyBuffersWithRetry(applicationId, shuffleId,
-            new WorkerResource(destroyAfterRetry.asJava))
+            new WorkerResource(retryReserveSlotsSucceedLocations.asJava))
         }
       }
 
       retrySuccess
-    } else true
+    } else {
+      true
+    }
 
     // if failed after retry, destroy all allocated buffers
-    if (!retryReserveSlotsSuccess) {
+    if (!finalSuccess) {
       logWarning(s"Reserve buffers $shuffleId still fail after retrying, clear buffers.")
       destroyBuffersWithRetry(applicationId, shuffleId, slots)
     } else {
       logInfo(s"Reserve buffer success for ${Utils.makeShuffleKey(applicationId, shuffleId)}")
     }
 
-    retryReserveSlotsSuccess
+    finalSuccess
   }
 
-  private def newMapFunc =
+  private val newLocationFunc =
     new util.function.Function[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] {
       override def apply(w: WorkerInfo): (JList[PartitionLocation], JList[PartitionLocation]) =
         (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
     }
 
+  /**
+   * Allocate a new master/slave PartitionLocation pair from the current WorkerInfo list.
+   *
+   * @param reduceId Shuffle partition reduce id
+   * @param oldEpochId Current partition reduce location last epoch id
+   * @param candidates WorkerInfo list can be used to offer worker slots.
+   * @param slots Current WorkerResource
+   */
   private def allocateFromCandidates(
       reduceId: Int,
       oldEpochId: Int,
@@ -992,35 +1050,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         masterLocation
       )
       masterLocation.setPeer(slaveLocation)
-      val masterAndSlavePairs = slots.computeIfAbsent(candidates(slaveIndex), newMapFunc)
+      val masterAndSlavePairs = slots.computeIfAbsent(candidates(slaveIndex), newLocationFunc)
       masterAndSlavePairs._2.add(slaveLocation)
     }
 
-    val masterAndSlavePairs = slots.computeIfAbsent(candidates(masterIndex), newMapFunc)
+    val masterAndSlavePairs = slots.computeIfAbsent(candidates(masterIndex), newLocationFunc)
     masterAndSlavePairs._1.add(masterLocation)
   }
 
-  def reallocateForNonExistPartitionLocation(
+  private def reallocateForNonExistPartitionLocationFromCandidate(
       reduceId: Int,
       oldEpochId: Int,
       candidates: List[WorkerInfo]): WorkerResource = {
-    if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
-      logError("Not enough candidates for revive")
-      return null
-    }
     val slots = new WorkerResource()
     allocateFromCandidates(reduceId, oldEpochId, candidates, slots)
     slots
   }
 
-  def reallocateSlotsFromCandidates(
+  private def reallocateSlotsFromCandidates(
       oldPartitions: List[PartitionLocation],
       candidates: List[WorkerInfo]): WorkerResource = {
-    if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
-      logError("Not enough candidates for revive")
-      return null
-    }
-
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
       allocateFromCandidates(partition.getReduceId, partition.getEpoch, candidates, slots)
@@ -1028,18 +1077,27 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     slots
   }
 
-  def destroyBuffersWithRetry(
+  /**
+   * For the slots that need to be destroyed, LifecycleManager will ask the corresponding worker
+   * to destroy related FileWriter.
+   *
+   * @param applicationId application id
+   * @param shuffleId shuffle id
+   * @param slotsToDestroy worker resource to be destroyed
+   * @return destroy failed master and slave location unique id
+   */
+  private def destroyBuffersWithRetry(
       applicationId: String,
       shuffleId: Int,
-      worker: WorkerResource): (util.List[String], util.List[String]) = {
-    val failedMasters = new util.LinkedList[String]()
-    val failedSlaves = new util.LinkedList[String]()
+      slotsToDestroy: WorkerResource): (util.List[String], util.List[String]) = {
+    val failedMasterLocationUniqueIds = new util.LinkedList[String]()
+    val failedSlaveLocationUniqueIds = new util.LinkedList[String]()
 
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    worker.asScala.foreach { case (workerInfo, (masterLocation, slaveLocation)) =>
+    slotsToDestroy.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
       val destroy = Destroy(shuffleKey,
-        masterLocation.asScala.map(_.getUniqueId).asJava,
-        slaveLocation.asScala.map(_.getUniqueId).asJava)
+        masterLocations.asScala.map(_.getUniqueId).asJava,
+        slaveLocations.asScala.map(_.getUniqueId).asJava)
       var res = requestDestroy(workerInfo.endpoint, destroy)
       if (res.status != StatusCode.Success) {
         logDebug(s"Request $destroy return ${res.status} for " +
@@ -1047,10 +1105,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         res = requestDestroy(workerInfo.endpoint,
           Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
       }
-      failedMasters.addAll(res.failedMasters)
-      failedSlaves.addAll(res.failedSlaves)
+      failedMasterLocationUniqueIds.addAll(res.failedMasters)
+      failedSlaveLocationUniqueIds.addAll(res.failedSlaves)
     }
-    (failedMasters, failedSlaves)
+    (failedMasterLocationUniqueIds, failedSlaveLocationUniqueIds)
   }
 
   private def removeExpiredShuffle(): Unit = {
@@ -1061,7 +1119,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         logInfo(s"Clear shuffle $key.")
         // clear for the shuffle
         registeredShuffle.remove(key)
-        registerShuffleRequest.remove(key)
+        registeringShuffleRequest.remove(key)
         reducerFileGroupsMap.remove(key)
         dataLostShuffleSet.remove(key)
         shuffleMapperAttempts.remove(key)
@@ -1087,12 +1145,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  def requestSlotsWithRetry(
-    applicationId: String,
-    shuffleId: Int,
-    reduceIdList: util.ArrayList[Integer]): RequestSlotsResponse = {
-    val req = RequestSlots(
-      applicationId, shuffleId, reduceIdList, lifecycleHost, ShouldReplicate)
+  private def requestSlotsWithRetry(
+      applicationId: String,
+      shuffleId: Int,
+      reduceIdList: util.ArrayList[Integer]): RequestSlotsResponse = {
+    val req = RequestSlots(applicationId, shuffleId, reduceIdList, lifecycleHost, ShouldReplicate)
     val res = requestRequestSlots(rssHARetryClient, req)
     if (res.status != StatusCode.Success) {
       requestRequestSlots(rssHARetryClient, req)
@@ -1101,8 +1158,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestRequestSlots(rssHARetryClient: RssHARetryClient,
-    message: RequestSlots): RequestSlotsResponse = {
+  private def requestRequestSlots(
+      rssHARetryClient: RssHARetryClient,
+      message: RequestSlots): RequestSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
       rssHARetryClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
@@ -1114,7 +1172,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def requestReserveSlots(
-    endpoint: RpcEndpointRef, message: ReserveSlots): ReserveSlotsResponse = {
+      endpoint: RpcEndpointRef,
+      message: ReserveSlots): ReserveSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
       endpoint.askSync[ReserveSlotsResponse](message)
@@ -1149,8 +1208,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestReleaseSlots(rssHARetryClient: RssHARetryClient,
-    message: ReleaseSlots): ReleaseSlotsResponse = {
+  private def requestReleaseSlots(
+      rssHARetryClient: RssHARetryClient,
+      message: ReleaseSlots): ReleaseSlotsResponse = {
     try {
       rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
     } catch {
@@ -1160,8 +1220,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def requestUnregisterShuffle(rssHARetryClient: RssHARetryClient,
-    message: UnregisterShuffle): UnregisterShuffleResponse = {
+  private def requestUnregisterShuffle(
+      rssHARetryClient: RssHARetryClient,
+      message: UnregisterShuffle): UnregisterShuffleResponse = {
     try {
       rssHARetryClient.askSync[UnregisterShuffleResponse](
         message, classOf[UnregisterShuffleResponse])
@@ -1174,9 +1235,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def requestGetBlacklist(
       rssHARetryClient: RssHARetryClient,
-      msg: GetBlacklist): GetBlacklistResponse = {
+      message: GetBlacklist): GetBlacklistResponse = {
     try {
-      rssHARetryClient.askSync[GetBlacklistResponse](msg, classOf[GetBlacklistResponse])
+      rssHARetryClient.askSync[GetBlacklistResponse](message, classOf[GetBlacklistResponse])
     } catch {
       case e: Exception =>
         logError(s"AskSync GetBlacklist failed.", e)
@@ -1186,10 +1247,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def recordWorkerFailure(failures: util.List[WorkerInfo]): Unit = {
     val failedWorker = new util.ArrayList[WorkerInfo](failures)
-    failedWorker.removeAll(blacklist)
-    if (failedWorker.isEmpty) {
-      return
-    }
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
     blacklist.addAll(failedWorker)
   }

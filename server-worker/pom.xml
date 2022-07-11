@@ -46,6 +46,18 @@
         </dependency>
 
         <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.1.77.Final</version>
+        </dependency>
+
+        <dependency>
+            <artifactId>ratis-common</artifactId>
+            <groupId>org.apache.ratis</groupId>
+            <version>${ratis.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
