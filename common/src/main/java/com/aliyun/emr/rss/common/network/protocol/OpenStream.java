@@ -44,7 +44,7 @@ public final class OpenStream extends AbstractMessage {
   }
 
   @Override
-  public Type type() { return Type.OpenBlocks; }
+  public Type type() { return Type.OpenStream; }
 
   @Override
   public int encodedLength() {

@@ -68,7 +68,7 @@ public abstract class AbstractMessage implements Message {
     ByteBuf buf = Unpooled.wrappedBuffer(msg);
     Type type = Type.decode(buf);
     switch (type) {
-      case OpenBlocks:
+      case OpenStream:
         return OpenStream.decode(buf);
       case StreamHandle:
         return StreamHandle.decode(buf);
