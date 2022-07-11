@@ -27,7 +27,6 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
@@ -51,54 +50,37 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   private final TransportClient reverseClient;
 
   /** Handles all RPC messages. */
-  private final BaseHandler rpcHandler;
-
-  /** The max number of chunks being transferred and not finished yet. */
-  private final long maxChunksBeingTransferred;
-
-  private AbstractSource source = null;
+  private final BaseHandler msgHandler;
 
   public TransportRequestHandler(
       Channel channel,
       TransportClient reverseClient,
-      BaseHandler rpcHandler,
-      Long maxChunksBeingTransferred,
-      AbstractSource source){
-    this(channel, reverseClient, rpcHandler, maxChunksBeingTransferred);
-    this.source = source;
-  }
-
-  public TransportRequestHandler(
-      Channel channel,
-      TransportClient reverseClient,
-      BaseHandler rpcHandler,
-      Long maxChunksBeingTransferred) {
+      BaseHandler msgHandler) {
     this.channel = channel;
     this.reverseClient = reverseClient;
-    this.rpcHandler = rpcHandler;
-    this.maxChunksBeingTransferred = maxChunksBeingTransferred;
+    this.msgHandler = msgHandler;
   }
 
   @Override
   public void exceptionCaught(Throwable cause) {
-    rpcHandler.exceptionCaught(cause, reverseClient);
+    msgHandler.exceptionCaught(cause, reverseClient);
   }
 
   @Override
   public void channelActive() {
-    rpcHandler.channelActive(reverseClient);
+    msgHandler.channelActive(reverseClient);
   }
 
   @Override
   public void channelInactive() {
-    rpcHandler.channelInactive(reverseClient);
+    msgHandler.channelInactive(reverseClient);
   }
 
   @Override
   public void handle(RequestMessage request) {
     if (request instanceof ChunkFetchRequest) {
       if (checkRegistered(request)) {
-        rpcHandler.receiveRequestMessage(reverseClient, request);
+        msgHandler.receiveRequestMessage(reverseClient, request);
       }
     } else if (request instanceof RpcRequest) {
       if (checkRegistered(request)) {
@@ -110,11 +92,11 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       }
     } else if (request instanceof PushData) {
       if (checkRegistered(request)) {
-        rpcHandler.receiveRequestMessage(reverseClient, request);
+        msgHandler.receiveRequestMessage(reverseClient, request);
       }
     } else if (request instanceof PushMergedData) {
       if (checkRegistered(request)) {
-        rpcHandler.receiveRequestMessage(reverseClient, request);
+        msgHandler.receiveRequestMessage(reverseClient, request);
       }
     } else {
       throw new IllegalArgumentException("Unknown request type: " + request);
@@ -122,7 +104,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   }
 
   private boolean checkRegistered(RequestMessage req) {
-    if (!rpcHandler.checkRegistered()) {
+    if (!msgHandler.checkRegistered()) {
       IOException e = new IOException("Worker Not Registered!");
       if (req instanceof RpcRequest) {
         respond(new RpcFailure(((RpcRequest)req).requestId, Throwables.getStackTraceAsString(e)));
@@ -139,7 +121,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processRpcRequest(final RpcRequest req) {
     try {
-      rpcHandler.receiveRpc(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
+      msgHandler.receiveRpc(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
         @Override
         public void onSuccess(ByteBuffer response) {
           respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
@@ -160,7 +142,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processOneWayMessage(OneWayMessage req) {
     try {
-      rpcHandler.receiveRpc(reverseClient, req.body().nioByteBuffer());
+      msgHandler.receiveRpc(reverseClient, req.body().nioByteBuffer());
     } catch (Exception e) {
       logger.error("Error while invoking RpcHandler#receive() for one-way message.", e);
     } finally {

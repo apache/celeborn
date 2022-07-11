@@ -53,8 +53,6 @@ public class TransportServer implements Closeable {
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
   private int port = -1;
-  private NettyMemoryMetrics nettyMetric;
-  private AbstractSource source;
 
   public TransportServer(
     TransportContext context,
@@ -67,7 +65,6 @@ public class TransportServer implements Closeable {
     this.conf = context.getConf();
     this.appRpcHandler = appRpcHandler;
     this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
-    this.source = source;
 
     boolean shouldClose = true;
     try {
@@ -120,9 +117,6 @@ public class TransportServer implements Closeable {
       .childOption(ChannelOption.SO_KEEPALIVE, true)
       .childOption(ChannelOption.ALLOCATOR, allocator);
 
-    this.nettyMetric = new NettyMemoryMetrics(
-      allocator, conf.getModuleName() + "-server", conf, source);
-
     if (conf.backLog() > 0) {
       bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());
     }
@@ -157,10 +151,6 @@ public class TransportServer implements Closeable {
         context.initializePipeline(ch, rpcHandler);
       }
     });
-  }
-
-  public NettyMemoryMetrics getNettyMetric() {
-    return nettyMetric;
   }
 
   @Override

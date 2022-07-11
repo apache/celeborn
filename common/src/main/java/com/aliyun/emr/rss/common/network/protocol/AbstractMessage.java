@@ -69,7 +69,7 @@ public abstract class AbstractMessage implements Message {
     Type type = Type.decode(buf);
     switch (type) {
       case OpenBlocks:
-        return OpenBlocks.decode(buf);
+        return OpenStream.decode(buf);
       case StreamHandle:
         return StreamHandle.decode(buf);
       default: throw new IllegalArgumentException("Unknown message type: " + type);

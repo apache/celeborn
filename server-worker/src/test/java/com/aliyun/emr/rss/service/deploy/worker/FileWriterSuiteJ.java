@@ -48,7 +48,7 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.AbstractMessage;
-import com.aliyun.emr.rss.common.network.protocol.OpenBlocks;
+import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
@@ -157,7 +157,7 @@ public class FileWriterSuiteJ {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
 
-    OpenBlocks openBlocks = new OpenBlocks(shuffleKeyBytes, fileNameBytes,
+    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes,
       0, Integer.MAX_VALUE);
 
     return openBlocks.toByteBuffer();

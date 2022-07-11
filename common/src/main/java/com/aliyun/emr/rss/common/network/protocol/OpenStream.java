@@ -24,19 +24,19 @@ import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
 /** Request to read a set of blocks. Returns {@link StreamHandle}. */
-public final class OpenBlocks extends AbstractMessage {
+public final class OpenStream extends AbstractMessage {
   public byte[] shuffleKey;
   public byte[] fileName;
   public int startMapIndex;
   public int endMapIndex;
 
-  public OpenBlocks(String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
+  public OpenStream(String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
     this(shuffleKey.getBytes(StandardCharsets.UTF_8),
       fileName.getBytes(StandardCharsets.UTF_8),
       startMapIndex, endMapIndex);
   }
 
-  public OpenBlocks(byte[] shuffleKey, byte[] fileName, int startMapIndex, int endMapIndex) {
+  public OpenStream(byte[] shuffleKey, byte[] fileName, int startMapIndex, int endMapIndex) {
     this.shuffleKey = shuffleKey;
     this.fileName = fileName;
     this.startMapIndex = startMapIndex;
@@ -63,14 +63,14 @@ public final class OpenBlocks extends AbstractMessage {
     buf.writeInt(endMapIndex);
   }
 
-  public static OpenBlocks decode(ByteBuf buf) {
+  public static OpenStream decode(ByteBuf buf) {
     int shuffleKeySize = buf.readInt();
     byte[] shuffleKey = new byte[shuffleKeySize];
     buf.readBytes(shuffleKey);
     int fileNameSize = buf.readInt();
     byte[] fileName = new byte[fileNameSize];
     buf.readBytes(fileName);
-    return new OpenBlocks(shuffleKey, fileName, buf.readInt(), buf.readInt());
+    return new OpenStream(shuffleKey, fileName, buf.readInt(), buf.readInt());
   }
 
   @Override
@@ -80,8 +80,8 @@ public final class OpenBlocks extends AbstractMessage {
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof OpenBlocks) {
-      OpenBlocks o = (OpenBlocks) other;
+    if (other instanceof OpenStream) {
+      OpenStream o = (OpenStream) other;
       return startMapIndex == o.startMapIndex &&
         endMapIndex == o.endMapIndex &&
         Arrays.equals(shuffleKey, o.shuffleKey) &&

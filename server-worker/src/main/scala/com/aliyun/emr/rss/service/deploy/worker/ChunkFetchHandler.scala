@@ -72,8 +72,8 @@ class ChunkFetchHandler(val conf: TransportConf) extends BaseHandler with Loggin
       message: ByteBuffer,
       callback: RpcResponseCallback): Unit = {
     val msg = AbstractMessage.fromByteBuffer(message)
-    assert(msg.isInstanceOf[OpenBlocks])
-    val openBlocks = msg.asInstanceOf[OpenBlocks]
+    assert(msg.isInstanceOf[OpenStream])
+    val openBlocks = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
     val startMapIndex = openBlocks.startMapIndex

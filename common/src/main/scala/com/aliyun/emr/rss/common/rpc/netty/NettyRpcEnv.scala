@@ -54,10 +54,9 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
-  private val streamManager = new NettyStreamManager(this)
 
   private val transportContext = new TransportContext(transportConf,
-    new NettyRpcHandler(dispatcher, this, streamManager))
+    new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
     java.util.Collections.emptyList[TransportClientBootstrap]
@@ -517,8 +516,7 @@ private[rss] case class RpcFailure(e: Throwable)
  */
 private[rss] class NettyRpcHandler(
     dispatcher: Dispatcher,
-    nettyEnv: NettyRpcEnv,
-    streamManager: StreamManager) extends BaseHandler with Logging {
+    nettyEnv: NettyRpcEnv) extends BaseHandler with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()

@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -38,7 +37,7 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.AbstractMessage;
-import com.aliyun.emr.rss.common.network.protocol.OpenBlocks;
+import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
@@ -274,7 +273,7 @@ class Replica {
     if (client == null || !client.isActive()) {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
 
-      OpenBlocks openBlocks = new OpenBlocks(shuffleKey, location.getFileName(),
+      OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
         startMapIndex, endMapIndex);
       ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
       streamHandle = (StreamHandle) AbstractMessage.fromByteBuffer(response);
@@ -293,21 +292,6 @@ class Replica {
   @Override
   public String toString() {
     return location.getHost() + ":" + location.getFetchPort();
-  }
-
-  private ByteBuffer createOpenMessage() {
-    byte[] shuffleKeyBytes = shuffleKey.getBytes(StandardCharsets.UTF_8);
-    byte[] fileNameBytes = location.getFileName().getBytes(StandardCharsets.UTF_8);
-    ByteBuffer openMessage = ByteBuffer.allocate(
-      4 + shuffleKeyBytes.length + 4 + fileNameBytes.length + 4 + 4);
-    openMessage.putInt(shuffleKeyBytes.length);
-    openMessage.put(shuffleKeyBytes);
-    openMessage.putInt(fileNameBytes.length);
-    openMessage.put(fileNameBytes);
-    openMessage.putInt(startMapIndex);
-    openMessage.putInt(endMapIndex);
-    openMessage.flip();
-    return openMessage;
   }
 
   @VisibleForTesting

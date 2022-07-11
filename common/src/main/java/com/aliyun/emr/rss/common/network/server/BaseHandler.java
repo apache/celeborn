@@ -29,7 +29,7 @@ import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 /**
  * Handler for sendRPC() messages sent by {@link TransportClient}s.
  */
-public abstract class BaseHandler {
+public class BaseHandler {
 
   private static final RpcResponseCallback ONE_WAY_CALLBACK = new OneWayRpcCallback();
 
