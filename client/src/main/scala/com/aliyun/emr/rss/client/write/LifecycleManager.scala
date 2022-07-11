@@ -250,12 +250,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           }
           context.reply(RegisterShuffleResponse(StatusCode.Success, initialLocs))
           return
-        } else {
-          logInfo(s"New shuffle request, shuffleId $shuffleId, numPartitions: $numPartitions.")
-          val set = new util.HashSet[RpcCallContext]()
-          set.add(context)
-          registeringShuffleRequest.put(shuffleId, set)
         }
+        logInfo(s"New shuffle request, shuffleId $shuffleId, numPartitions: $numPartitions.")
+        val set = new util.HashSet[RpcCallContext]()
+        set.add(context)
+        registeringShuffleRequest.put(shuffleId, set)
       }
     }
 
@@ -458,7 +457,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val revivedLocation = if (oldPartition != null) {
       reallocateSlotsFromCandidates(List(oldPartition), candidates)
     } else {
-      reallocateForNonExistPartitionLocationFromCandidate(reduceId, oldEpochId, candidates)
+      reallocateForNonExistPartitionLocationFromCandidates(reduceId, oldEpochId, candidates)
     }
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, revivedLocation)) {
@@ -1018,7 +1017,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    *
    * @param reduceId Shuffle partition reduce id
    * @param oldEpochId Current partition reduce location last epoch id
-   * @param candidates WorkerInfo list can be used to offer worker slots.
+   * @param candidates WorkerInfo list can be used to offer worker slots
    * @param slots Current WorkerResource
    */
   private def allocateFromCandidates(
@@ -1059,7 +1058,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     masterAndSlavePairs._1.add(masterLocation)
   }
 
-  private def reallocateForNonExistPartitionLocationFromCandidate(
+  private def reallocateForNonExistPartitionLocationFromCandidates(
       reduceId: Int,
       oldEpochId: Int,
       candidates: List[WorkerInfo]): WorkerResource = {
