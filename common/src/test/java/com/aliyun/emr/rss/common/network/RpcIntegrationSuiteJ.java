@@ -43,7 +43,7 @@ public class RpcIntegrationSuiteJ {
   static TransportConf conf;
   static TransportServer server;
   static TransportClientFactory clientFactory;
-  static BaseHandler rpcHandler;
+  static BaseHandler handler;
   static List<String> oneWayMsgs;
   static StreamTestHelper testData;
 
@@ -51,7 +51,7 @@ public class RpcIntegrationSuiteJ {
   public static void setUp() throws Exception {
     conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     testData = new StreamTestHelper();
-    rpcHandler = new BaseHandler() {
+    handler = new BaseHandler() {
       @Override
       public void receiveRpc(
           TransportClient client,
@@ -78,7 +78,7 @@ public class RpcIntegrationSuiteJ {
         return true;
       }
     };
-    TransportContext context = new TransportContext(conf, rpcHandler);
+    TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     oneWayMsgs = new ArrayList<>();

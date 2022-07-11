@@ -43,8 +43,8 @@ public class TransportClientFactorySuiteJ {
   @Before
   public void setUp() {
     TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
-    BaseHandler rpcHandler = new BaseHandler();
-    context = new TransportContext(conf, rpcHandler);
+    BaseHandler handler = new BaseHandler();
+    context = new TransportContext(conf, handler);
     server1 = context.createServer();
     server2 = context.createServer();
   }
@@ -68,8 +68,8 @@ public class TransportClientFactorySuiteJ {
     configMap.put("rss.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
     TransportConf conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
 
-    BaseHandler rpcHandler = new BaseHandler();
-    TransportContext context = new TransportContext(conf, rpcHandler);
+    BaseHandler handler = new BaseHandler();
+    TransportContext context = new TransportContext(conf, handler);
     TransportClientFactory factory = context.createClientFactory();
     Set<TransportClient> clients = Collections.synchronizedSet(
       new HashSet<TransportClient>());

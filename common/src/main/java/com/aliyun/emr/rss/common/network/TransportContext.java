@@ -57,7 +57,7 @@ public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
   private final TransportConf conf;
-  private final BaseHandler rpcHandler;
+  private final BaseHandler handler;
   private final boolean closeIdleConnections;
 
   /**
@@ -80,12 +80,12 @@ public class TransportContext {
 
   public TransportContext(
       TransportConf conf,
-      BaseHandler rpcHandler,
+      BaseHandler handler,
       boolean closeIdleConnections,
       AbstractSource source,
       ChannelHandler channelHandler) {
     this.conf = conf;
-    this.rpcHandler = rpcHandler;
+    this.handler = handler;
     this.closeIdleConnections = closeIdleConnections;
     this.source = source;
     this.channelHandler = channelHandler;
@@ -93,21 +93,21 @@ public class TransportContext {
 
   public TransportContext(
       TransportConf conf,
-      BaseHandler rpcHandler,
+      BaseHandler handler,
       boolean closeIdleConnections,
       AbstractSource source) {
-    this(conf, rpcHandler, closeIdleConnections, source, null);
+    this(conf, handler, closeIdleConnections, source, null);
   }
 
-  public TransportContext(TransportConf conf, BaseHandler rpcHandler) {
-    this(conf, rpcHandler, false, null, null);
+  public TransportContext(TransportConf conf, BaseHandler handler) {
+    this(conf, handler, false, null, null);
   }
 
   public TransportContext(
       TransportConf conf,
-      BaseHandler rpcHandler,
+      BaseHandler handler,
       boolean closeIdleConnections) {
-    this(conf, rpcHandler, closeIdleConnections, null, null);
+    this(conf, handler, closeIdleConnections, null, null);
   }
 
   /**
@@ -125,13 +125,13 @@ public class TransportContext {
 
   /** Create a server which will attempt to bind to a specific port. */
   public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, null, port, rpcHandler, bootstraps, source);
+    return new TransportServer(this, null, port, handler, bootstraps, source);
   }
 
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(
       String host, int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, host, port, rpcHandler, bootstraps);
+    return new TransportServer(this, host, port, handler, bootstraps);
   }
 
   public TransportServer createServer() {
@@ -139,7 +139,7 @@ public class TransportContext {
   }
 
   public TransportChannelHandler initializePipeline(SocketChannel channel) {
-    return initializePipeline(channel, rpcHandler);
+    return initializePipeline(channel, handler);
   }
 
   /**
@@ -183,11 +183,11 @@ public class TransportContext {
    * ResponseMessages. The channel is expected to have been successfully created, though certain
    * properties (such as the remoteAddress()) may not be available yet.
    */
-  private TransportChannelHandler createChannelHandler(Channel channel, BaseHandler rpcHandler) {
+  private TransportChannelHandler createChannelHandler(Channel channel, BaseHandler handler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
-      rpcHandler);
+      handler);
     return new TransportChannelHandler(client, responseHandler, requestHandler,
       conf.connectionTimeoutMs(), closeIdleConnections);
   }

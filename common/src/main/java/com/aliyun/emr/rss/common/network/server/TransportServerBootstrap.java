@@ -29,8 +29,8 @@ public interface TransportServerBootstrap {
    * Customizes the channel to include new features, if needed.
    *
    * @param channel The connected channel opened by the client.
-   * @param rpcHandler The RPC handler for the server.
+   * @param handler The RPC handler for the server.
    * @return The RPC handler to use for the channel.
    */
-  BaseHandler doBootstrap(Channel channel, BaseHandler rpcHandler);
+  BaseHandler doBootstrap(Channel channel, BaseHandler handler);
 }
