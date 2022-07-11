@@ -273,6 +273,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val reduceIdList = new util.ArrayList[Integer]
     (0 until numPartitions).foreach(idx => reduceIdList.add(new Integer(idx)))
     val res = requestSlotsWithRetry(applicationId, shuffleId, reduceIdList)
+
     res.status match {
       case StatusCode.Failed =>
         logError(s"OfferSlots RPC request failed for $shuffleId!")
