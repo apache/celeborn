@@ -408,8 +408,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
-        if (latestLoc.isDefined) {
-          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc.get))
+        if (latestLoc != null) {
+          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
           logDebug(s"New partition found, old partition $reduceId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -489,16 +489,16 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def getLatestPartition(
       shuffleId: Int,
       reduceId: Int,
-      epoch: Int): Option[PartitionLocation] = {
+      epoch: Int): PartitionLocation = {
     val locs = workerSnapshots(shuffleId).values().asScala
       .flatMap(_.getLocationWithMaxEpoch(shuffleId.toString, reduceId))
     if (!locs.isEmpty) {
       val latestLoc = locs.maxBy(_.getEpoch)
       if (latestLoc.getEpoch > epoch) {
-        return Some(latestLoc)
+        return latestLoc
       }
     }
-    None
+    null
   }
 
   private def handlePartitionSplitRequest(
@@ -515,8 +515,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         return
       } else {
         val latestLoc = getLatestPartition(shuffleId, reduceId, oldEpoch)
-        if (latestLoc.isDefined) {
-          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc.get))
+        if (latestLoc != null) {
+          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
           return
         }
         val set = new util.HashSet[RpcCallContext]()
