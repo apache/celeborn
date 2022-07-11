@@ -118,6 +118,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       this.mapAttempts = mapAttempts;
     }
   }
+
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 

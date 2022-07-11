@@ -600,7 +600,8 @@ object Utils extends Logging {
     args.mkString(sep)
   }
 
-  def workerToAllocatedSlots(slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
+  def workerToAllocatedSlots(
+    slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
     val workerToSlots = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
     slots.asScala.foreach(entry => {
       val workerInfo = entry._1

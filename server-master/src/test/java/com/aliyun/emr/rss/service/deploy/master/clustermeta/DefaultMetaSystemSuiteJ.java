@@ -29,9 +29,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
@@ -41,6 +38,10 @@ import com.aliyun.emr.rss.common.rpc.RpcEndpointAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class DefaultMetaSystemSuiteJ {
 

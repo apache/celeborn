@@ -76,7 +76,8 @@ private[deploy] class Master(
 
   private val partitionSizeUpdateInitialDelay = RssConf.partitionSizeUpdaterInitialDelay(conf)
   private val partitionSizeUpdateInterval = RssConf.partitionSizeUpdateInterval(conf)
-  private val partitionSizeUpdateService = ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
+  private val partitionSizeUpdateService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
   partitionSizeUpdateService.scheduleAtFixedRate(new Runnable {
     override def run(): Unit = {
       statusSystem.handleUpdatePartitionSize()
@@ -258,11 +259,26 @@ private[deploy] class Master(
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
     } else {
-      statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort,
-        numSlots, System.currentTimeMillis(), requestId)
+      statusSystem.handleWorkerHeartBeat(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        System.currentTimeMillis(),
+        requestId)
     }
 
-    statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort, disks, System.currentTimeMillis(), requestId)
+    statusSystem.handleWorkerHeartBeat(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      disks,
+      System.currentTimeMillis(),
+      requestId)
 
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
@@ -296,18 +312,26 @@ private[deploy] class Master(
   }
 
   def handleRegisterWorker(
-      context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: util.Map[String,DiskInfo],
-      requestId: String): Unit = {
-    val workerToRegister = new WorkerInfo(host, rpcPort,
-      pushPort, fetchPort, replicatePort, disks, null)
-    disks.asScala.values.foreach(disk => disk.totalSlots = disk.usableSpace / statusSystem.partitionSize)
-    val hostPort = workerToRegister.pushPort
+    context: RpcCallContext,
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int,
+    disks: util.Map[String, DiskInfo],
+    requestId: String): Unit = {
+    val workerToRegister =
+      new WorkerInfo(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        null)
+    disks.asScala.values.foreach {
+      disk => disk.totalSlots = disk.usableSpace / statusSystem.partitionSize
+    }
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
@@ -321,7 +345,14 @@ private[deploy] class Master(
         s"in workerLostEvents.")
       context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
     } else {
-      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId)
+      statusSystem.handleRegisterWorker(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
     }
@@ -349,7 +380,11 @@ private[deploy] class Master(
     }
 
     // register shuffle success, update status
-    statusSystem.handleRequestSlots(shuffleKey, requestSlots.hostname, Utils.workerToAllocatedSlots(slots.asInstanceOf[WorkerResource]), requestSlots.requestId)
+    statusSystem.handleRequestSlots(
+      shuffleKey,
+      requestSlots.hostname,
+      Utils.workerToAllocatedSlots(slots.asInstanceOf[WorkerResource]),
+      requestSlots.requestId)
 
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
@@ -401,12 +436,13 @@ private[deploy] class Master(
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, workersSnapShot.asScala: _*))
+  context.reply(GetWorkerInfosResponse(StatusCode.Success, workersSnapShot.asScala: _*))
   }
 
-  private def handleReportNodeFailure(context: RpcCallContext,
-                                      failedWorkers: util.List[WorkerInfo],
-                                      requestId: String): Unit = {
+  private def handleReportNodeFailure(
+    context: RpcCallContext,
+    failedWorkers: util.List[WorkerInfo],
+    requestId: String): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
         s"${statusSystem.blacklist}")
     statusSystem.handleReportWorkerFailure(failedWorkers, requestId)
@@ -423,8 +459,12 @@ private[deploy] class Master(
     })
   }
 
-  private def handleHeartBeatFromApplication(context: RpcCallContext, appId: String, totalWritten: Long,
-    fileCount: Long, requestId: String): Unit = {
+  private def handleHeartBeatFromApplication(
+    context: RpcCallContext,
+    appId: String,
+    totalWritten: Long,
+    fileCount: Long,
+    requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(appId, totalWritten, fileCount, System.currentTimeMillis(),
       requestId)
     context.reply(OneWayMessageResponse)
@@ -437,7 +477,7 @@ private[deploy] class Master(
     val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
     val result = totalUsedRatio >= clusterSlotsUsageLimit
     logInfo(s"Current cluster slots usage:$totalUsedRatio, conf:$clusterSlotsUsageLimit, " +
-        s"overload:$result")
+      s"overload:$result")
     context.reply(GetClusterLoadStatusResponse(result))
   }
 
@@ -451,7 +491,7 @@ private[deploy] class Master(
 
     val (totalSlots, usedSlots, overloadWorkers) = workers.map(workerInfo => {
       val allSlots: Long = workerInfo.disks.values().asScala.map(_.totalSlots).sum
-      val usedSlots: Long  = workerInfo.usedSlots()
+      val usedSlots: Long = workerInfo.usedSlots()
       val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
       (allSlots, usedSlots, flag)
     }).reduce((pair1, pair2) => {

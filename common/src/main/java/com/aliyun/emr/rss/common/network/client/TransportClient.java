@@ -289,6 +289,7 @@ public class TransportClient implements Closeable {
   }
 
   private static final AtomicLong counter = new AtomicLong();
+
   public static long requestId() {
     return counter.getAndIncrement();
   }

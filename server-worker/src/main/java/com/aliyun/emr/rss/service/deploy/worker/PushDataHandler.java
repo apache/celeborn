@@ -23,5 +23,6 @@ import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
 
 public interface PushDataHandler {
   void handlePushData(PushData pushData, RpcResponseCallback callback);
+
   void handlePushMergedData(PushMergedData pushMergedData, RpcResponseCallback callback);
 }

@@ -21,7 +21,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 
 ### Shuffle Process
 ![RSS shuffle](assets/img/shuffle-procedure.jpg)
-1. Mappers lazily asks LifecycleManager to registerShuffle.
+1. Mappers lazily ask LifecycleManager to registerShuffle.
 2. LifecycleManager requests slots from Master.
 3. Workers reserve slots and create corresponding files.
 4. Mappers get worker locations from LifecycleManager.

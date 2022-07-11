@@ -44,6 +44,7 @@ public final class Platform {
   public static final int DOUBLE_ARRAY_OFFSET;
 
   private static final boolean unaligned;
+
   static {
     boolean _unaligned;
     String arch = System.getProperty("os.arch", "");

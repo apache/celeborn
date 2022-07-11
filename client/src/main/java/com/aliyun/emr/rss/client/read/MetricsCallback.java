@@ -19,5 +19,6 @@ package com.aliyun.emr.rss.client.read;
 
 public interface MetricsCallback {
   void incBytesRead(long bytesRead);
+
   void incReadTime(long time);
 }

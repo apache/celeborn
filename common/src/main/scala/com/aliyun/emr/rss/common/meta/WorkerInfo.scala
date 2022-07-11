@@ -27,7 +27,10 @@ import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbDiskInfo, PbWorke
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
-class DiskInfo(val mountPoint: String, val usableSpace: Long, val flushTime: Double,
+class DiskInfo(
+  val mountPoint: String,
+  val usableSpace: Long,
+  val flushTime: Double,
   var usedSlots: Long) extends Serializable {
   var totalSlots: Long = 0
   lazy val shuffleSlots = new util.HashMap[String, Integer]()
@@ -76,13 +79,35 @@ class WorkerInfo(
     this(workerInfo.host, workerInfo.rpcPort, workerInfo.pushPort, workerInfo.fetchPort,
       workerInfo.replicatePort, workerInfo.disks, workerInfo.endpoint)
   }
-  def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
-    this(host, rpcPort, pushPort, fetchPort, replicatePort, new util.HashMap[String, DiskInfo](), null)
+  def this(
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int) {
+    this(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      new util.HashMap[String, DiskInfo](), null)
   }
 
-  def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int,
-    replicatePort: Int, endpoint: RpcEndpointRef) {
-    this(host, rpcPort, pushPort, fetchPort, replicatePort, new util.HashMap[String, DiskInfo](), endpoint)
+  def this(
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int,
+    endpoint: RpcEndpointRef) {
+    this(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      new util.HashMap[String, DiskInfo](), endpoint)
   }
 
   def isActive: Boolean = {
@@ -100,7 +125,8 @@ class WorkerInfo(
     })
   }
 
-  def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
+  def releaseSlots(shuffleKey: String,
+    slots: util.Map[String, Integer]): Unit = this.synchronized {
     slots.asScala.foreach(diskSlots => disks.get(diskSlots).releaseSlots(shuffleKey, diskSlots._2))
   }
 
@@ -160,8 +186,13 @@ class WorkerInfo(
 object WorkerInfo {
   private val SPLIT: String = "-"
 
-  def encodeToPbStr(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int,
-    replicatePort: Int, allocations: util.Map[String, Integer]): String = {
+  def encodeToPbStr(
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int,
+    allocations: util.Map[String, Integer]): String = {
     val allocationsStrBuf = new StringBuilder()
     allocations.asScala.foreach(allocate => {
       allocationsStrBuf.append(SPLIT)
@@ -170,12 +201,13 @@ object WorkerInfo {
       allocationsStrBuf.append(allocate._2)
     })
 
-    s"$host$SPLIT$rpcPort$SPLIT$pushPort$SPLIT$fetchPort$SPLIT$replicatePort$SPLIT${allocations.size}" +
+    s"$host$SPLIT$rpcPort$SPLIT$pushPort$SPLIT$fetchPort$SPLIT" +
+      s"$replicatePort$SPLIT${allocations.size}" +
       s"${allocationsStrBuf.toString()}"
   }
 
-  def decodeFromPbMessage(pbStrList: util.List[String]): util.HashMap[WorkerInfo,
-    util.HashMap[String, Integer]] = {
+  def decodeFromPbMessage(
+    pbStrList: util.List[String]): util.HashMap[WorkerInfo, util.HashMap[String, Integer]] = {
     val map = new util.HashMap[WorkerInfo, util.HashMap[String, Integer]]()
     import scala.collection.JavaConverters._
     val allocationsMap = new util.HashMap[String, Integer]()
@@ -205,10 +237,10 @@ object WorkerInfo {
   }
 
   def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
-    val disks =  if(pbWorker.getDisksCount>0){
+    val disks = if (pbWorker.getDisksCount > 0) {
       pbWorker.getDisksMap.asScala.map(item => item._1 -> new DiskInfo(item._1,
         item._2.getUsableSpace, item._2.getFlushTime, item._2.getUsedSlots)).asJava
-    }else{
+    } else {
       new util.HashMap[String, DiskInfo]()
     }
 
@@ -217,7 +249,7 @@ object WorkerInfo {
   }
 
   def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
-    val disks =  workerInfo.disks.asScala.map(item => item._1 ->
+    val disks = workerInfo.disks.asScala.map(item => item._1 ->
       PbDiskInfo.newBuilder()
         .setUsableSpace(item._2.usableSpace)
         .setFlushTime(item._2.flushTime)

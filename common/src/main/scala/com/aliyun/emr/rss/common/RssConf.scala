@@ -838,7 +838,7 @@ object RssConf extends Logging {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
   }
 
-  def lifecycleManagerHeartbeatInterval(conf: RssConf) = {
+  def lifecycleManagerHeartbeatInterval(conf: RssConf): Long = {
     Utils.timeStringAsSeconds(conf.get("rss.lifecyclemanager.heartbeat.interval", "30s"))
   }
 
@@ -847,8 +847,8 @@ object RssConf extends Logging {
     storages.toUpperCase().split(",").map(StorageHint.valueOf(_))
   }
 
-  def diskMinimumUsableSize(conf:RssConf):Long={
-    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.usable.size","10G"))
+  def diskMinimumUsableSize(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.usable.size", "10G"))
   }
 
   def HDDFlusherThread(conf: RssConf): Int = {

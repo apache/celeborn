@@ -25,6 +25,7 @@ import scala.collection.mutable.ListBuffer;
 public abstract class DeviceObserver {
   public void notifyError(String deviceName, ListBuffer<File> dirs,
                           DeviceErrorType deviceErrorType) {}
+
   public void notifyHealthy(ListBuffer<File> dirs) {}
 
   public void notifyHighDiskUsage(ListBuffer<File> dirs) {}

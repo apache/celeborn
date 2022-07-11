@@ -4,6 +4,7 @@ import java.util.LinkedList;
 
 public class SendBufferPool {
   private static volatile SendBufferPool _instance;
+
   public static SendBufferPool get(int capacity) {
     if (_instance == null) {
       synchronized (SendBufferPool.class) {

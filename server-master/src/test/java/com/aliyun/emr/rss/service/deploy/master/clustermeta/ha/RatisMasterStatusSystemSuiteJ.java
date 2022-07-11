@@ -31,9 +31,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mockito;
-import static org.mockito.Mockito.when;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
@@ -45,6 +43,9 @@ import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef;
 import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.AbstractMetaManager;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 public class RatisMasterStatusSystemSuiteJ {
   protected static HARaftServer RATISSERVER1 = null;
@@ -234,7 +235,6 @@ public class RatisMasterStatusSystemSuiteJ {
   public void testHandleRegisterWorker() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
-
 
     statusSystem.handleRegisterWorker(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
       disks1, getNewReqeustId());

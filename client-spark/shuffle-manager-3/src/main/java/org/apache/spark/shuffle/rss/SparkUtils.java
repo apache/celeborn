@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long mapTaskId) {
     return MapStatus$.MODULE$.apply(loc, uncompressedSizes, mapTaskId);

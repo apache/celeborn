@@ -62,7 +62,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleAppHeartbeat(String appId, long totalWritten, long fileCount, long time, String requestId) {
+  public void handleAppHeartbeat(
+    String appId,
+    long totalWritten,
+    long fileCount,
+    long time,
+    String requestId) {
     updateAppHeartBeatMeta(appId, time);
   }
 

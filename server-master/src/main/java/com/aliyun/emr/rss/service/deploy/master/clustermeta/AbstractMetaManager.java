@@ -35,7 +35,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
-import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +45,8 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.util.Utils;
+
+import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -60,8 +61,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   // workerLost events
   public final ConcurrentSet<WorkerInfo> workerLostEvents = new ConcurrentSet<>();
 
-
   protected RpcEnv rpcEnv;
+
   protected RssConf conf;
 
   public long defaultPartitionSize;
@@ -87,7 +88,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     if (workerInfos != null) {
       synchronized (workers) {
-        HashMap<WorkerInfo, HashMap<String, Integer>> allocatedMap = WorkerInfo.decodeFromPbMessage(workerInfos);
+        HashMap<WorkerInfo, HashMap<String, Integer>> allocatedMap =
+          WorkerInfo.decodeFromPbMessage(workerInfos);
         workers.forEach(workerInfo -> {
           if (allocatedMap.containsKey(workerInfo)) {
             workerInfo.allocateSlots(shuffleKey, allocatedMap.get(workerInfo));
@@ -198,7 +200,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateRegisterWorkerMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, Map<String,DiskInfo> disks) {
+    String host,
+    int rpcPort,
+    int pushPort,
+    int fetchPort,
+    int replicatePort,
+    Map<String, DiskInfo> disks) {
     WorkerInfo workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
       disks, null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());

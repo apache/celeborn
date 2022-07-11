@@ -260,7 +260,11 @@ object DeviceMonitor {
   : DeviceMonitor = {
     try {
       if (RssConf.deviceMonitorEnabled(essConf)) {
-        val monitor = new LocalDeviceMonitor(essConf, deviceObserver, deviceInfos,mountInfos)
+        val monitor = new LocalDeviceMonitor(
+          essConf,
+          deviceObserver,
+          deviceInfos,
+          mountInfos)
         monitor.init()
         logger.info("Device monitor init success")
         monitor

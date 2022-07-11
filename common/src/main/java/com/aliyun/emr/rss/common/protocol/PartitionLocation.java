@@ -290,6 +290,7 @@ public class PartitionLocation implements Serializable {
     if (peer != null) {
       peerAddress = peer.hostAndPorts();
     }
+
     return "PartitionLocation[" + reduceId + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
              " peer: " + peerAddress + "storage hint:" + storageHint + "]";
@@ -366,7 +367,8 @@ public class PartitionLocation implements Serializable {
       peerPbPartitionLocationBuilder.setRpcPort(partitionLocation.getPeer().getRpcPort());
       peerPbPartitionLocationBuilder.setPushPort(partitionLocation.getPeer().getPushPort());
       peerPbPartitionLocationBuilder.setFetchPort(partitionLocation.getPeer().getFetchPort());
-      peerPbPartitionLocationBuilder.setReplicatePort(partitionLocation.getPeer().getReplicatePort());
+      peerPbPartitionLocationBuilder.setReplicatePort(
+        partitionLocation.getPeer().getReplicatePort());
       peerPbPartitionLocationBuilder.setStorageHintOrdinal(
         partitionLocation.getPeer().getStorageHint().ordinal());
       peerPbPartitionLocationBuilder.setDiskHint(partitionLocation.getPeer().getDiskHint());

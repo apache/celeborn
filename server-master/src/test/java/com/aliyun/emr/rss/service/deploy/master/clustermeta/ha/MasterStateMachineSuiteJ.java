@@ -176,7 +176,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
     disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
 
-
     WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, null);
     WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, null);
     WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, null);

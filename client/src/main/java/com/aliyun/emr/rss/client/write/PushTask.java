@@ -30,6 +30,7 @@ public class PushTask {
   public int getPartitionId() {
     return partitionId;
   }
+
   public void setPartitionId(int partitionId) {
     this.partitionId = partitionId;
   }
@@ -37,6 +38,7 @@ public class PushTask {
   public int getSize() {
     return size;
   }
+
   public void setSize(int size) {
     if (size > buffer.length) {
       buffer = new byte[size];

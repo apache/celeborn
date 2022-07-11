@@ -119,7 +119,12 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleAppHeartbeat(String appId, long totalWritten, long fileCount, long time, String requestId) {
+  public void handleAppHeartbeat(
+    String appId,
+    long totalWritten,
+    long fileCount,
+    long time,
+    String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.AppHeartBeat)

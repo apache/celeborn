@@ -42,14 +42,16 @@ public class MetaUtil {
       .build();
   }
 
-  public static Map<String, DiskInfo> fromPbDiskInfos(Map<String, ResourceProtos.DiskInfo> diskInfos) {
+  public static Map<String, DiskInfo> fromPbDiskInfos(
+    Map<String, ResourceProtos.DiskInfo> diskInfos) {
     Map<String, DiskInfo> map = new HashMap<>();
     diskInfos.forEach((k, v) -> map.put(k,
       new DiskInfo(v.getMountPoint(), v.getUsableSpace(), v.getFlushTime(), v.getUsedSlots())));
     return map;
   }
 
-  public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(Map<String, DiskInfo> diskInfos) {
+  public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(
+    Map<String, DiskInfo> diskInfos) {
     Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
     diskInfos.forEach((k, v) -> map.put(k,
       ResourceProtos.DiskInfo.newBuilder().setMountPoint(v.mountPoint())

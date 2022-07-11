@@ -59,9 +59,13 @@ public enum ByteUnit {
   }
 
   public long toKiB(long d) { return convertTo(d, KiB); }
+
   public long toMiB(long d) { return convertTo(d, MiB); }
+
   public long toGiB(long d) { return convertTo(d, GiB); }
+
   public long toTiB(long d) { return convertTo(d, TiB); }
+
   public long toPiB(long d) { return convertTo(d, PiB); }
 
   private final long multiplier;

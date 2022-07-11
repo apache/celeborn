@@ -21,8 +21,7 @@ import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, LongAdder}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -203,7 +202,8 @@ private[worker] final class LocalStorageManager(
 
   val workingDirLimits = new util.HashMap[File, Long]()
   val workingDirUsage = new util.HashMap[File, AtomicLong]()
-  val shuffleKeyGroupedWorkingDirWriters = new ConcurrentHashMap[String, ConcurrentHashMap[File, FileWriter]]()
+  val shuffleKeyGroupedWorkingDirWriters =
+    new ConcurrentHashMap[String, ConcurrentHashMap[File, FileWriter]]()
   // mountpoint -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
   val spaceMonitorInterval = RssConf.diskSpaceMonitorInterval(conf)
@@ -216,13 +216,15 @@ private[worker] final class LocalStorageManager(
     }
 
   private val workingDirWriterListFunc =
-    new function.Function[File, util.ArrayList[FileWriter]]() {
+    new java.util.function.Function[File, util.ArrayList[FileWriter]]() {
       override def apply(t: File): util.ArrayList[FileWriter] = new util.ArrayList[FileWriter]()
     }
 
   private val workingDirThreads: util.Map[File, Int] = new util.HashMap[File, Int]()
   private val workingDirs: util.ArrayList[File] = {
-    val baseDirs = RssConf.workerBaseDirs(conf).map(i => (new File(i._1, RssConf.WorkingDirName), i._2, i._3))
+    val baseDirs = RssConf.workerBaseDirs(conf).map {
+      i => (new File(i._1, RssConf.WorkingDirName), i._2, i._3)
+    }
     val availableDirs = new mutable.HashSet[File]()
 
     baseDirs.foreach { dirWithInfos =>
@@ -232,7 +234,8 @@ private[worker] final class LocalStorageManager(
         availableDirs += dirWithInfos._1
         workingDirThreads.put(dirWithInfos._1, dirWithInfos._3)
       } else {
-        logWarning(s"Exception when trying to create a file in ${dirWithInfos._1}, add to blacklist.")
+        logWarning(
+          s"Exception when trying to create a file in ${dirWithInfos._1}, add to blacklist.")
         isolatedWorkingDirs.put(dirWithInfos._1, DeviceErrorType.ReadOrWriteFailure)
       }
     }
@@ -259,7 +262,11 @@ private[worker] final class LocalStorageManager(
   }
 
   val (deviceInfos, mountInfos) = DeviceInfo.getDeviceAndMountInfos(workingDirsSnapshot())
-  private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, mountInfos)
+  private val deviceMonitor = DeviceMonitor.createDeviceMonitor(
+    conf,
+    this,
+    deviceInfos,
+    mountInfos)
 
   private val HDDThreadCount = RssConf.HDDFlusherThread(conf)
   private val SSDThreadCount = RssConf.SSDFlusherThread(conf)
@@ -278,8 +285,8 @@ private[worker] final class LocalStorageManager(
 
   deviceMonitor.startCheck()
 
-  private val spaceMonitorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-    .setNameFormat("StorageManager-monitor-thread").build)
+  private val spaceMonitorService = Executors.newSingleThreadScheduledExecutor(
+    new ThreadFactoryBuilder().setNameFormat("StorageManager-monitor-thread").build)
   spaceMonitorService.scheduleAtFixedRate(new Runnable {
     override def run(): Unit = {
       for (dir <- workingDirsSnapshot().asScala) {
@@ -420,7 +427,8 @@ private[worker] final class LocalStorageManager(
         deviceMonitor.registerFileWriter(fileWriter)
 
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
-        val dirWriters = shuffleKeyGroupedWorkingDirWriters.computeIfAbsent(shuffleKey, dirWriterMapFunc)
+        val dirWriters = shuffleKeyGroupedWorkingDirWriters
+          .computeIfAbsent(shuffleKey, dirWriterMapFunc)
         dirWriters.put(dir, fileWriter)
         val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
         list.synchronized {

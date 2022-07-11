@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import scala.Tuple2;
 
@@ -75,7 +74,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-  offerSlots(
+    offerSlots(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
     boolean shouldReplicate,
@@ -87,7 +86,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-  offerSlots(
+    offerSlots(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
     int[] oldEpochs,
@@ -117,9 +116,11 @@ public class MasterUtil {
     }
 
     Collections.sort(disks, (o1, o2) -> {
-      if (o1.flushTime() <= o2.flushTime())
+      if (o1.flushTime() <= o2.flushTime()) {
         return -1;
-      return 1;
+      } else {
+        return 1;
+      }
     });
 
     List<PartitionLocation> masterLocations = new ArrayList<>();
@@ -129,11 +130,21 @@ public class MasterUtil {
     Map<WorkerInfo, List<PartitionLocation>> slaveAggregatedLocations = new HashMap<>();
 
     AtomicInteger reduceId = new AtomicInteger(0);
-    allocatePartitionByDiskSpeed(usableDisks, reduceIds, masterLocations, masterAggregatedLocations, reduceId, oldEpochs, diskToWorkerMap, clonedWorkers, true);
+    allocatePartitionByDiskSpeed(
+      usableDisks,
+      reduceIds,
+      masterLocations,
+      masterAggregatedLocations,
+      reduceId,
+      oldEpochs,
+      diskToWorkerMap,
+      clonedWorkers,
+      true);
 
     if (shouldReplicate) {
       reduceId.set(0);
-      for (Map.Entry<WorkerInfo, List<PartitionLocation>> entry : masterAggregatedLocations.entrySet()) {
+      for (Map.Entry<WorkerInfo, List<PartitionLocation>>
+             entry : masterAggregatedLocations.entrySet()) {
         WorkerInfo workerToExclude = entry.getKey();
         List<PartitionLocation> locations = entry.getValue();
         Map<Integer, Integer> reducerIdToEpoch = new HashMap<>();
@@ -145,7 +156,15 @@ public class MasterUtil {
         remainDisks.removeAll(workerToExclude.disks().values());
         List<WorkerInfo> remainWorkers = new ArrayList<>(clonedWorkers);
         remainWorkers.remove(workerToExclude);
-        allocatePartitionByDiskSpeed(remainDisks, new ArrayList<>(reducerIdToEpoch.keySet()), slaveLocations, slaveAggregatedLocations, reduceId, null, diskToWorkerMap, remainWorkers, false);
+        allocatePartitionByDiskSpeed(remainDisks,
+          new ArrayList<>(reducerIdToEpoch.keySet()),
+          slaveLocations,
+          slaveAggregatedLocations,
+          reduceId,
+          null,
+          diskToWorkerMap,
+          remainWorkers,
+          false);
       }
     }
 
@@ -171,7 +190,8 @@ public class MasterUtil {
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
       new HashMap<>();
-    for (Map.Entry<WorkerInfo, List<PartitionLocation>> entry : masterAggregatedLocations.entrySet()) {
+    for (Map.Entry<WorkerInfo, List<PartitionLocation>>
+           entry : masterAggregatedLocations.entrySet()) {
       WorkerInfo workerInfo = entry.getKey();
 
     }
@@ -194,9 +214,9 @@ public class MasterUtil {
     List<DiskInfo> mid30 = disks.subList(thirtyPerDiskCount, thirtyPerDiskCount * 2);
     List<DiskInfo> last40 = disks.subList(thirtyPerDiskCount * 2, disks.size());
 
-    long top30Total = top30.stream().map(d -> d.availableSlots()).collect(Collectors.summingLong(l -> l));
-    long mid30Total = mid30.stream().map(d -> d.availableSlots()).collect(Collectors.summingLong(l -> l));
-    long last40Total = last40.stream().map(d -> d.availableSlots()).collect(Collectors.summingLong(l -> l));
+    long top30Total = top30.stream().map(DiskInfo::availableSlots).mapToLong(l -> l).sum();
+    long mid30Total = mid30.stream().map(DiskInfo::availableSlots).mapToLong(l -> l).sum();
+    long last40Total = last40.stream().map(DiskInfo::availableSlots).mapToLong(l -> l).sum();
 
     int requestTotalSlots = reduceIds.size();
     int top30Required = (int) Math.ceil(requestTotalSlots * top30Ratio);
@@ -229,12 +249,47 @@ public class MasterUtil {
     int[] mid30Allocations = getAllocationsBySlots(mid30Allocated, mid30);
     int[] last40Allocations = getAllocationsBySlots(last40Allocated, last40);
 
-    allocateLocations(top30Allocations, top30, reducerId, locations, isMaster, diskToWorkerMap, oldEpochs, reduceIds, workerAggregatedLocations);
-    allocateLocations(mid30Allocations, mid30, reducerId, locations, isMaster, diskToWorkerMap, oldEpochs, reduceIds, workerAggregatedLocations);
-    allocateLocations(last40Allocations, last40, reducerId, locations, isMaster, diskToWorkerMap, oldEpochs, reduceIds, workerAggregatedLocations);
+    allocateLocations(
+      top30Allocations,
+      top30,
+      reducerId,
+      locations,
+      isMaster,
+      diskToWorkerMap,
+      oldEpochs,
+      reduceIds,
+      workerAggregatedLocations);
+    allocateLocations(
+      mid30Allocations,
+      mid30,
+      reducerId,
+      locations,
+      isMaster,
+      diskToWorkerMap,
+      oldEpochs,
+      reduceIds,
+      workerAggregatedLocations);
+    allocateLocations(
+      last40Allocations,
+      last40,
+      reducerId,
+      locations,
+      isMaster,
+      diskToWorkerMap,
+      oldEpochs,
+      reduceIds,
+      workerAggregatedLocations);
 
     if (lastToRoundRobin > 0) {
-      allocateEvenly(locations, isMaster, workers, lastToRoundRobin, reducerId, oldEpochs, reduceIds, workerAggregatedLocations);
+      allocateEvenly(
+        locations,
+        isMaster,
+        workers,
+        lastToRoundRobin,
+        reducerId,
+        oldEpochs,
+        reduceIds,
+        workerAggregatedLocations);
     }
   }
 
@@ -333,7 +388,7 @@ public class MasterUtil {
     for (int i = 0; i < diskCount; i++) {
       availableSlots[i] = disks.get(i).availableSlots();
     }
-    long total = disks.stream().map(d -> d.availableSlots()).collect(Collectors.summingLong(l -> l));
+    long total = disks.stream().map(DiskInfo::availableSlots).mapToLong(l -> l).sum();
     int[] allocateArray = new int[diskCount];
     for (int i = 0; i < diskCount; i++) {
       int allocation = (int) (disks.get(i).availableSlots() / total * required);

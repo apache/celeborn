@@ -397,9 +397,10 @@ private[deploy] class Worker(
               if (writtenBytes > 0L) {
                 logDebug(s"FileName ${fileWriter.getFile.getAbsoluteFile}, size $writtenBytes")
                 writtenList.add(writtenBytes)
-              val bytes = fileWriter.close()
-              if (bytes > 0L) {
-                committedIds.add(uniqueId)
+                val bytes = fileWriter.close()
+                if (bytes > 0L) {
+                  committedIds.add(uniqueId)
+                }
               }
             } catch {
               case e: IOException =>
@@ -446,8 +447,19 @@ private[deploy] class Worker(
 
     val committedWrittenSize = new LinkedBlockingQueue[Long]()
 
-    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds, committedWrittenSize)
-    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, committedWrittenSize, false)
+    val masterFuture = commitFiles(
+      shuffleKey,
+      masterIds,
+      committedMasterIds,
+      failedMasterIds,
+      committedWrittenSize)
+    val slaveFuture = commitFiles(
+      shuffleKey,
+      slaveIds,
+      committedSlaveIds,
+      failedSlaveIds,
+      committedWrittenSize,
+      false)
 
     val future = if (masterFuture != null && slaveFuture != null) {
       CompletableFuture.allOf(masterFuture, slaveFuture)

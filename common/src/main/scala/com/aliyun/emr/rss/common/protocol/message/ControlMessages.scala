@@ -440,7 +440,7 @@ object ControlMessages extends Logging{
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: util.Map[String,DiskInfo],
+      disks: util.Map[String, DiskInfo],
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 

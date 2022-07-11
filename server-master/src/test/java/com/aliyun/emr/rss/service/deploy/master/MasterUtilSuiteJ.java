@@ -107,7 +107,7 @@ public class MasterUtilSuiteJ {
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-      MasterUtil.offerSlots(workers, reduceIds, shouldReplicate, 10 * 1024 * 1024 * 1024);
+      MasterUtil.offerSlots(workers, reduceIds, shouldReplicate, 10 * 1024 * 1024 * 1024L);
 
     if (expectSuccess) {
       assert usedWorkers == slots.size() : "Offer slots, expect to return "
@@ -121,12 +121,13 @@ public class MasterUtilSuiteJ {
         Map<String, Integer> allocationMap = entry.getValue();
         worker.allocateSlots(shuffleKey, allocationMap);
       }
-//      int realAvailableSlots = 0;
+      //int realAvailableSlots = 0;
       for (WorkerInfo worker : workers) {
-//        realAvailableSlots += worker.freeSlots();
+        //realAvailableSlots += worker.freeSlots();
       }
-//      assert realAvailableSlots == expectAvailableSlots : "Offer slots for three reduceIds, expect "
-//          + expectAvailableSlots + " available slots, but real is " + realAvailableSlots;
+      //assert realAvailableSlots == expectAvailableSlots :
+      //  "Offer slots for three reduceIds, expect "
+      //    + expectAvailableSlots + " available slots, but real is " + realAvailableSlots;
     } else {
       assert null == slots: "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }

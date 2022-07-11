@@ -35,7 +35,12 @@ public interface IMetadataHandler {
 
   void handleUnRegisterShuffle(String shuffleKey, String requestId);
 
-  void handleAppHeartbeat(String appId, long totalWritten, long fileCount, long time, String requestId);
+  void handleAppHeartbeat(
+    String appId,
+    long totalWritten,
+    long fileCount,
+    long time,
+    String requestId);
 
   void handleAppLost(String appId, String requestId);
 
