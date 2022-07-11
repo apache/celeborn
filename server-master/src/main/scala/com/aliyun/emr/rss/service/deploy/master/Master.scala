@@ -344,7 +344,7 @@ private[deploy] class Master(
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
-      context.reply(RequestSlotsResponse(StatusCode.SlotNotAvailable, null))
+      context.reply(RequestSlotsResponse(StatusCode.SlotNotAvailable, new WorkerResource()))
       return
     }
 

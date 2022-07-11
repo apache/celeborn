@@ -107,7 +107,7 @@ public class FileWriterSuiteJ {
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
-    ChunkFetchRpcHandler handler = new ChunkFetchRpcHandler(transConf, source,
+    ChunkFetchHandler handler = new ChunkFetchHandler(transConf, source,
       new OpenStreamer(info));
     TransportContext context = new TransportContext(transConf, handler);
     server = context.createServer();

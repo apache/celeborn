@@ -33,27 +33,27 @@ import com.aliyun.emr.rss.common.network.protocol.*;
 public class TransportResponseHandlerSuiteJ {
   @Test
   public void handleSuccessfulFetch() throws Exception {
-    StreamChunkId streamChunkId = new StreamChunkId(1, 0);
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
 
     TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    handler.addFetchRequest(streamChunkId, callback);
+    handler.addFetchRequest(streamChunkSlice, callback);
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new ChunkFetchSuccess(streamChunkId, new TestManagedBuffer(123)));
+    handler.handle(new ChunkFetchSuccess(streamChunkSlice, new TestManagedBuffer(123)));
     verify(callback, times(1)).onSuccess(eq(0), any());
     assertEquals(0, handler.numOutstandingRequests());
   }
 
   @Test
   public void handleFailedFetch() throws Exception {
-    StreamChunkId streamChunkId = new StreamChunkId(1, 0);
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
     TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    handler.addFetchRequest(streamChunkId, callback);
+    handler.addFetchRequest(streamChunkSlice, callback);
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new ChunkFetchFailure(streamChunkId, "some error msg"));
+    handler.handle(new ChunkFetchFailure(streamChunkSlice, "some error msg"));
     verify(callback, times(1)).onFailure(eq(0), any());
     assertEquals(0, handler.numOutstandingRequests());
   }
@@ -62,12 +62,12 @@ public class TransportResponseHandlerSuiteJ {
   public void clearAllOutstandingRequests() throws Exception {
     TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    handler.addFetchRequest(new StreamChunkId(1, 0), callback);
-    handler.addFetchRequest(new StreamChunkId(1, 1), callback);
-    handler.addFetchRequest(new StreamChunkId(1, 2), callback);
+    handler.addFetchRequest(new StreamChunkSlice(1, 0), callback);
+    handler.addFetchRequest(new StreamChunkSlice(1, 1), callback);
+    handler.addFetchRequest(new StreamChunkSlice(1, 2), callback);
     assertEquals(3, handler.numOutstandingRequests());
 
-    handler.handle(new ChunkFetchSuccess(new StreamChunkId(1, 0), new TestManagedBuffer(12)));
+    handler.handle(new ChunkFetchSuccess(new StreamChunkSlice(1, 0), new TestManagedBuffer(12)));
     handler.exceptionCaught(new Exception("duh duh duhhhh"));
 
     // should fail both b2 and b3

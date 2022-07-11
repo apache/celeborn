@@ -94,9 +94,9 @@ sealed trait Message extends Serializable{
       case RegisterShuffleResponse(status, partitionLocations) =>
         val builder = TransportMessages.PbRegisterShuffleResponse.newBuilder()
           .setStatus(status.getValue)
-        if (partitionLocations != null) {
+        if (!partitionLocations.isEmpty) {
           builder.addAllPartitionLocations(partitionLocations.iterator().asScala
-            .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+            .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
         }
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
@@ -131,7 +131,7 @@ sealed trait Message extends Serializable{
       case RequestSlotsResponse(status, workerResource) =>
         val builder = TransportMessages.PbRequestSlotsResponse.newBuilder()
           .setStatus(status.getValue)
-        if (workerResource != null) {
+        if (!workerResource.isEmpty) {
           builder.putAllWorkerResource(
             Utils.convertWorkerResourceToPbWorkerResource(workerResource))
         }
@@ -188,14 +188,12 @@ sealed trait Message extends Serializable{
       case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
         val builder = TransportMessages.PbGetReducerFileGroupResponse.newBuilder()
           .setStatus(status.getValue)
-        if (fileGroup != null) {
-          builder.addAllFileGroup(fileGroup.map(arr => PbFileGroup.newBuilder()
-            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation(_)).toIterable.asJava)
-            .build()).toIterable.asJava)
-        }
-        if (attempts != null) {
-          builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
-        }
+        builder.addAllFileGroup(fileGroup.map { arr =>
+          PbFileGroup.newBuilder()
+            .addAllLocaltions(arr.map(PartitionLocation.toPbPartitionLocation).toIterable.asJava)
+            .build()
+        }.toIterable.asJava)
+        builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
@@ -261,7 +259,7 @@ sealed trait Message extends Serializable{
 
       case GetBlacklist(localBlacklist) =>
         val payload = TransportMessages.PbGetBlacklist.newBuilder()
-          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_))
+          .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo)
             .toList.asJava)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST, payload)
@@ -269,13 +267,9 @@ sealed trait Message extends Serializable{
       case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
         val builder = TransportMessages.PbGetBlacklistResponse.newBuilder()
           .setStatus(statusCode.getValue)
-        if (blacklist != null) {
-          builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
-        }
-        if (unknownWorkers != null) {
-          builder.addAllUnknownWorkers(unknownWorkers.asScala
-            .map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
-        }
+        builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
+        builder.addAllUnknownWorkers(
+          unknownWorkers.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
 
@@ -344,18 +338,10 @@ sealed trait Message extends Serializable{
       failedMasterIds, failedSlaveIds, totalWritten, fileCount) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
-        if (committedMasterIds != null) {
-          builder.addAllCommittedMasterIds(committedMasterIds)
-        }
-        if (committedSlaveIds != null) {
-          builder.addAllCommittedSlaveIds(committedSlaveIds)
-        }
-        if (failedMasterIds != null) {
-          builder.addAllFailedMasterIds(failedMasterIds)
-        }
-        if (failedSlaveIds != null) {
-          builder.addAllFailedSlaveIds(failedSlaveIds)
-        }
+        builder.addAllCommittedMasterIds(committedMasterIds)
+        builder.addAllCommittedSlaveIds(committedSlaveIds)
+        builder.addAllFailedMasterIds(failedMasterIds)
+        builder.addAllFailedSlaveIds(failedSlaveIds)
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -372,12 +358,8 @@ sealed trait Message extends Serializable{
       case DestroyResponse(status, failedMasters, failedSlaves) =>
         val builder = TransportMessages.PbDestroyResponse.newBuilder()
           .setStatus(status.getValue)
-        if (failedMasters != null) {
-          builder.addAllFailedMasters(failedMasters)
-        }
-        if (failedSlaves != null) {
-          builder.addAllFailedSlaves(failedSlaves)
-        }
+        builder.addAllFailedMasters(failedMasters)
+        builder.addAllFailedSlaves(failedSlaves)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.DESTROY_RESPONSE, payload)
 
@@ -711,7 +693,7 @@ object ControlMessages extends Logging{
         val partitionLocations = new util.ArrayList[PartitionLocation]()
         if (pbRegisterShuffleResponse.getPartitionLocationsCount > 0) {
           partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
-            .asScala.map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava)
+            .asScala.map(PartitionLocation.fromPbPartitionLocation).toList.asJava)
         }
         RegisterShuffleResponse(Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
           partitionLocations)
@@ -736,12 +718,9 @@ object ControlMessages extends Logging{
 
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
-        val workerResource = if (pbRequestSlotsResponse.getWorkerResourceCount > 0) {
-          Utils.convertPbWorkerResourceToWorkerResource(pbRequestSlotsResponse.getWorkerResourceMap)
-        } else {
-          null
-        }
-        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus), workerResource)
+        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
+          Utils.convertPbWorkerResourceToWorkerResource(
+            pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
@@ -778,14 +757,10 @@ object ControlMessages extends Logging{
       case GET_REDUCER_FILE_GROUP_RESPONSE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
-        val fileGroup = if (pbGetReducerFileGroupResponse.getFileGroupCount > 0) {
-          pbGetReducerFileGroupResponse.getFileGroupList.asScala
-            .map(fg => fg.getLocaltionsList.asScala
-              .map(PartitionLocation.fromPbPartitionLocation(_)).toArray).toArray
-        } else null
-        val attempts = if (pbGetReducerFileGroupResponse.getAttemptsCount > 0) {
-          pbGetReducerFileGroupResponse.getAttemptsList().asScala.map(Int.unbox(_)).toArray
-        } else null
+        val fileGroup = pbGetReducerFileGroupResponse.getFileGroupList.asScala.map { fg =>
+            fg.getLocaltionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).toArray
+          }.toArray
+        val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
         GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
           fileGroup, attempts)
 
@@ -819,16 +794,11 @@ object ControlMessages extends Logging{
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
-        val blacklist = if (pbGetBlacklistResponse.getBlacklistCount > 0) {
-          pbGetBlacklistResponse.getBlacklistList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava
-        } else null
-        val unkownList = if (pbGetBlacklistResponse.getUnknownWorkersCount > 0) {
-          pbGetBlacklistResponse.getUnknownWorkersList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava
-        } else null
         GetBlacklistResponse(Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
-          blacklist, unkownList)
+          pbGetBlacklistResponse.getBlacklistList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava,
+          pbGetBlacklistResponse.getUnknownWorkersList.asScala
+            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
       case GET_CLUSTER_LOAD_STATUS =>
         val pbGetClusterLoadStats = PbGetClusterLoadStatus.parseFrom(message.getPayload)
@@ -874,7 +844,7 @@ object ControlMessages extends Logging{
         val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
         CommitFiles(pbCommitFiles.getApplicationId, pbCommitFiles.getShuffleId,
           pbCommitFiles.getMasterIdsList, pbCommitFiles.getSlaveIdsList,
-          pbCommitFiles.getMapAttemptsList.asScala.map(Int.unbox(_)).toArray)
+          pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray)
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)

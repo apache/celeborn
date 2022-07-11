@@ -119,7 +119,7 @@ private[deploy] class Worker(
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
     val numThreads = conf.getInt("rss.fetch.io.threads", localStorageManager.numDisks * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
-    val rpcHandler = new ChunkFetchRpcHandler(transportConf, workerSource, this)
+    val rpcHandler = new ChunkFetchHandler(transportConf, workerSource, this)
     val transportContext: TransportContext =
       new TransportContext(transportConf, rpcHandler, closeIdleConnections, workerSource)
     val serverBootstraps = new jArrayList[TransportServerBootstrap]()
@@ -190,9 +190,20 @@ private[deploy] class Worker(
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
         localStorageManager.getDiskSnapshot().asJava, shuffleKeys), classOf[HeartbeatResponse])
-    cleanTaskQueue.put(response.expiredShuffleKeys)
-    if (!response.registered) {
-      logError("Current worker not registered in master")
+    if (response.registered) {
+      cleanTaskQueue.put(response.expiredShuffleKeys)
+    } else {
+      logError("Worker not registered in master, clean all shuffle data and register again.")
+      // Clean all shuffle related metadata and data
+      cleanup(shuffleKeys)
+      try {
+        registerWithMaster()
+      } catch {
+        case e: Throwable =>
+          logError("Re-register worker failed after worker lost.", e)
+          // Register failed then stop server
+          stop()
+      }
     }
   }
 
@@ -419,7 +430,7 @@ private[deploy] class Worker(
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(CommitFilesResponse(
-        StatusCode.ShuffleNotRegistered, new jArrayList[String](), new jArrayList[String](),
+        StatusCode.ShuffleNotRegistered, List.empty.asJava, List.empty.asJava,
         masterIds, slaveIds, 0, 0))
       return
     }
@@ -465,9 +476,9 @@ private[deploy] class Worker(
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(StatusCode.Success, committedMasterIdList,
-          committedSlaveIdList, new jArrayList[String](), new jArrayList[String](),
-          totalWritten, fileCount))
+        context.reply(CommitFilesResponse(
+          StatusCode.Success, committedMasterIdList, committedSlaveIdList,
+          List.empty.asJava, List.empty.asJava, totalWritten, fileCount))
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
@@ -565,7 +576,7 @@ private[deploy] class Worker(
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.Success, null, null))
+      context.reply(DestroyResponse(StatusCode.Success, List.empty.asJava, List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
@@ -940,7 +951,7 @@ private[deploy] class Worker(
   cleaner.setDaemon(true)
   cleaner.start()
 
-  private def cleanup(expiredShuffleKeys: jHashSet[String]): Unit = {
+  private def cleanup(expiredShuffleKeys: jHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         partition.asInstanceOf[WorkingPartition].getFileWriter.destroy()
@@ -951,10 +962,9 @@ private[deploy] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
-      partitionsSorter.cleanup(expiredShuffleKeys)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
-
+    partitionsSorter.cleanup(expiredShuffleKeys)
     localStorageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 

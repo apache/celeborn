@@ -26,6 +26,7 @@ import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.protocol.PushData;
 import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
+import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 
 /**
  * Handler for sendRPC() messages sent by {@link TransportClient}s.
@@ -47,10 +48,18 @@ public abstract class RpcHandler {
    * @param callback Callback which should be invoked exactly once upon success or failure of the
    *                 RPC.
    */
-  public abstract void receive(
+  public void receiveRpc(
       TransportClient client,
       ByteBuffer message,
-      RpcResponseCallback callback);
+      RpcResponseCallback callback) {
+    throw new UnsupportedOperationException();
+  }
+
+  public void receiveRequestMessage(
+    TransportClient client,
+    RequestMessage msg) {
+    throw new UnsupportedOperationException();
+  }
 
   public void receivePushData(
       TransportClient client,
@@ -78,15 +87,15 @@ public abstract class RpcHandler {
 
   /**
    * Receives an RPC message that does not expect a reply. The default implementation will
-   * call "{@link #receive(TransportClient, ByteBuffer, RpcResponseCallback)}" and log a warning if
-   * any of the callback methods are called.
+   * call "{@link #receiveRpc(TransportClient, ByteBuffer, RpcResponseCallback)}" and log
+   * a warning if any of the callback methods are called.
    *
    * @param client A channel client which enables the handler to make requests back to the sender
    *               of this RPC. This will always be the exact same object for a particular channel.
    * @param message The serialized bytes of the RPC.
    */
-  public void receive(TransportClient client, ByteBuffer message) {
-    receive(client, message, ONE_WAY_CALLBACK);
+  public void receiveRpc(TransportClient client, ByteBuffer message) {
+    receiveRpc(client, message, ONE_WAY_CALLBACK);
   }
 
   /**

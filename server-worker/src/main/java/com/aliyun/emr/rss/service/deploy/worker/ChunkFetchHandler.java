@@ -22,30 +22,38 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.exception.RssException;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.metrics.source.NetWorkSource;
+import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchFailure;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
+import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
+import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
-import com.aliyun.emr.rss.common.network.server.ManagedBufferIterator;
+import com.aliyun.emr.rss.common.network.server.FileManagedBuffers;
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
 import com.aliyun.emr.rss.common.network.server.RpcHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
+import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
-public final class ChunkFetchRpcHandler extends RpcHandler {
+public final class ChunkFetchHandler extends RpcHandler {
 
-  private static final Logger logger = LoggerFactory.getLogger(ChunkFetchRpcHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(ChunkFetchHandler.class);
 
   private final TransportConf conf;
   private final OpenStreamHandler handler;
   private final OneForOneStreamManager streamManager;
   private final AbstractSource source; // metrics
 
-  public ChunkFetchRpcHandler(TransportConf conf, AbstractSource source, OpenStreamHandler handler
+  public ChunkFetchHandler(TransportConf conf, AbstractSource source, OpenStreamHandler handler
   ) {
     this.conf = conf;
     this.handler = handler;
@@ -61,7 +69,7 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
   }
 
   @Override
-  public void receive(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
+  public void receiveRpc(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
     String shuffleKey = readString(message);
     String fileName = readString(message);
     int startMapIndex = message.getInt();
@@ -75,9 +83,9 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
       logger.debug("Received chunk fetch request {} {} {} {} get file info {}", shuffleKey,
         fileName, startMapIndex, endMapIndex, fileInfo);
       try {
-        ManagedBufferIterator iterator = new ManagedBufferIterator(fileInfo, conf);
+        FileManagedBuffers buffers = new FileManagedBuffers(fileInfo, conf);
         long streamId = streamManager.registerStream(
-            client.getClientId(), iterator, client.getChannel());
+            client.getClientId(), buffers, client.getChannel());
 
         ByteBuffer response = ByteBuffer.allocate(8 + 4);
         response.putLong(streamId);
@@ -101,6 +109,53 @@ public final class ChunkFetchRpcHandler extends RpcHandler {
 
       callback.onFailure(new FileNotFoundException());
     }
+  }
+
+  @Override
+  public void receiveRequestMessage(TransportClient client, RequestMessage msg) {
+    assert msg instanceof ChunkFetchRequest;
+    ChunkFetchRequest req = (ChunkFetchRequest) msg;
+    if (source != null) {
+      source.startTimer(NetWorkSource.FetchChunkTime(), req.toString());
+    }
+    if (logger.isTraceEnabled()) {
+      logger.trace("Received req from {} to fetch block {}",
+        NettyUtils.getRemoteAddress(client.getChannel()),
+        req.streamChunkSlice);
+    }
+    long chunksBeingTransferred = streamManager.chunksBeingTransferred();
+    if (chunksBeingTransferred >= conf.maxChunksBeingTransferred()) {
+      logger.error("The number of chunks being transferred {} is above {}.",
+        chunksBeingTransferred, conf.maxChunksBeingTransferred());
+      if (source != null) {
+        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+      }
+      return;
+    }
+    ManagedBuffer buf;
+    try {
+      streamManager.checkAuthorization(client, req.streamChunkSlice.streamId);
+      buf = streamManager.getChunk(req.streamChunkSlice.streamId, req.streamChunkSlice.chunkIndex,
+        req.streamChunkSlice.offset, req.streamChunkSlice.len);
+    } catch (Exception e) {
+      logger.error(String.format("Error opening block %s for request from %s",
+        req.streamChunkSlice, NettyUtils.getRemoteAddress(client.getChannel())), e);
+      client.getChannel().writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice,
+        Throwables.getStackTraceAsString(e)));
+      if (source != null) {
+        source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+      }
+      return;
+    }
+
+    streamManager.chunkBeingSent(req.streamChunkSlice.streamId);
+    client.getChannel().writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
+      .addListener(future -> {
+        streamManager.chunkSent(req.streamChunkSlice.streamId);
+        if (source != null) {
+          source.stopTimer(NetWorkSource.FetchChunkTime(), req.toString());
+        }
+      });
   }
 
   @Override

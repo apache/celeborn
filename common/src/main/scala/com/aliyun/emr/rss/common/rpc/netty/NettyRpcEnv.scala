@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.common.rpc.netty
 
 import java.io._
-import java.net.{InetSocketAddress}
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
@@ -26,7 +26,7 @@ import javax.annotation.Nullable
 
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
-import scala.util.{DynamicVariable, Failure, Success, Try}
+import scala.util.{DynamicVariable, Failure, Success}
 import scala.util.control.NonFatal
 
 import com.aliyun.emr.rss.common.RssConf
@@ -142,7 +142,7 @@ class NettyRpcEnv(
   }
 
   private def postToOutbox(receiver: NettyRpcEndpointRef, message: OutboxMessage): Unit = {
-    if (receiver.client != null) {
+    if (receiver.client != null && receiver.client.isActive) {
       message.sendWith(receiver.client)
     } else {
       require(receiver.address != null,
@@ -523,7 +523,7 @@ private[rss] class NettyRpcHandler(
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
 
-  override def receive(
+  override def receiveRpc(
       client: TransportClient,
       message: ByteBuffer,
       callback: RpcResponseCallback): Unit = {
@@ -531,7 +531,7 @@ private[rss] class NettyRpcHandler(
     dispatcher.postRemoteMessage(messageToDispatch, callback)
   }
 
-  override def receive(
+  override def receiveRpc(
       client: TransportClient,
       message: ByteBuffer): Unit = {
     val messageToDispatch = internalReceive(client, message)

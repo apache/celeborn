@@ -257,6 +257,12 @@ public class ShuffleClientImpl extends ShuffleClient {
             result.put(partitionLoc.getReduceId(), partitionLoc);
           }
           return result;
+        } else if (response.status().equals(StatusCode.SlotNotAvailable)) {
+          logger.warn("LifecycleManager request slots return {}, retry again," +
+              " remain retry times {}", StatusCode.SlotNotAvailable.toString(), numRetries - 1);
+        } else {
+          logger.error("LifecycleManager request slots return {}, retry again," +
+              " remain retry times {}", StatusCode.Failed.toString(), numRetries - 1);
         }
       } catch (Exception e) {
         logger.error("Exception raised while registering shuffle {} with {} mapper and" +
@@ -832,6 +838,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public RssInputStream readPartition(String applicationId, int shuffleId, int reduceId,
       int attemptNumber, int startMapIndex, int endMapIndex) throws IOException {
+    String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     ReduceFileGroups fileGroups = reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> {
       try {
         if (driverRssMetaService == null) {
@@ -846,11 +853,17 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroupResponse response =
           driverRssMetaService.<GetReducerFileGroupResponse>askSync(getReducerFileGroup, classTag);
 
-        if (response != null && response.status() == StatusCode.Success) {
+        if (response.status() == StatusCode.Success) {
           return new ReduceFileGroups(response.fileGroup(), response.attempts());
+        } else if (response.status() == StatusCode.StageEndTimeOut) {
+          logger.warn("Request {} return {} for {}",
+            getReducerFileGroup, StatusCode.StageEndTimeOut.toString(), shuffleKey);
+        } else if (response.status() == StatusCode.ShuffleDataLost) {
+          logger.warn("Request {} return {} for {}",
+            getReducerFileGroup, StatusCode.ShuffleDataLost.toString(), shuffleKey);
         }
       } catch (Exception e) {
-        logger.warn("Exception raised while getting reduce file groups.", e);
+        logger.error("Exception raised while call GetReducerFileGroup for " + shuffleKey + ".", e);
       }
       return null;
     });
@@ -859,15 +872,14 @@ public class ShuffleClientImpl extends ShuffleClient {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + reduceId + "!";
       logger.error(msg);
       throw new IOException(msg);
-    }
-    if (fileGroups.partitionGroups == null) {
+    } else if (fileGroups.partitionGroups.length == 0) {
       logger.warn("Shuffle data is empty for shuffle {} reduce {}.", shuffleId, reduceId);
       return RssInputStream.empty();
+    } else {
+      return RssInputStream.create(conf, dataClientFactory, shuffleKey,
+        fileGroups.partitionGroups[reduceId], fileGroups.mapAttempts, attemptNumber,
+        startMapIndex, endMapIndex);
     }
-    String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-    return RssInputStream.create(conf, dataClientFactory, shuffleKey,
-      fileGroups.partitionGroups[reduceId], fileGroups.mapAttempts, attemptNumber,
-      startMapIndex, endMapIndex);
   }
 
   @Override
