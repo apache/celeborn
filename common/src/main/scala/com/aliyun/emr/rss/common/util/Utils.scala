@@ -600,12 +600,12 @@ object Utils extends Logging {
     args.mkString(sep)
   }
 
-  def workerToAllocatedSlots(slots: WorkerResource): util.Map[WorkerInfo, Integer] = {
-    val workerToSlots = new util.HashMap[WorkerInfo, Integer]()
-    slots.asScala.foreach(entry => {
-      workerToSlots.put(entry._1, entry._2._1.size + entry._2._2.size)
-    })
-    workerToSlots
+  def workerToAllocatedSlotsSize(slots: WorkerResource): util.Map[WorkerInfo, Integer] = {
+    val workerToSlotsSize = new util.HashMap[WorkerInfo, Integer]()
+    slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
+      workerToSlotsSize.put(workerInfo, masterPartitionLoc.size + slavePartitionLoc.size)
+    }
+    workerToSlotsSize
   }
 
   /**
