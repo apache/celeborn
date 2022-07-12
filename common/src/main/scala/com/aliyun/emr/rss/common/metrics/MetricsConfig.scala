@@ -62,7 +62,7 @@ private class MetricsConfig(conf: RssConf) extends Logging {
     if (perInstanceSubProperties.contains(DEFAULT_PREFIX)) {
       val defaultSubProperties = perInstanceSubProperties(DEFAULT_PREFIX).asScala
       for ((instance, prop) <- perInstanceSubProperties if (instance != DEFAULT_PREFIX);
-           (k, v) <- defaultSubProperties if (prop.get(k) == null)) {
+        (k, v) <- defaultSubProperties if (prop.get(k) == null)) {
         prop.put(k, v)
       }
     }

@@ -36,19 +36,31 @@ import com.aliyun.emr.rss.common.network.client._
 import com.aliyun.emr.rss.common.network.server._
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
-import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.serializer.{
+  JavaSerializer,
+  JavaSerializerInstance,
+  SerializationStream
+}
+import com.aliyun.emr.rss.common.util.{
+  ByteBufferInputStream,
+  ByteBufferOutputStream,
+  ThreadUtils,
+  Utils
+}
 
 class NettyRpcEnv(
     val conf: RssConf,
     javaSerializerInstance: JavaSerializerInstance,
     host: String,
-    numUsableCores: Int) extends RpcEnv(conf) with Logging {
+    numUsableCores: Int
+) extends RpcEnv(conf)
+  with Logging {
 
   private[rss] val transportConf = Utils.fromRssConf(
     conf.clone,
     TransportModuleConstants.RPC_MODULE,
-    conf.getInt("rss.rpc.io.threads", numUsableCores))
+    conf.getInt("rss.rpc.io.threads", numUsableCores)
+  )
 
   private val dispatcher: Dispatcher = new Dispatcher(this, numUsableCores)
 
@@ -56,8 +68,8 @@ class NettyRpcEnv(
 
   private val streamManager = new NettyStreamManager(this)
 
-  private val transportContext = new TransportContext(transportConf,
-    new NettyRpcHandler(dispatcher, this, streamManager))
+  private val transportContext =
+    new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this, streamManager))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
     java.util.Collections.emptyList[TransportClientBootstrap]
@@ -72,7 +84,8 @@ class NettyRpcEnv(
   // to implement non-blocking send/ask.
   private[rss] val clientConnectionExecutor = ThreadUtils.newDaemonCachedThreadPool(
     "netty-rpc-connection",
-    conf.getInt("spark.rpc.connect.threads", 64))
+    conf.getInt("spark.rpc.connect.threads", 64)
+  )
 
   @volatile private var server: TransportServer = _
 
@@ -99,7 +112,9 @@ class NettyRpcEnv(
       java.util.Collections.emptyList()
     server = transportContext.createServer(bindAddress, port, bootstraps)
     dispatcher.registerRpcEndpoint(
-      RpcEndpointVerifier.NAME, new RpcEndpointVerifier(this, dispatcher))
+      RpcEndpointVerifier.NAME,
+      new RpcEndpointVerifier(this, dispatcher)
+    )
   }
 
   @Nullable
@@ -126,14 +141,19 @@ class NettyRpcEnv(
     val addr = RpcEndpointAddress(uri)
     val endpointRef = new NettyRpcEndpointRef(conf, addr, this)
     val verifier = new NettyRpcEndpointRef(
-      conf, RpcEndpointAddress(addr.rpcAddress, RpcEndpointVerifier.NAME), this)
-    verifier.ask[Boolean](RpcEndpointVerifier.CheckExistence(endpointRef.name)).flatMap { find =>
-      if (find) {
-        Future.successful(endpointRef)
-      } else {
-        Future.failed(new RpcEndpointNotFoundException(uri))
-      }
-    }(ThreadUtils.sameThread)
+      conf,
+      RpcEndpointAddress(addr.rpcAddress, RpcEndpointVerifier.NAME),
+      this
+    )
+    verifier
+      .ask[Boolean](RpcEndpointVerifier.CheckExistence(endpointRef.name))
+      .flatMap { find =>
+        if (find) {
+          Future.successful(endpointRef)
+        } else {
+          Future.failed(new RpcEndpointNotFoundException(uri))
+        }
+      }(ThreadUtils.sameThread)
   }
 
   override def stop(endpointRef: RpcEndpointRef): Unit = {
@@ -145,8 +165,10 @@ class NettyRpcEnv(
     if (receiver.client != null && receiver.client.isActive) {
       message.sendWith(receiver.client)
     } else {
-      require(receiver.address != null,
-        "Cannot send message to client endpoint with no listen address.")
+      require(
+        receiver.address != null,
+        "Cannot send message to client endpoint with no listen address."
+      )
       val targetOutbox = {
         val outbox = outboxes.get(receiver.address)
         if (outbox == null) {
@@ -197,7 +219,7 @@ class NettyRpcEnv(
     def onFailure(e: Throwable): Unit = {
       if (!promise.tryFailure(e)) {
         e match {
-          case e : RpcEnvStoppedException => logDebug (s"Ignored failure: $e")
+          case e: RpcEnvStoppedException => logDebug(s"Ignored failure: $e")
           case _ => logWarning(s"Ignored failure: $e")
         }
       }
@@ -220,9 +242,11 @@ class NettyRpcEnv(
         }(ThreadUtils.sameThread)
         dispatcher.postLocalMessage(message, p)
       } else {
-        val rpcMessage = RpcOutboxMessage(message.serialize(this),
+        val rpcMessage = RpcOutboxMessage(
+          message.serialize(this),
           onFailure,
-          (client, response) => onSuccess(deserialize[Any](client, response)))
+          (client, response) => onSuccess(deserialize[Any](client, response))
+        )
         postToOutbox(message.receiver, rpcMessage)
         promise.future.failed.foreach {
           case _: TimeoutException => rpcMessage.onTimeout()
@@ -230,12 +254,20 @@ class NettyRpcEnv(
         }(ThreadUtils.sameThread)
       }
 
-      val timeoutCancelable = timeoutScheduler.schedule(new Runnable {
-        override def run(): Unit = {
-          onFailure(new TimeoutException(s"Cannot receive any reply from ${remoteAddr} " +
-            s"in ${timeout.duration}"))
-        }
-      }, timeout.duration.toNanos, TimeUnit.NANOSECONDS)
+      val timeoutCancelable = timeoutScheduler.schedule(
+        new Runnable {
+          override def run(): Unit = {
+            onFailure(
+              new TimeoutException(
+                s"Cannot receive any reply from ${remoteAddr} " +
+                  s"in ${timeout.duration}"
+              )
+            )
+          }
+        },
+        timeout.duration.toNanos,
+        TimeUnit.NANOSECONDS
+      )
       promise.future.onComplete { v =>
         timeoutCancelable.cancel(true)
       }(ThreadUtils.sameThread)
@@ -313,6 +345,7 @@ class NettyRpcEnv(
 }
 
 private[rss] object NettyRpcEnv extends Logging {
+
   /**
    * When deserializing the [[NettyRpcEndpointRef]], it needs a reference to [[NettyRpcEnv]].
    * Use `currentEnv` to wrap the deserialization codes. E.g.,
@@ -342,8 +375,12 @@ private[rss] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
     val javaSerializerInstance =
       new JavaSerializer(essConf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv =
-      new NettyRpcEnv(essConf, javaSerializerInstance, config.advertiseAddress,
-        config.numUsableCores)
+      new NettyRpcEnv(
+        essConf,
+        javaSerializerInstance,
+        config.advertiseAddress,
+        config.numUsableCores
+      )
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
       nettyEnv.startServer(config.bindAddress, actualPort)
       (nettyEnv, nettyEnv.address.port)
@@ -380,10 +417,10 @@ private[rss] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
  * @param nettyEnv The RpcEnv associated with this ref.
  */
 class NettyRpcEndpointRef(
-                           @transient private val conf: RssConf,
-                           private val endpointAddress: RpcEndpointAddress,
-                           @transient @volatile private var nettyEnv: NettyRpcEnv)
-  extends RpcEndpointRef(conf) {
+    @transient private val conf: RssConf,
+    private val endpointAddress: RpcEndpointAddress,
+    @transient @volatile private var nettyEnv: NettyRpcEnv
+) extends RpcEndpointRef(conf) {
 
   @transient @volatile var client: TransportClient = _
 
@@ -433,7 +470,8 @@ class NettyRpcEndpointRef(
 private[rss] class RequestMessage(
     val senderAddress: RpcAddress,
     val receiver: NettyRpcEndpointRef,
-    val content: Any) {
+    val content: Any
+) {
 
   /** Manually serialize [[RequestMessage]] to minimize the size. */
   def serialize(nettyEnv: NettyRpcEnv): ByteBuffer = {
@@ -491,7 +529,8 @@ private[rss] object RequestMessage {
         senderAddress,
         ref,
         // The remaining bytes in `bytes` are the message content.
-        nettyEnv.deserialize(client, bytes))
+        nettyEnv.deserialize(client, bytes)
+      )
     } finally {
       in.close()
     }
@@ -518,7 +557,9 @@ private[rss] case class RpcFailure(e: Throwable)
 private[rss] class NettyRpcHandler(
     dispatcher: Dispatcher,
     nettyEnv: NettyRpcEnv,
-    streamManager: StreamManager) extends RpcHandler with Logging {
+    streamManager: StreamManager
+) extends RpcHandler
+  with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
@@ -526,14 +567,13 @@ private[rss] class NettyRpcHandler(
   override def receiveRpc(
       client: TransportClient,
       message: ByteBuffer,
-      callback: RpcResponseCallback): Unit = {
+      callback: RpcResponseCallback
+  ): Unit = {
     val messageToDispatch = internalReceive(client, message)
     dispatcher.postRemoteMessage(messageToDispatch, callback)
   }
 
-  override def receiveRpc(
-      client: TransportClient,
-      message: ByteBuffer): Unit = {
+  override def receiveRpc(client: TransportClient, message: ByteBuffer): Unit = {
     val messageToDispatch = internalReceive(client, message)
     dispatcher.postOneWayMessage(messageToDispatch)
   }

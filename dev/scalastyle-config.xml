@@ -347,4 +347,12 @@ This file is divided into 3 sections:
     <parameters><parameter name="ignore">-1,0,1,2,3</parameter></parameters>
   </check>
 
+  <check enabled="true" class="org.scalastyle.file.IndentationChecker" level="error">
+    <parameters>
+      <parameter name="tabSize">2</parameter>
+      <parameter name="methodParamIndentSize">4</parameter>
+      <parameter name="classParamIndentSize">4</parameter>
+    </parameters>
+  </check>
+
 </scalastyle>

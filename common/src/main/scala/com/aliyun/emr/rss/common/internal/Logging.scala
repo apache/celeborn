@@ -101,7 +101,8 @@ trait Logging {
 
   protected def initializeLogIfNecessary(
       isInterpreter: Boolean,
-      silent: Boolean = false): Boolean = {
+      silent: Boolean = false
+  ): Boolean = {
     if (!Logging.initialized) {
       Logging.initLock.synchronized {
         if (!Logging.initialized) {
@@ -146,8 +147,10 @@ trait Logging {
         if (replLevel != rootLogger.getEffectiveLevel()) {
           if (!silent) {
             System.err.printf("Setting default log level to \"%s\".\n", replLevel)
-            System.err.println("To adjust logging level use sc.setLogLevel(newLevel). " +
-              "For SparkR, use setLogLevel(newLevel).")
+            System.err.println(
+              "To adjust logging level use sc.setLogLevel(newLevel). " +
+                "For SparkR, use setLogLevel(newLevel)."
+            )
           }
           rootLogger.setLevel(replLevel)
         }

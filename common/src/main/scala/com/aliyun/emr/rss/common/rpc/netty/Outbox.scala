@@ -36,7 +36,8 @@ private[rss] sealed trait OutboxMessage {
 
 }
 
-private[rss] case class OneWayOutboxMessage(content: ByteBuffer) extends OutboxMessage
+private[rss] case class OneWayOutboxMessage(content: ByteBuffer)
+  extends OutboxMessage
   with Logging {
 
   override def sendWith(client: TransportClient): Unit = {
@@ -55,8 +56,10 @@ private[rss] case class OneWayOutboxMessage(content: ByteBuffer) extends OutboxM
 private[rss] case class RpcOutboxMessage(
     content: ByteBuffer,
     _onFailure: (Throwable) => Unit,
-    _onSuccess: (TransportClient, ByteBuffer) => Unit)
-  extends OutboxMessage with RpcResponseCallback with Logging {
+    _onSuccess: (TransportClient, ByteBuffer) => Unit
+) extends OutboxMessage
+  with RpcResponseCallback
+  with Logging {
 
   private var client: TransportClient = _
   private var requestId: Long = _

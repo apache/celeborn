@@ -60,8 +60,11 @@ object Utils extends Logging {
   }
 
   def getSystemProperties: Map[String, String] = {
-    System.getProperties.stringPropertyNames().asScala
-      .map(key => (key, System.getProperty(key))).toMap
+    System.getProperties
+      .stringPropertyNames()
+      .asScala
+      .map(key => (key, System.getProperty(key)))
+      .toMap
   }
 
   def timeStringAsMs(str: String): Long = {
@@ -139,13 +142,15 @@ object Utils extends Logging {
       val uri = new java.net.URI(essUrl)
       val host = uri.getHost
       val port = uri.getPort
-      if (uri.getScheme != "rss" ||
+      if (
+        uri.getScheme != "rss" ||
         host == null ||
         port < 0 ||
         (uri.getPath != null && !uri.getPath.isEmpty) || // uri.getPath returns "" instead of null
         uri.getFragment != null ||
         uri.getQuery != null ||
-        uri.getUserInfo != null) {
+        uri.getUserInfo != null
+      ) {
         throw new RssException("Invalid master URL: " + essUrl)
       }
       (host, port)
@@ -186,8 +191,9 @@ object Utils extends Logging {
     }
   }
 
-  def tryWithSafeFinallyAndFailureCallbacks[T](block: => T)
-    (catchBlock: => Unit = (), finallyBlock: => Unit = ()): T = {
+  def tryWithSafeFinallyAndFailureCallbacks[T](
+      block: => T
+  )(catchBlock: => Unit = (), finallyBlock: => Unit = ()): T = {
     var originalThrowable: Throwable = null
     try {
       block
@@ -221,13 +227,16 @@ object Utils extends Logging {
   }
 
   def startServiceOnPort[T](
-                             startPort: Int,
-                             startService: Int => (T, Int),
-                             conf: RssConf,
-                             serviceName: String = ""): (T, Int) = {
+      startPort: Int,
+      startService: Int => (T, Int),
+      conf: RssConf,
+      serviceName: String = ""
+  ): (T, Int) = {
 
-    require(startPort == 0 || (1024 <= startPort && startPort < 65536),
-      "startPort should be between 1024 and 65535 (inclusive), or 0 for a random free port.")
+    require(
+      startPort == 0 || (1024 <= startPort && startPort < 65536),
+      "startPort should be between 1024 and 65535 (inclusive), or 0 for a random free port."
+    )
 
     val serviceString = if (serviceName.isEmpty) "" else s" '$serviceName'"
     val maxRetries = RssConf.masterPortMaxRetry(conf)
@@ -265,11 +274,15 @@ object Utils extends Logging {
           if (startPort == 0) {
             // As startPort 0 is for a random free port, it is most possibly binding address is
             // not correct.
-            logWarning(s"Service$serviceString could not bind on a random free port. " +
-              "You may check whether configuring an appropriate binding address.")
+            logWarning(
+              s"Service$serviceString could not bind on a random free port. " +
+                "You may check whether configuring an appropriate binding address."
+            )
           } else {
-            logWarning(s"Service$serviceString could not bind on port $tryPort. " +
-              s"Attempting port ${tryPort + 1}.")
+            logWarning(
+              s"Service$serviceString could not bind on port $tryPort. " +
+                s"Attempting port ${tryPort + 1}."
+            )
           }
       }
     }
@@ -292,7 +305,7 @@ object Utils extends Logging {
       //        e.getThrowables.asScala.exists(isBindCollision)
       case e: NativeIoException =>
         (e.getMessage != null && e.getMessage.startsWith("bind() failed: ")) ||
-          isBindCollision(e.getCause)
+        isBindCollision(e.getCause)
       case e: Exception => isBindCollision(e.getCause)
       case _ => false
     }
@@ -329,22 +342,27 @@ object Utils extends Logging {
 
         for (ni <- reOrderedNetworkIFs) {
           val addresses = ni.getInetAddresses.asScala
-            .filterNot(addr => addr.isLinkLocalAddress || addr.isLoopbackAddress).toSeq
+            .filterNot(addr => addr.isLinkLocalAddress || addr.isLoopbackAddress)
+            .toSeq
           if (addresses.nonEmpty) {
             val addr = addresses.find(_.isInstanceOf[Inet4Address]).getOrElse(addresses.head)
             // because of Inet6Address.toHostName may add interface at the end if it knows about it
             val strippedAddress = InetAddress.getByAddress(addr.getAddress)
             // We've found an address that looks reasonable!
-            logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
-              " a loopback address: " + address.getHostAddress + "; using " +
-              strippedAddress.getHostAddress + " instead (on interface " + ni.getName + ")")
+            logWarning(
+              "Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
+                " a loopback address: " + address.getHostAddress + "; using " +
+                strippedAddress.getHostAddress + " instead (on interface " + ni.getName + ")"
+            )
             logWarning("Set JSS_LOCAL_IP if you need to bind to another address")
             return strippedAddress
           }
         }
-        logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
-          " a loopback address: " + address.getHostAddress + ", but we couldn't find any" +
-          " external IP address!")
+        logWarning(
+          "Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
+            " a loopback address: " + address.getHostAddress + ", but we couldn't find any" +
+            " external IP address!"
+        )
         logWarning("Set JSS_LOCAL_IP if you need to bind to another address")
       }
       address
@@ -383,15 +401,18 @@ object Utils extends Logging {
     conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
 
-    new TransportConf(module, new ConfigProvider {
-      override def get(name: String): String = conf.get(name)
+    new TransportConf(
+      module,
+      new ConfigProvider {
+        override def get(name: String): String = conf.get(name)
 
-      override def get(name: String, defaultValue: String): String = conf.get(name, defaultValue)
+        override def get(name: String, defaultValue: String): String = conf.get(name, defaultValue)
 
-      override def getAll(): java.lang.Iterable[java.util.Map.Entry[String, String]] = {
-        conf.getAll.toMap.asJava.entrySet()
+        override def getAll(): java.lang.Iterable[java.util.Map.Entry[String, String]] = {
+          conf.getAll.toMap.asJava.entrySet()
+        }
       }
-    })
+    )
   }
 
   private def defaultNumThreads(numUsableCores: Int): Int = {
@@ -423,18 +444,21 @@ object Utils extends Logging {
   def loadDefaultRssProperties(conf: RssConf, filePath: String = null): String = {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
-      getPropertiesFromFile(confFile).filter { case (k, v) =>
-        k.startsWith("rss.")
-      }.foreach { case (k, v) =>
-        conf.setIfMissing(k, v)
-        sys.props.getOrElseUpdate(k, v)
-      }
+      getPropertiesFromFile(confFile)
+        .filter { case (k, v) =>
+          k.startsWith("rss.")
+        }
+        .foreach { case (k, v) =>
+          conf.setIfMissing(k, v)
+          sys.props.getOrElseUpdate(k, v)
+        }
     }
     path
   }
 
   def getDefaultPropertiesFile(env: Map[String, String] = sys.env): String = {
-    env.get("RSS_CONF_DIR")
+    env
+      .get("RSS_CONF_DIR")
       .orElse(env.get("RSS_HOME").map { t => s"$t${File.separator}conf" })
       .map { t => new File(s"$t${File.separator}rss-defaults.conf") }
       .filter(_.isFile)
@@ -465,7 +489,9 @@ object Utils extends Logging {
     try {
       val properties = new Properties()
       properties.load(inReader)
-      properties.stringPropertyNames().asScala
+      properties
+        .stringPropertyNames()
+        .asScala
         .map { k => (k, trimExceptCRLF(properties.getProperty(k))) }
         .toMap
 
@@ -564,8 +590,10 @@ object Utils extends Logging {
     while (dir == null) {
       attempts += 1
       if (attempts > maxAttempts) {
-        throw new IOException("Failed to create a temp directory (under " + root + ") after " +
-          maxAttempts + " attempts!")
+        throw new IOException(
+          "Failed to create a temp directory (under " + root + ") after " +
+            maxAttempts + " attempts!"
+        )
       }
       try {
         dir = new File(root, namePrefix + "-" + UUID.randomUUID.toString)
@@ -584,7 +612,8 @@ object Utils extends Logging {
    */
   def createTempDir(
       root: String = System.getProperty("java.io.tmpdir"),
-      namePrefix: String = "rss"): File = {
+      namePrefix: String = "rss"
+  ): File = {
     val dir = createDirectory(root, namePrefix)
     Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
       override def run(): Unit = {
@@ -601,7 +630,8 @@ object Utils extends Logging {
   }
 
   def workerToAllocatedSlots(
-    slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
+      slots: WorkerResource
+  ): util.Map[WorkerInfo, util.Map[String, Integer]] = {
     val workerToSlots = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
     slots.asScala.foreach(entry => {
       val workerInfo = entry._1
@@ -610,13 +640,15 @@ object Utils extends Logging {
       val diskSlotsMap = new util.HashMap[String, Integer]()
 
       def countLocationByDisk(location: util.List[PartitionLocation]): Unit = {
-        location.asScala.groupBy(_.getDiskHint).foreach(item => {
-          if (diskSlotsMap.containsKey(item._1)) {
-            diskSlotsMap.put(item._1, diskSlotsMap.get(item._1) + item._2.size)
-          } else {
-            diskSlotsMap.put(item._1, item._2.size)
-          }
-        })
+        location.asScala
+          .groupBy(_.getDiskHint)
+          .foreach(item => {
+            if (diskSlotsMap.containsKey(item._1)) {
+              diskSlotsMap.put(item._1, diskSlotsMap.get(item._1) + item._2.size)
+            } else {
+              diskSlotsMap.put(item._1, item._2.size)
+            }
+          })
       }
 
       countLocationByDisk(masterLocations)
@@ -636,9 +668,11 @@ object Utils extends Logging {
    * @tparam T result type
    * @return result
    */
-  def tryWithTimeoutAndCallback[T](block: => T)(callback: => T)
-    (threadPool: ThreadPoolExecutor, timeoutInSeconds: Long = 10,
-      errorMessage: String = "none"): T = {
+  def tryWithTimeoutAndCallback[T](block: => T)(callback: => T)(
+      threadPool: ThreadPoolExecutor,
+      timeoutInSeconds: Long = 10,
+      errorMessage: String = "none"
+  ): T = {
     val futureTask = new Callable[T] {
       override def call(): T = {
         block
@@ -651,8 +685,10 @@ object Utils extends Logging {
       future.get(timeoutInSeconds, TimeUnit.SECONDS)
     } catch {
       case _: TimeoutException =>
-        logError(s"TimeoutException in thread ${Thread.currentThread().getName}," +
-          s" error message: $errorMessage")
+        logError(
+          s"TimeoutException in thread ${Thread.currentThread().getName}," +
+            s" error message: $errorMessage"
+        )
         callback
       case throwable: Throwable =>
         throw throwable
@@ -663,33 +699,45 @@ object Utils extends Logging {
     }
   }
 
-  def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]):
-  WorkerResource = {
+  def convertPbWorkerResourceToWorkerResource(
+      pbWorkerResource: util.Map[String, PbWorkerResource]
+  ): WorkerResource = {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach(item => {
       val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = item._1.split(":")
-      val workerInfo = new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt,
-        replicatePort.toInt)
-      val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
-        .getMasterPartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
-      val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
-        .getSlavePartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
+      val workerInfo =
+        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+      val masterPartitionLocation = new util.ArrayList[PartitionLocation](
+        item._2.getMasterPartitionsList.asScala
+          .map(PartitionLocation.fromPbPartitionLocation)
+          .asJava
+      )
+      val slavePartitionLocation = new util.ArrayList[PartitionLocation](
+        item._2.getSlavePartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava
+      )
       slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
     })
     slots
   }
 
-  def convertWorkerResourceToPbWorkerResource(workerResource: WorkerResource):
-  util.Map[String, PbWorkerResource] = {
-    workerResource.asScala.map(item => {
-      val uniqueId = item._1.toUniqueId()
-      val masterPartitions = item._2._1.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
-      val slavePartitions = item._2._2.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
-      val pbWorkerResource = PbWorkerResource.newBuilder()
-        .addAllMasterPartitions(masterPartitions)
-        .addAllSlavePartitions(slavePartitions).build()
-      uniqueId -> pbWorkerResource
-    }).toMap.asJava
+  def convertWorkerResourceToPbWorkerResource(
+      workerResource: WorkerResource
+  ): util.Map[String, PbWorkerResource] = {
+    workerResource.asScala
+      .map(item => {
+        val uniqueId = item._1.toUniqueId()
+        val masterPartitions =
+          item._2._1.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+        val slavePartitions = item._2._2.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+        val pbWorkerResource = PbWorkerResource
+          .newBuilder()
+          .addAllMasterPartitions(masterPartitions)
+          .addAllSlavePartitions(slavePartitions)
+          .build()
+        uniqueId -> pbWorkerResource
+      })
+      .toMap
+      .asJava
   }
 
   def toTransportMessage(message: Any): Any = {
@@ -766,7 +814,8 @@ object Utils extends Logging {
     mode match {
       case 0 => PartitionSplitMode.soft
       case 1 => PartitionSplitMode.hard
-      case _ => logWarning(s"invalid shuffle mode $mode, fallback to soft")
+      case _ =>
+        logWarning(s"invalid shuffle mode $mode, fallback to soft")
         PartitionSplitMode.soft
     }
   }

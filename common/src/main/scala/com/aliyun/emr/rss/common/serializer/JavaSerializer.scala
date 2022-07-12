@@ -26,16 +26,17 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 private[rss] class JavaSerializationStream(
-    out: OutputStream, counterReset: Int, extraDebugInfo: Boolean)
-  extends SerializationStream {
+    out: OutputStream,
+    counterReset: Int,
+    extraDebugInfo: Boolean
+) extends SerializationStream {
   private val objOut = new ObjectOutputStream(out)
   private var counter = 0
 
-  /**
-   * Calling reset to avoid memory leak:
-   * http://stackoverflow.com/questions/1281549/memory-leak-traps-in-the-java-standard-api
-   * But only call it every 100th time to avoid bloated serialization streams (when
-   * the stream 'resets' object class descriptions have to be re-written)
+  /* Calling reset to avoid memory leak:
+   * http://stackoverflow.com/questions/1281549/memory-leak-traps-in-the-java-standard-api But only
+   * call it every 100th time to avoid bloated serialization streams (when the stream 'resets'
+   * object class descriptions have to be re-written)
    */
   def writeObject[T: ClassTag](t: T): SerializationStream = {
     try {
@@ -90,8 +91,10 @@ private object JavaDeserializationStream {
 }
 
 private[rss] class JavaSerializerInstance(
-    counterReset: Int, extraDebugInfo: Boolean, defaultClassLoader: ClassLoader)
-  extends SerializerInstance {
+    counterReset: Int,
+    extraDebugInfo: Boolean,
+    defaultClassLoader: ClassLoader
+) extends SerializerInstance {
 
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
     val bos = new ByteBufferOutputStream()
@@ -126,19 +129,17 @@ private[rss] class JavaSerializerInstance(
   }
 }
 
-/**
- * :: DeveloperApi ::
- * A Spark serializer that uses Java's built-in serialization.
+/* :: DeveloperApi :: A Spark serializer that uses Java's built-in serialization.
  *
- * @note This serializer is not guaranteed to be wire-compatible across different versions of
- * Spark. It is intended to be used to serialize/de-serialize data within a single
- * Spark application.
+ * @note
+ *   This serializer is not guaranteed to be wire-compatible across different versions of Spark. It
+ *   is intended to be used to serialize/de-serialize data within a single Spark application.
  */
 class JavaSerializer(conf: RssConf) extends Serializer with Externalizable {
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)
   private var extraDebugInfo = conf.getBoolean("spark.serializer.extraDebugInfo", true)
 
-  protected def this() = this(new RssConf())  // For deserialization only
+  protected def this() = this(new RssConf()) // For deserialization only
 
   override def newInstance(): SerializerInstance = {
     val classLoader = defaultClassLoader.getOrElse(Thread.currentThread.getContextClassLoader)

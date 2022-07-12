@@ -238,7 +238,8 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
    * Get all parameters that start with `prefix`
    */
   def getAllWithPrefix(prefix: String): Array[(String, String)] = {
-    getAll.filter { case (k, v) => k.startsWith(prefix) }
+    getAll
+      .filter { case (k, v) => k.startsWith(prefix) }
       .map { case (k, v) => (k.substring(prefix.length), v) }
   }
 
@@ -277,7 +278,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   /** Does the configuration contain a given parameter? */
   def contains(key: String): Boolean = {
     settings.containsKey(key) ||
-      configsWithAlternatives.get(key).toSeq.flatten.exists { alt => contains(alt.key) }
+    configsWithAlternatives.get(key).toSeq.flatten.exists { alt => contains(alt.key) }
   }
 //
 //  private[rss] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
@@ -325,12 +326,9 @@ object RssConf extends Logging {
    * configuration.
    */
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
-    val configs = Seq(
-      DeprecatedConfig("none", "1.0",
-          "None")
-    )
+    val configs = Seq(DeprecatedConfig("none", "1.0", "None"))
 
-    Map(configs.map { cfg => (cfg.key -> cfg) } : _*)
+    Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
 
   /**
@@ -340,10 +338,8 @@ object RssConf extends Logging {
    * present in the user's configuration, a warning is logged.
    *
    */
-  private val configsWithAlternatives = Map[String, Seq[AlternateConfig]](
-    "none" -> Seq(
-      AlternateConfig("none", "1.0"))
-  )
+  private val configsWithAlternatives =
+    Map[String, Seq[AlternateConfig]]("none" -> Seq(AlternateConfig("none", "1.0")))
 
   /**
    * A view of `configsWithAlternatives` that makes it more efficient to look up deprecated
@@ -363,9 +359,10 @@ object RssConf extends Logging {
    */
   def getDeprecatedConfig(key: String, conf: JMap[String, String]): Option[String] = {
     configsWithAlternatives.get(key).flatMap { alts =>
-      alts.collectFirst { case alt if conf.containsKey(alt.key) =>
-        val value = conf.get(alt.key)
-        if (alt.translation != null) alt.translation(value) else value
+      alts.collectFirst {
+        case alt if conf.containsKey(alt.key) =>
+          val value = conf.get(alt.key)
+          if (alt.translation != null) alt.translation(value) else value
       }
     }
   }
@@ -377,14 +374,16 @@ object RssConf extends Logging {
     deprecatedConfigs.get(key).foreach { cfg =>
       logWarning(
         s"The configuration key '$key' has been deprecated as of RSS ${cfg.version} and " +
-          s"may be removed in the future. ${cfg.deprecationMessage}")
+          s"may be removed in the future. ${cfg.deprecationMessage}"
+      )
       return
     }
 
     allAlternatives.get(key).foreach { case (newKey, cfg) =>
       logWarning(
         s"The configuration key '$key' has been deprecated as of RSS ${cfg.version} and " +
-          s"may be removed in the future. Please use the new key '$newKey' instead.")
+          s"may be removed in the future. Please use the new key '$newKey' instead."
+      )
       return
     }
   }
@@ -396,10 +395,7 @@ object RssConf extends Logging {
    * @param version Version of Spark where key was deprecated.
    * @param deprecationMessage Message to include in the deprecation warning.
    */
-  private case class DeprecatedConfig(
-      key: String,
-      version: String,
-      deprecationMessage: String)
+  private case class DeprecatedConfig(key: String, version: String, deprecationMessage: String)
 
   /**
    * Information about an alternate configuration key that has been deprecated.
@@ -411,7 +407,8 @@ object RssConf extends Logging {
   private case class AlternateConfig(
       key: String,
       version: String,
-      translation: String => String = null)
+      translation: String => String = null
+  )
 
   // Conf getters
 
@@ -475,8 +472,7 @@ object RssConf extends Logging {
   }
 
   def masterPort(conf: RssConf): Int = {
-    conf.getInt("rss.master.port",
-      masterAddress(conf).split(",").head.split(":")(1).toInt)
+    conf.getInt("rss.master.port", masterAddress(conf).split(",").head.split(":")(1).toInt)
   }
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
@@ -542,27 +538,29 @@ object RssConf extends Logging {
         var capaticy = Long.MaxValue
         var diskType = StorageHint.HDD
         var flushThread = -1
-        baseDirs.split(",").map(str => {
-          val parts = str.split(":")
-          val workingDir = parts(0)
-          while (parts.iterator.hasNext) {
-            parts.iterator.next() match {
-              case capacityStr if capacityStr.startsWith("capacity") =>
-                capaticy = Utils.byteStringAsBytes(capacityStr.split("=")(1))
-              case disktypeStr if disktypeStr.startsWith("disktype") =>
-                diskType = StorageHint.valueOf(disktypeStr.split("=")(1))
-              case threadCountStr if threadCountStr.startsWith("flushthread") =>
-                flushThread = threadCountStr.split("=")(1).toInt
+        baseDirs
+          .split(",")
+          .map(str => {
+            val parts = str.split(":")
+            val workingDir = parts(0)
+            while (parts.iterator.hasNext) {
+              parts.iterator.next() match {
+                case capacityStr if capacityStr.startsWith("capacity") =>
+                  capaticy = Utils.byteStringAsBytes(capacityStr.split("=")(1))
+                case disktypeStr if disktypeStr.startsWith("disktype") =>
+                  diskType = StorageHint.valueOf(disktypeStr.split("=")(1))
+                case threadCountStr if threadCountStr.startsWith("flushthread") =>
+                  flushThread = threadCountStr.split("=")(1).toInt
+              }
             }
-          }
-          if (flushThread == -1) {
-            flushThread = diskType match {
-              case StorageHint.HDD => HDDFlusherThread(conf)
-              case StorageHint.SSD => SSDFlusherThread(conf)
+            if (flushThread == -1) {
+              flushThread = diskType match {
+                case StorageHint.HDD => HDDFlusherThread(conf)
+                case StorageHint.SSD => SSDFlusherThread(conf)
+              }
             }
-          }
-          (workingDir, capaticy, flushThread)
-        })
+            (workingDir, capaticy, flushThread)
+          })
       } else {
         baseDirs.split(",").map((_, Long.MaxValue, 1))
       }
@@ -618,8 +616,10 @@ object RssConf extends Logging {
   }
 
   def pushDataRetryThreadNum(conf: RssConf): Int = {
-    conf.getInt("rss.pushdata.retry.thread.num",
-      Math.max(8, Runtime.getRuntime().availableProcessors()))
+    conf.getInt(
+      "rss.pushdata.retry.thread.num",
+      Math.max(8, Runtime.getRuntime().availableProcessors())
+    )
   }
 
   def metricsSystemEnable(conf: RssConf): Boolean = {
@@ -678,8 +678,10 @@ object RssConf extends Logging {
   def driverMetaServicePort(conf: RssConf): Int = {
     val port = conf.getInt("rss.driver.metaService.port", 0)
     if (port != 0) {
-      logWarning("The user specifies the port used by the LifecycleManager on the Driver, and its" +
-        s" values is $port, which may cause port conflicts and startup failure.")
+      logWarning(
+        "The user specifies the port used by the LifecycleManager on the Driver, and its" +
+          s" values is $port, which may cause port conflicts and startup failure."
+      )
     }
     port
   }
@@ -773,7 +775,8 @@ object RssConf extends Logging {
     modeStr match {
       case "soft" => PartitionSplitMode.soft
       case "hard" => PartitionSplitMode.hard
-      case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
+      case _ =>
+        logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
         PartitionSplitMode.soft
     }
   }
@@ -815,8 +818,7 @@ object RssConf extends Logging {
   }
 
   def workerDirectMemoryReportIntervalSecond(conf: RssConf): Int = {
-    Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval",
-      "10s")).toInt
+    Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval", "10s")).toInt
   }
 
   def storageHint(conf: RssConf): PartitionLocation.StorageHint = {

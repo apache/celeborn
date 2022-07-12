@@ -64,7 +64,10 @@ object ThreadUtils {
    * are formatted as prefix-ID, where ID is a unique, sequentially assigned integer.
    */
   def newDaemonCachedThreadPool(
-      prefix: String, maxThreadNumber: Int, keepAliveSeconds: Int = 60): ThreadPoolExecutor = {
+      prefix: String,
+      maxThreadNumber: Int,
+      keepAliveSeconds: Int = 60
+  ): ThreadPoolExecutor = {
     val threadFactory = namedThreadFactory(prefix)
     val threadPool = new ThreadPoolExecutor(
       maxThreadNumber, // corePoolSize: the max number of threads to create before queuing the tasks
@@ -72,7 +75,8 @@ object ThreadUtils {
       keepAliveSeconds,
       TimeUnit.SECONDS,
       new LinkedBlockingQueue[Runnable],
-      threadFactory)
+      threadFactory
+    )
     threadPool.allowCoreThreadTimeOut(true)
     threadPool
   }
@@ -109,8 +113,10 @@ object ThreadUtils {
   /**
    * Wrapper over ScheduledThreadPoolExecutor.
    */
-  def newDaemonThreadPoolScheduledExecutor(threadNamePrefix: String, numThreads: Int)
-      : ScheduledExecutorService = {
+  def newDaemonThreadPoolScheduledExecutor(
+      threadNamePrefix: String,
+      numThreads: Int
+  ): ScheduledExecutorService = {
     val threadFactory = new ThreadFactoryBuilder()
       .setDaemon(true)
       .setNameFormat(s"$threadNamePrefix-%d")
@@ -133,9 +139,7 @@ object ThreadUtils {
    *   at CallerClass.caller-method (sourcefile.scala)
    *   ...
    */
-  def runInNewThread[T](
-      threadName: String,
-      isDaemon: Boolean = true)(body: => T): T = {
+  def runInNewThread[T](threadName: String, isDaemon: Boolean = true)(body: => T): T = {
     @volatile var exception: Option[Throwable] = None
     @volatile var result: T = null.asInstanceOf[T]
 
@@ -158,18 +162,25 @@ object ThreadUtils {
         // Remove the part of the stack that shows method calls into this helper method
         // This means drop everything from the top until the stack element
         // ThreadUtils.runInNewThread(), and then drop that as well (hence the `drop(1)`).
-        val baseStackTrace = Thread.currentThread().getStackTrace().dropWhile(
-          ! _.getClassName.contains(this.getClass.getSimpleName)).drop(1)
+        val baseStackTrace = Thread
+          .currentThread()
+          .getStackTrace()
+          .dropWhile(!_.getClassName.contains(this.getClass.getSimpleName))
+          .drop(1)
 
         // Remove the part of the new thread stack that shows methods call from this helper method
         val extraStackTrace = realException.getStackTrace.takeWhile(
-          ! _.getClassName.contains(this.getClass.getSimpleName))
+          !_.getClassName.contains(this.getClass.getSimpleName)
+        )
 
         // Combine the two stack traces, with a place holder just specifying that there
         // was a helper method used, without any further details of the helper
         val placeHolderStackElem = new StackTraceElement(
           s"... run in separate thread using ${ThreadUtils.getClass.getName.stripSuffix("$")} ..",
-          " ", "", -1)
+          " ",
+          "",
+          -1
+        )
         val finalStackTrace = extraStackTrace ++ Seq(placeHolderStackElem) ++ baseStackTrace
 
         // Update the stack trace and rethrow the exception in the caller thread
@@ -191,7 +202,9 @@ object ThreadUtils {
           setName(prefix + "-" + super.getName)
         }
     }
-    new SForkJoinPool(maxThreadNumber, factory,
+    new SForkJoinPool(
+      maxThreadNumber,
+      factory,
       null, // handler
       false // asyncMode
     )
@@ -251,7 +264,8 @@ object ThreadUtils {
 
   def shutdown(
       executor: ExecutorService,
-      gracePeriod: Duration = FiniteDuration(30, TimeUnit.SECONDS)): Unit = {
+      gracePeriod: Duration = FiniteDuration(30, TimeUnit.SECONDS)
+  ): Unit = {
     if (executor == null) {
       return
     }
@@ -280,13 +294,14 @@ object ThreadUtils {
    * @return new collection in which each element was given from the input collection `in` by
    *         applying the lambda function `f`.
    */
-  def parmap[I, O, Col[X] <: TraversableLike[X, Col[X]]]
-      (in: Col[I], prefix: String, maxThreads: Int)
-      (f: I => O)
-      (implicit
-        cbf: CanBuildFrom[Col[I], Future[O], Col[Future[O]]], // For in.map
-        cbf2: CanBuildFrom[Col[Future[O]], O, Col[O]] // for Future.sequence
-      ): Col[O] = {
+  def parmap[I, O, Col[X] <: TraversableLike[X, Col[X]]](
+      in: Col[I],
+      prefix: String,
+      maxThreads: Int
+  )(f: I => O)(implicit
+    cbf: CanBuildFrom[Col[I], Future[O], Col[Future[O]]], // For in.map
+    cbf2: CanBuildFrom[Col[Future[O]], O, Col[O]] // for Future.sequence
+  ): Col[O] = {
     val pool = newForkJoinPool(prefix, maxThreads)
     try {
       implicit val ec = ExecutionContext.fromExecutor(pool)

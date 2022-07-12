@@ -18,7 +18,6 @@
 package com.aliyun.emr.rss.common.rpc
 
 import java.io.File
-import java.nio.channels.ReadableByteChannel
 
 import scala.concurrent.Future
 
@@ -32,23 +31,19 @@ import com.aliyun.emr.rss.common.util.RpcUtils
  */
 object RpcEnv {
 
-  def create(
-      name: String,
-      host: String,
-      port: Int,
-      conf: RssConf): RpcEnv = {
+  def create(name: String, host: String, port: Int, conf: RssConf): RpcEnv = {
     create(name, host, host, port, conf, 0)
   }
 
   def create(
-              name: String,
-              bindAddress: String,
-              advertiseAddress: String,
-              port: Int,
-              conf: RssConf,
-              numUsableCores: Int): RpcEnv = {
-    val config = RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port,
-      numUsableCores)
+      name: String,
+      bindAddress: String,
+      advertiseAddress: String,
+      port: Int,
+      conf: RssConf,
+      numUsableCores: Int
+  ): RpcEnv = {
+    val config = RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port, numUsableCores)
     new NettyRpcEnvFactory().create(config)
   }
 }
@@ -165,17 +160,20 @@ private[rss] trait RpcEnvFileServer {
   /** Validates and normalizes the base URI for directories. */
   protected def validateDirectoryUri(baseUri: String): String = {
     val fixedBaseUri = "/" + baseUri.stripPrefix("/").stripSuffix("/")
-    require(fixedBaseUri != "/files" && fixedBaseUri != "/jars",
-      "Directory URI cannot be /files nor /jars.")
+    require(
+      fixedBaseUri != "/files" && fixedBaseUri != "/jars",
+      "Directory URI cannot be /files nor /jars."
+    )
     fixedBaseUri
   }
 
 }
 
 private[rss] case class RpcEnvConfig(
-                                      conf: RssConf,
-                                      name: String,
-                                      bindAddress: String,
-                                      advertiseAddress: String,
-                                      port: Int,
-                                      numUsableCores: Int)
+    conf: RssConf,
+    name: String,
+    bindAddress: String,
+    advertiseAddress: String,
+    port: Int,
+    numUsableCores: Int
+)

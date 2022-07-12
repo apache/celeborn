@@ -41,7 +41,7 @@ class PartitionLocationInfo {
 
   def containsShuffle(shuffleKey: String): Boolean = this.synchronized {
     masterPartitionLocations.containsKey(shuffleKey) ||
-      slavePartitionLocations.containsKey(shuffleKey)
+    slavePartitionLocations.containsKey(shuffleKey)
   }
 
   def addMasterPartition(shuffleKey: String, location: PartitionLocation): Int = {
@@ -52,15 +52,11 @@ class PartitionLocationInfo {
     addPartition(shuffleKey, location, slavePartitionLocations)
   }
 
-  def addMasterPartitions(
-      shuffleKey: String,
-      locations: util.List[PartitionLocation]): Unit = {
+  def addMasterPartitions(shuffleKey: String, locations: util.List[PartitionLocation]): Unit = {
     addPartitions(shuffleKey, locations, masterPartitionLocations)
   }
 
-  def addSlavePartitions(
-      shuffleKey: String,
-      locations: util.List[PartitionLocation]): Unit = {
+  def addSlavePartitions(shuffleKey: String, locations: util.List[PartitionLocation]): Unit = {
     addPartitions(shuffleKey, locations, slavePartitionLocations)
   }
 
@@ -74,7 +70,8 @@ class PartitionLocationInfo {
 
   def getAllMasterLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
     if (masterPartitionLocations.containsKey(shuffleKey)) {
-      masterPartitionLocations.get(shuffleKey)
+      masterPartitionLocations
+        .get(shuffleKey)
         .values()
         .asScala
         .flatMap(_.asScala)
@@ -87,7 +84,8 @@ class PartitionLocationInfo {
 
   def getAllSlaveLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
     if (slavePartitionLocations.containsKey(shuffleKey)) {
-      slavePartitionLocations.get(shuffleKey)
+      slavePartitionLocations
+        .get(shuffleKey)
         .values()
         .asScala
         .flatMap(_.asScala)
@@ -116,16 +114,18 @@ class PartitionLocationInfo {
     removePartitions(shuffleKey, uniqueIds, slavePartitionLocations)
   }
 
-  def getAllMasterLocationsWithMinEpoch(
-      shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
-    getAllMasterLocationsWithExtremeEpoch(shuffleKey, (a, b) => a < b)
-  }
+  def getAllMasterLocationsWithMinEpoch(shuffleKey: String): util.List[PartitionLocation] =
+    this.synchronized {
+      getAllMasterLocationsWithExtremeEpoch(shuffleKey, (a, b) => a < b)
+    }
 
   def getAllMasterLocationsWithExtremeEpoch(
       shuffleKey: String,
-      order: (Int, Int) => Boolean): util.List[PartitionLocation] = this.synchronized {
+      order: (Int, Int) => Boolean
+  ): util.List[PartitionLocation] = this.synchronized {
     if (masterPartitionLocations.containsKey(shuffleKey)) {
-      masterPartitionLocations.get(shuffleKey)
+      masterPartitionLocations
+        .get(shuffleKey)
         .values()
         .asScala
         .map { list =>
@@ -136,40 +136,44 @@ class PartitionLocationInfo {
             }
           })
           loc
-        }.toList.asJava
+        }
+        .toList
+        .asJava
     } else {
       new util.ArrayList[PartitionLocation]()
     }
   }
 
-  def getLocationWithMaxEpoch(
-      shuffleKey: String, reduceId: Int): Option[PartitionLocation] = this.synchronized {
-    if (!masterPartitionLocations.containsKey(shuffleKey) ||
-      !masterPartitionLocations.get(shuffleKey).containsKey(reduceId)) {
-      return None
-    }
-    val locations = masterPartitionLocations.get(shuffleKey).get(reduceId)
-    if (locations == null || locations.size() == 0) {
-      return None
-    }
-    var currentEpoch = -1
-    var currentPartition: PartitionLocation = null
-    locations.asScala.foreach(loc => {
-      if (loc.getEpoch > currentEpoch) {
-        currentEpoch = loc.getEpoch
-        currentPartition = loc
+  def getLocationWithMaxEpoch(shuffleKey: String, reduceId: Int): Option[PartitionLocation] =
+    this.synchronized {
+      if (
+        !masterPartitionLocations.containsKey(shuffleKey) ||
+        !masterPartitionLocations.get(shuffleKey).containsKey(reduceId)
+      ) {
+        return None
       }
-    })
-    Some(currentPartition)
-  }
+      val locations = masterPartitionLocations.get(shuffleKey).get(reduceId)
+      if (locations == null || locations.size() == 0) {
+        return None
+      }
+      var currentEpoch = -1
+      var currentPartition: PartitionLocation = null
+      locations.asScala.foreach(loc => {
+        if (loc.getEpoch > currentEpoch) {
+          currentEpoch = loc.getEpoch
+          currentPartition = loc
+        }
+      })
+      Some(currentPartition)
+    }
 
   private def addPartition(
       shuffleKey: String,
       location: PartitionLocation,
-      partitionInfo: PartitionInfo): Int = this.synchronized {
+      partitionInfo: PartitionInfo
+  ): Int = this.synchronized {
     if (location != null) {
-      partitionInfo.putIfAbsent(shuffleKey,
-        new util.HashMap[Int, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       reduceLocMap.putIfAbsent(location.getReduceId, new util.ArrayList[PartitionLocation]())
       val locations = reduceLocMap.get(location.getReduceId)
@@ -183,10 +187,10 @@ class PartitionLocationInfo {
   private def addPartitions(
       shuffleKey: String,
       locations: util.List[PartitionLocation],
-      partitionInfo: PartitionInfo): Unit = this.synchronized {
+      partitionInfo: PartitionInfo
+  ): Unit = this.synchronized {
     if (locations != null && locations.size() > 0) {
-      partitionInfo.putIfAbsent(shuffleKey,
-        new util.HashMap[Int, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
         reduceLocMap.putIfAbsent(loc.getReduceId, new util.ArrayList[PartitionLocation]())
@@ -199,7 +203,8 @@ class PartitionLocationInfo {
   private def removePartitions(
       shuffleKey: String,
       uniqueIds: util.Collection[String],
-      partitionInfo: PartitionInfo): Int = this.synchronized {
+      partitionInfo: PartitionInfo
+  ): Int = this.synchronized {
     if (!partitionInfo.containsKey(shuffleKey)) {
       return 0
     }
@@ -231,7 +236,8 @@ class PartitionLocationInfo {
   private def getLocation(
       shuffleKey: String,
       uniqueId: String,
-      mode: PartitionLocation.Mode): PartitionLocation = {
+      mode: PartitionLocation.Mode
+  ): PartitionLocation = {
     val tokens = uniqueId.split("-", 2)
     val reduceId = tokens(0).toInt
     val epoch = tokens(1).toInt
@@ -243,11 +249,14 @@ class PartitionLocationInfo {
       }
 
     this.synchronized {
-      if (!partitionInfo.containsKey(shuffleKey)
-        || !partitionInfo.get(shuffleKey).containsKey(reduceId)) {
+      if (
+        !partitionInfo.containsKey(shuffleKey)
+        || !partitionInfo.get(shuffleKey).containsKey(reduceId)
+      ) {
         return null
       }
-      partitionInfo.get(shuffleKey)
+      partitionInfo
+        .get(shuffleKey)
         .get(reduceId)
         .asScala
         .find(loc => loc.getEpoch == epoch)
@@ -255,20 +264,20 @@ class PartitionLocationInfo {
     }
   }
 
-  private def getAllIds(
-      shuffleKey: String,
-      partitionInfo: PartitionInfo): util.List[String] = this.synchronized {
-    if (!partitionInfo.containsKey(shuffleKey)) {
-      return null
+  private def getAllIds(shuffleKey: String, partitionInfo: PartitionInfo): util.List[String] =
+    this.synchronized {
+      if (!partitionInfo.containsKey(shuffleKey)) {
+        return null
+      }
+      partitionInfo
+        .get(shuffleKey)
+        .values()
+        .asScala
+        .flatMap(_.asScala)
+        .map(_.getUniqueId)
+        .toList
+        .asJava
     }
-    partitionInfo.get(shuffleKey)
-      .values()
-      .asScala
-      .flatMap(_.asScala)
-      .map(_.getUniqueId)
-      .toList
-      .asJava
-  }
 
   private def getAllMasterIds(shuffleKey: String): util.List[String] = {
     getAllIds(shuffleKey, masterPartitionLocations)
