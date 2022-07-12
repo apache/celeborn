@@ -310,7 +310,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     candidatesWorkers.removeAll(connectFailedWorkers)
     recordWorkerFailure(connectFailedWorkers)
 
-    // Third, for each slots, LifecycleManager shou ask Worker to reserve the slot
+    // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
     val reserveSlotsSuccess =
       reserveSlotsWithRetry(applicationId, shuffleId, candidatesWorkers.asScala.toList, slots)
