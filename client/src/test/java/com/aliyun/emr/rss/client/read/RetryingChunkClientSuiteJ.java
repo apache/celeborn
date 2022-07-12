@@ -381,11 +381,8 @@ public class RetryingChunkClientSuiteJ {
 
     @Override
     public ByteBuffer sendRpcSync(ByteBuffer message, long timeoutMs) {
-      ByteBuffer buffer = ByteBuffer.allocate(8 + 4);
-      buffer.putLong(streamId);
-      buffer.putInt(numChunks);
-      buffer.flip();
-      return buffer;
+      StreamHandle handle = new StreamHandle(streamId, numChunks);
+      return handle.toByteBuffer();
     }
 
     @Override

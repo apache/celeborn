@@ -159,14 +159,14 @@ public abstract class RssInputStream extends InputStream {
       }
 
       currentReader = createReader(locations[fileIndex]);
-      logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
+      logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
                     "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
         fileIndex, locations.length, currentReader.numChunks);
       while (currentReader.numChunks < 1 && fileIndex < locations.length - 1) {
         fileIndex++;
         currentReader.close();
         currentReader = createReader(locations[fileIndex]);
-        logger.info("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
+        logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
                       "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
           fileIndex, locations.length, currentReader.numChunks);
       }

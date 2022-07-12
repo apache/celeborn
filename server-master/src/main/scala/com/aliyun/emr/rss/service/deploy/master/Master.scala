@@ -383,7 +383,7 @@ private[deploy] class Master(
     statusSystem.handleRequestSlots(
       shuffleKey,
       requestSlots.hostname,
-      Utils.workerToAllocatedSlots(slots.asInstanceOf[WorkerResource]),
+      Utils.workerToAllocatedSlotsSize(slots.asInstanceOf[WorkerResource]),
       requestSlots.requestId)
 
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +

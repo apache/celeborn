@@ -34,14 +34,13 @@ import com.aliyun.emr.rss.common.network.buffer.FileSegmentManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
-import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
 import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
 import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 import com.aliyun.emr.rss.common.network.protocol.StreamChunkSlice;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -101,17 +100,9 @@ public class ChunkFetchIntegrationSuiteJ {
         }
       }
     };
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
-      public void receiveRpc(
-          TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public void receiveRequestMessage(
+      public void receive(
         TransportClient client,
         RequestMessage msg) {
         StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
@@ -121,8 +112,8 @@ public class ChunkFetchIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return streamManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
     TransportContext context = new TransportContext(conf, handler);

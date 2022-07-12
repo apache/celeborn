@@ -17,24 +17,34 @@
 
 package com.aliyun.emr.rss.common.network.server;
 
-import java.nio.ByteBuffer;
-
-import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
+import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 
-/** An RpcHandler suitable for a client-only TransportContext, which cannot receive RPCs. */
-public class NoOpRpcHandler extends RpcHandler {
-  private final StreamManager streamManager;
+/**
+ * Handler for sendRPC() messages sent by {@link TransportClient}s.
+ */
+public class BaseMessageHandler {
 
-  public NoOpRpcHandler() {
-    streamManager = new OneForOneStreamManager();
+  public void receive(
+    TransportClient client,
+    RequestMessage msg) {
+    throw new UnsupportedOperationException();
   }
 
-  @Override
-  public void receiveRpc(TransportClient client, ByteBuffer message, RpcResponseCallback callback) {
-    throw new UnsupportedOperationException("Cannot handle messages");
+  public boolean checkRegistered() {
+    throw new UnsupportedOperationException();
   }
 
-  @Override
-  public StreamManager getStreamManager() { return streamManager; }
+  /**
+   * Invoked when the channel associated with the given client is active.
+   */
+  public void channelActive(TransportClient client) { }
+
+  /**
+   * Invoked when the channel associated with the given client is inactive.
+   * No further requests will come from this client.
+   */
+  public void channelInactive(TransportClient client) { }
+
+  public void exceptionCaught(Throwable cause, TransportClient client) { }
 }

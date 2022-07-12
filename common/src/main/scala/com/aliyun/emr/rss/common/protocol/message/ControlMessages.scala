@@ -1034,7 +1034,7 @@ object ControlMessages extends Logging {
         GetBlacklist(
           new util.ArrayList[WorkerInfo](
             pbGetBlacklist.getLocalBlackListList.asScala
-              .map(WorkerInfo.fromPbWorkerInfo(_))
+              .map(WorkerInfo.fromPbWorkerInfo)
               .toList
               .asJava
           )
