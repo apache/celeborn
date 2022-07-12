@@ -22,11 +22,11 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 
 /**
  * A RPC that does not expect a reply, which is handled by a remote
- * {@link RpcHandler}.
+ * {@link BaseMessageHandler}.
  */
 public final class OneWayMessage extends AbstractMessage implements RequestMessage {
 

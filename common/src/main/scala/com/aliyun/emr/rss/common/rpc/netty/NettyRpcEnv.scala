@@ -18,25 +18,27 @@
 package com.aliyun.emr.rss.common.rpc.netty
 
 import java.io._
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.{Pipe, ReadableByteChannel, WritableByteChannel}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.Nullable
 
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
-import scala.util.{DynamicVariable, Failure, Success, Try}
+import scala.util.{DynamicVariable, Failure, Success}
 import scala.util.control.NonFatal
+
+import com.google.common.base.Throwables
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.TransportContext
+import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client._
+import com.aliyun.emr.rss.common.network.protocol.{OneWayMessage => NOneWayMessage, RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest, RpcResponse}
 import com.aliyun.emr.rss.common.network.server._
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
-import com.aliyun.emr.rss.common.protocol.message.Message
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
@@ -56,26 +58,15 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
-  private val streamManager = new NettyStreamManager(this)
 
   private val transportContext = new TransportContext(transportConf,
-    new NettyRpcHandler(dispatcher, this, streamManager))
+    new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
     java.util.Collections.emptyList[TransportClientBootstrap]
   }
 
   val clientFactory = transportContext.createClientFactory(createClientBootstraps())
-
-  /**
-   * A separate client factory for file downloads. This avoids using the same RPC handler as
-   * the main RPC context, so that events caused by these clients are kept isolated from the
-   * main RPC traffic.
-   *
-   * It also allows for different configuration of certain properties, such as the number of
-   * connections per peer.
-   */
-  @volatile private var fileDownloadFactory: TransportClientFactory = _
 
   private val timeoutScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("netty-rpc-env-timeout")
@@ -154,7 +145,7 @@ class NettyRpcEnv(
   }
 
   private def postToOutbox(receiver: NettyRpcEndpointRef, message: OutboxMessage): Unit = {
-    if (receiver.client != null) {
+    if (receiver.client != null && receiver.client.isActive) {
       message.sendWith(receiver.client)
     } else {
       require(receiver.address != null,
@@ -315,120 +306,12 @@ class NettyRpcEnv(
     if (clientConnectionExecutor != null) {
       clientConnectionExecutor.shutdownNow()
     }
-    if (fileDownloadFactory != null) {
-      fileDownloadFactory.close()
-    }
   }
 
   override def deserialize[T](deserializationAction: () => T): T = {
     NettyRpcEnv.currentEnv.withValue(this) {
       deserializationAction()
     }
-  }
-
-  override def fileServer: RpcEnvFileServer = streamManager
-
-  override def openChannel(uri: String): ReadableByteChannel = {
-    val parsedUri = new URI(uri)
-    require(parsedUri.getHost() != null, "Host name must be defined.")
-    require(parsedUri.getPort() > 0, "Port must be defined.")
-    require(parsedUri.getPath() != null && parsedUri.getPath().nonEmpty, "Path must be defined.")
-
-    val pipe = Pipe.open()
-    val source = new FileDownloadChannel(pipe.source())
-    Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-      val client = downloadClient(parsedUri.getHost(), parsedUri.getPort())
-      val callback = new FileDownloadCallback(pipe.sink(), source, client)
-      client.stream(parsedUri.getPath(), callback)
-    })(catchBlock = {
-      pipe.sink().close()
-      source.close()
-    })
-
-    source
-  }
-
-  private def downloadClient(host: String, port: Int): TransportClient = {
-    if (fileDownloadFactory == null) synchronized {
-      if (fileDownloadFactory == null) {
-        val module = TransportModuleConstants.FILE_MODULE
-        val prefix = "spark.rpc.io."
-        val clone = conf.clone()
-
-        // Copy any RPC configuration that is not overridden in the spark.files namespace.
-        conf.getAll.foreach { case (key, value) =>
-          if (key.startsWith(prefix)) {
-            val opt = key.substring(prefix.length())
-            clone.setIfMissing(s"spark.$module.io.$opt", value)
-          }
-        }
-
-        val ioThreads = clone.getInt("spark.files.io.threads", 1)
-        val downloadConf = Utils.fromRssConf(clone, module, ioThreads)
-        val downloadContext = new TransportContext(downloadConf, new NoOpRpcHandler(), true)
-        fileDownloadFactory = downloadContext.createClientFactory(createClientBootstraps())
-      }
-    }
-    fileDownloadFactory.createClient(host, port)
-  }
-
-  private class FileDownloadChannel(source: Pipe.SourceChannel) extends ReadableByteChannel {
-
-    @volatile private var error: Throwable = _
-
-    def setError(e: Throwable): Unit = {
-      // This setError callback is invoked by internal RPC threads in order to propagate remote
-      // exceptions to application-level threads which are reading from this channel. When an
-      // RPC error occurs, the RPC system will call setError() and then will close the
-      // Pipe.SinkChannel corresponding to the other end of the `source` pipe. Closing of the pipe
-      // sink will cause `source.read()` operations to return EOF, unblocking the application-level
-      // reading thread. Thus there is no need to actually call `source.close()` here in the
-      // onError() callback and, in fact, calling it here would be dangerous because the close()
-      // would be asynchronous with respect to the read() call and could trigger race-conditions
-      // that lead to data corruption. See the PR for SPARK-22982 for more details on this topic.
-      error = e
-    }
-
-    override def read(dst: ByteBuffer): Int = {
-      Try(source.read(dst)) match {
-        // See the documentation above in setError(): if an RPC error has occurred then setError()
-        // will be called to propagate the RPC error and then `source`'s corresponding
-        // Pipe.SinkChannel will be closed, unblocking this read. In that case, we want to propagate
-        // the remote RPC exception (and not any exceptions triggered by the pipe close, such as
-        // ChannelClosedException), hence this `error != null` check:
-        case _ if error != null => throw error
-        case Success(bytesRead) => bytesRead
-        case Failure(readErr) => throw readErr
-      }
-    }
-
-    override def close(): Unit = source.close()
-
-    override def isOpen(): Boolean = source.isOpen()
-
-  }
-
-  private class FileDownloadCallback(
-      sink: WritableByteChannel,
-      source: FileDownloadChannel,
-      client: TransportClient) extends StreamCallback {
-
-    override def onData(streamId: String, buf: ByteBuffer): Unit = {
-      while (buf.remaining() > 0) {
-        sink.write(buf)
-      }
-    }
-
-    override def onComplete(streamId: String): Unit = {
-      sink.close()
-    }
-
-    override def onFailure(streamId: String, cause: Throwable): Unit = {
-      logDebug(s"Error downloading stream $streamId.", cause)
-      source.setError(cause)
-      sink.close()
-    }
-
   }
 }
 
@@ -637,25 +520,59 @@ private[rss] case class RpcFailure(e: Throwable)
  */
 private[rss] class NettyRpcHandler(
     dispatcher: Dispatcher,
-    nettyEnv: NettyRpcEnv,
-    streamManager: StreamManager) extends RpcHandler with Logging {
+    nettyEnv: NettyRpcEnv) extends BaseMessageHandler with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
 
   override def receive(
       client: TransportClient,
-      message: ByteBuffer,
-      callback: RpcResponseCallback): Unit = {
-    val messageToDispatch = internalReceive(client, message)
-    dispatcher.postRemoteMessage(messageToDispatch, callback)
+      requestMessage: NRequestMessage): Unit = {
+    requestMessage match {
+      case r: RpcRequest =>
+        processRpc(client, r)
+      case r: NOneWayMessage =>
+        processOnewayMessage(client, r)
+    }
   }
 
-  override def receive(
-      client: TransportClient,
-      message: ByteBuffer): Unit = {
-    val messageToDispatch = internalReceive(client, message)
-    dispatcher.postOneWayMessage(messageToDispatch)
+  private def processRpc(client: TransportClient, r: RpcRequest): Unit = {
+    val callback = new RpcResponseCallback {
+      override def onSuccess(response: ByteBuffer): Unit = {
+        client.getChannel.writeAndFlush(new RpcResponse(r.requestId,
+          new NioManagedBuffer(response)))
+      }
+
+      override def onFailure(e: Throwable): Unit = {
+        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
+          Throwables.getStackTraceAsString(e)))
+      }
+    }
+    try {
+      val message = r.body().nioByteBuffer()
+      val messageToDispatch = internalReceive(client, message)
+      dispatcher.postRemoteMessage(messageToDispatch, callback)
+    } catch {
+      case e: Exception =>
+        logError("Error while invoking RpcHandler#receive() on RPC id " + r.requestId, e)
+        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
+          Throwables.getStackTraceAsString(e)))
+    } finally {
+      r.body().release()
+    }
+  }
+
+  private def processOnewayMessage(client: TransportClient, r: NOneWayMessage): Unit = {
+    try {
+      val message = r.body().nioByteBuffer()
+      val messageToDispatch = internalReceive(client, message)
+      dispatcher.postOneWayMessage(messageToDispatch)
+    } catch {
+      case e: Exception =>
+        logError("Error while invoking RpcHandler#receive() for one-way message.", e)
+    } finally {
+      r.body().release()
+    }
   }
 
   private def internalReceive(client: TransportClient, message: ByteBuffer): RequestMessage = {
@@ -680,8 +597,6 @@ private[rss] class NettyRpcHandler(
   override def checkRegistered(): Boolean = {
     nettyEnv.checkRegistered()
   }
-
-  override def getStreamManager: StreamManager = streamManager
 
   override def exceptionCaught(cause: Throwable, client: TransportClient): Unit = {
     val addr = client.getChannel.remoteAddress().asInstanceOf[InetSocketAddress]

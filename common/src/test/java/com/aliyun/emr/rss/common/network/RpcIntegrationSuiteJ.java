@@ -17,15 +17,13 @@
 
 package com.aliyun.emr.rss.common.network;
 
-import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
-import com.google.common.io.Files;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.AfterClass;
@@ -33,15 +31,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
-import com.aliyun.emr.rss.common.network.client.StreamCallbackWithID;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
-import com.aliyun.emr.rss.common.network.server.StreamManager;
+import com.aliyun.emr.rss.common.network.protocol.*;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -51,114 +46,68 @@ public class RpcIntegrationSuiteJ {
   static TransportConf conf;
   static TransportServer server;
   static TransportClientFactory clientFactory;
-  static RpcHandler rpcHandler;
+  static BaseMessageHandler handler;
   static List<String> oneWayMsgs;
   static StreamTestHelper testData;
-
-  static ConcurrentHashMap<String, VerifyingStreamCallback> streamCallbacks =
-      new ConcurrentHashMap<>();
 
   @BeforeClass
   public static void setUp() throws Exception {
     conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     testData = new StreamTestHelper();
-    rpcHandler = new RpcHandler() {
+    handler = new BaseMessageHandler() {
       @Override
       public void receive(
           TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
-        String msg = JavaUtils.bytesToString(message);
-        String[] parts = msg.split("/");
-        if (parts[0].equals("hello")) {
-          callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
-        } else if (parts[0].equals("return error")) {
-          callback.onFailure(new RuntimeException("Returned: " + parts[1]));
-        } else if (parts[0].equals("throw error")) {
-          throw new RuntimeException("Thrown: " + parts[1]);
+          RequestMessage message) {
+        if (message instanceof RpcRequest) {
+          String msg;
+          RpcRequest r = (RpcRequest) message;
+          RpcResponseCallback callback = new RpcResponseCallback() {
+            @Override
+            public void onSuccess(ByteBuffer response) {
+              client.getChannel().writeAndFlush(new RpcResponse(r.requestId,
+                new NioManagedBuffer(response)));
+            }
+
+            @Override
+            public void onFailure(Throwable e) {
+              client.getChannel().writeAndFlush(new RpcFailure(r.requestId,
+                Throwables.getStackTraceAsString(e)));
+            }
+          };
+          try {
+            msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+          String[] parts = msg.split("/");
+          if (parts[0].equals("hello")) {
+            callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
+          } else if (parts[0].equals("return error")) {
+            callback.onFailure(new RuntimeException("Returned: " + parts[1]));
+          } else if (parts[0].equals("throw error")) {
+            callback.onFailure(new RuntimeException("Thrown: " + parts[1]));
+          }
+        } else if (message instanceof OneWayMessage) {
+          String msg;
+          try {
+            msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+          oneWayMsgs.add(msg);
         }
       }
 
       @Override
-      public StreamCallbackWithID receiveStream(
-          TransportClient client,
-          ByteBuffer messageHeader,
-          RpcResponseCallback callback) {
-        return receiveStreamHelper(JavaUtils.bytesToString(messageHeader));
+      public boolean checkRegistered() {
+        return true;
       }
-
-      @Override
-      public void receive(TransportClient client, ByteBuffer message) {
-        oneWayMsgs.add(JavaUtils.bytesToString(message));
-      }
-
-      @Override
-      public StreamManager getStreamManager() { return new OneForOneStreamManager(); }
     };
-    TransportContext context = new TransportContext(conf, rpcHandler);
+    TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     oneWayMsgs = new ArrayList<>();
-  }
-
-  private static StreamCallbackWithID receiveStreamHelper(String msg) {
-    try {
-      if (msg.startsWith("fail/")) {
-        String[] parts = msg.split("/");
-        switch (parts[1]) {
-          case "exception-ondata":
-            return new StreamCallbackWithID() {
-              @Override
-              public void onData(String streamId, ByteBuffer buf) throws IOException {
-                throw new IOException("failed to read stream data!");
-              }
-
-              @Override
-              public void onComplete(String streamId) throws IOException {
-              }
-
-              @Override
-              public void onFailure(String streamId, Throwable cause) throws IOException {
-              }
-
-              @Override
-              public String getID() {
-                return msg;
-              }
-            };
-          case "exception-oncomplete":
-            return new StreamCallbackWithID() {
-              @Override
-              public void onData(String streamId, ByteBuffer buf) throws IOException {
-              }
-
-              @Override
-              public void onComplete(String streamId) throws IOException {
-                throw new IOException("exception in onComplete");
-              }
-
-              @Override
-              public void onFailure(String streamId, Throwable cause) throws IOException {
-              }
-
-              @Override
-              public String getID() {
-                return msg;
-              }
-            };
-          case "null":
-            return null;
-          default:
-            throw new IllegalArgumentException("unexpected msg: " + msg);
-        }
-      } else {
-        VerifyingStreamCallback streamCallback = new VerifyingStreamCallback(msg);
-        streamCallbacks.put(msg, streamCallback);
-        return streamCallback;
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   @AfterClass
@@ -203,35 +152,6 @@ public class RpcIntegrationSuiteJ {
     if (!sem.tryAcquire(commands.length, 5, TimeUnit.SECONDS)) {
       fail("Timeout getting response from the server");
     }
-    client.close();
-    return res;
-  }
-
-  private RpcResult sendRpcWithStream(String... streams) throws Exception {
-    TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
-    final Semaphore sem = new Semaphore(0);
-    RpcResult res = new RpcResult();
-    res.successMessages = Collections.synchronizedSet(new HashSet<String>());
-    res.errorMessages = Collections.synchronizedSet(new HashSet<String>());
-
-    for (String stream : streams) {
-      int idx = stream.lastIndexOf('/');
-      ManagedBuffer meta = new NioManagedBuffer(JavaUtils.stringToBytes(stream));
-      String streamName = (idx == -1) ? stream : stream.substring(idx + 1);
-      ManagedBuffer data = testData.openStream(conf, streamName);
-      client.uploadStream(meta, data, new RpcStreamCallback(stream, res, sem));
-    }
-
-    if (!sem.tryAcquire(streams.length, 5, TimeUnit.SECONDS)) {
-      fail("Timeout getting response from the server");
-    }
-    streamCallbacks.values().forEach(streamCallback -> {
-      try {
-        streamCallback.verify();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    });
     client.close();
     return res;
   }
@@ -323,46 +243,6 @@ public class RpcIntegrationSuiteJ {
     }
   }
 
-  @Test
-  public void sendRpcWithStreamOneAtATime() throws Exception {
-    for (String stream : StreamTestHelper.STREAMS) {
-      RpcResult res = sendRpcWithStream(stream);
-      assertTrue("there were error messages!" + res.errorMessages, res.errorMessages.isEmpty());
-      assertEquals(Sets.newHashSet(stream), res.successMessages);
-    }
-  }
-
-  @Test
-  public void sendRpcWithStreamConcurrently() throws Exception {
-    String[] streams = new String[10];
-    for (int i = 0; i < 10; i++) {
-      streams[i] = StreamTestHelper.STREAMS[i % StreamTestHelper.STREAMS.length];
-    }
-    RpcResult res = sendRpcWithStream(streams);
-    assertEquals(Sets.newHashSet(StreamTestHelper.STREAMS), res.successMessages);
-    assertTrue(res.errorMessages.isEmpty());
-  }
-
-  @Test
-  public void sendRpcWithStreamFailures() throws Exception {
-    // when there is a failure reading stream data, we don't try to keep the channel usable,
-    // just send back a decent error msg.
-    RpcResult exceptionInCallbackResult =
-        sendRpcWithStream("fail/exception-ondata/smallBuffer", "smallBuffer");
-    assertErrorAndClosed(exceptionInCallbackResult, "Destination failed while reading stream");
-
-    RpcResult nullStreamHandler =
-        sendRpcWithStream("fail/null/smallBuffer", "smallBuffer");
-    assertErrorAndClosed(exceptionInCallbackResult, "Destination failed while reading stream");
-
-    // OTOH, if there is a failure during onComplete, the channel should still be fine
-    RpcResult exceptionInOnComplete =
-        sendRpcWithStream("fail/exception-oncomplete/smallBuffer", "smallBuffer");
-    assertErrorsContain(exceptionInOnComplete.errorMessages,
-        Sets.newHashSet("Failure post-processing"));
-    assertEquals(Sets.newHashSet("smallBuffer"), exceptionInOnComplete.successMessages);
-  }
-
   private void assertErrorsContain(Set<String> errors, Set<String> contains) {
     assertEquals("Expected " + contains.size() + " errors, got " + errors.size() + "errors: " +
         errors, contains.size(), errors.size());
@@ -425,61 +305,5 @@ public class RpcIntegrationSuiteJ {
       }
     }
     return new ImmutablePair<>(remainingErrors, notFound);
-  }
-
-  private static class VerifyingStreamCallback implements StreamCallbackWithID {
-    final String streamId;
-    final StreamSuiteJ.TestCallback helper;
-    final OutputStream out;
-    final File outFile;
-
-    VerifyingStreamCallback(String streamId) throws IOException {
-      if (streamId.equals("file")) {
-        outFile = File.createTempFile("data", ".tmp", testData.tempDir);
-        out = new FileOutputStream(outFile);
-      } else {
-        out = new ByteArrayOutputStream();
-        outFile = null;
-      }
-      this.streamId = streamId;
-      helper = new StreamSuiteJ.TestCallback(out);
-    }
-
-    void verify() throws IOException {
-      if (streamId.equals("file")) {
-        assertTrue("File stream did not match.", Files.equal(testData.testFile, outFile));
-      } else {
-        byte[] result = ((ByteArrayOutputStream)out).toByteArray();
-        ByteBuffer srcBuffer = testData.srcBuffer(streamId);
-        ByteBuffer base;
-        synchronized (srcBuffer) {
-          base = srcBuffer.duplicate();
-        }
-        byte[] expected = new byte[base.remaining()];
-        base.get(expected);
-        assertEquals(expected.length, result.length);
-        assertTrue("buffers don't match", Arrays.equals(expected, result));
-      }
-    }
-
-    @Override
-    public void onData(String streamId, ByteBuffer buf) throws IOException {
-      helper.onData(streamId, buf);
-    }
-
-    @Override
-    public void onComplete(String streamId) throws IOException {
-      helper.onComplete(streamId);
-    }
-
-    @Override
-    public void onFailure(String streamId, Throwable cause) throws IOException {
-      helper.onFailure(streamId, cause);
-    }
-
-    @Override
-    public String getID() {
-      return streamId;
-    }
   }
 }

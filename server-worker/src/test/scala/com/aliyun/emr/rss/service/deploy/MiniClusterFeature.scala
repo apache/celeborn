@@ -18,9 +18,7 @@
 package com.aliyun.emr.rss.service.deploy
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import io.netty.channel.ChannelFuture
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
@@ -28,7 +26,7 @@ import com.aliyun.emr.rss.common.rpc.RpcEnv
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.master.{Master, MasterArguments, MasterSource}
-import com.aliyun.emr.rss.service.deploy.worker.{Worker, WorkerArguments, WorkerSource}
+import com.aliyun.emr.rss.service.deploy.worker.{Controller, Worker, WorkerArguments, WorkerSource}
 
 trait MiniClusterFeature extends Logging {
   val workerPromethusPort = new AtomicInteger(12378)
@@ -114,8 +112,7 @@ trait MiniClusterFeature extends Logging {
       workerArguments.port,
       conf,
       4)
-    val worker = new Worker(rpcEnv, conf, metricsSystem)
-    rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, worker)
+    val worker = new Worker(conf, workerArguments)
 
     var channelFuture: ChannelFuture = null
     if (RssConf.metricsSystemEnable(conf)) {
@@ -151,23 +148,23 @@ trait MiniClusterFeature extends Logging {
     Thread.sleep(5000L)
 
     val (worker1, workerRpcEnv1, workerMetric1) = createWorker(workerConfs)
-    val workerThread1 = runnerWrap(workerRpcEnv1.awaitTermination())
+    val workerThread1 = runnerWrap(worker1.init())
     workerThread1.start()
 
     val (worker2, workerRpcEnv2, workerMetric2) = createWorker(workerConfs)
-    val workerThread2 = runnerWrap(workerRpcEnv2.awaitTermination())
+    val workerThread2 = runnerWrap(worker2.init())
     workerThread2.start()
 
     val (worker3, workerRpcEnv3, workerMetric3) = createWorker(workerConfs)
-    val workerThread3 = runnerWrap(workerRpcEnv3.awaitTermination())
+    val workerThread3 = runnerWrap(worker3.init())
     workerThread3.start()
 
     val (worker4, workerRpcEnv4, workerMetric4) = createWorker(workerConfs)
-    val workerThread4 = runnerWrap(workerRpcEnv4.awaitTermination())
+    val workerThread4 = runnerWrap(worker4.init())
     workerThread4.start()
 
     val (worker5, workerRpcEnv5, workerMetric5) = createWorker(workerConfs)
-    val workerThread5 = runnerWrap(workerRpcEnv5.awaitTermination())
+    val workerThread5 = runnerWrap(worker5.init())
     workerThread5.start()
 
     Thread.sleep(5000L)

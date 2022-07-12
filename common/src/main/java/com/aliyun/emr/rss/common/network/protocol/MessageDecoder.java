@@ -71,18 +71,6 @@ public final class MessageDecoder extends MessageToMessageDecoder<ByteBuf> {
       case OneWayMessage:
         return OneWayMessage.decode(in);
 
-      case StreamRequest:
-        return StreamRequest.decode(in);
-
-      case StreamResponse:
-        return StreamResponse.decode(in);
-
-      case StreamFailure:
-        return StreamFailure.decode(in);
-
-      case UploadStream:
-        return UploadStream.decode(in);
-
       case PushData:
         return PushData.decode(in);
 

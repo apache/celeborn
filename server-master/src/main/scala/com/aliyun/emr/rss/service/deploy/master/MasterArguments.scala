@@ -25,7 +25,7 @@ import com.aliyun.emr.rss.common.util.{IntParam, Utils}
 class MasterArguments(args: Array[String], conf: RssConf) {
 
   var host = Utils.localHostName()
-  var port = 9097
+  var port = RssConf.masterPort(conf)
   var propertiesFile: String = null
 
   if (System.getenv("RSS_MASTER_HOST") != null) {

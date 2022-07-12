@@ -25,10 +25,10 @@ import io.netty.buffer.ByteBuf;
  * {@link ResponseMessage} (either success or failure).
  */
 public final class ChunkFetchRequest extends AbstractMessage implements RequestMessage {
-  public final StreamChunkId streamChunkId;
+  public final StreamChunkSlice streamChunkSlice;
 
-  public ChunkFetchRequest(StreamChunkId streamChunkId) {
-    this.streamChunkId = streamChunkId;
+  public ChunkFetchRequest(StreamChunkSlice streamChunkSlice) {
+    this.streamChunkSlice = streamChunkSlice;
   }
 
   @Override
@@ -36,28 +36,28 @@ public final class ChunkFetchRequest extends AbstractMessage implements RequestM
 
   @Override
   public int encodedLength() {
-    return streamChunkId.encodedLength();
+    return streamChunkSlice.encodedLength();
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    streamChunkId.encode(buf);
+    streamChunkSlice.encode(buf);
   }
 
   public static ChunkFetchRequest decode(ByteBuf buf) {
-    return new ChunkFetchRequest(StreamChunkId.decode(buf));
+    return new ChunkFetchRequest(StreamChunkSlice.decode(buf));
   }
 
   @Override
   public int hashCode() {
-    return streamChunkId.hashCode();
+    return streamChunkSlice.hashCode();
   }
 
   @Override
   public boolean equals(Object other) {
     if (other instanceof ChunkFetchRequest) {
       ChunkFetchRequest o = (ChunkFetchRequest) other;
-      return streamChunkId.equals(o.streamChunkId);
+      return streamChunkSlice.equals(o.streamChunkSlice);
     }
     return false;
   }
@@ -65,7 +65,7 @@ public final class ChunkFetchRequest extends AbstractMessage implements RequestM
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkId)
+      .add("streamChunkId", streamChunkSlice)
       .toString();
   }
 }

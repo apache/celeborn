@@ -136,7 +136,7 @@ private[deploy] class Master(
 
   override def onDisconnected(address: RpcAddress): Unit = {
     // The disconnected client could've been either a worker or an app; remove whichever it was
-    logInfo(s"Client $address got disassociated.")
+    logDebug(s"Client $address got disassociated.")
   }
 
   def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
@@ -144,10 +144,8 @@ private[deploy] class Master(
 
   override def receive: PartialFunction[Any, Unit] = {
     case CheckForWorkerTimeOut =>
-      logDebug("Received CheckForWorkerTimeOut request.")
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
-      logDebug("Received CheckForApplicationTimeOut request.")
       executeWithLeaderChecker(null, timeoutDeadApplications())
     case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
       logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
@@ -167,11 +165,11 @@ private[deploy] class Master(
         fetchPort, replicatePort, numSlots, requestId))
 
     case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
-      logDebug(s"Received RequestSlots request $requestSlots.")
+      logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
     case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
-      logDebug(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
+      logTrace(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
           s"workers ${workerIds.asScala.mkString(",")}, slots ${slots.asScala.mkString(",")}")
       executeWithLeaderChecker(context,
         handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
@@ -182,7 +180,6 @@ private[deploy] class Master(
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
 
     case msg: GetBlacklist =>
-      logDebug(s"Received Blacklist request")
       executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
 
     case ApplicationLost(appId, requestId) =>
@@ -196,16 +193,13 @@ private[deploy] class Master(
         fetchPort, replicatePort, numSlots, shuffleKeys, requestId))
 
     case GetWorkerInfos =>
-      logDebug("Received GetWorkerInfos request")
       executeWithLeaderChecker(context, handleGetWorkerInfos(context))
 
     case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
-      logDebug("Received ReportNodeFailure request ")
       executeWithLeaderChecker(context,
         handleReportNodeFailure(context, failedWorkers, requestId))
 
     case GetClusterLoadStatus(numPartitions: Int) =>
-      logInfo(s"Received GetClusterLoad request")
       executeWithLeaderChecker(context, handleGetClusterLoadStatus(context, numPartitions))
   }
 
@@ -345,7 +339,7 @@ private[deploy] class Master(
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
-      context.reply(RequestSlotsResponse(StatusCode.SlotNotAvailable, null))
+      context.reply(RequestSlotsResponse(StatusCode.SlotNotAvailable, new WorkerResource()))
       return
     }
 

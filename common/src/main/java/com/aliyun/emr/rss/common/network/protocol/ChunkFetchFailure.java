@@ -24,11 +24,11 @@ import io.netty.buffer.ByteBuf;
  * Response to {@link ChunkFetchRequest} when there is an error fetching the chunk.
  */
 public final class ChunkFetchFailure extends AbstractMessage implements ResponseMessage {
-  public final StreamChunkId streamChunkId;
+  public final StreamChunkSlice streamChunkSlice;
   public final String errorString;
 
-  public ChunkFetchFailure(StreamChunkId streamChunkId, String errorString) {
-    this.streamChunkId = streamChunkId;
+  public ChunkFetchFailure(StreamChunkSlice streamChunkSlice, String errorString) {
+    this.streamChunkSlice = streamChunkSlice;
     this.errorString = errorString;
   }
 
@@ -37,31 +37,31 @@ public final class ChunkFetchFailure extends AbstractMessage implements Response
 
   @Override
   public int encodedLength() {
-    return streamChunkId.encodedLength() + Encoders.Strings.encodedLength(errorString);
+    return streamChunkSlice.encodedLength() + Encoders.Strings.encodedLength(errorString);
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    streamChunkId.encode(buf);
+    streamChunkSlice.encode(buf);
     Encoders.Strings.encode(buf, errorString);
   }
 
   public static ChunkFetchFailure decode(ByteBuf buf) {
-    StreamChunkId streamChunkId = StreamChunkId.decode(buf);
+    StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
     String errorString = Encoders.Strings.decode(buf);
-    return new ChunkFetchFailure(streamChunkId, errorString);
+    return new ChunkFetchFailure(streamChunkSlice, errorString);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamChunkId, errorString);
+    return Objects.hashCode(streamChunkSlice, errorString);
   }
 
   @Override
   public boolean equals(Object other) {
     if (other instanceof ChunkFetchFailure) {
       ChunkFetchFailure o = (ChunkFetchFailure) other;
-      return streamChunkId.equals(o.streamChunkId) && errorString.equals(o.errorString);
+      return streamChunkSlice.equals(o.streamChunkSlice) && errorString.equals(o.errorString);
     }
     return false;
   }
@@ -69,7 +69,7 @@ public final class ChunkFetchFailure extends AbstractMessage implements Response
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkId)
+      .add("streamChunkId", streamChunkSlice)
       .add("errorString", errorString)
       .toString();
   }

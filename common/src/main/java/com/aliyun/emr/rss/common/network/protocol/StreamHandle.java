@@ -21,46 +21,46 @@ import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
 /**
- * Request to stream data from the remote end.
- * <p>
- * The stream ID is an arbitrary string that needs to be negotiated between the two endpoints before
- * the data can be streamed.
+ * Identifier for a fixed number of chunks to read from a stream created by an "open blocks"
+ * message.
  */
-public final class StreamRequest extends AbstractMessage implements RequestMessage {
-  public final String streamId;
+public final class StreamHandle extends AbstractMessage {
+  public final long streamId;
+  public final int numChunks;
 
-  public StreamRequest(String streamId) {
+  public StreamHandle(long streamId, int numChunks) {
     this.streamId = streamId;
+    this.numChunks = numChunks;
   }
 
   @Override
-  public Type type() { return Type.StreamRequest; }
+  public Type type() { return Type.StreamHandle; }
 
   @Override
   public int encodedLength() {
-    return Encoders.Strings.encodedLength(streamId);
+    return 8 + 4;
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    Encoders.Strings.encode(buf, streamId);
+    buf.writeLong(streamId);
+    buf.writeInt(numChunks);
   }
 
-  public static StreamRequest decode(ByteBuf buf) {
-    String streamId = Encoders.Strings.decode(buf);
-    return new StreamRequest(streamId);
+  public static StreamHandle decode(ByteBuf buf) {
+    return new StreamHandle(buf.readLong(), buf.readInt());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamId);
+    return Objects.hashCode(streamId, numChunks);
   }
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof StreamRequest) {
-      StreamRequest o = (StreamRequest) other;
-      return streamId.equals(o.streamId);
+    if (other instanceof StreamHandle) {
+      StreamHandle o = (StreamHandle) other;
+      return streamId == o.streamId && numChunks == o.numChunks;
     }
     return false;
   }
@@ -69,7 +69,7 @@ public final class StreamRequest extends AbstractMessage implements RequestMessa
   public String toString() {
     return Objects.toStringHelper(this)
       .add("streamId", streamId)
+      .add("numChunks", numChunks)
       .toString();
   }
-
 }

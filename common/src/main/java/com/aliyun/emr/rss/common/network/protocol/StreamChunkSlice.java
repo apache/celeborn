@@ -23,42 +23,60 @@ import io.netty.buffer.ByteBuf;
 /**
 * Encapsulates a request for a particular chunk of a stream.
 */
-public final class StreamChunkId implements Encodable {
+public final class StreamChunkSlice implements Encodable {
   public final long streamId;
   public final int chunkIndex;
+  /** offset from the beginning of the chunk */
+  public final int offset;
+  /** size to read */
+  public final int len;
 
-  public StreamChunkId(long streamId, int chunkIndex) {
+  public StreamChunkSlice(long streamId, int chunkIndex) {
     this.streamId = streamId;
     this.chunkIndex = chunkIndex;
+    this.offset = 0;
+    this.len = Integer.MAX_VALUE;
+  }
+
+  public StreamChunkSlice(long streamId, int chunkIndex, int offset, int len) {
+    this.streamId = streamId;
+    this.chunkIndex = chunkIndex;
+    this.offset = offset;
+    this.len = len;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4;
+    return 20;
   }
 
   public void encode(ByteBuf buffer) {
     buffer.writeLong(streamId);
     buffer.writeInt(chunkIndex);
+    buffer.writeInt(offset);
+    buffer.writeInt(len);
   }
 
-  public static StreamChunkId decode(ByteBuf buffer) {
-    assert buffer.readableBytes() >= 8 + 4;
+  public static StreamChunkSlice decode(ByteBuf buffer) {
+    assert buffer.readableBytes() >= 20;
     long streamId = buffer.readLong();
     int chunkIndex = buffer.readInt();
-    return new StreamChunkId(streamId, chunkIndex);
+    int offset = buffer.readInt();
+    int len = buffer.readInt();
+    return new StreamChunkSlice(streamId, chunkIndex, offset, len);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamId, chunkIndex);
+    return Objects.hashCode(streamId, chunkIndex, offset, len);
   }
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof StreamChunkId) {
-      StreamChunkId o = (StreamChunkId) other;
-      return streamId == o.streamId && chunkIndex == o.chunkIndex;
+    if (other instanceof StreamChunkSlice) {
+      StreamChunkSlice o = (StreamChunkSlice) other;
+      return streamId == o.streamId && chunkIndex == o.chunkIndex &&
+        offset == o.offset && len == o.len;
     }
     return false;
   }
@@ -68,6 +86,8 @@ public final class StreamChunkId implements Encodable {
     return Objects.toStringHelper(this)
       .add("streamId", streamId)
       .add("chunkIndex", chunkIndex)
+      .add("offset", offset)
+      .add("len", len)
       .toString();
   }
 }
