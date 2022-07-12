@@ -451,26 +451,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       return null
     }
 
-    val revivedLocation = if (oldPartition != null) {
+    val newlyAllocatedLocation = if (oldPartition != null) {
       reallocateSlotsFromCandidates(List(oldPartition), candidates)
     } else {
       reallocateForNonExistPartitionLocationFromCandidates(reduceId, oldEpochId, candidates)
     }
 
-    if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, revivedLocation)) {
+    if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocation)) {
       logError(s"[Update partition] failed for $shuffleId.")
       reply(ChangeLocationResponse(StatusCode.ReserveSlotFailed, null))
       return
     }
 
     // Add all re-allocated slots to worker snapshots.
-    revivedLocation.asScala.foreach { case (workInfo, (masterLocations, slaveLocations)) =>
+    newlyAllocatedLocation.asScala.foreach { case (workInfo, (masterLocations, slaveLocations)) =>
       workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
         partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
         partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
       }
     }
-    val (masterLocations, slavePartitions) = revivedLocation.asScala.head._2
+    val (masterLocations, slavePartitions) = newlyAllocatedLocation.asScala.head._2
     // reply the master location of this partition.
     val revivedMasterLocation = if (masterLocations != null && masterLocations.size() > 0) {
       masterLocations.asScala.head
@@ -878,7 +878,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         }
       }
     if (!destroyResource.isEmpty) {
-      destroyBuffersWithRetry(applicationId, shuffleId, destroyResource)
+      destroySlotsWithRetry(applicationId, shuffleId, destroyResource)
       logInfo(s"Destroyed peer partitions for reserve buffer failed workers " +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}, $destroyResource")
 
@@ -982,7 +982,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           // Destroy the buffer that reserve slot success.
           val retryReserveSlotsSucceedLocations =
             retrySlots.asScala.filterKeys(!retryReserveFailedWorkers.contains(_)).toMap
-          destroyBuffersWithRetry(applicationId, shuffleId,
+          destroySlotsWithRetry(applicationId, shuffleId,
             new WorkerResource(retryReserveSlotsSucceedLocations.asJava))
         }
       }
@@ -995,7 +995,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // if failed after retry, destroy all allocated buffers
     if (!finalSuccess) {
       logWarning(s"Reserve buffers $shuffleId still fail after retrying, clear buffers.")
-      destroyBuffersWithRetry(applicationId, shuffleId, slots)
+      destroySlotsWithRetry(applicationId, shuffleId, slots)
     } else {
       logInfo(s"Reserve buffer success for ${Utils.makeShuffleKey(applicationId, shuffleId)}")
     }
@@ -1083,13 +1083,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    * @param slotsToDestroy worker resource to be destroyed
    * @return destroy failed master and slave location unique id
    */
-  private def destroyBuffersWithRetry(
+  private def destroySlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
-      slotsToDestroy: WorkerResource): (util.List[String], util.List[String]) = {
-    val failedMasterLocationUniqueIds = new util.LinkedList[String]()
-    val failedSlaveLocationUniqueIds = new util.LinkedList[String]()
-
+      slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     slotsToDestroy.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
       val destroy = Destroy(shuffleKey,
@@ -1102,10 +1099,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         res = requestDestroy(workerInfo.endpoint,
           Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
       }
-      failedMasterLocationUniqueIds.addAll(res.failedMasters)
-      failedSlaveLocationUniqueIds.addAll(res.failedSlaves)
     }
-    (failedMasterLocationUniqueIds, failedSlaveLocationUniqueIds)
   }
 
   private def removeExpiredShuffle(): Unit = {
