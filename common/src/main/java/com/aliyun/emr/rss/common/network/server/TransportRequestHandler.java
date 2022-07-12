@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.common.network.server;
 
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.nio.ByteBuffer;
 
 import com.google.common.base.Throwables;
 import io.netty.channel.Channel;
@@ -27,12 +26,8 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
-import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.protocol.*;
-import com.aliyun.emr.rss.common.network.util.JavaUtils;
 
 /**
  * A handler that processes requests from clients and writes chunk data back. Each handler is
@@ -52,89 +47,41 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   private final TransportClient reverseClient;
 
   /** Handles all RPC messages. */
-  private final RpcHandler rpcHandler;
-
-  /** Returns each chunk part of a stream. */
-  private final StreamManager streamManager;
-
-  /** The max number of chunks being transferred and not finished yet. */
-  private final long maxChunksBeingTransferred;
-
-  private AbstractSource source = null;
+  private final BaseMessageHandler msgHandler;
 
   public TransportRequestHandler(
       Channel channel,
       TransportClient reverseClient,
-      RpcHandler rpcHandler,
-      Long maxChunksBeingTransferred,
-      AbstractSource source){
-    this(channel, reverseClient, rpcHandler, maxChunksBeingTransferred);
-    this.source = source;
-  }
-
-  public TransportRequestHandler(
-      Channel channel,
-      TransportClient reverseClient,
-      RpcHandler rpcHandler,
-      Long maxChunksBeingTransferred) {
+      BaseMessageHandler msgHandler) {
     this.channel = channel;
     this.reverseClient = reverseClient;
-    this.rpcHandler = rpcHandler;
-    this.streamManager = rpcHandler.getStreamManager();
-    this.maxChunksBeingTransferred = maxChunksBeingTransferred;
+    this.msgHandler = msgHandler;
   }
 
   @Override
   public void exceptionCaught(Throwable cause) {
-    rpcHandler.exceptionCaught(cause, reverseClient);
+    msgHandler.exceptionCaught(cause, reverseClient);
   }
 
   @Override
   public void channelActive() {
-    rpcHandler.channelActive(reverseClient);
+    msgHandler.channelActive(reverseClient);
   }
 
   @Override
   public void channelInactive() {
-    if (streamManager != null) {
-      try {
-        streamManager.connectionTerminated(channel);
-      } catch (RuntimeException e) {
-        logger.error("StreamManager connectionTerminated() callback failed.", e);
-      }
-    }
-    rpcHandler.channelInactive(reverseClient);
+    msgHandler.channelInactive(reverseClient);
   }
 
   @Override
   public void handle(RequestMessage request) {
-    if (request instanceof ChunkFetchRequest) {
-      if (checkRegistered(request)) {
-        rpcHandler.receiveRequestMessage(reverseClient, request);
-      }
-    } else if (request instanceof RpcRequest) {
-      if (checkRegistered(request)) {
-        processRpcRequest((RpcRequest) request);
-      }
-    } else if (request instanceof OneWayMessage) {
-      if (checkRegistered(request)) {
-        processOneWayMessage((OneWayMessage) request);
-      }
-    } else if (request instanceof PushData) {
-      if (checkRegistered(request)) {
-        processPushData((PushData) request);
-      }
-    } else if (request instanceof PushMergedData) {
-      if (checkRegistered(request)) {
-        processPushMergedData((PushMergedData) request);
-      }
-    } else {
-      throw new IllegalArgumentException("Unknown request type: " + request);
+    if (checkRegistered(request)) {
+      msgHandler.receive(reverseClient, request);
     }
   }
 
   private boolean checkRegistered(RequestMessage req) {
-    if (!rpcHandler.checkRegistered()) {
+    if (!msgHandler.checkRegistered()) {
       IOException e = new IOException("Worker Not Registered!");
       if (req instanceof RpcRequest) {
         respond(new RpcFailure(((RpcRequest)req).requestId, Throwables.getStackTraceAsString(e)));
@@ -147,84 +94,6 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       return false;
     }
     return true;
-  }
-
-  private void processRpcRequest(final RpcRequest req) {
-    try {
-      rpcHandler.receiveRpc(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
-        @Override
-        public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
-        }
-
-        @Override
-        public void onFailure(Throwable e) {
-          respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-        }
-      });
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() on RPC id " + req.requestId, e);
-      respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-    } finally {
-      req.body().release();
-    }
-  }
-
-  private void processPushData(PushData req) {
-    try {
-      rpcHandler.receivePushData(reverseClient, req, new RpcResponseCallback() {
-        @Override
-        public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
-        }
-
-        @Override
-        public void onFailure(Throwable e) {
-          logger.error("[processPushData] Process pushData onFailure! ShuffleKey: "
-                  + req.shuffleKey + ", partitionUniqueId: " + req.partitionUniqueId, e);
-          respond(new RpcFailure(req.requestId, e.getMessage()));
-        }
-      });
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() on PushData " + req, e);
-      channel.writeAndFlush(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-    } finally {
-      req.body().release();
-    }
-  }
-
-  private void processPushMergedData(PushMergedData req) {
-    try {
-      rpcHandler.receivePushMergedData(reverseClient, req, new RpcResponseCallback() {
-        @Override
-        public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
-        }
-
-        @Override
-        public void onFailure(Throwable e) {
-          logger.error("[processPushMergedData] Process PushMergedData onFailure! ShuffleKey: " +
-                  req.shuffleKey +
-                  ", partitionUniqueId: " + JavaUtils.mkString(req.partitionUniqueIds, ","), e);
-          respond(new RpcFailure(req.requestId, e.getMessage()));
-        }
-      });
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() on PushMergedData " + req, e);
-      channel.writeAndFlush(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
-    } finally {
-      req.body().release();
-    }
-  }
-
-  private void processOneWayMessage(OneWayMessage req) {
-    try {
-      rpcHandler.receiveRpc(reverseClient, req.body().nioByteBuffer());
-    } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() for one-way message.", e);
-    } finally {
-      req.body().release();
-    }
   }
 
   /**

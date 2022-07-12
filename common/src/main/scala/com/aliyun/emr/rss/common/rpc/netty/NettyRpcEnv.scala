@@ -29,10 +29,14 @@ import scala.reflect.ClassTag
 import scala.util.{DynamicVariable, Failure, Success, Try}
 import scala.util.control.NonFatal
 
+import com.google.common.base.Throwables
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.TransportContext
+import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client._
+import com.aliyun.emr.rss.common.network.protocol.{OneWayMessage => NOneWayMessage, RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest, RpcResponse}
 import com.aliyun.emr.rss.common.network.server._
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.rpc._
@@ -54,10 +58,9 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
-  private val streamManager = new NettyStreamManager(this)
 
   private val transportContext = new TransportContext(transportConf,
-    new NettyRpcHandler(dispatcher, this, streamManager))
+    new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
     java.util.Collections.emptyList[TransportClientBootstrap]
@@ -517,25 +520,59 @@ private[rss] case class RpcFailure(e: Throwable)
  */
 private[rss] class NettyRpcHandler(
     dispatcher: Dispatcher,
-    nettyEnv: NettyRpcEnv,
-    streamManager: StreamManager) extends RpcHandler with Logging {
+    nettyEnv: NettyRpcEnv) extends BaseMessageHandler with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
 
-  override def receiveRpc(
+  override def receive(
       client: TransportClient,
-      message: ByteBuffer,
-      callback: RpcResponseCallback): Unit = {
-    val messageToDispatch = internalReceive(client, message)
-    dispatcher.postRemoteMessage(messageToDispatch, callback)
+      requestMessage: NRequestMessage): Unit = {
+    requestMessage match {
+      case r: RpcRequest =>
+        processRpc(client, r)
+      case r: NOneWayMessage =>
+        processOnewayMessage(client, r)
+    }
   }
 
-  override def receiveRpc(
-      client: TransportClient,
-      message: ByteBuffer): Unit = {
-    val messageToDispatch = internalReceive(client, message)
-    dispatcher.postOneWayMessage(messageToDispatch)
+  private def processRpc(client: TransportClient, r: RpcRequest): Unit = {
+    val callback = new RpcResponseCallback {
+      override def onSuccess(response: ByteBuffer): Unit = {
+        client.getChannel.writeAndFlush(new RpcResponse(r.requestId,
+          new NioManagedBuffer(response)))
+      }
+
+      override def onFailure(e: Throwable): Unit = {
+        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
+          Throwables.getStackTraceAsString(e)))
+      }
+    }
+    try {
+      val message = r.body().nioByteBuffer()
+      val messageToDispatch = internalReceive(client, message)
+      dispatcher.postRemoteMessage(messageToDispatch, callback)
+    } catch {
+      case e: Exception =>
+        logError("Error while invoking RpcHandler#receive() on RPC id " + r.requestId, e)
+        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
+          Throwables.getStackTraceAsString(e)))
+    } finally {
+      r.body().release()
+    }
+  }
+
+  private def processOnewayMessage(client: TransportClient, r: NOneWayMessage): Unit = {
+    try {
+      val message = r.body().nioByteBuffer()
+      val messageToDispatch = internalReceive(client, message)
+      dispatcher.postOneWayMessage(messageToDispatch)
+    } catch {
+      case e: Exception =>
+        logError("Error while invoking RpcHandler#receive() for one-way message.", e)
+    } finally {
+      r.body().release()
+    }
   }
 
   private def internalReceive(client: TransportClient, message: ByteBuffer): RequestMessage = {
@@ -560,8 +597,6 @@ private[rss] class NettyRpcHandler(
   override def checkRegistered(): Boolean = {
     nettyEnv.checkRegistered()
   }
-
-  override def getStreamManager: StreamManager = streamManager
 
   override def exceptionCaught(cause: Throwable, client: TransportClient): Unit = {
     val addr = client.getChannel.remoteAddress().asInstanceOf[InetSocketAddress]
