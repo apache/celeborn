@@ -37,16 +37,12 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.protocol.ChunkFetchRequest;
-import com.aliyun.emr.rss.common.network.protocol.ChunkFetchSuccess;
-import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
-import com.aliyun.emr.rss.common.network.protocol.StreamChunkSlice;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.protocol.*;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
@@ -95,23 +91,24 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutInactiveRequests() throws Exception {
     final Semaphore semaphore = new Semaphore(1);
     final int responseSize = 16;
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
-      public void receiveRpc(
+      public void receive(
           TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
+          RequestMessage message) {
         try {
           semaphore.acquire();
-          callback.onSuccess(ByteBuffer.allocate(responseSize));
+          client.getChannel().writeAndFlush(new RpcResponse(
+            ((RpcRequest) message).requestId,
+            new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
         } catch (InterruptedException e) {
           // do nothing
         }
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return defaultManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
@@ -142,23 +139,24 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutCleanlyClosesClient() throws Exception {
     final Semaphore semaphore = new Semaphore(0);
     final int responseSize = 16;
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
-      public void receiveRpc(
-          TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
+      public void receive(
+        TransportClient client,
+        RequestMessage message) {
         try {
           semaphore.acquire();
-          callback.onSuccess(ByteBuffer.allocate(responseSize));
+          client.getChannel().writeAndFlush(new RpcResponse(
+            ((RpcRequest) message).requestId,
+            new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
         } catch (InterruptedException e) {
           // do nothing
         }
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return defaultManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
@@ -198,17 +196,9 @@ public class RequestTimeoutIntegrationSuiteJ {
         return new NioManagedBuffer(ByteBuffer.wrap(response));
       }
     };
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
-      public void receiveRpc(
-          TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public void receiveRequestMessage(
+      public void receive(
         TransportClient client,
         RequestMessage msg) {
         StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
@@ -218,8 +208,8 @@ public class RequestTimeoutIntegrationSuiteJ {
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return manager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 

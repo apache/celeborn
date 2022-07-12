@@ -47,27 +47,24 @@ public class TransportServer implements Closeable {
 
   private final TransportContext context;
   private final TransportConf conf;
-  private final RpcHandler appRpcHandler;
+  private final BaseMessageHandler appRpcHandler;
   private final List<TransportServerBootstrap> bootstraps;
 
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
   private int port = -1;
-  private NettyMemoryMetrics nettyMetric;
-  private AbstractSource source;
 
   public TransportServer(
     TransportContext context,
     String hostToBind,
     int portToBind,
-    RpcHandler appRpcHandler,
+    BaseMessageHandler appRpcHandler,
     List<TransportServerBootstrap> bootstraps,
     AbstractSource source) {
     this.context = context;
     this.conf = context.getConf();
     this.appRpcHandler = appRpcHandler;
     this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
-    this.source = source;
 
     boolean shouldClose = true;
     try {
@@ -88,7 +85,7 @@ public class TransportServer implements Closeable {
       TransportContext context,
       String hostToBind,
       int portToBind,
-      RpcHandler appRpcHandler,
+      BaseMessageHandler appRpcHandler,
       List<TransportServerBootstrap> bootstraps) {
     this(context, hostToBind, portToBind, appRpcHandler, bootstraps, null);
   }
@@ -120,9 +117,6 @@ public class TransportServer implements Closeable {
       .childOption(ChannelOption.SO_KEEPALIVE, true)
       .childOption(ChannelOption.ALLOCATOR, allocator);
 
-    this.nettyMetric = new NettyMemoryMetrics(
-      allocator, conf.getModuleName() + "-server", conf, source);
-
     if (conf.backLog() > 0) {
       bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());
     }
@@ -150,17 +144,13 @@ public class TransportServer implements Closeable {
     bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
       @Override
       protected void initChannel(SocketChannel ch) {
-        RpcHandler rpcHandler = appRpcHandler;
+        BaseMessageHandler handler = appRpcHandler;
         for (TransportServerBootstrap bootstrap : bootstraps) {
-          rpcHandler = bootstrap.doBootstrap(ch, rpcHandler);
+          handler = bootstrap.doBootstrap(ch, handler);
         }
-        context.initializePipeline(ch, rpcHandler);
+        context.initializePipeline(ch, handler);
       }
     });
-  }
-
-  public NettyMemoryMetrics getNettyMetric() {
-    return nettyMetric;
   }
 
   @Override
