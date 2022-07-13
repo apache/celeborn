@@ -54,6 +54,16 @@ Build for Spark 3
 ./dev/make-distribution.sh -Pspark-3 -Plog4j-1/-Plog4j-2
 `
 
+Build for Spark 2 on MacOS Apple M1/Arm(For testing purposes only, not recommended for production.)  
+`
+./dev/make-distribution.sh -Pspark-2 -Plog4j-1/-Plog4j-2 -Dos.detected.name=osx -Dos.detected.arch=x86_64 -Dos.detected.classifier=osx-x86_64 -Dscala.binary.version=2.11
+`
+
+Build for Spark 3 on MacOS Apple M1/Arm(For testing purposes only, not recommended for production.)   
+`
+./dev/make-distribution.sh -Pspark-3 -Plog4j-1/-Plog4j-2 -Dos.detected.name=osx -Dos.detected.arch=x86_64 -Dos.detected.classifier=osx-x86_64 -Dscala.binary.version=2.12
+`
+
 package rss-${project.version}-bin-release.tgz will be generated.
 
 ### Package Details
