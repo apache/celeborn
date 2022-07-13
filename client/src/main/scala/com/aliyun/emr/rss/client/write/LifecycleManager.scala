@@ -898,14 +898,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   /**
-   * Collect all allocated partition locations on reserving slot failed workers.
+   * Collect all allocated partition locations on reserving slot failed workers
+   * and remove failed worker's partition locations from total slots.
    * For each reduce id, we only need to maintain one of the pair locations
-   * even if enabling replicate. If RSS want to release the failed partition location,
+   * even if enabling replicate. If RSS wants to release the failed partition location,
    * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
    *
    * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots
    * @param slots the slots tried to reserve a slot
-   * @return
+   * @return reserving slot failed partition locations
    */
   def getFailedPartitionLocations(
       reserveFailedWorkers: util.List[WorkerInfo],
