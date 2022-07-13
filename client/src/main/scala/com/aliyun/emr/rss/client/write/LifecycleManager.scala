@@ -931,7 +931,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   /**
-   * reserve buffer with retry, retry on another node will cause slots to be inconsistent
+   * Reserve buffers with retry, retry on another node will cause slots to be inconsistent.
+   *
+   * @param applicationId application id
+   * @param shuffleId shuffle id
+   * @param candidates working worker list
+   * @param slots the total allocated worker resources that need to be applied for the slot
+   * @return If reserve all slots success
    */
   private def reserveSlotsWithRetry(
       applicationId: String,
