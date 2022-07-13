@@ -25,42 +25,41 @@ import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConv
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbDiskInfo, PbWorkerInfo}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
-import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
 class DiskInfo(
     val mountPoint: String,
     val usableSpace: Long,
     val flushTime: Double,
-    var usedSlots: Long
+    var activeWriters: Long
 ) extends Serializable {
-  var totalSlots: Long = 0
-  lazy val shuffleSlots = new util.HashMap[String, Integer]()
+  var maxWriters: Long = 0
+  lazy val diskRelatedWriters = new util.HashMap[String, Integer]()
 
   def availableSlots(): Long = {
-    totalSlots - usedSlots
+    maxWriters - activeWriters
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = shuffleSlots.getOrDefault(shuffleKey, 0)
-    shuffleSlots.put(shuffleKey, allocated + slots)
-    usedSlots = usedSlots + slots
+    val allocated = diskRelatedWriters.getOrDefault(shuffleKey, 0)
+    diskRelatedWriters.put(shuffleKey, allocated + slots)
+    activeWriters = activeWriters + slots
   }
 
   def releaseSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = shuffleSlots.getOrDefault(shuffleKey, 0)
+    val allocated = diskRelatedWriters.getOrDefault(shuffleKey, 0)
     if (allocated > slots) {
-      shuffleSlots.put(shuffleKey, allocated - slots)
-      usedSlots = usedSlots - slots
+      diskRelatedWriters.put(shuffleKey, allocated - slots)
+      activeWriters = activeWriters - slots
     } else {
-      usedSlots = 0
-      shuffleSlots.put(shuffleKey, 0)
+      activeWriters = 0
+      diskRelatedWriters.put(shuffleKey, 0)
     }
   }
 
   def releaseSlots(shuffleKey: String): Unit = {
-    val allocated = shuffleSlots.remove(shuffleKey)
+    val allocated = diskRelatedWriters.remove(shuffleKey)
     if (allocated != null) {
-      usedSlots = usedSlots - allocated
+      activeWriters = activeWriters - allocated
     }
   }
 }
@@ -120,23 +119,24 @@ class WorkerInfo(
     )
   }
 
-  def isActive: Boolean = {
-    endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
-  }
-
   def usedSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.usedSlots).sum
+    disks.asScala.map(_._2.activeWriters).sum
   }
 
-  def allocateSlots(shuffleKey: String, diskSlots: util.Map[String, Integer]): Unit =
+  def allocateSlots(shuffleKey: String, slotsDistributions: util.Map[String, Integer]): Unit =
     this.synchronized {
-      diskSlots.asScala.foreach(it => {
+      slotsDistributions.asScala.foreach(it => {
         disks.get(it._1).allocateSlots(shuffleKey, it._2)
       })
     }
 
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
-    slots.asScala.foreach(diskSlots => disks.get(diskSlots).releaseSlots(shuffleKey, diskSlots._2))
+    slots.asScala.foreach { diskSlots =>
+      if (disks.containsKey(diskSlots)) {
+        // disk hint is DEFAULT means that this location has no file
+        disks.get(diskSlots).releaseSlots(shuffleKey, diskSlots._2)
+      }
+    }
   }
 
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
@@ -292,7 +292,7 @@ object WorkerInfo {
             .newBuilder()
             .setUsableSpace(item._2.usableSpace)
             .setFlushTime(item._2.flushTime)
-            .setUsedSlots(item._2.usedSlots)
+            .setUsedSlots(item._2.activeWriters)
             .build()
       )
       .asJava

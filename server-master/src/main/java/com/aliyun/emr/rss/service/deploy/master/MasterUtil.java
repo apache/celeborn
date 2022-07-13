@@ -378,7 +378,7 @@ public class MasterUtil {
           return v;
         });
       }
-      diskInfo.usedSlots_$eq(diskInfo.usedSlots() + allocatedSlots);
+      diskInfo.activeWriters_$eq(diskInfo.activeWriters() + allocatedSlots);
     }
   }
 

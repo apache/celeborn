@@ -23,7 +23,8 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 
 class MasterSource(essConf: RssConf)
-    extends AbstractSource(essConf, MetricsSystem.ROLE_MASTER) with Logging {
+  extends AbstractSource(essConf, MetricsSystem.ROLE_MASTER)
+  with Logging {
   override val sourceName = s"master"
 
   // start cleaner

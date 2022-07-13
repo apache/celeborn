@@ -141,7 +141,7 @@ private[deploy] class Worker(
 
   // worker info
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    RssConf.workerNumSlots(conf, localStorageManager.numDisks), controller.self)
+    localStorageManager.diskSnapshot, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)
@@ -185,18 +185,13 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
-  def updateNumSlots(numSlots: Int): Unit = {
-    workerInfo.setNumSlots(numSlots)
-    heartBeatToMaster()
-  }
-
   def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
-        localStorageManager.getDiskSnapshot().asJava, shuffleKeys), classOf[HeartbeatResponse])
+        localStorageManager.diskSnapshot, shuffleKeys), classOf[HeartbeatResponse])
     if (response.registered) {
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {

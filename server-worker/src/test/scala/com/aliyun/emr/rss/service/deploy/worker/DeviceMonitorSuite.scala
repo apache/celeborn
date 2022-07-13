@@ -191,11 +191,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         observers.contains(localStorageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      when(fw2.notifyError("vda", null, DeviceErrorType.IoHang))
+      when(fw2.notifyError())
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      when(fw4.notifyError("vdb", null, DeviceErrorType.IoHang))
+      when(fw4.notifyError())
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
@@ -233,11 +233,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         })
       val dirs = new jArrayList[File]()
       dirs.add(null)
-      when(fw1.notifyError(any(), any(), any()))
+      when(fw1.notifyError())
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw1)
         })
-      when(fw2.notifyError(any(), any(), any()))
+      when(fw2.notifyError())
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
@@ -251,11 +251,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((workingDir: File, e: IOException) => {
           deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
         })
-      when(fw3.notifyError(any(), any(), any()))
+      when(fw3.notifyError())
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw3)
         })
-      when(fw4.notifyError(any(), any(), any()))
+      when(fw4.notifyError())
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })

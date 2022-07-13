@@ -50,7 +50,7 @@ sealed trait Message extends Serializable {
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
               .setFlushTime(item._2.flushTime)
-              .setUsedSlots(item._2.usedSlots)
+              .setUsedSlots(item._2.activeWriters)
               .build()
           )
           .toMap
@@ -84,7 +84,7 @@ sealed trait Message extends Serializable {
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
               .setFlushTime(item._2.flushTime)
-              .setUsedSlots(item._2.usedSlots)
+              .setUsedSlots(item._2.activeWriters)
               .build()
           )
           .toMap
@@ -480,6 +480,8 @@ sealed trait Message extends Serializable {
         committedSlaveIds,
         failedMasterIds,
         failedSlaveIds,
+        committedMasterStorageHintAndDiskHint,
+        committedSlaveStorageHintAndDiskHint,
         totalWritten,
         fileCount
       ) =>
@@ -490,6 +492,8 @@ sealed trait Message extends Serializable {
         builder.addAllCommittedSlaveIds(committedSlaveIds)
         builder.addAllFailedMasterIds(failedMasterIds)
         builder.addAllFailedSlaveIds(failedSlaveIds)
+        builder.addAllCommittedMasterStorageHintAndDiskHint(committedMasterStorageHintAndDiskHint)
+        builder.addAllCommittedMasterStorageHintAndDiskHint(committedSlaveStorageHintAndDiskHint)
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -788,6 +792,9 @@ object ControlMessages extends Logging {
       committedSlaveIds: util.List[String],
       failedMasterIds: util.List[String],
       failedSlaveIds: util.List[String],
+      // storageHint-diskHint(if disk hint is present)
+      committedMasterStorageHintAndDiskHint: util.List[String],
+      committedSlaveStorageHintAndDiskHint: util.List[String],
       totalWritten: Long,
       fileCount: Int
   ) extends WorkerMessage
@@ -1133,6 +1140,8 @@ object ControlMessages extends Logging {
           pbCommitFilesResponse.getCommittedSlaveIdsList,
           pbCommitFilesResponse.getFailedMasterIdsList,
           pbCommitFilesResponse.getFailedSlaveIdsList,
+          pbCommitFilesResponse.getCommittedMasterStorageHintAndDiskHintList,
+          pbCommitFilesResponse.getCommittedSlaveStorageHintAndDiskHintList,
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount
         )

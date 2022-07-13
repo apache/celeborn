@@ -17,8 +17,7 @@
 
 package org.apache.spark.shuffle.rss
 
-import org.apache.spark.{ShuffleDependency, SparkConf}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.SparkConf
 
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
@@ -30,16 +29,16 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-       applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
+    applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
   }
 
-  /**
+  /*
    * if rss.force.fallback is true, fallback to external shuffle
    * @return return rss.force.fallback
    */
   def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(rssConf)
 
-  /**
+  /*
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
    * @param numPartitions shuffle partitions
    * @return return if shuffle partitions bigger than limit
@@ -48,19 +47,23 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
     val confNumPartitions = RssConf.maxPartitionNumSupported(rssConf)
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
-      logInfo(s"Shuffle num of partitions: $numPartitions" +
+      logInfo(
+        s"Shuffle num of partitions: $numPartitions" +
           s" is bigger than the limit: $confNumPartitions," +
-          s" need fallback to spark shuffle")
+          s" need fallback to spark shuffle"
+      )
     }
     needFallback
   }
 
-  /**
+  /*
    * if rss cluster is under high load, fallback to external shuffle
    * @return if rss cluster's slots used percent is overhead the limit
    */
-  def applyClusterLoadFallbackPolicy(lifeCycleManager: LifecycleManager, numPartitions: Int):
-    Boolean = {
+  def applyClusterLoadFallbackPolicy(
+      lifeCycleManager: LifecycleManager,
+      numPartitions: Int
+  ): Boolean = {
     if (!RssConf.clusterLoadFallbackEnabled(rssConf)) {
       return false
     }

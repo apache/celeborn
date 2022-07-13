@@ -20,7 +20,13 @@ package com.aliyun.emr.rss.service.deploy.master.http
 import io.netty.buffer.Unpooled
 import io.netty.channel.{ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler}
 import io.netty.channel.ChannelHandler.Sharable
-import io.netty.handler.codec.http.{DefaultFullHttpResponse, FullHttpRequest, HttpHeaderNames, HttpResponseStatus, HttpVersion}
+import io.netty.handler.codec.http.{
+  DefaultFullHttpResponse,
+  FullHttpRequest,
+  HttpHeaderNames,
+  HttpResponseStatus,
+  HttpVersion
+}
 import io.netty.util.CharsetUtil
 
 import com.aliyun.emr.rss.common.internal.Logging
@@ -28,9 +34,11 @@ import com.aliyun.emr.rss.common.metrics.sink.PrometheusHttpRequestHandler
 import com.aliyun.emr.rss.service.deploy.master.Master
 
 @Sharable
-class HttpRequestHandler(val master: Master,
-                         prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
-  extends SimpleChannelInboundHandler[FullHttpRequest] with Logging{
+class HttpRequestHandler(
+    val master: Master,
+    prometheusHttpRequestHandler: PrometheusHttpRequestHandler
+) extends SimpleChannelInboundHandler[FullHttpRequest]
+  with Logging {
 
   private val INVALID = "invalid"
 

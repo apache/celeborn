@@ -294,8 +294,10 @@ message PbCommitFilesResponse {
   repeated string committedSlaveIds = 3;
   repeated string failedMasterIds = 4;
   repeated string failedSlaveIds = 5;
-  int64 totalWritten = 6;
-  int32 fileCount = 7;
+  repeated string committedMasterStorageHintAndDiskHint = 6;
+  repeated string committedSlaveStorageHintAndDiskHint = 7;
+  int64 totalWritten = 8;
+  int32 fileCount = 9;
 }
 
 message PbDestroy {

@@ -531,7 +531,8 @@ object RssConf extends Logging {
     Utils.byteStringAsBytes(conf.get("rss.partition.size", "64m"))
   }
 
-  def workerBaseDirs(conf: RssConf): Array[(String, Long, Int)] = {
+  // working dir, max space, thread count, disk type
+  def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, StorageHint)] = {
     val baseDirs = conf.get("rss.worker.base.dirs", "")
     if (baseDirs.nonEmpty) {
       if (baseDirs.contains(":")) {
@@ -559,15 +560,15 @@ object RssConf extends Logging {
                 case StorageHint.SSD => SSDFlusherThread(conf)
               }
             }
-            (workingDir, capaticy, flushThread)
+            (workingDir, capaticy, flushThread, diskType)
           })
       } else {
-        baseDirs.split(",").map((_, Long.MaxValue, 1))
+        baseDirs.split(",").map((_, Long.MaxValue, 1, StorageHint.HDD))
       }
     } else {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => (s"$prefix$i", Long.MaxValue, 1)).toArray
+      (1 to number).map(i => (s"$prefix$i", Long.MaxValue, 1, StorageHint.HDD)).toArray
     }
   }
 
@@ -840,10 +841,6 @@ object RssConf extends Logging {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
   }
 
-  def lifecycleManagerHeartbeatInterval(conf: RssConf): Long = {
-    Utils.timeStringAsSeconds(conf.get("rss.lifecyclemanager.heartbeat.interval", "30s"))
-  }
-
   def availableStorages(conf: RssConf): Array[StorageHint] = {
     val storages = conf.get("rss.available.storage", "MEM,SSD,HDD,HDFS")
     storages.toUpperCase().split(",").map(StorageHint.valueOf(_))
@@ -858,7 +855,7 @@ object RssConf extends Logging {
   }
 
   def SSDFlusherThread(conf: RssConf): Int = {
-    conf.getInt("rss.flusher.ssd.thread.count", 4)
+    conf.getInt("rss.flusher.ssd.thread.count", 8)
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

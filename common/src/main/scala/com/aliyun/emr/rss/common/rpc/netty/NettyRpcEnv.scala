@@ -36,7 +36,13 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client._
-import com.aliyun.emr.rss.common.network.protocol.{OneWayMessage => NOneWayMessage, RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest, RpcResponse}
+import com.aliyun.emr.rss.common.network.protocol.{
+  OneWayMessage => NOneWayMessage,
+  RequestMessage => NRequestMessage,
+  RpcFailure => NRpcFailure,
+  RpcRequest,
+  RpcResponse
+}
 import com.aliyun.emr.rss.common.network.server._
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.rpc._
@@ -69,7 +75,6 @@ class NettyRpcEnv(
   private val dispatcher: Dispatcher = new Dispatcher(this, numUsableCores)
 
   private var worker: RpcEndpoint = null
-
 
   private val transportContext =
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
@@ -557,18 +562,14 @@ private[rss] case class RpcFailure(e: Throwable)
  * RpcEnv, multiple connection / disconnection events will be created for that client (albeit
  * with different `RpcAddress` information).
  */
-private[rss] class NettyRpcHandler(
-    dispatcher: Dispatcher,
-    nettyEnv: NettyRpcEnv
-) extends BaseMessageHandler
+private[rss] class NettyRpcHandler(dispatcher: Dispatcher, nettyEnv: NettyRpcEnv)
+  extends BaseMessageHandler
   with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
 
-  override def receive(
-      client: TransportClient,
-      requestMessage: NRequestMessage): Unit = {
+  override def receive(client: TransportClient, requestMessage: NRequestMessage): Unit = {
     requestMessage match {
       case r: RpcRequest =>
         processRpc(client, r)
@@ -578,16 +579,17 @@ private[rss] class NettyRpcHandler(
   }
 
   private def processRpc(client: TransportClient, r: RpcRequest): Unit = {
-    val callback = new RpcResponseCallback
-  {
+    val callback = new RpcResponseCallback {
       override def onSuccess(response: ByteBuffer): Unit = {
-        client.getChannel.writeAndFlush(new RpcResponse(r.requestId,
-          new NioManagedBuffer(response)))
+        client.getChannel.writeAndFlush(
+          new RpcResponse(r.requestId, new NioManagedBuffer(response))
+        )
       }
 
       override def onFailure(e: Throwable): Unit = {
-        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
-          Throwables.getStackTraceAsString(e)))
+        client.getChannel.writeAndFlush(
+          new NRpcFailure(r.requestId, Throwables.getStackTraceAsString(e))
+        )
       }
     }
     try {
@@ -597,14 +599,15 @@ private[rss] class NettyRpcHandler(
     } catch {
       case e: Exception =>
         logError("Error while invoking RpcHandler#receive() on RPC id " + r.requestId, e)
-        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
-          Throwables.getStackTraceAsString(e)))
+        client.getChannel.writeAndFlush(
+          new NRpcFailure(r.requestId, Throwables.getStackTraceAsString(e))
+        )
     } finally {
       r.body().release()
     }
   }
 
-  private def processOnewayMessage(client: TransportClient,r: NOneWayMessage): Unit = {
+  private def processOnewayMessage(client: TransportClient, r: NOneWayMessage): Unit = {
     try {
       val message = r.body().nioByteBuffer()
       val messageToDispatch = internalReceive(client, message)

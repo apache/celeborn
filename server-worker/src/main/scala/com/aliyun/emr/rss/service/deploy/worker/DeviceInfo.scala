@@ -71,8 +71,9 @@ class DeviceInfo(val name: String) extends Serializable {
 object DeviceInfo {
   val logger = LoggerFactory.getLogger(classOf[DeviceInfo])
 
-  def getDeviceAndMountInfos(workingDirs: util.List[File]):
-  (util.HashMap[String, DeviceInfo], util.HashMap[String, MountInfo]) = {
+  def getDeviceAndMountInfos(
+      workingDirs: util.List[File]
+  ): (util.HashMap[String, DeviceInfo], util.HashMap[String, MountInfo]) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()
     val allMounts = new util.HashMap[String, MountInfo]()
 
@@ -135,16 +136,18 @@ object DeviceInfo {
     (retDeviceInfos, retMountInfos)
   }
 
-  def getMountPoint(absPath: String,
-    mountInfos: util.HashMap[String, MountInfo]): String = {
+  def getMountPoint(absPath: String, mountInfos: util.HashMap[String, MountInfo]): String = {
     var curMax = -1
     var curMount = ""
-    mountInfos.keySet().asScala.foreach(mount => {
-      if (absPath.startsWith(mount) && mount.length > curMax) {
-        curMax = mount.length
-        curMount = mount
-      }
-    })
+    mountInfos
+      .keySet()
+      .asScala
+      .foreach(mount => {
+        if (absPath.startsWith(mount) && mount.length > curMax) {
+          curMax = mount.length
+          curMount = mount
+        }
+      })
     curMount
   }
 }

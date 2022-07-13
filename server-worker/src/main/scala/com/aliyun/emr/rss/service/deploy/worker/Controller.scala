@@ -42,8 +42,9 @@ import com.aliyun.emr.rss.common.util.Utils
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
     val conf: RssConf,
-    val metricsSystem: MetricsSystem)
-  extends RpcEndpoint with Logging {
+    val metricsSystem: MetricsSystem
+) extends RpcEndpoint
+  with Logging {
 
   var workerSource: WorkerSource = _
   var localStorageManager: LocalStorageManager = _
@@ -68,28 +69,49 @@ private[deploy] class Controller(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode, storageHint) =>
+    case ReserveSlots(
+      applicationId,
+      shuffleId,
+      masterLocations,
+      slaveLocations,
+      splitThreashold,
+      splitMode,
+      storageHint
+    ) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
-        logDebug(s"Received ReserveSlots request, $shuffleKey, " +
-          s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
-          s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
-        handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode, storageHint)
+        logDebug(
+          s"Received ReserveSlots request, $shuffleKey, " +
+            s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
+            s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}."
+        )
+        handleReserveSlots(
+          context,
+          applicationId,
+          shuffleId,
+          masterLocations,
+          slaveLocations,
+          splitThreashold,
+          splitMode,
+          storageHint
+        )
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
     case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
-        logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
-          s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
+        logDebug(
+          s"Received CommitFiles request, $shuffleKey, master files" +
+            s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}."
+        )
         val commitFilesTimeMs = Utils.timeIt({
           handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts)
         })
-        logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
-          s"$commitFilesTimeMs ms.")
+        logDebug(
+          s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
+            s"$commitFilesTimeMs ms."
+        )
       }
 
     case GetWorkerInfos =>
@@ -110,7 +132,8 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      storageHint: StorageHint): Unit = {
+      storageHint: StorageHint
+  ): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -120,10 +143,15 @@ private[deploy] class Controller(
     }
     val masterPartitions = new jArrayList[PartitionLocation]()
     try {
-      for (ind <- 0 until masterLocations.size()) {
-        val location = masterLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
-          splitThreshold, splitMode)
+      for (index <- 0 until masterLocations.size()) {
+        val location = masterLocations.get(index)
+        val writer = localStorageManager.createWriter(
+          applicationId,
+          shuffleId,
+          location,
+          splitThreshold,
+          splitMode
+        )
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -142,8 +170,13 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId,
-          location, splitThreshold, splitMode)
+        val writer = localStorageManager.createWriter(
+          applicationId,
+          shuffleId,
+          location,
+          splitThreshold,
+          splitMode
+        )
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -162,9 +195,16 @@ private[deploy] class Controller(
     // reserve success, update status
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
-    workerInfo.allocateSlots(shuffleKey, masterPartitions.size() + slavePartitions.size())
-    logInfo(s"Reserved ${masterPartitions.size()} master location and ${slavePartitions.size()}" +
-      s" slave location for $shuffleKey master: ${masterPartitions}\nslave: ${slavePartitions}.")
+
+    workerInfo.allocateSlots(
+      shuffleKey,
+      Utils.diskSlotsDistribution(masterLocations, slaveLocations)
+    )
+    logInfo(
+      s"Reserved ${masterPartitions.size()} master location" +
+        s" and ${slavePartitions.size()} slave location for $shuffleKey " +
+        s"master: ${masterPartitions}\nslave: ${slavePartitions}."
+    )
     context.reply(ReserveSlotsResponse(StatusCode.Success))
   }
 
@@ -173,37 +213,49 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: ConcurrentSet[String],
       failedIds: ConcurrentSet[String],
-      master: Boolean = true): CompletableFuture[Void] = {
+      committedStorageAndDiskHints: LinkedBlockingQueue[String],
+      writtenList: LinkedBlockingQueue[Long],
+      master: Boolean = true
+  ): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
 
     if (uniqueIds != null) {
       uniqueIds.asScala.foreach { uniqueId =>
-        val task = CompletableFuture.runAsync(new Runnable {
-          override def run(): Unit = {
-            try {
-              val location = if (master) {
-                partitionLocationInfo.getMasterLocation(shuffleKey, uniqueId)
-              } else {
-                partitionLocationInfo.getSlaveLocation(shuffleKey, uniqueId)
-              }
+        val task = CompletableFuture.runAsync(
+          new Runnable {
+            override def run(): Unit = {
+              try {
+                val location = if (master) {
+                  partitionLocationInfo.getMasterLocation(shuffleKey, uniqueId)
+                } else {
+                  partitionLocationInfo.getSlaveLocation(shuffleKey, uniqueId)
+                }
 
-              if (location == null) {
-                logWarning(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist.")
-                return
-              }
+                if (location == null) {
+                  logWarning(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist.")
+                  return
+                }
 
-              val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-              val bytes = fileWriter.close()
-              if (bytes > 0L) {
-                committedIds.add(uniqueId)
+                val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
+                val bytes = fileWriter.close()
+                if (bytes > 0L) {
+                  committedStorageAndDiskHints.add(
+                    s"$uniqueId:" +
+                      s"${fileWriter.getStorageHint}:" +
+                      s"${fileWriter.getDiskHint}"
+                  )
+                  writtenList.add(bytes)
+                  committedIds.add(uniqueId)
+                }
+              } catch {
+                case e: IOException =>
+                  logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
+                  failedIds.add(uniqueId)
               }
-            } catch {
-              case e: IOException =>
-                logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
-                failedIds.add(uniqueId)
             }
-          }
-        }, commitThreadPool)
+          },
+          commitThreadPool
+        )
 
         if (future == null) {
           future = task
@@ -221,13 +273,24 @@ private[deploy] class Controller(
       shuffleKey: String,
       masterIds: jList[String],
       slaveIds: jList[String],
-      mapAttempts: Array[Int]): Unit = {
+      mapAttempts: Array[Int]
+  ): Unit = {
     // return null if shuffleKey does not exist
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
-      context.reply(CommitFilesResponse(
-        StatusCode.ShuffleNotRegistered, List.empty.asJava, List.empty.asJava,
-        masterIds, slaveIds))
+      context.reply(
+        CommitFilesResponse(
+          StatusCode.ShuffleNotRegistered,
+          List.empty.asJava,
+          List.empty.asJava,
+          masterIds,
+          slaveIds,
+          List.empty.asJava,
+          List.empty.asJava,
+          0,
+          0
+        )
+      )
       return
     }
 
@@ -239,9 +302,28 @@ private[deploy] class Controller(
     val committedSlaveIds = new ConcurrentSet[String]()
     val failedMasterIds = new ConcurrentSet[String]()
     val failedSlaveIds = new ConcurrentSet[String]()
+    val committedMasterStorageAndDiskHint = new LinkedBlockingQueue[String]()
+    val committedSlaveStorageAndDiskHint = new LinkedBlockingQueue[String]()
+    val committedWrittenSize = new LinkedBlockingQueue[Long]()
 
-    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds)
-    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, false)
+    val masterFuture =
+      commitFiles(
+        shuffleKey,
+        masterIds,
+        committedMasterIds,
+        failedMasterIds,
+        committedMasterStorageAndDiskHint,
+        committedWrittenSize
+      )
+    val slaveFuture = commitFiles(
+      shuffleKey,
+      slaveIds,
+      committedSlaveIds,
+      failedSlaveIds,
+      committedSlaveStorageAndDiskHint,
+      committedWrittenSize,
+      false
+    )
 
     val future = if (masterFuture != null && slaveFuture != null) {
       CompletableFuture.allOf(masterFuture, slaveFuture)
@@ -255,27 +337,64 @@ private[deploy] class Controller(
 
     def reply(): Unit = {
       // release slots before reply.
-      val numSlotsReleased =
-        partitionLocationInfo.removeMasterPartitions(shuffleKey, masterIds) +
-        partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
-      workerInfo.releaseSlots(shuffleKey, numSlotsReleased)
+      val releaseMasterLocations =
+        partitionLocationInfo.removeMasterPartitions(shuffleKey, masterIds)
+      val releaseSlaveLocations = partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
+      logDebug(
+        s"$shuffleKey remove" +
+          s" slots count ${releaseMasterLocations._2 + releaseSlaveLocations._2}"
+      )
+      workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
+      workerInfo.releaseSlots(shuffleKey, releaseSlaveLocations._1)
 
       val committedMasterIdList = new jArrayList[String](committedMasterIds)
       val committedSlaveIdList = new jArrayList[String](committedSlaveIds)
+
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
+
+      val committedMasterStorageAndDiskHintList = new jArrayList[String](committedMasterStorageAndDiskHint)
+      val committedSlaveStorageAndDiskHintList = new jArrayList[String](committedSlaveStorageAndDiskHint)
       // reply
+      val totalWritten = committedWrittenSize.asScala.sum
+      val fileCount = committedWrittenSize.size()
+      committedWrittenSize.clear()
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
-        logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
-          s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(
-          StatusCode.Success, committedMasterIdList, committedSlaveIdList,
-          List.empty.asJava, List.empty.asJava))
+        logInfo(
+          s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
+            s" master partitions and ${committedSlaveIds.size()} slave partitions!"
+        )
+        context.reply(
+          CommitFilesResponse(
+            StatusCode.Success,
+            committedMasterIdList,
+            committedSlaveIdList,
+            List.empty.asJava,
+            List.empty.asJava,
+            committedMasterStorageAndDiskHintList,
+            committedSlaveStorageAndDiskHintList,
+            totalWritten,
+            fileCount
+          )
+        )
       } else {
-        logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-          s" partitions and ${failedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(StatusCode.PartialSuccess, committedMasterIdList,
-          committedSlaveIdList, failedMasterIdList, failedSlaveIdList))
+        logWarning(
+          s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
+            s" partitions and ${failedSlaveIds.size()} slave partitions!"
+        )
+        context.reply(
+          CommitFilesResponse(
+            StatusCode.PartialSuccess,
+            committedMasterIdList,
+            committedSlaveIdList,
+            failedMasterIdList,
+            failedSlaveIdList,
+            committedMasterStorageAndDiskHintList,
+            committedSlaveStorageAndDiskHintList,
+            totalWritten,
+            fileCount
+          )
+        )
       }
     }
 
@@ -283,39 +402,48 @@ private[deploy] class Controller(
       val result = new AtomicReference[CompletableFuture[Unit]]()
       val flushTimeout = RssConf.flushTimeout(conf)
 
-      val timeout = timer.newTimeout(new TimerTask {
-        override def run(timeout: Timeout): Unit = {
-          if (result.get() != null) {
-            result.get().cancel(true)
-            logWarning(s"After waiting $flushTimeout s, cancel all commit file jobs.")
-          }
-        }
-      }, flushTimeout, TimeUnit.SECONDS)
-
-      result.set(future.handleAsync(new BiFunction[Void, Throwable, Unit] {
-        override def apply(v: Void, t: Throwable): Unit = {
-          if (null != t) {
-            t match {
-              case _: CancellationException =>
-                logWarning("While handling commitFiles, canceled.")
-              case ee: ExecutionException =>
-                logError("While handling commitFiles, ExecutionException raised.", ee)
-              case ie: InterruptedException =>
-                logWarning("While handling commitFiles, interrupted.")
-                Thread.currentThread().interrupt()
-                throw ie
-              case _: TimeoutException =>
-                logWarning(s"While handling commitFiles, timeout after $flushTimeout s.")
-              case throwable: Throwable =>
-                logError("While handling commitFiles, exception occurs.", throwable)
+      val timeout = timer.newTimeout(
+        new TimerTask {
+          override def run(timeout: Timeout): Unit = {
+            if (result.get() != null) {
+              result.get().cancel(true)
+              logWarning(s"After waiting $flushTimeout s, cancel all commit file jobs.")
             }
-          } else {
-            // finish, cancel timeout job first.
-            timeout.cancel()
-            reply()
           }
-        }
-      }, asyncReplyPool)) // should not use commitThreadPool in case of block by commit files.
+        },
+        flushTimeout,
+        TimeUnit.SECONDS
+      )
+
+      result.set(
+        future.handleAsync(
+          new BiFunction[Void, Throwable, Unit] {
+            override def apply(v: Void, t: Throwable): Unit = {
+              if (null != t) {
+                t match {
+                  case _: CancellationException =>
+                    logWarning("While handling commitFiles, canceled.")
+                  case ee: ExecutionException =>
+                    logError("While handling commitFiles, ExecutionException raised.", ee)
+                  case ie: InterruptedException =>
+                    logWarning("While handling commitFiles, interrupted.")
+                    Thread.currentThread().interrupt()
+                    throw ie
+                  case _: TimeoutException =>
+                    logWarning(s"While handling commitFiles, timeout after $flushTimeout s.")
+                  case throwable: Throwable =>
+                    logError("While handling commitFiles, exception occurs.", throwable)
+                }
+              } else {
+                // finish, cancel timeout job first.
+                timeout.cancel()
+                reply()
+              }
+            }
+          },
+          asyncReplyPool
+        )
+      ) // should not use commitThreadPool in case of block by commit files.
     } else {
       // If both of two futures are null, then reply directly.
       reply()
@@ -326,12 +454,14 @@ private[deploy] class Controller(
       context: RpcCallContext,
       shuffleKey: String,
       masterLocations: jList[String],
-      slaveLocations: jList[String]): Unit = {
+      slaveLocations: jList[String]
+  ): Unit = {
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
-      context.reply(DestroyResponse(
-        StatusCode.ShuffleNotRegistered, masterLocations, slaveLocations))
+      context.reply(
+        DestroyResponse(StatusCode.ShuffleNotRegistered, masterLocations, slaveLocations)
+      )
       return
     }
 
@@ -366,13 +496,17 @@ private[deploy] class Controller(
     }
     // reply
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
-      logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
-        s" slave locations for $shuffleKey successfully.")
+      logInfo(
+        s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
+          s" slave locations for $shuffleKey successfully."
+      )
       context.reply(DestroyResponse(StatusCode.Success, null, null))
     } else {
-      logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
-        s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
-          s" $shuffleKey PartialSuccess.")
+      logInfo(
+        s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
+          s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
+          s" $shuffleKey PartialSuccess."
+      )
       context.reply(DestroyResponse(StatusCode.PartialSuccess, failedMasters, failedSlaves))
     }
   }

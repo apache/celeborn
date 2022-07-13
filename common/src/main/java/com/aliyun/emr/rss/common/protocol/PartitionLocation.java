@@ -51,6 +51,8 @@ public class PartitionLocation implements Serializable {
     }
   }
 
+  public static String UNDEFINED_DISK = "UNDEFINED_DISK";
+
   private int reduceId;
   private int epoch;
   private String host;
@@ -61,10 +63,8 @@ public class PartitionLocation implements Serializable {
   private Mode mode;
   private PartitionLocation peer;
   private StorageHint storageHint;
-  /**
-   * empty means local file is not exists
-   */
   private String diskHint;
+
 
   public PartitionLocation(PartitionLocation loc) {
     this.reduceId = loc.reduceId;
@@ -258,6 +258,9 @@ public class PartitionLocation implements Serializable {
   }
 
   public String getDiskHint() {
+    if (diskHint.isEmpty()) {
+      return UNDEFINED_DISK;
+    }
     return diskHint;
   }
 

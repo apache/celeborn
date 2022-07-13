@@ -171,8 +171,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         for (Map.Entry<String, DiskInfo> diskInfoEntry : diskMaps.entrySet()) {
           String mountPoint = diskInfoEntry.getKey();
           if (oldDiskMaps.containsKey(mountPoint)) {
-            oldDiskMaps.get(mountPoint).usedSlots_$eq(Math.max(
-              oldDiskMaps.get(mountPoint).usedSlots(), diskMaps.get(mountPoint).usedSlots()));
+            oldDiskMaps.get(mountPoint).activeWriters_$eq(
+              Math.max(oldDiskMaps.get(mountPoint).activeWriters(),
+                diskMaps.get(mountPoint).activeWriters()));
           } else {
             oldDiskMaps.put(mountPoint, diskInfoEntry.getValue());
           }

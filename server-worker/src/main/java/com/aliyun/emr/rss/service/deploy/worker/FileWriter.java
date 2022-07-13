@@ -38,6 +38,7 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
+import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 
 /*
@@ -60,6 +61,7 @@ public final class FileWriter extends DeviceObserver {
   private long bytesFlushed;
 
   private final DiskFlusher flusher;
+  private final int flusherReplicationIndex;
   private CompositeByteBuf flushBuffer;
 
   private final long chunkSize;
@@ -119,6 +121,7 @@ public final class FileWriter extends DeviceObserver {
       PartitionSplitMode splitMode) throws IOException {
     this.file = file;
     this.flusher = flusher;
+    this.flusherReplicationIndex = flusher.getReplicationIndex();
     this.dataRootDir = workingDir;
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;
@@ -217,6 +220,14 @@ public final class FileWriter extends DeviceObserver {
     }
   }
 
+  public PartitionLocation.StorageHint getStorageHint(){
+    return PartitionLocation.StorageHint.HDD;
+  }
+
+  public String getDiskHint() {
+    return flusher.mountPoint();
+  }
+
   public long close() throws IOException {
     if (closed) {
       String msg = "FileWriter has already closed! fileName " + file.getAbsolutePath();
@@ -313,7 +324,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs);
+    flushBuffer = flusher.takeBuffer(timeoutMs, flusherReplicationIndex);
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -328,7 +339,7 @@ public final class FileWriter extends DeviceObserver {
   }
 
   private void addTask(FlushTask task) throws IOException {
-    if (!flusher.addTask(task, timeoutMs)) {
+    if (!flusher.addTask(task, timeoutMs, flusherReplicationIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
       throw e;
@@ -337,7 +348,7 @@ public final class FileWriter extends DeviceObserver {
 
   private synchronized void returnBuffer() {
     if (flushBuffer != null) {
-      flusher.returnBuffer(flushBuffer);
+      flusher.returnBuffer(flushBuffer, flusherReplicationIndex);
       flushBuffer = null;
     }
   }

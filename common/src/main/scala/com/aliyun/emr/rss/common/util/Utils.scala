@@ -23,9 +23,10 @@ import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import java.util.{Locale, Properties, UUID}
 import java.util
+import java.util.{Locale, Properties, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
@@ -418,7 +419,12 @@ object Utils extends Logging {
   private def defaultNumThreads(numUsableCores: Int): Int = {
     val availableCores =
       if (numUsableCores > 0) numUsableCores else Runtime.getRuntime.availableProcessors()
-    math.min(availableCores, MAX_DEFAULT_NETTY_THREADS)
+    if (availableCores == 1) {
+      // this is a configuration for k8s pod, many driver pod have only one core.
+      8
+    } else {
+      math.min(availableCores, MAX_DEFAULT_NETTY_THREADS)
+    }
   }
 
   def getClassLoader: ClassLoader = getClass.getClassLoader
@@ -629,12 +635,54 @@ object Utils extends Logging {
     args.mkString(sep)
   }
 
-  def workerToAllocatedSlotsSize(slots: WorkerResource): util.Map[WorkerInfo, Integer] = {
-    val workerToSlotsSize = new util.HashMap[WorkerInfo, Integer]()
+  def workerSlotsDistribution(
+      slots: WorkerResource
+  ): util.Map[WorkerInfo, util.Map[String, Integer]] = {
+    val workerSlotsDistribution = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
     slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
-      workerToSlotsSize.put(workerInfo, masterPartitionLoc.size + slavePartitionLoc.size)
+      val diskSlotsMap = new util.HashMap[String, Integer]()
+
+      def countSlotsByDisk(location: util.List[PartitionLocation]): Unit = {
+        location.asScala
+          .groupBy(_.getDiskHint)
+          .foreach(item => {
+            if (diskSlotsMap.containsKey(item._1)) {
+              diskSlotsMap.put(item._1, diskSlotsMap.get(item._1) + item._2.size)
+            } else {
+              diskSlotsMap.put(item._1, item._2.size)
+            }
+          })
+      }
+
+      countSlotsByDisk(masterPartitionLoc)
+      countSlotsByDisk(slavePartitionLoc)
+      workerSlotsDistribution.put(workerInfo, diskSlotsMap)
     }
-    workerToSlotsSize
+    workerSlotsDistribution
+  }
+
+  def diskSlotsDistribution(
+      masterLocations: util.List[PartitionLocation],
+      workerLocations: util.List[PartitionLocation]
+  ): util.Map[String, Integer] = {
+    val slotDistributions = new util.HashMap[String, Integer]()
+    (masterLocations.asScala ++ workerLocations.asScala).groupBy(_.getDiskHint).foreach {
+      case (hint, location) => {
+        slotDistributions.compute(
+          hint,
+          new BiFunction[String, Integer, Integer] {
+            override def apply(t: String, u: Integer): Integer = {
+              if (u != null) {
+                location.size + u
+              } else {
+                location.size
+              }
+            }
+          }
+        )
+      }
+    }
+    slotDistributions
   }
 
   /**
@@ -797,4 +845,6 @@ object Utils extends Logging {
         PartitionSplitMode.soft
     }
   }
+
+
 }
