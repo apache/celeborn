@@ -951,7 +951,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       if (reserveFailedWorkers.isEmpty) {
         success = true
       } else {
-        logWarning(s"ReserveSlots failed once, retry again, remain retry times ${maxRetryTimes - retryTimes}")
         // Find out all failed partition locations and remove failed worker's partition location
         // from slots.
         val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, slots)
