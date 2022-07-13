@@ -946,7 +946,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     var success = false
     while (retryTimes <= maxRetryTimes && !success && !noAvailableSlots) {
       // reserve buffers
-      logInfo(s"Try reserve slot for the $retryTimes times.")
+      logInfo(s"Try reserve slot for shuffle $shuffleId the $retryTimes times.")
       val reserveFailedWorkers = reserveSlots(applicationId, shuffleId, requestSlots)
       if (reserveFailedWorkers.isEmpty) {
         success = true
@@ -972,7 +972,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             noAvailableSlots = true
           } else {
             // Only when the LifecycleManager need to retry reserve slots again, re-allocate slots
-            // and put the new allocated slots to the total slots.
+            // and put the new allocated slots to the total slots, the re-allocated slots won't be
+            // duplicated with existing partition locations.
             requestSlots = reallocateSlotsFromCandidates(
               failedPartitionLocations.values.toList, retryCandidates.asScala.toList)
             requestSlots.asScala.foreach { case (workerInfo, (retryMasterLocs, retrySlaveLocs)) =>
@@ -983,7 +984,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             }
           }
         } else {
-          logError(s"Try reserve slots after $maxRetryTimes retry.")
+          logError(s"Try reserve slots failed after $maxRetryTimes retry.")
         }
       }
       retryTimes += 1
