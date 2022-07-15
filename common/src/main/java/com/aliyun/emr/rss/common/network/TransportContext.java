@@ -116,7 +116,7 @@ public class TransportContext {
   }
 
   public TransportServer createServer(int port) {
-    return createServer(port);
+    return createServer(null, port);
   }
 
   /** For Suite only */
