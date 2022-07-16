@@ -34,8 +34,8 @@ public class OneForOneStreamManagerSuiteJ {
     FileManagedBuffers buffers2 = Mockito.mock(FileManagedBuffers.class);
 
     Channel dummyChannel = Mockito.mock(Channel.class, Mockito.RETURNS_SMART_NULLS);
-    manager.registerStream("appId", buffers, dummyChannel);
-    manager.registerStream("appId", buffers2, dummyChannel);
+    manager.registerStream(buffers, dummyChannel);
+    manager.registerStream(buffers2, dummyChannel);
 
     Assert.assertEquals(2, manager.numStreamStates());
 

@@ -43,7 +43,6 @@ public class TransportServer implements Closeable {
 
   private final TransportContext context;
   private final TransportConf conf;
-  private final BaseMessageHandler appRpcHandler;
 
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
@@ -52,11 +51,9 @@ public class TransportServer implements Closeable {
   public TransportServer(
     TransportContext context,
     String hostToBind,
-    int portToBind,
-    BaseMessageHandler appRpcHandler) {
+    int portToBind) {
     this.context = context;
     this.conf = context.getConf();
-    this.appRpcHandler = appRpcHandler;
 
     boolean shouldClose = true;
     try {
@@ -123,8 +120,7 @@ public class TransportServer implements Closeable {
     bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
       @Override
       protected void initChannel(SocketChannel ch) {
-        BaseMessageHandler handler = appRpcHandler;
-        context.initializePipeline(ch, handler);
+        context.initializePipeline(ch);
       }
     });
   }
