@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -30,7 +29,6 @@ import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
-import com.aliyun.emr.rss.common.network.client.RpcResponseCallback
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
 import com.aliyun.emr.rss.common.network.server.{BaseMessageHandler, FileInfo}
@@ -93,7 +91,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
         val buffers = new FileManagedBuffers(fileInfo, conf)
-        val streamId = streamManager.registerStream(client.getClientId, buffers, client.getChannel)
+        val streamId = streamManager.registerStream(buffers, client.getChannel)
         val streamHandle = new StreamHandle(streamId, fileInfo.numChunks)
         if (fileInfo.numChunks == 0) {
           logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
@@ -129,8 +127,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
     } else {
       try {
-        streamManager.checkAuthorization(client, req.streamChunkSlice.streamId)
-
         val buf = streamManager.getChunk(req.streamChunkSlice.streamId,
           req.streamChunkSlice.chunkIndex, req.streamChunkSlice.offset, req.streamChunkSlice.len)
         streamManager.chunkBeingSent(req.streamChunkSlice.streamId)

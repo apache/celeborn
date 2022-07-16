@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.TransportClient;
 
 /**
  * StreamManager which allows registration of an Iterator&lt;ManagedBuffer&gt;, which are
@@ -45,7 +44,6 @@ public class OneForOneStreamManager extends StreamManager {
 
   /** State of a single stream. */
   protected static class StreamState {
-    final String appId;
     final FileManagedBuffers buffers;
 
     // The channel associated to the stream
@@ -58,8 +56,7 @@ public class OneForOneStreamManager extends StreamManager {
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String appId, FileManagedBuffers buffers, Channel channel) {
-      this.appId = appId;
+    StreamState(FileManagedBuffers buffers, Channel channel) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.associatedChannel = channel;
     }
@@ -128,27 +125,11 @@ public class OneForOneStreamManager extends StreamManager {
   }
 
   @Override
-  public void checkAuthorization(TransportClient client, long streamId) {
-    if (client.getClientId() != null) {
-      StreamState state = streams.get(streamId);
-      Preconditions.checkArgument(state != null, "Unknown stream ID.");
-      if (!client.getClientId().equals(state.appId)) {
-        throw new SecurityException(String.format(
-          "Client %s not authorized to read stream %d (app %s).",
-          client.getClientId(),
-          streamId,
-          state.appId));
-      }
-    }
-  }
-
-  @Override
   public void chunkBeingSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
       streamState.chunksBeingTransferred++;
     }
-
   }
 
   @Override
@@ -191,9 +172,9 @@ public class OneForOneStreamManager extends StreamManager {
    * to be the only reader of the stream. Once the connection is closed, the stream will never
    * be used again, enabling cleanup by `connectionTerminated`.
    */
-  public long registerStream(String appId, FileManagedBuffers buffers, Channel channel) {
+  public long registerStream(FileManagedBuffers buffers, Channel channel) {
     long myStreamId = nextStreamId.getAndIncrement();
-    streams.put(myStreamId, new StreamState(appId, buffers, channel));
+    streams.put(myStreamId, new StreamState(buffers, channel));
     return myStreamId;
   }
 

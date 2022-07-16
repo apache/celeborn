@@ -96,8 +96,7 @@ private[deploy] class Worker(
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, pushDataHandler, closeIdleConnections, workerSource,
-        pushServerLimiter)
+      new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
     (transportContext.createServer(RssConf.pushServerPort(conf)),
       transportContext.createClientFactory())
   }
@@ -110,8 +109,7 @@ private[deploy] class Worker(
       numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, replicateHandler, closeIdleConnections, workerSource,
-        replicateLimiter)
+      new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
     transportContext.createServer(RssConf.replicateServerPort(conf))
   }
 
@@ -122,7 +120,7 @@ private[deploy] class Worker(
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, fetchHandler, closeIdleConnections, workerSource)
+      new TransportContext(transportConf, fetchHandler, closeIdleConnections)
     transportContext.createServer(RssConf.fetchServerPort(conf))
   }
 
