@@ -17,23 +17,56 @@
 
 package com.aliyun.emr.rss.common.network.protocol;
 
+import java.nio.ByteBuffer;
+
+import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 
 /** An on-the-wire transmittable message. */
-public interface Message extends Encodable {
+public abstract class Message implements Encodable {
+  private final ManagedBuffer body;
+  private final boolean isBodyInFrame;
+
+  protected Message() {
+    this(null, false);
+  }
+
+  protected Message(ManagedBuffer body, boolean isBodyInFrame) {
+    this.body = body;
+    this.isBodyInFrame = isBodyInFrame;
+  }
+
   /** Used to identify this request type. */
-  Type type();
+  public abstract Type type();
 
   /** An optional body for the message. */
-  ManagedBuffer body();
+  public ManagedBuffer body() {
+    return body;
+  }
 
   /** Whether to include the body of the message in the same frame as the message. */
-  boolean isBodyInFrame();
+  public boolean isBodyInFrame() {
+    return isBodyInFrame;
+  }
+
+  protected boolean equals(Message other) {
+    return isBodyInFrame == other.isBodyInFrame && Objects.equal(body, other.body);
+  }
+
+  public ByteBuffer toByteBuffer() {
+    // Allow room for encoded message, plus the type byte
+    ByteBuf buf = Unpooled.buffer(encodedLength() + 1);
+    buf.writeByte(type().id());
+    encode(buf);
+    assert buf.writableBytes() == 0 : "Writable bytes remain: " + buf.writableBytes();
+    return buf.nioBuffer();
+  }
 
   /** Preceding every serialized Message is its type, which allows us to deserialize it. */
-  enum Type implements Encodable {
+  public enum Type implements Encodable {
     ChunkFetchRequest(0), ChunkFetchSuccess(1), ChunkFetchFailure(2),
     RpcRequest(3), RpcResponse(4), RpcFailure(5), OpenStream(6), StreamHandle(7),
     OneWayMessage(9), PushData(11), PushMergedData(12);
@@ -69,5 +102,51 @@ public interface Message extends Encodable {
         default: throw new IllegalArgumentException("Unknown message type: " + id);
       }
     }
+  }
+
+  public static Message decode(Type msgType, ByteBuf in) {
+    switch (msgType) {
+      case ChunkFetchRequest:
+        return ChunkFetchRequest.decode(in);
+
+      case ChunkFetchSuccess:
+        return ChunkFetchSuccess.decode(in);
+
+      case ChunkFetchFailure:
+        return ChunkFetchFailure.decode(in);
+
+      case RpcRequest:
+        return RpcRequest.decode(in);
+
+      case RpcResponse:
+        return RpcResponse.decode(in);
+
+      case RpcFailure:
+        return RpcFailure.decode(in);
+
+      case OpenStream:
+        return OpenStream.decode(in);
+
+      case StreamHandle:
+        return StreamHandle.decode(in);
+
+      case OneWayMessage:
+        return OneWayMessage.decode(in);
+
+      case PushData:
+        return PushData.decode(in);
+
+      case PushMergedData:
+        return PushMergedData.decode(in);
+
+      default:
+        throw new IllegalArgumentException("Unexpected message type: " + msgType);
+    }
+  }
+
+  public static Message decode(ByteBuffer buffer) {
+    ByteBuf buf = Unpooled.wrappedBuffer(buffer);
+    Type type = Type.decode(buf);
+    return decode(type, buf);
   }
 }

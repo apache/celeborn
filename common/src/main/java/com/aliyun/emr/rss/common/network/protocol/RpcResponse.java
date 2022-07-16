@@ -24,7 +24,7 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 
 /** Response to {@link RpcRequest} for a successful RPC. */
-public final class RpcResponse extends AbstractResponseMessage {
+public final class RpcResponse extends ResponseMessage {
   public final long requestId;
 
   public RpcResponse(long requestId, ManagedBuffer message) {

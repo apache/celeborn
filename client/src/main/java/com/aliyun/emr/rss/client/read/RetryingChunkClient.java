@@ -36,7 +36,7 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.protocol.AbstractMessage;
+import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
@@ -276,7 +276,7 @@ class Replica {
       OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
         startMapIndex, endMapIndex);
       ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
-      streamHandle = (StreamHandle) AbstractMessage.fromByteBuffer(response);
+      streamHandle = (StreamHandle) Message.decode(response);
     }
     return client;
   }
