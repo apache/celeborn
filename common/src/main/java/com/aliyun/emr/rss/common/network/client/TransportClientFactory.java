@@ -76,7 +76,6 @@ public class TransportClientFactory implements Closeable {
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
   private PooledByteBufAllocator pooledAllocator;
-  private final NettyMemoryMetrics metrics;
 
   public TransportClientFactory(
       TransportContext context) {
@@ -95,8 +94,6 @@ public class TransportClientFactory implements Closeable {
         conf.getModuleName() + "-client");
     this.pooledAllocator = NettyUtils.createPooledByteBufAllocator(
       conf.preferDirectBufs(), false /* allowCache */, conf.clientThreads());
-    this.metrics = new NettyMemoryMetrics(
-      this.pooledAllocator, conf.getModuleName() + "-client", conf, null);
   }
 
   /**
@@ -219,7 +216,6 @@ public class TransportClientFactory implements Closeable {
     });
 
     // Connect to the remote server
-    long preConnect = System.nanoTime();
     ChannelFuture cf = bootstrap.connect(address);
     if (!cf.await(conf.connectTimeoutMs())) {
       throw new IOException(
@@ -229,7 +225,6 @@ public class TransportClientFactory implements Closeable {
     }
 
     TransportClient client = clientRef.get();
-    Channel channel = channelRef.get();
     assert client != null : "Channel future completed successfully with null client";
 
     logger.debug("Connection to {} successful", address);

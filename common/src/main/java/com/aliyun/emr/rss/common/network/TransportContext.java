@@ -18,13 +18,11 @@
 package com.aliyun.emr.rss.common.network;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
@@ -53,57 +51,34 @@ public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
   private final TransportConf conf;
-  private final BaseMessageHandler handler;
+  private final BaseMessageHandler msgHandler;
+  private ChannelsLimiter channelsLimiter;
   private final boolean closeIdleConnections;
 
-  /**
-   * Force to create MessageEncoder and MessageDecoder so that we can make sure they will be created
-   * before switching the current context class loader to ExecutorClassLoader.
-   *
-   * Netty's MessageToMessageEncoder uses Javassist to generate a matcher class and the
-   * implementation calls "Class.forName" to check if this calls is already generated. If the
-   * following two objects are created in "ExecutorClassLoader.findClass", it will cause
-   * "ClassCircularityError". This is because loading this Netty generated class will call
-   * "ExecutorClassLoader.findClass" to search this class, and "ExecutorClassLoader" will try to use
-   * RPC to load it and cause to load the non-exist matcher class again. JVM will report
-   * `ClassCircularityError` to prevent such infinite recursion. (See SPARK-17714)
-   */
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
   private static final MessageDecoder DECODER = MessageDecoder.INSTANCE;
 
-  private AbstractSource source;
-  private ChannelHandler channelHandler;
 
   public TransportContext(
       TransportConf conf,
-      BaseMessageHandler handler,
+      BaseMessageHandler msgHandler,
       boolean closeIdleConnections,
-      AbstractSource source,
-      ChannelHandler channelHandler) {
+      ChannelsLimiter channelsLimiter) {
     this.conf = conf;
-    this.handler = handler;
+    this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;
-    this.source = source;
-    this.channelHandler = channelHandler;
+    this.channelsLimiter = channelsLimiter;
   }
 
   public TransportContext(
       TransportConf conf,
-      BaseMessageHandler handler,
-      boolean closeIdleConnections,
-      AbstractSource source) {
-    this(conf, handler, closeIdleConnections, source, null);
-  }
-
-  public TransportContext(TransportConf conf, BaseMessageHandler handler) {
-    this(conf, handler, false, null, null);
-  }
-
-  public TransportContext(
-      TransportConf conf,
-      BaseMessageHandler handler,
+      BaseMessageHandler msgHandler,
       boolean closeIdleConnections) {
-    this(conf, handler, closeIdleConnections, null, null);
+    this(conf, msgHandler, closeIdleConnections, null);
+  }
+
+  public TransportContext(TransportConf conf, BaseMessageHandler msgHandler) {
+    this(conf, msgHandler, false);
   }
 
   public TransportClientFactory createClientFactory() {
@@ -112,7 +87,7 @@ public class TransportContext {
 
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(String host, int port) {
-    return new TransportServer(this, host, port, handler);
+    return new TransportServer(this, host, port);
   }
 
   public TransportServer createServer(int port) {
@@ -125,37 +100,17 @@ public class TransportContext {
   }
 
   public TransportChannelHandler initializePipeline(SocketChannel channel) {
-    return initializePipeline(channel, handler);
-  }
-
-  /**
-   * Initializes a client or server Netty Channel Pipeline which encodes/decodes messages and
-   * has a {@link TransportChannelHandler} to handle request or
-   * response messages.
-   *
-   * @param channel The channel to initialize.
-   * @param channelRpcHandler The RPC handler to use for the channel.
-   *
-   * @return Returns the created TransportChannelHandler, which includes a TransportClient that can
-   * be used to communicate on this channel. The TransportClient is directly associated with a
-   * ChannelHandler to ensure all users of the same channel get the same TransportClient object.
-   */
-  public TransportChannelHandler initializePipeline(
-      SocketChannel channel,
-      BaseMessageHandler channelRpcHandler) {
     try {
-      if (channelHandler != null) {
+      if (channelsLimiter != null) {
         channel.pipeline()
-          .addLast("limiter", channelHandler);
+          .addLast("limiter", channelsLimiter);
       }
-      TransportChannelHandler channelHandler = createChannelHandler(channel, channelRpcHandler);
+      TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
       channel.pipeline()
         .addLast("encoder", ENCODER)
         .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
         .addLast("decoder", DECODER)
         .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
-        // NOTE: Chunks are currently guaranteed to be returned in the order of request, but this
-        // would require more logic to guarantee if this were not part of the same event loop.
         .addLast("handler", channelHandler);
       return channelHandler;
     } catch (RuntimeException e) {
@@ -164,17 +119,12 @@ public class TransportContext {
     }
   }
 
-  /**
-   * Creates the server- and client-side handler which is used to handle both RequestMessages and
-   * ResponseMessages. The channel is expected to have been successfully created, though certain
-   * properties (such as the remoteAddress()) may not be available yet.
-   */
   private TransportChannelHandler createChannelHandler(
-      Channel channel, BaseMessageHandler handler) {
+      Channel channel, BaseMessageHandler msgHandler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
-      handler);
+      msgHandler);
     return new TransportChannelHandler(client, responseHandler, requestHandler,
       conf.connectionTimeoutMs(), closeIdleConnections);
   }

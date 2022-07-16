@@ -125,16 +125,9 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   /** Triggered based on events from an {@link io.netty.handler.timeout.IdleStateHandler}. */
   @Override
-  public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+  public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
     if (evt instanceof IdleStateEvent) {
       IdleStateEvent e = (IdleStateEvent) evt;
-      // See class comment for timeout semantics. In addition to ensuring we only timeout while
-      // there are outstanding requests, we also do a secondary consistency check to ensure
-      // there's no race between the idle timeout and incrementing the numOutstandingRequests
-      // (see SPARK-7003).
-      //
-      // To avoid a race between TransportClientFactory.createClient() and this code which could
-      // result in an inactive client being returned, this needs to run in a synchronized block.
       synchronized (this) {
         boolean isActuallyOverdue =
           System.nanoTime() - responseHandler.getTimeOfLastRequestNs() > requestTimeoutNs;
@@ -142,12 +135,9 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
           if (responseHandler.numOutstandingRequests() > 0) {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
             logger.error("Connection to {} has been quiet for {} ms while there are outstanding " +
-              "requests. Assuming connection is dead; please adjust rss.network.timeout"
-              + " or rss.data.io.connectionTimeout if this is wrong.",
-                    address, requestTimeoutNs / 1000 / 1000);
-            client.timeOut();
-            ctx.close();
-          } else if (closeIdleConnections) {
+              "requests.", address, requestTimeoutNs / 1000 / 1000);
+          }
+          if (closeIdleConnections) {
             // While CloseIdleConnections is enable, we also close idle connection
             client.timeOut();
             ctx.close();
