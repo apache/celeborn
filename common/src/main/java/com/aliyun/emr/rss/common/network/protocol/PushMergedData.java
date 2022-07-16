@@ -25,7 +25,7 @@ import io.netty.buffer.ByteBuf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 
-public final class PushMergedData extends AbstractMessage implements RequestMessage {
+public final class PushMergedData extends RequestMessage {
   public long requestId;
 
   // 0 for master, 1 for slave, see PartitionLocation.Mode
