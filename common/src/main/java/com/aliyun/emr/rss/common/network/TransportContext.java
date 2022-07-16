@@ -17,9 +17,6 @@
 
 package com.aliyun.emr.rss.common.network;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.socket.SocketChannel;
@@ -29,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
 import com.aliyun.emr.rss.common.network.protocol.MessageDecoder;
@@ -110,32 +106,22 @@ public class TransportContext {
     this(conf, handler, closeIdleConnections, null, null);
   }
 
-  /**
-   * Initializes a ClientFactory which runs the given TransportClientBootstraps prior to returning
-   * a new Client. Bootstraps will be executed synchronously, and must run successfully in order
-   * to create a Client.
-   */
-  public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {
-    return new TransportClientFactory(this, bootstraps);
-  }
-
   public TransportClientFactory createClientFactory() {
-    return createClientFactory(new ArrayList<>());
-  }
-
-  /** Create a server which will attempt to bind to a specific port. */
-  public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, null, port, handler, bootstraps, source);
+    return new TransportClientFactory(this);
   }
 
   /** Create a server which will attempt to bind to a specific host and port. */
-  public TransportServer createServer(
-      String host, int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, host, port, handler, bootstraps);
+  public TransportServer createServer(String host, int port) {
+    return new TransportServer(this, host, port, handler);
   }
 
+  public TransportServer createServer(int port) {
+    return createServer(null, port);
+  }
+
+  /** For Suite only */
   public TransportServer createServer() {
-    return createServer(0, new ArrayList<>());
+    return createServer(null, 0);
   }
 
   public TransportChannelHandler initializePipeline(SocketChannel channel) {

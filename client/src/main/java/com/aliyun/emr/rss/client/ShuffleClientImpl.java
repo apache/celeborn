@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
-import com.google.common.collect.Lists;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -46,7 +45,6 @@ import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.PushData;
 import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
@@ -141,8 +139,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         conf.getInt("rss.data.io.threads", 8));
     TransportContext context =
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
-    List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
-    dataClientFactory = context.createClientFactory(bootstraps);
+    dataClientFactory = context.createClientFactory();
 
     int retryThreadNum = RssConf.pushDataRetryThreadNum(conf);
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);

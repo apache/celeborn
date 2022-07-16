@@ -62,11 +62,7 @@ class NettyRpcEnv(
   private val transportContext = new TransportContext(transportConf,
     new NettyRpcHandler(dispatcher, this))
 
-  private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
-    java.util.Collections.emptyList[TransportClientBootstrap]
-  }
-
-  val clientFactory = transportContext.createClientFactory(createClientBootstraps())
+  val clientFactory = transportContext.createClientFactory()
 
   private val timeoutScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("netty-rpc-env-timeout")
@@ -98,9 +94,7 @@ class NettyRpcEnv(
   }
 
   def startServer(bindAddress: String, port: Int): Unit = {
-    val bootstraps: java.util.List[TransportServerBootstrap] =
-      java.util.Collections.emptyList()
-    server = transportContext.createServer(bindAddress, port, bootstraps)
+    server = transportContext.createServer(bindAddress, port)
     dispatcher.registerRpcEndpoint(
       RpcEndpointVerifier.NAME, new RpcEndpointVerifier(this, dispatcher))
   }
