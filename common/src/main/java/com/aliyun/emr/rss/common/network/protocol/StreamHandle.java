@@ -24,7 +24,7 @@ import io.netty.buffer.ByteBuf;
  * Identifier for a fixed number of chunks to read from a stream created by an "open blocks"
  * message.
  */
-public final class StreamHandle extends AbstractMessage {
+public final class StreamHandle extends RequestMessage {
   public final long streamId;
   public final int numChunks;
 

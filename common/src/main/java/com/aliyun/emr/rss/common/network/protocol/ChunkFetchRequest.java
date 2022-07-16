@@ -24,7 +24,7 @@ import io.netty.buffer.ByteBuf;
  * Request to fetch a sequence of a single chunk of a stream. This will correspond to a single
  * {@link ResponseMessage} (either success or failure).
  */
-public final class ChunkFetchRequest extends AbstractMessage implements RequestMessage {
+public final class ChunkFetchRequest extends RequestMessage {
   public final StreamChunkSlice streamChunkSlice;
 
   public ChunkFetchRequest(StreamChunkSlice streamChunkSlice) {

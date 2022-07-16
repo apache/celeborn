@@ -24,7 +24,7 @@ import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
 /** Request to read a set of blocks. Returns {@link StreamHandle}. */
-public final class OpenStream extends AbstractMessage {
+public final class OpenStream extends RequestMessage {
   public byte[] shuffleKey;
   public byte[] fileName;
   public int startMapIndex;

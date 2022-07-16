@@ -47,7 +47,7 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.protocol.AbstractMessage;
+import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
@@ -165,7 +165,7 @@ public class FileWriterSuiteJ {
 
   private void setUpConn(TransportClient client) {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    StreamHandle streamHandle = (StreamHandle) AbstractMessage.fromByteBuffer(resp);
+    StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
     streamId = streamHandle.streamId;
     numChunks = streamHandle.numChunks;
   }

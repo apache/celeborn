@@ -76,7 +76,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   }
 
   def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
-    val msg = AbstractMessage.fromByteBuffer(request.body().nioByteBuffer())
+    val msg = Message.decode(request.body().nioByteBuffer())
     val openBlocks = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)

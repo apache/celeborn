@@ -59,8 +59,8 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
         isBodyInFrame = in.isBodyInFrame();
       } catch (Exception e) {
         in.body().release();
-        if (in instanceof AbstractResponseMessage) {
-          AbstractResponseMessage resp = (AbstractResponseMessage) in;
+        if (in instanceof ResponseMessage) {
+          ResponseMessage resp = (ResponseMessage) in;
           // Re-encode this message as a failure response.
           String error = e.getMessage() != null ? e.getMessage() : "null";
           logger.error(String.format("Error processing %s for client %s",

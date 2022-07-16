@@ -44,8 +44,7 @@ import com.aliyun.emr.rss.common.network.util.*;
  * TransportClient for the same remote host. It also shares a single worker thread pool for
  * all TransportClients.
  *
- * TransportClients will be reused whenever possible. Prior to completing the creation of a new
- * TransportClient, all given {@link TransportClientBootstrap}s will be run.
+ * TransportClients will be reused whenever possible.
  */
 public class TransportClientFactory implements Closeable {
 
