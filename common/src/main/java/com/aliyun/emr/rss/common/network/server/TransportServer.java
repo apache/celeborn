@@ -19,11 +19,8 @@ package com.aliyun.emr.rss.common.network.server;
 
 import java.io.Closeable;
 import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -35,7 +32,6 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.util.*;
 
@@ -48,7 +44,6 @@ public class TransportServer implements Closeable {
   private final TransportContext context;
   private final TransportConf conf;
   private final BaseMessageHandler appRpcHandler;
-  private final List<TransportServerBootstrap> bootstraps;
 
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
@@ -58,13 +53,10 @@ public class TransportServer implements Closeable {
     TransportContext context,
     String hostToBind,
     int portToBind,
-    BaseMessageHandler appRpcHandler,
-    List<TransportServerBootstrap> bootstraps,
-    AbstractSource source) {
+    BaseMessageHandler appRpcHandler) {
     this.context = context;
     this.conf = context.getConf();
     this.appRpcHandler = appRpcHandler;
-    this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
 
     boolean shouldClose = true;
     try {
@@ -75,19 +67,6 @@ public class TransportServer implements Closeable {
         JavaUtils.closeQuietly(this);
       }
     }
-  }
-
-  /**
-   * Creates a TransportServer that binds to the given host and the given port, or to any available
-   * if 0. If you don't want to bind to any special host, set "hostToBind" to null.
-   * */
-  public TransportServer(
-      TransportContext context,
-      String hostToBind,
-      int portToBind,
-      BaseMessageHandler appRpcHandler,
-      List<TransportServerBootstrap> bootstraps) {
-    this(context, hostToBind, portToBind, appRpcHandler, bootstraps, null);
   }
 
   public int getPort() {
@@ -145,9 +124,6 @@ public class TransportServer implements Closeable {
       @Override
       protected void initChannel(SocketChannel ch) {
         BaseMessageHandler handler = appRpcHandler;
-        for (TransportServerBootstrap bootstrap : bootstraps) {
-          handler = bootstrap.doBootstrap(ch, handler);
-        }
         context.initializePipeline(ch, handler);
       }
     });
