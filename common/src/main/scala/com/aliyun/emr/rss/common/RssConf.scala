@@ -762,7 +762,7 @@ object RssConf extends Logging {
       case "map" => PartitionType.MAP_PARTITION
       case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
       case _ =>
-        logWarning(s"Invalid split mode ${typeStr}, use soft mode by default")
+        logWarning(s"Invalid split mode $typeStr, use ReducePartition by default")
         PartitionType.REDUCE_PARTITION
     }
   }

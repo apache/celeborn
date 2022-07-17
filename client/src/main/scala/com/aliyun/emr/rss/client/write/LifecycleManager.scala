@@ -20,10 +20,13 @@ package com.aliyun.emr.rss.client.write
 import java.util
 import java.util.{List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
+
 import io.netty.util.internal.ConcurrentSet
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -186,7 +189,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
       handleRegisterShuffle(context, applicationId, shuffleId, numMappers, numPartitions)
 
-    case Revive(applicationId, shuffleId, mapId, attemptId, partitionId, epoch, oldPartition, cause) =>
+    case Revive(
+    applicationId, shuffleId, mapId, attemptId, partitionId, epoch, oldPartition, cause) =>
       logTrace(s"Received Revive request, " +
         s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
         s" $epoch, $oldPartition, $cause.")
@@ -196,7 +200,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     case PartitionSplit(applicationId, shuffleId, partitionId, epoch, oldPartition) =>
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
-      handlePartitionSplitRequest(context, applicationId, shuffleId, partitionId, epoch, oldPartition)
+      handlePartitionSplitRequest(context, applicationId, shuffleId,
+        partitionId, epoch, oldPartition)
 
     case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
       logTrace(s"Received MapperEnd request, " +
