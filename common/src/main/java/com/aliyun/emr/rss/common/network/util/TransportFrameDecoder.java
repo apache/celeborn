@@ -54,7 +54,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
 
   private long totalSize = 0;
   private long nextFrameSize = UNKNOWN_FRAME_SIZE;
-  private volatile Interceptor interceptor;
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
@@ -63,27 +62,11 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     totalSize += in.readableBytes();
 
     while (!buffers.isEmpty()) {
-      // First, feed the interceptor, and if it's still, active, try again.
-      if (interceptor != null) {
-        ByteBuf first = buffers.getFirst();
-        int available = first.readableBytes();
-        if (feedInterceptor(first)) {
-          assert !first.isReadable() : "Interceptor still active but buffer has data.";
-        }
-
-        int read = available - first.readableBytes();
-        if (read == available) {
-          buffers.removeFirst().release();
-        }
-        totalSize -= read;
-      } else {
-        // Interceptor is not active, so try to decode one frame.
-        ByteBuf frame = decodeNext();
-        if (frame == null) {
-          break;
-        }
-        ctx.fireChannelRead(frame);
+      ByteBuf frame = decodeNext();
+      if (frame == null) {
+        break;
       }
+      ctx.fireChannelRead(frame);
     }
   }
 
@@ -172,9 +155,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    if (interceptor != null) {
-      interceptor.channelInactive();
-    }
     super.channelInactive(ctx);
   }
 
@@ -194,43 +174,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    if (interceptor != null) {
-      interceptor.exceptionCaught(cause);
-    }
     super.exceptionCaught(ctx, cause);
   }
-
-  public void setInterceptor(Interceptor interceptor) {
-    Preconditions.checkState(this.interceptor == null, "Already have an interceptor.");
-    this.interceptor = interceptor;
-  }
-
-  /**
-   * @return Whether the interceptor is still active after processing the data.
-   */
-  private boolean feedInterceptor(ByteBuf buf) throws Exception {
-    if (interceptor != null && !interceptor.handle(buf)) {
-      interceptor = null;
-    }
-    return interceptor != null;
-  }
-
-  public interface Interceptor {
-
-    /**
-     * Handles data received from the remote end.
-     *
-     * @param data Buffer containing data.
-     * @return "true" if the interceptor expects more data, "false" to uninstall the interceptor.
-     */
-    boolean handle(ByteBuf data) throws Exception;
-
-    /** Called if an exception is thrown in the channel pipeline. */
-    void exceptionCaught(Throwable cause) throws Exception;
-
-    /** Called if the channel is closed and the interceptor is still installed. */
-    void channelInactive() throws Exception;
-
-  }
-
 }
