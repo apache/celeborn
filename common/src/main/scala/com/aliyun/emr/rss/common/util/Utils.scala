@@ -42,7 +42,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbWorkerResource
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
@@ -490,13 +490,13 @@ object Utils extends Logging {
 
   def splitPartitionLocationUniqueId(uniqueId: String): (Int, Int) = {
     val splits = uniqueId.split("-")
-    val reduceId = splits.dropRight(1).mkString("-").toInt
+    val partitionId = splits.dropRight(1).mkString("-").toInt
     val epoch = splits.last.toInt
-    (reduceId, epoch)
+    (partitionId, epoch)
   }
 
-  def makeReducerKey(applicationId: String, shuffleId: Int, reduceId: Int): String = {
-    s"$applicationId-$shuffleId-$reduceId"
+  def makeReducerKey(applicationId: String, shuffleId: Int, partitionId: Int): String = {
+    s"$applicationId-$shuffleId-$partitionId"
   }
 
   def makeMapKey(applicationId: String, shuffleId: Int, mapId: Int, attemptId: Int): String = {
@@ -749,6 +749,17 @@ object Utils extends Logging {
       case 1 => PartitionSplitMode.hard
       case _ => logWarning(s"invalid shuffle mode $mode, fallback to soft")
         PartitionSplitMode.soft
+    }
+  }
+
+  def toPartitionType(value: Int): PartitionType = {
+    value match {
+      case 0 => PartitionType.REDUCE_PARTITION
+      case 1 => PartitionType.MAP_PARTITION
+      case 2 => PartitionType.MAPGROUP_REDUCE_PARTITION
+      case _ =>
+        logWarning(s"invalid partitionType $value, fallback to ReducePartition")
+        PartitionType.REDUCE_PARTITION
     }
   }
 }

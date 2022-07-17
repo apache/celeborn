@@ -59,7 +59,7 @@ message PbPartitionLocation {
     Slave = 1;
   }
   Mode mode = 1;
-  int32 reduceId = 2;
+  int32 id = 2;
   int32 epoch = 3;
   string host = 4;
   int32 rpcPort = 5;
@@ -129,7 +129,7 @@ message PbRegisterShuffleResponse {
 message PbRequestSlots {
   string applicationId = 1;
   int32 shuffleId = 2;
-  repeated int32 reduceIdList = 3;
+  repeated int32 partitionIdList = 3;
   string hostname = 4;
   bool shouldReplicate = 5;
   string requestId = 6;
@@ -157,7 +157,7 @@ message PbRevive {
   int32 shuffleId = 2;
   int32 mapId = 3;
   int32 attemptId = 4;
-  int32 reduceId = 5;
+  int32 partitionId = 5;
   int32 epoch = 6;
   PbPartitionLocation oldPartition = 7;
   int32 status = 8;
@@ -171,7 +171,7 @@ message PbChangeLocationResponse {
 message PbPartitionSplit {
   string applicationId = 1;
   int32 shuffleId = 2;
-  int32 reduceId = 3;
+  int32 partitionId = 3;
   int32 epoch = 4;
   PbPartitionLocation oldPartition = 5;
 }
@@ -263,6 +263,7 @@ message PbReserveSlots {
   int64 splitThreshold = 5;
   int32 splitMode = 6;
   int32 storageHintOrdinal = 7;
+  int32 partitionType = 8;
 }
 
 message PbReserveSlotsResponse {

@@ -323,15 +323,14 @@ private[deploy] class Master(
   }
 
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
-    val numReducers = requestSlots.reduceIdList.size()
+    val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     // offer slots
     val slots = statusSystem.workers.synchronized {
       MasterUtil.offerSlots(
-        shuffleKey,
         workersNotBlacklisted(),
-        requestSlots.reduceIdList,
+        requestSlots.partitionIdList,
         requestSlots.shouldReplicate
       )
     }
