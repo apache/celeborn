@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -752,6 +752,18 @@ object RssConf extends Logging {
       case "hard" => PartitionSplitMode.hard
       case _ => logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
         PartitionSplitMode.soft
+    }
+  }
+
+  def partitionType(conf: RssConf): PartitionType = {
+    val typeStr = conf.get("rss.partition.type", "reduce")
+    typeStr match {
+      case "reduce" => PartitionType.REDUCE_PARTITION
+      case "map" => PartitionType.MAP_PARTITION
+      case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
+      case _ =>
+        logWarning(s"Invalid split mode $typeStr, use ReducePartition by default")
+        PartitionType.REDUCE_PARTITION
     }
   }
 

@@ -38,7 +38,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 private[worker] case class FlushTask(
@@ -329,25 +329,31 @@ private[worker] final class LocalStorageManager(
   }
 
   @throws[IOException]
-  def createWriter(appId: String, shuffleId: Int, location: PartitionLocation,
-    splitThreshold: Long, splitMode: PartitionSplitMode): FileWriter = {
+  def createWriter(
+    appId: String,
+    shuffleId: Int,
+    location: PartitionLocation,
+    splitThreshold: Long,
+    splitMode: PartitionSplitMode,
+    partitionType: PartitionType): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
-    createWriter(appId, shuffleId, location.getReduceId, location.getEpoch,
-      location.getMode, splitThreshold, splitMode)
+    createWriter(appId, shuffleId, location.getId, location.getEpoch,
+      location.getMode, splitThreshold, splitMode, partitionType)
   }
 
   @throws[IOException]
   def createWriter(
     appId: String,
     shuffleId: Int,
-    reduceId: Int,
+    partitionId: Int,
     epoch: Int,
     mode: PartitionLocation.Mode,
     splitThreshold: Long,
-    splitMode: PartitionSplitMode): FileWriter = {
-    val fileName = s"$reduceId-$epoch-${mode.mode()}"
+    splitMode: PartitionSplitMode,
+    partitionType: PartitionType): FileWriter = {
+    val fileName = s"$partitionId-$epoch-${mode.mode()}"
 
     var retryCount = 0
     var exception: IOException = null
@@ -364,8 +370,18 @@ private[worker] final class LocalStorageManager(
         if (!createFileSuccess) {
           throw new RssException("create app shuffle data dir or file failed")
         }
-        val fileWriter = new FileWriter(file, diskFlushers.get(dir), dir, fetchChunkSize,
-          writerFlushBufferSize, workerSource, conf, deviceMonitor, splitThreshold, splitMode)
+        val fileWriter = new FileWriter(
+          file,
+          diskFlushers.get(dir),
+          dir,
+          fetchChunkSize,
+          writerFlushBufferSize,
+          workerSource,
+          conf,
+          deviceMonitor,
+          splitThreshold,
+          splitMode,
+          partitionType)
         deviceMonitor.registerFileWriter(fileWriter)
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)

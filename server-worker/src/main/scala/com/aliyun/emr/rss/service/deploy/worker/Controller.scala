@@ -32,7 +32,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -69,14 +69,14 @@ private[deploy] class Controller(
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode, storageHint) =>
+    splitMode, partitionType, storageHint) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode, storageHint)
+          slaveLocations, splitThreashold, splitMode, partitionType, storageHint)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -110,6 +110,7 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
+      partitionType: PartitionType,
       storageHint: StorageHint): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
@@ -123,7 +124,7 @@ private[deploy] class Controller(
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
-          splitThreshold, splitMode)
+          splitThreshold, splitMode, partitionType)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -143,7 +144,7 @@ private[deploy] class Controller(
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId,
-          location, splitThreshold, splitMode)
+          location, splitThreshold, splitMode, partitionType)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {

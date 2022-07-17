@@ -25,7 +25,7 @@ import com.aliyun.emr.rss.common.protocol.PartitionLocation
 
 class PartitionLocationInfo {
 
-  // key: ShuffleKey, values: (reduceId -> partition locations)
+  // key: ShuffleKey, values: (partitionId -> partition locations)
   type PartitionInfo = util.HashMap[String, util.Map[Int, util.List[PartitionLocation]]]
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
@@ -143,12 +143,12 @@ class PartitionLocationInfo {
   }
 
   def getLocationWithMaxEpoch(
-      shuffleKey: String, reduceId: Int): Option[PartitionLocation] = this.synchronized {
+      shuffleKey: String, partitionId: Int): Option[PartitionLocation] = this.synchronized {
     if (!masterPartitionLocations.containsKey(shuffleKey) ||
-      !masterPartitionLocations.get(shuffleKey).containsKey(reduceId)) {
+      !masterPartitionLocations.get(shuffleKey).containsKey(partitionId)) {
       return None
     }
-    val locations = masterPartitionLocations.get(shuffleKey).get(reduceId)
+    val locations = masterPartitionLocations.get(shuffleKey).get(partitionId)
     if (locations == null || locations.size() == 0) {
       return None
     }
@@ -171,8 +171,8 @@ class PartitionLocationInfo {
       partitionInfo.putIfAbsent(shuffleKey,
         new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
-      reduceLocMap.putIfAbsent(location.getReduceId, new util.ArrayList[PartitionLocation]())
-      val locations = reduceLocMap.get(location.getReduceId)
+      reduceLocMap.putIfAbsent(location.getId, new util.ArrayList[PartitionLocation]())
+      val locations = reduceLocMap.get(location.getId)
       locations.add(location)
       1
     } else {
@@ -189,8 +189,8 @@ class PartitionLocationInfo {
         new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
-        reduceLocMap.putIfAbsent(loc.getReduceId, new util.ArrayList[PartitionLocation]())
-        val locations = reduceLocMap.get(loc.getReduceId)
+        reduceLocMap.putIfAbsent(loc.getId, new util.ArrayList[PartitionLocation]())
+        val locations = reduceLocMap.get(loc.getId)
         locations.add(loc)
       }
     }
@@ -207,9 +207,9 @@ class PartitionLocationInfo {
     val reduceLocMap = partitionInfo.get(shuffleKey)
     uniqueIds.asScala.foreach { id =>
       val tokens = id.split("-", 2)
-      val reduceId = tokens(0).toInt
+      val partitionId = tokens(0).toInt
       val epoch = tokens(1).toInt
-      val locations = reduceLocMap.get(reduceId)
+      val locations = reduceLocMap.get(partitionId)
       if (locations != null) {
         val res = locations.asScala.find(_.getEpoch == epoch).orNull
         if (res != null) {
@@ -218,7 +218,7 @@ class PartitionLocationInfo {
         }
       }
       if (locations == null || locations.size() == 0) {
-        reduceLocMap.remove(reduceId)
+        reduceLocMap.remove(partitionId)
       }
     }
 
@@ -233,7 +233,7 @@ class PartitionLocationInfo {
       uniqueId: String,
       mode: PartitionLocation.Mode): PartitionLocation = {
     val tokens = uniqueId.split("-", 2)
-    val reduceId = tokens(0).toInt
+    val partitionId = tokens(0).toInt
     val epoch = tokens(1).toInt
     val partitionInfo =
       if (mode == PartitionLocation.Mode.Master) {
@@ -244,11 +244,11 @@ class PartitionLocationInfo {
 
     this.synchronized {
       if (!partitionInfo.containsKey(shuffleKey)
-        || !partitionInfo.get(shuffleKey).containsKey(reduceId)) {
+        || !partitionInfo.get(shuffleKey).containsKey(partitionId)) {
         return null
       }
       partitionInfo.get(shuffleKey)
-        .get(reduceId)
+        .get(partitionId)
         .asScala
         .find(loc => loc.getEpoch == epoch)
         .orNull

@@ -21,7 +21,7 @@ import org.junit.Test;
 
 public class PartitionLocationSuiteJ {
 
-  private final int reduceId = 0;
+  private final int partitionId = 0;
   private final int epoch = 0;
   private final String host = "localhost";
   private final int rpcPort = 3;
@@ -29,7 +29,7 @@ public class PartitionLocationSuiteJ {
   private final int fetchPort = 2;
   private final int replicatePort = 4;
   private final PartitionLocation.Mode mode = PartitionLocation.Mode.Master;
-  private final PartitionLocation peer = new PartitionLocation(reduceId, epoch, host, rpcPort,
+  private final PartitionLocation peer = new PartitionLocation(partitionId, epoch, host, rpcPort,
     pushPort, fetchPort, replicatePort, PartitionLocation.Mode.Slave);
 
   @Test
@@ -48,59 +48,59 @@ public class PartitionLocationSuiteJ {
   }
 
   @Test
-  public void testReduceIdNotEqualMakePartitionLocationDifferent() {
+  public void testPartitionIdNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId + 1, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+        partitionId + 1, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
   @Test
   public void testEpochNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch + 1, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch + 1, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
   @Test
   public void testHostNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch, "remoteHost", rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, "remoteHost", rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
   @Test
   public void testPushPortNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort + 1, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort + 1, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
   @Test
   public void testFetchPortNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort + 1, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort + 1, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
   @Test
   public void testModeNotEqualNeverMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
         PartitionLocation.Mode.Slave, peer);
     PartitionLocation location3 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
     checkEqual(location1, location3, true);
     checkEqual(location2, location3, true);
@@ -109,11 +109,11 @@ public class PartitionLocationSuiteJ {
   @Test
   public void testPeerNotEqualNeverMakePartitionLocationDifferent() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, location1);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, location1);
     PartitionLocation location3 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
     checkEqual(location1, location3, true);
     checkEqual(location2, location3, true);
@@ -122,9 +122,9 @@ public class PartitionLocationSuiteJ {
   @Test
   public void testAllFieldEqualMakePartitionLocationEqual() {
     PartitionLocation location1 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 = new PartitionLocation(
-        reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+      partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
   }
 

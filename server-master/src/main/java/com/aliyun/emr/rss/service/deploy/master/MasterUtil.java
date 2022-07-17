@@ -47,20 +47,18 @@ public class MasterUtil {
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
     offerSlots(
-      String shuffleKey,
       List<WorkerInfo> workers,
-      List<Integer> reduceIds,
+      List<Integer> partitionIds,
       boolean shouldReplicate) {
-    int[] oldEpochs = new int[reduceIds.size()];
+    int[] oldEpochs = new int[partitionIds.size()];
     Arrays.fill(oldEpochs, -1);
-    return offerSlots(shuffleKey, workers, reduceIds, oldEpochs, shouldReplicate);
+    return offerSlots(workers, partitionIds, oldEpochs, shouldReplicate);
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
     offerSlots(
-      String shuffleKey,
       List<WorkerInfo> workers,
-      List<Integer> reduceIds,
+      List<Integer> partitionIds,
       int[] oldEpochs,
       boolean shouldReplicate) {
     if (workers.size() < 2 && shouldReplicate) {
@@ -71,7 +69,7 @@ public class MasterUtil {
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
     // foreach iteration, allocate both master and slave partitions
-    for(int idx = 0; idx < reduceIds.size(); idx++) {
+    for(int idx = 0; idx < partitionIds.size(); idx++) {
       int nextMasterInd = masterInd;
       // try to find slot for master partition
       while (!workers.get(nextMasterInd).slotAvailable()) {
@@ -107,7 +105,7 @@ public class MasterUtil {
       PartitionLocation masterLocation = null;
       if (shouldReplicate) {
         slaveLocation = new PartitionLocation(
-            reduceIds.get(idx),
+            partitionIds.get(idx),
             newEpoch,
             workers.get(nextSlaveInd).host(),
             workers.get(nextSlaveInd).rpcPort(),
@@ -118,7 +116,7 @@ public class MasterUtil {
         );
       }
       masterLocation = new PartitionLocation(
-          reduceIds.get(idx),
+          partitionIds.get(idx),
           newEpoch,
           workers.get(nextMasterInd).host(),
           workers.get(nextMasterInd).rpcPort(),
