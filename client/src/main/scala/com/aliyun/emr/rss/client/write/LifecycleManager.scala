@@ -808,11 +808,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       committedMasterIds.asScala.foreach { id =>
         val hints = committedMasterHints(id)
         val partition = masterPartMap.get(id)
-        hints.foreach {
-          case (id, (storage, disk)) => {
-            partition.setStorageHint(StorageHint.values()(storage.toInt))
-            partition.setDiskHint(disk)
-          }
+        hints.foreach { case (id, (storage, disk)) =>
+          partition.setStorageHint(StorageHint.values()(storage.toInt))
+          partition.setDiskHint(disk)
         }
         committedPartitions.put(id, masterPartMap.get(id))
       }
@@ -820,11 +818,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
         val hints = committedSlaveHints(id)
-        hints.foreach {
-          case (id, (storage, disk)) => {
-            slavePartition.setStorageHint(StorageHint.values()(storage.toInt))
-            slavePartition.setDiskHint(disk)
-          }
+        hints.foreach { case (id, (storage, disk)) =>
+          slavePartition.setStorageHint(StorageHint.values()(storage.toInt))
+          slavePartition.setDiskHint(disk)
         }
         val masterPartition = committedPartitions.get(id)
         if (masterPartition ne null) {

@@ -71,9 +71,11 @@ class DeviceInfo(val name: String) extends Serializable {
 object DeviceInfo {
   val logger = LoggerFactory.getLogger(classOf[DeviceInfo])
 
-  def getDeviceAndMountInfos(
-      workingDirs: util.List[File]
-  ): (util.HashMap[String, DeviceInfo], util.HashMap[String, MountInfo]) = {
+  def getDeviceAndMountInfos(workingDirs: util.List[File]): (
+      util.HashMap[String, DeviceInfo],
+      util.HashMap[String, MountInfo],
+      util.HashMap[String, MountInfo]
+  ) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()
     val allMounts = new util.HashMap[String, MountInfo]()
 
@@ -118,6 +120,7 @@ object DeviceInfo {
 
     val retDeviceInfos = new util.HashMap[String, DeviceInfo]()
     val retMountInfos = new util.HashMap[String, MountInfo]()
+    val retWorkingMountInfos = new util.HashMap[String, MountInfo]()
 
     workingDirs.asScala.foreach(dir => {
       val mount = getMountPoint(dir.getAbsolutePath, allMounts)
@@ -125,6 +128,7 @@ object DeviceInfo {
       mountInfo.addDir(dir)
       retMountInfos.putIfAbsent(mountInfo.mountPoint, mountInfo)
       retDeviceInfos.putIfAbsent(mountInfo.deviceInfo.name, mountInfo.deviceInfo)
+      retWorkingMountInfos.put(dir.getAbsolutePath, mountInfo)
     })
 
     retDeviceInfos.asScala.foreach(entry => {
@@ -133,7 +137,7 @@ object DeviceInfo {
     })
     logger.info(s"Device Infos:\n$retDeviceInfos")
 
-    (retDeviceInfos, retMountInfos)
+    (retDeviceInfos, retMountInfos, retWorkingMountInfos)
   }
 
   def getMountPoint(absPath: String, mountInfos: util.HashMap[String, MountInfo]): String = {

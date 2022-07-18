@@ -50,7 +50,7 @@ sealed trait Message extends Serializable {
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
               .setFlushTime(item._2.flushTime)
-              .setUsedSlots(item._2.activeWriters)
+              .setUsedSlots(item._2.activeSlots)
               .build()
           )
           .toMap
@@ -84,7 +84,7 @@ sealed trait Message extends Serializable {
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
               .setFlushTime(item._2.flushTime)
-              .setUsedSlots(item._2.activeWriters)
+              .setUsedSlots(item._2.activeSlots)
               .build()
           )
           .toMap

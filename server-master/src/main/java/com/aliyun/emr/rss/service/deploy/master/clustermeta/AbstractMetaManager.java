@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 import io.netty.util.internal.ConcurrentSet;
@@ -66,7 +67,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   protected RssConf conf;
 
   public long defaultPartitionSize;
-  public long partitionSize;
+  public long estimatedPartitionSize;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
 
@@ -171,10 +172,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         for (Map.Entry<String, DiskInfo> diskInfoEntry : diskMaps.entrySet()) {
           String mountPoint = diskInfoEntry.getKey();
           if (oldDiskMaps.containsKey(mountPoint)) {
-            oldDiskMaps.get(mountPoint).activeWriters_$eq(
-              Math.max(oldDiskMaps.get(mountPoint).activeWriters(),
-                diskMaps.get(mountPoint).activeWriters()));
+            oldDiskMaps.get(mountPoint).activeSlots_$eq(
+              Math.max(oldDiskMaps.get(mountPoint).activeSlots(),
+                diskMaps.get(mountPoint).activeSlots()));
           } else {
+            if (diskInfoEntry.getValue().usableSpace() > RssConf.diskMinimumUsableSize(conf)) {
+              diskInfoEntry.getValue()
+                .maxSlots_$eq(diskInfoEntry.getValue().usableSpace() / estimatedPartitionSize);
+            }
             oldDiskMaps.put(mountPoint, diskInfoEntry.getValue());
           }
         }
@@ -191,10 +196,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         info.lastHeartbeat_$eq(time);
       });
     }
+    AtomicLong availableSlots = new AtomicLong();
+    disks.entrySet().stream().forEach(i -> availableSlots.addAndGet(i.getValue().availableSlots()));
     if (!blacklist.contains(worker) && disks.isEmpty()) {
       LOG.warn("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
-    } else if (disks.size() > 0) {
+    } else if (availableSlots.get() > 0) {
       // only unblack if numSlots larger than 0
       blacklist.remove(worker);
     }
@@ -347,9 +354,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long tmpTotalWritten = partitionTotalWritten.sumThenReset();
     long tmpFileCount = partitionTotalFileCount.sumThenReset();
     if (tmpFileCount != 0) {
-      partitionSize = tmpTotalWritten / tmpFileCount;
+      estimatedPartitionSize = tmpTotalWritten / tmpFileCount;
     } else {
-      partitionSize = defaultPartitionSize;
+      estimatedPartitionSize = defaultPartitionSize;
     }
   }
 }

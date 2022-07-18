@@ -86,6 +86,7 @@ private[deploy] class Master(
     new Runnable {
       override def run(): Unit = {
         statusSystem.handleUpdatePartitionSize()
+        logInfo(s"Cluster estimate partition size ${statusSystem.estimatedPartitionSize}")
       }
     },
     partitionSizeUpdateInitialDelay,
@@ -109,7 +110,7 @@ private[deploy] class Master(
       _ => workersSnapShot.asScala.map(_.usedSlots()).sum
     )
     // slots overload worker count
-    source.addGauge(MasterSource.PartitionSize, _ => statusSystem.partitionSize)
+    source.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
 
     metricsSystem.registerSource(source)
     metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
@@ -413,7 +414,7 @@ private[deploy] class Master(
     val workerToRegister =
       new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
     disks.asScala.values.foreach { disk =>
-      disk.maxWriters = disk.usableSpace / statusSystem.partitionSize
+      disk.maxSlots = disk.usableSpace / statusSystem.estimatedPartitionSize
     }
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(
@@ -609,7 +610,7 @@ private[deploy] class Master(
 
     val (totalSlots, usedSlots, overloadWorkers) = workers
       .map(workerInfo => {
-        val allSlots: Long = workerInfo.disks.values().asScala.map(_.maxWriters).sum
+        val allSlots: Long = workerInfo.disks.values().asScala.map(_.maxSlots).sum
         val usedSlots: Long = workerInfo.usedSlots()
         val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
         (allSlots, usedSlots, flag)

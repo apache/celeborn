@@ -195,24 +195,6 @@ public class RatisMasterStatusSystemSuiteJ {
   private static int SHUFFLEID1 = 1;
   private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
 
-  @BeforeClass
-  public static void prepare() {
-    disks1.put("disk1", new DiskInfo("disk1", 1024 * 1024 * 1024 * 64, 100, 0));
-    disks1.put("disk2", new DiskInfo("disk2", 1024 * 1024 * 1024 * 64, 200, 0));
-    disks1.put("disk3", new DiskInfo("disk3", 1024 * 1024 * 1024 * 64, 300, 0));
-    disks1.put("disk4", new DiskInfo("disk4", 1024 * 1024 * 1024 * 64, 400, 0));
-
-    disks2.put("disk1", new DiskInfo("disk1", 1024 * 1024 * 1024 * 64, 100, 0));
-    disks2.put("disk2", new DiskInfo("disk2", 1024 * 1024 * 1024 * 64, 200, 0));
-    disks2.put("disk3", new DiskInfo("disk3", 1024 * 1024 * 1024 * 64, 300, 0));
-    disks2.put("disk4", new DiskInfo("disk4", 1024 * 1024 * 1024 * 64, 400, 0));
-
-    disks3.put("disk1", new DiskInfo("disk1", 1024 * 1024 * 1024 * 64, 100, 0));
-    disks3.put("disk2", new DiskInfo("disk2", 1024 * 1024 * 1024 * 64, 200, 0));
-    disks3.put("disk3", new DiskInfo("disk3", 1024 * 1024 * 1024 * 64, 300, 0));
-    disks3.put("disk4", new DiskInfo("disk4", 1024 * 1024 * 1024 * 64, 400, 0));
-  }
-
   private String getNewReqeustId() {
     return RssHARetryClient.encodeRequestId(UUID.randomUUID().toString(),
       callerId.incrementAndGet());
@@ -303,13 +285,13 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    Assert.assertEquals(5,
+    Assert.assertEquals(15,
       statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1)).findFirst()
         .get().usedSlots());
-    Assert.assertEquals(5,
+    Assert.assertEquals(25,
       statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2)).findFirst()
         .get().usedSlots());
-    Assert.assertEquals(5,
+    Assert.assertEquals(35,
       statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME3)).findFirst()
         .get().usedSlots());
   }
@@ -474,7 +456,7 @@ public class RatisMasterStatusSystemSuiteJ {
       disks3, getNewReqeustId());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      disks1, 1, getNewReqeustId());
+      new HashMap<>(), 1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
@@ -482,7 +464,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      disks2, 1, getNewReqeustId());
+      new HashMap<>(), 1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, statusSystem.blacklist.size());
@@ -491,7 +473,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      disks3, 1, getNewReqeustId());
+      disks1, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, statusSystem.blacklist.size());
@@ -522,6 +504,24 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.blacklist.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
+
+    disks1.clear();
+    disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks1.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 0));
+
+    disks2.clear();
+    disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks2.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 0));
+
+    disks3.clear();
+    disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 0));
+    disks3.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 0));
   }
 
   @Test

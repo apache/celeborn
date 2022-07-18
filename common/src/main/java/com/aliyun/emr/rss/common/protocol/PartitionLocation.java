@@ -65,7 +65,6 @@ public class PartitionLocation implements Serializable {
   private StorageHint storageHint;
   private String diskHint;
 
-
   public PartitionLocation(PartitionLocation loc) {
     this.reduceId = loc.reduceId;
     this.epoch = loc.epoch;
@@ -157,6 +156,7 @@ public class PartitionLocation implements Serializable {
     this.mode = mode;
     this.peer = peer;
     this.storageHint = hint;
+    this.diskHint = diskHint;
   }
 
   public int getReduceId()
@@ -258,7 +258,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public String getDiskHint() {
-    if (diskHint.isEmpty()) {
+    if (diskHint == null || diskHint.length() == 0) {
       return UNDEFINED_DISK;
     }
     return diskHint;
@@ -296,7 +296,7 @@ public class PartitionLocation implements Serializable {
 
     return "PartitionLocation[" + reduceId + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
-             " peer: " + peerAddress + "storage hint:" + storageHint + "]";
+             " peer: " + peerAddress + " storage hint:" + storageHint + "]";
   }
 
   public WorkerInfo getWorker() {

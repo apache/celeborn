@@ -45,7 +45,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.defaultPartitionSize = RssConf.partitionSize(conf);
-    this.partitionSize = defaultPartitionSize;
+    this.estimatedPartitionSize = defaultPartitionSize;
   }
 
   public HARaftServer getRatisServer() {

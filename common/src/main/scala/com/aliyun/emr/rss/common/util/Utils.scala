@@ -667,7 +667,7 @@ object Utils extends Logging {
   ): util.Map[String, Integer] = {
     val slotDistributions = new util.HashMap[String, Integer]()
     (masterLocations.asScala ++ workerLocations.asScala).groupBy(_.getDiskHint).foreach {
-      case (hint, location) => {
+      case (hint, location) =>
         slotDistributions.compute(
           hint,
           new BiFunction[String, Integer, Integer] {
@@ -680,7 +680,6 @@ object Utils extends Logging {
             }
           }
         )
-      }
     }
     slotDistributions
   }
@@ -845,6 +844,5 @@ object Utils extends Logging {
         PartitionSplitMode.soft
     }
   }
-
 
 }

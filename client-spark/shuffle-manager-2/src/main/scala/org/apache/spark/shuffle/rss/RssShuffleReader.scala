@@ -24,23 +24,23 @@ import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
 import com.aliyun.emr.rss.client.ShuffleClient
-import com.aliyun.emr.rss.client.read.MetricsCallback
-import com.aliyun.emr.rss.client.read.RssInputStream
+import com.aliyun.emr.rss.client.read.{MetricsCallback, RssInputStream}
 import com.aliyun.emr.rss.common.RssConf
 
 class RssShuffleReader[K, C](
-  handle: RssShuffleHandle[K, _, C],
-  startPartition: Int,
-  endPartition: Int,
-  startMapIndex: Int = 0,
-  endMapIndex: Int = Int.MaxValue,
-  context: TaskContext,
-  conf: RssConf)
-  extends ShuffleReader[K, C] with Logging {
+    handle: RssShuffleHandle[K, _, C],
+    startPartition: Int,
+    endPartition: Int,
+    startMapIndex: Int = 0,
+    endMapIndex: Int = Int.MaxValue,
+    context: TaskContext,
+    conf: RssConf
+) extends ShuffleReader[K, C]
+  with Logging {
 
   private val dep = handle.dependency
-  private val essShuffleClient = ShuffleClient.get(
-    handle.rssMetaServiceHost, handle.rssMetaServicePort, conf)
+  private val essShuffleClient =
+    ShuffleClient.get(handle.rssMetaServiceHost, handle.rssMetaServicePort, conf)
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -56,29 +56,37 @@ class RssShuffleReader[K, C](
         readMetrics.incFetchWaitTime(time)
     }
 
-    val recordIter = (startPartition until endPartition).map(reduceId => {
-      if (handle.numMaps > 0) {
-        val start = System.currentTimeMillis()
-        val inputStream = essShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
-          reduceId, context.attemptNumber(), startMapIndex, endMapIndex)
-        metricsCallback.incReadTime(System.currentTimeMillis() - start)
-        inputStream.setCallback(metricsCallback)
-        // ensure inputStream is closed when task completes
-        context.addTaskCompletionListener(_ => inputStream.close())
-        inputStream
-      } else {
-        RssInputStream.empty()
-      }
-    }).toIterator.flatMap(
-      serializerInstance.deserializeStream(_).asKeyValueIterator
-    )
+    val recordIter = (startPartition until endPartition)
+      .map(reduceId => {
+        if (handle.numMaps > 0) {
+          val start = System.currentTimeMillis()
+          val inputStream = essShuffleClient.readPartition(
+            handle.newAppId,
+            handle.shuffleId,
+            reduceId,
+            context.attemptNumber(),
+            startMapIndex,
+            endMapIndex
+          )
+          metricsCallback.incReadTime(System.currentTimeMillis() - start)
+          inputStream.setCallback(metricsCallback)
+          // ensure inputStream is closed when task completes
+          context.addTaskCompletionListener(_ => inputStream.close())
+          inputStream
+        } else {
+          RssInputStream.empty()
+        }
+      })
+      .toIterator
+      .flatMap(serializerInstance.deserializeStream(_).asKeyValueIterator)
 
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
       recordIter.map { record =>
         readMetrics.incRecordsRead(1)
         record
       },
-      context.taskMetrics().mergeShuffleReadMetrics())
+      context.taskMetrics().mergeShuffleReadMetrics()
+    )
 
     // An interruptible iterator must be used here in order to support task cancellation
     val interruptibleIter = new InterruptibleIterator[(Any, Any)](context, metricIter)

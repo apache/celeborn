@@ -30,36 +30,36 @@ class DiskInfo(
     val mountPoint: String,
     val usableSpace: Long,
     val flushTime: Double,
-    var activeWriters: Long
+    var activeSlots: Long
 ) extends Serializable {
-  var maxWriters: Long = 0
-  lazy val diskRelatedWriters = new util.HashMap[String, Integer]()
+  var maxSlots: Long = 0
+  lazy val diskRelatedSlots = new util.HashMap[String, Integer]()
 
   def availableSlots(): Long = {
-    maxWriters - activeWriters
+    maxSlots - activeSlots
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = diskRelatedWriters.getOrDefault(shuffleKey, 0)
-    diskRelatedWriters.put(shuffleKey, allocated + slots)
-    activeWriters = activeWriters + slots
+    val allocated = diskRelatedSlots.getOrDefault(shuffleKey, 0)
+    diskRelatedSlots.put(shuffleKey, allocated + slots)
+    activeSlots = activeSlots + slots
   }
 
   def releaseSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = diskRelatedWriters.getOrDefault(shuffleKey, 0)
+    val allocated = diskRelatedSlots.getOrDefault(shuffleKey, 0)
     if (allocated > slots) {
-      diskRelatedWriters.put(shuffleKey, allocated - slots)
-      activeWriters = activeWriters - slots
+      diskRelatedSlots.put(shuffleKey, allocated - slots)
+      activeSlots = activeSlots - slots
     } else {
-      activeWriters = 0
-      diskRelatedWriters.put(shuffleKey, 0)
+      activeSlots = 0
+      diskRelatedSlots.put(shuffleKey, 0)
     }
   }
 
   def releaseSlots(shuffleKey: String): Unit = {
-    val allocated = diskRelatedWriters.remove(shuffleKey)
+    val allocated = diskRelatedSlots.remove(shuffleKey)
     if (allocated != null) {
-      activeWriters = activeWriters - allocated
+      activeSlots = activeSlots - allocated
     }
   }
 }
@@ -120,7 +120,7 @@ class WorkerInfo(
   }
 
   def usedSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.activeWriters).sum
+    disks.asScala.map(_._2.activeSlots).sum
   }
 
   def allocateSlots(shuffleKey: String, slotsDistributions: util.Map[String, Integer]): Unit =
@@ -131,10 +131,10 @@ class WorkerInfo(
     }
 
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
-    slots.asScala.foreach { diskSlots =>
-      if (disks.containsKey(diskSlots)) {
+    slots.asScala.foreach { case (disk, slot) =>
+      if (disks.containsKey(disk)) {
         // disk hint is DEFAULT means that this location has no file
-        disks.get(diskSlots).releaseSlots(shuffleKey, diskSlots._2)
+        disks.get(disk).releaseSlots(shuffleKey, slot)
       }
     }
   }
@@ -221,8 +221,8 @@ object WorkerInfo {
   ): util.HashMap[WorkerInfo, util.HashMap[String, Integer]] = {
     val map = new util.HashMap[WorkerInfo, util.HashMap[String, Integer]]()
     import scala.collection.JavaConverters._
-    val allocationsMap = new util.HashMap[String, Integer]()
     pbStrList.asScala.foreach { str =>
+      val allocationsMap = new util.HashMap[String, Integer]()
       val splits = str.split(SPLIT)
       val allocationsMapSize = splits(5).toInt
       if (allocationsMapSize > 0) {
@@ -292,7 +292,7 @@ object WorkerInfo {
             .newBuilder()
             .setUsableSpace(item._2.usableSpace)
             .setFlushTime(item._2.flushTime)
-            .setUsedSlots(item._2.activeWriters)
+            .setUsedSlots(item._2.activeSlots)
             .build()
       )
       .asJava

@@ -353,8 +353,10 @@ private[deploy] class Controller(
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
 
-      val committedMasterStorageAndDiskHintList = new jArrayList[String](committedMasterStorageAndDiskHint)
-      val committedSlaveStorageAndDiskHintList = new jArrayList[String](committedSlaveStorageAndDiskHint)
+      val committedMasterStorageAndDiskHintList =
+        new jArrayList[String](committedMasterStorageAndDiskHint)
+      val committedSlaveStorageAndDiskHintList =
+        new jArrayList[String](committedSlaveStorageAndDiskHint)
       // reply
       val totalWritten = committedWrittenSize.asScala.sum
       val fileCount = committedWrittenSize.size()

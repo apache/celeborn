@@ -46,7 +46,6 @@ import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.unsafe.Platform
 
 class PushDataHandler extends BaseMessageHandler with Logging {
-
   var workerSource: WorkerSource = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
@@ -231,7 +230,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getRpcPort,
             peer.getPushPort,
             peer.getFetchPort,
-            peer.getReplicatePort,
+            peer.getReplicatePort
           )
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
@@ -377,7 +376,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getRpcPort,
             peer.getPushPort,
             peer.getFetchPort,
-            peer.getReplicatePort,
+            peer.getReplicatePort
           )
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()

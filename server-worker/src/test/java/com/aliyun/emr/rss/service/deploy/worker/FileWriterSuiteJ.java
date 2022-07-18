@@ -64,6 +64,7 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
+import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
@@ -105,8 +106,19 @@ public class FileWriterSuiteJ {
     }).when(source)
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
-    flusher = new DiskFlusher(tempDir, source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1);
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
+    flusher = new DiskFlusher(tempDir,
+      source,
+      DeviceMonitor$.MODULE$.EmptyMonitor(),
+      1,
+      "disk1",
+      PartitionLocation.StorageHint.HDD);
+    MemoryTracker.initialize(0.8,
+      0.9,
+      0.5,
+      0.6,
+      10,
+      10,
+      10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
@@ -289,7 +301,12 @@ public class FileWriterSuiteJ {
   @Test
   public void testHugeBufferQueueSize() throws IOException {
     File file = getTemporaryFile();
-    flusher = new DiskFlusher(file, source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1);
+    flusher = new DiskFlusher(file,
+      source,
+      DeviceMonitor$.MODULE$.EmptyMonitor(),
+      1,
+      "disk2",
+      PartitionLocation.StorageHint.HDD);
   }
 
   @Test

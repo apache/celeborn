@@ -34,6 +34,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   public SingleMasterMetaManager(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
+    this.estimatedPartitionSize = RssConf.partitionSize(conf);
   }
 
   @Override

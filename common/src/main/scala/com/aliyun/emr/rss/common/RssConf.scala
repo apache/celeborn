@@ -536,7 +536,7 @@ object RssConf extends Logging {
     val baseDirs = conf.get("rss.worker.base.dirs", "")
     if (baseDirs.nonEmpty) {
       if (baseDirs.contains(":")) {
-        var capaticy = Long.MaxValue
+        var capaticy = 1024L * 1024 * 1024 * 1024 * 1024
         var diskType = StorageHint.HDD
         var flushThread = -1
         baseDirs

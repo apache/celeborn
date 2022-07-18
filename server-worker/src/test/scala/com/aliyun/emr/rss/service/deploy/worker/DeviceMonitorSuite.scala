@@ -61,7 +61,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
   val rssConf = new RssConf()
   rssConf.set("rss.disk.check.interval", "3600s")
   val localStorageManager = mock[DeviceObserver]
-  val (deviceInfos, mountInfos) = DeviceInfo.getDeviceAndMountInfos(dirs)
+  val (deviceInfos, mountInfos, workingDirMountInfos) = DeviceInfo.getDeviceAndMountInfos(dirs)
   val deviceMonitor = new LocalDeviceMonitor(rssConf, localStorageManager, deviceInfos, mountInfos)
     .asInstanceOf[LocalDeviceMonitor]
 
@@ -191,11 +191,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         observers.contains(localStorageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      when(fw2.notifyError())
+      when(fw2.notifyError("vda", null, DeviceErrorType.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      when(fw4.notifyError())
+      when(fw4.notifyError("vdb", null, DeviceErrorType.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
@@ -233,11 +233,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         })
       val dirs = new jArrayList[File]()
       dirs.add(null)
-      when(fw1.notifyError())
+      when(fw1.notifyError(any(), any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw1)
         })
-      when(fw2.notifyError())
+      when(fw2.notifyError(any(), any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
@@ -251,11 +251,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((workingDir: File, e: IOException) => {
           deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
         })
-      when(fw3.notifyError())
+      when(fw3.notifyError(any(), any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw3)
         })
-      when(fw4.notifyError())
+      when(fw4.notifyError(any(), any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
