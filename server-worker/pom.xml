@@ -141,6 +141,8 @@
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
                     <argLine>-Xmx4096m</argLine>
+                    <parallelOptimized>false</parallelOptimized>
+                    <shutdown>kill</shutdown>
                 </configuration>
             </plugin>
             <plugin>

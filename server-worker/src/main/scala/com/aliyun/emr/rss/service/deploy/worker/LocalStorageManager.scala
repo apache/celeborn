@@ -307,7 +307,7 @@ private[worker] final class LocalStorageManager(
     val flushers = new ConcurrentHashMap[File, DiskFlusher]()
     workingDirsSnapshot().asScala.foreach(file => {
       val workingDirPath = file.getAbsolutePath
-      new DiskFlusher(
+      val flusher = new DiskFlusher(
         file,
         workerSource,
         deviceMonitor,
@@ -315,6 +315,7 @@ private[worker] final class LocalStorageManager(
         workingDirMountInfos.get(workingDirPath).mountPoint,
         workingDirMetas.get(workingDirPath).get._3
       )
+      flushers.put(file, flusher)
     })
     flushers
   }
@@ -735,7 +736,7 @@ private[worker] final class LocalStorageManager(
           case (mountPoint, mountInfo) => {
             val workingDirUsableSpace = mountInfo.mountPointFile.getUsableSpace
             val flushTimeSum = mountInfo.dirInfos.map(dir =>
-              diskFlushers.get(dir.getAbsolutePath).averageFlushTime()
+              diskFlushers.get(dir).averageFlushTime()
             )
             val flushTimeCount = flushTimeSum.size
             val flushTimeAverage = if (flushTimeCount > 0) {
@@ -744,7 +745,7 @@ private[worker] final class LocalStorageManager(
               0
             }
             val usedSlots = mountInfo.dirInfos
-              .map(dir => diskFlushers.get(dir.getAbsolutePath).getUsedSlots())
+              .map(dir => diskFlushers.get(dir).getUsedSlots())
               .sum
             mountPoint -> new DiskInfo(
               mountPoint,
