@@ -20,7 +20,13 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{
+  ConcurrentHashMap,
+  Executors,
+  LinkedBlockingQueue,
+  ThreadPoolExecutor,
+  TimeUnit
+}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, LongAdder}
 import java.util.function.IntUnaryOperator
 
@@ -84,7 +90,7 @@ private[worker] final class DiskFlusher(
   }
 
   private def init(): Unit = {
-      val assumedQueueSize = 1024*1024
+    val assumedQueueSize = 1024 * 1024
     for (index <- 0 until (threadCount)) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask](assumedQueueSize)
       bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf](assumedQueueSize)
@@ -728,28 +734,19 @@ private[worker] final class LocalStorageManager(
     val snapshot = new util.HashMap[String, DiskInfo]()
     snapshot.putAll(
       mountInfos.asScala
-        .map {
-          case (mountPoint, mountInfo) => {
-            val workingDirUsableSpace = mountInfo.mountPointFile.getUsableSpace
-            val flushTimeSum = mountInfo.dirInfos.map(dir =>
-              diskFlushers.get(dir).averageFlushTime()
-            )
-            val flushTimeCount = flushTimeSum.size
-            val flushTimeAverage = if (flushTimeCount > 0) {
-              flushTimeSum.sum / flushTimeCount
-            } else {
-              0
-            }
-            val usedSlots = mountInfo.dirInfos
-              .map(dir => diskFlushers.get(dir).getUsedSlots())
-              .sum
-            mountPoint -> new DiskInfo(
-              mountPoint,
-              workingDirUsableSpace,
-              flushTimeAverage,
-              usedSlots
-            )
+        .map { case (mountPoint, mountInfo) =>
+          val workingDirUsableSpace = mountInfo.mountPointFile.getUsableSpace
+          val flushTimeSum = mountInfo.dirInfos.map(dir => diskFlushers.get(dir).averageFlushTime())
+          val flushTimeCount = flushTimeSum.size
+          val flushTimeAverage = if (flushTimeCount > 0) {
+            flushTimeSum.sum / flushTimeCount
+          } else {
+            0
           }
+          val usedSlots = mountInfo.dirInfos
+            .map(dir => diskFlushers.get(dir).getUsedSlots())
+            .sum
+          mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
         }
         .toMap
         .asJava

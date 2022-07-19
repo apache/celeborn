@@ -22,6 +22,7 @@ import java.io.Serializable;
 import lombok.Builder;
 
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+
 @Builder
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -34,7 +35,9 @@ public class PartitionLocation implements Serializable {
       this.mode = (byte) id;
     }
 
-    public byte mode() { return mode; }
+    public byte mode() {
+      return mode;
+    }
   }
 
   public enum StorageHint {
@@ -147,13 +150,11 @@ public class PartitionLocation implements Serializable {
     this.diskHint = diskHint;
   }
 
-  public int getReduceId()
-  {
+  public int getReduceId() {
     return reduceId;
   }
 
-  public void setReduceId(int reduceId)
-  {
+  public void setReduceId(int reduceId) {
     this.reduceId = reduceId;
   }
 
@@ -194,7 +195,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public String hostAndPushPort() {
-    return host+":"+pushPort;
+    return host + ":" + pushPort;
   }
 
   public Mode getMode() {
@@ -263,11 +264,11 @@ public class PartitionLocation implements Serializable {
     }
     PartitionLocation o = (PartitionLocation) other;
     return reduceId == o.reduceId
-        && epoch == o.epoch
-        && host.equals(o.host)
-        && rpcPort == o.rpcPort
-        && pushPort == o.pushPort
-        && fetchPort == o.fetchPort;
+             && epoch == o.epoch
+             && host.equals(o.host)
+             && rpcPort == o.rpcPort
+             && pushPort == o.pushPort
+             && fetchPort == o.fetchPort;
   }
 
   @Override
@@ -309,9 +310,9 @@ public class PartitionLocation implements Serializable {
                                             .replicatePort(pbPartitionLocation.getReplicatePort())
                                             .mode(mode)
                                             .storageHint(
-                                              PartitionLocation.StorageHint.
-                                                values()[
-                                                  pbPartitionLocation.getStorageHintOrdinal()])
+                                              PartitionLocation.StorageHint
+                                                .values()[
+                                                pbPartitionLocation.getStorageHintOrdinal()])
                                             .diskHint(pbPartitionLocation.getDiskHint())
                                             .build();
 
@@ -331,8 +332,8 @@ public class PartitionLocation implements Serializable {
                                          .replicatePort(peerPb.getReplicatePort())
                                          .mode(peerMode)
                                          .storageHint(
-                                           PartitionLocation.StorageHint.
-                                             values()[
+                                           PartitionLocation.StorageHint
+                                             .values()[
                                              peerPb.getStorageHintOrdinal()])
                                          .diskHint(peerPb.getDiskHint())
                                          .build();
@@ -345,7 +346,7 @@ public class PartitionLocation implements Serializable {
   public static TransportMessages.PbPartitionLocation toPbPartitionLocation(PartitionLocation
                                                                               partitionLocation) {
     TransportMessages.PbPartitionLocation.Builder pbPartitionLocationBuilder = TransportMessages
-                                                                                 .PbPartitionLocation.newBuilder();
+      .PbPartitionLocation.newBuilder();
     if (partitionLocation.mode == Mode.Master) {
       pbPartitionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
     } else {

@@ -126,13 +126,11 @@ class WorkerInfo(
   def allocateSlots(shuffleKey: String, slotsDistributions: util.Map[String, Integer]): Unit =
     this.synchronized {
       logDebug(s"shuffle $shuffleKey allocations $slotsDistributions")
-      slotsDistributions.asScala.foreach {
-        case (disk, slots) => {
-          if (!(disks.containsKey(disk))) {
-            logWarning(s"Unknown disk ${disk}")
-          } else {
-            disks.get(disk).allocateSlots(shuffleKey, slots)
-          }
+      slotsDistributions.asScala.foreach { case (disk, slots) =>
+        if (!(disks.containsKey(disk))) {
+          logWarning(s"Unknown disk ${disk}")
+        } else {
+          disks.get(disk).allocateSlots(shuffleKey, slots)
         }
       }
     }

@@ -70,7 +70,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-  offerSlots(
+    offerSlots(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
     boolean shouldReplicate,
@@ -84,7 +84,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-  offerSlots(
+    offerSlots(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
     int[] oldEpochs,

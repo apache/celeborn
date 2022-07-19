@@ -170,7 +170,6 @@ public class MasterUtilSuiteJ {
     check(workers, reduceIds, shouldReplicate, true);
   }
 
-
   @Test
   public void testAllocateSlotsForThreeReduceIdsWithReplicate() {
     final List<WorkerInfo> workers = prepareWorkers();
@@ -179,7 +178,6 @@ public class MasterUtilSuiteJ {
 
     check(workers, reduceIds, shouldReplicate, true);
   }
-
 
   private void check(
     List<WorkerInfo> workers,
