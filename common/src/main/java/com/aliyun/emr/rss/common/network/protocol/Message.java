@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.network.protocol;
 
 import java.nio.ByteBuffer;
 
+import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -27,16 +28,14 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 
 /** An on-the-wire transmittable message. */
 public abstract class Message implements Encodable {
-  private final ManagedBuffer body;
-  private final boolean isBodyInFrame;
+  private ManagedBuffer body;
 
   protected Message() {
-    this(null, false);
+    this(null);
   }
 
-  protected Message(ManagedBuffer body, boolean isBodyInFrame) {
+  protected Message(ManagedBuffer body) {
     this.body = body;
-    this.isBodyInFrame = isBodyInFrame;
   }
 
   /** Used to identify this request type. */
@@ -47,13 +46,20 @@ public abstract class Message implements Encodable {
     return body;
   }
 
+  public void setBody(ByteBuf buf) {
+    this.body = new NettyManagedBuffer(buf.retain());
+  }
+
   /** Whether to include the body of the message in the same frame as the message. */
-  public boolean isBodyInFrame() {
-    return isBodyInFrame;
+  public abstract boolean hasBody();
+
+  /** Whether the body should be copied out in decoder. */
+  public boolean needCopyOut() {
+    return false;
   }
 
   protected boolean equals(Message other) {
-    return isBodyInFrame == other.isBodyInFrame && Objects.equal(body, other.body);
+    return Objects.equal(body, other.body);
   }
 
   public ByteBuffer toByteBuffer() {
@@ -67,9 +73,18 @@ public abstract class Message implements Encodable {
 
   /** Preceding every serialized Message is its type, which allows us to deserialize it. */
   public enum Type implements Encodable {
-    ChunkFetchRequest(0), ChunkFetchSuccess(1), ChunkFetchFailure(2),
-    RpcRequest(3), RpcResponse(4), RpcFailure(5), OpenStream(6), StreamHandle(7),
-    OneWayMessage(9), PushData(11), PushMergedData(12);
+    UnkownType(-1),
+    ChunkFetchRequest(0),
+    ChunkFetchSuccess(1),
+    ChunkFetchFailure(2),
+    RpcRequest(3),
+    RpcResponse(4),
+    RpcFailure(5),
+    OpenStream(6),
+    StreamHandle(7),
+    OneWayMessage(9),
+    PushData(11),
+    PushMergedData(12);
 
     private final byte id;
 

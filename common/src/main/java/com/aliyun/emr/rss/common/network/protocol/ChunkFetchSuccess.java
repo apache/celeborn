@@ -34,12 +34,17 @@ public final class ChunkFetchSuccess extends ResponseMessage {
   public final StreamChunkSlice streamChunkSlice;
 
   public ChunkFetchSuccess(StreamChunkSlice streamChunkSlice, ManagedBuffer buffer) {
-    super(buffer, true);
+    super(buffer);
     this.streamChunkSlice = streamChunkSlice;
   }
 
   @Override
   public Type type() { return Type.ChunkFetchSuccess; }
+
+  @Override
+  public boolean hasBody() {
+    return true;
+  }
 
   @Override
   public int encodedLength() {

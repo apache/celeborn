@@ -18,7 +18,10 @@
 package com.aliyun.emr.rss.common.network.util;
 
 import java.util.LinkedList;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
+import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -43,20 +46,109 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * to their handle() method.
  */
 public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
-
   public static final String HANDLER_NAME = "frameDecoder";
-  private static final int LENGTH_SIZE = 8;
+  // Message size + Msg type + Body sizb
+  private static final int HEADER_SIZE = 4 + 1 + 4;
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
   private static final int UNKNOWN_FRAME_SIZE = -1;
 
   private final LinkedList<ByteBuf> buffers = new LinkedList<>();
-  private final ByteBuf frameLenBuf = Unpooled.buffer(LENGTH_SIZE, LENGTH_SIZE);
+  private final Function<Long, Supplier<ByteBuf>> bufferSuppliers;
+  private ByteBuf externalBuf = null;
+  private CompositeByteBuf compositeByteBuf = null;
+  private final ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
+  private final ByteBuf msgBuf = Unpooled.buffer(8);
+  private Message curMsg = null;
+  private Message.Type curType = Message.Type.UnkownType;
+  private int msgSize = -1;
+  private int bodySize = -1;
 
   private long totalSize = 0;
   private long nextFrameSize = UNKNOWN_FRAME_SIZE;
 
-  @Override
+  public TransportFrameDecoder() {
+    this.bufferSuppliers = null;
+  }
+
+  public TransportFrameDecoder(Function<Long, Supplier<ByteBuf>> bufferSuppliers) {
+    this.bufferSuppliers = bufferSuppliers;
+  }
+
+  private void copyByteBuf(ByteBuf source, ByteBuf target, int targetSize) {
+    int bytes = Math.min(source.readableBytes(), targetSize - target.readableBytes());
+    target.writeBytes(source, bytes);
+  }
+
   public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
+    ByteBuf buf = (ByteBuf) data;
+    try {
+      while (buf.isReadable()) {
+        System.out.println(headerBuf.writerIndex());
+        if (headerBuf.isWritable()) {
+          copyByteBuf(buf, headerBuf, HEADER_SIZE);
+          if (!headerBuf.isWritable()) {
+            msgSize = headerBuf.readInt();
+            if (msgBuf.capacity() < msgSize) {
+              msgBuf.capacity(msgSize);
+            }
+            msgBuf.clear();
+            curType = Message.Type.decode(headerBuf);
+            bodySize = headerBuf.readInt();
+          }
+        } else if (curMsg == null) {
+          if (msgBuf.readableBytes() < msgSize) {
+            copyByteBuf(buf, msgBuf, msgSize);
+          }
+          if (msgBuf.readableBytes() == msgSize) {
+            curMsg = Message.decode(curType, msgBuf);
+          }
+        } else if (curMsg.hasBody()) {
+          if (curMsg.needCopyOut()) {
+            if (externalBuf == null) {
+              // TODO default value
+              externalBuf = bufferSuppliers.apply(-1L).get();
+            }
+            copyByteBuf(buf, externalBuf, bodySize);
+            if (externalBuf.readableBytes() == bodySize) {
+              curMsg.setBody(externalBuf);
+              ctx.fireChannelRead(curMsg);
+              clear();
+            }
+          } else {
+            if (compositeByteBuf == null) {
+              compositeByteBuf = buf.alloc().compositeBuffer(Integer.MAX_VALUE);
+            }
+            int remaining = bodySize - compositeByteBuf.readableBytes();
+            ByteBuf next;
+            if (remaining > buf.readableBytes()) {
+              next = buf.retain();
+            } else {
+              next = buf.retain().readSlice(remaining);
+            }
+            compositeByteBuf.addComponent(next).writerIndex(compositeByteBuf.writerIndex() + next.readableBytes());
+            if (compositeByteBuf.readableBytes() == bodySize) {
+              curMsg.setBody(compositeByteBuf);
+              ctx.fireChannelRead(curMsg);
+              clear();
+            }
+          }
+        } else {
+          ctx.fireChannelRead(curMsg);
+        }
+      }
+    } finally {
+      buf.release();
+    }
+  }
+
+  private void clear() {
+    externalBuf = null;
+    curMsg = null;
+    headerBuf.clear();
+    compositeByteBuf.clear();
+  }
+
+  public void channelRead1(ChannelHandlerContext ctx, Object data) throws Exception {
     ByteBuf in = (ByteBuf) data;
     buffers.add(in);
     totalSize += in.readableBytes();
@@ -71,7 +163,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
   }
 
   private long decodeFrameSize() {
-    if (nextFrameSize != UNKNOWN_FRAME_SIZE || totalSize < LENGTH_SIZE) {
+    if (nextFrameSize != UNKNOWN_FRAME_SIZE || totalSize < HEADER_SIZE) {
       return nextFrameSize;
     }
 
@@ -80,27 +172,27 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     // the frame size. Normally, it should be rare to need more than one buffer to read the frame
     // size.
     ByteBuf first = buffers.getFirst();
-    if (first.readableBytes() >= LENGTH_SIZE) {
-      nextFrameSize = first.readLong() - LENGTH_SIZE;
-      totalSize -= LENGTH_SIZE;
+    if (first.readableBytes() >= HEADER_SIZE) {
+      nextFrameSize = first.readLong() - HEADER_SIZE;
+      totalSize -= HEADER_SIZE;
       if (!first.isReadable()) {
         buffers.removeFirst().release();
       }
       return nextFrameSize;
     }
 
-    while (frameLenBuf.readableBytes() < LENGTH_SIZE) {
+    while (headerBuf.readableBytes() < HEADER_SIZE) {
       ByteBuf next = buffers.getFirst();
-      int toRead = Math.min(next.readableBytes(), LENGTH_SIZE - frameLenBuf.readableBytes());
-      frameLenBuf.writeBytes(next, toRead);
+      int toRead = Math.min(next.readableBytes(), HEADER_SIZE - headerBuf.readableBytes());
+      headerBuf.writeBytes(next, toRead);
       if (!next.isReadable()) {
         buffers.removeFirst().release();
       }
     }
 
-    nextFrameSize = frameLenBuf.readLong() - LENGTH_SIZE;
-    totalSize -= LENGTH_SIZE;
-    frameLenBuf.clear();
+    nextFrameSize = headerBuf.readLong() - HEADER_SIZE;
+    totalSize -= HEADER_SIZE;
+    headerBuf.clear();
     return nextFrameSize;
   }
 
@@ -168,7 +260,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
       b.release();
     }
     buffers.clear();
-    frameLenBuf.release();
+    headerBuf.release();
     super.handlerRemoved(ctx);
   }
 

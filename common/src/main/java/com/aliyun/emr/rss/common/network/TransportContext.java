@@ -109,7 +109,7 @@ public class TransportContext {
       channel.pipeline()
         .addLast("encoder", ENCODER)
         .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
-        .addLast("decoder", DECODER)
+//        .addLast("decoder", DECODER)
         .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
         .addLast("handler", channelHandler);
       return channelHandler;

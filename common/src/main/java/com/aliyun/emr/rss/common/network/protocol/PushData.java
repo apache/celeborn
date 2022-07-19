@@ -46,7 +46,7 @@ public final class PushData extends RequestMessage {
       String shuffleKey,
       String partitionUniqueId,
       ManagedBuffer body) {
-    super(body, true);
+    super(body);
     this.requestId = requestId;
     this.epoch = epoch;
     this.mode = mode;
@@ -60,9 +60,19 @@ public final class PushData extends RequestMessage {
   }
 
   @Override
+  public boolean hasBody() {
+    return true;
+  }
+
+  @Override
   public int encodedLength() {
     return 8 + 4 + 1 + Encoders.Strings.encodedLength(shuffleKey) +
         Encoders.Strings.encodedLength(partitionUniqueId);
+  }
+
+  @Override
+  public boolean needCopyOut() {
+    return false;
   }
 
   @Override

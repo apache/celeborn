@@ -35,6 +35,11 @@ public final class ChunkFetchRequest extends RequestMessage {
   public Type type() { return Type.ChunkFetchRequest; }
 
   @Override
+  public boolean hasBody() {
+    return false;
+  }
+
+  @Override
   public int encodedLength() {
     return streamChunkSlice.encodedLength();
   }

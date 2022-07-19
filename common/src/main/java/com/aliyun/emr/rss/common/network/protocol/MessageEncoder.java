@@ -48,15 +48,15 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
   @Override
   public void encode(ChannelHandlerContext ctx, Message in, List<Object> out) throws Exception {
     Object body = null;
-    long bodyLength = 0;
+    int bodyLength = 0;
     boolean isBodyInFrame = false;
 
     // If the message has a body, take it out to enable zero-copy transfer for the payload.
     if (in.body() != null) {
       try {
-        bodyLength = in.body().size();
+        bodyLength = (int) in.body().size();
         body = in.body().convertToNetty();
-        isBodyInFrame = in.isBodyInFrame();
+        isBodyInFrame = in.hasBody();
       } catch (Exception e) {
         in.body().release();
         if (in instanceof ResponseMessage) {
@@ -77,11 +77,12 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
     // All messages have the frame length, message type, and message itself. The frame length
     // may optionally include the length of the body data, depending on what message is being
     // sent.
-    int headerLength = 8 + msgType.encodedLength() + in.encodedLength();
-    long frameLength = headerLength + (isBodyInFrame ? bodyLength : 0);
+    int headerLength = 4 + msgType.encodedLength() + 4 + in.encodedLength();
+//    long frameLength = headerLength + (isBodyInFrame ? bodyLength : 0);
     ByteBuf header = ctx.alloc().heapBuffer(headerLength);
-    header.writeLong(frameLength);
+    header.writeInt(in.encodedLength());
     msgType.encode(header);
+    header.writeInt(bodyLength);
     in.encode(header);
     assert header.writableBytes() == 0;
 

@@ -36,6 +36,11 @@ public final class ChunkFetchFailure extends ResponseMessage {
   public Type type() { return Type.ChunkFetchFailure; }
 
   @Override
+  public boolean hasBody() {
+    return false;
+  }
+
+  @Override
   public int encodedLength() {
     return streamChunkSlice.encodedLength() + Encoders.Strings.encodedLength(errorString);
   }

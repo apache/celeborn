@@ -37,6 +37,11 @@ public final class StreamHandle extends RequestMessage {
   public Type type() { return Type.StreamHandle; }
 
   @Override
+  public boolean hasBody() {
+    return false;
+  }
+
+  @Override
   public int encodedLength() {
     return 8 + 4;
   }

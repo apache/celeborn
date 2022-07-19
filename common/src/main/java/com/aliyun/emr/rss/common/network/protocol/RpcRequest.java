@@ -34,12 +34,17 @@ public final class RpcRequest extends RequestMessage {
   public final long requestId;
 
   public RpcRequest(long requestId, ManagedBuffer message) {
-    super(message, true);
+    super(message);
     this.requestId = requestId;
   }
 
   @Override
   public Type type() { return Type.RpcRequest; }
+
+  @Override
+  public boolean hasBody() {
+    return true;
+  }
 
   @Override
   public int encodedLength() {

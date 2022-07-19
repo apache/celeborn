@@ -51,7 +51,7 @@ public final class PushMergedData extends RequestMessage {
       String[] partitionUniqueIds,
       int[] batchOffsets,
       ManagedBuffer body) {
-    super(body, true);
+    super(body);
     this.requestId = requestId;
     this.mode = mode;
     this.shuffleKey = shuffleKey;
@@ -62,6 +62,11 @@ public final class PushMergedData extends RequestMessage {
   @Override
   public Type type() {
     return Type.PushMergedData;
+  }
+
+  @Override
+  public boolean hasBody() {
+    return true;
   }
 
   @Override

@@ -31,11 +31,16 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 public final class OneWayMessage extends RequestMessage {
 
   public OneWayMessage(ManagedBuffer body) {
-    super(body, true);
+    super(body);
   }
 
   @Override
   public Type type() { return Type.OneWayMessage; }
+
+  @Override
+  public boolean hasBody() {
+    return true;
+  }
 
   @Override
   public int encodedLength() {
