@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{ArrayList => jArrayList, HashSet => jHashSet}
+import java.util.{HashSet => jHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -34,8 +34,7 @@ import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, NetWorkSource}
 import com.aliyun.emr.rss.common.network.TransportContext
-import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap
-import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker, TransportServerBootstrap}
+import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker}
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
@@ -97,12 +96,9 @@ private[deploy] class Worker(
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, pushDataHandler, closeIdleConnections, workerSource,
-        pushServerLimiter)
-    val serverBootstraps = new jArrayList[TransportServerBootstrap]()
-    val clientBootstraps = new jArrayList[TransportClientBootstrap]()
-    (transportContext.createServer(RssConf.pushServerPort(conf), serverBootstraps),
-      transportContext.createClientFactory(clientBootstraps))
+      new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
+    (transportContext.createServer(RssConf.pushServerPort(conf)),
+      transportContext.createClientFactory())
   }
 
   val replicateHandler = new PushDataHandler()
@@ -113,10 +109,8 @@ private[deploy] class Worker(
       numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, replicateHandler, closeIdleConnections, workerSource,
-        replicateLimiter)
-    val serverBootstraps = new jArrayList[TransportServerBootstrap]()
-    transportContext.createServer(RssConf.replicateServerPort(conf), serverBootstraps)
+      new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
+    transportContext.createServer(RssConf.replicateServerPort(conf))
   }
 
   var fetchHandler: FetchHandler = _
@@ -126,9 +120,8 @@ private[deploy] class Worker(
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, fetchHandler, closeIdleConnections, workerSource)
-    val serverBootstraps = new jArrayList[TransportServerBootstrap]()
-    transportContext.createServer(RssConf.fetchServerPort(conf), serverBootstraps)
+      new TransportContext(transportConf, fetchHandler, closeIdleConnections)
+    transportContext.createServer(RssConf.fetchServerPort(conf))
   }
 
   private val pushPort = pushServer.getPort

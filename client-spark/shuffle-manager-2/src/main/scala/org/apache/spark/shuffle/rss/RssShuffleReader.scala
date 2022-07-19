@@ -57,13 +57,13 @@ class RssShuffleReader[K, C](
     }
 
     val recordIter = (startPartition until endPartition)
-      .map(reduceId => {
+      .map(partitionId => {
         if (handle.numMaps > 0) {
           val start = System.currentTimeMillis()
           val inputStream = essShuffleClient.readPartition(
             handle.newAppId,
             handle.shuffleId,
-            reduceId,
+            partitionId,
             context.attemptNumber(),
             startMapIndex,
             endMapIndex

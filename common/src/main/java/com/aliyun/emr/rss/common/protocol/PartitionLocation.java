@@ -22,6 +22,7 @@ import java.io.Serializable;
 import lombok.Builder;
 
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.TransportMessages.PbPartitionLocation;
 
 @Builder
 public class PartitionLocation implements Serializable {
@@ -42,10 +43,6 @@ public class PartitionLocation implements Serializable {
 
   public enum StorageHint {
     NON_EXISTS, MEMORY, SSD, HDD, HDFS, OSS
-  }
-
-  public enum Type {
-    REDUCE_PARTITION, MAP_PARTITION, MAPGROUP_REDUCE_PARTITION
   }
 
   public static PartitionLocation.Mode getMode(byte mode) {
@@ -99,7 +96,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public PartitionLocation(
-    int reduceId,
+    int id,
     int epoch,
     String host,
     int rpcPort,
@@ -108,12 +105,12 @@ public class PartitionLocation implements Serializable {
     int replicatePort,
     Mode mode,
     PartitionLocation peer) {
-    this(reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer,
+    this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer,
       StorageHint.MEMORY, null);
   }
 
   public PartitionLocation(
-    int reduceId,
+    int id,
     int epoch,
     String host,
     int rpcPort,
@@ -126,7 +123,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public PartitionLocation(
-    int reduceId,
+    int id,
     int epoch,
     String host,
     int rpcPort,
@@ -137,7 +134,7 @@ public class PartitionLocation implements Serializable {
     PartitionLocation peer,
     StorageHint hint,
     String diskHint) {
-    this.reduceId = reduceId;
+    this.reduceId = id;
     this.epoch = epoch;
     this.host = host;
     this.rpcPort = rpcPort;
@@ -215,11 +212,11 @@ public class PartitionLocation implements Serializable {
   }
 
   public String getUniqueId() {
-    return reduceId + "-" + epoch;
+    return id + "-" + epoch;
   }
 
   public String getFileName() {
-    return reduceId + "-" + epoch + "-" + mode.mode;
+    return id + "-" + epoch + "-" + mode.mode;
   }
 
   public int getRpcPort() {
@@ -263,7 +260,7 @@ public class PartitionLocation implements Serializable {
       return false;
     }
     PartitionLocation o = (PartitionLocation) other;
-    return reduceId == o.reduceId
+    return id == o.id
              && epoch == o.epoch
              && host.equals(o.host)
              && rpcPort == o.rpcPort
@@ -273,7 +270,7 @@ public class PartitionLocation implements Serializable {
 
   @Override
   public int hashCode() {
-    return (reduceId + epoch + host + rpcPort + pushPort + fetchPort).hashCode();
+    return (id + epoch + host + rpcPort + pushPort + fetchPort).hashCode();
   }
 
   @Override
@@ -283,7 +280,7 @@ public class PartitionLocation implements Serializable {
       peerAddress = peer.hostAndPorts();
     }
 
-    return "PartitionLocation[" + reduceId + "-" + epoch + " " + host + ":" + rpcPort + ":" +
+    return "PartitionLocation[" + id + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
              " peer: " + peerAddress + " storage hint:" + storageHint +
              " disk hint:" + diskHint + "]";
@@ -293,10 +290,9 @@ public class PartitionLocation implements Serializable {
     return new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
-  public static PartitionLocation fromPbPartitionLocation(TransportMessages.PbPartitionLocation
-                                                            pbPartitionLocation) {
+  public static PartitionLocation fromPbPartitionLocation(PbPartitionLocation pbLoc) {
     Mode mode = Mode.Master;
-    if (pbPartitionLocation.getMode() == TransportMessages.PbPartitionLocation.Mode.Slave) {
+    if (pbLoc.getMode() == PbPartitionLocation.Mode.Slave) {
       mode = Mode.Slave;
     }
 
@@ -316,14 +312,15 @@ public class PartitionLocation implements Serializable {
                                             .diskHint(pbPartitionLocation.getDiskHint())
                                             .build();
 
-    if (pbPartitionLocation.hasPeer()) {
-      TransportMessages.PbPartitionLocation peerPb = pbPartitionLocation.getPeer();
+    if (pbLoc.hasPeer()) {
+      PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.Master;
-      if (peerPb.getMode() == TransportMessages.PbPartitionLocation.Mode.Slave) {
+      if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
         peerMode = Mode.Slave;
       }
       PartitionLocation peerLocation = PartitionLocation.builder()
-                                         .reduceId(peerPb.getReduceId())
+                                         .reduceId(
+        peerPb.getId())
                                          .epoch(peerPb.getEpoch())
                                          .host(peerPb.getHost())
                                          .rpcPort(peerPb.getRpcPort())
@@ -343,14 +340,14 @@ public class PartitionLocation implements Serializable {
     return partitionLocation;
   }
 
-  public static TransportMessages.PbPartitionLocation toPbPartitionLocation(PartitionLocation
+  public static PbPartitionLocation toPbPartitionLocation(PartitionLocation
                                                                               partitionLocation) {
-    TransportMessages.PbPartitionLocation.Builder pbPartitionLocationBuilder = TransportMessages
+    PbPartitionLocation.Builder builder = TransportMessages
       .PbPartitionLocation.newBuilder();
     if (partitionLocation.mode == Mode.Master) {
-      pbPartitionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Master);
+      builder.setMode(PbPartitionLocation.Mode.Master);
     } else {
-      pbPartitionLocationBuilder.setMode(TransportMessages.PbPartitionLocation.Mode.Slave);
+      builder.setMode(PbPartitionLocation.Mode.Slave);
     }
     pbPartitionLocationBuilder.setHost(partitionLocation.getHost())
       .setEpoch(partitionLocation.getEpoch())
@@ -384,6 +381,6 @@ public class PartitionLocation implements Serializable {
       pbPartitionLocationBuilder.setPeer(peerPbPartitionLocationBuilder.build());
     }
 
-    return pbPartitionLocationBuilder.build();
+    return builder.build();
   }
 }

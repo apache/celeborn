@@ -126,45 +126,45 @@ public class MasterUtilSuiteJ {
   }
 
   @Test
-  public void testAllocateSlotsForEmptyReduceId() {
+  public void testAllocateSlotsForEmptyPartitionId() {
     final List<WorkerInfo> workers = prepareWorkers();
-    final List<Integer> reduceIds = Collections.emptyList();
+    final List<Integer> partitionIds = Collections.emptyList();
     final boolean shouldReplicate = true;
 
-    check(workers, reduceIds, shouldReplicate, true);
+    check(workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForSingleReduceId() {
+  public void testAllocateSlotsForSinglePartitionId() {
     final List<WorkerInfo> workers = prepareWorkers();
-    final List<Integer> reduceIds = Collections.singletonList(0);
+    final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = true;
 
-    check(workers, reduceIds, shouldReplicate, true);
+    check(workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForSingleReduceIdWithoutReplicate() {
+  public void testAllocateSlotsForSinglePartitionIdWithoutReplicate() {
     final List<WorkerInfo> workers = prepareWorkers();
-    final List<Integer> reduceIds = Collections.singletonList(0);
+    final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = false;
 
-    check(workers, reduceIds, shouldReplicate, true);
+    check(workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForTwoReduceIdsWithoutReplicate() {
+  public void testAllocateSlotsForTwoPartitionIdsWithoutReplicate() {
     final List<WorkerInfo> workers = prepareWorkers();
-    final List<Integer> reduceIds = Arrays.asList(0, 1);
+    final List<Integer> partitionIds = Arrays.asList(0, 1);
     final boolean shouldReplicate = false;
 
-    check(workers, reduceIds, shouldReplicate, true);
+    check(workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForThreeReduceIdsWithoutReplicate() {
+  public void testAllocateSlotsForThreePartitionIdsWithoutReplicate() {
     final List<WorkerInfo> workers = prepareWorkers();
-    final List<Integer> reduceIds = Arrays.asList(0, 1, 2);
+    final List<Integer> partitionIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = false;
 
     check(workers, reduceIds, shouldReplicate, true);
@@ -176,19 +176,19 @@ public class MasterUtilSuiteJ {
     final List<Integer> reduceIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = true;
 
-    check(workers, reduceIds, shouldReplicate, true);
+    check(workers, partitionIds, shouldReplicate, true);
   }
 
   private void check(
     List<WorkerInfo> workers,
-    List<Integer> reduceIds,
+    List<Integer> partitionIds,
     boolean shouldReplicate,
     boolean expectSuccess) {
     String shuffleKey = "appId-1";
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
       MasterUtil.offerSlots(
         workers,
-        reduceIds,
+        partitionIds,
         shouldReplicate,
         10 * 1024 * 1024 * 1024L);
 

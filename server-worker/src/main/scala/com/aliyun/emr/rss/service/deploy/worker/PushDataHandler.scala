@@ -241,7 +241,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             val client = pushClientFactory.createClient(
               peer.getHost,
               peer.getReplicatePort,
-              location.getReduceId
+              location.getId
             )
             val newPushData = new PushData(
               PartitionLocation.Mode.Slave.mode(),
@@ -387,7 +387,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             val client = pushClientFactory.createClient(
               peer.getHost,
               peer.getReplicatePort,
-              location.getReduceId
+              location.getId
             )
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.Slave.mode(),

@@ -40,6 +40,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
+import com.aliyun.emr.rss.common.protocol.PartitionType;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -75,6 +76,7 @@ public final class FileWriter extends DeviceObserver {
   private long splitThreshold = 0;
   private final AtomicBoolean splitted = new AtomicBoolean(false);
   private final PartitionSplitMode splitMode;
+  private final PartitionType partitionType;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -109,16 +111,17 @@ public final class FileWriter extends DeviceObserver {
   private final FlushNotifier notifier = new FlushNotifier();
 
   public FileWriter(
-      File file,
-      DiskFlusher flusher,
-      File workingDir,
-      long chunkSize,
-      long flushBufferSize,
-      AbstractSource workerSource,
-      RssConf rssConf,
-      DeviceMonitor deviceMonitor,
-      long splitThreshold,
-      PartitionSplitMode splitMode) throws IOException {
+    File file,
+    DiskFlusher flusher,
+    File workingDir,
+    long chunkSize,
+    long flushBufferSize,
+    AbstractSource workerSource,
+    RssConf rssConf,
+    DeviceMonitor deviceMonitor,
+    long splitThreshold,
+    PartitionSplitMode splitMode,
+    PartitionType partitionType) throws IOException {
     this.file = file;
     this.flusher = flusher;
     this.flusherReplicationIndex = flusher.getReplicationIndex();
@@ -131,6 +134,7 @@ public final class FileWriter extends DeviceObserver {
     this.flushBufferSize = flushBufferSize;
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
+    this.partitionType = partitionType;
     channel = new FileOutputStream(file).getChannel();
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);

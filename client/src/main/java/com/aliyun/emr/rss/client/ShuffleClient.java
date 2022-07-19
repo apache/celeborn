@@ -89,7 +89,7 @@ public abstract class ShuffleClient implements Cloneable {
    * @param shuffleId
    * @param mapId taskContext.partitionId
    * @param attemptId taskContext.attemptNumber()
-   * @param reduceId
+   * @param partitionId
    * @param data
    * @param offset
    * @param length
@@ -99,7 +99,7 @@ public abstract class ShuffleClient implements Cloneable {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
@@ -116,7 +116,7 @@ public abstract class ShuffleClient implements Cloneable {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
@@ -159,7 +159,7 @@ public abstract class ShuffleClient implements Cloneable {
    * batchId是隐藏在实现里的发送时序自增变量
    * @param applicationId
    * @param shuffleId
-   * @param reduceId
+   * @param partitionId
    * @param startMapIndex
    * @param endMapIndex
    * @return
@@ -167,7 +167,7 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract RssInputStream readPartition(
       String applicationId,
       int shuffleId,
-      int reduceId,
+      int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex) throws IOException;
@@ -175,7 +175,7 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract RssInputStream readPartition(
       String applicationId,
       int shuffleId,
-      int reduceId,
+      int partitionId,
       int attemptNumber) throws IOException;
 
   /**

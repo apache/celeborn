@@ -32,7 +32,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -76,7 +76,7 @@ private[deploy] class Controller(
       slaveLocations,
       splitThreashold,
       splitMode,
-      storageHint
+     partitionType, storageHint
     ) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
@@ -93,7 +93,7 @@ private[deploy] class Controller(
           slaveLocations,
           splitThreashold,
           splitMode,
-          storageHint
+         partitionType, storageHint
         )
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
@@ -132,6 +132,7 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
+      partitionType: PartitionType,
       storageHint: StorageHint
   ): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
@@ -151,7 +152,7 @@ private[deploy] class Controller(
           location,
           splitThreshold,
           splitMode
-        )
+        , partitionType)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -176,7 +177,7 @@ private[deploy] class Controller(
           location,
           splitThreshold,
           splitMode
-        )
+        , partitionType)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {

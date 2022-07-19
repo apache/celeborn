@@ -51,7 +51,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
@@ -70,7 +70,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
@@ -108,7 +108,7 @@ public class DummyShuffleClient extends ShuffleClient {
   public RssInputStream readPartition(
       String applicationId,
       int shuffleId,
-      int reduceId,
+      int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex) {
@@ -117,7 +117,7 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public RssInputStream readPartition(String applicationId, int shuffleId,
-      int reduceId, int attemptNumber) {
+      int partitionId, int attemptNumber) {
     return null;
   }
 

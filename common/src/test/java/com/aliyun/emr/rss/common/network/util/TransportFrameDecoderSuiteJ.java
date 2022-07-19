@@ -49,36 +49,6 @@ public class TransportFrameDecoderSuiteJ {
   }
 
   @Test
-  public void testInterception() throws Exception {
-    int interceptedReads = 3;
-    TransportFrameDecoder decoder = new TransportFrameDecoder();
-    TransportFrameDecoder.Interceptor interceptor = spy(new MockInterceptor(interceptedReads));
-    ChannelHandlerContext ctx = mockChannelHandlerContext();
-
-    byte[] data = new byte[8];
-    ByteBuf len = Unpooled.copyLong(8 + data.length);
-    ByteBuf dataBuf = Unpooled.wrappedBuffer(data);
-
-    try {
-      decoder.setInterceptor(interceptor);
-      for (int i = 0; i < interceptedReads; i++) {
-        decoder.channelRead(ctx, dataBuf);
-        assertEquals(0, dataBuf.refCnt());
-        dataBuf = Unpooled.wrappedBuffer(data);
-      }
-      decoder.channelRead(ctx, len);
-      decoder.channelRead(ctx, dataBuf);
-      verify(interceptor, times(interceptedReads)).handle(any(ByteBuf.class));
-      verify(ctx).fireChannelRead(any(ByteBuf.class));
-      assertEquals(0, len.refCnt());
-      assertEquals(0, dataBuf.refCnt());
-    } finally {
-      release(len);
-      release(dataBuf);
-    }
-  }
-
-  @Test
   public void testRetainedFrames() throws Exception {
     TransportFrameDecoder decoder = new TransportFrameDecoder();
 
@@ -210,33 +180,6 @@ public class TransportFrameDecoderSuiteJ {
   private void release(ByteBuf buf) {
     if (buf.refCnt() > 0) {
       buf.release(buf.refCnt());
-    }
-  }
-
-  private static class MockInterceptor implements TransportFrameDecoder.Interceptor {
-
-    private int remainingReads;
-
-    MockInterceptor(int readCount) {
-      this.remainingReads = readCount;
-    }
-
-    @Override
-    public boolean handle(ByteBuf data) throws Exception {
-      data.readerIndex(data.readerIndex() + data.readableBytes());
-      assertFalse(data.isReadable());
-      remainingReads -= 1;
-      return remainingReads != 0;
-    }
-
-    @Override
-    public void exceptionCaught(Throwable cause) throws Exception {
-
-    }
-
-    @Override
-    public void channelInactive() throws Exception {
-
     }
   }
 }

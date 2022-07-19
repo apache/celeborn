@@ -29,7 +29,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
  * This will correspond to a single
  * {@link ResponseMessage} (either success or failure).
  */
-public final class RpcRequest extends AbstractMessage implements RequestMessage {
+public final class RpcRequest extends RequestMessage {
   /** Used to link an RPC request with its response. */
   public final long requestId;
 

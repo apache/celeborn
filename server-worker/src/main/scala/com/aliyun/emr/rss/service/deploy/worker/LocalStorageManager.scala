@@ -45,7 +45,7 @@ import com.aliyun.emr.rss.common.meta.DiskInfo
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
@@ -501,7 +501,8 @@ private[worker] final class LocalStorageManager(
           deviceMonitor,
           splitThreshold,
           splitMode
-        )
+        ,
+          partitionType)
         deviceMonitor.registerFileWriter(fileWriter)
 
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
