@@ -176,7 +176,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               Math.max(oldDiskMaps.get(mountPoint).activeSlots(),
                 diskMaps.get(mountPoint).activeSlots()));
           } else {
-            oldDiskMaps.put(mountPoint, diskInfoEntry.getValue());
+            DiskInfo diskInfo = diskInfoEntry.getValue();
+            diskInfo.maxSlots_$eq(diskInfo.usableSpace() / estimatedPartitionSize);
+            oldDiskMaps.put(mountPoint, diskInfo);
           }
         }
 
@@ -221,6 +223,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       return;
     }
 
+    workerInfo.disks().forEach((k, v) -> v.maxSlots_$eq(v.usableSpace() / estimatedPartitionSize));
     synchronized (workers) {
       workers.add(workerInfo);
     }
@@ -347,6 +350,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updatePartitionSize() {
+    long oldEstimatedPartitionSize = estimatedPartitionSize;
     long tmpTotalWritten = partitionTotalWritten.sumThenReset();
     long tmpFileCount = partitionTotalFileCount.sumThenReset();
     if (tmpFileCount != 0) {
@@ -354,11 +358,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } else {
       estimatedPartitionSize = defaultPartitionSize;
     }
-    workers.stream().filter(w -> !blacklist.contains(w)).forEach(workerInfo -> {
-      for (Map.Entry<String, DiskInfo> diskInfoEntry : workerInfo.disks().entrySet()) {
-        diskInfoEntry.getValue()
-          .maxSlots_$eq(diskInfoEntry.getValue().usableSpace() / estimatedPartitionSize);
-      }
-    });
+    LOG.warn("Rss cluster estimated partition size changed from {} to {}",
+      oldEstimatedPartitionSize, estimatedPartitionSize);
   }
 }

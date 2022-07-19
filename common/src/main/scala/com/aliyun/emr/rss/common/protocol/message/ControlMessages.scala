@@ -428,7 +428,8 @@ sealed trait Message extends Serializable {
         slaveLocations,
         splitThreshold,
         splitMode,
-       partType, storageHint
+        partType,
+        storageHint
       ) =>
         val payload = TransportMessages.PbReserveSlots
           .newBuilder()

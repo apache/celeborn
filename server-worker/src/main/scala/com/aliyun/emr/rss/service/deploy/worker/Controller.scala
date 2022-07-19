@@ -76,7 +76,8 @@ private[deploy] class Controller(
       slaveLocations,
       splitThreashold,
       splitMode,
-     partitionType, storageHint
+      partitionType,
+      storageHint
     ) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
@@ -93,7 +94,8 @@ private[deploy] class Controller(
           slaveLocations,
           splitThreashold,
           splitMode,
-         partitionType, storageHint
+          partitionType,
+          storageHint
         )
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
@@ -176,8 +178,8 @@ private[deploy] class Controller(
           shuffleId,
           location,
           splitThreshold,
-          splitMode
-        , partitionType)
+          splitMode,
+          partitionType)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {

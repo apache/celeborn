@@ -180,7 +180,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
     int replicatePort, Map<String, DiskInfo> disks, long time, String requestId) {
     try {
-
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartBeat)
               .setRequestId(requestId)

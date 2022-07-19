@@ -347,7 +347,13 @@ private[worker] final class LocalStorageManager(
             val mountPoint = entry.getKey
             if (entry.getValue.dirInfos.contains(dir)) {
               val tmpFile = new File(mountPoint)
-              val usedSpace = tmpFile.getTotalSpace - tmpFile.getUsableSpace
+              val totalSpace = if (tmpFile.getTotalSpace == 0) {
+                // if mount point is not a mount point
+                workingDirMetas.get(dir.getAbsolutePath).get._1
+              } else {
+                tmpFile.getTotalSpace
+              }
+              val usedSpace = totalSpace - tmpFile.getUsableSpace
               usage.set(Math.max(usedSpace, dirWrittenSize))
             }
           }
@@ -463,13 +469,14 @@ private[worker] final class LocalStorageManager(
       shuffleId: Int,
       location: PartitionLocation,
       splitThreshold: Long,
-      splitMode: PartitionSplitMode
+      splitMode: PartitionSplitMode,
+      partitionType: PartitionType
   ): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
 
-    val reduceId = location.getReduceId
+    val reduceId = location.getId
     val epoch = location.getEpoch
     val mode = location.getMode
     val fileName = s"$reduceId-$epoch-${mode.mode()}"
@@ -500,8 +507,7 @@ private[worker] final class LocalStorageManager(
           conf,
           deviceMonitor,
           splitThreshold,
-          splitMode
-        ,
+          splitMode,
           partitionType)
         deviceMonitor.registerFileWriter(fileWriter)
 

@@ -167,13 +167,13 @@ public class MasterUtilSuiteJ {
     final List<Integer> partitionIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = false;
 
-    check(workers, reduceIds, shouldReplicate, true);
+    check(workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
   public void testAllocateSlotsForThreeReduceIdsWithReplicate() {
     final List<WorkerInfo> workers = prepareWorkers();
-    final List<Integer> reduceIds = Arrays.asList(0, 1, 2);
+    final List<Integer> partitionIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = true;
 
     check(workers, partitionIds, shouldReplicate, true);
@@ -205,9 +205,9 @@ public class MasterUtilSuiteJ {
         usedTotalSlots += worker.usedSlots();
       }
       if (shouldReplicate) {
-        Assert.assertEquals(reduceIds.size() * 2, usedTotalSlots);
+        Assert.assertEquals(partitionIds.size() * 2, usedTotalSlots);
       } else {
-        Assert.assertEquals(reduceIds.size(), usedTotalSlots);
+        Assert.assertEquals(partitionIds.size(), usedTotalSlots);
       }
     } else {
       assert null == slots :

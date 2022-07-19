@@ -1,5 +1,7 @@
 # Aliyun Remote Shuffle Service
 
+[![Remote Shuffle Service CI](https://github.com/alibaba/RemoteShuffleService/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/alibaba/RemoteShuffleService/actions/workflows/maven.yml)
+
 [![Join the chat at https://gitter.im/RemoteShuffleServiceCommunity/community](https://badges.gitter.im/RemoteShuffleServiceCommunity/community.svg)](https://gitter.im/RemoteShuffleServiceCommunity/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Aliyun Remote Shuffle Service(RSS) is dedicated to improving the efficiency and elasticity of

@@ -95,6 +95,7 @@ trait MiniClusterFeature extends Logging {
   }
 
   protected def createWorker(map: Map[String, String] = null): (Worker, RpcEnv) = {
+    logInfo("start create worker for mini cluster")
     val conf = new RssConf()
     conf.set("rss.worker.base.dirs", getTmpDir())
     conf.set("rss.device.monitor.enabled", "false")
@@ -105,10 +106,15 @@ trait MiniClusterFeature extends Logging {
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
     }
+    logInfo("rss conf created")
 
     val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
 
+    logInfo("metrics system created")
+
     val workerArguments = new WorkerArguments(Array(), conf)
+
+    logInfo("worker argument created")
 
     val rpcEnv = RpcEnv.create(
       RpcNameConstants.WORKER_SYS,
@@ -118,9 +124,19 @@ trait MiniClusterFeature extends Logging {
       conf,
       4
     )
-    val worker = new Worker(conf, workerArguments)
 
-    (worker, rpcEnv)
+    logInfo("worker rpc env created")
+
+    try {
+      val worker = new Worker(conf, workerArguments)
+      logInfo("worker created for mini cluster")
+      (worker, rpcEnv)
+    } catch {
+      case e: Exception =>
+        logError("create worker failed, detail:", e)
+        System.exit(-1)
+        (null, null)
+    }
   }
 
   def setUpMiniCluster(

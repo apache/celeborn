@@ -533,21 +533,22 @@ object RssConf extends Logging {
 
   // working dir, max space, thread count, disk type
   def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, StorageHint)] = {
+    var maxCapacity = 1024L * 1024 * 1024 * 1024 * 1024
     val baseDirs = conf.get("rss.worker.base.dirs", "")
     if (baseDirs.nonEmpty) {
       if (baseDirs.contains(":")) {
-        var capaticy = 1024L * 1024 * 1024 * 1024 * 1024
         var diskType = StorageHint.HDD
         var flushThread = -1
         baseDirs
           .split(",")
           .map(str => {
             val parts = str.split(":")
-            val workingDir = parts(0)
-            while (parts.iterator.hasNext) {
-              parts.iterator.next() match {
+            val partsIter = parts.iterator
+            val workingDir = partsIter.next()
+            while (partsIter.hasNext) {
+              partsIter.next() match {
                 case capacityStr if capacityStr.startsWith("capacity") =>
-                  capaticy = Utils.byteStringAsBytes(capacityStr.split("=")(1))
+                  maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
                 case disktypeStr if disktypeStr.startsWith("disktype") =>
                   diskType = StorageHint.valueOf(disktypeStr.split("=")(1))
                 case threadCountStr if threadCountStr.startsWith("flushthread") =>
@@ -560,15 +561,15 @@ object RssConf extends Logging {
                 case StorageHint.SSD => SSDFlusherThread(conf)
               }
             }
-            (workingDir, capaticy, flushThread, diskType)
+            (workingDir, maxCapacity, flushThread, diskType)
           })
       } else {
-        baseDirs.split(",").map((_, Long.MaxValue, 1, StorageHint.HDD))
+        baseDirs.split(",").map((_, maxCapacity, 1, StorageHint.HDD))
       }
     } else {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => (s"$prefix$i", Long.MaxValue, 1, StorageHint.HDD)).toArray
+      (1 to number).map(i => (s"$prefix$i", maxCapacity, 1, StorageHint.HDD)).toArray
     }
   }
 

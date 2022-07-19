@@ -143,7 +143,7 @@ public class MasterUtil {
         List<PartitionLocation> locations = entry.getValue();
         Map<Integer, Integer> reducerIdToEpoch = new HashMap<>();
         for (PartitionLocation location : locations) {
-          reducerIdToEpoch.put(location.getReduceId(), location.getEpoch());
+          reducerIdToEpoch.put(location.getId(), location.getEpoch());
         }
 
         List<DiskInfo> remainDisks = new ArrayList<>(disks);
@@ -165,13 +165,13 @@ public class MasterUtil {
 
     Map<Integer, PartitionLocation> reduceIdToMasterLocations = new HashMap<>();
     for (PartitionLocation location : masterLocations) {
-      reduceIdToMasterLocations.put(location.getReduceId(), location);
+      reduceIdToMasterLocations.put(location.getId(), location);
     }
 
     if (shouldReplicate) {
       Map<Integer, PartitionLocation> reduceIdToSlaveLocations = new HashMap<>();
       for (PartitionLocation location : slaveLocations) {
-        reduceIdToSlaveLocations.put(location.getReduceId(), location);
+        reduceIdToSlaveLocations.put(location.getId(), location);
       }
       for (Map.Entry<Integer, PartitionLocation> entry : reduceIdToMasterLocations.entrySet()) {
         Integer currentReduceId = entry.getKey();

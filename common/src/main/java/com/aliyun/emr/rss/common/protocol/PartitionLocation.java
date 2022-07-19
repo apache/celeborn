@@ -55,7 +55,7 @@ public class PartitionLocation implements Serializable {
 
   public static String UNDEFINED_DISK = "UNDEFINED_DISK";
 
-  private int reduceId;
+  private int id;
   private int epoch;
   private String host;
   private int rpcPort;
@@ -68,7 +68,7 @@ public class PartitionLocation implements Serializable {
   private String diskHint;
 
   public PartitionLocation(PartitionLocation loc) {
-    this.reduceId = loc.reduceId;
+    this.id = loc.id;
     this.epoch = loc.epoch;
     this.host = loc.host;
     this.rpcPort = loc.rpcPort;
@@ -82,7 +82,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public PartitionLocation(
-    int reduceId,
+    int id,
     int epoch,
     String host,
     int rpcPort,
@@ -91,7 +91,7 @@ public class PartitionLocation implements Serializable {
     int replicatePort,
     Mode mode,
     String diskHint) {
-    this(reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
+    this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
       mode, null, StorageHint.MEMORY, diskHint);
   }
 
@@ -118,7 +118,7 @@ public class PartitionLocation implements Serializable {
     int fetchPort,
     int replicatePort,
     Mode mode) {
-    this(reduceId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, null,
+    this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, null,
       StorageHint.MEMORY, null);
   }
 
@@ -134,7 +134,7 @@ public class PartitionLocation implements Serializable {
     PartitionLocation peer,
     StorageHint hint,
     String diskHint) {
-    this.reduceId = id;
+    this.id = id;
     this.epoch = epoch;
     this.host = host;
     this.rpcPort = rpcPort;
@@ -147,12 +147,12 @@ public class PartitionLocation implements Serializable {
     this.diskHint = diskHint;
   }
 
-  public int getReduceId() {
-    return reduceId;
+  public int getId() {
+    return id;
   }
 
-  public void setReduceId(int reduceId) {
-    this.reduceId = reduceId;
+  public void setId(int id) {
+    this.id = id;
   }
 
   public int getEpoch() {
@@ -297,19 +297,19 @@ public class PartitionLocation implements Serializable {
     }
 
     PartitionLocation partitionLocation = PartitionLocation.builder()
-                                            .reduceId(pbPartitionLocation.getReduceId())
-                                            .epoch(pbPartitionLocation.getEpoch())
-                                            .host(pbPartitionLocation.getHost())
-                                            .rpcPort(pbPartitionLocation.getRpcPort())
-                                            .pushPort(pbPartitionLocation.getPushPort())
-                                            .fetchPort(pbPartitionLocation.getFetchPort())
-                                            .replicatePort(pbPartitionLocation.getReplicatePort())
+                                            .id(pbLoc.getId())
+                                            .epoch(pbLoc.getEpoch())
+                                            .host(pbLoc.getHost())
+                                            .rpcPort(pbLoc.getRpcPort())
+                                            .pushPort(pbLoc.getPushPort())
+                                            .fetchPort(pbLoc.getFetchPort())
+                                            .replicatePort(pbLoc.getReplicatePort())
                                             .mode(mode)
                                             .storageHint(
                                               PartitionLocation.StorageHint
                                                 .values()[
-                                                pbPartitionLocation.getStorageHintOrdinal()])
-                                            .diskHint(pbPartitionLocation.getDiskHint())
+                                                pbLoc.getStorageHintOrdinal()])
+                                            .diskHint(pbLoc.getDiskHint())
                                             .build();
 
     if (pbLoc.hasPeer()) {
@@ -319,8 +319,7 @@ public class PartitionLocation implements Serializable {
         peerMode = Mode.Slave;
       }
       PartitionLocation peerLocation = PartitionLocation.builder()
-                                         .reduceId(
-        peerPb.getId())
+                                         .id(peerPb.getId())
                                          .epoch(peerPb.getEpoch())
                                          .host(peerPb.getHost())
                                          .rpcPort(peerPb.getRpcPort())
@@ -349,9 +348,9 @@ public class PartitionLocation implements Serializable {
     } else {
       builder.setMode(PbPartitionLocation.Mode.Slave);
     }
-    pbPartitionLocationBuilder.setHost(partitionLocation.getHost())
+    builder.setHost(partitionLocation.getHost())
       .setEpoch(partitionLocation.getEpoch())
-      .setReduceId(partitionLocation.getReduceId())
+      .setId(partitionLocation.getId())
       .setRpcPort(partitionLocation.getRpcPort())
       .setPushPort(partitionLocation.getPushPort())
       .setFetchPort(partitionLocation.getFetchPort())
@@ -369,7 +368,7 @@ public class PartitionLocation implements Serializable {
       }
       peerPbPartitionLocationBuilder.setHost(partitionLocation.getPeer().getHost())
         .setEpoch(partitionLocation.getPeer().getEpoch())
-        .setReduceId(partitionLocation.getPeer().getReduceId())
+        .setId(partitionLocation.getPeer().getId())
         .setRpcPort(partitionLocation.getPeer().getRpcPort())
         .setPushPort(partitionLocation.getPeer().getPushPort())
         .setFetchPort(partitionLocation.getPeer().getFetchPort())
@@ -378,7 +377,7 @@ public class PartitionLocation implements Serializable {
         .setStorageHintOrdinal(
           partitionLocation.getPeer().getStorageHint().ordinal())
         .setDiskHint(partitionLocation.getPeer().getDiskHint());
-      pbPartitionLocationBuilder.setPeer(peerPbPartitionLocationBuilder.build());
+      builder.setPeer(peerPbPartitionLocationBuilder.build());
     }
 
     return builder.build();

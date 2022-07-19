@@ -58,7 +58,6 @@ public class TransportContext {
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
   private static final MessageDecoder DECODER = MessageDecoder.INSTANCE;
 
-
   public TransportContext(
       TransportConf conf,
       BaseMessageHandler msgHandler,

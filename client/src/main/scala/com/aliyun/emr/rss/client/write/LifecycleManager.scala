@@ -547,7 +547,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     logDebug(s"Renew $shuffleId $partitionId partition success.")
   }
 
-  private def getLatestPartition(shuffleId: Int, partitionId: Int, epoch: Int): PartitionLocation = {
+  private def getLatestPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      epoch: Int
+  ): PartitionLocation = {
     val locs = workerSnapshots(shuffleId)
       .values()
       .asScala
@@ -933,7 +937,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             slaveLocations,
             splitThreshold,
             splitMode,
-           partitionType, storageHint
+            partitionType,
+            storageHint
           )
         )
         if (res.status.equals(StatusCode.Success)) {
