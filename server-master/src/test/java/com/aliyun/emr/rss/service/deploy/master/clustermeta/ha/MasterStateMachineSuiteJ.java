@@ -21,7 +21,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
@@ -33,6 +35,8 @@ import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
@@ -46,12 +50,16 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
   public void testRunCommand() {
     StateMachine stateMachine = ratisServer.getMasterStateMachine();
 
+    Map<String, Integer> allocations = new HashMap<>();
+    allocations.put("disk1", 15);
+    allocations.put("disk2", 20);
+
     RequestSlotsRequest requestSlots = RequestSlotsRequest.newBuilder()
       .setShuffleKey("appId-1-1")
       .setHostName("hostname")
-      .addWorkerInfo(WorkerInfo.encodeToPbStr("host1", 1, 2, 3, 10, 13))
-      .addWorkerInfo(WorkerInfo.encodeToPbStr("host2", 2, 3, 4, 11, 14))
-      .addWorkerInfo(WorkerInfo.encodeToPbStr("host3", 3, 4, 5, 12, 15))
+      .addWorkerInfo(WorkerInfo.encodeToPbStr("host1", 1, 2, 3, 10, allocations))
+      .addWorkerInfo(WorkerInfo.encodeToPbStr("host2", 2, 3, 4, 11, allocations))
+      .addWorkerInfo(WorkerInfo.encodeToPbStr("host3", 3, 4, 5, 12, allocations))
       .build();
 
     ResourceRequest request = ResourceRequest.newBuilder()
@@ -150,12 +158,27 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
   @Test
   public void testObjSerde() throws IOException {
-    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null,null);
+    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null, new RssConf());
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
-    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, 100, null);
-    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, 100, null);
-    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, 100, null);
+    Map<String, DiskInfo> disks1 = new HashMap<>();
+    disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+
+    Map<String, DiskInfo> disks2 = new HashMap<>();
+    disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+
+    Map<String, DiskInfo> disks3 = new HashMap<>();
+    disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+
+    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, null);
+    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, null);
+    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, null);
 
     String host1 = "host1";
     String host2 = "host2";

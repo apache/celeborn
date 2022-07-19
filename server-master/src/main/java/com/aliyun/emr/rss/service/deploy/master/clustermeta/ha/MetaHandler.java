@@ -20,12 +20,14 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
@@ -99,7 +101,7 @@ public class MetaHandler {
       int pushPort;
       int fetchPort;
       int replicatePort;
-      int numSlots;
+      Map<String, DiskInfo> disks;
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
@@ -151,13 +153,13 @@ public class MetaHandler {
           rpcPort = request.getWorkerHeartBeatRequest().getRpcPort();
           pushPort = request.getWorkerHeartBeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartBeatRequest().getFetchPort();
-          numSlots = request.getWorkerHeartBeatRequest().getNumSlots();
+          disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartBeatRequest().getDisksMap());
           replicatePort = request.getWorkerHeartBeatRequest().getReplicatePort();
           LOG.debug("Handle worker heartbeat for {} {} {} {} {} {}",
-                   host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
+            host, rpcPort, pushPort, fetchPort, replicatePort, disks);
           time = request.getWorkerHeartBeatRequest().getTime();
           metaSystem.updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
-            numSlots, time);
+            disks, time);
           break;
 
         case RegisterWorker:
@@ -166,11 +168,11 @@ public class MetaHandler {
           pushPort = request.getRegisterWorkerRequest().getPushPort();
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
-          numSlots = request.getRegisterWorkerRequest().getNumSlots();
+          disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
           LOG.debug("Handle worker register for {} {} {} {} {} {}",
-                  host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
+            host, rpcPort, pushPort, fetchPort, replicatePort, disks);
           metaSystem.updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
-            numSlots);
+            disks);
           break;
 
         case ReportWorkerFailure:

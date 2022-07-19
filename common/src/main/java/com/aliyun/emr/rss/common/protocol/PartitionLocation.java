@@ -19,9 +19,12 @@ package com.aliyun.emr.rss.common.protocol;
 
 import java.io.Serializable;
 
+import lombok.Builder;
+
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbPartitionLocation;
 
+@Builder
 public class PartitionLocation implements Serializable {
   public enum Mode {
     Master(0), Slave(1);
@@ -37,7 +40,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public enum StorageHint {
-    NON_EXISTS, MEMORY, HDD, SDD, HDFS, OSS
+    NON_EXISTS, MEMORY, HDD, SSD, HDFS, OSS
   }
 
   public static PartitionLocation.Mode getMode(byte mode) {
@@ -48,6 +51,7 @@ public class PartitionLocation implements Serializable {
     }
   }
 
+  public static String UNDEFINED_DISK = "UNDEFINED_DISK";
   private int id;
   private int epoch;
   private String host;
@@ -58,6 +62,7 @@ public class PartitionLocation implements Serializable {
   private Mode mode;
   private PartitionLocation peer;
   private StorageHint storageHint;
+  private String diskHint;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -70,6 +75,7 @@ public class PartitionLocation implements Serializable {
     this.mode = loc.mode;
     this.peer = loc.peer;
     this.storageHint = loc.storageHint;
+    this.diskHint = loc.diskHint;
   }
 
   public PartitionLocation(
@@ -134,6 +140,31 @@ public class PartitionLocation implements Serializable {
     this.mode = mode;
     this.peer = peer;
     this.storageHint = hint;
+  }
+
+  public PartitionLocation(
+    int id,
+    int epoch,
+    String host,
+    int rpcPort,
+    int pushPort,
+    int fetchPort,
+    int replicatePort,
+    Mode mode,
+    PartitionLocation peer,
+    StorageHint hint,
+    String diskHint) {
+    this.id = id;
+    this.epoch = epoch;
+    this.host = host;
+    this.rpcPort = rpcPort;
+    this.pushPort = pushPort;
+    this.fetchPort = fetchPort;
+    this.replicatePort = replicatePort;
+    this.mode = mode;
+    this.peer = peer;
+    this.storageHint = hint;
+    this.diskHint = diskHint;
   }
 
   public int getId()
@@ -234,6 +265,17 @@ public class PartitionLocation implements Serializable {
     this.storageHint = storageHint;
   }
 
+  public String getDiskHint() {
+    if (diskHint == null || diskHint.length() == 0) {
+      return UNDEFINED_DISK;
+    }
+    return diskHint;
+  }
+
+  public void setDiskHint(String diskHint) {
+    this.diskHint = diskHint;
+  }
+
   @Override
   public boolean equals(Object other) {
     if (!(other instanceof PartitionLocation)) {
@@ -261,7 +303,8 @@ public class PartitionLocation implements Serializable {
     }
     return "PartitionLocation[" + id + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
-             " peer: " + peerAddr + "storage hint:" + storageHint + "]";
+             " peer: " + peerAddr + " storage hint:" + storageHint +
+             " disk hint:" + diskHint + "]";
   }
 
   public WorkerInfo getWorker() {
@@ -274,34 +317,40 @@ public class PartitionLocation implements Serializable {
       mode = Mode.Slave;
     }
 
-    PartitionLocation partitionLocation = new PartitionLocation(
-      pbLoc.getId(),
-      pbLoc.getEpoch(),
-      pbLoc.getHost(),
-      pbLoc.getRpcPort(),
-      pbLoc.getPushPort(),
-      pbLoc.getFetchPort(),
-      pbLoc.getReplicatePort(),
-      mode,
-      PartitionLocation.StorageHint.values()[pbLoc.getStorageHintOrdinal()]);
-
+    PartitionLocation partitionLocation = PartitionLocation.builder()
+                                            .id(pbLoc.getId())
+                                            .epoch(pbLoc.getEpoch())
+                                            .host(pbLoc.getHost())
+                                            .rpcPort(pbLoc.getRpcPort())
+                                            .pushPort(pbLoc.getPushPort())
+                                            .fetchPort(pbLoc.getFetchPort())
+                                            .replicatePort(pbLoc.getReplicatePort())
+                                            .mode(mode)
+                                            .storageHint(
+                                              PartitionLocation.StorageHint
+                                                .values()[pbLoc.getStorageHintOrdinal()])
+                                            .diskHint(pbLoc.getDiskHint())
+                                            .build();
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.Master;
       if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
         peerMode = Mode.Slave;
       }
-      PartitionLocation peerLocation = new PartitionLocation(
-        peerPb.getId(),
-        peerPb.getEpoch(),
-        peerPb.getHost(),
-        peerPb.getRpcPort(),
-        peerPb.getPushPort(),
-        peerPb.getFetchPort(),
-        peerPb.getReplicatePort(),
-        peerMode, partitionLocation,
-        PartitionLocation.StorageHint.values()[peerPb.getStorageHintOrdinal()]);
-
+      PartitionLocation peerLocation = PartitionLocation.builder()
+                                         .id(peerPb.getId())
+                                         .epoch(peerPb.getEpoch())
+                                         .host(peerPb.getHost())
+                                         .rpcPort(peerPb.getRpcPort())
+                                         .pushPort(peerPb.getPushPort())
+                                         .fetchPort(peerPb.getFetchPort())
+                                         .replicatePort(peerPb.getReplicatePort())
+                                         .mode(peerMode)
+                                         .storageHint(
+                                           PartitionLocation.StorageHint
+                                             .values()[peerPb.getStorageHintOrdinal()])
+                                         .diskHint(peerPb.getDiskHint())
+                                         .build();
       partitionLocation.setPeer(peerLocation);
     }
 

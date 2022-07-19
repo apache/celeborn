@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.client.write
 import java.util
 import java.util.{List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.atomic.LongAdder
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -102,7 +103,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   logInfo(s"Start LifecycleManager on ${rpcEnv.address}")
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
-
+  private val totalWritten = new LongAdder
+  private val fileCount = new LongAdder
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
   // a reference to `rssHARetryClient`, there may be cases where `rssHARetryClient` is null when
@@ -113,7 +115,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       override def run(): Unit = {
         try {
           require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
-          val appHeartbeat = HeartBeatFromApplication(appId, ZERO_UUID)
+          val tmpTotalWritten = totalWritten.sumThenReset()
+          val tmpFileCount = fileCount.sumThenReset()
+          val appHeartbeat =
+            HeartBeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
           rssHARetryClient.send(appHeartbeat)
           logDebug("Successfully send app heartbeat.")
         } catch {
@@ -886,11 +891,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}, $destroyResource")
 
       val workerIds = new util.ArrayList[String]()
-      val workerAllocatedSlotsSizes = new util.ArrayList[Integer]()
-      Utils.workerToAllocatedSlotsSize(destroyResource).asScala
-        .foreach { case (workerInfo, size) =>
-        workerIds.add(workerInfo.toUniqueId())
-        workerAllocatedSlotsSizes.add(size)
+      val workerAllocatedSlotsSizes = new util.ArrayList[String]()
+      Utils.workerSlotsDistribution(destroyResource).asScala.foreach { case (workerInfo, size) =>
+          val slotsMap = new util.HashMap[String, Integer]()
+          workerIds.add(workerInfo.toUniqueId())
+          workerAllocatedSlotsSizes.add(
+            slotsMap.entrySet().asScala.map(item => item.getKey + ":" + item.getValue).mkString(",")
+          )
       }
       val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerAllocatedSlotsSizes)
       requestReleaseSlots(rssHARetryClient, msg)
@@ -1196,8 +1203,17 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
-        CommitFilesResponse(StatusCode.Failed, List.empty.asJava, List.empty.asJava,
-          message.masterIds, message.slaveIds)
+        CommitFilesResponse(
+          StatusCode.Failed,
+          List.empty.asJava,
+          List.empty.asJava,
+          message.masterIds,
+          message.slaveIds,
+          List.empty.asJava,
+          List.empty.asJava,
+          0,
+          0
+        )
     }
   }
 
