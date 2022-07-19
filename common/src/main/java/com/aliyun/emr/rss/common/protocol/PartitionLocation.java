@@ -284,7 +284,8 @@ public class PartitionLocation implements Serializable {
 
     return "PartitionLocation[" + reduceId + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
-             " peer: " + peerAddress + " storage hint:" + storageHint + "]";
+             " peer: " + peerAddress + " storage hint:" + storageHint +
+             " disk hint:" + diskHint + "]";
   }
 
   public WorkerInfo getWorker() {

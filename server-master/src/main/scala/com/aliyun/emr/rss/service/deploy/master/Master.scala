@@ -468,6 +468,7 @@ private[deploy] class Master(
         minimumUsableSize
       )
     }
+    log.info(s"offer slots: $slots")
 
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {

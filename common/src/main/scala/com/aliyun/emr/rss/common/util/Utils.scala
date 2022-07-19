@@ -681,6 +681,10 @@ object Utils extends Logging {
           }
         )
     }
+    logDebug(s"locations to distribution ," +
+      s" ${masterLocations.asScala.map(_.toString).mkString(",")} " +
+      s"${workerLocations.asScala.map(_.toString).mkString(",")} " +
+      s"to ${slotDistributions} ")
     slotDistributions
   }
 

@@ -176,10 +176,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               Math.max(oldDiskMaps.get(mountPoint).activeSlots(),
                 diskMaps.get(mountPoint).activeSlots()));
           } else {
-            if (diskInfoEntry.getValue().usableSpace() > RssConf.diskMinimumUsableSize(conf)) {
-              diskInfoEntry.getValue()
-                .maxSlots_$eq(diskInfoEntry.getValue().usableSpace() / estimatedPartitionSize);
-            }
             oldDiskMaps.put(mountPoint, diskInfoEntry.getValue());
           }
         }
@@ -358,5 +354,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } else {
       estimatedPartitionSize = defaultPartitionSize;
     }
+    workers.stream().filter(w -> !blacklist.contains(w)).forEach(workerInfo -> {
+      for (Map.Entry<String, DiskInfo> diskInfoEntry : workerInfo.disks().entrySet()) {
+        diskInfoEntry.getValue()
+          .maxSlots_$eq(diskInfoEntry.getValue().usableSpace() / estimatedPartitionSize);
+      }
+    });
   }
 }

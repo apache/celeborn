@@ -18,15 +18,18 @@
 package com.aliyun.emr.rss.service.deploy.master;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.Tuple2;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
 public class MasterUtil {
+  private static Logger logger = LoggerFactory.getLogger(MasterUtil.class);
   private static final Random rand = new Random();
   private static double top30Ratio = 0.43;
   private static double mid30Ratio = 0.32;
@@ -67,7 +70,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlots(
+  offerSlots(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
     boolean shouldReplicate,
@@ -81,7 +84,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlots(
+  offerSlots(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
     int[] oldEpochs,
@@ -122,13 +125,11 @@ public class MasterUtil {
     List<PartitionLocation> slaveLocations = new ArrayList<>();
     Map<WorkerInfo, List<PartitionLocation>> slaveAggregatedLocations = new HashMap<>();
 
-    AtomicInteger reduceId = new AtomicInteger(0);
     allocatePartitionByDiskSpeed(
       usableDisks,
       reduceIds,
       masterLocations,
       masterAggregatedLocations,
-      reduceId,
       oldEpochs,
       diskToWorkerMap,
       workers,
@@ -136,14 +137,13 @@ public class MasterUtil {
       true);
 
     if (shouldReplicate) {
-      reduceId.set(0);
       for (Map.Entry<WorkerInfo, List<PartitionLocation>>
              entry : masterAggregatedLocations.entrySet()) {
         WorkerInfo workerToExclude = entry.getKey();
         List<PartitionLocation> locations = entry.getValue();
         Map<Integer, Integer> reducerIdToEpoch = new HashMap<>();
         for (PartitionLocation location : locations) {
-          reducerIdToEpoch.put(location.getEpoch(), location.getEpoch());
+          reducerIdToEpoch.put(location.getReduceId(), location.getEpoch());
         }
 
         List<DiskInfo> remainDisks = new ArrayList<>(disks);
@@ -155,8 +155,7 @@ public class MasterUtil {
           new ArrayList<>(reducerIdToEpoch.keySet()),
           slaveLocations,
           slaveAggregatedLocations,
-          reduceId,
-          null,
+          oldEpochs,
           diskToWorkerMap,
           remainWorkers,
           activeDiskSlots,
@@ -178,8 +177,6 @@ public class MasterUtil {
         Integer currentReduceId = entry.getKey();
         PartitionLocation masterLocation = reduceIdToMasterLocations.get(currentReduceId);
         PartitionLocation slaveLocation = reduceIdToSlaveLocations.get(currentReduceId);
-        int epoch = masterLocation.getEpoch();
-        slaveLocation.setEpoch(epoch);
         masterLocation.setPeer(slaveLocation);
       }
     }
@@ -209,18 +206,18 @@ public class MasterUtil {
     return slots;
   }
 
-  private static void allocatePartitionByDiskSpeed(List<DiskInfo> disks,
+  private static void allocatePartitionByDiskSpeed(
+    List<DiskInfo> disks,
     List<Integer> reduceIds,
     List<PartitionLocation> locations,
     Map<WorkerInfo, List<PartitionLocation>> workerAggregatedLocations,
-    AtomicInteger reducerId,
     int[] oldEpochs,
     Map<DiskInfo, WorkerInfo> diskToWorkerMap,
     List<WorkerInfo> workers,
-    Map<DiskInfo,Long> activeDiskSlots,
+    Map<DiskInfo, Long> activeDiskSlots,
     boolean isMaster) {
-
-    int thirtyPerDiskCount = (int) Math.floor(disks.size() * 0.3);
+    List<Integer> nReduceIds = new ArrayList<>(reduceIds);
+    int thirtyPerDiskCount = (int) Math.ceil(disks.size() * 0.3);
     List<DiskInfo> top30 = disks.subList(0, thirtyPerDiskCount);
     List<DiskInfo> mid30 = disks.subList(thirtyPerDiskCount, thirtyPerDiskCount * 2);
     List<DiskInfo> last40 = disks.subList(thirtyPerDiskCount * 2, disks.size());
@@ -256,30 +253,50 @@ public class MasterUtil {
     }
 
     top30ToAllocate = top30Required - topToMid;
-    requestTotalSlots -= top30ToAllocate;
+    if (requestTotalSlots > top30ToAllocate) {
+      requestTotalSlots -= top30ToAllocate;
+    } else {
+      top30ToAllocate = requestTotalSlots;
+      requestTotalSlots = 0;
+    }
     if (requestTotalSlots > 0) {
       mid30ToAllocate = mid30Required + topToMid - midToLast;
-      requestTotalSlots -= mid30ToAllocate;
+      if (requestTotalSlots > mid30ToAllocate) {
+        requestTotalSlots -= mid30ToAllocate;
+      } else {
+        mid30ToAllocate = requestTotalSlots;
+        requestTotalSlots = 0;
+      }
     }
     if (requestTotalSlots > 0) {
       last40ToAllocate = last40Required + midToLast - roundRobinToAllocate;
-      requestTotalSlots -= last40ToAllocate;
+      if (requestTotalSlots > last40ToAllocate) {
+        requestTotalSlots -= last40ToAllocate;
+      } else {
+        last40ToAllocate = requestTotalSlots;
+        requestTotalSlots = 0;
+      }
     }
     if (requestTotalSlots > 0) {
       roundRobinToAllocate = requestTotalSlots;
+      requestTotalSlots = 0;
+    } else {
+      roundRobinToAllocate = 0;
     }
+
+    logger.info("allocation total {} top30 {} mid30 {} last40 {} roundrobin {}",
+      reduceIds.size(), top30ToAllocate, mid30ToAllocate, last40ToAllocate, roundRobinToAllocate);
 
     if (top30ToAllocate > 0) {
       int[] top30Allocations = getAllocationsBySlots(top30ToAllocate, top30);
       allocateLocations(
         top30Allocations,
         top30,
-        reducerId,
         locations,
         isMaster,
         diskToWorkerMap,
         oldEpochs,
-        reduceIds,
+        nReduceIds,
         workerAggregatedLocations,
         activeDiskSlots);
     }
@@ -288,12 +305,11 @@ public class MasterUtil {
       allocateLocations(
         mid30Allocations,
         mid30,
-        reducerId,
         locations,
         isMaster,
         diskToWorkerMap,
         oldEpochs,
-        reduceIds,
+        nReduceIds,
         workerAggregatedLocations,
         activeDiskSlots);
     }
@@ -302,12 +318,11 @@ public class MasterUtil {
       allocateLocations(
         last40Allocations,
         last40,
-        reducerId,
         locations,
         isMaster,
         diskToWorkerMap,
         oldEpochs,
-        reduceIds,
+        nReduceIds,
         workerAggregatedLocations,
         activeDiskSlots);
     }
@@ -318,9 +333,8 @@ public class MasterUtil {
         isMaster,
         workers,
         roundRobinToAllocate,
-        reducerId,
         oldEpochs,
-        reduceIds,
+        nReduceIds,
         workerAggregatedLocations);
     }
   }
@@ -329,14 +343,13 @@ public class MasterUtil {
     boolean isMaster,
     List<WorkerInfo> workers,
     int required,
-    AtomicInteger reducerId,
     int[] oldEpochs,
     List<Integer> reduceIds,
     Map<WorkerInfo, List<PartitionLocation>> workerAggregatedLocations
   ) {
     int index = rand.nextInt(workers.size());
     for (int i = 0; i < required; i++) {
-      int currentReducerId = reducerId.getAndIncrement();
+      int reduceId = reduceIds.remove(0);
       PartitionLocation.Mode mode = PartitionLocation.Mode.Master;
       if (!isMaster) {
         mode = PartitionLocation.Mode.Slave;
@@ -344,10 +357,10 @@ public class MasterUtil {
       WorkerInfo workerInfo = workers.get(index % workers.size());
       int newEpoch = 0;
       if (oldEpochs != null) {
-        newEpoch = oldEpochs[currentReducerId] + 1;
+        newEpoch = oldEpochs[reduceId] + 1;
       }
       PartitionLocation location = new PartitionLocation(
-        reduceIds.get(currentReducerId),
+        reduceId,
         newEpoch,
         workerInfo.host(),
         workerInfo.rpcPort(),
@@ -369,16 +382,16 @@ public class MasterUtil {
     }
   }
 
-  private static void allocateLocations(int[] allocations,
+  private static void allocateLocations(
+    int[] allocations,
     List<DiskInfo> disks,
-    AtomicInteger reducerId,
     List<PartitionLocation> locations,
     boolean isMaster,
     Map<DiskInfo, WorkerInfo> diskToWorkerMap,
     int[] oldEpochs,
     List<Integer> reduceIds,
     Map<WorkerInfo, List<PartitionLocation>> workerAggregatedLocations,
-    Map<DiskInfo,Long> activeDiskSlots) {
+    Map<DiskInfo, Long> activeDiskSlots) {
     for (int i = 0; i < allocations.length; i++) {
       int allocatedSlots = allocations[i];
       if (allocatedSlots == 0) {
@@ -386,18 +399,18 @@ public class MasterUtil {
       }
       DiskInfo diskInfo = disks.get(i);
       for (int j = 0; j < allocatedSlots; j++) {
-        int currentReducerId = reducerId.getAndIncrement();
+        int reduceId = reduceIds.remove(0);
         WorkerInfo workerInfo = diskToWorkerMap.get(diskInfo);
         int newEpoch = 0;
         if (oldEpochs != null) {
-          newEpoch = oldEpochs[currentReducerId] + 1;
+          newEpoch = oldEpochs[reduceId] + 1;
         }
         PartitionLocation.Mode mode = PartitionLocation.Mode.Master;
         if (!isMaster) {
           mode = PartitionLocation.Mode.Slave;
         }
         PartitionLocation location = new PartitionLocation(
-          reduceIds.get(currentReducerId),
+          reduceId,
           newEpoch,
           workerInfo.host(),
           workerInfo.rpcPort(),

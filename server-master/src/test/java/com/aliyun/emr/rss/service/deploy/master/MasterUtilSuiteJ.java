@@ -170,6 +170,17 @@ public class MasterUtilSuiteJ {
     check(workers, reduceIds, shouldReplicate, true);
   }
 
+
+  @Test
+  public void testAllocateSlotsForThreeReduceIdsWithReplicate() {
+    final List<WorkerInfo> workers = prepareWorkers();
+    final List<Integer> reduceIds = Arrays.asList(0, 1, 2);
+    final boolean shouldReplicate = true;
+
+    check(workers, reduceIds, shouldReplicate, true);
+  }
+
+
   private void check(
     List<WorkerInfo> workers,
     List<Integer> reduceIds,
@@ -184,7 +195,6 @@ public class MasterUtilSuiteJ {
         10 * 1024 * 1024 * 1024L);
 
     if (expectSuccess) {
-
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
         MasterUtil.workerToAllocatedSlots(slots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {

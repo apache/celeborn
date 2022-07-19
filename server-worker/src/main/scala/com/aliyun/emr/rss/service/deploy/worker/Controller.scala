@@ -82,8 +82,8 @@ private[deploy] class Controller(
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(
           s"Received ReserveSlots request, $shuffleKey, " +
-            s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
-            s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}."
+            s"master partitions: ${masterLocations.asScala.map(_.toString).mkString(",")}; " +
+            s"slave partitions: ${slaveLocations.asScala.map(_.toString).mkString(",")}."
         )
         handleReserveSlots(
           context,
@@ -196,6 +196,8 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
 
+    logDebug(s"allocate slots ${masterLocations.asScala.map(_.toString).mkString(",")}" +
+      s"  ,  ${slaveLocations.asScala.map(_.toString).mkString(",")} ")
     workerInfo.allocateSlots(
       shuffleKey,
       Utils.diskSlotsDistribution(masterLocations, slaveLocations)
@@ -241,7 +243,7 @@ private[deploy] class Controller(
                 if (bytes > 0L) {
                   committedStorageAndDiskHints.add(
                     s"$uniqueId:" +
-                      s"${fileWriter.getStorageHint}:" +
+                      s"${fileWriter.getStorageHint.ordinal()}:" +
                       s"${fileWriter.getDiskHint}"
                   )
                   writtenList.add(bytes)

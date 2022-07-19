@@ -20,13 +20,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
-import java.util.concurrent.{
-  ConcurrentHashMap,
-  Executors,
-  LinkedBlockingQueue,
-  ThreadPoolExecutor,
-  TimeUnit
-}
+import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, LongAdder}
 import java.util.function.IntUnaryOperator
 
@@ -36,7 +30,7 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import io.netty.buffer.CompositeByteBuf
+import io.netty.buffer.{CompositeByteBuf, Unpooled}
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
@@ -90,9 +84,13 @@ private[worker] final class DiskFlusher(
   }
 
   private def init(): Unit = {
+      val assumedQueueSize = 1024*1024
     for (index <- 0 until (threadCount)) {
-      workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
-      bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf]()
+      workingQueues(index) = new LinkedBlockingQueue[FlushTask](assumedQueueSize)
+      bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf](assumedQueueSize)
+      for (_ <- 0 until assumedQueueSize) {
+        bufferQueues(index).put(Unpooled.compositeBuffer(256))
+      }
       workers(index) = new Thread(s"$this-$index") {
         override def run(): Unit = {
           while (!stopFlag.get()) {
@@ -234,14 +232,12 @@ private[worker] final class LocalStorageManager(
 
   private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageHint)] =
     new mutable.HashMap[String, (Long, Int, StorageHint)]()
-  val workingDirLimits = new util.HashMap[File, Long]()
   val workingDirUsage = new util.HashMap[File, AtomicLong]()
   val shuffleKeyGroupedWorkingDirWriters =
     new ConcurrentHashMap[String, ConcurrentHashMap[File, FileWriter]]()
   // mountpoint -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
   val spaceMonitorInterval = RssConf.diskSpaceMonitorInterval(conf)
-  val workingDirMountPoints = new ConcurrentHashMap[File, String]()
 
   private val dirWriterMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[File, FileWriter]]() {
@@ -265,7 +261,6 @@ private[worker] final class LocalStorageManager(
     val availableDirs = new mutable.HashSet[File]()
 
     baseDirs.foreach { case (file, maxSpace, flusherThreadCount, storageHint) =>
-      workingDirLimits.put(file, maxSpace)
       workingDirUsage.put(file, new AtomicLong())
       if (!DeviceMonitor.checkDiskReadAndWrite(conf, ListBuffer[File](file))) {
         availableDirs += file
@@ -513,7 +508,8 @@ private[worker] final class LocalStorageManager(
         }
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)
         shuffleMap.put(fileName, fileWriter)
-        location.setDiskHint(workingDirMountPoints.get(dir))
+        location.setDiskHint(workingDirMountInfos.get(dir.getAbsolutePath).mountPoint)
+        logDebug(s"location $location set disk hint to ${location.getDiskHint} ")
         return fileWriter
       } catch {
         case t: Throwable =>

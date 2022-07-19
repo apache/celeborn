@@ -493,7 +493,7 @@ sealed trait Message extends Serializable {
         builder.addAllFailedMasterIds(failedMasterIds)
         builder.addAllFailedSlaveIds(failedSlaveIds)
         builder.addAllCommittedMasterStorageHintAndDiskHint(committedMasterStorageHintAndDiskHint)
-        builder.addAllCommittedMasterStorageHintAndDiskHint(committedSlaveStorageHintAndDiskHint)
+        builder.addAllCommittedSlaveStorageHintAndDiskHint(committedSlaveStorageHintAndDiskHint)
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray

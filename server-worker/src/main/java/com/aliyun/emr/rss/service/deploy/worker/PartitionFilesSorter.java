@@ -87,7 +87,7 @@ public class PartitionFilesSorter {
           });
         }
       } catch (InterruptedException e) {
-        logger.warn("Sort thread is shutting down, detail :", e);
+        logger.warn("Sort thread is shutting down");
       }
     });
     fileSorterSchedulerThread.start();
