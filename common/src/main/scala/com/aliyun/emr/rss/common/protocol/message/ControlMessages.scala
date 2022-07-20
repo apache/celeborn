@@ -49,7 +49,7 @@ sealed trait Message extends Serializable{
             item._1 -> PbDiskInfo
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
-              .setFlushTime(item._2.flushTime)
+              .setAvgFlushTime(item._2.flushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()
           ).toMap.asJava
@@ -70,7 +70,7 @@ sealed trait Message extends Serializable{
           .map(item => item._1 -> PbDiskInfo
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
-              .setFlushTime(item._2.flushTime)
+              .setAvgFlushTime(item._2.flushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()
           ).toMap.asJava
@@ -691,7 +691,7 @@ object ControlMessages extends Logging{
             item._1 -> new DiskInfo(
                 item._1,
                 item._2.getUsableSpace,
-                item._2.getFlushTime,
+                item._2.getAvgFlushTime,
                 item._2.getUsedSlots)).asJava
         RegisterWorker(pbRegisterWorker.getHost, pbRegisterWorker.getRpcPort,
           pbRegisterWorker.getPushPort, pbRegisterWorker.getFetchPort,
@@ -704,7 +704,7 @@ object ControlMessages extends Logging{
           .map(item => item._1 -> new DiskInfo(
                 item._1,
                 item._2.getUsableSpace,
-                item._2.getFlushTime,
+                item._2.getAvgFlushTime,
                 item._2.getUsedSlots
               )).asJava
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {

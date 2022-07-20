@@ -212,18 +212,9 @@ private[worker] final class LocalStorageManager(
 
   private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageHint)] =
     new mutable.HashMap[String, (Long, Int, StorageHint)]()
-  val workingDirUsage = new util.HashMap[File, AtomicLong]()
-  val shuffleKeyGroupedWorkingDirWriters =
     new ConcurrentHashMap[String, ConcurrentHashMap[File, FileWriter]]()
   // mountpoint -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
-  val spaceMonitorInterval = RssConf.diskSpaceMonitorInterval(conf)
-
-  private val dirWriterMapFunc =
-    new java.util.function.Function[String, ConcurrentHashMap[File, FileWriter]]() {
-      override def apply(key: String): ConcurrentHashMap[File, FileWriter] =
-        new ConcurrentHashMap()
-    }
 
   private val workingDirWriterListFunc =
     new java.util.function.Function[File, util.ArrayList[FileWriter]]() {
@@ -240,8 +231,7 @@ private[worker] final class LocalStorageManager(
       }
     val availableDirs = new mutable.HashSet[File]()
 
-    baseDirs.foreach { case (file, maxSpace, flusherThreadCount, storageHint) =>
-      workingDirUsage.put(file, new AtomicLong())
+    baseDirs.foreach { case (file, _, _, _) =>
       if (!DeviceMonitor.checkDiskReadAndWrite(conf, ListBuffer[File](file))) {
         availableDirs += file
       } else {
@@ -296,6 +286,16 @@ private[worker] final class LocalStorageManager(
     .setNameFormat("StorageManager-action-thread").build)
 
   deviceMonitor.startCheck()
+
+  def workingDirsSnapshot(mountPoint: String): util.ArrayList[File] = {
+    if (mountPoint != PartitionLocation.UNDEFINED_DISK) {
+      new util.ArrayList[File](mountInfos.get(mountPoint)
+        .dirInfos.filter(workingDirs.contains(_)).toList.asJava)
+    } else {
+      logDebug("mount point is invalid")
+      workingDirsSnapshot()
+    }
+  }
 
   override def notifyError(deviceName: String, dirs: ListBuffer[File],
     deviceErrorType: DeviceErrorType): Unit = this.synchronized {
@@ -385,6 +385,7 @@ private[worker] final class LocalStorageManager(
     workingDirs.size()
   }
 
+
   @throws[IOException]
   def createWriter(
     appId: String,
@@ -396,27 +397,18 @@ private[worker] final class LocalStorageManager(
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
-    createWriter(appId, shuffleId, location.getId, location.getEpoch,
-      location.getMode, splitThreshold, splitMode, partitionType)
-  }
 
-  @throws[IOException]
-  def createWriter(
-    appId: String,
-    shuffleId: Int,
-    partitionId: Int,
-    epoch: Int,
-    mode: PartitionLocation.Mode,
-    splitThreshold: Long,
-    splitMode: PartitionSplitMode,
-    partitionType: PartitionType): FileWriter = {
+    val partitionId = location.getId
+    val epoch = location.getEpoch
+    val mode = location.getMode
     val fileName = s"$partitionId-$epoch-${mode.mode()}"
 
     var retryCount = 0
     var exception: IOException = null
+    val suggestedMountPoint = location.getDiskHint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
+      val dirs = workingDirsSnapshot(suggestedMountPoint)
       val index = getNextIndex()
-      val dirs = workingDirsSnapshot()
       val dir = dirs.get(index % dirs.size())
       val shuffleDir = new File(dir, s"$appId/$shuffleId")
       val file = new File(shuffleDir, fileName)
@@ -441,8 +433,12 @@ private[worker] final class LocalStorageManager(
           partitionType)
         deviceMonitor.registerFileWriter(fileWriter)
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
+        val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
+        list.synchronized {list.add(fileWriter)}
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)
         shuffleMap.put(fileName, fileWriter)
+        location.setDiskHint(workingDirMountInfos.get(dir.getAbsolutePath).mountPoint)
+        logDebug(s"location $location set disk hint to ${location.getDiskHint} ")
         return fileWriter
       } catch {
         case t: Throwable =>
@@ -625,19 +621,36 @@ private[worker] final class LocalStorageManager(
     val snapshot = new util.HashMap[String, DiskInfo]()
     snapshot.putAll(
       mountInfos.asScala.map { case (mountPoint, mountInfo) =>
-          val workingDirUsableSpace = mountInfo.mountPointFile.getUsableSpace
-          val flushTimeSum = mountInfo.dirInfos.map(dir => diskFlushers.get(dir).averageFlushTime())
-          val flushTimeCount = flushTimeSum.size
-          val flushTimeAverage = if (flushTimeCount > 0) {
-            flushTimeSum.sum / flushTimeCount
+        val mountPointRelatedDirs = mountInfo.dirInfos
+        val totalUsage = mountPointRelatedDirs.map { dir =>
+          val writers = workingDirWriters.get(dir)
+          if (writers != null && writers.size() > 0) {
+            writers.asScala.map(_.getFileLength).sum
           } else {
             0
           }
-          val usedSlots = mountInfo.dirInfos
-            .map(dir => diskFlushers.get(dir).getUsedSlots())
-            .sum
-          mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
-        }.toMap.asJava
+        }.sum
+        val totalConfiguredCapacity = mountPointRelatedDirs
+          .map(file => workingDirMetas.get(file.getAbsolutePath).get._1).sum
+        val fileSystemReportedUsableSpace = mountInfo.mountPointFile.getUsableSpace
+        // if a mount point is not a valid mount point, getUsableSpace will return 0.
+        val workingDirUsableSpace = if (fileSystemReportedUsableSpace > 0) {
+          Math.min(totalConfiguredCapacity - totalUsage,
+            fileSystemReportedUsableSpace)
+        } else {
+          fileSystemReportedUsableSpace
+        }
+        val flushTimeSum = mountInfo.dirInfos.map(dir => diskFlushers.get(dir).averageFlushTime())
+        val flushTimeCount = flushTimeSum.size
+        val flushTimeAverage = if (flushTimeCount > 0) {
+          flushTimeSum.sum / flushTimeCount
+        } else {
+          // if a disk average flush time is zero means that this disk is idle.
+          0
+        }
+        val usedSlots = mountInfo.dirInfos.map(dir => diskFlushers.get(dir).getUsedSlots()).sum
+        mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
+      }.toMap.asJava
     )
     snapshot
   }

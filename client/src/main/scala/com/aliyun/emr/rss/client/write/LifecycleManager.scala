@@ -720,29 +720,24 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           .map(item => {
             val hints = item.split(":")
             hints(0) -> (hints(1), hints(2))
-          })
-          .groupBy(_._1)
+          }).toMap
       }
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       val committedMasterHints = convertHintToMap(committedMasterStorageAndDiskHints)
       val committedSlaveHints = convertHintToMap(committedSlaveStorageAndDiskHints)
       committedMasterIds.asScala.foreach { id =>
-        val hints = committedMasterHints(id)
         val partition = masterPartMap.get(id)
-        hints.foreach { case (id, (storage, disk)) =>
-          partition.setStorageHint(StorageHint.values()(storage.toInt))
-          partition.setDiskHint(disk)
-        }
-        committedPartitions.put(id, masterPartMap.get(id))
+        val (storage, disk) = committedMasterHints(id)
+        partition.setStorageHint(StorageHint.values()(storage.toInt))
+        partition.setDiskHint(disk)
+        committedPartitions.put(id, partition)
       }
 
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
-        val hints = committedSlaveHints(id)
-        hints.foreach { case (id, (storage, disk)) =>
-          slavePartition.setStorageHint(StorageHint.values()(storage.toInt))
-          slavePartition.setDiskHint(disk)
-        }
+        val (storage, disk) = committedSlaveHints(id)
+        slavePartition.setStorageHint(StorageHint.values()(storage.toInt))
+        slavePartition.setDiskHint(disk)
         val masterPartition = committedPartitions.get(id)
         if (masterPartition ne null) {
           masterPartition.setPeer(slavePartition)
@@ -923,11 +918,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
       val workerIds = new util.ArrayList[String]()
       val workerAllocatedSlotsSizes = new util.ArrayList[String]()
-      Utils.workerSlotsDistribution(destroyResource).asScala.foreach { case (workerInfo, size) =>
-          val slotsMap = new util.HashMap[String, Integer]()
+      Utils.workerSlotsDistribution(destroyResource).asScala.foreach {
+        case (workerInfo, distribution) =>
           workerIds.add(workerInfo.toUniqueId())
           workerAllocatedSlotsSizes.add(
-            slotsMap.entrySet().asScala.map(item => item.getKey + ":" + item.getValue).mkString(",")
+            distribution.entrySet().asScala.map(item =>
+              item.getKey + ":" + item.getValue).mkString(",")
           )
       }
       val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerAllocatedSlotsSizes)

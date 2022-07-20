@@ -225,7 +225,7 @@ public final class FileWriter extends DeviceObserver {
   }
 
   public PartitionLocation.StorageHint getStorageHint(){
-    return PartitionLocation.StorageHint.HDD;
+    return flusher.diskType();
   }
 
   public String getDiskHint() {

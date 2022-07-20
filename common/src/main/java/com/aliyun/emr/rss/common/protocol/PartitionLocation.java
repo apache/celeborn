@@ -62,6 +62,7 @@ public class PartitionLocation implements Serializable {
   private Mode mode;
   private PartitionLocation peer;
   private StorageHint storageHint;
+  // DiskHint means worker should create file writer at some disk, it stores disk mountPoint.
   private String diskHint;
 
   public PartitionLocation(PartitionLocation loc) {
