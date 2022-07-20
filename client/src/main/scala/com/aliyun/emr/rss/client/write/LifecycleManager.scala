@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.client.write
 
 import java.util
 import java.util.{List => JList}
-import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
 import scala.collection.JavaConverters._
@@ -33,6 +33,7 @@ import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -629,6 +630,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
     val committedMasterIds = new ConcurrentSet[String]
     val committedSlaveIds = new ConcurrentSet[String]
+    val committedMasterStorageAndDiskHints = new LinkedBlockingQueue[String]()
+    val committedSlaveStorageAndDiskHints = new LinkedBlockingQueue[String]()
     val failedMasterIds = new ConcurrentSet[String]
     val failedSlaveIds = new ConcurrentSet[String]
 
@@ -677,6 +680,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         committedMasterIds.addAll(res.committedMasterIds)
         committedSlaveIds.addAll(res.committedSlaveIds)
 
+        // record committed partitions storage hint and disk hint
+        committedMasterStorageAndDiskHints.addAll(res.committedMasterStorageHintAndDiskHint)
+        committedSlaveStorageAndDiskHints.addAll(res.committedSlaveStorageHintAndDiskHint)
+
         // record failed partitions
         failedMasterIds.addAll(res.failedMasterIds)
         failedSlaveIds.addAll(res.failedSlaveIds)
@@ -708,19 +715,43 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val dataLost = hasCommonFailedIds()
 
     if (!dataLost) {
+      def convertHintToMap(queue: LinkedBlockingQueue[String]) = {
+        queue.asScala
+          .map(item => {
+            val hints = item.split(":")
+            hints(0) -> (hints(1), hints(2))
+          })
+          .groupBy(_._1)
+      }
       val committedPartitions = new util.HashMap[String, PartitionLocation]
+      val committedMasterHints = convertHintToMap(committedMasterStorageAndDiskHints)
+      val committedSlaveHints = convertHintToMap(committedSlaveStorageAndDiskHints)
       committedMasterIds.asScala.foreach { id =>
+        val hints = committedMasterHints(id)
+        val partition = masterPartMap.get(id)
+        hints.foreach { case (id, (storage, disk)) =>
+          partition.setStorageHint(StorageHint.values()(storage.toInt))
+          partition.setDiskHint(disk)
+        }
         committedPartitions.put(id, masterPartMap.get(id))
       }
+
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
+        val hints = committedSlaveHints(id)
+        hints.foreach { case (id, (storage, disk)) =>
+          slavePartition.setStorageHint(StorageHint.values()(storage.toInt))
+          slavePartition.setDiskHint(disk)
+        }
         val masterPartition = committedPartitions.get(id)
         if (masterPartition ne null) {
           masterPartition.setPeer(slavePartition)
           slavePartition.setPeer(masterPartition)
         } else {
-          logWarning(s"Shuffle $shuffleId partition $id: master lost, " +
-            s"use slave $slavePartition.")
+          logWarning(
+            s"Shuffle $shuffleId partition $id: master lost, " +
+              s"use slave $slavePartition."
+          )
           committedPartitions.put(id, slavePartition)
         }
       }
