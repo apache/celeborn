@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.client.write
 
 import java.util
 import java.util.{List => JList}
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
 import scala.collection.JavaConverters._
@@ -34,9 +34,9 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageHint}
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
+import com.aliyun.emr.rss.common.protocol.TransportMessages.PbStorageHint
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
-import com.aliyun.emr.rss.common.protocol.TransportMessages.PbStorageHint
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 

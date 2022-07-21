@@ -23,10 +23,10 @@ public class StorageHint implements Serializable {
   }
 
   public static Map<Integer, Type> typesMap = new HashMap() {{
-    for (Type type : Type.values()) {
-      put(type.type, type);
-    }
-  }};
+      for (Type type : Type.values()) {
+        put(type.type, type);
+      }
+    }};
 
   private Type type = Type.MEMORY;
   private String mountPoint = UNDEFINED_DISK;
