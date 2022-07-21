@@ -23,7 +23,6 @@ import java.util.UUID
 import scala.collection.JavaConverters._
 
 import com.google.protobuf.ByteString
-import javafx.util.converter.ByteStringConverter
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
