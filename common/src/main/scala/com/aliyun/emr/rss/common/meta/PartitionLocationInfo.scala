@@ -224,7 +224,7 @@ class PartitionLocationInfo {
           locations.remove(targetLocation.get)
           numSlotsReleased += 1
           releaseMap.compute(
-            targetLocation.get.getDiskHint,
+            targetLocation.get.getStorageHint.getMountPoint,
             new BiFunction[String, Integer, Integer] {
               override def apply(t: String, u: Integer): Integer = {
                 if (u == null) {

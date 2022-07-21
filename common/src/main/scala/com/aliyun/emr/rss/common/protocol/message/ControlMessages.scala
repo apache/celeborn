@@ -22,10 +22,13 @@ import java.util.UUID
 
 import scala.collection.JavaConverters._
 
+import com.google.protobuf.ByteString
+import javafx.util.converter.ByteStringConverter
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportMessages}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint, TransportMessages}
 import com.aliyun.emr.rss.common.protocol.TransportMessages._
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
 import com.aliyun.emr.rss.common.util.Utils
@@ -319,7 +322,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REREGISTER_WORKER_RESPONSE, payload)
 
       case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations,
-      splitThreshold, splitMode, partType, storageHint) =>
+      splitThreshold, splitMode, partType) =>
         val payload = TransportMessages.PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -330,7 +333,6 @@ sealed trait Message extends Serializable{
           .setSplitThreshold(splitThreshold)
           .setSplitMode(splitMode.getValue)
           .setPartitionType(partType.getValue)
-          .setStorageHintOrdinal(storageHint.ordinal())
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.RESERVE_SLOTS, payload)
 
@@ -351,24 +353,25 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES, payload)
 
       case CommitFilesResponse(
-      status,
-      committedMasterIds,
-      committedSlaveIds,
-      failedMasterIds,
-      failedSlaveIds,
-      committedMasterStorageHintAndDiskHint,
-      committedSlaveStorageHintAndDiskHint,
-      totalWritten,
-      fileCount) =>
-        val builder = TransportMessages.PbCommitFilesResponse
-          .newBuilder()
+        status,
+        committedMasterIds,
+        committedSlaveIds,
+        failedMasterIds,
+        failedSlaveIds,
+        committedMasterStorageHints,
+        committedSlaveStorageHints,
+        totalWritten,
+        fileCount) =>
+        val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
         builder.addAllCommittedMasterIds(committedMasterIds)
         builder.addAllCommittedSlaveIds(committedSlaveIds)
         builder.addAllFailedMasterIds(failedMasterIds)
         builder.addAllFailedSlaveIds(failedSlaveIds)
-        builder.addAllCommittedMasterStorageHintAndDiskHint(committedMasterStorageHintAndDiskHint)
-        builder.addAllCommittedSlaveStorageHintAndDiskHint(committedSlaveStorageHintAndDiskHint)
+        committedMasterStorageHints.asScala.foreach(entry =>
+          builder.putCommittedMasterStorageHints(entry._1, ByteString.copyFrom(entry._2)))
+        committedMasterStorageHints.asScala.foreach(entry =>
+          builder.putCommittedSlaveStorageHints(entry._1, ByteString.copyFrom(entry._2)))
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -624,8 +627,7 @@ object ControlMessages extends Logging{
       slaveLocations: util.List[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType,
-      storageHint: PartitionLocation.StorageHint)
+      partitionType: PartitionType)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -645,11 +647,12 @@ object ControlMessages extends Logging{
     committedSlaveIds: util.List[String],
     failedMasterIds: util.List[String],
     failedSlaveIds: util.List[String],
-    // storageHint-diskHint(if disk hint is present)
-    committedMasterStorageHintAndDiskHint: util.List[String],
-    committedSlaveStorageHintAndDiskHint: util.List[String],
-    totalWritten: Long,
-    fileCount: Int
+    committedMasterStorageHints: util.Map[String, Array[Byte]] =
+    Map.empty[String, Array[Byte]].asJava,
+    committedSlaveStorageHints: util.Map[String, Array[Byte]] =
+    Map.empty[String, Array[Byte]].asJava,
+    totalWritten: Long = 0,
+    fileCount: Int = 0
   ) extends WorkerMessage
 
   case class Destroy(
@@ -883,8 +886,7 @@ object ControlMessages extends Logging{
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
-          Utils.toPartitionType(pbReserveSlots.getPartitionType),
-          PartitionLocation.StorageHint.values()(pbReserveSlots.getStorageHintOrdinal))
+          Utils.toPartitionType(pbReserveSlots.getPartitionType))
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
@@ -899,14 +901,20 @@ object ControlMessages extends Logging{
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
+        val committedMasterStorageHints = new util.HashMap[String, Array[Byte]]()
+        val committedSlaveStorageHints = new util.HashMap[String, Array[Byte]]()
+        pbCommitFilesResponse.getCommittedMasterStorageHintsMap.asScala.foreach(entry =>
+          committedMasterStorageHints.put(entry._1, entry._2.toByteArray))
+        pbCommitFilesResponse.getCommittedSlaveStorageHintsMap.asScala.foreach(entry =>
+          committedSlaveStorageHints.put(entry._1, entry._2.toByteArray))
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedMasterIdsList,
           pbCommitFilesResponse.getCommittedSlaveIdsList,
           pbCommitFilesResponse.getFailedMasterIdsList,
           pbCommitFilesResponse.getFailedSlaveIdsList,
-          pbCommitFilesResponse.getCommittedMasterStorageHintAndDiskHintList,
-          pbCommitFilesResponse.getCommittedSlaveStorageHintAndDiskHintList,
+          committedMasterStorageHints,
+          committedSlaveStorageHints,
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount)
 

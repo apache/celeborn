@@ -39,10 +39,6 @@ public class PartitionLocation implements Serializable {
     public byte mode() { return mode; }
   }
 
-  public enum StorageHint {
-    NON_EXISTS, MEMORY, HDD, SSD, HDFS, OSS
-  }
-
   public static PartitionLocation.Mode getMode(byte mode) {
     if (mode == 0) {
       return Mode.Master;
@@ -63,7 +59,6 @@ public class PartitionLocation implements Serializable {
   private PartitionLocation peer;
   private StorageHint storageHint;
   // DiskHint means worker should create file writer at some disk, it stores disk mountPoint.
-  private String diskHint;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -76,7 +71,6 @@ public class PartitionLocation implements Serializable {
     this.mode = loc.mode;
     this.peer = loc.peer;
     this.storageHint = loc.storageHint;
-    this.diskHint = loc.diskHint;
   }
 
   public PartitionLocation(
@@ -89,21 +83,7 @@ public class PartitionLocation implements Serializable {
     int replicatePort,
     Mode mode) {
     this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
-      mode, null, StorageHint.MEMORY);
-  }
-
-  public PartitionLocation(
-    int id,
-    int epoch,
-    String host,
-    int rpcPort,
-    int pushPort,
-    int fetchPort,
-    int replicatePort,
-    Mode mode,
-    StorageHint storageHint) {
-    this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
-      mode, null, storageHint);
+      mode, null, new StorageHint());
   }
 
   public PartitionLocation(
@@ -117,7 +97,7 @@ public class PartitionLocation implements Serializable {
     Mode mode,
     PartitionLocation peer) {
     this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer,
-      StorageHint.MEMORY);
+      new StorageHint());
   }
 
   public PartitionLocation(
@@ -141,31 +121,6 @@ public class PartitionLocation implements Serializable {
     this.mode = mode;
     this.peer = peer;
     this.storageHint = hint;
-  }
-
-  public PartitionLocation(
-    int id,
-    int epoch,
-    String host,
-    int rpcPort,
-    int pushPort,
-    int fetchPort,
-    int replicatePort,
-    Mode mode,
-    PartitionLocation peer,
-    StorageHint hint,
-    String diskHint) {
-    this.id = id;
-    this.epoch = epoch;
-    this.host = host;
-    this.rpcPort = rpcPort;
-    this.pushPort = pushPort;
-    this.fetchPort = fetchPort;
-    this.replicatePort = replicatePort;
-    this.mode = mode;
-    this.peer = peer;
-    this.storageHint = hint;
-    this.diskHint = diskHint;
   }
 
   public int getId()
@@ -266,17 +221,6 @@ public class PartitionLocation implements Serializable {
     this.storageHint = storageHint;
   }
 
-  public String getDiskHint() {
-    if (diskHint == null || diskHint.length() == 0) {
-      return UNDEFINED_DISK;
-    }
-    return diskHint;
-  }
-
-  public void setDiskHint(String diskHint) {
-    this.diskHint = diskHint;
-  }
-
   @Override
   public boolean equals(Object other) {
     if (!(other instanceof PartitionLocation)) {
@@ -304,8 +248,7 @@ public class PartitionLocation implements Serializable {
     }
     return "PartitionLocation[" + id + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
-             " peer: " + peerAddr + " storage hint:" + storageHint +
-             " disk hint:" + diskHint + "]";
+             " peer: " + peerAddr + " storage hint:" + storageHint + "]";
   }
 
   public WorkerInfo getWorker() {
@@ -318,81 +261,75 @@ public class PartitionLocation implements Serializable {
       mode = Mode.Slave;
     }
 
-    PartitionLocation partitionLocation = PartitionLocation.builder()
-                                            .id(pbLoc.getId())
-                                            .epoch(pbLoc.getEpoch())
-                                            .host(pbLoc.getHost())
-                                            .rpcPort(pbLoc.getRpcPort())
-                                            .pushPort(pbLoc.getPushPort())
-                                            .fetchPort(pbLoc.getFetchPort())
-                                            .replicatePort(pbLoc.getReplicatePort())
-                                            .mode(mode)
-                                            .storageHint(
-                                              PartitionLocation.StorageHint
-                                                .values()[pbLoc.getStorageHintOrdinal()])
-                                            .diskHint(pbLoc.getDiskHint())
-                                            .build();
+    PartitionLocation partitionLocation =
+      PartitionLocation.builder()
+        .id(pbLoc.getId())
+        .epoch(pbLoc.getEpoch())
+        .host(pbLoc.getHost())
+        .rpcPort(pbLoc.getRpcPort())
+        .pushPort(pbLoc.getPushPort())
+        .fetchPort(pbLoc.getFetchPort())
+        .replicatePort(pbLoc.getReplicatePort())
+        .mode(mode)
+        .storageHint(StorageHint.fromPb(pbLoc.getStorageHint()))
+        .build();
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.Master;
       if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
         peerMode = Mode.Slave;
       }
-      PartitionLocation peerLocation = PartitionLocation.builder()
-                                         .id(peerPb.getId())
-                                         .epoch(peerPb.getEpoch())
-                                         .host(peerPb.getHost())
-                                         .rpcPort(peerPb.getRpcPort())
-                                         .pushPort(peerPb.getPushPort())
-                                         .fetchPort(peerPb.getFetchPort())
-                                         .replicatePort(peerPb.getReplicatePort())
-                                         .mode(peerMode)
-                                         .storageHint(
-                                           PartitionLocation.StorageHint
-                                             .values()[peerPb.getStorageHintOrdinal()])
-                                         .diskHint(peerPb.getDiskHint())
-                                         .build();
+      PartitionLocation peerLocation =
+        PartitionLocation.builder()
+          .id(peerPb.getId())
+          .epoch(peerPb.getEpoch())
+          .host(peerPb.getHost())
+          .rpcPort(peerPb.getRpcPort())
+          .pushPort(peerPb.getPushPort())
+          .fetchPort(peerPb.getFetchPort())
+          .replicatePort(peerPb.getReplicatePort())
+          .mode(peerMode)
+          .storageHint(StorageHint.fromPb(peerPb.getStorageHint()))
+          .build();
       partitionLocation.setPeer(peerLocation);
     }
 
     return partitionLocation;
   }
 
-  public static PbPartitionLocation toPbPartitionLocation(PartitionLocation
-                                                                              partitionLocation) {
+  public static PbPartitionLocation toPbPartitionLocation(PartitionLocation location) {
     PbPartitionLocation.Builder builder = TransportMessages
       .PbPartitionLocation.newBuilder();
-    if (partitionLocation.mode == Mode.Master) {
+    if (location.mode == Mode.Master) {
       builder.setMode(PbPartitionLocation.Mode.Master);
     } else {
       builder.setMode(PbPartitionLocation.Mode.Slave);
     }
-    builder.setHost(partitionLocation.getHost());
-    builder.setEpoch(partitionLocation.getEpoch());
-    builder.setId(partitionLocation.getId());
-    builder.setRpcPort(partitionLocation.getRpcPort());
-    builder.setPushPort(partitionLocation.getPushPort());
-    builder.setFetchPort(partitionLocation.getFetchPort());
-    builder.setReplicatePort(partitionLocation.getReplicatePort());
-    builder.setStorageHintOrdinal(partitionLocation.getStorageHint().ordinal());
+    builder.setHost(location.getHost());
+    builder.setEpoch(location.getEpoch());
+    builder.setId(location.getId());
+    builder.setRpcPort(location.getRpcPort());
+    builder.setPushPort(location.getPushPort());
+    builder.setFetchPort(location.getFetchPort());
+    builder.setReplicatePort(location.getReplicatePort());
+    builder.setStorageHint(StorageHint.toPb(location.storageHint));
 
-    if (partitionLocation.getPeer() != null) {
+    if (location.getPeer() != null) {
       PbPartitionLocation.Builder peerBuilder = TransportMessages
         .PbPartitionLocation.newBuilder();
-      if (partitionLocation.getPeer().mode == Mode.Master) {
+      if (location.getPeer().mode == Mode.Master) {
         peerBuilder.setMode(PbPartitionLocation.Mode.Master);
       } else {
         peerBuilder.setMode(PbPartitionLocation.Mode.Slave);
       }
-      peerBuilder.setHost(partitionLocation.getPeer().getHost());
-      peerBuilder.setEpoch(partitionLocation.getPeer().getEpoch());
-      peerBuilder.setId(partitionLocation.getPeer().getId());
-      peerBuilder.setRpcPort(partitionLocation.getPeer().getRpcPort());
-      peerBuilder.setPushPort(partitionLocation.getPeer().getPushPort());
-      peerBuilder.setFetchPort(partitionLocation.getPeer().getFetchPort());
-      peerBuilder.setReplicatePort(partitionLocation.getPeer().getReplicatePort());
-      peerBuilder.setStorageHintOrdinal(
-        partitionLocation.getPeer().getStorageHint().ordinal());
+      peerBuilder.setHost(location.getPeer().getHost());
+      peerBuilder.setEpoch(location.getPeer().getEpoch());
+      peerBuilder.setId(location.getPeer().getId());
+      peerBuilder.setRpcPort(location.getPeer().getRpcPort());
+      peerBuilder.setPushPort(location.getPeer().getPushPort());
+      peerBuilder.setFetchPort(location.getPeer().getFetchPort());
+      peerBuilder.setReplicatePort(location.getPeer().getReplicatePort());
+      peerBuilder.setStorageHint(StorageHint.toPb(location.getPeer().getStorageHint()));
       builder.setPeer(peerBuilder.build());
     }
 

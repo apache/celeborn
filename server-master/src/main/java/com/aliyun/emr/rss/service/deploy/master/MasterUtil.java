@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
+import com.aliyun.emr.rss.common.protocol.StorageHint;
 
 public class MasterUtil {
 
@@ -47,7 +48,7 @@ public class MasterUtil {
           v = new HashMap<>();
         }
         for (PartitionLocation location : slots.get(worker)._1) {
-          v.compute(location.getDiskHint(), (hint, slot) -> {
+          v.compute(location.getStorageHint().getMountPoint(), (hint, slot) -> {
             if (slot == null) {
               slot = 0;
             }
@@ -56,7 +57,7 @@ public class MasterUtil {
           });
         }
         for (PartitionLocation location : slots.get(worker)._2) {
-          v.compute(location.getDiskHint(), (hint, slot) -> {
+          v.compute(location.getStorageHint().getMountPoint(), (hint, slot) -> {
             if (slot == null) {
               slot = 0;
             }
@@ -375,8 +376,7 @@ public class MasterUtil {
         workerInfo.replicatePort(),
         mode,
         null,
-        PartitionLocation.StorageHint.HDD,
-        null);
+        new StorageHint());
       locations.add(location);
       workerAggregatedLocations.compute(workerInfo, (k, v) -> {
         if (v == null) {
@@ -425,8 +425,7 @@ public class MasterUtil {
           workerInfo.replicatePort(),
           mode,
           null,
-          PartitionLocation.StorageHint.HDD,
-          diskInfo.mountPoint());
+          new StorageHint(StorageHint.Type.HDD,diskInfo.mountPoint()));
         locations.add(location);
         workerAggregatedLocations.compute(workerInfo, (k, v) -> {
           if (v == null) {

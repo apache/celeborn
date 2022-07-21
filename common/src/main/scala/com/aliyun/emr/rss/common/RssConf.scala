@@ -23,8 +23,9 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint}
+import com.aliyun.emr.rss.common.protocol.StorageHint.Type.{HDD, SSD}
+import com.aliyun.emr.rss.common.protocol.StorageHint.Type
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -535,12 +536,12 @@ object RssConf extends Logging {
     Utils.byteStringAsBytes(conf.get("rss.partition.size", "64m"))
   }
 
-  def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, StorageHint)] = {
+  def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, Type)] = {
     var maxCapacity = 1024L * 1024 * 1024 * 1024 * 1024
     val baseDirs = conf.get("rss.worker.base.dirs", "")
     if (baseDirs.nonEmpty) {
       if (baseDirs.contains(":")) {
-        var diskType = StorageHint.HDD
+        var diskType = HDD
         var flushThread = -1
         baseDirs
           .split(",")
@@ -553,26 +554,26 @@ object RssConf extends Logging {
                 case capacityStr if capacityStr.startsWith("capacity") =>
                   maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
                 case disktypeStr if disktypeStr.startsWith("disktype") =>
-                  diskType = StorageHint.valueOf(disktypeStr.split("=")(1))
+                  diskType = Type.valueOf(disktypeStr.split("=")(1))
                 case threadCountStr if threadCountStr.startsWith("flushthread") =>
                   flushThread = threadCountStr.split("=")(1).toInt
               }
             }
             if (flushThread == -1) {
               flushThread = diskType match {
-                case StorageHint.HDD => HDDFlusherThread(conf)
-                case StorageHint.SSD => SSDFlusherThread(conf)
+                case HDD => HDDFlusherThread(conf)
+                case SSD => SSDFlusherThread(conf)
               }
             }
             (workingDir, maxCapacity, flushThread, diskType)
           })
       } else {
-        baseDirs.split(",").map((_, maxCapacity, 1, StorageHint.HDD))
+        baseDirs.split(",").map((_, maxCapacity, 1, HDD))
       }
     } else {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => (s"$prefix$i", maxCapacity, 1, StorageHint.HDD)).toArray
+      (1 to number).map(i => (s"$prefix$i", maxCapacity, 1, HDD)).toArray
     }
   }
 
@@ -596,9 +597,9 @@ object RssConf extends Logging {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
   }
 
-  def availableStorages(conf: RssConf): Array[StorageHint] = {
+  def availableStorages(conf: RssConf): Array[Type] = {
     val storages = conf.get("rss.available.storage", "MEM,SSD,HDD,HDFS")
-    storages.toUpperCase().split(",").map(StorageHint.valueOf(_))
+    storages.toUpperCase().split(",").map(Type.valueOf(_))
   }
 
   def workerBaseDirPrefix(conf: RssConf): String = {
@@ -855,12 +856,12 @@ object RssConf extends Logging {
       "10s")).toInt
   }
 
-  def storageHint(conf: RssConf): PartitionLocation.StorageHint = {
-    val default = PartitionLocation.StorageHint.MEMORY
-    val hintStr = conf.get("rss.storage.hint", "memory").toUpperCase
-    if (PartitionLocation.StorageHint.values().mkString.toUpperCase.contains(hintStr)) {
+  def defaultStorageType(conf: RssConf): StorageHint.Type = {
+    val default = StorageHint.Type.MEMORY
+    val hintStr = conf.get("rss.storage.type", "memory").toUpperCase
+    if (StorageHint.Type.values().mkString.toUpperCase.contains(hintStr)) {
       logWarning(s"storage hint is invalid ${hintStr}")
-      PartitionLocation.StorageHint.valueOf(hintStr)
+      StorageHint.Type.valueOf(hintStr)
     } else {
       default
     }

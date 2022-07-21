@@ -21,7 +21,7 @@ import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, LongAdder}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, LongAdder}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -39,8 +39,7 @@ import com.aliyun.emr.rss.common.meta.DiskInfo
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 private[worker] case class FlushTask(
@@ -54,7 +53,7 @@ private[worker] final class DiskFlusher(
   val deviceMonitor: DeviceMonitor,
   val threadCount: Int,
   val mountPoint: String,
-  val diskType: StorageHint) extends DeviceObserver with Logging {
+  val diskType: StorageHint.Type) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   private val bufferQueues = new Array[LinkedBlockingQueue[CompositeByteBuf]](threadCount)
@@ -210,8 +209,8 @@ private[worker] final class LocalStorageManager(
   val isolatedWorkingDirs =
     new ConcurrentHashMap[File, DeviceErrorType](RssConf.workerBaseDirs(conf).length)
 
-  private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageHint)] =
-    new mutable.HashMap[String, (Long, Int, StorageHint)]()
+  private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageHint.Type)] =
+    new mutable.HashMap[String, (Long, Int, StorageHint.Type)]()
     new ConcurrentHashMap[String, ConcurrentHashMap[File, FileWriter]]()
   // mountpoint -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
@@ -405,7 +404,7 @@ private[worker] final class LocalStorageManager(
 
     var retryCount = 0
     var exception: IOException = null
-    val suggestedMountPoint = location.getDiskHint
+    val suggestedMountPoint = location.getStorageHint.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
       val dirs = workingDirsSnapshot(suggestedMountPoint)
       val index = getNextIndex()
@@ -437,8 +436,9 @@ private[worker] final class LocalStorageManager(
         list.synchronized {list.add(fileWriter)}
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)
         shuffleMap.put(fileName, fileWriter)
-        location.setDiskHint(workingDirMountInfos.get(dir.getAbsolutePath).mountPoint)
-        logDebug(s"location $location set disk hint to ${location.getDiskHint} ")
+        location.getStorageHint.setMountPoint(
+          workingDirMountInfos.get(dir.getAbsolutePath).mountPoint)
+        logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
         return fileWriter
       } catch {
         case t: Throwable =>

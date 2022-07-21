@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.IOException
-import java.util.{ArrayList => jArrayList, List => jList}
+import java.util.{ArrayList => jArrayList, List => jList, HashMap => jHashMap}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
@@ -32,8 +32,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -69,14 +68,14 @@ private[deploy] class Controller(
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode, partitionType, storageHint) =>
+    splitMode, partitionType) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode, partitionType, storageHint)
+          slaveLocations, splitThreashold, splitMode, partitionType)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -110,8 +109,7 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType,
-      storageHint: StorageHint): Unit = {
+      partitionType: PartitionType): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -183,7 +181,7 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: ConcurrentSet[String],
       failedIds: ConcurrentSet[String],
-      committedStorageAndDiskHints: LinkedBlockingQueue[String],
+      committedStorageHints: java.util.HashMap[String, Array[Byte]],
       writtenList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
@@ -207,11 +205,8 @@ private[deploy] class Controller(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
-                committedStorageAndDiskHints.add(
-                  s"$uniqueId:" +
-                    s"${fileWriter.getStorageHint.ordinal()}:" +
-                    s"${fileWriter.getDiskHint}"
-                )
+                committedStorageHints.put(uniqueId
+                  ,StorageHint.toPb(fileWriter.getStorageHint).toByteArray)
                 writtenList.add(bytes)
                 committedIds.add(uniqueId)
               }
@@ -249,11 +244,7 @@ private[deploy] class Controller(
           List.empty.asJava,
           List.empty.asJava,
           masterIds,
-          slaveIds,
-          List.empty.asJava,
-          List.empty.asJava,
-          0,
-          0
+          slaveIds
         )
       )
       return
@@ -267,8 +258,8 @@ private[deploy] class Controller(
     val committedSlaveIds = new ConcurrentSet[String]()
     val failedMasterIds = new ConcurrentSet[String]()
     val failedSlaveIds = new ConcurrentSet[String]()
-    val committedMasterStorageAndDiskHint = new LinkedBlockingQueue[String]()
-    val committedSlaveStorageAndDiskHint = new LinkedBlockingQueue[String]()
+    val committedMasterStorageHints = new jHashMap[String, Array[Byte]]()
+    val committedSlaveStorageHints = new jHashMap[String, Array[Byte]]()
     val committedWrittenSize = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
@@ -277,7 +268,7 @@ private[deploy] class Controller(
         masterIds,
         committedMasterIds,
         failedMasterIds,
-        committedMasterStorageAndDiskHint,
+        committedMasterStorageHints,
         committedWrittenSize
       )
     val slaveFuture = commitFiles(
@@ -285,7 +276,7 @@ private[deploy] class Controller(
       slaveIds,
       committedSlaveIds,
       failedSlaveIds,
-      committedSlaveStorageAndDiskHint,
+      committedSlaveStorageHints,
       committedWrittenSize,
       false
     )
@@ -317,9 +308,9 @@ private[deploy] class Controller(
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
       val committedMasterStorageAndDiskHintList =
-        new jArrayList[String](committedMasterStorageAndDiskHint)
+        new jHashMap[String, Array[Byte]](committedMasterStorageHints)
       val committedSlaveStorageAndDiskHintList =
-        new jArrayList[String](committedSlaveStorageAndDiskHint)
+        new jHashMap[String, Array[Byte]](committedSlaveStorageHints)
       val totalWritten = committedWrittenSize.asScala.sum
       val fileCount = committedWrittenSize.size()
       // reply

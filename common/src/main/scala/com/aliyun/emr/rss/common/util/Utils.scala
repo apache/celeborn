@@ -609,15 +609,13 @@ object Utils extends Logging {
       val diskSlotsMap = new util.HashMap[String, Integer]()
 
       def countSlotsByDisk(location: util.List[PartitionLocation]): Unit = {
-        location.asScala
-          .groupBy(_.getDiskHint)
-          .foreach(item => {
-            if (diskSlotsMap.containsKey(item._1)) {
-              diskSlotsMap.put(item._1, diskSlotsMap.get(item._1) + item._2.size)
-            } else {
-              diskSlotsMap.put(item._1, item._2.size)
-            }
-          })
+        location.asScala.groupBy(_.getStorageHint.getMountPoint).foreach(item => {
+          if (diskSlotsMap.containsKey(item._1)) {
+            diskSlotsMap.put(item._1, diskSlotsMap.get(item._1) + item._2.size)
+          } else {
+            diskSlotsMap.put(item._1, item._2.size)
+          }
+        })
       }
 
       countSlotsByDisk(masterPartitionLoc)
@@ -632,7 +630,8 @@ object Utils extends Logging {
     workerLocations: util.List[PartitionLocation]
   ): util.Map[String, Integer] = {
     val slotDistributions = new util.HashMap[String, Integer]()
-    (masterLocations.asScala ++ workerLocations.asScala).groupBy(_.getDiskHint).foreach {
+    (masterLocations.asScala ++ workerLocations.asScala)
+      .groupBy(_.getStorageHint.getMountPoint).foreach {
       case (hint, location) =>
         slotDistributions.compute(
           hint,
