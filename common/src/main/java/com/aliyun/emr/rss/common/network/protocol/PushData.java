@@ -23,7 +23,7 @@ import io.netty.buffer.ByteBuf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 
-public final class PushData extends AbstractMessage implements RequestMessage {
+public final class PushData extends RequestMessage {
   public long requestId;
 
   public int epoch;

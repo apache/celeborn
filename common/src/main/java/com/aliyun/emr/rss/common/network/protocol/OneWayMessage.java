@@ -28,7 +28,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
  * A RPC that does not expect a reply, which is handled by a remote
  * {@link BaseMessageHandler}.
  */
-public final class OneWayMessage extends AbstractMessage implements RequestMessage {
+public final class OneWayMessage extends RequestMessage {
 
   public OneWayMessage(ManagedBuffer body) {
     super(body, true);

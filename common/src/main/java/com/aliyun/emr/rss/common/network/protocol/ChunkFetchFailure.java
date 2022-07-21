@@ -23,7 +23,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Response to {@link ChunkFetchRequest} when there is an error fetching the chunk.
  */
-public final class ChunkFetchFailure extends AbstractMessage implements ResponseMessage {
+public final class ChunkFetchFailure extends ResponseMessage {
   public final StreamChunkSlice streamChunkSlice;
   public final String errorString;
 

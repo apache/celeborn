@@ -41,65 +41,65 @@ public class MasterUtilSuiteJ {
   }
 
   @Test
-  public void testAllocateSlotsForEmptyReduceId() {
+  public void testAllocateSlotsForEmptyPartitionId() {
     final int numSlots = 1;
     final List<WorkerInfo> workers = prepareWorkers(numSlots);
-    final List<Integer> reduceIds = Collections.emptyList();
+    final List<Integer> partitionIds = Collections.emptyList();
     final boolean shouldReplicate = true;
 
-    check(0, 3, workers, reduceIds, shouldReplicate, true);
+    check(0, 3, workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForSingleReduceId() {
+  public void testAllocateSlotsForSinglePartitionId() {
     final int numSlots = 1;
     final List<WorkerInfo> workers = prepareWorkers(numSlots);
-    final List<Integer> reduceIds = Collections.singletonList(0);
+    final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = true;
 
-    check(2, 1, workers, reduceIds, shouldReplicate, true);
+    check(2, 1, workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForSingleReduceIdWithoutReplicate() {
+  public void testAllocateSlotsForSinglePartitionIdWithoutReplicate() {
     final int numSlots = 1;
     final List<WorkerInfo> workers = prepareWorkers(numSlots);
-    final List<Integer> reduceIds = Collections.singletonList(0);
+    final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = false;
 
-    check(1, 2, workers, reduceIds, shouldReplicate, true);
+    check(1, 2, workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForTwoReduceIdsWithoutReplicate() {
+  public void testAllocateSlotsForTwoPartitionIdsWithoutReplicate() {
     final int numSlots = 1;
     final List<WorkerInfo> workers = prepareWorkers(numSlots);
-    final List<Integer> reduceIds = Arrays.asList(0, 1);
+    final List<Integer> partitionIds = Arrays.asList(0, 1);
     final boolean shouldReplicate = false;
 
-    check(2, 1, workers, reduceIds, shouldReplicate, true);
+    check(2, 1, workers, partitionIds, shouldReplicate, true);
   }
 
   @Test
-  public void testAllocateSlotsForThreeReduceIdsWithoutReplicate() {
+  public void testAllocateSlotsForThreePartitionIdsWithoutReplicate() {
     final int numSlots = 1;
     final List<WorkerInfo> workers = prepareWorkers(numSlots);
-    final List<Integer> reduceIds = Arrays.asList(0, 1, 2);
+    final List<Integer> partitionIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = false;
 
-    check(3, 0, workers, reduceIds, shouldReplicate, true);
+    check(3, 0, workers, partitionIds, shouldReplicate, true);
   }
 
   private void check(
       int usedWorkers,
       int expectAvailableSlots,
       List<WorkerInfo> workers,
-      List<Integer> reduceIds,
+      List<Integer> partitionIds,
       boolean shouldReplicate,
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        MasterUtil.offerSlots(shuffleKey, workers, reduceIds, shouldReplicate);
+        MasterUtil.offerSlots(workers, partitionIds, shouldReplicate);
 
     if (expectSuccess) {
       assert usedWorkers == slots.size() : "Offer slots, expect to return "
@@ -116,8 +116,8 @@ public class MasterUtilSuiteJ {
       for (WorkerInfo worker : workers) {
         realAvailableSlots += worker.freeSlots();
       }
-      assert realAvailableSlots == expectAvailableSlots : "Offer slots for three reduceIds, expect "
-          + expectAvailableSlots + " available slots, but real is " + realAvailableSlots;
+      assert realAvailableSlots == expectAvailableSlots : "Offer slots for three partitionIds," +
+        "expect " + expectAvailableSlots + " available slots, but real is " + realAvailableSlots;
     } else {
       assert null == slots: "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }

@@ -28,6 +28,9 @@ public enum PartitionSplitMode {
 
   PartitionSplitMode(int value) {
     assert (value >= 0 && value < 256);
+    if (value > 1) {
+      value = 0;
+    }
     this.value = (byte) value;
   }
 
