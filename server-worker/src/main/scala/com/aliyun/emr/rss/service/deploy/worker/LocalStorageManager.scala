@@ -56,11 +56,7 @@ private[worker] final class DiskFlusher(
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   private val bufferQueues = new Array[LinkedBlockingQueue[CompositeByteBuf]](threadCount)
   for (index <- 0 until threadCount) {
-    val actualQueueSize = if (queueCapacity / threadCount > 0) {
-      queueCapacity / threadCount
-    } else {
-      100
-    }
+    val actualQueueSize = queueCapacity / threadCount + 1
     workingQueues(index) = new LinkedBlockingQueue[FlushTask](actualQueueSize)
     bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf](actualQueueSize)
     for (_ <- 0 until actualQueueSize) {
@@ -68,7 +64,7 @@ private[worker] final class DiskFlusher(
     }
   }
   private val workers = new Array[Thread](threadCount)
-  private val nextReplicationIndex = new AtomicInteger()
+  private val nextWorkerIndex = new AtomicInteger()
 
   @volatile
   private var lastBeginFlushTime: Long = -1
@@ -119,24 +115,28 @@ private[worker] final class DiskFlusher(
     deviceMonitor.registerDiskFlusher(this)
   }
 
-  def getReplicationIndex: Int = {
-    nextReplicationIndex.getAndIncrement() % threadCount
+  def getWorkerIndex: Int = {
+    val nextIndex = nextWorkerIndex.getAndIncrement()
+    if (nextIndex > 1000000) {
+      nextWorkerIndex.set(0)
+    }
+    nextIndex % threadCount
   }
 
-  def takeBuffer(timeoutMs: Long, replicationIndex: Int): CompositeByteBuf = {
-    bufferQueues(replicationIndex).poll(timeoutMs, TimeUnit.MILLISECONDS)
+  def takeBuffer(timeoutMs: Long, workerIndex: Int): CompositeByteBuf = {
+    bufferQueues(workerIndex).poll(timeoutMs, TimeUnit.MILLISECONDS)
   }
 
-  def returnBuffer(buffer: CompositeByteBuf, replicationIndex: Int): Unit = {
+  def returnBuffer(buffer: CompositeByteBuf, workerIndex: Int): Unit = {
     MemoryTracker.instance().releaseDiskBuffer(buffer.readableBytes())
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 
-    bufferQueues(replicationIndex).put(buffer)
+    bufferQueues(workerIndex).put(buffer)
   }
 
-  def addTask(task: FlushTask, timeoutMs: Long, replicationIndex: Int): Boolean = {
-    workingQueues(replicationIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
+  def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
+    workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
   }
 
   override def notifyError(deviceName: String, dirs: ListBuffer[File] = null,
@@ -150,10 +150,10 @@ private[worker] final class DiskFlusher(
         logError(s"Exception when interrupt worker: $workers, $e")
     }
     workingQueues.foreach { queue =>
-      queue.asScala.foreach(task => {
+      queue.asScala.foreach { task =>
         task.buffer.removeComponents(0, task.buffer.numComponents())
         task.buffer.clear()
-      })
+      }
     }
     deviceMonitor.unregisterDiskFlusher(this)
   }
