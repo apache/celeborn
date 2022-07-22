@@ -55,14 +55,6 @@ private[worker] final class DiskFlusher(
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   private val bufferQueues = new Array[LinkedBlockingQueue[CompositeByteBuf]](threadCount)
-  for (index <- 0 until threadCount) {
-    val actualQueueSize = queueCapacity / threadCount + 1
-    workingQueues(index) = new LinkedBlockingQueue[FlushTask](actualQueueSize)
-    bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf](actualQueueSize)
-    for (_ <- 0 until actualQueueSize) {
-      bufferQueues(index).put(Unpooled.compositeBuffer(256))
-    }
-  }
   private val workers = new Array[Thread](threadCount)
   private val nextWorkerIndex = new AtomicInteger()
 
@@ -76,7 +68,14 @@ private[worker] final class DiskFlusher(
   init()
 
   private def init(): Unit = {
+    val actualQueueSize = queueCapacity / threadCount + 1
     for (index <- 0 until (threadCount)) {
+      workingQueues(index) = new LinkedBlockingQueue[FlushTask](actualQueueSize)
+      bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf](actualQueueSize)
+      for (_ <- 0 until actualQueueSize) {
+        bufferQueues(index).put(Unpooled.compositeBuffer(256))
+      }
+
       workers(index) = new Thread(s"$this-$index") {
         override def run(): Unit = {
           while (!stopFlag.get()) {
@@ -117,7 +116,7 @@ private[worker] final class DiskFlusher(
 
   def getWorkerIndex: Int = {
     val nextIndex = nextWorkerIndex.getAndIncrement()
-    if (nextIndex > 1000000) {
+    if (nextIndex > threadCount) {
       nextWorkerIndex.set(0)
     }
     nextIndex % threadCount
