@@ -22,12 +22,15 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.aliyun.emr.rss.common.network.protocol.Message;
+import com.aliyun.emr.rss.common.network.protocol.MessageEncoder;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A customized frame decoder that allows intercepting raw data.
@@ -46,6 +49,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * to their handle() method.
  */
 public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
+  private static final Logger logger = LoggerFactory.getLogger(TransportFrameDecoder.class);
   public static final String HANDLER_NAME = "frameDecoder";
   // Message size + Msg type + Body sizb
   private static final int HEADER_SIZE = 4 + 1 + 4;
@@ -83,7 +87,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     ByteBuf buf = (ByteBuf) data;
     try {
       while (buf.isReadable()) {
-        System.out.println(headerBuf.writerIndex());
         if (headerBuf.isWritable()) {
           copyByteBuf(buf, headerBuf, HEADER_SIZE);
           if (!headerBuf.isWritable()) {
@@ -134,6 +137,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
           }
         } else {
           ctx.fireChannelRead(curMsg);
+          clear();
         }
       }
     } finally {
@@ -144,7 +148,9 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
   private void clear() {
     externalBuf = null;
     curMsg = null;
+    curType = Message.Type.UnkownType;
     headerBuf.clear();
+    compositeByteBuf.removeComponents(0, compositeByteBuf.numComponents());
     compositeByteBuf.clear();
   }
 
@@ -259,6 +265,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     for (ByteBuf b : buffers) {
       b.release();
     }
+    clear();
     buffers.clear();
     headerBuf.release();
     super.handlerRemoved(ctx);
