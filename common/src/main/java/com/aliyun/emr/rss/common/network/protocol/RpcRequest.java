@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
+import io.netty.buffer.Unpooled;
 
 /**
  * A generic RPC which is handled by a remote {@link BaseMessageHandler}.
@@ -57,10 +58,17 @@ public final class RpcRequest extends RequestMessage {
   }
 
   public static RpcRequest decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+  public static RpcRequest decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     // See comment in encodedLength().
     buf.readInt();
-    return new RpcRequest(requestId, new NettyManagedBuffer(buf));
+    if (decodeBody) {
+      return new RpcRequest(requestId, new NettyManagedBuffer(buf));
+    } else {
+      return new RpcRequest(requestId,new NettyManagedBuffer(Unpooled.buffer(0, 0)));
+    }
   }
 
   @Override

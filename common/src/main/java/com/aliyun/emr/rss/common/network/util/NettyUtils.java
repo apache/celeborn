@@ -86,8 +86,10 @@ public class NettyUtils {
    */
   public static ChannelInboundHandlerAdapter createFrameDecoder(TransportConf conf) {
     if (conf.decoderMode().equals("default")) {
+      System.out.println("default decoder");
       return new TransportFrameDecoder();
     } else if (conf.decoderMode().equals("supplier")) {
+      System.out.println("supplier decoder");
       return new TransportFrameDecoderWithBufferSupplier();
     } else {
       return new TransportFrameDecoder();

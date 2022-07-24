@@ -117,21 +117,26 @@ public abstract class Message implements Encodable {
   }
 
   public static Message decode(Type msgType, ByteBuf in) {
+    return decode(msgType, in, true);
+  }
+
+
+  public static Message decode(Type msgType, ByteBuf in, boolean decodeBody) {
     switch (msgType) {
       case ChunkFetchRequest:
         return ChunkFetchRequest.decode(in);
 
       case ChunkFetchSuccess:
-        return ChunkFetchSuccess.decode(in);
+        return ChunkFetchSuccess.decode(in, decodeBody);
 
       case ChunkFetchFailure:
         return ChunkFetchFailure.decode(in);
 
       case RpcRequest:
-        return RpcRequest.decode(in);
+        return RpcRequest.decode(in, decodeBody);
 
       case RpcResponse:
-        return RpcResponse.decode(in);
+        return RpcResponse.decode(in, decodeBody);
 
       case RpcFailure:
         return RpcFailure.decode(in);
@@ -143,13 +148,13 @@ public abstract class Message implements Encodable {
         return StreamHandle.decode(in);
 
       case OneWayMessage:
-        return OneWayMessage.decode(in);
+        return OneWayMessage.decode(in, decodeBody);
 
       case PushData:
-        return PushData.decode(in);
+        return PushData.decode(in, decodeBody);
 
       case PushMergedData:
-        return PushMergedData.decode(in);
+        return PushMergedData.decode(in, decodeBody);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);

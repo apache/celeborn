@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
+import io.netty.buffer.Unpooled;
 
 public final class PushMergedData extends RequestMessage {
   public long requestId;
@@ -81,18 +82,31 @@ public final class PushMergedData extends RequestMessage {
   }
 
   public static PushMergedData decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static PushMergedData decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     byte mode = buf.readByte();
     String shuffleKey = Encoders.Strings.decode(buf);
     String[] partitionIds = Encoders.StringArrays.decode(buf);
     int[] batchOffsets = Encoders.IntArrays.decode(buf);
-    return new PushMergedData(
+    if (decodeBody) {
+      return new PushMergedData(
         requestId,
         mode,
         shuffleKey,
         partitionIds,
         batchOffsets,
         new NettyManagedBuffer(buf));
+    } else {
+      return new PushMergedData(requestId,
+        mode,
+        shuffleKey,
+        partitionIds,
+        batchOffsets,
+        new NettyManagedBuffer(Unpooled.buffer(0, 0)));
+    }
   }
 
   @Override

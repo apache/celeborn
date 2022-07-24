@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
+import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,6 @@ public final class PushData extends RequestMessage {
 
   @Override
   public void encode(ByteBuf buf) {
-    logger.debug("encode pushdata");
     buf.writeLong(requestId);
     buf.writeInt(epoch);
     buf.writeByte(mode);
@@ -84,14 +84,23 @@ public final class PushData extends RequestMessage {
   }
 
   public static PushData decode(ByteBuf buf) {
-    logger.debug("decode pushdata");
+    return decode(buf, true);
+  }
+
+  public static PushData decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     int epoch = buf.readInt();
     byte mode = buf.readByte();
     String shuffleKey = Encoders.Strings.decode(buf);
     String partitionUniqueId = Encoders.Strings.decode(buf);
-    return new PushData(
-      requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
+    if (decodeBody) {
+      return new PushData(
+        requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
+    } else {
+      return new PushData(
+        requestId, epoch, mode, shuffleKey, partitionUniqueId,
+        new NettyManagedBuffer(Unpooled.buffer(0, 0)));
+    }
   }
 
   @Override
