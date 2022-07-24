@@ -22,7 +22,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.aliyun.emr.rss.common.network.protocol.Message;
-import com.aliyun.emr.rss.common.network.protocol.MessageEncoder;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -48,8 +47,8 @@ import org.slf4j.LoggerFactory;
  * framing resumes. Interceptors should not hold references to the data buffers provided
  * to their handle() method.
  */
-public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
-  private static final Logger logger = LoggerFactory.getLogger(TransportFrameDecoder.class);
+public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter {
+  private static final Logger logger = LoggerFactory.getLogger(TransportFrameDecoderWithBufferSupplier.class);
   public static final String HANDLER_NAME = "frameDecoder";
   // Message size + Msg type + Body sizb
   private static final int HEADER_SIZE = 4 + 1 + 4;
@@ -59,7 +58,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
   private final LinkedList<ByteBuf> buffers = new LinkedList<>();
   private final Function<Long, Supplier<ByteBuf>> bufferSuppliers;
   private ByteBuf externalBuf = null;
-  private CompositeByteBuf compositeByteBuf = null;
+  private CompositeByteBuf bodyBuf = null;
   private final ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
@@ -70,11 +69,11 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
   private long totalSize = 0;
   private long nextFrameSize = UNKNOWN_FRAME_SIZE;
 
-  public TransportFrameDecoder() {
+  public TransportFrameDecoderWithBufferSupplier() {
     this.bufferSuppliers = null;
   }
 
-  public TransportFrameDecoder(Function<Long, Supplier<ByteBuf>> bufferSuppliers) {
+  public TransportFrameDecoderWithBufferSupplier(Function<Long, Supplier<ByteBuf>> bufferSuppliers) {
     this.bufferSuppliers = bufferSuppliers;
   }
 
@@ -83,75 +82,108 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     target.writeBytes(source, bytes);
   }
 
-  public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
+  private void decodeHeader(ByteBuf buf, ChannelHandlerContext ctx) {
+    copyByteBuf(buf, headerBuf, HEADER_SIZE);
+    if (!headerBuf.isWritable()) {
+      msgSize = headerBuf.readInt();
+      if (msgBuf.capacity() < msgSize) {
+        msgBuf.capacity(msgSize);
+      }
+      msgBuf.clear();
+      curType = Message.Type.decode(headerBuf);
+      bodySize = headerBuf.readInt();
+      decodeMsg(buf, ctx);
+    }
+  }
+
+  private void decodeMsg(ByteBuf buf, ChannelHandlerContext ctx) {
+    if (msgBuf.readableBytes() < msgSize) {
+      copyByteBuf(buf, msgBuf, msgSize);
+    }
+    if (msgBuf.readableBytes() == msgSize) {
+      curMsg = Message.decode(curType, msgBuf);
+      if (bodySize <= 0) {
+        ctx.fireChannelRead(curMsg);
+        clear();
+      }
+    }
+  }
+
+  private ByteBuf decodeBody(ByteBuf buf, ChannelHandlerContext ctx) {
+    if (bodyBuf == null) {
+      if (buf.readableBytes() >= bodySize) {
+        ByteBuf body = buf.retain().readSlice(bodySize);
+        curMsg.setBody(body);
+        ctx.fireChannelRead(curMsg);
+        clear();
+        return buf;
+      } else {
+        bodyBuf = buf.alloc().compositeBuffer(Integer.MAX_VALUE);
+      }
+    }
+    int remaining = bodySize - bodyBuf.readableBytes();
+    ByteBuf next;
+    if (remaining >= buf.readableBytes()) {
+      next = buf;
+      buf = null;
+    } else {
+      next = buf.retain().readSlice(remaining);
+    }
+    bodyBuf.addComponent(next).writerIndex(bodyBuf.writerIndex() + next.readableBytes());
+    if (bodyBuf.readableBytes() == bodySize) {
+      curMsg.setBody(bodyBuf);
+      ctx.fireChannelRead(curMsg);
+      clear();
+    }
+    return buf;
+  }
+
+  private ByteBuf decodeBodyCopyOut(ByteBuf buf, ChannelHandlerContext ctx) {
+    if (externalBuf == null) {
+      // TODO default value
+      externalBuf = bufferSuppliers.apply(-1L).get();
+    }
+    copyByteBuf(buf, externalBuf, bodySize);
+    if (externalBuf.readableBytes() == bodySize) {
+      curMsg.setBody(externalBuf);
+      ctx.fireChannelRead(curMsg);
+      clear();
+    }
+    return buf;
+  }
+
+  public void channelRead(ChannelHandlerContext ctx, Object data) {
     ByteBuf buf = (ByteBuf) data;
     try {
-      while (buf.isReadable()) {
+      while (buf != null && buf.isReadable()) {
         if (headerBuf.isWritable()) {
-          copyByteBuf(buf, headerBuf, HEADER_SIZE);
-          if (!headerBuf.isWritable()) {
-            msgSize = headerBuf.readInt();
-            if (msgBuf.capacity() < msgSize) {
-              msgBuf.capacity(msgSize);
-            }
-            msgBuf.clear();
-            curType = Message.Type.decode(headerBuf);
-            bodySize = headerBuf.readInt();
-          }
+          decodeHeader(buf, ctx);
         } else if (curMsg == null) {
-          if (msgBuf.readableBytes() < msgSize) {
-            copyByteBuf(buf, msgBuf, msgSize);
-          }
-          if (msgBuf.readableBytes() == msgSize) {
-            curMsg = Message.decode(curType, msgBuf);
-          }
-        } else if (curMsg.hasBody()) {
+          decodeMsg(buf, ctx);
+        } else if (bodySize > 0) {
           if (curMsg.needCopyOut()) {
-            if (externalBuf == null) {
-              // TODO default value
-              externalBuf = bufferSuppliers.apply(-1L).get();
-            }
-            copyByteBuf(buf, externalBuf, bodySize);
-            if (externalBuf.readableBytes() == bodySize) {
-              curMsg.setBody(externalBuf);
-              ctx.fireChannelRead(curMsg);
-              clear();
-            }
+            buf = decodeBodyCopyOut(buf, ctx);
           } else {
-            if (compositeByteBuf == null) {
-              compositeByteBuf = buf.alloc().compositeBuffer(Integer.MAX_VALUE);
-            }
-            int remaining = bodySize - compositeByteBuf.readableBytes();
-            ByteBuf next;
-            if (remaining > buf.readableBytes()) {
-              next = buf.retain();
-            } else {
-              next = buf.retain().readSlice(remaining);
-            }
-            compositeByteBuf.addComponent(next).writerIndex(compositeByteBuf.writerIndex() + next.readableBytes());
-            if (compositeByteBuf.readableBytes() == bodySize) {
-              curMsg.setBody(compositeByteBuf);
-              ctx.fireChannelRead(curMsg);
-              clear();
-            }
+            buf = decodeBody(buf, ctx);
           }
-        } else {
-          ctx.fireChannelRead(curMsg);
-          clear();
         }
       }
     } finally {
-      buf.release();
+      if (buf != null) {
+        buf.release();
+      }
     }
   }
 
   private void clear() {
-    externalBuf = null;
+    if (externalBuf != null) {
+      externalBuf.clear();
+    }
     curMsg = null;
     curType = Message.Type.UnkownType;
     headerBuf.clear();
-    compositeByteBuf.removeComponents(0, compositeByteBuf.numComponents());
-    compositeByteBuf.clear();
+    bodyBuf = null;
+    bodySize = -1;
   }
 
   public void channelRead1(ChannelHandlerContext ctx, Object data) throws Exception {

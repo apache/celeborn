@@ -22,8 +22,11 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class PushData extends RequestMessage {
+  private static final Logger logger = LoggerFactory.getLogger(PushData.class);
   public long requestId;
 
   public int epoch;
@@ -60,11 +63,6 @@ public final class PushData extends RequestMessage {
   }
 
   @Override
-  public boolean hasBody() {
-    return true;
-  }
-
-  @Override
   public int encodedLength() {
     return 8 + 4 + 1 + Encoders.Strings.encodedLength(shuffleKey) +
         Encoders.Strings.encodedLength(partitionUniqueId);
@@ -77,6 +75,7 @@ public final class PushData extends RequestMessage {
 
   @Override
   public void encode(ByteBuf buf) {
+    logger.debug("encode pushdata");
     buf.writeLong(requestId);
     buf.writeInt(epoch);
     buf.writeByte(mode);
@@ -85,6 +84,7 @@ public final class PushData extends RequestMessage {
   }
 
   public static PushData decode(ByteBuf buf) {
+    logger.debug("decode pushdata");
     long requestId = buf.readLong();
     int epoch = buf.readInt();
     byte mode = buf.readByte();

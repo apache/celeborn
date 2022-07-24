@@ -38,11 +38,6 @@ public final class OneWayMessage extends RequestMessage {
   public Type type() { return Type.OneWayMessage; }
 
   @Override
-  public boolean hasBody() {
-    return true;
-  }
-
-  @Override
   public int encodedLength() {
     // The integer (a.k.a. the body size) is not really used, since that information is already
     // encoded in the frame length. But this maintains backwards compatibility with versions of

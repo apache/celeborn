@@ -83,8 +83,8 @@ public class NettyUtils {
    * Creates a LengthFieldBasedFrameDecoder where the first 8 bytes are the length of the frame.
    * This is used before all decoders.
    */
-  public static TransportFrameDecoder createFrameDecoder() {
-    return new TransportFrameDecoder();
+  public static TransportFrameDecoderWithBufferSupplier createFrameDecoder() {
+    return new TransportFrameDecoderWithBufferSupplier();
   }
 
   /** Returns the remote address on the channel or "&lt;unknown remote&gt;" if none exists. */

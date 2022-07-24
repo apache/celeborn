@@ -49,14 +49,12 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
   public void encode(ChannelHandlerContext ctx, Message in, List<Object> out) throws Exception {
     Object body = null;
     int bodyLength = 0;
-    boolean isBodyInFrame = false;
 
     // If the message has a body, take it out to enable zero-copy transfer for the payload.
     if (in.body() != null) {
       try {
         bodyLength = (int) in.body().size();
         body = in.body().convertToNetty();
-        isBodyInFrame = in.hasBody();
       } catch (Exception e) {
         in.body().release();
         if (in instanceof ResponseMessage) {

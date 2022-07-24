@@ -47,11 +47,6 @@ public final class OpenStream extends RequestMessage {
   public Type type() { return Type.OpenStream; }
 
   @Override
-  public boolean hasBody() {
-    return false;
-  }
-
-  @Override
   public int encodedLength() {
     return 4 + shuffleKey.length +
       4 + fileName.length +

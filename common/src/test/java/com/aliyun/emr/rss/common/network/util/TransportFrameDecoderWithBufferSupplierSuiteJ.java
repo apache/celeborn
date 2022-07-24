@@ -30,7 +30,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-public class TransportFrameDecoderSuiteJ {
+public class TransportFrameDecoderWithBufferSupplierSuiteJ {
 
   private static Random RND = new Random();
 
@@ -41,7 +41,7 @@ public class TransportFrameDecoderSuiteJ {
 
   @Test
   public void testFrameDecoding() throws Exception {
-    TransportFrameDecoder decoder = new TransportFrameDecoder();
+    TransportFrameDecoderWithBufferSupplier decoder = new TransportFrameDecoderWithBufferSupplier();
     ChannelHandlerContext ctx = mockChannelHandlerContext();
     ByteBuf data = createAndFeedFrames(100, decoder, ctx);
     verifyAndCloseDecoder(decoder, ctx, data);
@@ -49,7 +49,7 @@ public class TransportFrameDecoderSuiteJ {
 
   @Test
   public void testRetainedFrames() throws Exception {
-    TransportFrameDecoder decoder = new TransportFrameDecoder();
+    TransportFrameDecoderWithBufferSupplier decoder = new TransportFrameDecoderWithBufferSupplier();
 
     AtomicInteger count = new AtomicInteger();
     List<ByteBuf> retained = new ArrayList<>();
@@ -89,7 +89,7 @@ public class TransportFrameDecoderSuiteJ {
     buf.writeLong(frame.length + 8);
     buf.writeBytes(frame);
 
-    TransportFrameDecoder decoder = new TransportFrameDecoder();
+    TransportFrameDecoderWithBufferSupplier decoder = new TransportFrameDecoderWithBufferSupplier();
     ChannelHandlerContext ctx = mockChannelHandlerContext();
     try {
       decoder.channelRead(ctx, buf.readSlice(RND.nextInt(7)).retain());
@@ -120,7 +120,7 @@ public class TransportFrameDecoderSuiteJ {
    */
   private ByteBuf createAndFeedFrames(
       int frameCount,
-      TransportFrameDecoder decoder,
+      TransportFrameDecoderWithBufferSupplier decoder,
       ChannelHandlerContext ctx) throws Exception {
     ByteBuf data = Unpooled.buffer();
     for (int i = 0; i < frameCount; i++) {
@@ -144,7 +144,7 @@ public class TransportFrameDecoderSuiteJ {
   }
 
   private void verifyAndCloseDecoder(
-      TransportFrameDecoder decoder,
+      TransportFrameDecoderWithBufferSupplier decoder,
       ChannelHandlerContext ctx,
       ByteBuf data) throws Exception {
     try {
@@ -156,7 +156,7 @@ public class TransportFrameDecoderSuiteJ {
   }
 
   private void testInvalidFrame(long size) throws Exception {
-    TransportFrameDecoder decoder = new TransportFrameDecoder();
+    TransportFrameDecoderWithBufferSupplier decoder = new TransportFrameDecoderWithBufferSupplier();
     ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
     ByteBuf frame = Unpooled.copyLong(size);
     try {

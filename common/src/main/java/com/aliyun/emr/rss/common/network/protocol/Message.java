@@ -47,11 +47,8 @@ public abstract class Message implements Encodable {
   }
 
   public void setBody(ByteBuf buf) {
-    this.body = new NettyManagedBuffer(buf.retain());
+    this.body = new NettyManagedBuffer(buf);
   }
-
-  /** Whether to include the body of the message in the same frame as the message. */
-  public abstract boolean hasBody();
 
   /** Whether the body should be copied out in decoder. */
   public boolean needCopyOut() {

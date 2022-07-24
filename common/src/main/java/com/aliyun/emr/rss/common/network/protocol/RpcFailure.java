@@ -34,11 +34,6 @@ public final class RpcFailure extends ResponseMessage {
   public Type type() { return Type.RpcFailure; }
 
   @Override
-  public boolean hasBody() {
-    return false;
-  }
-
-  @Override
   public int encodedLength() {
     return 8 + Encoders.Strings.encodedLength(errorString);
   }

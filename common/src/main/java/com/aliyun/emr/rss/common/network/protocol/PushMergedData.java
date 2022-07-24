@@ -65,11 +65,6 @@ public final class PushMergedData extends RequestMessage {
   }
 
   @Override
-  public boolean hasBody() {
-    return true;
-  }
-
-  @Override
   public int encodedLength() {
     return 8 + 1 + Encoders.Strings.encodedLength(shuffleKey) +
         Encoders.StringArrays.encodedLength(partitionUniqueIds) +

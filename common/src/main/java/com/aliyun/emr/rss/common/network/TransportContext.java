@@ -31,7 +31,7 @@ import com.aliyun.emr.rss.common.network.protocol.MessageEncoder;
 import com.aliyun.emr.rss.common.network.server.*;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-import com.aliyun.emr.rss.common.network.util.TransportFrameDecoder;
+import com.aliyun.emr.rss.common.network.util.TransportFrameDecoderWithBufferSupplier;
 
 /**
  * Contains the context to create a {@link TransportServer}, {@link TransportClientFactory}, and to
@@ -108,7 +108,7 @@ public class TransportContext {
       TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
       channel.pipeline()
         .addLast("encoder", ENCODER)
-        .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
+        .addLast(TransportFrameDecoderWithBufferSupplier.HANDLER_NAME, NettyUtils.createFrameDecoder())
 //        .addLast("decoder", DECODER)
         .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
         .addLast("handler", channelHandler);
