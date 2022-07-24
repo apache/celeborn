@@ -54,7 +54,7 @@ public final class OneWayMessage extends RequestMessage {
   public static OneWayMessage decode(ByteBuf buf) {
     // See comment in encodedLength().
     buf.readInt();
-    return new OneWayMessage(new NettyManagedBuffer(buf.retain()));
+    return new OneWayMessage(new NettyManagedBuffer(buf));
   }
 
   @Override

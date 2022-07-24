@@ -60,7 +60,7 @@ public final class RpcRequest extends RequestMessage {
     long requestId = buf.readLong();
     // See comment in encodedLength().
     buf.readInt();
-    return new RpcRequest(requestId, new NettyManagedBuffer(buf.retain()));
+    return new RpcRequest(requestId, new NettyManagedBuffer(buf));
   }
 
   @Override

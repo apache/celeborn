@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.network.util;
 
 import java.util.LinkedList;
 
+import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -42,21 +43,22 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * framing resumes. Interceptors should not hold references to the data buffers provided
  * to their handle() method.
  */
-public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
-
-  public static final String HANDLER_NAME = "frameDecoder";
-  private static final int LENGTH_SIZE = 8;
+public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implements FrameDecoder {
+  private int msgSize = -1;
+  private int bodySize = -1;
+  private Message.Type curType = Message.Type.UnkownType;
+  private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
   private static final int UNKNOWN_FRAME_SIZE = -1;
 
   private final LinkedList<ByteBuf> buffers = new LinkedList<>();
-  private final ByteBuf frameLenBuf = Unpooled.buffer(LENGTH_SIZE, LENGTH_SIZE);
 
   private long totalSize = 0;
   private long nextFrameSize = UNKNOWN_FRAME_SIZE;
 
   @Override
-  public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
+  public void channelRead(ChannelHandlerContext ctx, Object data) {
+    System.out.println("TransportFrameDecoder");
     ByteBuf in = (ByteBuf) data;
     buffers.add(in);
     totalSize += in.readableBytes();
@@ -66,12 +68,21 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
       if (frame == null) {
         break;
       }
-      ctx.fireChannelRead(frame);
+      Message msg = Message.decode(curType, frame);
+      ctx.fireChannelRead(msg);
+      clear();
     }
   }
 
+  private void clear() {
+    curType = Message.Type.UnkownType;
+    msgSize = -1;
+    bodySize = -1;
+    headerBuf.clear();
+  }
+
   private long decodeFrameSize() {
-    if (nextFrameSize != UNKNOWN_FRAME_SIZE || totalSize < LENGTH_SIZE) {
+    if (nextFrameSize != UNKNOWN_FRAME_SIZE || totalSize < HEADER_SIZE) {
       return nextFrameSize;
     }
 
@@ -80,27 +91,32 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     // the frame size. Normally, it should be rare to need more than one buffer to read the frame
     // size.
     ByteBuf first = buffers.getFirst();
-    if (first.readableBytes() >= LENGTH_SIZE) {
-      nextFrameSize = first.readLong() - LENGTH_SIZE;
-      totalSize -= LENGTH_SIZE;
+    if (first.readableBytes() >= HEADER_SIZE) {
+      msgSize = first.readInt();
+      curType = Message.Type.decode(first);
+      bodySize = first.readInt();
+      nextFrameSize = msgSize + bodySize;
+      totalSize -= HEADER_SIZE;
       if (!first.isReadable()) {
         buffers.removeFirst().release();
       }
       return nextFrameSize;
     }
 
-    while (frameLenBuf.readableBytes() < LENGTH_SIZE) {
+    while (headerBuf.readableBytes() < HEADER_SIZE) {
       ByteBuf next = buffers.getFirst();
-      int toRead = Math.min(next.readableBytes(), LENGTH_SIZE - frameLenBuf.readableBytes());
-      frameLenBuf.writeBytes(next, toRead);
+      int toRead = Math.min(next.readableBytes(), HEADER_SIZE - headerBuf.readableBytes());
+      headerBuf.writeBytes(next, toRead);
       if (!next.isReadable()) {
         buffers.removeFirst().release();
       }
     }
 
-    nextFrameSize = frameLenBuf.readLong() - LENGTH_SIZE;
-    totalSize -= LENGTH_SIZE;
-    frameLenBuf.clear();
+    msgSize = first.readInt();
+    curType = Message.Type.decode(first);
+    bodySize = first.readInt();
+    nextFrameSize = msgSize + bodySize;
+    totalSize -= HEADER_SIZE;
     return nextFrameSize;
   }
 
@@ -168,7 +184,8 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
       b.release();
     }
     buffers.clear();
-    frameLenBuf.release();
+    clear();
+    headerBuf.release();
     super.handlerRemoved(ctx);
   }
 

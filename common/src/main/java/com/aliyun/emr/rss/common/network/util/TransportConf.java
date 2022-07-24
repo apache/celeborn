@@ -41,6 +41,8 @@ public class TransportConf {
   private final String RSS_NETWORK_IO_RETRYWAIT_KEY;
   private final String RSS_NETWORK_IO_LAZYFD_KEY;
   private final String RSS_NETWORK_VERBOSE_METRICS;
+  // "default", "supplier"
+  private final String RSS_NETWORK_IO_DECODER_MODE;
 
   private final ConfigProvider conf;
 
@@ -64,6 +66,7 @@ public class TransportConf {
     RSS_NETWORK_IO_RETRYWAIT_KEY = getConfKey("io.retryWait");
     RSS_NETWORK_IO_LAZYFD_KEY = getConfKey("io.lazyFD");
     RSS_NETWORK_VERBOSE_METRICS = getConfKey("io.enableVerboseMetrics");
+    RSS_NETWORK_IO_DECODER_MODE = getConfKey("io.decoder.mode");
   }
 
   public int getInt(String name, int defaultValue) {
@@ -191,5 +194,9 @@ public class TransportConf {
    */
   public long maxChunksBeingTransferred() {
     return conf.getLong("rss.shuffle.maxChunksBeingTransferred", Long.MAX_VALUE);
+  }
+
+  public String decoderMode() {
+    return conf.get(RSS_NETWORK_IO_DECODER_MODE, "default");
   }
 }

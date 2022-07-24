@@ -17,7 +17,6 @@
 
 package com.aliyun.emr.rss.common.network.util;
 
-import java.util.LinkedList;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -29,20 +28,17 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import com.aliyun.emr.rss.common.network.protocol.Message;
 
-public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter {
-  public static final String HANDLER_NAME = "frameDecoder";
-  // Message size + Msg type + Body size
-  private static final int HEADER_SIZE = 4 + 1 + 4;
-  private final LinkedList<ByteBuf> buffers = new LinkedList<>();
+public class TransportFrameDecoderWithBufferSupplier
+  extends ChannelInboundHandlerAdapter implements FrameDecoder {
   private final Function<Long, Supplier<ByteBuf>> bufferSuppliers;
-  private ByteBuf externalBuf = null;
-  private CompositeByteBuf bodyBuf = null;
-  private final ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
-  private final ByteBuf msgBuf = Unpooled.buffer(8);
-  private Message curMsg = null;
-  private Message.Type curType = Message.Type.UnkownType;
   private int msgSize = -1;
   private int bodySize = -1;
+  private Message.Type curType = Message.Type.UnkownType;
+  private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
+  private CompositeByteBuf bodyBuf = null;
+  private ByteBuf externalBuf = null;
+  private final ByteBuf msgBuf = Unpooled.buffer(8);
+  private Message curMsg = null;
 
   public TransportFrameDecoderWithBufferSupplier() {
     this.bufferSuppliers = null;
@@ -128,6 +124,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   }
 
   public void channelRead(ChannelHandlerContext ctx, Object data) {
+    System.out.println("TransportFrameDecoderWithBufferSupplier");
     ByteBuf buf = (ByteBuf) data;
     try {
       while (buf != null && buf.isReadable()) {
@@ -168,15 +165,10 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   @Override
   public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
-    // Release all buffers that are still in our ownership.
-    // Doing this in handlerRemoved(...) guarantees that this will happen in all cases:
-    //     - When the Channel becomes inactive
-    //     - When the decoder is removed from the ChannelPipeline
-    for (ByteBuf b : buffers) {
-      b.release();
-    }
     clear();
-    buffers.clear();
+    if (externalBuf != null) {
+      externalBuf.clear();
+    }
     headerBuf.release();
     super.handlerRemoved(ctx);
   }

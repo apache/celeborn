@@ -92,7 +92,7 @@ public final class PushMergedData extends RequestMessage {
         shuffleKey,
         partitionIds,
         batchOffsets,
-        new NettyManagedBuffer(buf.retain()));
+        new NettyManagedBuffer(buf));
   }
 
   @Override

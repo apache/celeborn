@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
-import com.aliyun.emr.rss.common.network.protocol.MessageDecoder;
 import com.aliyun.emr.rss.common.network.protocol.MessageEncoder;
 import com.aliyun.emr.rss.common.network.server.*;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
@@ -56,7 +55,6 @@ public class TransportContext {
   private final boolean closeIdleConnections;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
-  private static final MessageDecoder DECODER = MessageDecoder.INSTANCE;
 
 
   public TransportContext(
@@ -108,8 +106,7 @@ public class TransportContext {
       TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
       channel.pipeline()
         .addLast("encoder", ENCODER)
-        .addLast(TransportFrameDecoderWithBufferSupplier.HANDLER_NAME, NettyUtils.createFrameDecoder())
-//        .addLast("decoder", DECODER)
+        .addLast(TransportFrameDecoderWithBufferSupplier.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
         .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
         .addLast("handler", channelHandler);
       return channelHandler;

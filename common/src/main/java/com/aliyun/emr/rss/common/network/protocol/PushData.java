@@ -91,7 +91,7 @@ public final class PushData extends RequestMessage {
     String shuffleKey = Encoders.Strings.decode(buf);
     String partitionUniqueId = Encoders.Strings.decode(buf);
     return new PushData(
-      requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf.retain()));
+      requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
   }
 
   @Override
