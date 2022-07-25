@@ -51,7 +51,7 @@ public final class PushMergedData extends RequestMessage {
       String[] partitionUniqueIds,
       int[] batchOffsets,
       ManagedBuffer body) {
-    super(body, true);
+    super(body);
     this.requestId = requestId;
     this.mode = mode;
     this.shuffleKey = shuffleKey;
@@ -81,18 +81,31 @@ public final class PushMergedData extends RequestMessage {
   }
 
   public static PushMergedData decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static PushMergedData decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     byte mode = buf.readByte();
     String shuffleKey = Encoders.Strings.decode(buf);
     String[] partitionIds = Encoders.StringArrays.decode(buf);
     int[] batchOffsets = Encoders.IntArrays.decode(buf);
-    return new PushMergedData(
+    if (decodeBody) {
+      return new PushMergedData(
         requestId,
         mode,
         shuffleKey,
         partitionIds,
         batchOffsets,
-        new NettyManagedBuffer(buf.retain()));
+        new NettyManagedBuffer(buf));
+    } else {
+      return new PushMergedData(requestId,
+        mode,
+        shuffleKey,
+        partitionIds,
+        batchOffsets,
+        NettyManagedBuffer.EmptyBuffer);
+    }
   }
 
   @Override

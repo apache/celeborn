@@ -34,7 +34,7 @@ public final class RpcRequest extends RequestMessage {
   public final long requestId;
 
   public RpcRequest(long requestId, ManagedBuffer message) {
-    super(message, true);
+    super(message);
     this.requestId = requestId;
   }
 
@@ -57,10 +57,18 @@ public final class RpcRequest extends RequestMessage {
   }
 
   public static RpcRequest decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static RpcRequest decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     // See comment in encodedLength().
     buf.readInt();
-    return new RpcRequest(requestId, new NettyManagedBuffer(buf.retain()));
+    if (decodeBody) {
+      return new RpcRequest(requestId, new NettyManagedBuffer(buf));
+    } else {
+      return new RpcRequest(requestId, NettyManagedBuffer.EmptyBuffer);
+    }
   }
 
   @Override

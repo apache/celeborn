@@ -34,7 +34,7 @@ public final class ChunkFetchSuccess extends ResponseMessage {
   public final StreamChunkSlice streamChunkSlice;
 
   public ChunkFetchSuccess(StreamChunkSlice streamChunkSlice, ManagedBuffer buffer) {
-    super(buffer, true);
+    super(buffer);
     this.streamChunkSlice = streamChunkSlice;
   }
 
@@ -57,12 +57,19 @@ public final class ChunkFetchSuccess extends ResponseMessage {
     return new ChunkFetchFailure(streamChunkSlice, error);
   }
 
-  /** Decoding uses the given ByteBuf as our data, and will retain() it. */
   public static ChunkFetchSuccess decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static ChunkFetchSuccess decode(ByteBuf buf, boolean decodeBody) {
     StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
-    buf.retain();
-    NettyManagedBuffer managedBuf = new NettyManagedBuffer(buf.duplicate());
-    return new ChunkFetchSuccess(streamChunkSlice, managedBuf);
+    if (decodeBody) {
+      buf.retain();
+      NettyManagedBuffer managedBuf = new NettyManagedBuffer(buf.duplicate());
+      return new ChunkFetchSuccess(streamChunkSlice, managedBuf);
+    } else {
+      return new ChunkFetchSuccess(streamChunkSlice, NettyManagedBuffer.EmptyBuffer);
+    }
   }
 
   @Override
