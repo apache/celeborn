@@ -184,7 +184,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
       b.release();
     }
     buffers.clear();
-    clear();
     headerBuf.release();
     super.handlerRemoved(ctx);
   }
