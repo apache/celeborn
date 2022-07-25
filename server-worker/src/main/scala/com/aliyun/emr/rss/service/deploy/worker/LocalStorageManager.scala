@@ -473,7 +473,7 @@ private[worker] final class LocalStorageManager(
     override def run(): Unit = {
       val currentTime = System.nanoTime()
       diskFlushers.values().asScala.foreach(flusher => {
-        logInfo(flusher.bufferQueueInfo())
+        logDebug(flusher.bufferQueueInfo())
         val lastFlushTime = flusher.getLastFlushTime
         if (lastFlushTime != -1 &&
           currentTime - lastFlushTime  > essSlowFlushInterval * 1000 * 1000) {

@@ -31,7 +31,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 public final class OneWayMessage extends RequestMessage {
 
   public OneWayMessage(ManagedBuffer body) {
-    super(body, true);
+    super(body);
   }
 
   @Override
@@ -52,9 +52,17 @@ public final class OneWayMessage extends RequestMessage {
   }
 
   public static OneWayMessage decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static OneWayMessage decode(ByteBuf buf, boolean decodeBody) {
     // See comment in encodedLength().
     buf.readInt();
-    return new OneWayMessage(new NettyManagedBuffer(buf.retain()));
+    if (decodeBody) {
+      return new OneWayMessage(new NettyManagedBuffer(buf));
+    } else {
+      return new OneWayMessage(NettyManagedBuffer.EmptyBuffer);
+    }
   }
 
   @Override

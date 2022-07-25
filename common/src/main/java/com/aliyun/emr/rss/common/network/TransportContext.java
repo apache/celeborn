@@ -26,12 +26,11 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
-import com.aliyun.emr.rss.common.network.protocol.MessageDecoder;
 import com.aliyun.emr.rss.common.network.protocol.MessageEncoder;
 import com.aliyun.emr.rss.common.network.server.*;
+import com.aliyun.emr.rss.common.network.util.FrameDecoder;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-import com.aliyun.emr.rss.common.network.util.TransportFrameDecoder;
 
 /**
  * Contains the context to create a {@link TransportServer}, {@link TransportClientFactory}, and to
@@ -56,8 +55,6 @@ public class TransportContext {
   private final boolean closeIdleConnections;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
-  private static final MessageDecoder DECODER = MessageDecoder.INSTANCE;
-
 
   public TransportContext(
       TransportConf conf,
@@ -108,8 +105,7 @@ public class TransportContext {
       TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
       channel.pipeline()
         .addLast("encoder", ENCODER)
-        .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
-        .addLast("decoder", DECODER)
+        .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
         .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
         .addLast("handler", channelHandler);
       return channelHandler;
