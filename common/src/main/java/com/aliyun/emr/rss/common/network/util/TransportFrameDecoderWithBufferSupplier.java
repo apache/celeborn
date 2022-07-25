@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.network.protocol.Message;
 
 public class TransportFrameDecoderWithBufferSupplier
   extends ChannelInboundHandlerAdapter implements FrameDecoder {
-  private final Function<Long, Supplier<ByteBuf>> bufferSuppliers;
+  private final Function<Integer, Supplier<ByteBuf>> bufferSuppliers;
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UnkownType;
@@ -41,10 +41,20 @@ public class TransportFrameDecoderWithBufferSupplier
   private Message curMsg = null;
 
   public TransportFrameDecoderWithBufferSupplier() {
-    this.bufferSuppliers = null;
+    this.bufferSuppliers = new Function<Integer, Supplier<ByteBuf>>() {
+      @Override
+      public Supplier<ByteBuf> apply(Integer size) {
+        return new Supplier<ByteBuf>() {
+          @Override
+          public ByteBuf get() {
+            return Unpooled.buffer(size);
+          }
+        };
+      }
+    };
   }
 
-  public TransportFrameDecoderWithBufferSupplier(Function<Long, Supplier<ByteBuf>> bufferSuppliers) {
+  public TransportFrameDecoderWithBufferSupplier(Function<Integer, Supplier<ByteBuf>> bufferSuppliers) {
     this.bufferSuppliers = bufferSuppliers;
   }
 
@@ -111,9 +121,9 @@ public class TransportFrameDecoderWithBufferSupplier
 
   private ByteBuf decodeBodyCopyOut(ByteBuf buf, ChannelHandlerContext ctx) {
     if (externalBuf == null) {
-      // TODO default value
-      externalBuf = bufferSuppliers.apply(-1L).get();
+      externalBuf = bufferSuppliers.apply(bodySize).get();
     }
+    System.out.println("copy to external buf!");
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
       curMsg.setBody(externalBuf);
@@ -124,7 +134,6 @@ public class TransportFrameDecoderWithBufferSupplier
   }
 
   public void channelRead(ChannelHandlerContext ctx, Object data) {
-    System.out.println("TransportFrameDecoderWithBufferSupplier");
     ByteBuf buf = (ByteBuf) data;
     try {
       while (buf != null && buf.isReadable()) {
@@ -148,9 +157,7 @@ public class TransportFrameDecoderWithBufferSupplier
   }
 
   private void clear() {
-    if (externalBuf != null) {
-      externalBuf.clear();
-    }
+    externalBuf = null;
     curMsg = null;
     curType = Message.Type.UnkownType;
     headerBuf.clear();

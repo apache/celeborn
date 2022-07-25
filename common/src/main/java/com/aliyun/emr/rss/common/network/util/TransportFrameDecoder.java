@@ -58,7 +58,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object data) {
-    System.out.println("TransportFrameDecoder");
     ByteBuf in = (ByteBuf) data;
     buffers.add(in);
     totalSize += in.readableBytes();

@@ -70,11 +70,6 @@ public final class PushData extends RequestMessage {
   }
 
   @Override
-  public boolean needCopyOut() {
-    return false;
-  }
-
-  @Override
   public void encode(ByteBuf buf) {
     buf.writeLong(requestId);
     buf.writeInt(epoch);
