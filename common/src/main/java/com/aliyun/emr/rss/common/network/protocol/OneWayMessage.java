@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBuf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
-import io.netty.buffer.Unpooled;
 
 /**
  * A RPC that does not expect a reply, which is handled by a remote
@@ -62,7 +61,7 @@ public final class OneWayMessage extends RequestMessage {
     if (decodeBody) {
       return new OneWayMessage(new NettyManagedBuffer(buf));
     } else {
-      return new OneWayMessage(new NettyManagedBuffer(Unpooled.buffer(0, 0)));
+      return new OneWayMessage(NettyManagedBuffer.EmptyBuffer);
     }
   }
 

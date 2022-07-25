@@ -22,7 +22,6 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
-import io.netty.buffer.Unpooled;
 
 /**
  * Response to {@link ChunkFetchRequest} when a chunk exists and has been successfully fetched.
@@ -62,7 +61,6 @@ public final class ChunkFetchSuccess extends ResponseMessage {
     return decode(buf, true);
   }
 
-  /** Decoding uses the given ByteBuf as our data, and will retain() it. */
   public static ChunkFetchSuccess decode(ByteBuf buf, boolean decodeBody) {
     StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
     if (decodeBody) {
@@ -70,8 +68,7 @@ public final class ChunkFetchSuccess extends ResponseMessage {
       NettyManagedBuffer managedBuf = new NettyManagedBuffer(buf.duplicate());
       return new ChunkFetchSuccess(streamChunkSlice, managedBuf);
     } else {
-      return new ChunkFetchSuccess(streamChunkSlice,
-        new NettyManagedBuffer(Unpooled.buffer(0, 0)));
+      return new ChunkFetchSuccess(streamChunkSlice, NettyManagedBuffer.EmptyBuffer);
     }
   }
 

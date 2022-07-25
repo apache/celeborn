@@ -19,13 +19,14 @@ package com.aliyun.emr.rss.common.network.util;
 
 import java.util.LinkedList;
 
-import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+
+import com.aliyun.emr.rss.common.network.protocol.Message;
 
 /**
  * A customized frame decoder that allows intercepting raw data.

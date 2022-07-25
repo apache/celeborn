@@ -72,11 +72,8 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
     }
 
     Message.Type msgType = in.type();
-    // All messages have the frame length, message type, and message itself. The frame length
-    // may optionally include the length of the body data, depending on what message is being
-    // sent.
+    // message size, message type size, body size, message encoded length
     int headerLength = 4 + msgType.encodedLength() + 4 + in.encodedLength();
-//    long frameLength = headerLength + (isBodyInFrame ? bodyLength : 0);
     ByteBuf header = ctx.alloc().heapBuffer(headerLength);
     header.writeInt(in.encodedLength());
     msgType.encode(header);

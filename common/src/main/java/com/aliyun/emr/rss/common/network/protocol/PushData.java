@@ -22,12 +22,8 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
-import io.netty.buffer.Unpooled;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class PushData extends RequestMessage {
-  private static final Logger logger = LoggerFactory.getLogger(PushData.class);
   public long requestId;
 
   public int epoch;
@@ -93,8 +89,7 @@ public final class PushData extends RequestMessage {
         requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
     } else {
       return new PushData(
-        requestId, epoch, mode, shuffleKey, partitionUniqueId,
-        new NettyManagedBuffer(Unpooled.buffer(0, 0)));
+        requestId, epoch, mode, shuffleKey, partitionUniqueId, NettyManagedBuffer.EmptyBuffer);
     }
   }
 

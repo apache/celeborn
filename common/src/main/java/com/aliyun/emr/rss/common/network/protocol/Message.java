@@ -19,12 +19,12 @@ package com.aliyun.emr.rss.common.network.protocol;
 
 import java.nio.ByteBuffer;
 
-import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
+import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 
 /** An on-the-wire transmittable message. */
 public abstract class Message implements Encodable {
@@ -50,7 +50,7 @@ public abstract class Message implements Encodable {
     this.body = new NettyManagedBuffer(buf);
   }
 
-  /** Whether the body should be copied out in decoder. */
+  /** Whether the body should be copied out in frame decoder. */
   public boolean needCopyOut() {
     return false;
   }

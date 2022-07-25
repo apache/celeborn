@@ -30,7 +30,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-public class TransportFrameDecoderWithBufferSupplierSuiteJ {
+public class TransportFrameDecoderSuiteJ {
 
   private static Random RND = new Random();
 

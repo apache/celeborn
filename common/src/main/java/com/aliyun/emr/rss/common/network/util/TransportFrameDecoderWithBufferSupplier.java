@@ -54,7 +54,9 @@ public class TransportFrameDecoderWithBufferSupplier
     };
   }
 
-  public TransportFrameDecoderWithBufferSupplier(Function<Integer, Supplier<ByteBuf>> bufferSuppliers) {
+  public TransportFrameDecoderWithBufferSupplier(
+      Function<Integer,
+      Supplier<ByteBuf>> bufferSuppliers) {
     this.bufferSuppliers = bufferSuppliers;
   }
 
