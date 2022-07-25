@@ -125,7 +125,6 @@ public class TransportFrameDecoderWithBufferSupplier
     if (externalBuf == null) {
       externalBuf = bufferSuppliers.apply(bodySize).get();
     }
-    System.out.println("copy to external buf!");
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
       curMsg.setBody(externalBuf);
