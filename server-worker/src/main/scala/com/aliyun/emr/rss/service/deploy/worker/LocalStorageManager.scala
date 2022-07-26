@@ -68,12 +68,11 @@ private[worker] final class DiskFlusher(
   init()
 
   private def init(): Unit = {
+    for (_ <- 0 until queueCapacity) {
+      bufferQueue.put(Unpooled.compositeBuffer(256))
+    }
     for (index <- 0 until (threadCount)) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask](queueCapacity)
-      for (_ <- 0 until queueCapacity) {
-        bufferQueue.put(Unpooled.compositeBuffer(256))
-      }
-
       workers(index) = new Thread(s"$this-$index") {
         override def run(): Unit = {
           while (!stopFlag.get()) {
