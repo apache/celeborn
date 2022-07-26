@@ -123,7 +123,7 @@ public final class FileWriter extends DeviceObserver {
     PartitionType partitionType) throws IOException {
     this.file = file;
     this.flusher = flusher;
-    this.flushWorkerIndex = flusher.getNextValidWorkerIndex();
+    this.flushWorkerIndex = flusher.getNextWorkerIndex();
     this.dataRootDir = workingDir;
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;
@@ -321,7 +321,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs, flushWorkerIndex);
+    flushBuffer = flusher.takeBuffer(timeoutMs);
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -345,7 +345,7 @@ public final class FileWriter extends DeviceObserver {
 
   private synchronized void returnBuffer() {
     if (flushBuffer != null) {
-      flusher.returnBuffer(flushBuffer, flushWorkerIndex);
+      flusher.returnBuffer(flushBuffer);
       flushBuffer = null;
     }
   }
