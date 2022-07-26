@@ -249,7 +249,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           context.reply(RegisterShuffleResponse(StatusCode.Success, initialLocs))
           return
         }
-        logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType" +
+        logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType " +
           s"numMappers: $numMappers, numReducers: $numReducers.")
         val set = new util.HashSet[RpcCallContext]()
         set.add(context)
@@ -956,7 +956,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     var success = false
     while (retryTimes <= maxRetryTimes && !success && !noAvailableSlots) {
       // reserve buffers
-      logInfo(s"Try reserve slot for shuffle $shuffleId the $retryTimes times.")
+      logInfo(s"Try reserve slots for ${Utils.makeShuffleKey(applicationId, shuffleId)} " +
+        s"for $retryTimes times.")
       val reserveFailedWorkers = reserveSlots(applicationId, shuffleId, requestSlots)
       if (reserveFailedWorkers.isEmpty) {
         success = true
@@ -977,10 +978,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           // remove blacklist from retryCandidates
           retryCandidates.removeAll(blacklist)
           if (retryCandidates.size < 1 || (ShouldReplicate && retryCandidates.size < 2)) {
-            logError("Retry reserve slots failed caused by no enough slots.")
+            logError("Retry reserve slots failed caused by not enough slots.")
             noAvailableSlots = true
           } else {
-            // Only when the LifecycleManager need to retry reserve slots again, re-allocate slots
+            // Only when the LifecycleManager needs to retry reserve slots again, re-allocate slots
             // and put the new allocated slots to the total slots, the re-allocated slots won't be
             // duplicated with existing partition locations.
             requestSlots = reallocateSlotsFromCandidates(
@@ -1001,9 +1002,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
     // if failed after retry, destroy all allocated buffers
     if (!success) {
-      // Reserve slot failed worker's partition location and corresponding peer partition location
+      // Reserve slot failed workers' partition location and corresponding peer partition location
       // has been removed from slots by call [[getFailedPartitionLocations]] and
-      // [[releasePeerPartitionLocation]]. Now in the slots are all the succeed partition location.
+      // [[releasePeerPartitionLocation]]. Now in the slots are all the successful partition
+      // locations.
       logWarning(s"Reserve buffers $shuffleId still fail after retrying, clear buffers.")
       destroySlotsWithRetry(applicationId, shuffleId, slots)
     } else {
