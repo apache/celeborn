@@ -114,12 +114,24 @@ private[worker] final class DiskFlusher(
     deviceMonitor.registerDiskFlusher(this)
   }
 
-  def getWorkerIndex: Int = {
-    val nextIndex = nextWorkerIndex.getAndIncrement()
-    if (nextIndex > threadCount) {
+  def getNextWorkerIndex: Int = {
+    val index = nextWorkerIndex.getAndIncrement()
+    if (index > threadCount) {
       nextWorkerIndex.set(0)
     }
-    nextIndex % threadCount
+    index % threadCount
+  }
+
+  // Choose a worker thread whose buffer queue have some left
+  // If there is none, pick a random worker thread and return it.
+  def getNextValidWorkerIndex: Int = {
+    for (i <- 0 until (threadCount)) {
+      val nextWorkerIndex = getNextWorkerIndex
+      if (bufferQueues(nextWorkerIndex).size() > 0) {
+        return nextWorkerIndex
+      }
+    }
+    getNextWorkerIndex
   }
 
   def takeBuffer(timeoutMs: Long, workerIndex: Int): CompositeByteBuf = {
