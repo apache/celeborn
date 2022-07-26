@@ -123,7 +123,7 @@ public final class FileWriter extends DeviceObserver {
     PartitionType partitionType) throws IOException {
     this.file = file;
     this.flusher = flusher;
-    this.flushWorkerIndex = flusher.getNextWorkerIndex();
+    this.flushWorkerIndex = flusher.getWorkerIndex();
     this.dataRootDir = workingDir;
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;

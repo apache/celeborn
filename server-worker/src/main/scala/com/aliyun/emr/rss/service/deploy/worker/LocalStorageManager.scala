@@ -112,7 +112,7 @@ private[worker] final class DiskFlusher(
     deviceMonitor.registerDiskFlusher(this)
   }
 
-  def getNextWorkerIndex: Int = {
+  def getWorkerIndex: Int = {
     val workerIndex = nextWorkerIndex.getAndIncrement()
     if (workerIndex > threadCount) {
       nextWorkerIndex.set(0)
