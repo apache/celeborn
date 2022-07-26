@@ -113,11 +113,11 @@ private[worker] final class DiskFlusher(
   }
 
   def getWorkerIndex: Int = {
-    val workerIndex = nextWorkerIndex.getAndIncrement()
-    if (workerIndex > threadCount) {
+    val nextIndex = nextWorkerIndex.getAndIncrement()
+    if (nextIndex > threadCount) {
       nextWorkerIndex.set(0)
     }
-    workerIndex % threadCount
+    nextIndex % threadCount
   }
 
   def takeBuffer(timeoutMs: Long): CompositeByteBuf = {
