@@ -23,7 +23,7 @@ import io.netty.buffer.ByteBuf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 
-public final class PushData extends AbstractMessage implements RequestMessage {
+public final class PushData extends RequestMessage {
   public long requestId;
 
   public int epoch;
@@ -46,7 +46,7 @@ public final class PushData extends AbstractMessage implements RequestMessage {
       String shuffleKey,
       String partitionUniqueId,
       ManagedBuffer body) {
-    super(body, true);
+    super(body);
     this.requestId = requestId;
     this.epoch = epoch;
     this.mode = mode;
@@ -75,13 +75,22 @@ public final class PushData extends AbstractMessage implements RequestMessage {
   }
 
   public static PushData decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static PushData decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     int epoch = buf.readInt();
     byte mode = buf.readByte();
     String shuffleKey = Encoders.Strings.decode(buf);
     String partitionUniqueId = Encoders.Strings.decode(buf);
-    return new PushData(
-      requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf.retain()));
+    if (decodeBody) {
+      return new PushData(
+        requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
+    } else {
+      return new PushData(
+        requestId, epoch, mode, shuffleKey, partitionUniqueId, NettyManagedBuffer.EmptyBuffer);
+    }
   }
 
   @Override

@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
-import com.google.common.collect.Lists;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -46,7 +45,6 @@ import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.PushData;
 import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
@@ -86,7 +84,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private InetAddress ia = null;
 
-  // key: shuffleId, value: (reduceId, PartitionLocation)
+  // key: shuffleId, value: (partitionId, PartitionLocation)
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       new ConcurrentHashMap<>();
 
@@ -141,8 +139,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         conf.getInt("rss.data.io.threads", 8));
     TransportContext context =
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
-    List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
-    dataClientFactory = context.createClientFactory(bootstraps);
+    dataClientFactory = context.createClientFactory();
 
     int retryThreadNum = RssConf.pushDataRetryThreadNum(conf);
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
@@ -162,20 +159,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       RpcResponseCallback callback,
       PushState pushState,
       StatusCode cause) {
-    int reduceId = loc.getReduceId();
+    int partitionId = loc.getId();
     if (!revive(applicationId, shuffleId, mapId, attemptId,
-            reduceId, loc.getEpoch(), loc, cause)) {
+            partitionId, loc.getEpoch(), loc, cause)) {
       callback.onFailure(new IOException("Revive Failed"));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
           "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
       pushState.inFlightBatches.remove(batchId);
     } else {
-      PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(reduceId);
-      logger.info("Revive success, new location for reduce {} is {}.", reduceId, newLoc);
+      PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
+      logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
       try {
         TransportClient client = dataClientFactory.createClient(
-            newLoc.getHost(), newLoc.getPushPort(), reduceId);
+            newLoc.getHost(), newLoc.getPushPort(), partitionId);
         NettyManagedBuffer newBuffer =
             new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
         String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
@@ -203,9 +200,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       StatusCode cause) {
     HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
     for (DataBatches.DataBatch batch : batches) {
-      int reduceId = batch.loc.getReduceId();
+      int partitionId = batch.loc.getId();
       if (!revive(applicationId, shuffleId, mapId, attemptId,
-          reduceId, batch.loc.getEpoch(), batch.loc, cause)) {
+          partitionId, batch.loc.getEpoch(), batch.loc, cause)) {
         pushState.exception.compareAndSet(null,
             new IOException("Revive Failed in retry push merged data for location: " + batch.loc));
         return;
@@ -213,8 +210,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         logger.debug(
             "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
       } else {
-        PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(reduceId);
-        logger.info("Revive success, new location for reduce {} is {}.", reduceId, newLoc);
+        PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
+        logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
         DataBatches newDataBatches = newDataBatchesMap.computeIfAbsent(
             genAddressPair(newLoc), (s) -> new DataBatches());
         newDataBatches.addDataBatch(newLoc, batch.batchId, batch.body);
@@ -254,7 +251,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
           for (int i = 0; i < response.partitionLocations().size(); i++) {
             PartitionLocation partitionLoc = response.partitionLocations().get(i);
-            result.put(partitionLoc.getReduceId(), partitionLoc);
+            result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
         } else if (response.status().equals(StatusCode.SlotNotAvailable)) {
@@ -318,8 +315,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private boolean waitRevivedLocation(
-      ConcurrentHashMap<Integer, PartitionLocation> map, int reduceId, int epoch) {
-    PartitionLocation currentLocation = map.get(reduceId);
+      ConcurrentHashMap<Integer, PartitionLocation> map, int partitionId, int epoch) {
+    PartitionLocation currentLocation = map.get(partitionId);
     if (currentLocation != null && currentLocation.getEpoch() > epoch) {
       return true;
     }
@@ -334,7 +331,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     }
 
-    currentLocation = map.get(reduceId);
+    currentLocation = map.get(partitionId);
     return currentLocation != null && currentLocation.getEpoch() > epoch;
   }
 
@@ -343,14 +340,14 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       int epoch,
       PartitionLocation oldLocation,
       StatusCode cause) {
     ConcurrentHashMap<Integer, PartitionLocation> map = reducePartitionMap.get(shuffleId);
-    if (waitRevivedLocation(map, reduceId, epoch)) {
+    if (waitRevivedLocation(map, partitionId, epoch)) {
       logger.debug("Has already revived for shuffle {} map {} reduce {} epoch {}," +
-          " just return(Assume revive successfully).", shuffleId, mapId, reduceId, epoch);
+          " just return(Assume revive successfully).", shuffleId, mapId, partitionId, epoch);
       return true;
     }
     String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
@@ -362,12 +359,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     try {
       ChangeLocationResponse response = driverRssMetaService.askSync(
-        new Revive(applicationId, shuffleId, mapId, attemptId, reduceId, epoch, oldLocation,
+        new Revive(applicationId, shuffleId, mapId, attemptId, partitionId, epoch, oldLocation,
           cause), ClassTag$.MODULE$.apply(ChangeLocationResponse.class)
       );
       // per partitionKey only serve single PartitionLocation in Client Cache.
       if (response.status().equals(StatusCode.Success)) {
-        map.put(reduceId, response.partition());
+        map.put(partitionId, response.partition());
         return true;
       } else if (response.status().equals(StatusCode.MapEnded)) {
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
@@ -378,7 +375,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     } catch (Exception e) {
       logger.error("Exception raised while reviving for shuffle {} reduce {} epoch {}.",
-          shuffleId, reduceId, epoch, e);
+          shuffleId, partitionId, epoch, e);
       return false;
     }
   }
@@ -388,7 +385,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
@@ -418,11 +415,11 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     // get location
-    if (!map.containsKey(reduceId) &&
-        !revive(applicationId, shuffleId, mapId, attemptId, reduceId, 0, null,
+    if (!map.containsKey(partitionId) &&
+        !revive(applicationId, shuffleId, mapId, attemptId, partitionId, 0, null,
                 StatusCode.PushDataFailNonCriticalCause)) {
       throw new IOException(
-          "Revive for shuffle " + shuffleKey + " reduceId " + reduceId + " failed.");
+          "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
     }
 
     if (mapperEnded(shuffleId, mapId, attemptId)) {
@@ -435,10 +432,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    final PartitionLocation loc = map.get(reduceId);
+    final PartitionLocation loc = map.get(partitionId);
     if (loc == null) {
       throw new IOException("Partition location for shuffle "
-          + shuffleKey + " reduceId " + reduceId + " is NULL!");
+          + shuffleKey + " partitionId " + partitionId + " is NULL!");
     }
 
     PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
@@ -462,7 +459,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (doPush) {
       logger.debug("Do push data for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
-          applicationId, shuffleId, mapId, attemptId, reduceId, nextBatchId);
+          applicationId, shuffleId, mapId, attemptId, partitionId, nextBatchId);
       // check limit
       limitMaxInFlight(mapKey, pushState, maxInFlight);
 
@@ -506,7 +503,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (reason == StatusCode.SoftSplit.getValue()) {
               logger.debug("Push data split required for map {} attempt {} batch {}",
                 mapId, attemptId, nextBatchId);
-              splitPartition(shuffleId, reduceId, applicationId, loc);
+              splitPartition(shuffleId, partitionId, applicationId, loc);
               callback.onSuccess(response);
             } else if (reason == StatusCode.HardSplit.getValue()) {
               logger.debug("Push data split for map {} attempt {} batch {}.",
@@ -548,7 +545,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // do push data
       try {
         TransportClient client =
-            dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), reduceId);
+            dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
         ChannelFuture future = client.pushData(pushData, wrappedCallback);
         pushState.addFuture(nextBatchId, future);
       } catch (Exception e) {
@@ -579,27 +576,27 @@ public class ShuffleClientImpl extends ShuffleClient {
     return body.length;
   }
 
-  private void splitPartition(int shuffleId, int reduceId, String applicationId,
+  private void splitPartition(int shuffleId, int partitionId, String applicationId,
     PartitionLocation loc) {
     Set<Integer> splittingSet = splitting.computeIfAbsent(shuffleId,
       integer -> ConcurrentHashMap.newKeySet());
     synchronized (splittingSet) {
-      if (splittingSet.contains(reduceId)) {
-        logger.debug("shuffle {} reduceId {} is splitting, skip split request ",
-          shuffleId, reduceId);
+      if (splittingSet.contains(partitionId)) {
+        logger.debug("shuffle {} partitionId {} is splitting, skip split request ",
+          shuffleId, partitionId);
         return;
       }
-      splittingSet.add(reduceId);
+      splittingSet.add(partitionId);
     }
 
     ConcurrentHashMap<Integer, PartitionLocation> currentShuffleLocs =
       reducePartitionMap.get(shuffleId);
 
     ShuffleClientHelper.sendShuffleSplitAsync(driverRssMetaService,
-      new PartitionSplit(applicationId, shuffleId, reduceId, loc.getEpoch(), loc),
+      new PartitionSplit(applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
       partitionSplitPool,
       splittingSet,
-      reduceId,
+      partitionId,
       shuffleId,
       currentShuffleLocs);
   }
@@ -610,13 +607,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
       int numMappers,
       int numPartitions) throws IOException {
-    return pushOrMergeData(applicationId, shuffleId, mapId, attemptId, reduceId,
+    return pushOrMergeData(applicationId, shuffleId, mapId, attemptId, partitionId,
         data, offset, length, numMappers, numPartitions, true);
   }
 
@@ -635,13 +632,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId,
       int mapId,
       int attemptId,
-      int reduceId,
+      int partitionId,
       byte[] data,
       int offset,
       int length,
       int numMappers,
       int numPartitions) throws IOException {
-    return pushOrMergeData(applicationId, shuffleId, mapId, attemptId, reduceId,
+    return pushOrMergeData(applicationId, shuffleId, mapId, attemptId, partitionId,
         data, offset, length, numMappers, numPartitions, false);
   }
 
@@ -829,14 +826,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(String applicationId, int shuffleId, int reduceId,
+  public RssInputStream readPartition(String applicationId, int shuffleId, int partitionId,
       int attemptNumber) throws IOException {
-    return readPartition(applicationId, shuffleId, reduceId, attemptNumber, 0,
+    return readPartition(applicationId, shuffleId, partitionId, attemptNumber, 0,
       Integer.MAX_VALUE);
   }
 
   @Override
-  public RssInputStream readPartition(String applicationId, int shuffleId, int reduceId,
+  public RssInputStream readPartition(String applicationId, int shuffleId, int partitionId,
       int attemptNumber, int startMapIndex, int endMapIndex) throws IOException {
     String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     ReduceFileGroups fileGroups = reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> {
@@ -869,15 +866,15 @@ public class ShuffleClientImpl extends ShuffleClient {
     });
 
     if (fileGroups == null) {
-      String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + reduceId + "!";
+      String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
       throw new IOException(msg);
     } else if (fileGroups.partitionGroups.length == 0) {
-      logger.warn("Shuffle data is empty for shuffle {} reduce {}.", shuffleId, reduceId);
+      logger.warn("Shuffle data is empty for shuffle {} reduce {}.", shuffleId, partitionId);
       return RssInputStream.empty();
     } else {
       return RssInputStream.create(conf, dataClientFactory, shuffleKey,
-        fileGroups.partitionGroups[reduceId], fileGroups.mapAttempts, attemptNumber,
+        fileGroups.partitionGroups[partitionId], fileGroups.mapAttempts, attemptNumber,
         startMapIndex, endMapIndex);
     }
   }

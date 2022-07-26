@@ -33,21 +33,21 @@ object ShuffleClientHelper extends Logging {
       message: PartitionSplit,
       executors: ExecutorService,
       splittingSet: java.util.Set[Integer],
-      reducerId: Int,
+      partitionId: Int,
       shuffleId: Int,
       shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
     endpointRef.ask[ChangeLocationResponse](message).onComplete {
       case Success(value) =>
         if (value.status == StatusCode.Success) {
-          shuffleLocs.put(reducerId, value.partition)
+          shuffleLocs.put(partitionId, value.partition)
         } else {
           logInfo(s"split failed for ${value.status.toString()}, " +
             s"shuffle file can be larger than expected, try split again");
         }
-        splittingSet.remove(reducerId)
+        splittingSet.remove(partitionId)
       case Failure(exception) =>
-        splittingSet.remove(reducerId)
-        logWarning(s"Shuffle file split failed for map ${shuffleId} reduceId ${reducerId}," +
+        splittingSet.remove(partitionId)
+        logWarning(s"Shuffle file split failed for map ${shuffleId} partitionId ${partitionId}," +
           s" try again, detail : {}", exception);
 
     }(concurrent.ExecutionContext.fromExecutorService(executors))

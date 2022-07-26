@@ -20,7 +20,6 @@ package com.aliyun.emr.rss.common.network.server;
 import io.netty.channel.Channel;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.TransportClient;
 
 /**
  * The StreamManager is used to fetch individual chunks from a stream. This is used in
@@ -65,13 +64,6 @@ public abstract class StreamManager {
    * to read from the associated streams again, so any state can be cleaned up.
    */
   public void connectionTerminated(Channel channel) { }
-
-  /**
-   * Verify that the client is authorized to read from the given stream.
-   *
-   * @throws SecurityException If client is not authorized.
-   */
-  public void checkAuthorization(TransportClient client, long streamId) { }
 
   /**
    * Return the number of chunks being transferred and not finished yet in this StreamManager.

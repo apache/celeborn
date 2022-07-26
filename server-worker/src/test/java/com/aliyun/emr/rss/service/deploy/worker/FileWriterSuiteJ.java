@@ -47,7 +47,7 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.protocol.AbstractMessage;
+import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
@@ -57,6 +57,7 @@ import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
+import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
 
@@ -69,6 +70,7 @@ public class FileWriterSuiteJ {
   public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
+  public static final PartitionType partitionType= PartitionType.REDUCE_PARTITION;
 
   private static File tempDir = null;
   private static DiskFlusher flusher = null;
@@ -165,7 +167,7 @@ public class FileWriterSuiteJ {
 
   private void setUpConn(TransportClient client) {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    StreamHandle streamHandle = (StreamHandle) AbstractMessage.fromByteBuffer(resp);
+    StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
     streamId = streamHandle.streamId;
     numChunks = streamHandle.numChunks;
   }
@@ -212,7 +214,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -247,7 +249,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -286,7 +288,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");

@@ -56,11 +56,11 @@ class RssShuffleReader[K, C](
         readMetrics.incFetchWaitTime(time)
     }
 
-    val recordIter = (startPartition until endPartition).map(reduceId => {
+    val recordIter = (startPartition until endPartition).map(partitionId => {
       if (handle.numMaps > 0) {
         val start = System.currentTimeMillis()
         val inputStream = essShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
-          reduceId, context.attemptNumber(), startMapIndex, endMapIndex)
+          partitionId, context.attemptNumber(), startMapIndex, endMapIndex)
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
         // ensure inputStream is closed when task completes
