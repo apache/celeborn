@@ -317,7 +317,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs, flushWorkerIndex);
+    flushBuffer = flusher.takeBuffer(timeoutMs);
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -341,7 +341,7 @@ public final class FileWriter extends DeviceObserver {
 
   private synchronized void returnBuffer() {
     if (flushBuffer != null) {
-      flusher.returnBuffer(flushBuffer, flushWorkerIndex);
+      flusher.returnBuffer(flushBuffer);
       flushBuffer = null;
     }
   }
