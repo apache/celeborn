@@ -25,8 +25,8 @@ public abstract class ResponseMessage extends Message {
     super();
   }
 
-  public ResponseMessage(ManagedBuffer buffer, boolean isBodyInFrame) {
-    super(buffer, isBodyInFrame);
+  public ResponseMessage(ManagedBuffer buffer) {
+    super(buffer);
   }
 
   public ResponseMessage createFailureResponse(String error) {

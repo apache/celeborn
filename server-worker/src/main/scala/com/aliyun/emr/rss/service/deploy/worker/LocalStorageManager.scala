@@ -55,8 +55,11 @@ private[worker] final class DiskFlusher(
   val mountPoint: String,
   val diskType: StorageHint.Type) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
+  private val assumedQueueSize = 1024 * 1024
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
-  private val bufferQueues = new Array[LinkedBlockingQueue[CompositeByteBuf]](threadCount)
+  private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf](assumedQueueSize)
+  private val workers = new Array[Thread](threadCount)
+  private val nextWorkerIndex = new AtomicInteger()
   private val flushCount = new LongAdder
   private val flushTotalTime = new LongAdder
   private val usedSlots = new LongAdder
@@ -68,23 +71,15 @@ private[worker] final class DiskFlusher(
   val stopFlag = new AtomicBoolean(false)
   val rand = new Random()
 
-  private val workers = new Array[Thread](threadCount)
-  private val nextReplicationIndex = new AtomicInteger()
-
   init()
 
-  def getReplicationIndex: Int = {
-    nextReplicationIndex.getAndIncrement() % threadCount
-  }
-
   private def init(): Unit = {
-    val assumedQueueSize = 1024 * 1024
+
+    for (_ <- 0 until assumedQueueSize) {
+      bufferQueue.put(Unpooled.compositeBuffer(256))
+    }
     for (index <- 0 until (threadCount)) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask](assumedQueueSize)
-      bufferQueues(index) = new LinkedBlockingQueue[CompositeByteBuf](assumedQueueSize)
-      for (_ <- 0 until assumedQueueSize) {
-        bufferQueues(index).put(Unpooled.compositeBuffer(256))
-      }
       workers(index) = new Thread(s"$this-$index") {
         override def run(): Unit = {
           while (!stopFlag.get()) {
@@ -105,7 +100,7 @@ private[worker] final class DiskFlusher(
                 }
                 lastBeginFlushTime = -1
               }
-              returnBuffer(task.buffer, index)
+              returnBuffer(task.buffer)
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }
@@ -121,6 +116,14 @@ private[worker] final class DiskFlusher(
     }
 
     deviceMonitor.registerDiskFlusher(this)
+  }
+
+  def getWorkerIndex: Int = {
+    val nextIndex = nextWorkerIndex.getAndIncrement()
+    if (nextIndex > threadCount) {
+      nextWorkerIndex.set(0)
+    }
+    nextIndex % threadCount
   }
 
   def averageFlushTime(): Double = {
@@ -145,20 +148,20 @@ private[worker] final class DiskFlusher(
     usedSlots.sum();
   }
 
-  def takeBuffer(timeoutMs: Long, replicationIndex: Int): CompositeByteBuf = {
-    bufferQueues(replicationIndex).poll(timeoutMs, TimeUnit.MILLISECONDS)
+  def takeBuffer(timeoutMs: Long): CompositeByteBuf = {
+    bufferQueue.poll(timeoutMs, TimeUnit.MILLISECONDS)
   }
 
-  def returnBuffer(buffer: CompositeByteBuf, replicationIndex: Int): Unit = {
+  def returnBuffer(buffer: CompositeByteBuf): Unit = {
     MemoryTracker.instance().releaseDiskBuffer(buffer.readableBytes())
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 
-    bufferQueues(replicationIndex).put(buffer)
+    bufferQueue.put(buffer)
   }
 
-  def addTask(task: FlushTask, timeoutMs: Long, replicationIndex: Int): Boolean = {
-    workingQueues(replicationIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
+  def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
+    workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
   }
 
   override def notifyError(deviceName: String, dirs: ListBuffer[File] = null,
@@ -172,10 +175,10 @@ private[worker] final class DiskFlusher(
         logError(s"Exception when interrupt worker: $workers, $e")
     }
     workingQueues.foreach { queue =>
-      queue.asScala.foreach(task => {
+      queue.asScala.foreach { task =>
         task.buffer.removeComponents(0, task.buffer.numComponents())
         task.buffer.clear()
-      })
+      }
     }
     deviceMonitor.unregisterDiskFlusher(this)
   }
@@ -185,7 +188,7 @@ private[worker] final class DiskFlusher(
     deviceMonitor.reportDeviceError(workingDir, e, deviceErrorType)
   }
 
-  def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueues.map(_.size()).toList}"
+  def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueue.size()}"
 
   override def hashCode(): Int = {
     workingDir.hashCode()
@@ -511,7 +514,7 @@ private[worker] final class LocalStorageManager(
     override def run(): Unit = {
       val currentTime = System.nanoTime()
       diskFlushers.values().asScala.foreach(flusher => {
-        logInfo(flusher.bufferQueueInfo())
+        logDebug(flusher.bufferQueueInfo())
         val lastFlushTime = flusher.getLastFlushTime
         if (lastFlushTime != -1 &&
           currentTime - lastFlushTime  > essSlowFlushInterval * 1000 * 1000) {

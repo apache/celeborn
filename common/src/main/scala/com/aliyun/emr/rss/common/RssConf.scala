@@ -508,6 +508,15 @@ object RssConf extends Logging {
     conf.getTimeAsSeconds("rss.register.shuffle.retry.wait", "3s")
   }
 
+  def reserveSlotsMaxRetry(conf: RssConf): Int = {
+    conf.getInt("rss.reserve.slots.max.retry", 3)
+  }
+
+  def reserveSlotsRetryWait(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.reserve.slots.retry.wait", "3s")
+  }
+
+
   def flushTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.flush.timeout", "120s")
   }

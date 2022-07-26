@@ -62,7 +62,7 @@ public final class FileWriter extends DeviceObserver {
   private long bytesFlushed;
 
   private final DiskFlusher flusher;
-  private final int flusherReplicationIndex;
+  private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
   private final long chunkSize;
@@ -124,7 +124,7 @@ public final class FileWriter extends DeviceObserver {
     PartitionType partitionType) throws IOException {
     this.file = file;
     this.flusher = flusher;
-    this.flusherReplicationIndex = flusher.getReplicationIndex();
+    this.flushWorkerIndex = flusher.getWorkerIndex();
     this.dataRootDir = workingDir;
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;
@@ -139,7 +139,6 @@ public final class FileWriter extends DeviceObserver {
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
-    flusher.addWriter();
   }
 
   public File getFile() {
@@ -258,7 +257,6 @@ public final class FileWriter extends DeviceObserver {
 
     }
 
-    flusher.removeWriter();
     return bytesFlushed;
   }
 
@@ -328,7 +326,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs, flusherReplicationIndex);
+    flushBuffer = flusher.takeBuffer(timeoutMs);
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -343,7 +341,7 @@ public final class FileWriter extends DeviceObserver {
   }
 
   private void addTask(FlushTask task) throws IOException {
-    if (!flusher.addTask(task, timeoutMs, flusherReplicationIndex)) {
+    if (!flusher.addTask(task, timeoutMs, flushWorkerIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
       throw e;
@@ -352,7 +350,7 @@ public final class FileWriter extends DeviceObserver {
 
   private synchronized void returnBuffer() {
     if (flushBuffer != null) {
-      flusher.returnBuffer(flushBuffer, flusherReplicationIndex);
+      flusher.returnBuffer(flushBuffer);
       flushBuffer = null;
     }
   }
