@@ -25,7 +25,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging

@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.rss
 
+import java.util.concurrent.ConcurrentHashMap
+
 import org.apache.spark._
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.shuffle.{ShuffleReadMetricsReporter, _}
@@ -27,8 +29,6 @@ import com.aliyun.emr.rss.client.ShuffleClient
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-
-import java.util.concurrent.ConcurrentHashMap
 
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 

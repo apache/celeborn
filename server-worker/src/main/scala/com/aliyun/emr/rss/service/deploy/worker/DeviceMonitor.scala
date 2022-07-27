@@ -20,12 +20,12 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.nio.charset.Charset
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.{Set => jSet}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
-
 
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
