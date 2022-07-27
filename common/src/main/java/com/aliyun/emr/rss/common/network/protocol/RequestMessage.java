@@ -25,7 +25,7 @@ public abstract class RequestMessage extends Message {
     super();
   }
 
-  public RequestMessage(ManagedBuffer buffer, boolean isBodyInFrame) {
-    super(buffer, isBodyInFrame);
+  public RequestMessage(ManagedBuffer buffer) {
+    super(buffer);
   }
 }

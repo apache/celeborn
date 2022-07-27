@@ -42,8 +42,8 @@ public class RssLz4Compressor extends RssLz4Trait {
     initCompressBuffer(blockSize);
   }
 
-  private void initCompressBuffer(int size) {
-    int compressedBlockSize = HEADER_LENGTH + compressor.maxCompressedLength(size);
+  private void initCompressBuffer(int maxDestLength) {
+    int compressedBlockSize = HEADER_LENGTH + maxDestLength;
     compressedBuffer = new byte[compressedBlockSize];
     System.arraycopy(MAGIC, 0, compressedBuffer, 0, MAGIC_LENGTH);
   }
@@ -52,8 +52,9 @@ public class RssLz4Compressor extends RssLz4Trait {
     checksum.reset();
     checksum.update(data, offset, length);
     final int check = (int) checksum.getValue();
-    if (compressedBuffer.length - HEADER_LENGTH < length) {
-      initCompressBuffer(length);
+    int maxDestLength = compressor.maxCompressedLength(length);
+    if (compressedBuffer.length - HEADER_LENGTH < maxDestLength) {
+      initCompressBuffer(maxDestLength);
     }
     int compressedLength = compressor.compress(
         data, offset, length, compressedBuffer, HEADER_LENGTH);

@@ -249,7 +249,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           context.reply(RegisterShuffleResponse(StatusCode.Success, initialLocs))
           return
         }
-        logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType" +
+        logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType " +
           s"numMappers: $numMappers, numReducers: $numReducers.")
         val set = new util.HashSet[RpcCallContext]()
         set.add(context)
@@ -901,14 +901,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   /**
-   * Collect all allocated partition locations on reserving slot failed workers.
+   * Collect all allocated partition locations on reserving slot failed workers
+   * and remove failed worker's partition locations from total slots.
    * For each reduce id, we only need to maintain one of the pair locations
-   * even if enabling replicate. If RSS want to release the failed partition location,
+   * even if enabling replicate. If RSS wants to release the failed partition location,
    * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
    *
    * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots
    * @param slots the slots tried to reserve a slot
-   * @return
+   * @return reserving slot failed partition locations
    */
   def getFailedPartitionLocations(
       reserveFailedWorkers: util.List[WorkerInfo],
@@ -934,76 +935,83 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   /**
-   * reserve buffer with retry, retry on another node will cause slots to be inconsistent
+   * Reserve buffers with retry, retry on another node will cause slots to be inconsistent.
+   *
+   * @param applicationId application id
+   * @param shuffleId shuffle id
+   * @param candidates working worker list
+   * @param slots the total allocated worker resources that need to be applied for the slot
+   * @return If reserve all slots success
    */
   private def reserveSlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
       candidates: List[WorkerInfo],
       slots: WorkerResource): Boolean = {
-    // reserve buffers
-    val reserveFailedWorkers = reserveSlots(applicationId, shuffleId, slots)
-
-    val finalSuccess = if (!reserveFailedWorkers.isEmpty) {
-      logWarning("ReserveSlots failed once, retry again")
-      val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, slots)
-
-      // When enable replicate, if one of the partition location reserve slots failed,
-      // we also need to release another corresponding partition location.
-      if (ShouldReplicate && failedPartitionLocations.nonEmpty && !slots.isEmpty) {
-        releasePeerPartitionLocation(applicationId, shuffleId, slots, failedPartitionLocations)
-      }
-
-      var retrySuccess = true
-      // get retryCandidates resource and retry reserve buffer
-      val retryCandidates = new util.HashSet(slots.keySet())
-      // add candidates to avoid revive action passed in slots only 2 worker
-      retryCandidates.addAll(candidates.asJava)
-      // remove blacklist from retryCandidates
-      retryCandidates.removeAll(blacklist)
-
-
-      if (retryCandidates.size < 1 || (ShouldReplicate && retryCandidates.size < 2)) {
-        logError("Retry reserve slots failed caused by no enough slots.")
-        retrySuccess = false
+    var requestSlots = slots
+    val maxRetryTimes = RssConf.reserveSlotsMaxRetry(conf)
+    val retryWaitInterval = RssConf.reserveSlotsRetryWait(conf)
+    var retryTimes = 1
+    var noAvailableSlots = false
+    var success = false
+    while (retryTimes <= maxRetryTimes && !success && !noAvailableSlots) {
+      // reserve buffers
+      logInfo(s"Try reserve slots for ${Utils.makeShuffleKey(applicationId, shuffleId)} " +
+        s"for $retryTimes times.")
+      val reserveFailedWorkers = reserveSlots(applicationId, shuffleId, requestSlots)
+      if (reserveFailedWorkers.isEmpty) {
+        success = true
       } else {
-        // retry another worker if failed
-        val retrySlots = reallocateSlotsFromCandidates(failedPartitionLocations.values.toList,
-          retryCandidates.asScala.toList)
-        val retryReserveFailedWorkers = reserveSlots(applicationId, shuffleId, retrySlots)
-        retrySuccess = retryReserveFailedWorkers.isEmpty
-        if (retrySuccess) {
-          // Add success buffers to slots
-          retrySlots.asScala
-            .foreach { case (workerInfo, (retryMasterLocations, retrySlaveLocations)) =>
+        // Find out all failed partition locations and remove failed worker's partition location
+        // from slots.
+        val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, slots)
+        // When enable replicate, if one of the partition location reserve slots failed, we also
+        // need to release another corresponding partition location and remove it from slots.
+        if (ShouldReplicate && failedPartitionLocations.nonEmpty && !slots.isEmpty) {
+          releasePeerPartitionLocation(applicationId, shuffleId, slots, failedPartitionLocations)
+        }
+        if (retryTimes < maxRetryTimes) {
+          // get retryCandidates resource and retry reserve buffer
+          val retryCandidates = new util.HashSet(slots.keySet())
+          // add candidates to avoid revive action passed in slots only 2 worker
+          retryCandidates.addAll(candidates.asJava)
+          // remove blacklist from retryCandidates
+          retryCandidates.removeAll(blacklist)
+          if (retryCandidates.size < 1 || (ShouldReplicate && retryCandidates.size < 2)) {
+            logError("Retry reserve slots failed caused by not enough slots.")
+            noAvailableSlots = true
+          } else {
+            // Only when the LifecycleManager needs to retry reserve slots again, re-allocate slots
+            // and put the new allocated slots to the total slots, the re-allocated slots won't be
+            // duplicated with existing partition locations.
+            requestSlots = reallocateSlotsFromCandidates(
+              failedPartitionLocations.values.toList, retryCandidates.asScala.toList)
+            requestSlots.asScala.foreach { case (workerInfo, (retryMasterLocs, retrySlaveLocs)) =>
               val (masterPartitionLocations, slavePartitionLocations) =
                 slots.computeIfAbsent(workerInfo, newLocationFunc)
-              masterPartitionLocations.addAll(retryMasterLocations)
-              slavePartitionLocations.addAll(retrySlaveLocations)
+              masterPartitionLocations.addAll(retryMasterLocs)
+              slavePartitionLocations.addAll(retrySlaveLocs)
             }
+          }
         } else {
-          // Destroy the buffer that reserve slot success.
-          val retryReserveSlotsSucceedLocations =
-            retrySlots.asScala.filterKeys(!retryReserveFailedWorkers.contains(_)).toMap
-          destroySlotsWithRetry(applicationId, shuffleId,
-            new WorkerResource(retryReserveSlotsSucceedLocations.asJava))
+          logError(s"Try reserve slots failed after $maxRetryTimes retry.")
         }
       }
-
-      retrySuccess
-    } else {
-      true
+      retryTimes += 1
+      Thread.sleep(retryWaitInterval)
     }
-
     // if failed after retry, destroy all allocated buffers
-    if (!finalSuccess) {
+    if (!success) {
+      // Reserve slot failed workers' partition location and corresponding peer partition location
+      // has been removed from slots by call [[getFailedPartitionLocations]] and
+      // [[releasePeerPartitionLocation]]. Now in the slots are all the successful partition
+      // locations.
       logWarning(s"Reserve buffers $shuffleId still fail after retrying, clear buffers.")
       destroySlotsWithRetry(applicationId, shuffleId, slots)
     } else {
       logInfo(s"Reserve buffer success for ${Utils.makeShuffleKey(applicationId, shuffleId)}")
     }
-
-    finalSuccess
+    success
   }
 
   private val newLocationFunc =
