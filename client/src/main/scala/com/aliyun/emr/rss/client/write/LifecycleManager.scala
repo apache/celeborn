@@ -25,8 +25,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-import io.netty.util.internal.ConcurrentSet
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
@@ -52,12 +50,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
 
-  private val registeredShuffle = new ConcurrentSet[Int]()
+  private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
   private val reducerFileGroupsMap =
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
-  private val dataLostShuffleSet = new ConcurrentSet[Int]()
-  private val stageEndShuffleSet = new ConcurrentSet[Int]()
+  private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   private val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
@@ -76,7 +74,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val registeringShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
 
   // blacklist
-  private val blacklist = new ConcurrentSet[WorkerInfo]()
+  private val blacklist = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
   // Threads
   private val forwardMessageThread =
@@ -622,13 +620,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // ask allLocations workers holding partitions to commit files
     val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
-    val committedMasterIds = new ConcurrentSet[String]
-    val committedSlaveIds = new ConcurrentSet[String]
-    val failedMasterIds = new ConcurrentSet[String]
-    val failedSlaveIds = new ConcurrentSet[String]
+    val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
-    val commitFilesFailedWorkers = new ConcurrentSet[WorkerInfo]
+    val commitFilesFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
     val parallelism = Math.min(workerSnapshots(shuffleId).size(),
       RssConf.rpcMaxParallelism(conf))
