@@ -32,7 +32,6 @@ import scala.reflect.ClassTag$;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
-import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +87,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentHashMap<Integer, ConcurrentSet<String>> mapperEndMap =
+  private final ConcurrentHashMap<Integer, Set<String>> mapperEndMap =
       new ConcurrentHashMap<>();
 
   // key: shuffleId-mapId-attemptId
@@ -367,7 +366,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         map.put(partitionId, response.partition());
         return true;
       } else if (response.status().equals(StatusCode.MapEnded)) {
-        mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
+        mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
             .add(mapKey);
         return true;
       } else {
@@ -476,7 +475,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         public void onSuccess(ByteBuffer response) {
           pushState.inFlightBatches.remove(nextBatchId);
           if (response.remaining() > 0 && response.get() == StatusCode.StageEnded.getValue()) {
-            mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
+            mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
               .add(mapKey);
           }
           pushState.removeFuture(nextBatchId);
@@ -708,7 +707,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         pushState.inFlightBatches.remove(groupedBatchId);
         if (response.remaining() > 0 &&
               response.get() == StatusCode.StageEnded.getValue()) {
-          mapperEndMap.computeIfAbsent(shuffleId, (id) -> new ConcurrentSet<>())
+          mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
             .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
         }
       }
