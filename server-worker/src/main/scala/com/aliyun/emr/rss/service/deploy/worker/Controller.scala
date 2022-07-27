@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.IOException
-import java.util.{ArrayList => jArrayList, List => jList}
+import java.util.{ArrayList => jArrayList, List => jList, Set => jSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
@@ -26,7 +26,6 @@ import java.util.function.BiFunction
 import scala.collection.JavaConverters._
 
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
-import io.netty.util.internal.ConcurrentSet
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
@@ -172,8 +171,8 @@ private[deploy] class Controller(
   private def commitFiles(
       shuffleKey: String,
       uniqueIds: jList[String],
-      committedIds: ConcurrentSet[String],
-      failedIds: ConcurrentSet[String],
+      committedIds: jSet[String],
+      failedIds: jSet[String],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
 
@@ -236,10 +235,10 @@ private[deploy] class Controller(
     shuffleMapperAttempts.putIfAbsent(shuffleKey, mapAttempts)
 
     // Use ConcurrentSet to avoid excessive lock contention.
-    val committedMasterIds = new ConcurrentSet[String]()
-    val committedSlaveIds = new ConcurrentSet[String]()
-    val failedMasterIds = new ConcurrentSet[String]()
-    val failedSlaveIds = new ConcurrentSet[String]()
+    val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
     val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds)
     val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, false)
