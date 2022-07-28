@@ -88,6 +88,7 @@ private[deploy] class Master(
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS
   )
+  private val offerSlotsAlgorithmVersion = RssConf.offerSlotsAlgorithmVersion(conf)
 
   // init and register master metrics
   private val masterSource = {
@@ -382,12 +383,20 @@ private[deploy] class Master(
 
     // offer slots
     val slots = statusSystem.workers.synchronized {
-      MasterUtil.offerSlots(
-        workersNotBlacklisted(),
-        requestSlots.partitionIdList,
-        requestSlots.shouldReplicate,
-        minimumUsableSize
-      )
+      if (offerSlotsAlgorithmVersion == "V2") {
+        MasterUtil.offerSlotsV2(
+          workersNotBlacklisted(),
+          requestSlots.partitionIdList,
+          requestSlots.shouldReplicate,
+          minimumUsableSize
+        )
+      } else {
+        MasterUtil.offerSlotsV1(
+          workersNotBlacklisted(),
+          requestSlots.partitionIdList,
+          requestSlots.shouldReplicate
+        )
+      }
     }
 
     // reply false if offer slots failed
@@ -398,12 +407,11 @@ private[deploy] class Master(
     }
 
     // register shuffle success, update status
-    statusSystem.handleRequestSlots(
-      shuffleKey,
-      requestSlots.hostname,
-      Utils.workerSlotsDistribution(slots.asInstanceOf[WorkerResource]),
-      requestSlots.requestId
-    )
+    statusSystem.handleRequestSlots(shuffleKey, requestSlots.hostname,
+      Utils.workerSlotsDistribution(slots.asInstanceOf[WorkerResource])
+        .asScala.map { case (worker, slots) =>
+        worker.toUniqueId() -> slots
+      }.asJava, requestSlots.requestId)
 
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
@@ -428,7 +436,7 @@ private[deploy] class Master(
       applicationId: String,
       shuffleId: Int,
       workerIds: util.List[String],
-      slots: util.List[String],
+      slots: util.List[util.Map[String, Integer]],
       requestId: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)

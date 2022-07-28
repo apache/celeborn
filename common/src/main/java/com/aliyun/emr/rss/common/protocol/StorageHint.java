@@ -7,7 +7,7 @@ import java.util.Map;
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbStorageHint;
 
 public class StorageHint implements Serializable {
-  public static String UNDEFINED_DISK = "UNDEFINED_DISK";
+  public static String UNKNOWN_DISK = "UNKNOWN_DISK";
 
   public enum Type {
     NON_EXISTS(0), MEMORY(1), HDD(2), SSD(3), HDFS(4), OSS(5);
@@ -29,7 +29,7 @@ public class StorageHint implements Serializable {
     }};
 
   private Type type = Type.MEMORY;
-  private String mountPoint = UNDEFINED_DISK;
+  private String mountPoint = UNKNOWN_DISK;
   private boolean finalResult = false;
 
   public StorageHint() {

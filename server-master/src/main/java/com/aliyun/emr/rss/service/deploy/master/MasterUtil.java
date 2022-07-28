@@ -72,26 +72,123 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlots(
-    List<WorkerInfo> workers,
-    List<Integer> reduceIds,
-    boolean shouldReplicate,
-    long minimumUsableSize) {
-    if (reduceIds.isEmpty()) {
-      return new HashMap<>();
-    }
-    int[] oldEpochs = new int[reduceIds.size()];
+    offerSlotsV1(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate) {
+    int[] oldEpochs = new int[partitionIds.size()];
     Arrays.fill(oldEpochs, -1);
-    return offerSlots(workers, reduceIds, oldEpochs, shouldReplicate, minimumUsableSize);
+    if (workers.size() < 2 && shouldReplicate) {
+      return null;
+    }
+
+    int masterInd = rand.nextInt(workers.size());
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        new HashMap<>();
+    // foreach iteration, allocate both master and slave partitions
+    for(int idx = 0; idx < partitionIds.size(); idx++) {
+      int nextMasterInd = masterInd;
+      // try to find slot for master partition
+      while (!workers.get(nextMasterInd).slotAvailable()) {
+        nextMasterInd = (nextMasterInd + 1) % workers.size();
+        if (nextMasterInd == masterInd) {
+          return null;
+        }
+      }
+      int nextSlaveInd = 0;
+      if (shouldReplicate) {
+        // try to find slot for slave partition
+        nextSlaveInd = (nextMasterInd + 1) % workers.size();
+        while (!workers.get(nextSlaveInd).slotAvailable()) {
+          nextSlaveInd = (nextSlaveInd + 1) % workers.size();
+          if (nextSlaveInd == nextMasterInd) {
+            return null;
+          }
+        }
+        if (nextSlaveInd == nextMasterInd) {
+          return null;
+        }
+      }
+      // now nextMasterInd/nextSlaveInd point to
+      // available master/slave partition respectively
+
+      int newEpoch = oldEpochs[idx] + 1;
+      // new slave and master locations
+      slots.putIfAbsent(workers.get(nextMasterInd),
+          new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+      Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
+          slots.get(workers.get(nextMasterInd));
+      PartitionLocation slaveLocation = null;
+      PartitionLocation masterLocation = null;
+      if (shouldReplicate) {
+        slaveLocation = new PartitionLocation(
+            partitionIds.get(idx),
+            newEpoch,
+            workers.get(nextSlaveInd).host(),
+            workers.get(nextSlaveInd).rpcPort(),
+            workers.get(nextSlaveInd).pushPort(),
+            workers.get(nextSlaveInd).fetchPort(),
+            workers.get(nextSlaveInd).replicatePort(),
+            PartitionLocation.Mode.Slave
+        );
+      }
+      masterLocation = new PartitionLocation(
+          partitionIds.get(idx),
+          newEpoch,
+          workers.get(nextMasterInd).host(),
+          workers.get(nextMasterInd).rpcPort(),
+          workers.get(nextMasterInd).pushPort(),
+          workers.get(nextMasterInd).fetchPort(),
+          workers.get(nextMasterInd).replicatePort(),
+          PartitionLocation.Mode.Master,
+          slaveLocation
+      );
+      if (shouldReplicate) {
+        slaveLocation.setPeer(masterLocation);
+      }
+
+      // add master location to WorkerInfo
+      locations._1.add(masterLocation);
+
+      if (shouldReplicate) {
+        // add slave location to WorkerInfo
+        slots.putIfAbsent(workers.get(nextSlaveInd),
+            new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+        locations = slots.get(workers.get(nextSlaveInd));
+        locations._2.add(slaveLocation);
+      }
+
+      // update index
+      masterInd = (nextMasterInd + 1) % workers.size();
+    }
+    return slots;
   }
 
+  /**
+   * It assumes that all disks whose available space is greater than the minimum space are divided
+   * into three groups(top30,mid30,last40) by their average flush time.
+   * Slots will be distributed to faster groups than the slower group.
+   * A faster group will distribute 20 percent more workloads than a slower one.
+   * Note: This algorithm is experimental.
+   *
+   * @param workers
+   * @param partitionIds
+   * @param shouldReplicate
+   * @param minimumUsableSize
+   * @return
+   */
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlots(
-    List<WorkerInfo> workers,
-    List<Integer> reduceIds,
-    int[] oldEpochs,
-    boolean shouldReplicate,
-    long minimumUsableSize) {
+    offerSlotsV2(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      long minimumUsableSize) {
+    if (partitionIds.isEmpty()) {
+      return new HashMap<>();
+    }
+    int[] oldEpochs = new int[partitionIds.size()];
+    Arrays.fill(oldEpochs, -1);
+
     if (workers.size() < 2 && shouldReplicate) {
       return null;
     }
@@ -128,19 +225,19 @@ public class MasterUtil {
     Map<WorkerInfo, List<PartitionLocation>> slaveAggregatedLocations = new HashMap<>();
 
     allocatePartitionByDiskSpeed(
-      usableDisks,
-      reduceIds,
-      masterLocations,
-      masterAggregatedLocations,
-      oldEpochs,
-      diskToWorkerMap,
-      workers,
-      activeDiskSlots,
-      true);
+        usableDisks,
+        partitionIds,
+        masterLocations,
+        masterAggregatedLocations,
+        oldEpochs,
+        diskToWorkerMap,
+        workers,
+        activeDiskSlots,
+        true);
 
     if (shouldReplicate) {
       for (Map.Entry<WorkerInfo, List<PartitionLocation>>
-           entry : masterAggregatedLocations.entrySet()) {
+               entry : masterAggregatedLocations.entrySet()) {
         WorkerInfo workerToExclude = entry.getKey();
         List<PartitionLocation> locations = entry.getValue();
         Map<Integer, Integer> reducerIdToEpoch = new HashMap<>();
@@ -154,15 +251,15 @@ public class MasterUtil {
         remainWorkers.remove(workerToExclude);
 
         allocatePartitionByDiskSpeed(
-          remainDisks,
-          new ArrayList<>(reducerIdToEpoch.keySet()),
-          slaveLocations,
-          slaveAggregatedLocations,
-          oldEpochs,
-          diskToWorkerMap,
-          remainWorkers,
-          activeDiskSlots,
-          false);
+            remainDisks,
+            new ArrayList<>(reducerIdToEpoch.keySet()),
+            slaveLocations,
+            slaveAggregatedLocations,
+            oldEpochs,
+            diskToWorkerMap,
+            remainWorkers,
+            activeDiskSlots,
+            false);
       }
     }
 
@@ -181,11 +278,12 @@ public class MasterUtil {
         PartitionLocation masterLocation = reduceIdToMasterLocations.get(currentReduceId);
         PartitionLocation slaveLocation = reduceIdToSlaveLocations.get(currentReduceId);
         masterLocation.setPeer(slaveLocation);
+        slaveLocation.setPeer(masterLocation);
       }
     }
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-      new HashMap<>();
+        new HashMap<>();
 
     Set<WorkerInfo> masterOnlySet = new HashSet<>(masterAggregatedLocations.keySet());
     Set<WorkerInfo> slaveOnlySet = new HashSet<>(slaveAggregatedLocations.keySet());
@@ -195,15 +293,15 @@ public class MasterUtil {
     slaveOnlySet.removeAll(commonSet);
     for (WorkerInfo workerInfo : commonSet) {
       slots.put(workerInfo, new Tuple2<>(masterAggregatedLocations.get(workerInfo),
-        slaveAggregatedLocations.get(workerInfo)));
+          slaveAggregatedLocations.get(workerInfo)));
     }
     for (WorkerInfo workerInfo : masterOnlySet) {
       slots.put(workerInfo, new Tuple2<>(masterAggregatedLocations.get(workerInfo),
-        new ArrayList<>()));
+          new ArrayList<>()));
     }
     for (WorkerInfo workerInfo : slaveOnlySet) {
       slots.put(workerInfo, new Tuple2<>(new ArrayList<>(),
-        slaveAggregatedLocations.get(workerInfo)));
+          slaveAggregatedLocations.get(workerInfo)));
     }
 
     return slots;

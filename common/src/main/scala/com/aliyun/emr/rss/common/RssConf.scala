@@ -876,6 +876,15 @@ object RssConf extends Logging {
     }
   }
 
+  def offerSlotsAlgorithmVersion(conf: RssConf): String = {
+    var version = conf.get("rss.offer.slots.algorithm.version", "V1")
+    if (version != "V1" || version != "V2") {
+      logWarning("Config rss.offer.slots.algorithm.version is wrong. Use default V1")
+      version = "V1"
+    }
+    version
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

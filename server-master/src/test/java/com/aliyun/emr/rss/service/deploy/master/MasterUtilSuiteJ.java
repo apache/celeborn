@@ -186,7 +186,7 @@ public class MasterUtilSuiteJ {
     boolean expectSuccess) {
     String shuffleKey = "appId-1";
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-      MasterUtil.offerSlots(
+      MasterUtil.offerSlotsV2(
         workers,
         partitionIds,
         shouldReplicate,

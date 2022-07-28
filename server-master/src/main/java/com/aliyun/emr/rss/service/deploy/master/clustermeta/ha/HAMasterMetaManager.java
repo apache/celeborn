@@ -60,17 +60,17 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public void handleRequestSlots(
     String shuffleKey,
     String hostName,
-    Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots,
+    Map<String, Map<String, Integer>> workerToAllocatedSlots,
     String requestId) {
     try {
       ResourceProtos.RequestSlotsRequest.Builder builder =
         ResourceProtos.RequestSlotsRequest.newBuilder()
               .setShuffleKey(shuffleKey)
               .setHostName(hostName);
-      for (WorkerInfo workerInfo : workerToAllocatedSlots.keySet()) {
-        builder.addWorkerInfo(WorkerInfo.encodeToPbStr(workerInfo.host(), workerInfo.rpcPort(),
-          workerInfo.pushPort(), workerInfo.fetchPort(), workerInfo.replicatePort(),
-          workerToAllocatedSlots.get(workerInfo)));
+      for (String workerUniqueId : workerToAllocatedSlots.keySet()) {
+        builder.putWorkerAllocations(workerUniqueId,
+            ResourceProtos.SlotInfo.newBuilder()
+                .putAllSlot(workerToAllocatedSlots.get(workerUniqueId)).build());
       }
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.RequestSlots)
@@ -84,19 +84,23 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-    List<String> slotStrings, String requestId) {
+    List<Map<String, Integer>> slots, String requestId) {
     try {
-      ratisServer.submitRequest(ResourceRequest.newBuilder()
-          .setCmdType(Type.ReleaseSlots)
-          .setRequestId(requestId)
-          .setReleaseSlotsRequest(
-            ResourceProtos.ReleaseSlotsRequest.newBuilder()
-                          .setShuffleKey(shuffleKey)
-                          .addAllWorkerIds(workerIds)
-                          .addAllSlots(slotStrings)
-                          .build())
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ReleaseSlots)
+              .setRequestId(requestId)
+              .setReleaseSlotsRequest(
+                  ResourceProtos.ReleaseSlotsRequest.newBuilder()
+                      .setShuffleKey(shuffleKey)
+                      .addAllWorkerIds(workerIds)
+                      .addAllSlots(
+                          slots.stream()
+                              .map(slot -> ResourceProtos.SlotInfo.newBuilder()
+                                  .putAllSlot(slot).build())
+                              .collect(Collectors.toList()))
+                      .build())
               .build());
-
     } catch (ServiceException e) {
       LOG.error("Handle release slots for {} failed!", shuffleKey, e);
     }
@@ -126,14 +130,15 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     long time,
     String requestId) {
     try {
-      ratisServer.submitRequest(ResourceRequest.newBuilder()
-                                  .setCmdType(Type.AppHeartBeat)
-                                  .setRequestId(requestId)
-                                  .setAppHeartbeatRequest(
-                                    ResourceProtos.AppHeartbeatRequest.newBuilder()
-                                      .setAppId(appId).setTime(time)
-                                      .build())
-                                  .build());
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.AppHeartBeat)
+              .setRequestId(requestId)
+              .setAppHeartbeatRequest(
+                  ResourceProtos.AppHeartbeatRequest.newBuilder()
+                      .setAppId(appId).setTime(time)
+                      .build())
+              .build());
     } catch (ServiceException e) {
       LOG.error("Handle heart beat for {} failed!", appId, e);
     }

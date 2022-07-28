@@ -19,8 +19,8 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -64,7 +64,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalFileCount = new LongAdder();
 
   public void updateRequestSlotsMeta(
-      String shuffleKey, String hostName, List<String> workerInfos) {
+      String shuffleKey, String hostName,
+      Map<String, Map<String, Integer>> workerWithAllocations) {
     registeredShuffle.add(shuffleKey);
 
     String appId = Utils.splitShuffleKey(shuffleKey)._1;
@@ -79,15 +80,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     if (hostName != null) {
       hostnameSet.add(hostName);
     }
-    if (workerInfos != null) {
+    if (!workerWithAllocations.isEmpty()) {
       synchronized (workers) {
-        HashMap<WorkerInfo, HashMap<String, Integer>> allocatedMap =
-          WorkerInfo.decodeFromPbMessage(workerInfos);
-        workers.forEach(workerInfo -> {
-          if (allocatedMap.containsKey(workerInfo)) {
-            workerInfo.allocateSlots(shuffleKey, allocatedMap.get(workerInfo));
+        Iterator<WorkerInfo> workerIter = workers.iterator();
+        while (workerIter.hasNext()) {
+          WorkerInfo workerInfo = workerIter.next();
+          String workerUniqueId = workerInfo.toUniqueId();
+          if (workerWithAllocations.containsKey(workerUniqueId)) {
+            workerInfo.allocateSlots(shuffleKey, workerWithAllocations.get(workerUniqueId));
           }
-        });
+        }
       }
     }
   }
@@ -97,22 +99,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateReleaseSlotsMeta(String shuffleKey, List<String> workerIds,
-    List<String> slots) {
+      List<Map<String, Integer>> slots) {
     if (workerIds != null && !workerIds.isEmpty()) {
       for (int i = 0; i < workerIds.size(); i++) {
         WorkerInfo worker = WorkerInfo.fromUniqueId(workerIds.get(i));
         for (int j = 0; j < workers.size(); j++) {
           WorkerInfo w = workers.get(j);
           if (w.equals(worker)) {
-            String diskStr = slots.get(j);
-            String[] diskParts = diskStr.split(",");
-            Map<String, Integer> disks = new HashMap<>();
-            for (int k = 0; k < diskParts.length; k++) {
-              String[] parts = diskParts[k].split(":");
-              disks.put(parts[0], Integer.parseInt(parts[1]));
-            }
-            LOG.info("release slots for worker " + w + ", to release: " + slots.get(i));
-            w.releaseSlots(shuffleKey, disks);
+            Map<String, Integer> slotToRelease = slots.get(j);
+            LOG.info("release slots for worker " + w + ", to release: " + slotToRelease);
+            w.releaseSlots(shuffleKey, slotToRelease);
           }
         }
       }

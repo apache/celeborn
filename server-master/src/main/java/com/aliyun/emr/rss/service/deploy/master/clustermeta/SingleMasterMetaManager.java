@@ -42,19 +42,14 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   public void handleRequestSlots(
     String shuffleKey,
     String hostName,
-    Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots,
+    Map<String, Map<String, Integer>> workerToAllocatedSlots,
     String requestId) {
-    updateRequestSlotsMeta(shuffleKey, hostName, null);
-    synchronized (workers) {
-      for (WorkerInfo workerInfo : workerToAllocatedSlots.keySet()) {
-        workerInfo.allocateSlots(shuffleKey, workerToAllocatedSlots.get(workerInfo));
-      }
-    }
+    updateRequestSlotsMeta(shuffleKey, hostName, workerToAllocatedSlots);
   }
 
   @Override
   public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-    List<String> slotStrings, String requestId) {
+    List<Map<String, Integer>> slotStrings, String requestId) {
     updateReleaseSlotsMeta(shuffleKey, workerIds, slotStrings);
   }
 

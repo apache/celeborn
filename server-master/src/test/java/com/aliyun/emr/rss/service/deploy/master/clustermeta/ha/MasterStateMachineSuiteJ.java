@@ -39,6 +39,7 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.util.Utils;
+import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -54,13 +55,23 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     allocations.put("disk1", 15);
     allocations.put("disk2", 20);
 
-    RequestSlotsRequest requestSlots = RequestSlotsRequest.newBuilder()
-      .setShuffleKey("appId-1-1")
-      .setHostName("hostname")
-      .addWorkerInfo(WorkerInfo.encodeToPbStr("host1", 1, 2, 3, 10, allocations))
-      .addWorkerInfo(WorkerInfo.encodeToPbStr("host2", 2, 3, 4, 11, allocations))
-      .addWorkerInfo(WorkerInfo.encodeToPbStr("host3", 3, 4, 5, 12, allocations))
-      .build();
+    Map<String, ResourceProtos.SlotInfo> workerAllocations = new HashMap<>();
+    workerAllocations.put(
+        new WorkerInfo("host1", 1, 2, 3, 10).toUniqueId(),
+        ResourceProtos.SlotInfo.newBuilder().putAllSlot(allocations).build());
+    workerAllocations.put(
+        new WorkerInfo("host2", 2, 3, 4, 11).toUniqueId(),
+        ResourceProtos.SlotInfo.newBuilder().putAllSlot(allocations).build());
+    workerAllocations.put(
+        new WorkerInfo("host3", 3, 4, 5, 12).toUniqueId(),
+        ResourceProtos.SlotInfo.newBuilder().putAllSlot(allocations).build());
+
+    RequestSlotsRequest requestSlots =
+        RequestSlotsRequest.newBuilder()
+            .setShuffleKey("appId-1-1")
+            .setHostName("hostname")
+            .putAllWorkerAllocations(workerAllocations)
+            .build();
 
     ResourceRequest request = ResourceRequest.newBuilder()
       .setRequestSlotsRequest(requestSlots)

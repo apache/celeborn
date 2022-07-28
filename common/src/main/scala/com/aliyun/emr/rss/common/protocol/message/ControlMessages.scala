@@ -127,12 +127,14 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REQUEST_SLOTS, payload)
 
       case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
+        val pbSlots = slots.asScala.map(slot =>
+          PbSlotInfo.newBuilder().putAllSlot(slot).build()).toList
         val payload = TransportMessages.PbReleaseSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
-          .addAllSlots(slots)
           .setRequestId(requestId)
           .addAllWorkerIds(workerIds)
+          .addAllSlots(pbSlots.asJava)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.RELEASE_SLOTS, payload)
 
@@ -368,9 +370,9 @@ sealed trait Message extends Serializable{
         builder.addAllFailedMasterIds(failedMasterIds)
         builder.addAllFailedSlaveIds(failedSlaveIds)
         committedMasterStorageHints.asScala.foreach(entry =>
-          builder.putCommittedMasterStorageHints(entry._1, ByteString.copyFrom(entry._2)))
-        committedMasterStorageHints.asScala.foreach(entry =>
-          builder.putCommittedSlaveStorageHints(entry._1, ByteString.copyFrom(entry._2)))
+          builder.putCommittedMasterStorageHints(entry._1, StorageHint.toPb(entry._2)))
+        committedSlaveStorageHints.asScala.foreach(entry =>
+          builder.putCommittedSlaveStorageHints(entry._1, StorageHint.toPb(entry._2)))
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -512,7 +514,7 @@ object ControlMessages extends Logging{
     applicationId: String,
     shuffleId: Int,
     workerIds: util.List[String],
-    slots: util.List[String],
+    slots: util.List[util.Map[String, Integer]],
     override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -646,10 +648,10 @@ object ControlMessages extends Logging{
     committedSlaveIds: util.List[String],
     failedMasterIds: util.List[String],
     failedSlaveIds: util.List[String],
-    committedMasterStorageHints: util.Map[String, Array[Byte]] =
-    Map.empty[String, Array[Byte]].asJava,
-    committedSlaveStorageHints: util.Map[String, Array[Byte]] =
-    Map.empty[String, Array[Byte]].asJava,
+    committedMasterStorageHints: util.Map[String, StorageHint] =
+    Map.empty[String, StorageHint].asJava,
+    committedSlaveStorageHints: util.Map[String, StorageHint] =
+    Map.empty[String, StorageHint].asJava,
     totalWritten: Long = 0,
     fileCount: Int = 0
   ) extends WorkerMessage
@@ -752,11 +754,13 @@ object ControlMessages extends Logging{
 
       case RELEASE_SLOTS =>
         val pbRequestSlots = PbReleaseSlots.parseFrom(message.getPayload)
+        val slotsList = pbRequestSlots.getSlotsList.asScala.map(pbSlot =>
+          new util.HashMap[String, Integer](pbSlot.getSlotMap)).toList.asJava
         ReleaseSlots(
           pbRequestSlots.getApplicationId,
           pbRequestSlots.getShuffleId,
           new util.ArrayList[String](pbRequestSlots.getWorkerIdsList),
-          new util.ArrayList[String](pbRequestSlots.getSlotsList),
+          new util.ArrayList[util.Map[String, Integer]](slotsList),
           pbRequestSlots.getRequestId
         )
 
@@ -900,12 +904,12 @@ object ControlMessages extends Logging{
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
-        val committedMasterStorageHints = new util.HashMap[String, Array[Byte]]()
-        val committedSlaveStorageHints = new util.HashMap[String, Array[Byte]]()
+        val committedMasterStorageHints = new util.HashMap[String, StorageHint]()
+        val committedSlaveStorageHints = new util.HashMap[String, StorageHint]()
         pbCommitFilesResponse.getCommittedMasterStorageHintsMap.asScala.foreach(entry =>
-          committedMasterStorageHints.put(entry._1, entry._2.toByteArray))
+          committedMasterStorageHints.put(entry._1, StorageHint.fromPb(entry._2)))
         pbCommitFilesResponse.getCommittedSlaveStorageHintsMap.asScala.foreach(entry =>
-          committedSlaveStorageHints.put(entry._1, entry._2.toByteArray))
+          committedSlaveStorageHints.put(entry._1, StorageHint.fromPb(entry._2)))
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedMasterIdsList,

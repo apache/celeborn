@@ -203,6 +203,13 @@ class PartitionLocationInfo {
     }
   }
 
+  /**
+   *
+   * @param shuffleKey
+   * @param uniqueIds
+   * @param partitionInfo
+   * @return disk related freed slot number and total freed slots number
+   */
   private def removePartitions(
     shuffleKey: String,
     uniqueIds: util.Collection[String],
@@ -219,19 +226,15 @@ class PartitionLocationInfo {
       val epoch = tokens(1).toInt
       val locations = reduceLocMap.get(partitionId)
       if (locations != null) {
-        val targetLocation = locations.asScala.find(_.getEpoch == epoch)
-        if (targetLocation.isDefined) {
-          locations.remove(targetLocation.get)
+        val targetLocation = locations.asScala.find(_.getEpoch == epoch).orNull
+        if (targetLocation != null) {
+          locations.remove(targetLocation)
           numSlotsReleased += 1
           releaseMap.compute(
-            targetLocation.get.getStorageHint.getMountPoint,
+            targetLocation.getStorageHint.getMountPoint,
             new BiFunction[String, Integer, Integer] {
               override def apply(t: String, u: Integer): Integer = {
-                if (u == null) {
-                  1
-                } else {
-                  u + 1
-                }
+                if (u == null) 1 else u + 1
               }
             }
           )

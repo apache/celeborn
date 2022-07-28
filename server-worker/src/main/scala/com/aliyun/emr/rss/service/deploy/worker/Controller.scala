@@ -181,7 +181,7 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: ConcurrentSet[String],
       failedIds: ConcurrentSet[String],
-      committedStorageHints: java.util.HashMap[String, Array[Byte]],
+      committedStorageHints: java.util.HashMap[String, StorageHint],
       writtenList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
@@ -205,8 +205,7 @@ private[deploy] class Controller(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
-                committedStorageHints.put(uniqueId,
-                  StorageHint.toPb(fileWriter.getStorageHint).toByteArray)
+                committedStorageHints.put(uniqueId, fileWriter.getStorageHint)
                 writtenList.add(bytes)
                 committedIds.add(uniqueId)
               }
@@ -258,8 +257,8 @@ private[deploy] class Controller(
     val committedSlaveIds = new ConcurrentSet[String]()
     val failedMasterIds = new ConcurrentSet[String]()
     val failedSlaveIds = new ConcurrentSet[String]()
-    val committedMasterStorageHints = new jHashMap[String, Array[Byte]]()
-    val committedSlaveStorageHints = new jHashMap[String, Array[Byte]]()
+    val committedMasterStorageHints = new jHashMap[String, StorageHint]()
+    val committedSlaveStorageHints = new jHashMap[String, StorageHint]()
     val committedWrittenSize = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
@@ -308,9 +307,9 @@ private[deploy] class Controller(
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
       val committedMasterStorageAndDiskHintList =
-        new jHashMap[String, Array[Byte]](committedMasterStorageHints)
+        new jHashMap[String, StorageHint](committedMasterStorageHints)
       val committedSlaveStorageAndDiskHintList =
-        new jHashMap[String, Array[Byte]](committedSlaveStorageHints)
+        new jHashMap[String, StorageHint](committedSlaveStorageHints)
       val totalWritten = committedWrittenSize.asScala.sum
       val fileCount = committedWrittenSize.size()
       // reply

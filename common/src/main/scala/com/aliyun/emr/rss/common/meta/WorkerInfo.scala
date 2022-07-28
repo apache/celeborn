@@ -48,11 +48,10 @@ class DiskInfo(
 
   def releaseSlots(shuffleKey: String, slots: Int): Unit = {
     val allocated = diskRelatedSlots.getOrDefault(shuffleKey, 0)
+    activeSlots = activeSlots - slots
     if (allocated > slots) {
       diskRelatedSlots.put(shuffleKey, allocated - slots)
-      activeSlots = activeSlots - slots
     } else {
-      activeSlots = 0
       diskRelatedSlots.put(shuffleKey, 0)
     }
   }
@@ -74,11 +73,7 @@ class WorkerInfo(
     val disks: util.Map[String, DiskInfo],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
 
-  private var slotsUsed: Int = 0
   var lastHeartbeat: Long = 0
-
-  // key: shuffleKey   value: slots allocated for the shuffle
-  lazy val shuffleSlots = new util.HashMap[String, Int]()
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -167,6 +162,10 @@ class WorkerInfo(
     s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
+  def slotAvailable(): Boolean = {
+    disks.asScala.map { case (_, disk) => disk.maxSlots - disk.activeSlots }.sum > 0
+  }
+
   override def toString(): String = {
     s"""
        |Host: $host
@@ -194,63 +193,6 @@ class WorkerInfo(
 }
 
 object WorkerInfo {
-  private val SPLIT: String = "-"
-
-  def encodeToPbStr(
-    host: String,
-    rpcPort: Int,
-    pushPort: Int,
-    fetchPort: Int,
-    replicatePort: Int,
-    allocations: util.Map[String, Integer]): String = {
-    val allocationsStrBuf = new StringBuilder()
-    allocations.asScala.foreach(allocate => {
-      allocationsStrBuf.append(SPLIT)
-      allocationsStrBuf.append(allocate._1)
-      allocationsStrBuf.append(SPLIT)
-      allocationsStrBuf.append(allocate._2)
-    })
-
-    s"$host$SPLIT$rpcPort$SPLIT$pushPort$SPLIT$fetchPort$SPLIT" +
-      s"$replicatePort$SPLIT${allocations.size}" +
-      s"${allocationsStrBuf.toString()}"
-  }
-
-  def decodeFromPbMessage(
-    pbStrList: util.List[String]
-  ): util.HashMap[WorkerInfo, util.HashMap[String, Integer]] = {
-    val map = new util.HashMap[WorkerInfo, util.HashMap[String, Integer]]()
-    import scala.collection.JavaConverters._
-    pbStrList.asScala.foreach { str =>
-      val allocationsMap = new util.HashMap[String, Integer]()
-      val splits = str.split(SPLIT)
-      val allocationsMapSize = splits(5).toInt
-      if (allocationsMapSize > 0) {
-        var index = 5
-        while (index < splits.size - 1) {
-          val mountPoint = splits(index + 1)
-          val slots = splits(index + 2).toInt
-          allocationsMap.put(mountPoint, slots)
-          index = index + 2
-        }
-      } else {
-        new util.HashMap[String, DiskInfo]()
-      }
-      map.put(
-        new WorkerInfo(
-          splits(0),
-          splits(1).toInt,
-          splits(2).toInt,
-          splits(3).toInt,
-          splits(4).toInt,
-          null,
-          null
-        ),
-        allocationsMap
-      )
-    }
-    map
-  }
 
   def fromUniqueId(id: String): WorkerInfo = {
     val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")

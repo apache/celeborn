@@ -60,6 +60,7 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bu
 |              rss.ha.storage.dir              |       /tmp/ratis        |                      Directory of RSS master to store ratis metadata.                      |
 |  rss.ha.ratis.snapshot.auto.trigger.enabled  |          true           |                     Weather to enable raft implementation's snapshot.                      |
 | rss.ha.ratis.snapshot.auto.trigger.threshold |         200000          |                                                                                            |
+|      rss.offer.slots.algorithm.version       |           V1            | There is a experimental algorithm called V2. New algorithm will consider about disk speed. |
 
 ### RSS Worker Configurations
 

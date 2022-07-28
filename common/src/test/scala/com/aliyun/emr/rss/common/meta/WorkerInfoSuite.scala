@@ -43,29 +43,6 @@ class WorkerInfoSuite extends RssFunSuite {
     run(block)
   }
 
-  test("Serialize/Deserialize WorkerInfo to String correctly.") {
-    val (h1, p1, p2, p3, a1, b1) = ("h1", 1, 2, 3, 10, 11)
-    val (h2, p4, p5, p6, a2, b2) = ("h2", 4, 5, 6, 20, 21)
-    val (h3, p7, p8, p9, a3, b3) = ("h3", 7, 8, 9, 30, 31)
-
-    val pbList = new jArrayList[String](3)
-    val allocationMap = new util.HashMap[String, Integer]()
-    allocationMap.put("disk1", 283)
-    allocationMap.put("disk2", 483)
-
-    pbList.add(WorkerInfo.encodeToPbStr(h1, p1, p2, p3, a1, allocationMap))
-    pbList.add(WorkerInfo.encodeToPbStr(h2, p4, p5, p6, a2, allocationMap))
-    pbList.add(WorkerInfo.encodeToPbStr(h3, p7, p8, p9, a3, allocationMap))
-
-    val workerInfos = WorkerInfo.decodeFromPbMessage(pbList)
-    assertEquals(
-      "The number of WorkerInfo decoded from string is wrong.", pbList.size(), workerInfos.size())
-
-    check(h1, p1, p2, p3, b1, workerInfos, allocationMap)
-    check(h2, p4, p5, p6, b2, workerInfos, allocationMap)
-    check(h3, p7, p8, p9, b3, workerInfos, allocationMap)
-  }
-
   private def check(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int
     , workerInfos: jMap[WorkerInfo, util.HashMap[String, Integer]],
     allocationMap: util.HashMap[String, Integer]): Unit = {

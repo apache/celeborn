@@ -152,11 +152,11 @@ public class DefaultMetaSystemSuiteJ {
     WorkerInfo workerInfo3 = new WorkerInfo(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
       REPLICATEPORT3, disks3, dummyRef);
 
-    Map<WorkerInfo, Map<String,Integer>> workersToAllocate = new HashMap<>();
-    Map<String,Integer> allocation = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
-    workersToAllocate.put(workerInfo1, allocation);
-    workersToAllocate.put(workerInfo2, allocation);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
@@ -176,13 +176,13 @@ public class DefaultMetaSystemSuiteJ {
 
     assert 3 == statusSystem.workers.size();
 
-    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String,Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
-                            .findFirst().get(), allocation);
+                            .findFirst().get().toUniqueId(), allocation);
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2))
-                            .findFirst().get(), allocation);
+                            .findFirst().get().toUniqueId(), allocation);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
@@ -190,8 +190,10 @@ public class DefaultMetaSystemSuiteJ {
     workerIds.add(HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 +
                     ":" + REPLICATEPORT1);
 
-    List<String> workerSlots = new ArrayList<>();
-    workerSlots.add("disk1:3");
+    List<Map<String, Integer>> workerSlots = new ArrayList<>();
+    workerSlots.add(new HashMap() {{
+        put("disk1", 3);
+      }});
 
     statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
 
@@ -213,11 +215,11 @@ public class DefaultMetaSystemSuiteJ {
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
       REPLICATEPORT2, disks2, dummyRef);
 
-    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
-    Map<String,Integer> allocation = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
-    workersToAllocate.put(workerInfo1, allocation);
-    workersToAllocate.put(workerInfo2, allocation);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
@@ -242,11 +244,11 @@ public class DefaultMetaSystemSuiteJ {
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
       REPLICATEPORT2, disks2, dummyRef);
 
-    Map<WorkerInfo, Map<String,Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Map<String,Integer>> workersToAllocate = new HashMap<>();
     Map<String,Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
-    workersToAllocate.put(workerInfo1, allocation);
-    workersToAllocate.put(workerInfo2, allocation);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 

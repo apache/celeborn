@@ -110,24 +110,27 @@ public class RatisMasterStatusSystemSuiteJ {
       localHost, 9873);
     InetSocketAddress rpcAddress3 = new InetSocketAddress(
       localHost, 9874);
-    NodeDetails nodeDetails1 = new NodeDetails.Builder()
-                                 .setRpcAddress(rpcAddress1)
-                                 .setRatisPort(ratisPort1)
-                                 .setNodeId(id1)
-                                 .setServiceId(DEFAULT_SERVICE_ID)
-                                 .build();
-    NodeDetails nodeDetails2 = new NodeDetails.Builder()
-                                 .setRpcAddress(rpcAddress2)
-                                 .setRatisPort(ratisPort2)
-                                 .setNodeId(id2)
-                                 .setServiceId(DEFAULT_SERVICE_ID)
-                                 .build();
-    NodeDetails nodeDetails3 = new NodeDetails.Builder()
-                                 .setRpcAddress(rpcAddress3)
-                                 .setRatisPort(ratisPort3)
-                                 .setNodeId(id3)
-                                 .setServiceId(DEFAULT_SERVICE_ID)
-                                 .build();
+    NodeDetails nodeDetails1 =
+        new NodeDetails.Builder()
+            .setRpcAddress(rpcAddress1)
+            .setRatisPort(ratisPort1)
+            .setNodeId(id1)
+            .setServiceId(DEFAULT_SERVICE_ID)
+            .build();
+    NodeDetails nodeDetails2 =
+        new NodeDetails.Builder()
+            .setRpcAddress(rpcAddress2)
+            .setRatisPort(ratisPort2)
+            .setNodeId(id2)
+            .setServiceId(DEFAULT_SERVICE_ID)
+            .build();
+    NodeDetails nodeDetails3 =
+        new NodeDetails.Builder()
+            .setRpcAddress(rpcAddress3)
+            .setRatisPort(ratisPort3)
+            .setNodeId(id3)
+            .setServiceId(DEFAULT_SERVICE_ID)
+            .build();
 
     List<NodeDetails> peersForNode1 = new ArrayList() {{
         add(nodeDetails2);
@@ -272,16 +275,16 @@ public class RatisMasterStatusSystemSuiteJ {
     WorkerInfo workerInfo3 = new WorkerInfo(HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3,
       REPLICATEPORT3, disks3, dummyRef);
 
-    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation1 = new HashMap<>();
     allocation1.put("disk1", 15);
     Map<String, Integer> allocation2 = new HashMap<>();
     allocation2.put("disk2", 25);
     Map<String, Integer> allocation3 = new HashMap<>();
     allocation3.put("disk3", 35);
-    workersToAllocate.put(workerInfo1, allocation1);
-    workersToAllocate.put(workerInfo2, allocation2);
-    workersToAllocate.put(workerInfo3, allocation3);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocation1);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocation2);
+    workersToAllocate.put(workerInfo3.toUniqueId(), allocation3);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
@@ -313,13 +316,13 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
 
-    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME1))
-                            .findFirst().get(), allocations);
+                              .findFirst().get().toUniqueId(), allocations);
     workersToAllocate.put(statusSystem.workers.stream().filter(w -> w.host().equals(HOSTNAME2))
-                            .findFirst().get(), allocations);
+                              .findFirst().get().toUniqueId(), allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
@@ -328,8 +331,10 @@ public class RatisMasterStatusSystemSuiteJ {
     workerIds.add(HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 +
                     ":" + REPLICATEPORT1);
 
-    List<String> workerSlots = new ArrayList<>();
-    workerSlots.add("disk1:3");
+    List<Map<String, Integer>> workerSlots = new ArrayList<>();
+    workerSlots.add(new HashMap() {{
+        put("disk1", 3);
+      }});
 
     statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
     Thread.sleep(3000L);
@@ -359,11 +364,11 @@ public class RatisMasterStatusSystemSuiteJ {
       REPLICATEPORT1, disks1, dummyRef);
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
       REPLICATEPORT2, disks2, dummyRef);
-    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
-    Map<String,Integer> allocations = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
-    workersToAllocate.put(workerInfo1, allocations);
-    workersToAllocate.put(workerInfo2, allocations);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocations);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
@@ -397,11 +402,11 @@ public class RatisMasterStatusSystemSuiteJ {
     WorkerInfo workerInfo2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2,
       REPLICATEPORT2, disks2, dummyRef);
 
-    Map<WorkerInfo, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
-    workersToAllocate.put(workerInfo1, allocations);
-    workersToAllocate.put(workerInfo2, allocations);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocations);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);

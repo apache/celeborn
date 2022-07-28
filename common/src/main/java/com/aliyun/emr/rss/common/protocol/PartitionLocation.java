@@ -19,12 +19,9 @@ package com.aliyun.emr.rss.common.protocol;
 
 import java.io.Serializable;
 
-import lombok.Builder;
-
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbPartitionLocation;
 
-@Builder
 public class PartitionLocation implements Serializable {
   public enum Mode {
     Master(0), Slave(1);
@@ -47,7 +44,6 @@ public class PartitionLocation implements Serializable {
     }
   }
 
-  public static String UNDEFINED_DISK = "UNDEFINED_DISK";
   private int id;
   private int epoch;
   private String host;
@@ -58,7 +54,6 @@ public class PartitionLocation implements Serializable {
   private Mode mode;
   private PartitionLocation peer;
   private StorageHint storageHint;
-  // DiskHint means worker should create file writer at some disk, it stores disk mountPoint.
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -262,35 +257,34 @@ public class PartitionLocation implements Serializable {
     }
 
     PartitionLocation partitionLocation =
-      PartitionLocation.builder()
-        .id(pbLoc.getId())
-        .epoch(pbLoc.getEpoch())
-        .host(pbLoc.getHost())
-        .rpcPort(pbLoc.getRpcPort())
-        .pushPort(pbLoc.getPushPort())
-        .fetchPort(pbLoc.getFetchPort())
-        .replicatePort(pbLoc.getReplicatePort())
-        .mode(mode)
-        .storageHint(StorageHint.fromPb(pbLoc.getStorageHint()))
-        .build();
+        new PartitionLocation(
+            pbLoc.getId(),
+            pbLoc.getEpoch(),
+            pbLoc.getHost(),
+            pbLoc.getRpcPort(),
+            pbLoc.getPushPort(),
+            pbLoc.getFetchPort(),
+            pbLoc.getReplicatePort(),
+            mode,
+            null,
+            StorageHint.fromPb(pbLoc.getStorageHint()));
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.Master;
       if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
         peerMode = Mode.Slave;
       }
-      PartitionLocation peerLocation =
-        PartitionLocation.builder()
-          .id(peerPb.getId())
-          .epoch(peerPb.getEpoch())
-          .host(peerPb.getHost())
-          .rpcPort(peerPb.getRpcPort())
-          .pushPort(peerPb.getPushPort())
-          .fetchPort(peerPb.getFetchPort())
-          .replicatePort(peerPb.getReplicatePort())
-          .mode(peerMode)
-          .storageHint(StorageHint.fromPb(peerPb.getStorageHint()))
-          .build();
+      PartitionLocation peerLocation = new PartitionLocation(
+          peerPb.getId(),
+          peerPb.getEpoch(),
+          peerPb.getHost(),
+          peerPb.getRpcPort(),
+          peerPb.getPushPort(),
+          peerPb.getFetchPort(),
+          peerPb.getReplicatePort(),
+          peerMode,
+          partitionLocation,
+          StorageHint.fromPb(peerPb.getStorageHint()));
       partitionLocation.setPeer(peerLocation);
     }
 

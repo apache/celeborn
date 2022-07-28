@@ -149,11 +149,15 @@ message PbRequestSlots {
   int32 storageType = 7;
 }
 
+message PbSlotInfo{
+  map<string,int32> slot=1;
+}
+
 message PbReleaseSlots {
   string applicationId = 1;
   int32 shuffleId = 2;
   repeated string workerIds = 3;
-  repeated string slots = 4;
+  repeated PbSlotInfo slots = 4;
   string requestId = 6;
 }
 
@@ -300,8 +304,8 @@ message PbCommitFilesResponse {
   repeated string committedSlaveIds = 3;
   repeated string failedMasterIds = 4;
   repeated string failedSlaveIds = 5;
-  map<string, bytes> committedMasterStorageHints = 6;
-  map<string, bytes> committedSlaveStorageHints = 7;
+  map<string, PbStorageHint> committedMasterStorageHints = 6;
+  map<string, PbStorageHint> committedSlaveStorageHints = 7;
   int64 totalWritten = 8;
   int32 fileCount = 9;
 }

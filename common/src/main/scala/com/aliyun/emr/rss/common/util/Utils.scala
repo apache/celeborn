@@ -609,11 +609,12 @@ object Utils extends Logging {
       val diskSlotsMap = new util.HashMap[String, Integer]()
 
       def countSlotsByDisk(location: util.List[PartitionLocation]): Unit = {
-        location.asScala.groupBy(_.getStorageHint.getMountPoint).foreach(item => {
-          if (diskSlotsMap.containsKey(item._1)) {
-            diskSlotsMap.put(item._1, diskSlotsMap.get(item._1) + item._2.size)
+        location.asScala.foreach(item => {
+          val mountPoint = item.getStorageHint.getMountPoint
+          if (diskSlotsMap.containsKey(mountPoint)) {
+            diskSlotsMap.put(mountPoint, 1 + diskSlotsMap.get(mountPoint))
           } else {
-            diskSlotsMap.put(item._1, item._2.size)
+            diskSlotsMap.put(mountPoint, 1)
           }
         })
       }
@@ -627,25 +628,18 @@ object Utils extends Logging {
 
   def diskSlotsDistribution(
     masterLocations: util.List[PartitionLocation],
-    workerLocations: util.List[PartitionLocation]
-  ): util.Map[String, Integer] = {
+    workerLocations: util.List[PartitionLocation]): util.Map[String, Integer] = {
     val slotDistributions = new util.HashMap[String, Integer]()
     (masterLocations.asScala ++ workerLocations.asScala)
-      .groupBy(_.getStorageHint.getMountPoint).foreach {
-      case (hint, location) =>
-        slotDistributions.compute(
-          hint,
-          new BiFunction[String, Integer, Integer] {
-            override def apply(t: String, u: Integer): Integer = {
-              if (u != null) {
-                location.size + u
-              } else {
-                location.size
-              }
-            }
+      .foreach {
+        case (location) =>
+          val mountPoint = location.getStorageHint.getMountPoint
+          if (slotDistributions.containsKey(mountPoint)) {
+            slotDistributions.put(mountPoint, slotDistributions.get(mountPoint) + 1)
+          } else {
+            slotDistributions.put(mountPoint, 1)
           }
-        )
-    }
+      }
     logDebug(s"locations to distribution ," +
       s" ${masterLocations.asScala.map(_.toString).mkString(",")} " +
       s"${workerLocations.asScala.map(_.toString).mkString(",")} " +

@@ -27,11 +27,14 @@ public interface IMetadataHandler {
   void handleRequestSlots(
     String shuffleKey,
     String hostName,
-    Map<WorkerInfo, Map<String,Integer>> workerToAllocatedSlots,
+    Map<String, Map<String, Integer>> workerToAllocatedSlots,
     String requestId);
 
   void handleReleaseSlots(
-    String shuffleKey, List<String> workerIds, List<String> slotStrings, String requestId);
+    String shuffleKey,
+    List<String> workerIds,
+    List<Map<String, Integer>> slotStrings,
+    String requestId);
 
   void handleUnRegisterShuffle(String shuffleKey, String requestId);
 

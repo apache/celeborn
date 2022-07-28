@@ -290,7 +290,7 @@ private[worker] final class LocalStorageManager(
   deviceMonitor.startCheck()
 
   def workingDirsSnapshot(mountPoint: String): util.ArrayList[File] = {
-    if (mountPoint != PartitionLocation.UNDEFINED_DISK) {
+    if (mountPoint != StorageHint.UNKNOWN_DISK) {
       new util.ArrayList[File](mountInfos.get(mountPoint)
         .dirInfos.filter(workingDirs.contains(_)).toList.asJava)
     } else {
@@ -641,7 +641,7 @@ private[worker] final class LocalStorageManager(
           Math.min(totalConfiguredCapacity - totalUsage,
             fileSystemReportedUsableSpace)
         } else {
-          fileSystemReportedUsableSpace
+          totalConfiguredCapacity - totalUsage
         }
         val flushTimeSum = mountInfo.dirInfos.map(dir => diskFlushers.get(dir).averageFlushTime())
         val flushTimeCount = flushTimeSum.size

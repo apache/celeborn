@@ -19,6 +19,8 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -102,21 +104,29 @@ public class MetaHandler {
       int fetchPort;
       int replicatePort;
       Map<String, DiskInfo> disks;
+      List<Map<String, Integer>> slots = new ArrayList<>();
+      Map<String, Map<String, Integer>> workerAllocations= new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
+          request.getRequestSlotsRequest().getWorkerAllocationsMap().forEach((k, v) -> {
+            workerAllocations.put(k, new HashMap<>(v.getSlotMap()));
+          });
           LOG.debug("Handle request slots for {}", shuffleKey);
           metaSystem.updateRequestSlotsMeta(shuffleKey,
-              request.getRequestSlotsRequest().getHostName(),
-              request.getRequestSlotsRequest().getWorkerInfoList());
+              request.getRequestSlotsRequest().getHostName(), workerAllocations);
           break;
 
         case ReleaseSlots:
+          for (ResourceProtos.SlotInfo
+                   pbSlotInfo : request.getReleaseSlotsRequest().getSlotsList()) {
+            slots.add(pbSlotInfo.getSlotMap());
+          }
+
           shuffleKey = request.getReleaseSlotsRequest().getShuffleKey();
           LOG.debug("Handle release slots for {}", shuffleKey);
           metaSystem.updateReleaseSlotsMeta(shuffleKey,
-                  request.getReleaseSlotsRequest().getWorkerIdsList(),
-                  request.getReleaseSlotsRequest().getSlotsList());
+              request.getReleaseSlotsRequest().getWorkerIdsList(), slots);
           break;
 
         case UnRegisterShuffle:
