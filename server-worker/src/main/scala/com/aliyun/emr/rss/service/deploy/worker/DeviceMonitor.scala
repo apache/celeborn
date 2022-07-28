@@ -20,13 +20,13 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.nio.charset.Charset
 import java.util
-import java.util.concurrent.TimeUnit
+import java.util.{Set => jSet}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
-import io.netty.util.internal.ConcurrentSet
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
@@ -57,7 +57,7 @@ class LocalDeviceMonitor(
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
     var mountInfos: ListBuffer[MountInfo] = deviceInfo.mountInfos
-    val observers: ConcurrentSet[DeviceObserver] = new ConcurrentSet[DeviceObserver]()
+    val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
     val sysBlockDir = RssConf.sysBlockDir(essConf)
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")

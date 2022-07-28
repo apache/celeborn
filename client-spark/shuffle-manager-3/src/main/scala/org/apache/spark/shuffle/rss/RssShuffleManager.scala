@@ -17,7 +17,8 @@
 
 package org.apache.spark.shuffle.rss
 
-import io.netty.util.internal.ConcurrentSet
+import java.util.concurrent.ConcurrentHashMap
+
 import org.apache.spark._
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.shuffle.{ShuffleReadMetricsReporter, _}
@@ -45,7 +46,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
   private lazy val sortShuffleManager = {
     RssShuffleManager.instantiateClass[SortShuffleManager](sortShuffleManagerName, conf, isDriver)
   }
-  private val sortShuffleIds = new ConcurrentSet[Int]()
+  private val sortShuffleIds = ConcurrentHashMap.newKeySet[Int]()
 
   private lazy val fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(conf)
 

@@ -29,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
-import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,14 +45,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
 
   // Meta data for master service
-  public final ConcurrentSet<String> registeredShuffle = new ConcurrentSet<>();
-  public final ConcurrentSet<String> hostnameSet = new ConcurrentSet<>();
+  public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
+  public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = new ConcurrentHashMap<>();
   // blacklist
-  public final ConcurrentSet<WorkerInfo> blacklist = new ConcurrentSet<>();
+  public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
   // workerLost events
-  public final ConcurrentSet<WorkerInfo> workerLostEvents = new ConcurrentSet<>();
+  public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
   protected RpcEnv rpcEnv;
   protected RssConf conf;
@@ -264,7 +263,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   private <T> void writeSetMetaToFile(
-      ConcurrentSet<T> metas, ObjectOutputStream out) throws IOException {
+      Set<T> metas, ObjectOutputStream out) throws IOException {
     out.writeInt(metas.size());
     metas.forEach(meta -> {
       try {
@@ -324,7 +323,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   private <T> void readSetMetaFromFile(
-      ConcurrentSet<T> metas,
+      Set<T> metas,
       int size,
       ObjectInputStream in) throws ClassNotFoundException, IOException {
     for (int i = 0; i < size; ++i) {
