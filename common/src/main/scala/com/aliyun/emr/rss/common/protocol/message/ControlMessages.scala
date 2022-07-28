@@ -51,7 +51,7 @@ sealed trait Message extends Serializable{
             item._1 -> PbDiskInfo
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
-              .setAvgFlushTime(item._2.flushTime)
+              .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()
           ).toMap.asJava
@@ -72,7 +72,7 @@ sealed trait Message extends Serializable{
           .map(item => item._1 -> PbDiskInfo
               .newBuilder()
               .setUsableSpace(item._2.usableSpace)
-              .setAvgFlushTime(item._2.flushTime)
+              .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()
           ).toMap.asJava

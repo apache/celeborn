@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 class DiskInfo(
   val mountPoint: String,
   val usableSpace: Long,
-  val flushTime: Double,
+  val avgFlushTime: Double,
   var activeSlots: Long
 ) extends Serializable {
   var maxSlots: Long = 0
@@ -62,6 +62,13 @@ class DiskInfo(
       activeSlots = activeSlots - allocated
     }
   }
+
+  override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
+    s" diskRelatedSlots: $diskRelatedSlots," +
+    s" mountPoint: $mountPoint," +
+    s" usableSpace: $usableSpace," +
+    s" avgFlushTime: $avgFlushTime," +
+    s" activeSlots: $activeSlots)"
 }
 
 class WorkerInfo(
@@ -175,6 +182,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $usedSlots()
        |LastHeartBeat: $lastHeartbeat
+       |Disks: $disks
        |WorkerRef: $endpoint
        |""".stripMargin
   }
@@ -232,7 +240,7 @@ object WorkerInfo {
           PbDiskInfo
             .newBuilder()
             .setUsableSpace(item._2.usableSpace)
-            .setAvgFlushTime(item._2.flushTime)
+            .setAvgFlushTime(item._2.avgFlushTime)
             .setUsedSlots(item._2.activeSlots)
             .build()
       )

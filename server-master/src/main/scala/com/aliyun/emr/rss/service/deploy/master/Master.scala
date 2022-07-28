@@ -205,7 +205,8 @@ private[deploy] class Master(
     disks,
     shuffleKeys,
     requestId) =>
-      logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
+      logDebug(s"Received heartbeat from" +
+        s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
       executeWithLeaderChecker(
         context,
         handleHeartBeatFromWorker(
@@ -383,18 +384,18 @@ private[deploy] class Master(
 
     // offer slots
     val slots = statusSystem.workers.synchronized {
-      if (offerSlotsAlgorithmVersion == "V2") {
+      if (offerSlotsAlgorithmVersion == "V1") {
+        MasterUtil.offerSlotsV1(
+          workersNotBlacklisted(),
+          requestSlots.partitionIdList,
+          requestSlots.shouldReplicate
+        )
+      } else {
         MasterUtil.offerSlotsV2(
           workersNotBlacklisted(),
           requestSlots.partitionIdList,
           requestSlots.shouldReplicate,
           minimumUsableSize
-        )
-      } else {
-        MasterUtil.offerSlotsV1(
-          workersNotBlacklisted(),
-          requestSlots.partitionIdList,
-          requestSlots.shouldReplicate
         )
       }
     }

@@ -66,7 +66,7 @@ private[deploy] class Controller(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
+    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
     splitMode, partitionType) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
@@ -74,7 +74,7 @@ private[deploy] class Controller(
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode, partitionType)
+          slaveLocations, splitThreshold, splitMode, partitionType)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 

@@ -169,7 +169,10 @@ public class MasterUtil {
    * into three groups(top30,mid30,last40) by their average flush time.
    * Slots will be distributed to faster groups than the slower group.
    * A faster group will distribute 20 percent more workloads than a slower one.
-   * Note: This algorithm is experimental.
+   * disk group workload distribution ratio:
+   * top30: mid30: last40
+   * 1.44: 1.2: 1
+   *
    *
    * @param workers
    * @param partitionIds
@@ -211,7 +214,7 @@ public class MasterUtil {
     }
 
     Collections.sort(usableDisks, (o1, o2) -> {
-      if (o1.flushTime() <= o2.flushTime()) {
+      if (o1.avgFlushTime() <= o2.avgFlushTime()) {
         return -1;
       } else {
         return 1;

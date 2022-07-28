@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
+import java.nio.file.{Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, LongAdder}
@@ -88,8 +89,11 @@ private[worker] final class DiskFlusher(
             workerSource.sample(WorkerSource.FlushDataTime, key) {
               if (!task.notifier.hasException) {
                 try {
-                  lastBeginFlushTime = System.nanoTime()
+                  val flushBeginTime = System.nanoTime()
+                  lastBeginFlushTime = flushBeginTime
                   task.fileChannel.write(task.buffer.nioBuffers())
+                  flushTotalTime.add(System.nanoTime() - flushBeginTime)
+                  flushCount.increment()
                 } catch {
                   case _: ClosedByInterruptException =>
                   case e: IOException =>
@@ -538,7 +542,6 @@ private[worker] final class LocalStorageManager(
       if (appDirs != null) {
         if (deleteRecursively) {
           appDirs = appDirs.sortBy(_.lastModified()).take(noneEmptyDirCleanUpThreshold)
-
           for (appDir <- appDirs if appDir.lastModified() < expireDuration) {
             val executionThreadPool = dirOperators.get(workingDir)
             deleteDirectory(appDir, executionThreadPool)
@@ -635,15 +638,13 @@ private[worker] final class LocalStorageManager(
         }.sum
         val totalConfiguredCapacity = mountPointRelatedDirs
           .map(file => workingDirMetas.get(file.getAbsolutePath).get._1).sum
-        val fileSystemReportedUsableSpace = mountInfo.mountPointFile.getUsableSpace
+        val fileSystemReportedUsableSpace = Files.getFileStore(
+          Paths.get(mountInfo.mountPointFile.getPath)).getUsableSpace
         // if a mount point is not a valid mount point, getUsableSpace will return 0.
-        val workingDirUsableSpace = if (fileSystemReportedUsableSpace > 0) {
-          Math.min(totalConfiguredCapacity - totalUsage,
-            fileSystemReportedUsableSpace)
-        } else {
-          totalConfiguredCapacity - totalUsage
-        }
+        val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
+          fileSystemReportedUsableSpace)
         val flushTimeSum = mountInfo.dirInfos.map(dir => diskFlushers.get(dir).averageFlushTime())
+        logDebug(s"flush time list $flushTimeSum")
         val flushTimeCount = flushTimeSum.size
         val flushTimeAverage = if (flushTimeCount > 0) {
           flushTimeSum.sum / flushTimeCount
@@ -655,6 +656,9 @@ private[worker] final class LocalStorageManager(
         mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
       }.toMap.asJava
     )
+    if (log.isDebugEnabled()) {
+      logDebug(s"Worker disk snapshot at ${System.currentTimeMillis()} snapshot: $snapshot")
+    }
     snapshot
   }
 }
