@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
 import scala.Product2;
+import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
