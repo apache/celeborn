@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.meta
 
 import java.util
 import java.util.Objects
+import javax.annotation.concurrent.NotThreadSafe
 
 import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
@@ -31,40 +32,39 @@ class DiskInfo(
   val mountPoint: String,
   val usableSpace: Long,
   val avgFlushTime: Double,
-  var activeSlots: Long
-) extends Serializable {
-  var maxSlots: Long = 0
-  lazy val diskRelatedSlots = new util.HashMap[String, Integer]()
+  @volatile var activeSlots: Long) extends Serializable {
+  @volatile var maxSlots: Long = 0
+  lazy val shuffleAllocations = new util.HashMap[String, Integer]()
 
   def availableSlots(): Long = {
     maxSlots - activeSlots
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = diskRelatedSlots.getOrDefault(shuffleKey, 0)
-    diskRelatedSlots.put(shuffleKey, allocated + slots)
+    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    shuffleAllocations.put(shuffleKey, allocated + slots)
     activeSlots = activeSlots + slots
   }
 
   def releaseSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = diskRelatedSlots.getOrDefault(shuffleKey, 0)
+    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
     activeSlots = activeSlots - slots
     if (allocated > slots) {
-      diskRelatedSlots.put(shuffleKey, allocated - slots)
+      shuffleAllocations.put(shuffleKey, allocated - slots)
     } else {
-      diskRelatedSlots.put(shuffleKey, 0)
+      shuffleAllocations.put(shuffleKey, 0)
     }
   }
 
   def releaseSlots(shuffleKey: String): Unit = {
-    val allocated = diskRelatedSlots.remove(shuffleKey)
+    val allocated = shuffleAllocations.remove(shuffleKey)
     if (allocated != null) {
       activeSlots = activeSlots - allocated
     }
   }
 
   override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
-    s" diskRelatedSlots: $diskRelatedSlots," +
+    s" shuffleAllocations: $shuffleAllocations," +
     s" mountPoint: $mountPoint," +
     s" usableSpace: $usableSpace," +
     s" avgFlushTime: $avgFlushTime," +
@@ -121,11 +121,11 @@ class WorkerInfo(
     disks.asScala.map(_._2.activeSlots).sum
   }
 
-  def allocateSlots(shuffleKey: String, slotsDistributions: util.Map[String, Integer]): Unit =
+  def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
     this.synchronized {
-      logDebug(s"shuffle $shuffleKey allocations $slotsDistributions")
-      slotsDistributions.asScala.foreach { case (disk, slots) =>
-        if (!(disks.containsKey(disk))) {
+      logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
+      slotsPerDisk.asScala.foreach { case (disk, slots) =>
+        if (!disks.containsKey(disk)) {
           logWarning(s"Unknown disk ${disk}")
         } else {
           disks.get(disk).allocateSlots(shuffleKey, slots)
@@ -136,7 +136,6 @@ class WorkerInfo(
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
     slots.asScala.foreach { case (disk, slot) =>
       if (disks.containsKey(disk)) {
-        // disk hint is DEFAULT means that this location has no file
         disks.get(disk).releaseSlots(shuffleKey, slot)
       }
     }
@@ -170,7 +169,7 @@ class WorkerInfo(
   }
 
   def slotAvailable(): Boolean = {
-    disks.asScala.map { case (_, disk) => disk.maxSlots - disk.activeSlots }.sum > 0
+    disks.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
   }
 
   override def toString(): String = {

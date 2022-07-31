@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
-import com.aliyun.emr.rss.common.protocol.StorageHint;
+import com.aliyun.emr.rss.common.protocol.StorageInfo;
 
 public class MasterUtil {
 
@@ -72,7 +72,7 @@ public class MasterUtil {
   }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlotsV1(
+    offerSlotsRoundRobin(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate) {
@@ -167,7 +167,7 @@ public class MasterUtil {
   /**
    * It assumes that all disks whose available space is greater than the minimum space are divided
    * into three groups(top30,mid30,last40) by their average flush time.
-   * Slots will be distributed to faster groups than the slower group.
+   * Slots will be assigned to faster groups than the slower group.
    * A faster group will distribute 20 percent more workloads than a slower one.
    * disk group workload distribution ratio:
    * top30: mid30: last40
@@ -181,7 +181,7 @@ public class MasterUtil {
    * @return
    */
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlotsV2(
+    offerSlotsLoadAware(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate,
@@ -266,9 +266,9 @@ public class MasterUtil {
       }
     }
 
-    Map<Integer, PartitionLocation> reduceIdToMasterLocations = new HashMap<>();
+    Map<Integer, PartitionLocation> partitionIdIdToMasterLocations = new HashMap<>();
     for (PartitionLocation location : masterLocations) {
-      reduceIdToMasterLocations.put(location.getId(), location);
+      partitionIdIdToMasterLocations.put(location.getId(), location);
     }
 
     if (shouldReplicate) {
@@ -276,9 +276,10 @@ public class MasterUtil {
       for (PartitionLocation location : slaveLocations) {
         reduceIdToSlaveLocations.put(location.getId(), location);
       }
-      for (Map.Entry<Integer, PartitionLocation> entry : reduceIdToMasterLocations.entrySet()) {
+      for (Map.Entry<Integer, PartitionLocation>
+               entry : partitionIdIdToMasterLocations.entrySet()) {
         Integer currentReduceId = entry.getKey();
-        PartitionLocation masterLocation = reduceIdToMasterLocations.get(currentReduceId);
+        PartitionLocation masterLocation = partitionIdIdToMasterLocations.get(currentReduceId);
         PartitionLocation slaveLocation = reduceIdToSlaveLocations.get(currentReduceId);
         masterLocation.setPeer(slaveLocation);
         slaveLocation.setPeer(masterLocation);
@@ -477,7 +478,7 @@ public class MasterUtil {
         workerInfo.replicatePort(),
         mode,
         null,
-        new StorageHint());
+        new StorageInfo());
       locations.add(location);
       workerAggregatedLocations.compute(workerInfo, (k, v) -> {
         if (v == null) {
@@ -526,7 +527,7 @@ public class MasterUtil {
           workerInfo.replicatePort(),
           mode,
           null,
-          new StorageHint(StorageHint.Type.HDD,diskInfo.mountPoint()));
+          new StorageInfo(StorageInfo.Type.HDD,diskInfo.mountPoint()));
         locations.add(location);
         workerAggregatedLocations.compute(workerInfo, (k, v) -> {
           if (v == null) {

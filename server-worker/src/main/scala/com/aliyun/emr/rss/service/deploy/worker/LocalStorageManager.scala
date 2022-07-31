@@ -40,7 +40,7 @@ import com.aliyun.emr.rss.common.meta.DiskInfo
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 private[worker] case class FlushTask(
@@ -54,7 +54,7 @@ private[worker] final class DiskFlusher(
   val deviceMonitor: DeviceMonitor,
   val threadCount: Int,
   val mountPoint: String,
-  val diskType: StorageHint.Type) extends DeviceObserver with Logging {
+  val diskType: StorageInfo.Type) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val assumedQueueSize = 1024 * 1024
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
@@ -75,7 +75,6 @@ private[worker] final class DiskFlusher(
   init()
 
   private def init(): Unit = {
-
     for (_ <- 0 until assumedQueueSize) {
       bufferQueue.put(Unpooled.compositeBuffer(256))
     }
@@ -216,16 +215,10 @@ private[worker] final class LocalStorageManager(
   val isolatedWorkingDirs =
     new ConcurrentHashMap[File, DeviceErrorType](RssConf.workerBaseDirs(conf).length)
 
-  private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageHint.Type)] =
-    new mutable.HashMap[String, (Long, Int, StorageHint.Type)]()
-    new ConcurrentHashMap[String, ConcurrentHashMap[File, FileWriter]]()
+  private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageInfo.Type)] =
+    new mutable.HashMap[String, (Long, Int, StorageInfo.Type)]()
   // mountpoint -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
-
-  private val workingDirWriterListFunc =
-    new java.util.function.Function[File, util.ArrayList[FileWriter]]() {
-      override def apply(t: File): util.ArrayList[FileWriter] = new util.ArrayList[FileWriter]()
-    }
 
   private val workingDirs: util.ArrayList[File] = {
     val baseDirs =
@@ -294,7 +287,7 @@ private[worker] final class LocalStorageManager(
   deviceMonitor.startCheck()
 
   def workingDirsSnapshot(mountPoint: String): util.ArrayList[File] = {
-    if (mountPoint != StorageHint.UNKNOWN_DISK) {
+    if (mountPoint != StorageInfo.UNKNOWN_DISK) {
       new util.ArrayList[File](mountInfos.get(mountPoint)
         .dirInfos.filter(workingDirs.contains(_)).toList.asJava)
     } else {
@@ -391,6 +384,10 @@ private[worker] final class LocalStorageManager(
     workingDirs.size()
   }
 
+  private val workingDirWriterListFunc =
+    new java.util.function.Function[File, util.ArrayList[FileWriter]]() {
+      override def apply(t: File): util.ArrayList[FileWriter] = new util.ArrayList[FileWriter]()
+    }
 
   @throws[IOException]
   def createWriter(

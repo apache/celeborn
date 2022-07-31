@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageHint}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -47,8 +47,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
-  private val defaultStorageType = RssConf.defaultStorageType(conf)
-
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
@@ -67,7 +65,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   // revive request waiting for response
   // shuffleKey -> (partitionId -> set)
   private val reviving =
-  new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]()
+    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]()
 
   private val splitting =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]()
@@ -321,7 +319,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
     val reserveSlotsSuccess =
-    reserveSlotsWithRetry(applicationId, shuffleId, candidatesWorkers.asScala.toList, slots)
+      reserveSlotsWithRetry(applicationId, shuffleId, candidatesWorkers.asScala.toList, slots)
 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
@@ -631,8 +629,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
-    val committedMasterStorageHints = new ConcurrentHashMap[String, StorageHint]()
-    val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageHint]()
+    val committedMasterStorageHints = new ConcurrentHashMap[String, StorageInfo]()
+    val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageInfo]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
@@ -722,8 +720,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       committedMasterIds.asScala.foreach { id =>
         val partition = masterPartMap.get(id)
-        val storageHint = committedMasterStorageHints.get(id)
-        partition.setStorageHint(storageHint)
+        partition.setStorageHint(committedMasterStorageHints.get(id))
         committedPartitions.put(id, partition)
       }
 
@@ -854,8 +851,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    * LifecycleManager also needs to release another corresponding partition location.
    * To release the corresponding partition location, LifecycleManager should:
    *   1. Remove the peer partition location of failed partition location from slots.
-   *      2. Request the Worker to destroy the slot's FileWriter.
-   *      3. Request the Master to release the worker slots status.
+   *   2. Request the Worker to destroy the slot's FileWriter.
+   *   3. Request the Master to release the worker slots status.
    *
    * @param applicationId            application id
    * @param shuffleId                shuffle id
@@ -910,13 +907,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}, $destroyResource")
 
       val workerIds = new util.ArrayList[String]()
-      val workerAllocatedSlotsSizes = new util.ArrayList[util.Map[String, Integer]]()
-      Utils.workerSlotsDistribution(destroyResource).asScala.foreach {
-        case (workerInfo, distribution) =>
+      val workerSlotsPerDisk = new util.ArrayList[util.Map[String, Integer]]()
+      Utils.getSlotsPerDisk(destroyResource).asScala.foreach {
+        case (workerInfo, slotsPerDisk) =>
           workerIds.add(workerInfo.toUniqueId())
-          workerAllocatedSlotsSizes.add(distribution)
+          workerSlotsPerDisk.add(slotsPerDisk)
       }
-      val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerAllocatedSlotsSizes)
+      val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerSlotsPerDisk)
       requestReleaseSlots(rssHARetryClient, msg)
       logInfo(s"Released slots for reserve buffer failed workers " +
         s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +

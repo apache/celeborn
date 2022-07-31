@@ -23,9 +23,9 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint}
-import com.aliyun.emr.rss.common.protocol.StorageHint.Type.{HDD, SSD}
-import com.aliyun.emr.rss.common.protocol.StorageHint.Type
+import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
+import com.aliyun.emr.rss.common.protocol.StorageInfo.Type.{HDD, SSD}
+import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -545,7 +545,13 @@ object RssConf extends Logging {
     Utils.byteStringAsBytes(conf.get("rss.partition.size", "64m"))
   }
 
+  /**
+   *
+    * @param conf
+   * @return workingDir, usable space, flusher thread count, disk type
+   */
   def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, Type)] = {
+    // I assume there is no disk is bigger than 1 PB in recent days.
     var maxCapacity = 1024L * 1024 * 1024 * 1024 * 1024
     val baseDirs = conf.get("rss.worker.base.dirs", "")
     if (baseDirs.nonEmpty) {
@@ -865,24 +871,24 @@ object RssConf extends Logging {
       "10s")).toInt
   }
 
-  def defaultStorageType(conf: RssConf): StorageHint.Type = {
-    val default = StorageHint.Type.MEMORY
+  def defaultStorageType(conf: RssConf): StorageInfo.Type = {
+    val default = StorageInfo.Type.MEMORY
     val hintStr = conf.get("rss.storage.type", "memory").toUpperCase
-    if (StorageHint.Type.values().mkString.toUpperCase.contains(hintStr)) {
+    if (StorageInfo.Type.values().mkString.toUpperCase.contains(hintStr)) {
       logWarning(s"storage hint is invalid ${hintStr}")
-      StorageHint.Type.valueOf(hintStr)
+      StorageInfo.Type.valueOf(hintStr)
     } else {
       default
     }
   }
 
-  def offerSlotsAlgorithmVersion(conf: RssConf): String = {
-    var version = conf.get("rss.offer.slots.algorithm.version", "V2")
-    if (version != "V1" || version != "V2") {
-      logWarning("Config rss.offer.slots.algorithm.version is wrong. Use default V2")
-      version = "V2"
+  def offerSlotsAlgorithm(conf: RssConf): String = {
+    var algorithm = conf.get("rss.offer.slots.algorithm", "loadaware")
+    if (algorithm != "loadaware" || algorithm != "roundrobin") {
+      logWarning("Config rss.offer.slots.algorithm.version is wrong. Use default loadaware")
+      algorithm = "loadaware"
     }
-    version
+    algorithm
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

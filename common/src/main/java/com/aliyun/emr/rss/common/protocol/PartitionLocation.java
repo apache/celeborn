@@ -53,7 +53,7 @@ public class PartitionLocation implements Serializable {
   private int replicatePort;
   private Mode mode;
   private PartitionLocation peer;
-  private StorageHint storageHint;
+  private StorageInfo storageInfo;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -65,7 +65,7 @@ public class PartitionLocation implements Serializable {
     this.replicatePort = loc.replicatePort;
     this.mode = loc.mode;
     this.peer = loc.peer;
-    this.storageHint = loc.storageHint;
+    this.storageInfo = loc.storageInfo;
   }
 
   public PartitionLocation(
@@ -78,7 +78,7 @@ public class PartitionLocation implements Serializable {
     int replicatePort,
     Mode mode) {
     this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort,
-      mode, null, new StorageHint());
+      mode, null, new StorageInfo());
   }
 
   public PartitionLocation(
@@ -92,7 +92,7 @@ public class PartitionLocation implements Serializable {
     Mode mode,
     PartitionLocation peer) {
     this(id, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer,
-      new StorageHint());
+      new StorageInfo());
   }
 
   public PartitionLocation(
@@ -105,7 +105,7 @@ public class PartitionLocation implements Serializable {
     int replicatePort,
     Mode mode,
     PartitionLocation peer,
-    StorageHint hint) {
+    StorageInfo hint) {
     this.id = id;
     this.epoch = epoch;
     this.host = host;
@@ -115,7 +115,7 @@ public class PartitionLocation implements Serializable {
     this.replicatePort = replicatePort;
     this.mode = mode;
     this.peer = peer;
-    this.storageHint = hint;
+    this.storageInfo = hint;
   }
 
   public int getId()
@@ -208,12 +208,12 @@ public class PartitionLocation implements Serializable {
     this.replicatePort = replicatePort;
   }
 
-  public StorageHint getStorageHint() {
-    return storageHint;
+  public StorageInfo getStorageHint() {
+    return storageInfo;
   }
 
-  public void setStorageHint(StorageHint storageHint) {
-    this.storageHint = storageHint;
+  public void setStorageHint(StorageInfo storageInfo) {
+    this.storageInfo = storageInfo;
   }
 
   @Override
@@ -243,7 +243,7 @@ public class PartitionLocation implements Serializable {
     }
     return "PartitionLocation[" + id + "-" + epoch + " " + host + ":" + rpcPort + ":" +
              pushPort + ":" + fetchPort + ":" + replicatePort + " Mode: " + mode +
-             " peer: " + peerAddr + " storage hint:" + storageHint + "]";
+             " peer: " + peerAddr + " storage hint:" + storageInfo + "]";
   }
 
   public WorkerInfo getWorker() {
@@ -267,7 +267,7 @@ public class PartitionLocation implements Serializable {
             pbLoc.getReplicatePort(),
             mode,
             null,
-            StorageHint.fromPb(pbLoc.getStorageHint()));
+            StorageInfo.fromPb(pbLoc.getStorageHint()));
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.Master;
@@ -284,7 +284,7 @@ public class PartitionLocation implements Serializable {
           peerPb.getReplicatePort(),
           peerMode,
           partitionLocation,
-          StorageHint.fromPb(peerPb.getStorageHint()));
+          StorageInfo.fromPb(peerPb.getStorageHint()));
       partitionLocation.setPeer(peerLocation);
     }
 
@@ -306,7 +306,7 @@ public class PartitionLocation implements Serializable {
     builder.setPushPort(location.getPushPort());
     builder.setFetchPort(location.getFetchPort());
     builder.setReplicatePort(location.getReplicatePort());
-    builder.setStorageHint(StorageHint.toPb(location.storageHint));
+    builder.setStorageHint(StorageInfo.toPb(location.storageInfo));
 
     if (location.getPeer() != null) {
       PbPartitionLocation.Builder peerBuilder = TransportMessages
@@ -323,7 +323,7 @@ public class PartitionLocation implements Serializable {
       peerBuilder.setPushPort(location.getPeer().getPushPort());
       peerBuilder.setFetchPort(location.getPeer().getFetchPort());
       peerBuilder.setReplicatePort(location.getPeer().getReplicatePort());
-      peerBuilder.setStorageHint(StorageHint.toPb(location.getPeer().getStorageHint()));
+      peerBuilder.setStorageHint(StorageInfo.toPb(location.getPeer().getStorageHint()));
       builder.setPeer(peerBuilder.build());
     }
 

@@ -6,11 +6,11 @@ import java.util.Map;
 
 import com.aliyun.emr.rss.common.protocol.TransportMessages.PbStorageHint;
 
-public class StorageHint implements Serializable {
+public class StorageInfo implements Serializable {
   public static String UNKNOWN_DISK = "UNKNOWN_DISK";
 
   public enum Type {
-    NON_EXISTS(0), MEMORY(1), HDD(2), SSD(3), HDFS(4), OSS(5);
+    MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4);
     private final int type;
 
     Type(int type) {
@@ -28,23 +28,24 @@ public class StorageHint implements Serializable {
       }
     }};
 
+  // Default storage Type is MEMORY.
   private Type type = Type.MEMORY;
   private String mountPoint = UNKNOWN_DISK;
   private boolean finalResult = false;
 
-  public StorageHint() {
+  public StorageInfo() {
   }
 
-  public StorageHint(String mountPoint) {
+  public StorageInfo(String mountPoint) {
     this.mountPoint = mountPoint;
   }
 
-  public StorageHint(Type type, String mountPoint) {
+  public StorageInfo(Type type, String mountPoint) {
     this.type = type;
     this.mountPoint = mountPoint;
   }
 
-  public StorageHint(Type type, String mountPoint, boolean finalResult) {
+  public StorageInfo(Type type, String mountPoint, boolean finalResult) {
     this.type = type;
     this.mountPoint = mountPoint;
     this.finalResult = finalResult;
@@ -75,7 +76,7 @@ public class StorageHint implements Serializable {
              '}';
   }
 
-  public static PbStorageHint toPb(StorageHint hint) {
+  public static PbStorageHint toPb(StorageInfo hint) {
     return PbStorageHint.newBuilder()
              .setType(hint.type.type)
              .setFinalResult(hint.finalResult)
@@ -83,8 +84,8 @@ public class StorageHint implements Serializable {
              .build();
   }
 
-  public static StorageHint fromPb(PbStorageHint pbHint) {
-    return new StorageHint(typesMap.get(pbHint.getType()), pbHint.getMountPoint(),
+  public static StorageInfo fromPb(PbStorageHint pbHint) {
+    return new StorageInfo(typesMap.get(pbHint.getType()), pbHint.getMountPoint(),
       pbHint.getFinalResult());
   }
 }

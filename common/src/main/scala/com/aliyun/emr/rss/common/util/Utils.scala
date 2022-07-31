@@ -26,7 +26,6 @@ import java.text.SimpleDateFormat
 import java.util.{Locale, Properties, UUID}
 import java.util
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
-import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
@@ -601,9 +600,13 @@ object Utils extends Logging {
     args.mkString(sep)
   }
 
-  def workerSlotsDistribution(
-    slots: WorkerResource
-  ): util.Map[WorkerInfo, util.Map[String, Integer]] = {
+  /**
+   *
+   * @param slots
+   * @return return a worker related slots usage by disk
+   */
+  def getSlotsPerDisk(
+    slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
     val workerSlotsDistribution = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
     slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
       val diskSlotsMap = new util.HashMap[String, Integer]()
@@ -626,13 +629,13 @@ object Utils extends Logging {
     workerSlotsDistribution
   }
 
-  def diskSlotsDistribution(
+  def getSlotsPerDisk(
     masterLocations: util.List[PartitionLocation],
     workerLocations: util.List[PartitionLocation]): util.Map[String, Integer] = {
     val slotDistributions = new util.HashMap[String, Integer]()
     (masterLocations.asScala ++ workerLocations.asScala)
       .foreach {
-        case (location) =>
+        case location =>
           val mountPoint = location.getStorageHint.getMountPoint
           if (slotDistributions.containsKey(mountPoint)) {
             slotDistributions.put(mountPoint, slotDistributions.get(mountPoint) + 1)

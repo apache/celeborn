@@ -111,15 +111,13 @@ class PartitionLocationInfo {
 
   def removeMasterPartitions(
     shuffleKey: String,
-    uniqueIds: util.Collection[String]
-  ): (util.Map[String, Integer], Integer) = {
+    uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
     removePartitions(shuffleKey, uniqueIds, masterPartitionLocations)
   }
 
   def removeSlavePartitions(
     shuffleKey: String,
-    uniqueIds: util.Collection[String]
-  ): (util.Map[String, Integer], Integer) = {
+    uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
     removePartitions(shuffleKey, uniqueIds, slavePartitionLocations)
   }
 
@@ -217,7 +215,7 @@ class PartitionLocationInfo {
     if (!partitionInfo.containsKey(shuffleKey)) {
       return (Map.empty[String, Integer].asJava, 0)
     }
-    val releaseMap = new util.HashMap[String, Integer]()
+    val locMap = new util.HashMap[String, Integer]()
     var numSlotsReleased: Int = 0
     val reduceLocMap = partitionInfo.get(shuffleKey)
     uniqueIds.asScala.foreach { id =>
@@ -230,7 +228,7 @@ class PartitionLocationInfo {
         if (targetLocation != null) {
           locations.remove(targetLocation)
           numSlotsReleased += 1
-          releaseMap.compute(
+          locMap.compute(
             targetLocation.getStorageHint.getMountPoint,
             new BiFunction[String, Integer, Integer] {
               override def apply(t: String, u: Integer): Integer = {
@@ -249,7 +247,7 @@ class PartitionLocationInfo {
       partitionInfo.remove(shuffleKey)
     }
     // some locations might have no disk hint
-    (releaseMap, numSlotsReleased)
+    (locMap, numSlotsReleased)
   }
 
   private def getLocation(

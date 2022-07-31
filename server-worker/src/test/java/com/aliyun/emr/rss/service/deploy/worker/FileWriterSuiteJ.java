@@ -66,7 +66,7 @@ import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
-import com.aliyun.emr.rss.common.protocol.StorageHint;
+import com.aliyun.emr.rss.common.protocol.StorageInfo;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
 
@@ -113,7 +113,7 @@ public class FileWriterSuiteJ {
       DeviceMonitor$.MODULE$.EmptyMonitor(),
       1,
       "disk1",
-      StorageHint.Type.HDD);
+      StorageInfo.Type.HDD);
     MemoryTracker.initialize(0.8,
       0.9,
       0.5,
@@ -308,7 +308,7 @@ public class FileWriterSuiteJ {
       DeviceMonitor$.MODULE$.EmptyMonitor(),
       1,
       "disk2",
-      StorageHint.Type.HDD);
+      StorageInfo.Type.HDD);
   }
 
   @Test

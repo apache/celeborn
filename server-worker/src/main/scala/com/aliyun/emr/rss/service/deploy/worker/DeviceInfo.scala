@@ -72,6 +72,14 @@ class DeviceInfo(val name: String) extends Serializable {
 object DeviceInfo {
   val logger = LoggerFactory.getLogger(classOf[DeviceInfo])
 
+  /**
+   *
+   * @param workingDirs
+   * @return it will return three maps
+   *         device info maps
+   *         mount infos map whose key is mountpoint
+   *         working dir related mount info map whose key is workingDir
+   */
   def getDeviceAndMountInfos(workingDirs: util.List[File]): (
     util.HashMap[String, DeviceInfo],
       util.HashMap[String, MountInfo],
@@ -96,13 +104,11 @@ object DeviceInfo {
     val blocks = lsBlockResult
       .split("[ \n\r\t]+")
 
-    val deviceNames = blocks.zipWithIndex
-
     fsMounts.foreach { case (fileSystem, mountpoint) =>
       val deviceName = fileSystem.substring(fileSystem.lastIndexOf('/') + 1)
       var index = -1
       var maxLength = -1
-      deviceNames.foreach(block => {
+      blocks.zipWithIndex.foreach(block => {
         if (deviceName.startsWith(block._1) && block._1.length > maxLength) {
           index = block._2
           maxLength = block._1.length

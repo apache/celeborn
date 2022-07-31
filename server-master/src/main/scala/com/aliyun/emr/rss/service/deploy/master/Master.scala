@@ -88,7 +88,7 @@ private[deploy] class Master(
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS
   )
-  private val offerSlotsAlgorithmVersion = RssConf.offerSlotsAlgorithmVersion(conf)
+  private val offerSlotsAlgorithmVersion = RssConf.offerSlotsAlgorithm(conf)
 
   // init and register master metrics
   private val masterSource = {
@@ -103,7 +103,6 @@ private[deploy] class Master(
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
     val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
-    // worker slots count
     // worker slots used count
     source.addGauge(MasterSource.WorkerSlotsUsedCount,
       _ => workersSnapShot.asScala.map(_.usedSlots()).sum)
@@ -197,14 +196,14 @@ private[deploy] class Master(
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(
-    host,
-    rpcPort,
-    pushPort,
-    fetchPort,
-    replicatePort,
-    disks,
-    shuffleKeys,
-    requestId) =>
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      disks,
+      shuffleKeys,
+      requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
       executeWithLeaderChecker(
@@ -385,13 +384,13 @@ private[deploy] class Master(
     // offer slots
     val slots = statusSystem.workers.synchronized {
       if (offerSlotsAlgorithmVersion == "V1") {
-        MasterUtil.offerSlotsV1(
+        MasterUtil.offerSlotsRoundRobin(
           workersNotBlacklisted(),
           requestSlots.partitionIdList,
           requestSlots.shouldReplicate
         )
       } else {
-        MasterUtil.offerSlotsV2(
+        MasterUtil.offerSlotsLoadAware(
           workersNotBlacklisted(),
           requestSlots.partitionIdList,
           requestSlots.shouldReplicate,
@@ -409,7 +408,7 @@ private[deploy] class Master(
 
     // register shuffle success, update status
     statusSystem.handleRequestSlots(shuffleKey, requestSlots.hostname,
-      Utils.workerSlotsDistribution(slots.asInstanceOf[WorkerResource])
+      Utils.getSlotsPerDisk(slots.asInstanceOf[WorkerResource])
         .asScala.map { case (worker, slots) =>
         worker.toUniqueId() -> slots
       }.asJava, requestSlots.requestId)
@@ -491,8 +490,7 @@ private[deploy] class Master(
     appId: String,
     totalWritten: Long,
     fileCount: Long,
-    requestId: String
-  ): Unit = {
+    requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,

@@ -43,24 +43,24 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bu
 
 ### RSS Master Configurations
 
-|                     Item                     |         Default         |                                          Description                                           |
-|:--------------------------------------------:|:-----------------------:|:----------------------------------------------------------------------------------------------:|
-|              rss.worker.timeout              |          120s           |                                                                                                |
-|           rss.application.timeout            |          120s           |                                                                                                |
-|           rss.rpc.io.clientThreads           | min{64, availableCores} |                                                                                                |
-|           rss.rpc.io.serverThreads           | min{64, availableCores} |                                                                                                |
-|           rss.master.port.maxretry           |            1            |               When RSS master port is occupied,we will retry for maxretry times.               |
-|       rss.rpc.io.numConnectionsPerPeer       |            1            |              Connections between hosts are reused in order to reduce connection.               |
-|                rss.ha.enabled                |          false          |   When true, RSS will activate raft implementation and sync shared data on master clusters.    |
-|             rss.ha.master.hosts              |                         |                                   Master hosts address list.                                   |
-|              rss.ha.service.id               |                         |                 When this config is empty, RSS master will refuse to startup.                  |
-|           rss.ha.nodes.{serviceId}           |                         |              Nodes list that deploy RSS master. ServiceId is `rss.ha.service.id`               |
-|      rss.ha.address.{serviceId}.{node}       |     localhost:9872      |   RSS master's rpc address for raft implementation. Port can be ignored and defaults to 9872   |
-|                 rss.ha.port                  |          9872           |                                 Rpc port between multi master                                  |
-|              rss.ha.storage.dir              |       /tmp/ratis        |                        Directory of RSS master to store ratis metadata.                        |
-|  rss.ha.ratis.snapshot.auto.trigger.enabled  |          true           |                       Weather to enable raft implementation's snapshot.                        |
-| rss.ha.ratis.snapshot.auto.trigger.threshold |         200000          |                                                                                                |
-|      rss.offer.slots.algorithm.version       |           V2            | There is two algorithms V1 and V2. V2 is recommended unless you encountered some malfunctions. |
+|                     Item                     |         Default         |                                                     Description                                                      |
+|:--------------------------------------------:|:-----------------------:|:--------------------------------------------------------------------------------------------------------------------:|
+|              rss.worker.timeout              |          120s           |                                                                                                                      |
+|           rss.application.timeout            |          120s           |                                                                                                                      |
+|           rss.rpc.io.clientThreads           | min{64, availableCores} |                                                                                                                      |
+|           rss.rpc.io.serverThreads           | min{64, availableCores} |                                                                                                                      |
+|           rss.master.port.maxretry           |            1            |                          When RSS master port is occupied,we will retry for maxretry times.                          |
+|       rss.rpc.io.numConnectionsPerPeer       |            1            |                         Connections between hosts are reused in order to reduce connection.                          |
+|                rss.ha.enabled                |          false          |              When true, RSS will activate raft implementation and sync shared data on master clusters.               |
+|             rss.ha.master.hosts              |                         |                                              Master hosts address list.                                              |
+|              rss.ha.service.id               |                         |                            When this config is empty, RSS master will refuse to startup.                             |
+|           rss.ha.nodes.{serviceId}           |                         |                         Nodes list that deploy RSS master. ServiceId is `rss.ha.service.id`                          |
+|      rss.ha.address.{serviceId}.{node}       |     localhost:9872      |              RSS master's rpc address for raft implementation. Port can be ignored and defaults to 9872              |
+|                 rss.ha.port                  |          9872           |                                            Rpc port between multi master                                             |
+|              rss.ha.storage.dir              |       /tmp/ratis        |                                   Directory of RSS master to store ratis metadata.                                   |
+|  rss.ha.ratis.snapshot.auto.trigger.enabled  |          true           |                                  Weather to enable raft implementation's snapshot.                                   |
+| rss.ha.ratis.snapshot.auto.trigger.threshold |         200000          |                                                                                                                      |
+|      rss.offer.slots.algorithm.version       |       loadaware         | There is two algorithms loadaware and roundrobin. loadaware is recommended unless you encountered some malfunctions. |
 
 ### RSS Worker Configurations
 

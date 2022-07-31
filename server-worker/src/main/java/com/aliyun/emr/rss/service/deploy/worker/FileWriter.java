@@ -40,7 +40,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
-import com.aliyun.emr.rss.common.protocol.StorageHint;
+import com.aliyun.emr.rss.common.protocol.StorageInfo;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -223,8 +223,8 @@ public final class FileWriter extends DeviceObserver {
     }
   }
 
-  public StorageHint getStorageHint(){
-    return new StorageHint(flusher.diskType(), flusher.mountPoint(), true);
+  public StorageInfo getStorageHint(){
+    return new StorageInfo(flusher.diskType(), flusher.mountPoint(), true);
   }
 
   public long close() throws IOException {

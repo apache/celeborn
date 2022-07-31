@@ -150,7 +150,7 @@ message PbRequestSlots {
 }
 
 message PbSlotInfo{
-  map<string,int32> slot=1;
+  map<string, int32> slot = 1;
 }
 
 message PbReleaseSlots {

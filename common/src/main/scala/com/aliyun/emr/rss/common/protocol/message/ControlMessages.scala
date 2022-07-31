@@ -22,12 +22,10 @@ import java.util.UUID
 
 import scala.collection.JavaConverters._
 
-import com.google.protobuf.ByteString
-
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint, TransportMessages}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo, TransportMessages}
 import com.aliyun.emr.rss.common.protocol.TransportMessages._
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
 import com.aliyun.emr.rss.common.util.Utils
@@ -370,9 +368,9 @@ sealed trait Message extends Serializable{
         builder.addAllFailedMasterIds(failedMasterIds)
         builder.addAllFailedSlaveIds(failedSlaveIds)
         committedMasterStorageHints.asScala.foreach(entry =>
-          builder.putCommittedMasterStorageHints(entry._1, StorageHint.toPb(entry._2)))
+          builder.putCommittedMasterStorageHints(entry._1, StorageInfo.toPb(entry._2)))
         committedSlaveStorageHints.asScala.foreach(entry =>
-          builder.putCommittedSlaveStorageHints(entry._1, StorageHint.toPb(entry._2)))
+          builder.putCommittedSlaveStorageHints(entry._1, StorageInfo.toPb(entry._2)))
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -648,10 +646,10 @@ object ControlMessages extends Logging{
     committedSlaveIds: util.List[String],
     failedMasterIds: util.List[String],
     failedSlaveIds: util.List[String],
-    committedMasterStorageHints: util.Map[String, StorageHint] =
-    Map.empty[String, StorageHint].asJava,
-    committedSlaveStorageHints: util.Map[String, StorageHint] =
-    Map.empty[String, StorageHint].asJava,
+    committedMasterStorageHints: util.Map[String, StorageInfo] =
+      Map.empty[String, StorageInfo].asJava,
+    committedSlaveStorageHints: util.Map[String, StorageInfo] =
+      Map.empty[String, StorageInfo].asJava,
     totalWritten: Long = 0,
     fileCount: Int = 0
   ) extends WorkerMessage
@@ -904,12 +902,12 @@ object ControlMessages extends Logging{
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
-        val committedMasterStorageHints = new util.HashMap[String, StorageHint]()
-        val committedSlaveStorageHints = new util.HashMap[String, StorageHint]()
+        val committedMasterStorageHints = new util.HashMap[String, StorageInfo]()
+        val committedSlaveStorageHints = new util.HashMap[String, StorageInfo]()
         pbCommitFilesResponse.getCommittedMasterStorageHintsMap.asScala.foreach(entry =>
-          committedMasterStorageHints.put(entry._1, StorageHint.fromPb(entry._2)))
+          committedMasterStorageHints.put(entry._1, StorageInfo.fromPb(entry._2)))
         pbCommitFilesResponse.getCommittedSlaveStorageHintsMap.asScala.foreach(entry =>
-          committedSlaveStorageHints.put(entry._1, StorageHint.fromPb(entry._2)))
+          committedSlaveStorageHints.put(entry._1, StorageInfo.fromPb(entry._2)))
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedMasterIdsList,

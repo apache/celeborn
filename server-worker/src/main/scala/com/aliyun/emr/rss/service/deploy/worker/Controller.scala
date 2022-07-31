@@ -31,7 +31,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageHint}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -163,10 +163,7 @@ private[deploy] class Controller(
 
     logDebug(s"allocate slots ${masterLocations.asScala.map(_.toString).mkString(",")}" +
       s"  ,  ${slaveLocations.asScala.map(_.toString).mkString(",")} ")
-    workerInfo.allocateSlots(
-      shuffleKey,
-      Utils.diskSlotsDistribution(masterLocations, slaveLocations)
-    )
+    workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
     logInfo(
       s"Reserved ${masterPartitions.size()} master location" +
         s" and ${slavePartitions.size()} slave location for $shuffleKey " +
@@ -180,7 +177,7 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: jSet[String],
       failedIds: jSet[String],
-      committedStorageHints: java.util.HashMap[String, StorageHint],
+      committedStorageHints: java.util.HashMap[String, StorageInfo],
       writtenList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
@@ -256,8 +253,8 @@ private[deploy] class Controller(
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
-    val committedMasterStorageHints = new jHashMap[String, StorageHint]()
-    val committedSlaveStorageHints = new jHashMap[String, StorageHint]()
+    val committedMasterStorageHints = new jHashMap[String, StorageInfo]()
+    val committedSlaveStorageHints = new jHashMap[String, StorageInfo]()
     val committedWrittenSize = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
@@ -294,10 +291,8 @@ private[deploy] class Controller(
       val releaseMasterLocations =
         partitionLocationInfo.removeMasterPartitions(shuffleKey, masterIds)
       val releaseSlaveLocations = partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
-      logDebug(
-        s"$shuffleKey remove" +
-          s" slots count ${releaseMasterLocations._2 + releaseSlaveLocations._2}"
-      )
+      logDebug(s"$shuffleKey remove" +
+        s" slots count ${releaseMasterLocations._2 + releaseSlaveLocations._2}")
       workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
       workerInfo.releaseSlots(shuffleKey, releaseSlaveLocations._1)
 
@@ -306,9 +301,9 @@ private[deploy] class Controller(
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
       val committedMasterStorageAndDiskHintList =
-        new jHashMap[String, StorageHint](committedMasterStorageHints)
+        new jHashMap[String, StorageInfo](committedMasterStorageHints)
       val committedSlaveStorageAndDiskHintList =
-        new jHashMap[String, StorageHint](committedSlaveStorageHints)
+        new jHashMap[String, StorageInfo](committedSlaveStorageHints)
       val totalWritten = committedWrittenSize.asScala.sum
       val fileCount = committedWrittenSize.size()
       // reply
