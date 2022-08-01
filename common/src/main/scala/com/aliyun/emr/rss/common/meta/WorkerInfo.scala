@@ -31,9 +31,10 @@ import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 class DiskInfo(
   val mountPoint: String,
   val usableSpace: Long,
-  val avgFlushTime: Double,
-  @volatile var activeSlots: Long) extends Serializable {
-  @volatile var maxSlots: Long = 0
+  // avgFlushTime is nano seconds
+  var avgFlushTime: Long,
+  var activeSlots: Long) extends Serializable {
+  var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
 
   def availableSlots(): Long = {
@@ -168,8 +169,49 @@ class WorkerInfo(
     s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
-  def slotAvailable(): Boolean = {
+  def slotAvailable(): Boolean = this.synchronized {
     disks.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
+  }
+
+  def getTotalSlots(): Long = this.synchronized {
+    disks.asScala.map(_._2.maxSlots).sum
+  }
+
+  def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
+    disks.asScala.foreach { case (_, disk) =>
+      disk.maxSlots_$eq(disk.usableSpace / estimatedPartitionSize)
+    }
+  }
+
+  def totalAvailableSlots(): Long = this.synchronized {
+    disks.asScala.map(_._2.availableSlots()).sum
+  }
+
+  def updateDiskInfos(newDiskInfos: java.util.Map[String, DiskInfo],
+      estimatedPartitionSize: Long): Unit = this.synchronized {
+    import scala.collection.JavaConverters._
+    for (diskInfoEntry <- newDiskInfos.entrySet.asScala) {
+      val mountPoint: String = diskInfoEntry.getKey
+      if (disks.containsKey(mountPoint)) {
+        disks.get(mountPoint).activeSlots_$eq(Math.max(disks.get(mountPoint).activeSlots,
+          disks.get(mountPoint).activeSlots))
+        disks.get(mountPoint).avgFlushTime_$eq(disks.get(mountPoint).avgFlushTime)
+      }
+      else {
+        val diskInfo: DiskInfo = diskInfoEntry.getValue
+        diskInfo.maxSlots_$eq(diskInfo.usableSpace / estimatedPartitionSize)
+        disks.put(mountPoint, diskInfo)
+      }
+    }
+
+    val nonExistsMountPoints: java.util.Set[String] = new util.HashSet[String]
+    nonExistsMountPoints.addAll(disks.keySet)
+    nonExistsMountPoints.removeAll(newDiskInfos.keySet)
+    if (!(nonExistsMountPoints.isEmpty)) {
+      for (nonExistsMountPoint <- nonExistsMountPoints.asScala) {
+        disks.remove(nonExistsMountPoint)
+      }
+    }
   }
 
   override def toString(): String = {

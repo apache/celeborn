@@ -173,9 +173,9 @@ class LocalDeviceMonitor(
 
   def init(): Unit = {
     this.observedDevices = new util.HashMap[DeviceInfo, ObservedDevice]()
-    deviceInfos.asScala.filter(_._2.virtual).foreach { case (deviceName, _) =>
+    deviceInfos.asScala.filter(_._2.noDevice).foreach { case (deviceName, _) =>
       logger.warn(s"device monitor may not worker properly " +
-        s"because virtual device $deviceName exists.")
+        s"because noDevice device $deviceName exists.")
     }
     deviceInfos.asScala.foreach(entry => {
       val observedDevice = new ObservedDevice(entry._2)

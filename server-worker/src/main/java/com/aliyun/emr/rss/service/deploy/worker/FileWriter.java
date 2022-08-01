@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -77,6 +78,8 @@ public final class FileWriter extends DeviceObserver {
   private final AtomicBoolean splitted = new AtomicBoolean(false);
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
+
+  private Runnable destroyHook;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -223,7 +226,7 @@ public final class FileWriter extends DeviceObserver {
     }
   }
 
-  public StorageInfo getStorageHint(){
+  public StorageInfo getStorageInfo(){
     return new StorageInfo(flusher.diskType(), flusher.mountPoint(), true);
   }
 
@@ -286,6 +289,18 @@ public final class FileWriter extends DeviceObserver {
     deviceMonitor.unregisterFileWriter(this);
   }
 
+  public void registerDestroyHook(List<FileWriter> writers) {
+    FileWriter thisWriter = this;
+    destroyHook = new Runnable() {
+      @Override
+      public void run() {
+        synchronized (writers) {
+          writers.remove(thisWriter);
+        }
+      }
+    };
+  }
+
   public IOException getException() {
     if (notifier.hasException()) {
       return notifier.exception.get();
@@ -326,7 +341,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs);
+    flushBuffer = flusher.takeBuffer();
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -334,7 +349,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     if (flushBuffer == null) {
-      IOException e = new IOException("Take buffer timeout from DiskFlusher: "
+      IOException e = new IOException("Take buffer encounter error from DiskFlusher: "
         + flusher.bufferQueueInfo());
       notifier.setException(e);
     }

@@ -37,7 +37,7 @@ message ResourceRequest {
 message DiskInfo {
   required string mountPoint = 1;
   required int64 usableSpace = 2;
-  required double avgFlushTime = 3;
+  required int64 avgFlushTime = 3;
   required int64 usedSlots = 4;
 }
 

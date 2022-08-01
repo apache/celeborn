@@ -84,7 +84,7 @@ message PbWorkerResource {
 message PbDiskInfo {
   string mountPoint = 1;
   int64 usableSpace = 2;
-  double avgFlushTime = 3;
+  int64 avgFlushTime = 3;
   int64 usedSlots = 4;
 }
 

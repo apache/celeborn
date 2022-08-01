@@ -38,7 +38,7 @@ public class MasterUtil {
   private static double last40Ratio = 0.29;
 
   public static Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots(
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
     Iterator<WorkerInfo> workers = slots.keySet().iterator();
     Map<WorkerInfo, Map<String, Integer>> workerToSlots = new HashMap<>();
     while (workers.hasNext()) {
@@ -47,16 +47,10 @@ public class MasterUtil {
         if (v == null) {
           v = new HashMap<>();
         }
-        for (PartitionLocation location : slots.get(worker)._1) {
-          v.compute(location.getStorageHint().getMountPoint(), (hint, slot) -> {
-            if (slot == null) {
-              slot = 0;
-            }
-            slot = slot + 1;
-            return slot;
-          });
-        }
-        for (PartitionLocation location : slots.get(worker)._2) {
+        List<PartitionLocation> jointLocations = new ArrayList<>();
+        jointLocations.addAll(slots.get(worker)._1);
+        jointLocations.addAll(slots.get(worker)._2);
+        for (PartitionLocation location : jointLocations) {
           v.compute(location.getStorageHint().getMountPoint(), (hint, slot) -> {
             if (slot == null) {
               slot = 0;
@@ -214,11 +208,7 @@ public class MasterUtil {
     }
 
     Collections.sort(usableDisks, (o1, o2) -> {
-      if (o1.avgFlushTime() <= o2.avgFlushTime()) {
-        return -1;
-      } else {
-        return 1;
-      }
+      return Math.toIntExact(o1.avgFlushTime() - o2.avgFlushTime());
     });
 
     List<PartitionLocation> masterLocations = new ArrayList<>();

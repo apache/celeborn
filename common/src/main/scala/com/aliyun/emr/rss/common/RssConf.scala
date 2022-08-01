@@ -541,14 +541,15 @@ object RssConf extends Logging {
     Utils.timeStringAsMs(conf.get("rss.disk.space.monitor.interval", "15s"))
   }
 
-  def partitionSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.partition.size", "64m"))
+  def initialPartitionSize(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
   }
 
   /**
    *
     * @param conf
    * @return workingDir, usable space, flusher thread count, disk type
+   *         check more details at CONFIGURATION_GUIDE.md
    */
   def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, Type)] = {
     // I assume there is no disk is bigger than 1 PB in recent days.

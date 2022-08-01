@@ -383,7 +383,7 @@ private[deploy] class Master(
 
     // offer slots
     val slots = statusSystem.workers.synchronized {
-      if (offerSlotsAlgorithmVersion == "V1") {
+      if (offerSlotsAlgorithmVersion == "roundrobin") {
         MasterUtil.offerSlotsRoundRobin(
           workersNotBlacklisted(),
           requestSlots.partitionIdList,
@@ -521,7 +521,7 @@ private[deploy] class Master(
     val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
 
     val (totalSlots, usedSlots, overloadWorkers) = workers.map(workerInfo => {
-        val allSlots: Long = workerInfo.disks.values().asScala.map(_.maxSlots).sum
+        val allSlots: Long = workerInfo.getTotalSlots
         val usedSlots: Long = workerInfo.usedSlots()
         val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
         (allSlots, usedSlots, flag)

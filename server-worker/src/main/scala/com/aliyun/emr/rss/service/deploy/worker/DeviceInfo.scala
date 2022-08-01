@@ -50,7 +50,8 @@ class MountInfo(val mountPoint: String, val deviceInfo: DeviceInfo) extends Seri
 
 class DeviceInfo(val name: String) extends Serializable {
   var mountInfos: ListBuffer[MountInfo] = new ListBuffer[MountInfo]()
-  var virtual = false
+  // if noDevice is true means that there is no device info found.
+  var noDevice = false
 
   def addMountInfo(mountInfo: MountInfo): Unit = {
     mountInfos.append(mountInfo)
@@ -76,9 +77,9 @@ object DeviceInfo {
    *
    * @param workingDirs
    * @return it will return three maps
-   *         device info maps
-   *         mount infos map whose key is mountpoint
-   *         working dir related mount info map whose key is workingDir
+   *         (deviceName -> deviceInfo)
+   *         (mount point -> mount point info)
+   *         (working dir -> mount point info)
    */
   def getDeviceAndMountInfos(workingDirs: util.List[File]): (
     util.HashMap[String, DeviceInfo],
@@ -120,7 +121,7 @@ object DeviceInfo {
           override def apply(s: String): DeviceInfo = {
             val deviceInfo = new DeviceInfo(s)
             if (index < 0) {
-              deviceInfo.virtual = true
+              deviceInfo.noDevice = true
             }
             deviceInfo
           }

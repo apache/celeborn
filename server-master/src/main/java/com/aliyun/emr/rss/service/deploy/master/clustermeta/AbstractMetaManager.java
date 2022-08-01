@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -147,42 +146,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateWorkerHeartBeatMeta(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, Map<String, DiskInfo> disks, long time) {
+      int replicatePort, Map<String, DiskInfo> disks, long time) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks,
-      null);
+        null);
+    AtomicLong availableSlots = new AtomicLong();
     synchronized (workers) {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(info -> {
-        Map<String, DiskInfo> diskMaps = disks;
-        Map<String, DiskInfo> oldDiskMaps = info.disks();
-
-        for (Map.Entry<String, DiskInfo> diskInfoEntry : diskMaps.entrySet()) {
-          String mountPoint = diskInfoEntry.getKey();
-          if (oldDiskMaps.containsKey(mountPoint)) {
-            oldDiskMaps.get(mountPoint).activeSlots_$eq(
-              Math.max(oldDiskMaps.get(mountPoint).activeSlots(),
-                diskMaps.get(mountPoint).activeSlots()));
-          } else {
-            DiskInfo diskInfo = diskInfoEntry.getValue();
-            diskInfo.maxSlots_$eq(diskInfo.usableSpace() / estimatedPartitionSize);
-            oldDiskMaps.put(mountPoint, diskInfo);
-          }
-        }
-
-        Set<String> nonExistsMountPoints = new HashSet<>();
-        nonExistsMountPoints.addAll(oldDiskMaps.keySet());
-        nonExistsMountPoints.removeAll(diskMaps.keySet());
-        if (!nonExistsMountPoints.isEmpty()) {
-          for (String nonExistsMountPoint : nonExistsMountPoints) {
-            oldDiskMaps.remove(nonExistsMountPoint);
-          }
-        }
-
+        info.updateDiskInfos(disks, estimatedPartitionSize);
+        availableSlots.set(info.totalAvailableSlots());
         info.lastHeartbeat_$eq(time);
       });
     }
-    AtomicLong availableSlots = new AtomicLong();
-    disks.entrySet().stream().forEach(i -> availableSlots.addAndGet(i.getValue().availableSlots()));
     if (!blacklist.contains(worker) && disks.isEmpty()) {
       LOG.warn("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
@@ -210,7 +185,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       return;
     }
 
-    workerInfo.disks().forEach((k, v) -> v.maxSlots_$eq(v.usableSpace() / estimatedPartitionSize));
+    workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       workers.add(workerInfo);
     }
@@ -350,8 +325,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     LOG.warn("Rss cluster estimated partition size changed from {} to {}",
       oldEstimatedPartitionSize, estimatedPartitionSize);
     workers.stream().filter(worker -> !blacklist.contains(worker)).forEach(workerInfo -> {
-      workerInfo.disks().forEach((k, v) ->
-                                   v.maxSlots_$eq(v.usableSpace() / estimatedPartitionSize));
+      workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     });
   }
 }

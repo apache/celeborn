@@ -201,7 +201,7 @@ private[deploy] class Controller(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
-                committedStorageHints.put(uniqueId, fileWriter.getStorageHint)
+                committedStorageHints.put(uniqueId, fileWriter.getStorageInfo)
                 writtenList.add(bytes)
                 committedIds.add(uniqueId)
               }
