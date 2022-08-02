@@ -294,10 +294,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // won't be empty since master will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
-    val connectFailedWorkers = new util.ArrayList[WorkerInfo]()
+    val connectFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
     // Second, for each worker, try to initialize the endpoint.
-    slots.asScala.foreach { case (workerInfo, _) =>
+    val parallelism = Math.min(slots.size(), RssConf.rpcMaxParallelism(conf))
+    ThreadUtils.parmap(slots.asScala.to, "CommitFiles", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
           rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
@@ -309,7 +310,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
     candidatesWorkers.removeAll(connectFailedWorkers)
-    recordWorkerFailure(connectFailedWorkers)
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](connectFailedWorkers))
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
