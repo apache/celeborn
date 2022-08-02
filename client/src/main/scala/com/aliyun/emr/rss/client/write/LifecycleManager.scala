@@ -1181,7 +1181,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       endpoint.askSync[ReserveSlotsResponse](message)
     } catch {
       case e: Exception =>
-        val msg = s"Exception when askSync ReserveSlots for $shuffleKey."
+        val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
+          s"on worker ${endpoint.address}."
         logError(msg, e)
         ReserveSlotsResponse(StatusCode.Failed, msg + s" ${e.getMessage}")
     }
