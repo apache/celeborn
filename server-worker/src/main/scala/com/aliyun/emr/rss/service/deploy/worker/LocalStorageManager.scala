@@ -56,7 +56,7 @@ private[worker] final class DiskFlusher(
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf](queueCapacity)
   private val workers = new Array[Thread](threadCount)
-  private val nextWorkerIndex = new AtomicInteger()
+  private var nextWorkerIndex: Int = 0
 
   @volatile
   private var lastBeginFlushTime: Long = -1
@@ -111,12 +111,9 @@ private[worker] final class DiskFlusher(
     deviceMonitor.registerDiskFlusher(this)
   }
 
-  def getWorkerIndex: Int = {
-    val nextIndex = nextWorkerIndex.getAndIncrement()
-    if (nextIndex > threadCount) {
-      nextWorkerIndex.set(0)
-    }
-    nextIndex % threadCount
+  def getWorkerIndex: Int = this.synchronized {
+    nextWorkerIndex = (nextWorkerIndex + 1) % threadCount
+    nextWorkerIndex
   }
 
   def takeBuffer(timeoutMs: Long): CompositeByteBuf = {
