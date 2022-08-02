@@ -802,9 +802,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       if (blacklist.contains(workerInfo)) {
         logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
         reserveSlotFailedWorkers.add(workerInfo)
-      } else if (workerInfo.endpoint == null) {
-        logWarning(s"[reserve buffer] failed due to worker initializing RPC failed: $workerInfo")
-        reserveSlotFailedWorkers.add(workerInfo)
       } else {
         val res = requestReserveSlots(workerInfo.endpoint,
           ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
@@ -1141,7 +1138,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (res.statusCode == StatusCode.Success) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unkown workers: ${res.unknownWorkers}")
+      val initFailedWorker = ConcurrentHashMap.newKeySet[WorkerInfo]()
+      initFailedWorker.addAll(blacklist.asScala.filter(_.endpoint == null).asJava)
       blacklist.clear()
+      blacklist.addAll(initFailedWorker)
       blacklist.addAll(res.blacklist)
       blacklist.addAll(res.unknownWorkers)
     }
