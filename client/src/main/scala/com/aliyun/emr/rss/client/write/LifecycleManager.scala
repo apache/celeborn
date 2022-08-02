@@ -802,6 +802,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       if (blacklist.contains(workerInfo)) {
         logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
         reserveSlotFailedWorkers.add(workerInfo)
+      } else if (workerInfo.endpoint == null) {
+        logWarning(s"[reserve buffer] failed due to worker initializing RPC failed: $workerInfo")
+        reserveSlotFailedWorkers.add(workerInfo)
       } else {
         val res = requestReserveSlots(workerInfo.endpoint,
           ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
