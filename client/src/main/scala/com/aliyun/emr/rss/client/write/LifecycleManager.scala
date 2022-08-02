@@ -1138,7 +1138,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (res.statusCode == StatusCode.Success) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unkown workers: ${res.unknownWorkers}")
+      val initFailedWorker = ConcurrentHashMap.newKeySet[WorkerInfo]()
+      initFailedWorker.addAll(blacklist.asScala.filter(_.endpoint == null).asJava)
       blacklist.clear()
+      blacklist.addAll(initFailedWorker)
       blacklist.addAll(res.blacklist)
       blacklist.addAll(res.unknownWorkers)
     }
@@ -1178,7 +1181,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       endpoint.askSync[ReserveSlotsResponse](message)
     } catch {
       case e: Exception =>
-        val msg = s"Exception when askSync ReserveSlots for $shuffleKey."
+        val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
+          s"on worker ${endpoint.address}."
         logError(msg, e)
         ReserveSlotsResponse(StatusCode.Failed, msg + s" ${e.getMessage}")
     }
