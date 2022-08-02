@@ -605,6 +605,19 @@ object RssConf extends Logging {
     Utils.byteStringAsBytes(conf.get("rss.disk.minimum.usable.size", "10G"))
   }
 
+  /**
+   * @param conf
+   * @return This configuration is a guidance for load-aware slot allocation algorithm. This value
+   *         is control how many disk groups will be created.
+   */
+  def diskGroups(conf: RssConf): Int = {
+    conf.getInt("rss.disk.groups", 5)
+  }
+
+  def diskGroupGradient(conf: RssConf): Double = {
+    conf.getDouble("rss.disk.group.gradient", 0.1)
+  }
+
   def partitionSizeUpdaterInitialDelay(conf: RssConf): Long = {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.initial.delay", "5m"))
   }

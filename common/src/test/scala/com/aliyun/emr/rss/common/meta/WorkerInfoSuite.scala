@@ -54,9 +54,9 @@ class WorkerInfoSuite extends RssFunSuite {
   test("multi-thread modify same WorkerInfo.") {
     val numSlots = 10000
     val disks = new util.HashMap[String, DiskInfo]()
-    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1.0, 0))
-    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1.0, 0))
-    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1.0, 0))
+    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 0))
+    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 0))
+    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 0))
     val worker = new WorkerInfo("localhost", 10000, 10001, 10002, 10003, disks, null)
 
     val allocatedSlots = new AtomicInteger(0)

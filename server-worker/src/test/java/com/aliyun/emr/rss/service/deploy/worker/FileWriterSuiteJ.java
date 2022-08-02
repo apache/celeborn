@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
+import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -108,7 +109,9 @@ public class FileWriterSuiteJ {
     }).when(source)
       .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
-    flusher = new DiskFlusher(tempDir,
+    ListBuffer<File> dirs = new ListBuffer<>();
+    dirs.$plus$eq(tempDir);
+    flusher = new DiskFlusher(dirs,
       source,
       DeviceMonitor$.MODULE$.EmptyMonitor(),
       1,
@@ -303,12 +306,14 @@ public class FileWriterSuiteJ {
   @Test
   public void testHugeBufferQueueSize() throws IOException {
     File file = getTemporaryFile();
-    flusher = new DiskFlusher(file,
-      source,
-      DeviceMonitor$.MODULE$.EmptyMonitor(),
-      1,
-      "disk2",
-      StorageInfo.Type.HDD);
+    ListBuffer<File> dirs = new ListBuffer<>();
+    dirs.$plus$eq(file);
+    flusher = new DiskFlusher(dirs,
+        source,
+        DeviceMonitor$.MODULE$.EmptyMonitor(),
+        1,
+        "disk2",
+        StorageInfo.Type.HDD);
   }
 
   @Test

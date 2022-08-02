@@ -68,7 +68,7 @@ private[deploy] class Worker(
     source
   }
 
-  val localStorageManager = new LocalStorageManager(conf, workerSource, this)
+  val localStorageManager = new LocalStorageManager(conf, workerSource)
 
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),

@@ -21,6 +21,9 @@ import java.io.{File, IOException}
 import java.util.{ArrayList => jArrayList}
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters.bufferAsJavaListConverter
+
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._
 import org.mockito.MockitoSugar._
@@ -49,14 +52,14 @@ class DeviceMonitorSuite extends AnyFunSuite {
   val lsOut = "loop0  loop1  loop2  loop3  loop4  loop5  loop6  loop7  vda  vdb"
 
   val dirs = new jArrayList[File]()
-  val workingDir1 = new File("/mnt/disk1/data1")
-  val workingDir2 = new File("/mnt/disk1/data2")
-  val workingDir3 = new File("/mnt/disk2/data3")
-  val workingDir4 = new File("/mnt/disk2/data4")
-  dirs.add(workingDir1)
-  dirs.add(workingDir2)
-  dirs.add(workingDir3)
-  dirs.add(workingDir4)
+  val workingDir1 = ListBuffer[File](new File("/mnt/disk1/data1"))
+  val workingDir2 = ListBuffer[File](new File("/mnt/disk1/data2"))
+  val workingDir3 = ListBuffer[File](new File("/mnt/disk2/data3"))
+  val workingDir4 = ListBuffer[File](new File("/mnt/disk2/data4"))
+  dirs.addAll(workingDir1.asJava)
+  dirs.addAll(workingDir2.asJava)
+  dirs.addAll(workingDir3.asJava)
+  dirs.addAll(workingDir4.asJava)
 
   val rssConf = new RssConf()
   rssConf.set("rss.disk.check.interval", "3600s")
@@ -190,10 +193,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       when(df3.stopFlag).thenReturn(new AtomicBoolean(false))
       when(df4.stopFlag).thenReturn(new AtomicBoolean(false))
 
-      when(df1.workingDir).thenReturn(workingDir1)
-      when(df2.workingDir).thenReturn(workingDir2)
-      when(df3.workingDir).thenReturn(workingDir3)
-      when(df4.workingDir).thenReturn(workingDir4)
+      when(df1.workingDirs).thenReturn(workingDir1)
+      when(df2.workingDirs).thenReturn(workingDir2)
+      when(df3.workingDirs).thenReturn(workingDir3)
+      when(df4.workingDirs).thenReturn(workingDir4)
 
       deviceMonitor.registerDiskFlusher(df1)
       deviceMonitor.registerDiskFlusher(df2)

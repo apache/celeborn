@@ -30,6 +30,7 @@ import scala.Tuple2;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
@@ -185,16 +186,19 @@ public class MasterUtilSuiteJ {
     boolean shouldReplicate,
     boolean expectSuccess) {
     String shuffleKey = "appId-1";
+    RssConf rssConf = new RssConf();
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-      MasterUtil.offerSlotsLoadAware(
-        workers,
-        partitionIds,
-        shouldReplicate,
-        10 * 1024 * 1024 * 1024L);
+        MasterUtil.offerSlotsLoadAware(
+            workers,
+            partitionIds,
+            shouldReplicate,
+            10 * 1024 * 1024 * 1024L,
+            RssConf.diskGroups(rssConf),
+            RssConf.diskGroupGradient(rssConf));
 
     if (expectSuccess) {
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
-        MasterUtil.workerToAllocatedSlots(slots);
+        MasterUtil.slotsToDiskAllocations(slots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
         WorkerInfo worker = entry.getKey();
         Map<String, Integer> allocationMap = entry.getValue();

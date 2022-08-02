@@ -72,6 +72,8 @@ private[deploy] class Master(
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
   private def minimumUsableSize = RssConf.diskMinimumUsableSize(conf)
+  private def diskGroups = RssConf.diskGroups(conf)
+  private def diskGroupGradient = RssConf.diskGroupGradient(conf)
 
   private val partitionSizeUpdateInitialDelay = RssConf.partitionSizeUpdaterInitialDelay(conf)
   private val partitionSizeUpdateInterval = RssConf.partitionSizeUpdateInterval(conf)
@@ -394,7 +396,9 @@ private[deploy] class Master(
           workersNotBlacklisted(),
           requestSlots.partitionIdList,
           requestSlots.shouldReplicate,
-          minimumUsableSize
+          minimumUsableSize,
+          diskGroups,
+          diskGroupGradient
         )
       }
     }

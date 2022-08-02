@@ -24,6 +24,7 @@ import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbDiskInfo, PbWorkerInfo}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef

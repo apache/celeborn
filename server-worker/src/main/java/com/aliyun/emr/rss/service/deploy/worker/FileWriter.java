@@ -142,6 +142,7 @@ public final class FileWriter extends DeviceObserver {
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
+    flusher.addWriter();
   }
 
   public File getFile() {
@@ -259,7 +260,7 @@ public final class FileWriter extends DeviceObserver {
       deviceMonitor.unregisterFileWriter(this);
 
     }
-
+    flusher.removeWriter();
     return bytesFlushed;
   }
 
@@ -287,16 +288,14 @@ public final class FileWriter extends DeviceObserver {
 
     // unregister from DeviceMonitor
     deviceMonitor.unregisterFileWriter(this);
+    destroyHook.run();
   }
 
   public void registerDestroyHook(List<FileWriter> writers) {
     FileWriter thisWriter = this;
-    destroyHook = new Runnable() {
-      @Override
-      public void run() {
-        synchronized (writers) {
-          writers.remove(thisWriter);
-        }
+    destroyHook = () -> {
+      synchronized (writers) {
+        writers.remove(thisWriter);
       }
     };
   }

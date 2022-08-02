@@ -24,6 +24,7 @@ import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
@@ -41,7 +42,7 @@ trait DeviceMonitor {
   def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
   def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
   def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
-  def reportDeviceError(workingDir: File, e: IOException,
+  def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {}
   def close() {}
 }
@@ -231,22 +232,24 @@ class LocalDeviceMonitor(
   }
 
   override def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDir.getAbsolutePath, mountInfos)
+    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
+      mountInfos)
     observedDevices.get(mountInfos.get(mountPoint).deviceInfo).addObserver(diskFlusher)
   }
 
   override def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDir.getAbsolutePath, mountInfos)
+    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
+      mountInfos)
     observedDevices.get(mountInfos.get(mountPoint).deviceInfo).removeObserver(diskFlusher)
   }
 
-  override def reportDeviceError(workingDir: File, e: IOException,
+  override def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {
     logger.error(s"Receive report exception, $workingDir, $e")
-    val mountPoint = DeviceInfo.getMountPoint(workingDir.getAbsolutePath, mountInfos)
+    val mountPoint = DeviceInfo.getMountPoint(workingDir.head.getAbsolutePath, mountInfos)
     if (mountInfos.containsKey(mountPoint)) {
       observedDevices.get(mountInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(ListBuffer(workingDir), deviceErrorType)
+        .notifyObserversOnError(workingDir.to, deviceErrorType)
     }
   }
 
