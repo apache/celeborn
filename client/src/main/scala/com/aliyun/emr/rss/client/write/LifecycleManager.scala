@@ -294,10 +294,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // won't be empty since master will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
-    val connectFailedWorkers = new util.ArrayList[WorkerInfo]()
+    val connectFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
     // Second, for each worker, try to initialize the endpoint.
-    slots.asScala.foreach { case (workerInfo, _) =>
+    val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
+    ThreadUtils.parmap(slots.asScala.to, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
           rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
@@ -309,7 +310,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
     candidatesWorkers.removeAll(connectFailedWorkers)
-    recordWorkerFailure(connectFailedWorkers)
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](connectFailedWorkers))
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
@@ -796,31 +797,33 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       applicationId: String,
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
-    val reserveSlotFailedWorkers = new util.ArrayList[WorkerInfo]()
-
-    slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
-      if (blacklist.contains(workerInfo)) {
-        logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
-        reserveSlotFailedWorkers.add(workerInfo)
-      } else {
-        val res = requestReserveSlots(workerInfo.endpoint,
-          ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
-            splitMode, partitionType, storageHint))
-        if (res.status.equals(StatusCode.Success)) {
-          logDebug(s"Successfully allocated " +
-            s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-            s" from worker ${workerInfo.readableAddress}.")
-        } else {
-          logError(s"[reserveSlots] Failed to" +
-            s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-            s" from worker ${workerInfo.readableAddress}. Reason: ${res.reason}")
+    val reserveSlotFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
+    val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
+    ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
+      case (workerInfo, (masterLocations, slaveLocations)) =>
+        if (blacklist.contains(workerInfo)) {
+          logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
           reserveSlotFailedWorkers.add(workerInfo)
+        } else {
+          val res = requestReserveSlots(workerInfo.endpoint,
+            ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
+              splitMode, partitionType, storageHint))
+          if (res.status.equals(StatusCode.Success)) {
+            logDebug(s"Successfully allocated " +
+              s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
+              s" from worker ${workerInfo.readableAddress}.")
+          } else {
+            logError(s"[reserveSlots] Failed to" +
+              s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
+              s" from worker ${workerInfo.readableAddress}. Reason: ${res.reason}")
+            reserveSlotFailedWorkers.add(workerInfo)
+          }
         }
-      }
     }
 
-    recordWorkerFailure(reserveSlotFailedWorkers)
-    reserveSlotFailedWorkers
+    val failedWorkerList = new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers)
+    recordWorkerFailure(failedWorkerList)
+    failedWorkerList
   }
 
   /**
