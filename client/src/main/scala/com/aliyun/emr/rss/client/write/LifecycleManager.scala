@@ -297,7 +297,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val connectFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
     // Second, for each worker, try to initialize the endpoint.
-    val parallelism = Math.min(slots.size(), RssConf.rpcMaxParallelism(conf))
+    val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
     ThreadUtils.parmap(slots.asScala.to, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
@@ -798,7 +798,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
     val reserveSlotFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
-    val parallelism = Math.min(slots.size(), RssConf.rpcMaxParallelism(conf))
+    val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
         if (blacklist.contains(workerInfo)) {
