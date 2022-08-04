@@ -43,7 +43,7 @@
     <!-- Apache Ratis version -->
     <ratis.version>2.3.0</ratis.version>
     <!-- gRPC version, used for protoc-gen-grpc-java plugin to download -->
-    <!-- Apple Silicon supported version -->
+    <!-- protoc-gen-grpc-java JAR -->
     <grpc.version>1.44.0</grpc.version>
     <!-- ProtocolBuffer version, used to verify the protoc version and -->
     <!-- define the protobuf JAR version                               -->
