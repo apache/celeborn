@@ -45,4 +45,6 @@ object MasterSource {
 
   val RegisteredShuffleCount = "RegisteredShuffleCount"
 
+  val IsActiveMaster = "IsActiveMaster"
+
 }
