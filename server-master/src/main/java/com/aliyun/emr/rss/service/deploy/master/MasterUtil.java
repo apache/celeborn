@@ -162,7 +162,7 @@ public class MasterUtil {
           }
         }
         for (Map.Entry<DiskInfo, Integer> entry :
-            restrictions.get(workers.get(masterIndex)).entrySet()) {
+            restrictions.get(workers.get(nextMasterInd)).entrySet()) {
           if (entry.getValue() > 0) {
             storageInfo = new Tuple2<>(entry.getKey(),
                 new StorageInfo(entry.getKey().mountPoint()));
@@ -290,9 +290,9 @@ public class MasterUtil {
           break;
         }
         Map<DiskInfo, Integer> diskAllocation =
-            workerAllocations.computeIfAbsent(diskWorkerMap.get(disk),v-> new HashMap<>());
+            workerAllocations.computeIfAbsent(diskWorkerMap.get(disk), v -> new HashMap<>());
         int allocated = (int) Math.ceil(
-            groupAllocations[i] * (disk.availableSlots() / (double) groupTotalSlots));
+            groupRequired * (disk.availableSlots() / (double) groupTotalSlots));
         diskAllocation.put(disk, allocated);
         groupRequired -= allocated;
       }
