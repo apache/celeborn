@@ -119,6 +119,10 @@ rss.ha.address.dev-cluster.node2 host2
 rss.ha.address.dev-cluster.node3 host3
 rss.ha.storage.dir /mnt/disk1/rss_ratis/
 rss.ha.master.hosts host1,host2,host3
+# If default HA port is already occupied
+rss.ha.port.dev-cluster.node1 9872
+rss.ha.port.dev-cluster.node2 9872
+rss.ha.port.dev-cluster.node3 9872
 ```
 4. Copy RSS and configurations to all nodes
 5. Start RSS master
