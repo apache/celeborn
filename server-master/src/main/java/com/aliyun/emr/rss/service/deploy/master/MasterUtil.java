@@ -292,7 +292,10 @@ public class MasterUtil {
         Map<DiskInfo, Integer> diskAllocation =
             workerAllocations.computeIfAbsent(diskWorkerMap.get(disk), v -> new HashMap<>());
         int allocated = (int) Math.ceil(
-            groupRequired * (disk.availableSlots() / (double) groupTotalSlots));
+            groupAllocations[i] * (disk.availableSlots() / (double) groupTotalSlots));
+        if (allocated > groupRequired) {
+          allocated = groupRequired;
+        }
         diskAllocation.put(disk, allocated);
         groupRequired -= allocated;
       }

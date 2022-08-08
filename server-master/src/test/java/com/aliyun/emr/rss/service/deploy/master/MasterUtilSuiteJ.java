@@ -38,7 +38,6 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
 public class MasterUtilSuiteJ {
-private static Logger logger = LoggerFactory.getLogger(MasterUtilSuiteJ.class);
   private List<WorkerInfo> prepareWorkers() {
     long assumedPartitionSize = 64 * 1024 * 1024;
 
@@ -197,11 +196,9 @@ private static Logger logger = LoggerFactory.getLogger(MasterUtilSuiteJ.class);
             10 * 1024 * 1024 * 1024L,
             RssConf.diskGroups(rssConf),
             RssConf.diskGroupGradient(rssConf));
-    logger.warn("allocated slots {}", slots);
     if (expectSuccess) {
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
         MasterUtil.slotsToDiskAllocations(slots);
-      logger.warn("slots allocations {}", workerToAllocatedSlots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
         WorkerInfo worker = entry.getKey();
         Map<String, Integer> allocationMap = entry.getValue();

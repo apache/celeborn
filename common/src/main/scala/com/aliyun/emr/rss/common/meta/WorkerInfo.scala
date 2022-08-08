@@ -81,7 +81,7 @@ class WorkerInfo(
     val replicatePort: Int,
     val disks: util.Map[String, DiskInfo],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
-
+  var unknownDiskSlots = 0
   var lastHeartbeat: Long = 0
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
@@ -120,7 +120,7 @@ class WorkerInfo(
   }
 
   def usedSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.activeSlots).sum
+    disks.asScala.map(_._2.activeSlots).sum + unknownDiskSlots
   }
 
   def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
@@ -128,7 +128,8 @@ class WorkerInfo(
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
         if (!disks.containsKey(disk)) {
-          logWarning(s"Unknown disk ${disk}")
+          logDebug(s"Unknown disk ${disk}")
+          unknownDiskSlots = unknownDiskSlots + slots
         } else {
           disks.get(disk).allocateSlots(shuffleKey, slots)
         }
