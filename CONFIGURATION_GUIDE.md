@@ -58,7 +58,7 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs * que
 | rss.ha.service.id | | When this config is empty, RSS master will refuse to startup. |
 | rss.ha.nodes.{serviceId} |  | Nodes list that deploy RSS master. ServiceId is `rss.ha.service.id` |
 | rss.ha.address.{serviceId}.{node} | localhost:9872 | RSS master's rpc address for raft implementation. Port can be ignored and defaults to 9872 |
-| rss.ha.port | 9872 | Rpc port between multi master |
+| rss.ha.port.{serviceId}.{node} | 9872 | HA port between multi-master, default port is 9872. If you want to customize the HA port, you need to list all nodes' ports. |
 | rss.ha.storage.dir | /tmp/ratis | Directory of RSS master to store ratis metadata. |
 | rss.ha.ratis.snapshot.auto.trigger.enabled | true | Weather to enable raft implementation's snapshot. |
 | rss.ha.ratis.snapshot.auto.trigger.threshold | 200000 |  |
