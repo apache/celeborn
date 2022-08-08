@@ -406,6 +406,8 @@ private[deploy] class Master(
       }
     }
 
+    logDebug(s"allocate slots for shuffle ${shuffleKey} ${slots}")
+
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")

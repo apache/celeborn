@@ -19,12 +19,10 @@ package com.aliyun.emr.rss.common.meta
 
 import java.util
 import java.util.Objects
-import javax.annotation.concurrent.NotThreadSafe
 
-import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
+import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbDiskInfo, PbWorkerInfo}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
@@ -81,7 +79,7 @@ class WorkerInfo(
     val replicatePort: Int,
     val disks: util.Map[String, DiskInfo],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
-  var unknownDiskSlots = 0
+  var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
@@ -120,7 +118,8 @@ class WorkerInfo(
   }
 
   def usedSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.activeSlots).sum + unknownDiskSlots
+    disks.asScala.map(_._2.activeSlots).sum +
+      unknownDiskSlots.values().asScala.map(_.intValue()).sum
   }
 
   def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
@@ -129,7 +128,11 @@ class WorkerInfo(
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
         if (!disks.containsKey(disk)) {
           logDebug(s"Unknown disk ${disk}")
-          unknownDiskSlots = unknownDiskSlots + slots
+          if (unknownDiskSlots.containsKey(shuffleKey)) {
+            unknownDiskSlots.put(shuffleKey, slots + unknownDiskSlots.get(shuffleKey))
+          } else {
+            unknownDiskSlots.put(shuffleKey, slots)
+          }
         } else {
           disks.get(disk).allocateSlots(shuffleKey, slots)
         }
@@ -140,12 +143,17 @@ class WorkerInfo(
     slots.asScala.foreach { case (disk, slot) =>
       if (disks.containsKey(disk)) {
         disks.get(disk).releaseSlots(shuffleKey, slot)
+      } else {
+        if (unknownDiskSlots.containsKey(shuffleKey)) {
+          unknownDiskSlots.put(shuffleKey, unknownDiskSlots.get(shuffleKey) - slot)
+        }
       }
     }
   }
 
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
     disks.asScala.foreach(_._2.releaseSlots(shuffleKey))
+    unknownDiskSlots.remove(shuffleKey)
   }
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {

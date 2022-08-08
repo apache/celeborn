@@ -210,11 +210,11 @@ public class MasterUtil {
         slaveLocations._2.add(slavePartition);
       }
       Tuple2<List<PartitionLocation>, List<PartitionLocation>> masterLocations =
-        slots.computeIfAbsent(workers.get(masterIndex),
+        slots.computeIfAbsent(workers.get(nextMasterInd),
           v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
       masterLocations._1.add(masterPartition);
-      iter.remove();
       masterIndex = (nextMasterInd + 1) % workers.size();
+      iter.remove();
     }
     return partitionIdList;
   }
@@ -245,11 +245,9 @@ public class MasterUtil {
     int groupSizeSize = (int) Math.ceil(usableDisks.size() / (diskGroupCount * 1.0));
     for (int i = 0; i < diskGroupCount; i++) {
       List<DiskInfo> diskList = new ArrayList<>();
-      if (startIndex + groupSizeSize < diskCount) {
+      if (startIndex + groupSizeSize <= diskCount) {
         diskList.addAll(usableDisks.subList(startIndex, startIndex + groupSizeSize));
         startIndex += groupSizeSize;
-      } else {
-        diskList.addAll(usableDisks.subList(startIndex, diskCount));
       }
       diskGroups.add(diskList);
     }
@@ -267,20 +265,36 @@ public class MasterUtil {
         diskGroupTotalSlots[i] += disk.availableSlots();
       }
     }
-    int toNextGroup = 0;
+    double[] currentAllocation = new double[groupSize];
+    double currentAllocationSum = 0;
     for (int i = 0; i < groupSize; i++) {
-      if (required <= 0) {
+      if (groups.get(i).size() != 0) {
+        currentAllocationSum += taskAllocationRatio[i];
+      }
+    }
+    for (int i = 0; i < groupSize; i++) {
+      if (groups.get(i).size() != 0) {
+        currentAllocation[i] = taskAllocationRatio[i] / currentAllocationSum;
+      }
+    }
+    int toNextGroup = 0;
+    int left = required;
+    for (int i = 0; i < groupSize; i++) {
+      if (left <= 0) {
         break;
       }
       int estimateAllocation = (int) Math.ceil(
-          required * taskAllocationRatio[i]);
+          required * currentAllocation[i]);
+      if (estimateAllocation > left) {
+        estimateAllocation = left;
+      }
       if (estimateAllocation + toNextGroup > diskGroupTotalSlots[i]) {
         groupAllocations[i] = diskGroupTotalSlots[i];
         toNextGroup = estimateAllocation - diskGroupTotalSlots[i] + toNextGroup;
       } else {
         groupAllocations[i] = estimateAllocation + toNextGroup;
       }
-      required -= groupAllocations[i];
+      left -= groupAllocations[i];
     }
     for (int i = 0; i < groups.size(); i++) {
       int groupTotalSlots = diskGroupTotalSlots[i];

@@ -21,9 +21,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 import scala.Tuple2;
 
@@ -179,6 +181,30 @@ public class MasterUtilSuiteJ {
     check(workers, partitionIds, shouldReplicate, true);
   }
 
+  @Test
+  public void testAllocate3000ReduceIdsWithReplicate() {
+    final List<WorkerInfo> workers = prepareWorkers();
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+
+    check(workers, partitionIds, shouldReplicate, true);
+  }
+
+  @Test
+  public void testAllocate3000ReduceIdsWithoutReplicate() {
+    final List<WorkerInfo> workers = prepareWorkers();
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+
+    check(workers, partitionIds, shouldReplicate, true);
+  }
+
   private void check(
     List<WorkerInfo> workers,
     List<Integer> partitionIds,
@@ -195,6 +221,26 @@ public class MasterUtilSuiteJ {
             RssConf.diskGroups(rssConf),
             RssConf.diskGroupGradient(rssConf));
     if (expectSuccess) {
+      if (shouldReplicate) {
+        slots.forEach((k, v) -> {
+          Set<String> locationDuplicationSet = new HashSet<>();
+          v._1.stream().forEach(i -> {
+            String uniqueId = i.getUniqueId();
+            if (locationDuplicationSet.contains(uniqueId)) {
+              assert false;
+            }
+            locationDuplicationSet.add(uniqueId);
+            for (PartitionLocation location : v._1) {
+              if (!location.getHost().equals(k.host()) ||
+                      location.getRpcPort() != k.rpcPort() ||
+                      location.getPushPort() != k.pushPort() ||
+                      location.getFetchPort() != k.fetchPort()) {
+                assert false;
+              }
+            }
+          });
+        });
+      }
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
         MasterUtil.slotsToDiskAllocations(slots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
