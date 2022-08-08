@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shuffleservice-worker
+  labels:
+    app.kubernetes.io/name: shuffleserviceworker
+    app.kubernetes.io/role: worker
+    {{- include "remote-shuffle-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shuffleserviceworker
+      app.kubernetes.io/role: worker
+      {{- include "remote-shuffle-service.selectorLabels" . | nindent 6 }}
+  serviceName: shuffleservice-worker
+  replicas: {{ .Values.workerReplicas }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/name: shuffleserviceworker
+        app.kubernetes.io/role: worker
+        {{- include "remote-shuffle-service.selectorLabels" . | nindent 8 }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - shuffleserviceworker
+            topologyKey: "kubernetes.io/hostname"
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
+        command: 
+          - "/usr/bin/tini"
+          - "--"
+          - "/bin/sh"
+          - '-c'
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/rss-{{ .Values.rssVersion }}-bin-release/sbin/start-worker.sh"
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        ports:
+          - containerPort: {{ get .Values.rss "rss.worker.prometheus.metric.port" | default 9096 }}
+            name: metrics
+            protocol: TCP
+        volumeMounts:
+          {{- if .Values.configmap }}
+          - mountPath: /opt/rss-{{ .Values.rssVersion }}-bin-release/conf
+            name: {{ include "remote-shuffle-service.fullname" . }}-volume
+            readOnly: true
+          {{- end }}
+          {{- $dirs := get .Values.rss "rss.worker.base.dirs" | splitList "," -}}
+          {{- range $index, $dir := $dirs }}
+          - mountPath: {{ $dir }} 
+            name: vol-{{ $index }}
+          {{- end }}
+        env:
+          - name:  TZ
+            value: "Asia/Shanghai"
+          - name:  RSS_NO_DAEMONIZE
+            value: "yes"
+          {{- range $key, $val := .Values.environments }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end}}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            name: {{ .Values.configmap }}
+          name: {{ include "remote-shuffle-service.fullname" . }}-volume
+        {{- range $index, $dir := $dirs }}
+        - hostPath:
+            path: {{ $dir }}/worker
+            type: DirectoryOrCreate
+          name: vol-{{ $index }}
+        {{- end }} 
+

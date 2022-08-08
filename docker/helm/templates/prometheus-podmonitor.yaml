@@ -1,0 +1,39 @@
+{{ if .Values.podMonitor.enable }}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: shuffleservice-master-podmonitor
+spec:
+  podMetricsEndpoints:
+    - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
+      port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
+      scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
+      path: /metrics/prometheus
+  jobLabel: shuffleservice-master-podmonitor
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shuffleservicemaster
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: shuffleservice-worker-podmonitor
+spec:
+  podMetricsEndpoints:
+    - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
+      port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
+      scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
+      path: /metrics/prometheus
+  jobLabel: shuffleservice-worker-podmonitor
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shuffleserviceworker
+{{ end }}
+{{- end }}
