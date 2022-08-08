@@ -293,7 +293,7 @@ public class PartitionFilesSorter {
       getChunkOffsets(startMapIndex, endMapIndex, sortedFileName, indexMap));
   }
 
-  class ShuffleBlockInfo {
+  static class ShuffleBlockInfo {
     protected long offset;
     protected long length;
   }

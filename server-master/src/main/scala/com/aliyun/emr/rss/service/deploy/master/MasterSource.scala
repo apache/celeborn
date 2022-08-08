@@ -43,6 +43,8 @@ object MasterSource {
 
   val RegisteredShuffleCount = "RegisteredShuffleCount"
 
+  val IsActiveMaster = "IsActiveMaster"
+
   val PartitionSize = "PartitionSize"
 
 }
