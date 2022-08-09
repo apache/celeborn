@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters.bufferAsJavaListConverter
+import scala.collection.mutable
 
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._
@@ -269,7 +270,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
       when(fw1.reportError(workingDir1, null, DeviceErrorType.IoHang))
-        .thenAnswer((workingDir: File, e: IOException) => {
+        .thenAnswer((workingDir: mutable.Buffer[File], e: IOException) => {
           deviceMonitor.reportDeviceError(workingDir1, null, DeviceErrorType.IoHang)
         })
       val dirs = new jArrayList[File]()
@@ -290,7 +291,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
 
       when(df4.reportError(workingDir4, null, DeviceErrorType.IoHang))
-        .thenAnswer((workingDir: File, e: IOException) => {
+        .thenAnswer((workingDir: mutable.Buffer[File], e: IOException) => {
           deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
         })
       when(fw3.notifyError(any(), any(), any()))

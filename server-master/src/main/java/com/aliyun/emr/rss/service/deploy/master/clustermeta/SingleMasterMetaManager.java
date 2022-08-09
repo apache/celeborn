@@ -65,7 +65,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     long fileCount,
     long time,
     String requestId) {
-    updateAppHeartBeatMeta(appId, time);
+    updateAppHeartBeatMeta(appId, time, totalWritten, fileCount);
   }
 
   @Override

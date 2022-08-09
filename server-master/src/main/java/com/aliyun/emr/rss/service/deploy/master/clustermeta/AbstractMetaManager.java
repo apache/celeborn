@@ -19,7 +19,6 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,9 +79,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     if (!workerWithAllocations.isEmpty()) {
       synchronized (workers) {
-        Iterator<WorkerInfo> workerIter = workers.iterator();
-        while (workerIter.hasNext()) {
-          WorkerInfo workerInfo = workerIter.next();
+        for (WorkerInfo workerInfo : workers) {
           String workerUniqueId = workerInfo.toUniqueId();
           if (workerWithAllocations.containsKey(workerUniqueId)) {
             workerInfo.allocateSlots(shuffleKey, workerWithAllocations.get(workerUniqueId));
@@ -99,8 +96,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateReleaseSlotsMeta(String shuffleKey, List<String> workerIds,
       List<Map<String, Integer>> slots) {
     if (workerIds != null && !workerIds.isEmpty()) {
-      for (int i = 0; i < workerIds.size(); i++) {
-        WorkerInfo worker = WorkerInfo.fromUniqueId(workerIds.get(i));
+      for (String workerId : workerIds) {
+        WorkerInfo worker = WorkerInfo.fromUniqueId(workerId);
         for (int j = 0; j < workers.size(); j++) {
           WorkerInfo w = workers.get(j);
           if (w.equals(worker)) {
@@ -119,8 +116,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredShuffle.remove(shuffleKey);
   }
 
-  public void updateAppHeartBeatMeta(String appId, long time) {
+  public void updateAppHeartBeatMeta(String appId, long time, long totalWritten, long fileCount) {
     appHeartbeatTime.put(appId, time);
+    partitionTotalWritten.add(totalWritten);
+    partitionTotalFileCount.add(fileCount);
   }
 
   public void updateAppLostMeta(String appId) {
@@ -181,7 +180,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     try {
       workerInfo.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
     } catch (Exception e) {
-      LOG.error("Worker register failed , {}", e);
+      LOG.error("Worker register failed", e);
       return;
     }
 
@@ -317,6 +316,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long oldEstimatedPartitionSize = estimatedPartitionSize;
     long tmpTotalWritten = partitionTotalWritten.sumThenReset();
     long tmpFileCount = partitionTotalFileCount.sumThenReset();
+    LOG.debug("update partition size total written {} file count{}", tmpTotalWritten, tmpFileCount);
     if (tmpFileCount != 0) {
       estimatedPartitionSize = tmpTotalWritten / tmpFileCount;
     } else {
@@ -324,8 +324,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     LOG.warn("Rss cluster estimated partition size changed from {} to {}",
       oldEstimatedPartitionSize, estimatedPartitionSize);
-    workers.stream().filter(worker -> !blacklist.contains(worker)).forEach(workerInfo -> {
-      workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
-    });
+    workers.stream().filter(worker -> !blacklist.contains(worker)).forEach(
+      workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 }

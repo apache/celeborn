@@ -115,6 +115,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
           val tmpTotalWritten = totalWritten.sumThenReset()
           val tmpFileCount = fileCount.sumThenReset()
+          logDebug(s"Send app heart beat with $tmpTotalWritten $tmpFileCount")
           val appHeartbeat =
             HeartBeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
           rssHARetryClient.send(appHeartbeat)
@@ -495,7 +496,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     epoch: Int): PartitionLocation = {
     val locs = workerSnapshots(shuffleId).values().asScala
       .flatMap(_.getLocationWithMaxEpoch(shuffleId.toString, partitionId))
-    if (!locs.isEmpty) {
+    if (locs.nonEmpty) {
       val latestLoc = locs.maxBy(_.getEpoch)
       if (latestLoc.getEpoch > epoch) {
         return latestLoc
@@ -721,14 +722,25 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       committedMasterIds.asScala.foreach { id =>
         val partition = masterPartMap.get(id)
-        partition.setStorageHint(committedMasterStorageHints.get(id))
+        val storageHint = if (committedMasterStorageHints.get(id) == null) {
+          logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
+          new StorageInfo()
+        } else {
+          committedMasterStorageHints.get(id)
+        }
+        partition.setStorageHint(storageHint)
         committedPartitions.put(id, partition)
       }
 
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
-        val storageHint = committedSlaveStorageHints.get(id)
-        slavePartition.setStorageHint(committedSlaveStorageHints.get(id))
+        val storageHint = if (committedSlaveStorageHints.get(id) == null) {
+          logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
+          new StorageInfo()
+        } else {
+          committedSlaveStorageHints.get(id)
+        }
+        slavePartition.setStorageHint(storageHint)
         val masterPartition = committedPartitions.get(id)
         if (masterPartition ne null) {
           masterPartition.setPeer(slavePartition)
@@ -834,11 +846,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           if (res.status.equals(StatusCode.Success)) {
             logDebug(s"Successfully allocated " +
               s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress}.")
+              s" from worker ${workerInfo.readableAddress()}.")
           } else {
             logError(s"[reserveSlots] Failed to" +
               s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress}. Reason: ${res.reason}")
+              s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
             reserveSlotFailedWorkers.add(workerInfo)
           }
         }
@@ -882,7 +894,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                 WORKER_EP)
             } catch {
               case t: Throwable =>
-                logError(s"Init rpc client failed for ${destroyWorkerInfo.readableAddress}", t)
+                logError(s"Init rpc client failed for ${destroyWorkerInfo.readableAddress()}", t)
                 destroyWorkerInfo = null
             }
             destroyWorkerInfo

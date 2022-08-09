@@ -64,6 +64,8 @@ message UnregisterShuffleRequest {
 message AppHeartbeatRequest {
   required string appId = 1;
   required int64 time = 2;
+  required int64 totalWritten = 3;
+  required int64 fileCount = 4;
 }
 
 message AppLostRequest {

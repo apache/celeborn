@@ -33,7 +33,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
   private lazy val isDriver: Boolean = SparkEnv.get.executorId == SparkContext.DRIVER_IDENTIFIER
-  private val cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+  private val cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1)
 
   // Read RssConf from SparkConf
   private lazy val rssConf = RssShuffleManager.fromSparkConf(conf)
@@ -122,7 +122,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     handle match {
       case h: RssShuffleHandle[K@unchecked, V@unchecked, _] =>
-        val client = ShuffleClient.get(h.essMetaServiceHost, h.essMetaServicePort, rssConf)
+        val client = ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf)
         if (RssConf.shuffleWriterMode(rssConf) == "sort") {
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMappers,
             context, rssConf, client, metrics)
@@ -318,8 +318,8 @@ object RssShuffleManager {
 
 class RssShuffleHandle[K, V, C](
     val newAppId: String,
-    val essMetaServiceHost: String,
-    val essMetaServicePort: Int,
+    val rssMetaServiceHost: String,
+    val rssMetaServicePort: Int,
     shuffleId: Int,
     val numMappers: Int,
     dependency: ShuffleDependency[K, V, C])

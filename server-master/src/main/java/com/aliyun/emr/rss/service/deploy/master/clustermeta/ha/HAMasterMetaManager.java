@@ -137,6 +137,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setAppHeartbeatRequest(
                   ResourceProtos.AppHeartbeatRequest.newBuilder()
                       .setAppId(appId).setTime(time)
+                      .setTotalWritten(256 * 1024L * 1024)
+                      .setFileCount(1024)
                       .build())
               .build());
     } catch (ServiceException e) {

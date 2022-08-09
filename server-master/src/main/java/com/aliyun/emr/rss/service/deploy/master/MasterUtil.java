@@ -296,6 +296,8 @@ public class MasterUtil {
       }
       left -= groupAllocations[i];
     }
+    logger.debug("total {} allocate with group {}", required,
+        StringUtils.join(groupAllocations, ","));
     for (int i = 0; i < groups.size(); i++) {
       int groupTotalSlots = diskGroupTotalSlots[i];
       int groupRequired = groupAllocations[i];

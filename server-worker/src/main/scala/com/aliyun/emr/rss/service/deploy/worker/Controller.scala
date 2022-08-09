@@ -167,7 +167,7 @@ private[deploy] class Controller(
     logInfo(
       s"Reserved ${masterPartitions.size()} master location" +
         s" and ${slavePartitions.size()} slave location for $shuffleKey " +
-        s"master: ${masterPartitions}\nslave: ${slavePartitions}."
+        s"master: $masterPartitions\nslave: $slavePartitions."
     )
     context.reply(ReserveSlotsResponse(StatusCode.Success))
   }
@@ -293,6 +293,8 @@ private[deploy] class Controller(
       val releaseSlaveLocations = partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
       logDebug(s"$shuffleKey remove" +
         s" slots count ${releaseMasterLocations._2 + releaseSlaveLocations._2}")
+      logDebug(s"CommitFiles result" +
+        s" $committedMasterStorageHints $committedSlaveStorageHints")
       workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
       workerInfo.releaseSlots(shuffleKey, releaseSlaveLocations._1)
 
