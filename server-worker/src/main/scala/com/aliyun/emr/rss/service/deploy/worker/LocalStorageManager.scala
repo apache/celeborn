@@ -54,6 +54,7 @@ private[worker] final class DiskFlusher(
   val deviceMonitor: DeviceMonitor,
   val threadCount: Int,
   val mountPoint: String,
+  val timeWindow: Int,
   val diskType: StorageInfo.Type) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
@@ -62,6 +63,8 @@ private[worker] final class DiskFlusher(
   private var nextWorkerIndex: Int = 0
   private val flushCount = new LongAdder
   private val flushTotalTime = new LongAdder
+  private val avgTimeWindow = new Array[(Long, Long)](timeWindow)
+  private var avgTimeWindowCurrentIndex = 0
   private val usedSlots = new LongAdder
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
@@ -71,6 +74,9 @@ private[worker] final class DiskFlusher(
   init()
 
   private def init(): Unit = {
+    for (i <- 0 until (timeWindow)) {
+      avgTimeWindow(i) = (0L, 0L)
+    }
     for (index <- 0 until threadCount) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
       workers(index) = new Thread(s"$this-$index") {
@@ -120,10 +126,20 @@ private[worker] final class DiskFlusher(
   }
 
   def averageFlushTime(): Long = {
-    val tmpFlushTotalTime = flushTotalTime.sumThenReset()
-    val tmpFlushCount = flushCount.sumThenReset()
-    if (tmpFlushCount != 0) {
-      tmpFlushTotalTime / tmpFlushCount
+    val currentFlushTime = flushTotalTime.sumThenReset()
+    val currentFlushCount = flushCount.sumThenReset()
+    avgTimeWindow(avgTimeWindowCurrentIndex) = (currentFlushTime, currentFlushCount)
+    avgTimeWindowCurrentIndex = (avgTimeWindowCurrentIndex + 1) % timeWindow
+
+    var totalFlushTime = 0L
+    var totalFlushCount = 0L
+    avgTimeWindow.foreach { case (flushTime, flushCount) =>
+      totalFlushTime = totalFlushTime + flushTime
+      totalFlushCount = totalFlushCount + flushCount
+    }
+
+    if (totalFlushCount != 0) {
+      totalFlushTime / totalFlushCount
     } else {
       0L
     }
@@ -270,6 +286,7 @@ private[worker] final class LocalStorageManager(
           deviceMonitor,
           workingDirMetas(firstWorkingDirPath)._2,
           mountPointFile.getAbsolutePath,
+          RssConf.flushAvgTimeWindow(conf),
           workingDirMetas(firstWorkingDirPath)._3
         )
         flushers.put(mountPointFile, flusher)
@@ -330,6 +347,7 @@ private[worker] final class LocalStorageManager(
             deviceMonitor,
             workingDirMetas(dirs.head.getAbsolutePath)._2,
             mountInfos.get(dirs.head.getAbsolutePath).mountPoint,
+            RssConf.flushAvgTimeWindow(conf),
             workingDirMetas(dirs.head.getAbsolutePath)._3
           )
           diskFlushers.put(mountPointFile, flusher)
@@ -357,6 +375,7 @@ private[worker] final class LocalStorageManager(
           deviceMonitor,
           workingDirMetas(dir.getAbsolutePath)._2,
           mountInfos.get(dir.getAbsolutePath).mountPoint,
+          RssConf.flushAvgTimeWindow(conf),
           workingDirMetas(dir.getAbsolutePath)._3
         )
         diskFlushers.put(dir, flusher)

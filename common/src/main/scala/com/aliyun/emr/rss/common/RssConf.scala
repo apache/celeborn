@@ -905,6 +905,10 @@ object RssConf extends Logging {
     algorithm
   }
 
+  def flushAvgTimeWindow(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.avg.time.window", 20);
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

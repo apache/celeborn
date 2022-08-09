@@ -116,6 +116,7 @@ public class FileWriterSuiteJ {
       DeviceMonitor$.MODULE$.EmptyMonitor(),
       1,
       "disk1",
+      20,
       StorageInfo.Type.HDD);
     MemoryTracker.initialize(0.8,
       0.9,
@@ -313,6 +314,7 @@ public class FileWriterSuiteJ {
         DeviceMonitor$.MODULE$.EmptyMonitor(),
         1,
         "disk2",
+        20,
         StorageInfo.Type.HDD);
   }
 
