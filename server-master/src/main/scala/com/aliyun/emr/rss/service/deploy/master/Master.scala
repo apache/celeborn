@@ -100,6 +100,9 @@ private[deploy] class Master(
           true
         }
       })
+    // is master active under HA mode
+    source.addGauge(MasterSource.IsActiveMaster,
+      _ => isMasterActive)
 
     metricsSystem.registerSource(source)
     metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
@@ -527,6 +530,20 @@ private[deploy] class Master(
         logError(s"AskSync ThreadDump failed.", e)
         ThreadDumpResponse("Unknown")
     }
+  }
+
+  private def isMasterActive: Int = {
+    // use int rather than bool for better monitoring on dashboard
+    val isActive = if (haEnabled(conf)) {
+      if (statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.isLeader) {
+        1
+      } else {
+        0
+      }
+    } else {
+      1
+    }
+    isActive
   }
 }
 

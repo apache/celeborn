@@ -54,16 +54,6 @@ Build for Spark 3
 ./dev/make-distribution.sh -Pspark-3 -Plog4j-1/-Plog4j-2
 `
 
-Build for Spark 2 on MacOS Apple M1/Arm(For testing purposes only, not recommended for production.)  
-`
-./dev/make-distribution.sh -Pspark-2 -Plog4j-1/-Plog4j-2 -Dos.detected.name=osx -Dos.detected.arch=x86_64 -Dos.detected.classifier=osx-x86_64
-`
-
-Build for Spark 3 on MacOS Apple M1/Arm(For testing purposes only, not recommended for production.)   
-`
-./dev/make-distribution.sh -Pspark-3 -Plog4j-1/-Plog4j-2 -Dos.detected.name=osx -Dos.detected.arch=x86_64 -Dos.detected.classifier=osx-x86_64
-`
-
 package rss-${project.version}-bin-release.tgz will be generated.
 
 ### Package Details
@@ -129,6 +119,10 @@ rss.ha.address.dev-cluster.node2 host2
 rss.ha.address.dev-cluster.node3 host3
 rss.ha.storage.dir /mnt/disk1/rss_ratis/
 rss.ha.master.hosts host1,host2,host3
+# If you want to customize HA port
+rss.ha.port.dev-cluster.node1 9872
+rss.ha.port.dev-cluster.node2 9872
+rss.ha.port.dev-cluster.node3 9872
 ```
 4. Copy RSS and configurations to all nodes
 5. Start RSS master
