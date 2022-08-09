@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shuffleservice-master
+  labels:
+    app.kubernetes.io/name: shuffleservicemaster
+    app.kubernetes.io/role: master
+    {{- include "remote-shuffle-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shuffleservicemaster
+      app.kubernetes.io/role: master
+      {{- include "remote-shuffle-service.selectorLabels" . | nindent 6 }}
+  serviceName: rss-svc
+  replicas: {{ .Values.masterReplicas }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/name: shuffleservicemaster
+        app.kubernetes.io/role: master
+        {{- include "remote-shuffle-service.selectorLabels" . | nindent 8 }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - shuffleservicemaster
+            topologyKey: kubernetes.io/hostname
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
+        command:
+          - "/usr/bin/tini"
+          - "--"
+          - "/bin/sh"
+          - '-c'
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/rss-{{ .Values.rssVersion }}-bin-release/sbin/start-master.sh"
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        ports:
+          - containerPort: {{ .Values.service.port }}
+          - containerPort: {{ get .Values.rss "rss.master.prometheus.metric.port" | default 9098 }}
+            name: metrics
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /opt/rss-{{ .Values.rssVersion }}-bin-release/conf
+            name: {{ include "remote-shuffle-service.fullname" . }}-volume
+            readOnly: true
+          - name: {{ include "remote-shuffle-service.fullname" . }}-master-ratis
+            mountPath: {{get .Values.rss "rss.ha.storage.dir"}}
+        env:
+          - name:  TZ
+            value: "Asia/Shanghai"
+          - name:  RSS_NO_DAEMONIZE
+            value: "yes"
+          {{- range $key, $val := .Values.environments }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end}}
+      terminationGracePeriodSeconds: 30 
+      volumes:
+        - configMap:
+            name: {{ .Values.configmap }}
+          name: {{ include "remote-shuffle-service.fullname" . }}-volume 
+        {{- $dirs := get .Values.rss "rss.worker.base.dirs" | splitList ","}}
+        - hostPath:
+            path: {{ index $dirs 0 }}/ratis
+            type: DirectoryOrCreate
+          name: {{ include "remote-shuffle-service.fullname" . }}-master-ratis
