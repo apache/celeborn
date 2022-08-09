@@ -4,16 +4,16 @@
 
 # we provide a default rss image, you can also replace to your image
 image:
-  repository: registry.cn-shanghai.aliyuncs.com/emr-ack/remote-shuffle-service
+  repository: aliyunemr/remote-shuffle-service
   pullPolicy: Always
-  tag: rss-0.1.1-6badd20
+  tag: 0.1.1-6badd20
 
 imagePullSecrets: {}
 
 # master replicas should not less than 3
 masterReplicas: 3
 # worker replicas set on demand, should less than node number
-workerReplicas: 10
+workerReplicas: 5
 
 # rss release version
 rssVersion: 0.1.1

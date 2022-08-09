@@ -98,4 +98,3 @@ spec:
             type: DirectoryOrCreate
           name: vol-{{ $index }}
         {{- end }} 
-
