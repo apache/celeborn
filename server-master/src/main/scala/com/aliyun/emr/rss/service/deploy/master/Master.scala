@@ -283,9 +283,7 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot
-      .asScala
-      .find(_ == targetWorker)
-      .isDefined
+      .asScala.exists(_ == targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -406,7 +404,11 @@ private[deploy] class Master(
       }
     }
 
-    logDebug(s"allocate slots for shuffle ${shuffleKey} ${slots}")
+    if (log.isDebugEnabled()) {
+      val distributions = MasterUtil.slotsToDiskAllocations(slots)
+      logDebug(s"allocate slots for shuffle $shuffleKey $slots" +
+        s" distributions: ${distributions.asScala.map(m => m._1.toUniqueId() -> m._2)}")
+    }
 
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {

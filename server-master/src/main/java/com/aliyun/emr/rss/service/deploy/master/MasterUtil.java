@@ -113,7 +113,7 @@ public class MasterUtil {
     }
     if ((shouldReplicate && usableWorkers.size() <= 1) || usableDisks.isEmpty()) {
       logger.warn("offer slots for {} fallback to roundrobin because there is no usable disks",
-          StringUtils.join(partitionIds, ","));
+          StringUtils.join(partitionIds, ','));
       return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate);
     }
 
@@ -231,7 +231,7 @@ public class MasterUtil {
           Math.pow(1 + diskGroupGradient, diskGroups - 1 - i) / totalAllocations;
     }
     logger.info("load-aware offer slots algorithm init with taskAllocationRatio {}",
-        StringUtils.join(taskAllocationRatio, ","));
+        StringUtils.join(taskAllocationRatio, ','));
     initialized = true;
   }
 
@@ -242,12 +242,18 @@ public class MasterUtil {
                          Math.toIntExact(o1.avgFlushTime() - o2.avgFlushTime()));
     int diskCount = usableDisks.size();
     int startIndex = 0;
-    int groupSizeSize = (int) Math.ceil(usableDisks.size() / (diskGroupCount * 1.0));
+    int groupSizeSize = (int) Math.ceil(usableDisks.size() / (double) diskGroupCount);
     for (int i = 0; i < diskGroupCount; i++) {
       List<DiskInfo> diskList = new ArrayList<>();
+      if (startIndex >= usableDisks.size()) {
+        continue;
+      }
       if (startIndex + groupSizeSize <= diskCount) {
         diskList.addAll(usableDisks.subList(startIndex, startIndex + groupSizeSize));
         startIndex += groupSizeSize;
+      } else {
+        diskList.addAll(usableDisks.subList(startIndex, usableDisks.size()));
+        startIndex = usableDisks.size();
       }
       diskGroups.add(diskList);
     }
@@ -257,9 +263,9 @@ public class MasterUtil {
   private static Map<WorkerInfo, Map<DiskInfo, Integer>> getRestriction(List<List<DiskInfo>> groups,
       Map<DiskInfo, WorkerInfo> diskWorkerMap, int required) {
     int groupSize = groups.size();
-    int[] groupAllocations = new int[groupSize];
+    long[] groupAllocations = new long[groupSize];
     Map<WorkerInfo, Map<DiskInfo, Integer>> workerAllocations = new HashMap<>();
-    int[] diskGroupTotalSlots = new int[groupSize];
+    long[] diskGroupTotalSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
       for (DiskInfo disk : groups.get(i)) {
         diskGroupTotalSlots[i] += disk.availableSlots();
@@ -277,13 +283,13 @@ public class MasterUtil {
         currentAllocation[i] = taskAllocationRatio[i] / currentAllocationSum;
       }
     }
-    int toNextGroup = 0;
-    int left = required;
+    long toNextGroup = 0;
+    long left = required;
     for (int i = 0; i < groupSize; i++) {
       if (left <= 0) {
         break;
       }
-      int estimateAllocation = (int) Math.ceil(
+      long estimateAllocation = (int) Math.ceil(
           required * currentAllocation[i]);
       if (estimateAllocation > left) {
         estimateAllocation = left;
@@ -296,25 +302,43 @@ public class MasterUtil {
       }
       left -= groupAllocations[i];
     }
-    logger.debug("total {} allocate with group {}", required,
-        StringUtils.join(groupAllocations, ","));
     for (int i = 0; i < groups.size(); i++) {
-      int groupTotalSlots = diskGroupTotalSlots[i];
-      int groupRequired = groupAllocations[i];
+      long groupTotalSlots = diskGroupTotalSlots[i];
+      long groupRequired = groupAllocations[i];
       for (DiskInfo disk : groups.get(i)) {
         if (groupRequired <= 0) {
           break;
         }
         Map<DiskInfo, Integer> diskAllocation =
             workerAllocations.computeIfAbsent(diskWorkerMap.get(disk), v -> new HashMap<>());
-        int allocated = (int) Math.ceil(
+        long allocated = (int) Math.ceil(
             groupAllocations[i] * (disk.availableSlots() / (double) groupTotalSlots));
         if (allocated > groupRequired) {
           allocated = groupRequired;
         }
-        diskAllocation.put(disk, allocated);
+        diskAllocation.put(disk, Math.toIntExact(allocated));
         groupRequired -= allocated;
       }
+    }
+    if (logger.isDebugEnabled()) {
+      StringBuffer sb = new StringBuffer();
+      for (int i = 0; i < groups.size(); i++) {
+        sb.append("| group ").append(i).append(" ");
+        for (DiskInfo diskInfo : groups.get(i)) {
+          WorkerInfo workerInfo = diskWorkerMap.get(diskInfo);
+          String workerHost = workerInfo.host();
+          int allocation = 0;
+          if (workerAllocations.get(workerInfo) != null) {
+            allocation = workerAllocations.get(workerInfo).getOrDefault(diskInfo, 0);
+          }
+          sb.append(workerHost).append("-").append(diskInfo.mountPoint()).append(" flushtime:")
+              .append(diskInfo.avgFlushTime()).append(" allocation: ")
+              .append(allocation).append(" ");
+        }
+        sb.append(" | ");
+      }
+      logger.debug("total {} allocate with group {} with allocations {}", required,
+          StringUtils.join(groupAllocations, ','), sb);
     }
     return workerAllocations;
   }

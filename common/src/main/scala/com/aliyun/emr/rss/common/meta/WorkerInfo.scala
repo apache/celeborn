@@ -127,7 +127,7 @@ class WorkerInfo(
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
         if (!disks.containsKey(disk)) {
-          logDebug(s"Unknown disk ${disk}")
+          logDebug(s"Unknown disk $disk")
           if (unknownDiskSlots.containsKey(shuffleKey)) {
             unknownDiskSlots.put(shuffleKey, slots + unknownDiskSlots.get(shuffleKey))
           } else {
@@ -198,16 +198,17 @@ class WorkerInfo(
   }
 
   def updateDiskInfos(newDiskInfos: java.util.Map[String, DiskInfo],
-      estimatedPartitionSize: Long): Unit = this.synchronized {
+    estimatedPartitionSize: Long): Unit = this.synchronized {
     import scala.collection.JavaConverters._
     for (diskInfoEntry <- newDiskInfos.entrySet.asScala) {
       val mountPoint: String = diskInfoEntry.getKey
       if (disks.containsKey(mountPoint)) {
         disks.get(mountPoint).activeSlots_$eq(Math.max(disks.get(mountPoint).activeSlots,
           disks.get(mountPoint).activeSlots))
-        disks.get(mountPoint).avgFlushTime_$eq(disks.get(mountPoint).avgFlushTime)
-      }
-      else {
+        disks.get(mountPoint).avgFlushTime_$eq(newDiskInfos.get(mountPoint).avgFlushTime)
+        disks.get(mountPoint)
+          .maxSlots_$eq(disks.get(mountPoint).usableSpace / estimatedPartitionSize)
+      } else {
         val diskInfo: DiskInfo = diskInfoEntry.getValue
         diskInfo.maxSlots_$eq(diskInfo.usableSpace / estimatedPartitionSize)
         disks.put(mountPoint, diskInfo)
@@ -217,7 +218,7 @@ class WorkerInfo(
     val nonExistsMountPoints: java.util.Set[String] = new util.HashSet[String]
     nonExistsMountPoints.addAll(disks.keySet)
     nonExistsMountPoints.removeAll(newDiskInfos.keySet)
-    if (!(nonExistsMountPoints.isEmpty)) {
+    if (!nonExistsMountPoints.isEmpty) {
       for (nonExistsMountPoint <- nonExistsMountPoints.asScala) {
         disks.remove(nonExistsMountPoint)
       }

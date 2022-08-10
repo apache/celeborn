@@ -149,6 +149,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks,
         null);
     AtomicLong availableSlots = new AtomicLong();
+    LOG.debug("update worker {}:{} heart beat {}", host, rpcPort, disks);
     synchronized (workers) {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(info -> {

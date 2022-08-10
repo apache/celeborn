@@ -212,6 +212,8 @@ public class MasterUtilSuiteJ {
     boolean expectSuccess) {
     String shuffleKey = "appId-1";
     RssConf rssConf = new RssConf();
+    rssConf.set("rss.disk.groups","2");
+    rssConf.set("rss.disk.group.gradient","1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         MasterUtil.offerSlotsLoadAware(
             workers,
@@ -226,17 +228,13 @@ public class MasterUtilSuiteJ {
           Set<String> locationDuplicationSet = new HashSet<>();
           v._1.stream().forEach(i -> {
             String uniqueId = i.getUniqueId();
-            if (locationDuplicationSet.contains(uniqueId)) {
-              assert false;
-            }
+            assert !locationDuplicationSet.contains(uniqueId);
             locationDuplicationSet.add(uniqueId);
             for (PartitionLocation location : v._1) {
-              if (!location.getHost().equals(k.host()) ||
-                      location.getRpcPort() != k.rpcPort() ||
-                      location.getPushPort() != k.pushPort() ||
-                      location.getFetchPort() != k.fetchPort()) {
-                assert false;
-              }
+              assert location.getHost().equals(k.host()) &&
+                         location.getRpcPort() == k.rpcPort() &&
+                         location.getPushPort() == k.pushPort() &&
+                         location.getFetchPort() == k.fetchPort();
             }
           });
         });
