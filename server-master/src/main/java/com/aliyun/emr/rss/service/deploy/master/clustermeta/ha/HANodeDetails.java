@@ -111,8 +111,9 @@ public class HANodeDetails {
 
       if (!addr.isUnresolved() && isLocalAddress(addr.getAddress())) {
         if (isLocalPortOccupied(addr.getPort())) {
-          throwConfException("This machine's Ratis port %s has been occupied, please refer to configuration " +
-                  "guide to set it as another port in config file for all nodes.", Integer.toString(ratisPort));
+          throwConfException("This machine's Ratis port %s has been occupied, " +
+              "please refer to configuration guide to set it as another port " +
+              "in config file for all nodes.", Integer.toString(ratisPort));
           return null;
         }
         localRpcAddress = addr;
@@ -170,9 +171,9 @@ public class HANodeDetails {
 
   public static boolean isLocalPortOccupied(int port) {
     try (ServerSocket ss = new ServerSocket(port); DatagramSocket ds = new DatagramSocket(port)) {
-      return true;
-    } catch (Exception e) {
       return false;
+    } catch (Exception e) {
+      return true;
     }
   }
 }
