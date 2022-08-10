@@ -1,0 +1,82 @@
+# Default values for remote-shuffle-service.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# we provide a default rss image, you can also replace to your image
+image:
+  repository: aliyunemr/remote-shuffle-service
+  pullPolicy: Always
+  tag: 0.1.1-6badd20
+
+imagePullSecrets: {}
+
+# master replicas should not less than 3
+masterReplicas: 3
+# worker replicas set on demand, should less than node number
+workerReplicas: 5
+
+# rss release version
+rssVersion: 0.1.1
+
+# rss configurations
+rss:
+  # please update rss.worker.base.dirs to disk mount path on k8s node
+  rss.worker.base.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+  rss.push.data.replicate: true
+  rss.master.prometheus.metric.port: 9098
+  rss.device.monitor.enabled: false
+  rss.rpc.io.serverThreads: 64
+  rss.worker.flush.queue.capacity: 1024
+  rss.worker.fetch.chunk.size: 8m
+  rss.rpc.io.numConnectionsPerPeer: 8
+  rss.worker.flush.buffer.size: 256K
+  rss.metrics.system.enable: true
+  rss.push.io.threads: 32
+  rss.fetch.io.threads: 32
+  rss.stage.end.timeout: 120s
+  rss.worker.prometheus.metric.port: 9096
+  rss.rpc.io.clientThreads: 64
+  rss.application.timeout: 120s
+  rss.rpc.dispatcher.numThreads: 4
+  rss.worker.timeout: 120s
+  rss.ha.storage.dir: /mnt/rss_ratis/
+
+environments:
+  RSS_MASTER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
+  RSS_WORKER_MEMORY: 2g
+  RSS_MASTER_MEMORY: 2g
+  RSS_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
+  RSS_WORKER_OFFHEAP_MEMORY: 12g
+
+podMonitor:
+  enable: true
+  podMetricsEndpoint:
+    scheme: http
+    interval: 5s
+    portName: metrics
+
+service:
+  type: ClusterIP
+  port: 9097
+
+configmap: shuffle-service-conf
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+podAnnotations: {}
+
+affinity: {}
+
+tolerations: []
+
+nodeSelector: {}
