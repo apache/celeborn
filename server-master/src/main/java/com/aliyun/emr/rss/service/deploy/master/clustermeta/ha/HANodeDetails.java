@@ -17,9 +17,11 @@
 
 package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -108,6 +110,11 @@ public class HANodeDetails {
       }
 
       if (!addr.isUnresolved() && isLocalAddress(addr.getAddress())) {
+        if (isLocalPortOccupied(addr.getPort())) {
+          throwConfException("This machine's Ratis port %s has been occupied, please refer to configuration " +
+                  "guide to set it as another port in config file for all nodes.", Integer.toString(ratisPort));
+          return null;
+        }
         localRpcAddress = addr;
         localServiceId = serviceId;
         localNodeId = nodeId;
@@ -159,5 +166,13 @@ public class HANodeDetails {
     }
 
     return local;
+  }
+
+  public static boolean isLocalPortOccupied(int port) {
+    try (ServerSocket ss = new ServerSocket(port); DatagramSocket ds = new DatagramSocket(port)) {
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 }
