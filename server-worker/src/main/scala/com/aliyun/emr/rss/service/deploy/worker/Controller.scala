@@ -177,7 +177,7 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: jSet[String],
       failedIds: jSet[String],
-      committedStorageHints: java.util.HashMap[String, StorageInfo],
+      committedStorageHints: ConcurrentHashMap[String, StorageInfo],
       writtenList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
@@ -253,8 +253,8 @@ private[deploy] class Controller(
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
-    val committedMasterStorageHints = new jHashMap[String, StorageInfo]()
-    val committedSlaveStorageHints = new jHashMap[String, StorageInfo]()
+    val committedMasterStorageHints = new ConcurrentHashMap[String, StorageInfo]()
+    val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageInfo]()
     val committedWrittenSize = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
