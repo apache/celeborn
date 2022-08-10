@@ -17,6 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -170,10 +171,25 @@ public class HANodeDetails {
   }
 
   public static boolean isLocalPortOccupied(int port) {
-    try (ServerSocket ss = new ServerSocket(port); DatagramSocket ds = new DatagramSocket(port)) {
+    ServerSocket ss = null;
+    DatagramSocket ds = null;
+    try {
+      ss = new ServerSocket(port);
+      ds = new DatagramSocket(port);
       return false;
     } catch (Exception e) {
       return true;
+    } finally {
+      if (ds != null) {
+        ds.close();
+      }
+      try {
+        if (ss != null) {
+          ss.close();
+        }
+      } catch (IOException ioe) {
+        // nothing to do
+      }
     }
   }
 }
