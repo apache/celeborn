@@ -49,6 +49,8 @@ import com.aliyun.emr.rss.common.RssConf;
  * {@link #addShutdownHook(Runnable, int, long, TimeUnit)},
  * the shutdown time allocated to it is set by the configuration option
  * `rss.shutdown.timeout`.
+ *
+ * Note: code refer to Hadoop's ShutdownHookManager.
  */
 public final class ShutdownHookManager {
 
