@@ -58,6 +58,8 @@ private[deploy] class Worker(
   private val rpcPort = rpcEnv.address.port
   Utils.checkHost(host)
 
+  private val shutdown = new AtomicBoolean(false)
+
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
     val source = new WorkerSource(conf)
@@ -361,6 +363,23 @@ private[deploy] class Worker(
 
   def isRegistered(): Boolean = {
     registered.get()
+  }
+
+  private def shutdownWorker(): Unit = {
+    partitionsSorter.close()
+    partitionLocationInfo.close()
+    stop()
+  }
+
+  Runtime.getRuntime.addShutdownHook {
+    new Thread(new Runnable {
+      override def run(): Unit = {
+        logInfo("Worker start shutdown process..........")
+        shutdown.set(true)
+        shutdownWorker()
+        logInfo("Worker stopped")
+      }
+    })
   }
 }
 

@@ -21,9 +21,10 @@ import java.util
 
 import scala.collection.JavaConverters._
 
+import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.PartitionLocation
 
-class PartitionLocationInfo {
+class PartitionLocationInfo extends Logging {
 
   // key: ShuffleKey, values: (partitionId -> partition locations)
   type PartitionInfo = util.HashMap[String, util.Map[Int, util.List[PartitionLocation]]]
@@ -276,5 +277,9 @@ class PartitionLocationInfo {
 
   private def getAllSlaveIds(shuffleKey: String): util.List[String] = {
     getAllIds(shuffleKey, slavePartitionLocations)
+  }
+
+  def close(): Unit = {
+    logInfo("Start close " + this.getClass.getSimpleName)
   }
 }
