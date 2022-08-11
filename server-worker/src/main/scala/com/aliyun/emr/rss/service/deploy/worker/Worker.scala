@@ -371,10 +371,8 @@ private[deploy] class Worker(
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
-        logInfo("Worker start shutdown process..........")
         shutdown.set(true)
         stop()
-        logInfo("Worker shutdown.")
       }
     }), WORKER_SHUTDOWN_PRIORITY)
 }
