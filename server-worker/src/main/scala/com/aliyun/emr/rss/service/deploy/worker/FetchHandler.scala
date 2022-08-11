@@ -140,7 +140,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       } catch {
         case e: Exception =>
           logError(String.format(s"Error opening block ${req.streamChunkSlice} for request from" +
-            s" ${NettyUtils.getRemoteAddress(client.getChannel)}", e))
+            s" ${NettyUtils.getRemoteAddress(client.getChannel)}"), e)
           client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
           source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
