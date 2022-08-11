@@ -144,6 +144,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           resp.streamChunkSlice, NettyUtils.getRemoteAddress(channel), resp.errorString);
       } else {
         outstandingFetches.remove(resp.streamChunkSlice);
+        logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
         listener.onFailure(resp.streamChunkSlice.chunkIndex, new ChunkFetchFailureException(
           "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }
