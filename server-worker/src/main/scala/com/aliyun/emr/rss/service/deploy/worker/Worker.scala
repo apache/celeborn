@@ -306,6 +306,7 @@ private[deploy] class Worker(
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
     partitionsSorter.close()
+    partitionLocationInfo.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -367,19 +368,13 @@ private[deploy] class Worker(
     registered.get()
   }
 
-  private def shutdownWorker(): Unit = {
-    partitionsSorter.close()
-    partitionLocationInfo.close()
-    stop()
-  }
-
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Worker start shutdown process..........")
         shutdown.set(true)
-        shutdownWorker()
-        logInfo("Worker stopped")
+        stop()
+        logInfo("Worker shutdown.")
       }
     }), WORKER_SHUTDOWN_PRIORITY)
 }
