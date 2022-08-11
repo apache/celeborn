@@ -274,12 +274,12 @@ public class MasterUtil {
     double[] currentAllocation = new double[groupSize];
     double currentAllocationSum = 0;
     for (int i = 0; i < groupSize; i++) {
-      if (groups.get(i).size() != 0) {
+      if (!groups.get(i).isEmpty()) {
         currentAllocationSum += taskAllocationRatio[i];
       }
     }
     for (int i = 0; i < groupSize; i++) {
-      if (groups.get(i).size() != 0) {
+      if (!groups.get(i).isEmpty()) {
         currentAllocation[i] = taskAllocationRatio[i] / currentAllocationSum;
       }
     }
@@ -302,26 +302,33 @@ public class MasterUtil {
       }
       left -= groupAllocations[i];
     }
+
+    long groupLeft = 0;
     for (int i = 0; i < groups.size(); i++) {
-      long groupTotalSlots = diskGroupTotalSlots[i];
-      long groupRequired = groupAllocations[i];
+      int disksInsideGroup = groups.get(i).size();
+      long groupRequired = groupAllocations[i] + groupLeft;
       for (DiskInfo disk : groups.get(i)) {
         if (groupRequired <= 0) {
           break;
         }
         Map<DiskInfo, Integer> diskAllocation =
             workerAllocations.computeIfAbsent(diskWorkerMap.get(disk), v -> new HashMap<>());
-        long allocated = (int) Math.ceil(
-            groupAllocations[i] * (disk.availableSlots() / (double) groupTotalSlots));
+        long allocated = (int) Math.ceil((groupAllocations[i] + groupLeft)
+                                             / (double) disksInsideGroup);
+        if (allocated > disk.availableSlots()) {
+          allocated = disk.availableSlots();
+        }
         if (allocated > groupRequired) {
           allocated = groupRequired;
         }
         diskAllocation.put(disk, Math.toIntExact(allocated));
         groupRequired -= allocated;
       }
+      groupLeft = groupRequired;
     }
+
     if (logger.isDebugEnabled()) {
-      StringBuffer sb = new StringBuffer();
+      StringBuilder sb = new StringBuilder();
       for (int i = 0; i < groups.size(); i++) {
         sb.append("| group ").append(i).append(" ");
         for (DiskInfo diskInfo : groups.get(i)) {
