@@ -828,6 +828,10 @@ object RssConf extends Logging {
     }
   }
 
+  def shutdownTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.shutdown.timeout", "600s")
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

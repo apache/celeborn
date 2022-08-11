@@ -39,6 +39,7 @@ import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleCons
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.utils.ShutdownHookManager
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
@@ -58,6 +59,7 @@ private[deploy] class Worker(
   private val rpcPort = rpcEnv.address.port
   Utils.checkHost(host)
 
+  private val WORKER_SHUTDOWN_PRIORITY = 100
   private val shutdown = new AtomicBoolean(false)
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
@@ -371,7 +373,7 @@ private[deploy] class Worker(
     stop()
   }
 
-  Runtime.getRuntime.addShutdownHook {
+  ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Worker start shutdown process..........")
@@ -379,8 +381,7 @@ private[deploy] class Worker(
         shutdownWorker()
         logInfo("Worker stopped")
       }
-    })
-  }
+    }), WORKER_SHUTDOWN_PRIORITY)
 }
 
 private[deploy] object Worker extends Logging {
