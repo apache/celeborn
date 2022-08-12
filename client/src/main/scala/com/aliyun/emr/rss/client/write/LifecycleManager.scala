@@ -991,6 +991,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     var noAvailableSlots = false
     var success = false
     while (retryTimes <= maxRetryTimes && !success && !noAvailableSlots) {
+      if (retryTimes > 1) {
+        Thread.sleep(retryWaitInterval)
+      }
       // reserve buffers
       logInfo(s"Try reserve slots for ${Utils.makeShuffleKey(applicationId, shuffleId)} " +
         s"for $retryTimes times.")
@@ -1034,7 +1037,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         }
       }
       retryTimes += 1
-      Thread.sleep(retryWaitInterval)
     }
     // if failed after retry, destroy all allocated buffers
     if (!success) {

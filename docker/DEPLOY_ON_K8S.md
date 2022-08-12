@@ -4,11 +4,13 @@
 RSS is recommended to be deployed on nodes with local disk. Before starting, please make sure local disks on nodes are mounted to specific path.
 
 ## [Optional] Build RSS docker image
-We have provided a docker image for RSS in helm chart. If you want to build your own RSS image, run docker build with our Dockerfile.
+We have provided a docker image for RSS in helm chart. If you want to build your own RSS image with specific version, run docker build with our Dockerfile.
 
 `
-docker build -f docker/Dockerfile -t ${your-repo}:${tag} .
+docker build -f docker/Dockerfile --build-arg rss_version=0.1.0 -t ${your-repo}:${tag} .
 `
+
+You can use `--build-arg rss_version` to indicates the version of RSS currently in use, default value is 0.1.1.
 
 Make sure you have already built RSS, the target file 'rss-${project.version}-bin-release.tgz' is in ${RSS_HOME}.
 
