@@ -102,7 +102,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
    * @throws java.util.NoSuchElementException If the time parameter is not set
-   * @throws NumberFormatException If the value cannot be interpreted as seconds
+   * @throws NumberFormatException            If the value cannot be interpreted as seconds
    */
   def getTimeAsSeconds(key: String): Long = catchIllegalValue(key) {
     Utils.timeStringAsSeconds(get(key))
@@ -328,10 +328,10 @@ object RssConf extends Logging {
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
     val configs = Seq(
       DeprecatedConfig("none", "1.0",
-          "None")
+        "None")
     )
 
-    Map(configs.map { cfg => (cfg.key -> cfg) } : _*)
+    Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
 
   /**
@@ -393,26 +393,26 @@ object RssConf extends Logging {
   /**
    * Holds information about keys that have been deprecated and do not have a replacement.
    *
-   * @param key The deprecated key.
-   * @param version Version of Spark where key was deprecated.
+   * @param key                The deprecated key.
+   * @param version            Version of Spark where key was deprecated.
    * @param deprecationMessage Message to include in the deprecation warning.
    */
   private case class DeprecatedConfig(
-      key: String,
-      version: String,
-      deprecationMessage: String)
+    key: String,
+    version: String,
+    deprecationMessage: String)
 
   /**
    * Information about an alternate configuration key that has been deprecated.
    *
-   * @param key The deprecated config key.
-   * @param version The Spark version in which the key was deprecated.
+   * @param key         The deprecated config key.
+   * @param version     The Spark version in which the key was deprecated.
    * @param translation A translation function for converting old config values into new ones.
    */
   private case class AlternateConfig(
-      key: String,
-      version: String,
-      translation: String => String = null)
+    key: String,
+    version: String,
+    translation: String => String = null)
 
   // Conf getters
 
@@ -516,7 +516,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.reserve.slots.retry.wait", "3s")
   }
 
-
   def flushTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.flush.timeout", "120s")
   }
@@ -547,7 +546,7 @@ object RssConf extends Logging {
 
   /**
    *
-    * @param conf
+   * @param conf
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
    */
@@ -898,8 +897,9 @@ object RssConf extends Logging {
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "loadaware")
-    if (algorithm != "loadaware" || algorithm != "roundrobin") {
-      logWarning("Config rss.offer.slots.algorithm.version is wrong. Use default loadaware")
+    if (algorithm != "loadaware" && algorithm != "roundrobin") {
+      logWarning(s"Config rss.offer.slots.algorithm is wrong ${algorithm}." +
+        s" Use default loadaware")
       algorithm = "loadaware"
     }
     algorithm
