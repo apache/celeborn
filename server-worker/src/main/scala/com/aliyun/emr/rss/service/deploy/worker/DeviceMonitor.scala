@@ -24,6 +24,7 @@ import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
@@ -41,15 +42,18 @@ trait DeviceMonitor {
   def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
   def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
   def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
-  def reportDeviceError(workingDir: File, e: IOException,
+  def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {}
   def close() {}
 }
 
 object EmptyDeviceMonitor extends DeviceMonitor
 
-class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
-                         dirs: util.ArrayList[File]) extends DeviceMonitor {
+class LocalDeviceMonitor(
+    essConf: RssConf,
+    observer: DeviceObserver,
+    deviceInfos: util.HashMap[String, DeviceInfo],
+    mountInfos: util.HashMap[String, MountInfo]) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
@@ -163,17 +167,17 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
 
   // (deviceName -> ObservedDevice)
   var observedDevices: util.HashMap[DeviceInfo, ObservedDevice] = _
-  // (mount filesystem -> MountInfo)
-  var mountInfos: util.HashMap[String, MountInfo] = _
 
   val diskCheckInterval = diskCheckIntervalMs(essConf)
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
   def init(): Unit = {
-    val (deviceInfos, mountInfos) = DeviceInfo.getDeviceAndMountInfos(dirs)
-    this.mountInfos = mountInfos
     this.observedDevices = new util.HashMap[DeviceInfo, ObservedDevice]()
+    deviceInfos.asScala.filter(_._2.noDevice).foreach { case (deviceName, _) =>
+      logger.warn(s"device monitor may not worker properly " +
+        s"because noDevice device $deviceName exists.")
+    }
     deviceInfos.asScala.foreach(entry => {
       val observedDevice = new ObservedDevice(entry._2)
       observedDevice.addObserver(observer)
@@ -228,22 +232,24 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
   }
 
   override def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDir.getAbsolutePath, mountInfos)
+    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
+      mountInfos)
     observedDevices.get(mountInfos.get(mountPoint).deviceInfo).addObserver(diskFlusher)
   }
 
   override def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDir.getAbsolutePath, mountInfos)
+    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
+      mountInfos)
     observedDevices.get(mountInfos.get(mountPoint).deviceInfo).removeObserver(diskFlusher)
   }
 
-  override def reportDeviceError(workingDir: File, e: IOException,
+  override def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {
     logger.error(s"Receive report exception, $workingDir, $e")
-    val mountPoint = DeviceInfo.getMountPoint(workingDir.getAbsolutePath, mountInfos)
+    val mountPoint = DeviceInfo.getMountPoint(workingDir.head.getAbsolutePath, mountInfos)
     if (mountInfos.containsKey(mountPoint)) {
       observedDevices.get(mountInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(ListBuffer(workingDir), deviceErrorType)
+        .notifyObserversOnError(workingDir.to, deviceErrorType)
     }
   }
 
@@ -258,11 +264,14 @@ object DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[DeviceMonitor])
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
-  def createDeviceMonitor(essConf: RssConf, deviceObserver: DeviceObserver,
-                          dirs: util.ArrayList[File]): DeviceMonitor = {
+  def createDeviceMonitor(
+      rssConf: RssConf,
+      deviceObserver: DeviceObserver,
+      deviceInfos: util.HashMap[String, DeviceInfo],
+      mountInfos: util.HashMap[String, MountInfo]): DeviceMonitor = {
     try {
-      if (RssConf.deviceMonitorEnabled(essConf)) {
-        val monitor = new LocalDeviceMonitor(essConf, deviceObserver, dirs)
+      if (RssConf.deviceMonitorEnabled(rssConf)) {
+        val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, deviceInfos, mountInfos)
         monitor.init()
         logger.info("Device monitor init success")
         monitor

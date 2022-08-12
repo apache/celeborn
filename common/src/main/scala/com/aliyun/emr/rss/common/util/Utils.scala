@@ -600,12 +600,54 @@ object Utils extends Logging {
     args.mkString(sep)
   }
 
-  def workerToAllocatedSlotsSize(slots: WorkerResource): util.Map[WorkerInfo, Integer] = {
-    val workerToSlotsSize = new util.HashMap[WorkerInfo, Integer]()
+  /**
+   *
+   * @param slots
+   * @return return a worker related slots usage by disk
+   */
+  def getSlotsPerDisk(
+    slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
+    val workerSlotsDistribution = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
     slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
-      workerToSlotsSize.put(workerInfo, masterPartitionLoc.size + slavePartitionLoc.size)
+      val diskSlotsMap = new util.HashMap[String, Integer]()
+
+      def countSlotsByDisk(location: util.List[PartitionLocation]): Unit = {
+        location.asScala.foreach(item => {
+          val mountPoint = item.getStorageHint.getMountPoint
+          if (diskSlotsMap.containsKey(mountPoint)) {
+            diskSlotsMap.put(mountPoint, 1 + diskSlotsMap.get(mountPoint))
+          } else {
+            diskSlotsMap.put(mountPoint, 1)
+          }
+        })
+      }
+
+      countSlotsByDisk(masterPartitionLoc)
+      countSlotsByDisk(slavePartitionLoc)
+      workerSlotsDistribution.put(workerInfo, diskSlotsMap)
     }
-    workerToSlotsSize
+    workerSlotsDistribution
+  }
+
+  def getSlotsPerDisk(
+    masterLocations: util.List[PartitionLocation],
+    workerLocations: util.List[PartitionLocation]): util.Map[String, Integer] = {
+    val slotDistributions = new util.HashMap[String, Integer]()
+    (masterLocations.asScala ++ workerLocations.asScala)
+      .foreach {
+        case location =>
+          val mountPoint = location.getStorageHint.getMountPoint
+          if (slotDistributions.containsKey(mountPoint)) {
+            slotDistributions.put(mountPoint, slotDistributions.get(mountPoint) + 1)
+          } else {
+            slotDistributions.put(mountPoint, 1)
+          }
+      }
+    logDebug(s"locations to distribution ," +
+      s" ${masterLocations.asScala.map(_.toString).mkString(",")} " +
+      s"${workerLocations.asScala.map(_.toString).mkString(",")} " +
+      s"to ${slotDistributions} ")
+    slotDistributions
   }
 
   /**

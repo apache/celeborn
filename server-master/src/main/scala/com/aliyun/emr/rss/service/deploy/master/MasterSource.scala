@@ -21,11 +21,13 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
+import com.aliyun.emr.rss.service.deploy.master.MasterSource.OfferSlotsTime
 
 class MasterSource(essConf: RssConf)
     extends AbstractSource(essConf, MetricsSystem.ROLE_MASTER) with Logging {
   override val sourceName = s"master"
 
+  addTimer(OfferSlotsTime)
   // start cleaner
   startCleaner()
 }
@@ -35,11 +37,7 @@ object MasterSource {
 
   val WorkerCount = "WorkerCount"
 
-  val WorkerSlotsCount = "WorkerSlotsCount"
-
   val WorkerSlotsUsedCount = "WorkerSlotsUsedCount"
-
-  val OverloadWorkerCount = "OverloadWorkerCount"
 
   val BlacklistedWorkerCount = "BlacklistedWorkerCount"
 
@@ -47,4 +45,7 @@ object MasterSource {
 
   val IsActiveMaster = "IsActiveMaster"
 
+  val PartitionSize = "PartitionSize"
+
+  val OfferSlotsTime = "OfferSlotsTime"
 }

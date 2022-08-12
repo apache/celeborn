@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +41,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
+import com.aliyun.emr.rss.common.protocol.StorageInfo;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -76,6 +78,8 @@ public final class FileWriter extends DeviceObserver {
   private final AtomicBoolean splitted = new AtomicBoolean(false);
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
+
+  private Runnable destroyHook;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -138,6 +142,7 @@ public final class FileWriter extends DeviceObserver {
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
+    flusher.addWriter();
   }
 
   public File getFile() {
@@ -222,6 +227,10 @@ public final class FileWriter extends DeviceObserver {
     }
   }
 
+  public StorageInfo getStorageInfo(){
+    return new StorageInfo(flusher.diskType(), flusher.mountPoint(), true);
+  }
+
   public long close() throws IOException {
     if (closed) {
       String msg = "FileWriter has already closed! fileName " + file.getAbsolutePath();
@@ -251,7 +260,7 @@ public final class FileWriter extends DeviceObserver {
       deviceMonitor.unregisterFileWriter(this);
 
     }
-
+    flusher.removeWriter();
     return bytesFlushed;
   }
 
@@ -279,6 +288,16 @@ public final class FileWriter extends DeviceObserver {
 
     // unregister from DeviceMonitor
     deviceMonitor.unregisterFileWriter(this);
+    destroyHook.run();
+  }
+
+  public void registerDestroyHook(List<FileWriter> writers) {
+    FileWriter thisWriter = this;
+    destroyHook = () -> {
+      synchronized (writers) {
+        writers.remove(thisWriter);
+      }
+    };
   }
 
   public IOException getException() {
@@ -321,7 +340,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer(timeoutMs);
+    flushBuffer = flusher.takeBuffer();
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -329,7 +348,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     if (flushBuffer == null) {
-      IOException e = new IOException("Take buffer timeout from DiskFlusher: "
+      IOException e = new IOException("Take buffer encounter error from DiskFlusher: "
         + flusher.bufferQueueInfo());
       notifier.setException(e);
     }
