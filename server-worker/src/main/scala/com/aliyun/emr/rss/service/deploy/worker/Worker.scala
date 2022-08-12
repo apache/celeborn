@@ -300,11 +300,11 @@ private[deploy] class Worker(
       checkFastfailTask.cancel(true)
       checkFastfailTask = null
     }
-
     forwardMessageScheduler.shutdownNow()
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
+    // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
     partitionLocationInfo.close()
 
@@ -372,6 +372,7 @@ private[deploy] class Worker(
     new Thread(new Runnable {
       override def run(): Unit = {
         shutdown.set(true)
+        // TODO: call stop after all reserved slot finished commit/destroy
         stop()
       }
     }), WORKER_SHUTDOWN_PRIORITY)
