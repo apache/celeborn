@@ -64,8 +64,7 @@ public final class ChunkFetchSuccess extends ResponseMessage {
   public static ChunkFetchSuccess decode(ByteBuf buf, boolean decodeBody) {
     StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
     if (decodeBody) {
-      buf.retain();
-      NettyManagedBuffer managedBuf = new NettyManagedBuffer(buf.duplicate());
+      NettyManagedBuffer managedBuf = new NettyManagedBuffer(buf);
       return new ChunkFetchSuccess(streamChunkSlice, managedBuf);
     } else {
       return new ChunkFetchSuccess(streamChunkSlice, NettyManagedBuffer.EmptyBuffer);

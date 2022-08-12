@@ -69,6 +69,9 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
         break;
       }
       Message msg = Message.decode(curType, frame);
+      if (msg.body() == null) {
+        frame.release();
+      }
       ctx.fireChannelRead(msg);
       clear();
     }
