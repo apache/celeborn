@@ -327,8 +327,7 @@ object RssConf extends Logging {
    */
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
     val configs = Seq(
-      DeprecatedConfig("none", "1.0",
-        "None")
+      DeprecatedConfig("none", "1.0", "None")
     )
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
@@ -398,9 +397,9 @@ object RssConf extends Logging {
    * @param deprecationMessage Message to include in the deprecation warning.
    */
   private case class DeprecatedConfig(
-    key: String,
-    version: String,
-    deprecationMessage: String)
+      key: String,
+      version: String,
+      deprecationMessage: String)
 
   /**
    * Information about an alternate configuration key that has been deprecated.
@@ -410,9 +409,9 @@ object RssConf extends Logging {
    * @param translation A translation function for converting old config values into new ones.
    */
   private case class AlternateConfig(
-    key: String,
-    version: String,
-    translation: String => String = null)
+      key: String,
+      version: String,
+      translation: String => String = null)
 
   // Conf getters
 
@@ -536,10 +535,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.expire.emptyDir.duration", "2h")
   }
 
-  def diskSpaceMonitorInterval(conf: RssConf): Long = {
-    Utils.timeStringAsMs(conf.get("rss.disk.space.monitor.interval", "15s"))
-  }
-
   def initialPartitionSize(conf: RssConf): Long = {
     Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
   }
@@ -558,9 +553,7 @@ object RssConf extends Logging {
       if (baseDirs.contains(":")) {
         var diskType = HDD
         var flushThread = -1
-        baseDirs
-          .split(",")
-          .map(str => {
+        baseDirs.split(",").map(str => {
             val parts = str.split(":")
             val partsIter = parts.iterator
             val workingDir = partsIter.next()
@@ -623,11 +616,6 @@ object RssConf extends Logging {
 
   def partitionSizeUpdateInterval(conf: RssConf): Long = {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
-  }
-
-  def availableStorages(conf: RssConf): Array[Type] = {
-    val storages = conf.get("rss.available.storage", "MEM,SSD,HDD,HDFS")
-    storages.toUpperCase().split(",").map(Type.valueOf(_))
   }
 
   def workerBaseDirPrefix(conf: RssConf): String = {
@@ -899,8 +887,8 @@ object RssConf extends Logging {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
       logWarning(s"Config rss.offer.slots.algorithm is wrong ${algorithm}." +
-        s" Use default loadaware")
-      algorithm = "loadaware"
+        s" Use default roundrobin")
+      algorithm = "roundrobin"
     }
     algorithm
   }

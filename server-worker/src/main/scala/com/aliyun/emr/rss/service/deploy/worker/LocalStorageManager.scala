@@ -49,13 +49,13 @@ private[worker] case class FlushTask(
   notifier: FileWriter.FlushNotifier)
 
 private[worker] final class DiskFlusher(
-  val workingDirs: mutable.Buffer[File],
-  workerSource: AbstractSource,
-  val deviceMonitor: DeviceMonitor,
-  val threadCount: Int,
-  val mountPoint: String,
-  val timeWindow: Int,
-  val diskType: StorageInfo.Type) extends DeviceObserver with Logging {
+    val workingDirs: mutable.Buffer[File],
+    workerSource: AbstractSource,
+    val deviceMonitor: DeviceMonitor,
+    val threadCount: Int,
+    val mountPoint: String,
+    val timeWindow: Int,
+    val diskType: StorageInfo.Type) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   private val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
@@ -444,12 +444,12 @@ private[worker] final class LocalStorageManager(
 
   @throws[IOException]
   def createWriter(
-    appId: String,
-    shuffleId: Int,
-    location: PartitionLocation,
-    splitThreshold: Long,
-    splitMode: PartitionSplitMode,
-    partitionType: PartitionType): FileWriter = {
+      appId: String,
+      shuffleId: Int,
+      location: PartitionLocation,
+      splitThreshold: Long,
+      splitMode: PartitionSplitMode,
+      partitionType: PartitionType): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
@@ -694,7 +694,6 @@ private[worker] final class LocalStorageManager(
           .map(file => workingDirMetas(file.getAbsolutePath)._1).sum
         val fileSystemReportedUsableSpace = Files.getFileStore(
           Paths.get(mountInfo.mountPointFile.getPath)).getUsableSpace
-        // if a mount point is not a valid mount point, getUsableSpace will return 0.
         val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
           fileSystemReportedUsableSpace)
         val flushTimeAverage = diskFlushers.get(mountInfo.mountPointFile).averageFlushTime()

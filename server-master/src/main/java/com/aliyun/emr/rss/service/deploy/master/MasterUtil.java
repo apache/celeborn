@@ -160,10 +160,10 @@ public class MasterUtil {
   }
 
   private static Tuple2<DiskInfo, StorageInfo> getStorageInfo(
-    Map<WorkerInfo, List<DiskUsableInfo>> restrictions,
-    List<WorkerInfo> workers,
-    int workerIndex,
-    Map<WorkerInfo, Integer> workerDiskIndex) {
+      Map<WorkerInfo, List<DiskUsableInfo>> restrictions,
+      List<WorkerInfo> workers,
+      int workerIndex,
+      Map<WorkerInfo, Integer> workerDiskIndex) {
     WorkerInfo selectedWorker = workers.get(workerIndex);
     workerDiskIndex.putIfAbsent(selectedWorker, 0);
     int currentDiskIndex = workerDiskIndex.get(selectedWorker);

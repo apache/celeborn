@@ -58,10 +58,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleRequestSlots(
-    String shuffleKey,
-    String hostName,
-    Map<String, Map<String, Integer>> workerToAllocatedSlots,
-    String requestId) {
+      String shuffleKey,
+      String hostName,
+      Map<String, Map<String, Integer>> workerToAllocatedSlots,
+      String requestId) {
     try {
       ResourceProtos.RequestSlotsRequest.Builder builder =
         ResourceProtos.RequestSlotsRequest.newBuilder()
@@ -84,7 +84,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-    List<Map<String, Integer>> slots, String requestId) {
+      List<Map<String, Integer>> slots, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -124,11 +124,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppHeartbeat(
-    String appId,
-    long totalWritten,
-    long fileCount,
-    long time,
-    String requestId) {
+      String appId,
+      long totalWritten,
+      long fileCount,
+      long time,
+      String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -185,7 +185,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, Map<String, DiskInfo> disks, long time, String requestId) {
+      int replicatePort, Map<String, DiskInfo> disks, long time, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartBeat)
@@ -208,7 +208,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, Map<String, DiskInfo> disks, String requestId) {
+      int replicatePort, Map<String, DiskInfo> disks, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.RegisterWorker)

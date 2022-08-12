@@ -90,7 +90,7 @@ private[deploy] class Master(
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS
   )
-  private val offerSlotsAlgorithmVersion = RssConf.offerSlotsAlgorithm(conf)
+  private val offerSlotsAlgorithm = RssConf.offerSlotsAlgorithm(conf)
 
   // init and register master metrics
   private val masterSource = {
@@ -201,14 +201,14 @@ private[deploy] class Master(
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(
-      host,
-      rpcPort,
-      pushPort,
-      fetchPort,
-      replicatePort,
-      disks,
-      shuffleKeys,
-      requestId) =>
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        shuffleKeys,
+        requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
       executeWithLeaderChecker(
@@ -322,7 +322,7 @@ private[deploy] class Master(
   }
 
   private def handleWorkerLost(context: RpcCallContext, host: String, rpcPort: Int, pushPort: Int,
-    fetchPort: Int, replicatePort: Int, requestId: String): Unit = {
+      fetchPort: Int, replicatePort: Int, requestId: String): Unit = {
     val targetWorker = new WorkerInfo(
       host,
       rpcPort,
@@ -388,7 +388,7 @@ private[deploy] class Master(
     val slots = masterSource.sample(MasterSource.OfferSlotsTime,
       s"offerSlots-${Random.nextInt()}") {
       statusSystem.workers.synchronized {
-        if (offerSlotsAlgorithmVersion == "roundrobin") {
+        if (offerSlotsAlgorithm == "roundrobin") {
           MasterUtil.offerSlotsRoundRobin(
             workersNotBlacklisted(),
             requestSlots.partitionIdList,
@@ -500,11 +500,11 @@ private[deploy] class Master(
   }
 
   private def handleHeartBeatFromApplication(
-    context: RpcCallContext,
-    appId: String,
-    totalWritten: Long,
-    fileCount: Long,
-    requestId: String): Unit = {
+      context: RpcCallContext,
+      appId: String,
+      totalWritten: Long,
+      fileCount: Long,
+      requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,

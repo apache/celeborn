@@ -33,7 +33,8 @@ scrape_configs:
 |        WorkerCount        |      master       |                                          The count of active workers.                                          |
 |    OverloadWorkerCount    |      master       |                                        The count of overloaded workers.                                        |
 |  BlacklistedWorkerCount   |      master       |                                       The count of workers in blacklist.                                       |
-|        OfferSlots         |      master       |                                            The time of offer slots.                                            |
+|      OfferSlotsTime       |      master       |                                            The time of offer slots.                                            |
+|       PartitionSize       |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.          |
 |  RegisteredShuffleCount   | master and worker |                                  The value means count of registered shuffle.                                  |
 |      CommitFilesTime      |      worker       |                          CommitFiles means flush and close a shuffle partition file.                           |
 |     ReserveSlotsTime      |      worker       |                    ReserveSlots means acquire a disk buffer and record partition location.                     |

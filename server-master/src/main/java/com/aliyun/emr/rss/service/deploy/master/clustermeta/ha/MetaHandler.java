@@ -90,7 +90,7 @@ public class MetaHandler {
   }
 
   public ResourceResponse handleWriteRequest(
-    ResourceProtos.ResourceRequest request) {
+      ResourceProtos.ResourceRequest request) {
     ResourceProtos.Type cmdType = request.getCmdType();
     ResourceResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);

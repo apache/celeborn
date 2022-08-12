@@ -168,11 +168,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateRegisterWorkerMeta(
-    String host,
-    int rpcPort,
-    int pushPort,
-    int fetchPort,
-    int replicatePort,
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
     Map<String, DiskInfo> disks) {
     WorkerInfo workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
       disks, null);

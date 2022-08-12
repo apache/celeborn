@@ -31,6 +31,7 @@ public class StorageInfo implements Serializable {
   // Default storage Type is MEMORY.
   private Type type = Type.MEMORY;
   private String mountPoint = UNKNOWN_DISK;
+  // if a file is commited, field "finalResult" will be true
   private boolean finalResult = false;
 
   public StorageInfo() {

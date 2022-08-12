@@ -204,7 +204,7 @@ class WorkerInfo(
       val mountPoint: String = diskInfoEntry.getKey
       if (disks.containsKey(mountPoint)) {
         disks.get(mountPoint).activeSlots_$eq(Math.max(disks.get(mountPoint).activeSlots,
-          disks.get(mountPoint).activeSlots))
+          diskInfoEntry.getValue.activeSlots))
         disks.get(mountPoint).avgFlushTime_$eq(newDiskInfos.get(mountPoint).avgFlushTime)
         disks.get(mountPoint)
           .maxSlots_$eq(disks.get(mountPoint).usableSpace / estimatedPartitionSize)

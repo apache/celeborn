@@ -82,7 +82,7 @@ object DeviceInfo {
    *         (working dir -> mount point info)
    */
   def getDeviceAndMountInfos(workingDirs: util.List[File]): (
-    util.HashMap[String, DeviceInfo],
+      util.HashMap[String, DeviceInfo],
       util.HashMap[String, MountInfo],
       util.HashMap[String, MountInfo]) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()

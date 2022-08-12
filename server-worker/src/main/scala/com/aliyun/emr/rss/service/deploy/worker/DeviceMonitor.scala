@@ -50,10 +50,10 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-  essConf: RssConf,
-  observer: DeviceObserver,
-  deviceInfos: util.HashMap[String, DeviceInfo],
-  mountInfos: util.HashMap[String, MountInfo]) extends DeviceMonitor {
+    essConf: RssConf,
+    observer: DeviceObserver,
+    deviceInfos: util.HashMap[String, DeviceInfo],
+    mountInfos: util.HashMap[String, MountInfo]) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
@@ -265,10 +265,10 @@ object DeviceMonitor {
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
   def createDeviceMonitor(
-    rssConf: RssConf,
-    deviceObserver: DeviceObserver,
-    deviceInfos: util.HashMap[String, DeviceInfo],
-    mountInfos: util.HashMap[String, MountInfo]): DeviceMonitor = {
+      rssConf: RssConf,
+      deviceObserver: DeviceObserver,
+      deviceInfos: util.HashMap[String, DeviceInfo],
+      mountInfos: util.HashMap[String, MountInfo]): DeviceMonitor = {
     try {
       if (RssConf.deviceMonitorEnabled(rssConf)) {
         val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, deviceInfos, mountInfos)
