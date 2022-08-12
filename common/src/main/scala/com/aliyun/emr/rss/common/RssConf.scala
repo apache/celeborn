@@ -896,7 +896,7 @@ object RssConf extends Logging {
   }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
-    var algorithm = conf.get("rss.offer.slots.algorithm", "loadaware")
+    var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
       logWarning(s"Config rss.offer.slots.algorithm is wrong ${algorithm}." +
         s" Use default loadaware")

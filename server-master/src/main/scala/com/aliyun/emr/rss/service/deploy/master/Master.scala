@@ -385,22 +385,25 @@ private[deploy] class Master(
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     // offer slots
-    val slots = statusSystem.workers.synchronized {
-      if (offerSlotsAlgorithmVersion == "roundrobin") {
-        MasterUtil.offerSlotsRoundRobin(
-          workersNotBlacklisted(),
-          requestSlots.partitionIdList,
-          requestSlots.shouldReplicate
-        )
-      } else {
-        MasterUtil.offerSlotsLoadAware(
-          workersNotBlacklisted(),
-          requestSlots.partitionIdList,
-          requestSlots.shouldReplicate,
-          minimumUsableSize,
-          diskGroups,
-          diskGroupGradient
-        )
+    val slots = masterSource.sample(MasterSource.OfferSlotsTime,
+      s"offerSlots-${Random.nextInt()}") {
+      statusSystem.workers.synchronized {
+        if (offerSlotsAlgorithmVersion == "roundrobin") {
+          MasterUtil.offerSlotsRoundRobin(
+            workersNotBlacklisted(),
+            requestSlots.partitionIdList,
+            requestSlots.shouldReplicate
+          )
+        } else {
+          MasterUtil.offerSlotsLoadAware(
+            workersNotBlacklisted(),
+            requestSlots.partitionIdList,
+            requestSlots.shouldReplicate,
+            minimumUsableSize,
+            diskGroups,
+            diskGroupGradient
+          )
+        }
       }
     }
 
