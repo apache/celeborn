@@ -33,9 +33,9 @@ import com.aliyun.emr.rss.common.protocol.StorageInfo;
 public class MasterUtil {
   static class DiskUsableInfo {
     DiskInfo diskInfo;
-    int usable;
+    long usable;
 
-    DiskUsableInfo(DiskInfo diskInfo, int usable) {
+    DiskUsableInfo(DiskInfo diskInfo, long usable) {
       this.diskInfo = diskInfo;
       this.usable = usable;
     }
@@ -82,7 +82,19 @@ public class MasterUtil {
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
-    roundRobin(slots, partitionIds, workers, null, shouldReplicate);
+    Map<WorkerInfo, List<DiskUsableInfo>> restrictions = new HashMap<>();
+    for (WorkerInfo worker : workers) {
+      List<DiskUsableInfo> usableDisks = restrictions.computeIfAbsent(worker,
+        v -> new ArrayList<>());
+      for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.disks().entrySet()) {
+        usableDisks.add(new DiskUsableInfo(diskInfoEntry.getValue(),
+            diskInfoEntry.getValue().availableSlots()));
+      }
+    }
+    List<Integer> remain = roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate);
+    if (!remain.isEmpty()) {
+      roundRobin(slots, remain, workers, null, shouldReplicate);
+    }
     return slots;
   }
 
@@ -185,7 +197,7 @@ public class MasterUtil {
       int partitionId = iter.next();
       if (restrictions != null) {
         while (restrictions.get(workers.get(nextMasterInd)).stream()
-                 .mapToInt(i -> i.usable).sum() <= 0) {
+                 .mapToLong(i -> i.usable).sum() <= 0) {
           nextMasterInd = (nextMasterInd + 1) % workers.size();
           if (nextMasterInd == masterIndex) {
             break outer;
@@ -202,7 +214,7 @@ public class MasterUtil {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
           while (restrictions.get(workers.get(nextSlaveInd)).stream()
-                   .mapToInt(i -> i.usable).sum() <= 0) {
+                   .mapToLong(i -> i.usable).sum() <= 0) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -278,7 +290,7 @@ public class MasterUtil {
       Map<DiskInfo, WorkerInfo> diskWorkerMap, int required) {
     int groupSize = groups.size();
     long[] groupAllocations = new long[groupSize];
-    Map<WorkerInfo, List<DiskUsableInfo>> workerAllocations = new HashMap<>();
+    Map<WorkerInfo, List<DiskUsableInfo>> restrictions = new HashMap<>();
     long[] diskGroupTotalSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
       for (DiskInfo disk : groups.get(i)) {
@@ -326,7 +338,7 @@ public class MasterUtil {
           break;
         }
         List<DiskUsableInfo> diskAllocation =
-            workerAllocations.computeIfAbsent(diskWorkerMap.get(disk), v -> new ArrayList<>());
+            restrictions.computeIfAbsent(diskWorkerMap.get(disk), v -> new ArrayList<>());
         long allocated = (int) Math.ceil((groupAllocations[i] + groupLeft)
                                              / (double) disksInsideGroup);
         if (allocated > disk.availableSlots()) {
@@ -348,9 +360,9 @@ public class MasterUtil {
         for (DiskInfo diskInfo : groups.get(i)) {
           WorkerInfo workerInfo = diskWorkerMap.get(diskInfo);
           String workerHost = workerInfo.host();
-          int allocation = 0;
-          if (workerAllocations.get(workerInfo) != null) {
-            for (DiskUsableInfo usableInfo : workerAllocations.get(workerInfo)) {
+          long allocation = 0;
+          if (restrictions.get(workerInfo) != null) {
+            for (DiskUsableInfo usableInfo : restrictions.get(workerInfo)) {
               if (usableInfo.diskInfo.equals(diskInfo)) {
                 allocation = usableInfo.usable;
               }
@@ -365,7 +377,7 @@ public class MasterUtil {
       logger.debug("total {} allocate with group {} with allocations {}", required,
           StringUtils.join(groupAllocations, ','), sb);
     }
-    return workerAllocations;
+    return restrictions;
   }
 
   private static PartitionLocation createLocation(
