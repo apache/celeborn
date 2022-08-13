@@ -300,17 +300,6 @@ private[deploy] class Master(
       )
     }
 
-    statusSystem.handleWorkerHeartBeat(
-      host,
-      rpcPort,
-      pushPort,
-      fetchPort,
-      replicatePort,
-      disks,
-      System.currentTimeMillis(),
-      requestId
-    )
-
     val expiredShuffleKeys = new util.HashSet[String]
     shuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
