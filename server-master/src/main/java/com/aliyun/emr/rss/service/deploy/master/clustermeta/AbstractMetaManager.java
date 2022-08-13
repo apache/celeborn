@@ -96,12 +96,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateReleaseSlotsMeta(String shuffleKey, List<String> workerIds,
       List<Map<String, Integer>> slots) {
     if (workerIds != null && !workerIds.isEmpty()) {
-      for (String workerId : workerIds) {
+      for (int i = 0; i < workerIds.size(); i++) {
+        String workerId = workerIds.get(i);
         WorkerInfo worker = WorkerInfo.fromUniqueId(workerId);
         for (int j = 0; j < workers.size(); j++) {
           WorkerInfo w = workers.get(j);
           if (w.equals(worker)) {
-            Map<String, Integer> slotToRelease = slots.get(j);
+            Map<String, Integer> slotToRelease = slots.get(i);
             LOG.info("release slots for worker " + w + ", to release: " + slotToRelease);
             w.releaseSlots(shuffleKey, slotToRelease);
           }
