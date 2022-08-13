@@ -127,7 +127,11 @@ object DeviceInfo {
           }
         }
 
-      val deviceInfo = allDevices.computeIfAbsent(deviceName, newDeviceInfoFunc)
+      val deviceInfo = if (index >= 0) {
+        allDevices.computeIfAbsent(blocks(index), newDeviceInfoFunc)
+      } else {
+        allDevices.computeIfAbsent(deviceName, newDeviceInfoFunc)
+      }
       val mountInfo = new MountInfo(mountpoint, deviceInfo)
       deviceInfo.addMountInfo(mountInfo)
       allMounts.putIfAbsent(mountpoint, mountInfo)

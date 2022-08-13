@@ -113,50 +113,63 @@ class LocalDeviceMonitor(
      * @return true if device is hang
      */
     def checkIoHang(): Boolean = {
-      var statsSource: Source = null
-      var infligtSource: Source = null
+      if (deviceInfo.noDevice) {
+        true
+      } else {
+        var statsSource: Source = null
+        var infligtSource: Source = null
 
-      try {
-        statsSource = Source.fromFile(statFile)
-        infligtSource = Source.fromFile(inFlightFile)
-        val stats = statsSource.getLines().next().trim.split("[ \t]+", -1)
-        val inflight = infligtSource.getLines().next().trim.split("[ \t]+", -1)
-        val readComplete = stats(0).toLong
-        val writeComplete = stats(4).toLong
-        val readInflight = inflight(0).toLong
-        val writeInflight = inflight(1).toLong
+        try {
+          statsSource = Source.fromFile(statFile)
+          infligtSource = Source.fromFile(inFlightFile)
+          val stats = statsSource.getLines().next().trim.split("[ \t]+", -1)
+          val inflight = infligtSource.getLines().next().trim.split("[ \t]+", -1)
+          val readComplete = stats(0).toLong
+          val writeComplete = stats(4).toLong
+          val readInflight = inflight(0).toLong
+          val writeInflight = inflight(1).toLong
 
-        if (lastReadComplete == -1) {
-          lastReadComplete = readComplete
-          lastWriteComplete = writeComplete
-          lastReadInflight = readInflight
-          lastWriteInflight = writeInflight
-          false
-        } else {
-          val isReadHang = lastReadComplete == readComplete &&
-            readInflight >= lastReadInflight && lastReadInflight > 0
-          val isWriteHang = lastWriteComplete == writeComplete &&
-            writeInflight >= lastWriteInflight && lastWriteInflight > 0
+          if (lastReadComplete == -1) {
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
+            false
+          } else {
+            val isReadHang = lastReadComplete == readComplete &&
+              readInflight >= lastReadInflight && lastReadInflight > 0
+            val isWriteHang = lastWriteComplete == writeComplete &&
+              writeInflight >= lastWriteInflight && lastWriteInflight > 0
 
-          lastReadComplete = readComplete
-          lastWriteComplete = writeComplete
-          lastReadInflight = readInflight
-          lastWriteInflight = writeInflight
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
 
-          if (isReadHang || isWriteHang) {
-            logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
-              s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
-              s"($lastReadComplete,$lastWriteComplete,$lastReadInflight,$lastWriteInflight)\t" +
-              s"Observer cnt: ${observers.size()}"
-            )
-            logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
+            if (isReadHang || isWriteHang) {
+              logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
+                s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
+                s"($lastReadComplete,$lastWriteComplete,$lastReadInflight,$lastWriteInflight)\t" +
+                s"Observer cnt: ${observers.size()}"
+              )
+              logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
+            }
+
+            isReadHang || isWriteHang
           }
-
-          isReadHang || isWriteHang
+        } catch {
+          case e: Exception =>
+            logger.warn(s"Encounter Exception when check IO hang for device ${deviceInfo.name}", e)
+            // we should only return true if we have direct evidence that the device is hang
+            false
+        } finally {
+          if (statsSource != null) {
+            statsSource.close()
+          }
+          if (infligtSource != null) {
+            infligtSource.close()
+          }
         }
-      } finally {
-        statsSource.close()
-        infligtSource.close()
       }
     }
 
