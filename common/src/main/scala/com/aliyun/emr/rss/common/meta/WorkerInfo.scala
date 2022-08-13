@@ -27,50 +27,6 @@ import com.aliyun.emr.rss.common.protocol.TransportMessages.{PbDiskInfo, PbWorke
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
-class DiskInfo(
-  val mountPoint: String,
-  val usableSpace: Long,
-  // avgFlushTime is nano seconds
-  var avgFlushTime: Long,
-  var activeSlots: Long) extends Serializable {
-  var maxSlots: Long = 0
-  lazy val shuffleAllocations = new util.HashMap[String, Integer]()
-
-  def availableSlots(): Long = {
-    maxSlots - activeSlots
-  }
-
-  def allocateSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
-    shuffleAllocations.put(shuffleKey, allocated + slots)
-    activeSlots = activeSlots + slots
-  }
-
-  def releaseSlots(shuffleKey: String, slots: Int): Unit = {
-    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
-    activeSlots = activeSlots - slots
-    if (allocated > slots) {
-      shuffleAllocations.put(shuffleKey, allocated - slots)
-    } else {
-      shuffleAllocations.put(shuffleKey, 0)
-    }
-  }
-
-  def releaseSlots(shuffleKey: String): Unit = {
-    val allocated = shuffleAllocations.remove(shuffleKey)
-    if (allocated != null) {
-      activeSlots = activeSlots - allocated
-    }
-  }
-
-  override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
-    s" shuffleAllocations: $shuffleAllocations," +
-    s" mountPoint: $mountPoint," +
-    s" usableSpace: $usableSpace," +
-    s" avgFlushTime: $avgFlushTime," +
-    s" activeSlots: $activeSlots)"
-}
-
 class WorkerInfo(
     val host: String,
     val rpcPort: Int,
