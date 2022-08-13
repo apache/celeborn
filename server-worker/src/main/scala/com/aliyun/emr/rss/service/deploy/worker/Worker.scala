@@ -150,7 +150,6 @@ private[deploy] class Worker(
   // Threads
   private val forwardMessageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
-  private var logAvailableFlushBuffersTask: ScheduledFuture[_] = _
   private var sendHeartbeatTask: ScheduledFuture[_] = _
   private var checkFastfailTask: ScheduledFuture[_] = _
   val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
@@ -279,10 +278,6 @@ private[deploy] class Worker(
     if (sendHeartbeatTask != null) {
       sendHeartbeatTask.cancel(true)
       sendHeartbeatTask = null
-    }
-    if (logAvailableFlushBuffersTask != null) {
-      logAvailableFlushBuffersTask.cancel(true)
-      logAvailableFlushBuffersTask = null
     }
     if (checkFastfailTask != null) {
       checkFastfailTask.cancel(true)
