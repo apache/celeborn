@@ -610,7 +610,7 @@ object RssConf extends Logging {
     Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
   }
 
-  def minimumPartitionSizeForEstimate(conf: RssConf): Long = {
+  def minimumPartitionSizeForEstimation(conf: RssConf): Long = {
     Utils.byteStringAsBytes(conf.get("rss.minimum.estimate.partition.size", "8m"))
   }
 

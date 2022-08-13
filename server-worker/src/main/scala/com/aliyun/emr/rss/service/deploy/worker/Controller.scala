@@ -52,7 +52,7 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
-  val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimate(conf)
+  val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimation(conf)
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
