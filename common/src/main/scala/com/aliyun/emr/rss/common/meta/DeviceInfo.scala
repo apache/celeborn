@@ -89,14 +89,6 @@ class DiskInfo(
     s" avgFlushTime: $avgFlushTime," +
     s" activeSlots: $activeSlots)" +
     s" dirs ${dirInfos.mkString("\t")}"
-
-  override def hashCode(): Int = {
-    mountPoint.hashCode
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj.isInstanceOf[DiskInfo] && mountPoint.equals(obj.asInstanceOf[DiskInfo].mountPoint)
-  }
 }
 
 class DeviceInfo(val name: String) extends Serializable {
@@ -104,8 +96,8 @@ class DeviceInfo(val name: String) extends Serializable {
   // if noDevice is true means that there is no device info found.
   var deviceStatAvailable = false
 
-  def addMountInfo(mountInfo: DiskInfo): Unit = {
-    diskInfos.append(mountInfo)
+  def addDiskInfo(diskInfo: DiskInfo): Unit = {
+    diskInfos.append(diskInfo)
   }
 
   override def hashCode(): Int = {
@@ -137,7 +129,7 @@ object DeviceInfo {
       util.HashMap[String, DiskInfo],
       util.HashMap[String, DiskInfo]) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()
-    val allMounts = new util.HashMap[String, DiskInfo]()
+    val allDisks = new util.HashMap[String, DiskInfo]()
 
     // (/dev/vdb, /mnt/disk1)
     val dfResult = runCommand("df -h").trim
@@ -183,9 +175,9 @@ object DeviceInfo {
       } else {
         allDevices.computeIfAbsent(deviceName, newDeviceInfoFunc)
       }
-      val mountInfo = new DiskInfo(mountpoint, deviceInfo = deviceInfo)
-      deviceInfo.addMountInfo(mountInfo)
-      allMounts.putIfAbsent(mountpoint, mountInfo)
+      val diskInfo = new DiskInfo(mountpoint, deviceInfo = deviceInfo)
+      deviceInfo.addDiskInfo(diskInfo)
+      allDisks.putIfAbsent(mountpoint, diskInfo)
     }
 
     val retDeviceInfos = new util.HashMap[String, DeviceInfo]()
@@ -193,12 +185,12 @@ object DeviceInfo {
     val retWorkingDiskInfos = new util.HashMap[String, DiskInfo]()
 
     workingDirs.asScala.foreach(dir => {
-      val mount = getMountPoint(dir.getAbsolutePath, allMounts)
-      val mountInfo = allMounts.get(mount)
-      mountInfo.addDir(dir)
-      retDiskInfos.putIfAbsent(mountInfo.mountPoint, mountInfo)
-      retDeviceInfos.putIfAbsent(mountInfo.deviceInfo.name, mountInfo.deviceInfo)
-      retWorkingDiskInfos.put(dir.getAbsolutePath, mountInfo)
+      val mount = getMountPoint(dir.getAbsolutePath, allDisks)
+      val diskInfo = allDisks.get(mount)
+      diskInfo.addDir(dir)
+      retDiskInfos.putIfAbsent(diskInfo.mountPoint, diskInfo)
+      retDeviceInfos.putIfAbsent(diskInfo.deviceInfo.name, diskInfo.deviceInfo)
+      retWorkingDiskInfos.put(dir.getAbsolutePath, diskInfo)
     })
 
     retDeviceInfos.asScala.foreach(entry => {

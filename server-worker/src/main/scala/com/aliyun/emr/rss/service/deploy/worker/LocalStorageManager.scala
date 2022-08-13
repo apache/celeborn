@@ -680,8 +680,8 @@ private[worker] final class LocalStorageManager(
   def diskSnapshot: util.Map[String, DiskInfo] = {
     val snapshot = new util.HashMap[String, DiskInfo]()
     snapshot.putAll(
-      diskInfos.asScala.map { case (mountPoint, mountInfo) =>
-        val mountPointRelatedDirs = mountInfo.dirInfos
+      diskInfos.asScala.map { case (mountPoint, diskInfo) =>
+        val mountPointRelatedDirs = diskInfo.dirInfos
         val totalUsage = mountPointRelatedDirs.map { dir =>
           val writers = workingDirWriters.get(dir)
           if (writers != null && writers.size() > 0) {
@@ -693,12 +693,12 @@ private[worker] final class LocalStorageManager(
         val totalConfiguredCapacity = mountPointRelatedDirs
           .map(file => workingDirMetas(file.getAbsolutePath)._1).sum
         val fileSystemReportedUsableSpace = Files.getFileStore(
-          Paths.get(mountInfo.mountPointFile.getPath)).getUsableSpace
+          Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
         val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
           fileSystemReportedUsableSpace)
-        val flushTimeAverage = diskFlushers.get(mountInfo.mountPointFile).averageFlushTime()
-        logDebug(s"${mountInfo.mountPointFile} flush time list $flushTimeAverage")
-        val usedSlots = diskFlushers.get(mountInfo.mountPointFile).getUsedSlots()
+        val flushTimeAverage = diskFlushers.get(diskInfo.mountPointFile).averageFlushTime()
+        logDebug(s"${diskInfo.mountPointFile} flush time list $flushTimeAverage")
+        val usedSlots = diskFlushers.get(diskInfo.mountPointFile).getUsedSlots()
         mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
       }.toMap.asJava
     )

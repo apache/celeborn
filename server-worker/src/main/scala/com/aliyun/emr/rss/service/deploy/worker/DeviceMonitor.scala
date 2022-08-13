@@ -70,8 +70,8 @@ class LocalDeviceMonitor(
     var lastReadInflight: Long = -1
     var lastWriteInflight: Long = -1
 
-    def addMountInfo(mountInfo: DiskInfo): Unit = {
-      diskInfos.append(mountInfo)
+    def addDiskInfo(diskInfo: DiskInfo): Unit = {
+      diskInfos.append(diskInfo)
     }
 
     def addObserver(observer: DeviceObserver): Unit = {
