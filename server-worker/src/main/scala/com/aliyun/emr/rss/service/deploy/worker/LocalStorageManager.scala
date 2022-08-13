@@ -36,7 +36,7 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.DiskInfo
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
@@ -269,14 +269,14 @@ private[worker] final class LocalStorageManager(
     cleaners
   }
 
-  val (deviceInfos, mountInfos, workingDirMountInfos) =
-    DeviceInfo.getDeviceAndMountInfos(workingDirsSnapshot())
-  private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, mountInfos)
+  val (deviceInfos, diskInfos, workingDirDiskInfos) =
+    DeviceInfo.getDeviceAndDiskInfos(workingDirsSnapshot())
+  private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, diskInfos)
 
   private val diskFlushers: ConcurrentHashMap[File, DiskFlusher] = {
     val flushers = new ConcurrentHashMap[File, DiskFlusher]()
     workingDirsSnapshot().asScala.groupBy { dir =>
-      workingDirMountInfos.get(dir.getAbsolutePath).mountPointFile
+      workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile
     }.foreach { case (mountPointFile, dirs) =>
       if (!flushers.containsKey(mountPointFile)) {
         val firstWorkingDirPath = dirs.head.getAbsolutePath
@@ -302,7 +302,7 @@ private[worker] final class LocalStorageManager(
 
   def workingDirsSnapshot(mountPoint: String): util.ArrayList[File] = {
     if (mountPoint != StorageInfo.UNKNOWN_DISK) {
-      new util.ArrayList[File](mountInfos.get(mountPoint)
+      new util.ArrayList[File](diskInfos.get(mountPoint)
         .dirInfos.filter(workingDirs.contains(_)).toList.asJava)
     } else {
       logDebug("mount point is invalid")
@@ -323,7 +323,7 @@ private[worker] final class LocalStorageManager(
         operator.shutdown()
       }
 
-      val flusher = diskFlushers.get(workingDirMountInfos.get(dir.getAbsolutePath).mountPointFile)
+      val flusher = diskFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)
       if (flusher == null) {
         // this branch means this flusher is already removed
         isolatedWorkingDirs.put(dir, deviceErrorType)
@@ -335,7 +335,7 @@ private[worker] final class LocalStorageManager(
   }
 
   override def notifyHealthy(dirs: ListBuffer[File]): Unit = this.synchronized {
-    dirs.groupBy(file => workingDirMountInfos.get(file.getAbsolutePath).mountPointFile)
+    dirs.groupBy(file => workingDirDiskInfos.get(file.getAbsolutePath).mountPointFile)
       .foreach { case (mountPointFile, dirs) =>
         for (dir <- dirs) {
           isolatedWorkingDirs.remove(dir)
@@ -346,7 +346,7 @@ private[worker] final class LocalStorageManager(
             workerSource,
             deviceMonitor,
             workingDirMetas(dirs.head.getAbsolutePath)._2,
-            mountInfos.get(dirs.head.getAbsolutePath).mountPoint,
+            diskInfos.get(dirs.head.getAbsolutePath).mountPoint,
             RssConf.flushAvgTimeWindow(conf),
             workingDirMetas(dirs.head.getAbsolutePath)._3
           )
@@ -368,13 +368,13 @@ private[worker] final class LocalStorageManager(
       }
     dirs.foreach(dir => {
       isolatedWorkingDirs.remove(dir)
-      if (!diskFlushers.containsKey(workingDirMountInfos.get(dir.getAbsolutePath).mountPointFile)) {
+      if (!diskFlushers.containsKey(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)) {
         val flusher = new DiskFlusher(
           dirs,
           workerSource,
           deviceMonitor,
           workingDirMetas(dir.getAbsolutePath)._2,
-          mountInfos.get(dir.getAbsolutePath).mountPoint,
+          diskInfos.get(dir.getAbsolutePath).mountPoint,
           RssConf.flushAvgTimeWindow(conf),
           workingDirMetas(dir.getAbsolutePath)._3
         )
@@ -477,7 +477,7 @@ private[worker] final class LocalStorageManager(
         }
         val fileWriter = new FileWriter(
           file,
-          diskFlushers.get(workingDirMountInfos.get(dir.getAbsolutePath).mountPointFile),
+          diskFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile),
           dir,
           fetchChunkSize,
           writerFlushBufferSize,
@@ -495,7 +495,7 @@ private[worker] final class LocalStorageManager(
         val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)
         shuffleMap.put(fileName, fileWriter)
         location.getStorageHint.setMountPoint(
-          workingDirMountInfos.get(dir.getAbsolutePath).mountPoint)
+          workingDirDiskInfos.get(dir.getAbsolutePath).mountPoint)
         logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
         return fileWriter
       } catch {
@@ -680,8 +680,8 @@ private[worker] final class LocalStorageManager(
   def diskSnapshot: util.Map[String, DiskInfo] = {
     val snapshot = new util.HashMap[String, DiskInfo]()
     snapshot.putAll(
-      mountInfos.asScala.map { case (mountPoint, mountInfo) =>
-        val mountPointRelatedDirs = mountInfo.dirInfos
+      diskInfos.asScala.map { case (mountPoint, diskInfo) =>
+        val mountPointRelatedDirs = diskInfo.dirInfos
         val totalUsage = mountPointRelatedDirs.map { dir =>
           val writers = workingDirWriters.get(dir)
           if (writers != null && writers.size() > 0) {
@@ -693,12 +693,12 @@ private[worker] final class LocalStorageManager(
         val totalConfiguredCapacity = mountPointRelatedDirs
           .map(file => workingDirMetas(file.getAbsolutePath)._1).sum
         val fileSystemReportedUsableSpace = Files.getFileStore(
-          Paths.get(mountInfo.mountPointFile.getPath)).getUsableSpace
+          Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
         val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
           fileSystemReportedUsableSpace)
-        val flushTimeAverage = diskFlushers.get(mountInfo.mountPointFile).averageFlushTime()
-        logDebug(s"${mountInfo.mountPointFile} flush time list $flushTimeAverage")
-        val usedSlots = diskFlushers.get(mountInfo.mountPointFile).getUsedSlots()
+        val flushTimeAverage = diskFlushers.get(diskInfo.mountPointFile).averageFlushTime()
+        logDebug(s"${diskInfo.mountPointFile} flush time list $flushTimeAverage")
+        val usedSlots = diskFlushers.get(diskInfo.mountPointFile).getUsedSlots()
         mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
       }.toMap.asJava
     )

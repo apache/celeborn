@@ -20,17 +20,15 @@ package com.aliyun.emr.rss.service.deploy.worker
 import java.io.{File, IOException}
 import java.util.{ArrayList => jArrayList}
 import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters.bufferAsJavaListConverter
 import scala.collection.mutable
-
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
-
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
 import com.aliyun.emr.rss.common.util.Utils
 
 class DeviceMonitorSuite extends AnyFunSuite {
@@ -66,22 +64,22 @@ class DeviceMonitorSuite extends AnyFunSuite {
   rssConf.set("rss.disk.check.interval", "3600s")
 
   val localStorageManager = mock[DeviceObserver]
-  var (deviceInfos, mountInfos, workingDirMountInfos): (
+  var (deviceInfos, diskInfos, workingDirDiskInfos): (
     java.util.HashMap[String, DeviceInfo],
-      java.util.HashMap[String, MountInfo],
-      java.util.HashMap[String, MountInfo]
+      java.util.HashMap[String, DiskInfo],
+      java.util.HashMap[String, DiskInfo]
     ) = (null, null, null)
 
   withObjectMocked[com.aliyun.emr.rss.common.util.Utils.type] {
     when(Utils.runCommand(dfCmd)) thenReturn dfOut
     when(Utils.runCommand(lsCmd)) thenReturn lsOut
-    val (tdeviceInfos, tmountInfos, tworkingDirMountInfos) = DeviceInfo.getDeviceAndMountInfos(dirs)
+    val (tdeviceInfos, tdiskInfos, tworkingDirDiskInfos) = DeviceInfo.getDeviceAndDiskInfos(dirs)
     deviceInfos = tdeviceInfos
-    mountInfos = tmountInfos
-    workingDirMountInfos = tworkingDirMountInfos
+    diskInfos = tdiskInfos
+    workingDirDiskInfos = tworkingDirDiskInfos
   }
   val deviceMonitor =
-    new LocalDeviceMonitor(rssConf, localStorageManager, deviceInfos, mountInfos)
+    new LocalDeviceMonitor(rssConf, localStorageManager, deviceInfos, diskInfos)
 
   val vdaDeviceInfo = new DeviceInfo("vda")
   val vdbDeviceInfo = new DeviceInfo("vdb")
@@ -98,32 +96,32 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assert(deviceMonitor.observedDevices.containsKey(vdaDeviceInfo))
       assert(deviceMonitor.observedDevices.containsKey(vdbDeviceInfo))
 
-      assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).mountInfos.size, 1)
-      assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).mountInfos.size, 1)
+      assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos.size, 1)
+      assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos.size, 1)
 
       assertEquals(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).mountInfos(0).mountPoint,
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).mountPoint,
         "/mnt/disk1"
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).mountInfos(0).mountPoint,
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).mountPoint,
         "/mnt/disk2"
       )
 
       assertEquals(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).mountInfos(0).dirInfos(0),
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).dirInfos(0),
         new File("/mnt/disk1/data1")
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).mountInfos(0).dirInfos(1),
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).dirInfos(1),
         new File("/mnt/disk1/data2")
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).mountInfos(0).dirInfos(0),
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).dirInfos(0),
         new File("/mnt/disk2/data3")
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).mountInfos(0).dirInfos(1),
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).dirInfos(1),
         new File("/mnt/disk2/data4")
       )
 

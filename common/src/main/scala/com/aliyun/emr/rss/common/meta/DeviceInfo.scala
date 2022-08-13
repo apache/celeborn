@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker
+package com.aliyun.emr.rss.common.meta
 
 import java.io.File
 import java.util
@@ -27,34 +27,77 @@ import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.util.Utils.runCommand
 
-class MountInfo(val mountPoint: String, val deviceInfo: DeviceInfo) extends Serializable {
+class DiskInfo(
+  val mountPoint: String,
+  var usableSpace: Long,
+  // avgFlushTime is nano seconds
+  var avgFlushTime: Long,
+  var activeSlots: Long,
+  @transient val deviceInfo: DeviceInfo) extends Serializable {
+
+  def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
+    this(mountPoint, usableSpace, avgFlushTime, activeSlots, null)
+  }
+
+  def this(mountPoint: String, deviceInfo: DeviceInfo) = {
+    this(mountPoint, 0, 0, 0, deviceInfo)
+  }
+
+  @transient
   val dirInfos: ListBuffer[File] = new ListBuffer[File]()
+  @transient
   val mountPointFile = new File(mountPoint)
+
+  var maxSlots: Long = 0
+  lazy val shuffleAllocations = new util.HashMap[String, Integer]()
+
+  def availableSlots(): Long = {
+    maxSlots - activeSlots
+  }
+
+  def allocateSlots(shuffleKey: String, slots: Int): Unit = {
+    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    shuffleAllocations.put(shuffleKey, allocated + slots)
+    activeSlots = activeSlots + slots
+  }
+
+  def releaseSlots(shuffleKey: String, slots: Int): Unit = {
+    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    activeSlots = activeSlots - slots
+    if (allocated > slots) {
+      shuffleAllocations.put(shuffleKey, allocated - slots)
+    } else {
+      shuffleAllocations.put(shuffleKey, 0)
+    }
+  }
+
+  def releaseSlots(shuffleKey: String): Unit = {
+    val allocated = shuffleAllocations.remove(shuffleKey)
+    if (allocated != null) {
+      activeSlots = activeSlots - allocated
+    }
+  }
 
   def addDir(dir: File): Unit = {
     dirInfos.append(dir)
   }
 
-  override def toString: String = {
-    s"\tMountPont: ${mountPoint}\tDirs: ${dirInfos.mkString("\t")}"
-  }
-
-  override def hashCode(): Int = {
-    mountPoint.hashCode
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj.isInstanceOf[MountInfo] && mountPoint.equals(obj.asInstanceOf[MountInfo].mountPoint)
-  }
+  override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
+    s" shuffleAllocations: $shuffleAllocations," +
+    s" mountPoint: $mountPoint," +
+    s" usableSpace: $usableSpace," +
+    s" avgFlushTime: $avgFlushTime," +
+    s" activeSlots: $activeSlots)" +
+    s" dirs ${dirInfos.mkString("\t")}"
 }
 
 class DeviceInfo(val name: String) extends Serializable {
-  var mountInfos: ListBuffer[MountInfo] = new ListBuffer[MountInfo]()
+  var diskInfos: ListBuffer[DiskInfo] = new ListBuffer[DiskInfo]()
   // if noDevice is true means that there is no device info found.
-  var noDevice = false
+  var deviceStatAvailable = false
 
-  def addMountInfo(mountInfo: MountInfo): Unit = {
-    mountInfos.append(mountInfo)
+  def addDiskInfo(diskInfo: DiskInfo): Unit = {
+    diskInfos.append(diskInfo)
   }
 
   override def hashCode(): Int = {
@@ -66,7 +109,7 @@ class DeviceInfo(val name: String) extends Serializable {
   }
 
   override def toString: String = {
-    s"DeviceName: ${name}\tMount Infos: ${mountInfos.mkString("\n")}"
+    s"DeviceName: ${name}\tMount Infos: ${diskInfos.mkString("\n")}"
   }
 }
 
@@ -78,15 +121,15 @@ object DeviceInfo {
    * @param workingDirs
    * @return it will return three maps
    *         (deviceName -> deviceInfo)
-   *         (mount point -> mount point info)
-   *         (working dir -> mount point info)
+   *         (mount point -> diskInfo)
+   *         (working dir -> diskInfo)
    */
-  def getDeviceAndMountInfos(workingDirs: util.List[File]): (
+  def getDeviceAndDiskInfos(workingDirs: util.List[File]): (
       util.HashMap[String, DeviceInfo],
-      util.HashMap[String, MountInfo],
-      util.HashMap[String, MountInfo]) = {
+      util.HashMap[String, DiskInfo],
+      util.HashMap[String, DiskInfo]) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()
-    val allMounts = new util.HashMap[String, MountInfo]()
+    val allDisks = new util.HashMap[String, DiskInfo]()
 
     // (/dev/vdb, /mnt/disk1)
     val dfResult = runCommand("df -h").trim
@@ -121,7 +164,7 @@ object DeviceInfo {
           override def apply(s: String): DeviceInfo = {
             val deviceInfo = new DeviceInfo(s)
             if (index < 0) {
-              deviceInfo.noDevice = true
+              deviceInfo.deviceStatAvailable = true
             }
             deviceInfo
           }
@@ -132,39 +175,38 @@ object DeviceInfo {
       } else {
         allDevices.computeIfAbsent(deviceName, newDeviceInfoFunc)
       }
-      val mountInfo = new MountInfo(mountpoint, deviceInfo)
-      deviceInfo.addMountInfo(mountInfo)
-      allMounts.putIfAbsent(mountpoint, mountInfo)
+      val diskInfo = new DiskInfo(mountpoint, deviceInfo = deviceInfo)
+      deviceInfo.addDiskInfo(diskInfo)
+      allDisks.putIfAbsent(mountpoint, diskInfo)
     }
 
     val retDeviceInfos = new util.HashMap[String, DeviceInfo]()
-    val retMountInfos = new util.HashMap[String, MountInfo]()
-    val retWorkingMountInfos = new util.HashMap[String, MountInfo]()
+    val retDiskInfos = new util.HashMap[String, DiskInfo]()
+    val retWorkingDiskInfos = new util.HashMap[String, DiskInfo]()
 
     workingDirs.asScala.foreach(dir => {
-      val mount = getMountPoint(dir.getAbsolutePath, allMounts)
-      val mountInfo = allMounts.get(mount)
-      mountInfo.addDir(dir)
-      retMountInfos.putIfAbsent(mountInfo.mountPoint, mountInfo)
-      retDeviceInfos.putIfAbsent(mountInfo.deviceInfo.name, mountInfo.deviceInfo)
-      retWorkingMountInfos.put(dir.getAbsolutePath, mountInfo)
+      val mount = getMountPoint(dir.getAbsolutePath, allDisks)
+      val diskInfo = allDisks.get(mount)
+      diskInfo.addDir(dir)
+      retDiskInfos.putIfAbsent(diskInfo.mountPoint, diskInfo)
+      retDeviceInfos.putIfAbsent(diskInfo.deviceInfo.name, diskInfo.deviceInfo)
+      retWorkingDiskInfos.put(dir.getAbsolutePath, diskInfo)
     })
 
     retDeviceInfos.asScala.foreach(entry => {
-      val mountInfos = entry._2.mountInfos.filter(_.dirInfos.nonEmpty)
-      entry._2.mountInfos = mountInfos
+      val diskInfos = entry._2.diskInfos.filter(_.dirInfos.nonEmpty)
+      entry._2.diskInfos = diskInfos
     })
     logger.info(s"Device initialization \n " +
-      s"$retDeviceInfos \n $retMountInfos \n $retWorkingMountInfos")
+      s"$retDeviceInfos \n $retDiskInfos \n $retWorkingDiskInfos")
 
-    (retDeviceInfos, retMountInfos, retWorkingMountInfos)
+    (retDeviceInfos, retDiskInfos, retWorkingDiskInfos)
   }
 
-  def getMountPoint(absPath: String,
-    mountInfos: util.HashMap[String, MountInfo]): String = {
+  def getMountPoint(absPath: String, diskInfos: util.HashMap[String, DiskInfo]): String = {
     var curMax = -1
     var curMount = ""
-    mountInfos.keySet().asScala.foreach(mount => {
+    diskInfos.keySet().asScala.foreach(mount => {
       if (absPath.startsWith(mount) && mount.length > curMax) {
         curMax = mount.length
         curMount = mount
