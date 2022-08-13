@@ -535,10 +535,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.expire.emptyDir.duration", "2h")
   }
 
-  def initialPartitionSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
-  }
-
   /**
    *
    * @param conf
@@ -608,6 +604,14 @@ object RssConf extends Logging {
 
   def diskGroupGradient(conf: RssConf): Double = {
     conf.getDouble("rss.disk.group.gradient", 0.1)
+  }
+
+  def initialPartitionSize(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
+  }
+
+  def minimumPartitionSizeForEstimation(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.minimum.estimate.partition.size", "8m"))
   }
 
   def partitionSizeUpdaterInitialDelay(conf: RssConf): Long = {

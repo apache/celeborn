@@ -52,6 +52,7 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
+  val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimation(conf)
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -178,7 +179,7 @@ private[deploy] class Controller(
       committedIds: jSet[String],
       failedIds: jSet[String],
       committedStorageHints: ConcurrentHashMap[String, StorageInfo],
-      writtenList: LinkedBlockingQueue[Long],
+      partitionSizeList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
 
@@ -202,7 +203,10 @@ private[deploy] class Controller(
               val bytes = fileWriter.close()
               if (bytes > 0L) {
                 committedStorageHints.put(uniqueId, fileWriter.getStorageInfo)
-                writtenList.add(bytes)
+                if (bytes >= minimumPartitionSizeForEstimation) {
+                  logDebug(s"bytes $bytes above threshold $minimumPartitionSizeForEstimation")
+                  partitionSizeList.add(bytes)
+                }
                 committedIds.add(uniqueId)
               }
             } catch {
@@ -255,7 +259,7 @@ private[deploy] class Controller(
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val committedMasterStorageHints = new ConcurrentHashMap[String, StorageInfo]()
     val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageInfo]()
-    val committedWrittenSize = new LinkedBlockingQueue[Long]()
+    val partitionSizeList = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
       commitFiles(
@@ -264,7 +268,7 @@ private[deploy] class Controller(
         committedMasterIds,
         failedMasterIds,
         committedMasterStorageHints,
-        committedWrittenSize
+        partitionSizeList
       )
     val slaveFuture = commitFiles(
       shuffleKey,
@@ -272,7 +276,7 @@ private[deploy] class Controller(
       committedSlaveIds,
       failedSlaveIds,
       committedSlaveStorageHints,
-      committedWrittenSize,
+      partitionSizeList,
       false
     )
 
@@ -306,8 +310,8 @@ private[deploy] class Controller(
         new jHashMap[String, StorageInfo](committedMasterStorageHints)
       val committedSlaveStorageAndDiskHintList =
         new jHashMap[String, StorageInfo](committedSlaveStorageHints)
-      val totalWritten = committedWrittenSize.asScala.sum
-      val fileCount = committedWrittenSize.size()
+      val totalSize = partitionSizeList.asScala.sum
+      val fileCount = partitionSizeList.size()
       // reply
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
@@ -321,7 +325,7 @@ private[deploy] class Controller(
             List.empty.asJava,
             committedMasterStorageAndDiskHintList,
             committedSlaveStorageAndDiskHintList,
-            totalWritten,
+            totalSize,
             fileCount
           )
         )
@@ -337,7 +341,7 @@ private[deploy] class Controller(
             failedSlaveIdList,
             committedMasterStorageAndDiskHintList,
             committedSlaveStorageAndDiskHintList,
-            totalWritten,
+            totalSize,
             fileCount
           )
         )
