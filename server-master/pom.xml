@@ -11,40 +11,50 @@
 
     <artifactId>master</artifactId>
     <packaging>jar</packaging>
-    <name>Aliyun E-MapReduce Shuffle Service Service Master Module</name>
-
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-    </properties>
+    <name>Aliyun E-MapReduce Shuffle Service Master Module</name>
 
     <dependencies>
         <dependency>
             <groupId>com.aliyun.emr</groupId>
             <artifactId>common</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mockito</groupId>
-                    <artifactId>mockito-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
-
         <dependency>
             <groupId>com.aliyun.emr</groupId>
             <artifactId>server-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
         </dependency>
-
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-netty</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-grpc</artifactId>
         </dependency>
 
         <dependency>
@@ -52,7 +62,6 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.binary.version}</artifactId>
@@ -66,14 +75,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
-            <version>1.16.37</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>scala-library</artifactId>
-                    <groupId>org.scala-lang</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -81,32 +83,6 @@
             <version>3.6.0</version>
             <scope>test</scope>
         </dependency>
-
-        <dependency>
-            <artifactId>ratis-common</artifactId>
-            <groupId>org.apache.ratis</groupId>
-        </dependency>
-        <dependency>
-            <artifactId>ratis-client</artifactId>
-            <groupId>org.apache.ratis</groupId>
-        </dependency>
-        <dependency>
-            <artifactId>ratis-server</artifactId>
-            <groupId>org.apache.ratis</groupId>
-        </dependency>
-        <dependency>
-            <artifactId>ratis-netty</artifactId>
-            <groupId>org.apache.ratis</groupId>
-        </dependency>
-        <dependency>
-            <artifactId>ratis-grpc</artifactId>
-            <groupId>org.apache.ratis</groupId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-        </dependency>
-
     </dependencies>
 
     <build>
@@ -114,7 +90,7 @@
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.5.0.Final</version>
+                <version>${maven.plugin.os.version}</version>
             </extension>
         </extensions>
         <plugins>
@@ -142,7 +118,7 @@
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>${protobuf-maven-plugin.version}</version>
+                <version>${maven.plugin.protobuf.version}</version>
                 <extensions>true</extensions>
                 <executions>
                     <execution>
@@ -167,7 +143,7 @@
             <plugin>
                 <groupId>pl.project13.maven</groupId>
                 <artifactId>git-commit-id-plugin</artifactId>
-                <version>4.9.10</version>
+                <version>${maven.plugin.git.version}</version>
                 <executions>
                     <execution>
                         <id>get-the-git-infos</id>

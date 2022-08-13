@@ -29,10 +29,11 @@ class SkewJoinTest extends SparkTestBase {
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set("spark.sql.parquet.compression.codec", "gzip")
 
     enableRss(sparkConf)
 
-    val sparkSession = SparkSession.builder().enableHiveSupport().config(sparkConf).getOrCreate()
+    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     if (sparkSession.version.startsWith("3")) {
       import sparkSession.implicits._
       val df = sparkSession.sparkContext.parallelize(1 to 120000, 8)
@@ -73,7 +74,8 @@ class SkewJoinTest extends SparkTestBase {
         .toDF("fb", "f6", "f7", "f8", "f9")
       df2.createOrReplaceTempView("view2")
       sparkSession.sql("drop table if exists fres")
-      sparkSession.sql("create table fres as select * from view1 a inner join view2 b on a.fa=b.fb where a.fa=1 ")
+      sparkSession.sql("create table fres using parquet as select * from view1 a inner join view2 b on a.fa=b.fb where a.fa=1 ")
+      sparkSession.sql("drop table fres")
     }
   }
 }
