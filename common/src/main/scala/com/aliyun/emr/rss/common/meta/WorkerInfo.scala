@@ -33,7 +33,7 @@ class WorkerInfo(
     val pushPort: Int,
     val fetchPort: Int,
     val replicatePort: Int,
-    val disks: util.Map[String, DiskInfo],
+    val diskInfos: util.Map[String, DiskInfo],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
@@ -74,7 +74,7 @@ class WorkerInfo(
   }
 
   def usedSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.activeSlots).sum +
+    diskInfos.asScala.map(_._2.activeSlots).sum +
       unknownDiskSlots.values().asScala.map(_.intValue()).sum
   }
 
@@ -82,7 +82,7 @@ class WorkerInfo(
     this.synchronized {
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
-        if (!disks.containsKey(disk)) {
+        if (!diskInfos.containsKey(disk)) {
           logDebug(s"Unknown disk $disk")
           if (unknownDiskSlots.containsKey(shuffleKey)) {
             unknownDiskSlots.put(shuffleKey, slots + unknownDiskSlots.get(shuffleKey))
@@ -90,15 +90,15 @@ class WorkerInfo(
             unknownDiskSlots.put(shuffleKey, slots)
           }
         } else {
-          disks.get(disk).allocateSlots(shuffleKey, slots)
+          diskInfos.get(disk).allocateSlots(shuffleKey, slots)
         }
       }
     }
 
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
     slots.asScala.foreach { case (disk, slot) =>
-      if (disks.containsKey(disk)) {
-        disks.get(disk).releaseSlots(shuffleKey, slot)
+      if (diskInfos.containsKey(disk)) {
+        diskInfos.get(disk).releaseSlots(shuffleKey, slot)
       } else {
         if (unknownDiskSlots.containsKey(shuffleKey)) {
           unknownDiskSlots.put(shuffleKey, unknownDiskSlots.get(shuffleKey) - slot)
@@ -108,7 +108,7 @@ class WorkerInfo(
   }
 
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
-    disks.asScala.foreach(_._2.releaseSlots(shuffleKey))
+    diskInfos.asScala.foreach(_._2.releaseSlots(shuffleKey))
     unknownDiskSlots.remove(shuffleKey)
   }
 
@@ -136,47 +136,46 @@ class WorkerInfo(
   }
 
   def slotAvailable(): Boolean = this.synchronized {
-    disks.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
+    diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
   }
 
   def getTotalSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.maxSlots).sum
+    diskInfos.asScala.map(_._2.maxSlots).sum
   }
 
   def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
-    disks.asScala.foreach { case (_, disk) =>
+    diskInfos.asScala.foreach { case (_, disk) =>
       disk.maxSlots_$eq(disk.usableSpace / estimatedPartitionSize)
     }
   }
 
   def totalAvailableSlots(): Long = this.synchronized {
-    disks.asScala.map(_._2.availableSlots()).sum
+    diskInfos.asScala.map(_._2.availableSlots()).sum
   }
 
   def updateDiskInfos(newDiskInfos: java.util.Map[String, DiskInfo],
     estimatedPartitionSize: Long): Unit = this.synchronized {
     import scala.collection.JavaConverters._
-    for (diskInfoEntry <- newDiskInfos.entrySet.asScala) {
-      val mountPoint: String = diskInfoEntry.getKey
-      if (disks.containsKey(mountPoint)) {
-        disks.get(mountPoint).activeSlots_$eq(Math.max(disks.get(mountPoint).activeSlots,
-          diskInfoEntry.getValue.activeSlots))
-        disks.get(mountPoint).avgFlushTime_$eq(newDiskInfos.get(mountPoint).avgFlushTime)
-        disks.get(mountPoint)
-          .maxSlots_$eq(disks.get(mountPoint).usableSpace / estimatedPartitionSize)
+    for (newDisk <- newDiskInfos.values().asScala) {
+      val mountPoint: String = newDisk.mountPoint
+      val curDisk = diskInfos.get(mountPoint)
+      if (curDisk != null) {
+        curDisk.usableSpace_$eq(newDisk.usableSpace)
+        curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
+        curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
+        curDisk.maxSlots_$eq(curDisk.usableSpace / estimatedPartitionSize)
       } else {
-        val diskInfo: DiskInfo = diskInfoEntry.getValue
-        diskInfo.maxSlots_$eq(diskInfo.usableSpace / estimatedPartitionSize)
-        disks.put(mountPoint, diskInfo)
+        newDisk.maxSlots_$eq(newDisk.usableSpace / estimatedPartitionSize)
+        diskInfos.put(mountPoint, newDisk)
       }
     }
 
     val nonExistsMountPoints: java.util.Set[String] = new util.HashSet[String]
-    nonExistsMountPoints.addAll(disks.keySet)
+    nonExistsMountPoints.addAll(diskInfos.keySet)
     nonExistsMountPoints.removeAll(newDiskInfos.keySet)
     if (!nonExistsMountPoints.isEmpty) {
       for (nonExistsMountPoint <- nonExistsMountPoints.asScala) {
-        disks.remove(nonExistsMountPoint)
+        diskInfos.remove(nonExistsMountPoint)
       }
     }
   }
@@ -190,7 +189,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $usedSlots()
        |LastHeartBeat: $lastHeartbeat
-       |Disks: $disks
+       |Disks: $diskInfos
        |WorkerRef: $endpoint
        |""".stripMargin
   }
@@ -242,7 +241,7 @@ object WorkerInfo {
   }
 
   def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
-    val disks = workerInfo.disks.asScala
+    val disks = workerInfo.diskInfos.asScala
       .map(item =>
         item._1 ->
           PbDiskInfo

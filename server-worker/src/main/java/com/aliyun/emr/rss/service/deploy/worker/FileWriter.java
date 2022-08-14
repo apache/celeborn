@@ -142,7 +142,6 @@ public final class FileWriter extends DeviceObserver {
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
-    flusher.addWriter();
   }
 
   public File getFile() {
@@ -260,7 +259,6 @@ public final class FileWriter extends DeviceObserver {
       deviceMonitor.unregisterFileWriter(this);
 
     }
-    flusher.removeWriter();
     return bytesFlushed;
   }
 

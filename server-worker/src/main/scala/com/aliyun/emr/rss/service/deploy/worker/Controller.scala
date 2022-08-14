@@ -204,7 +204,6 @@ private[deploy] class Controller(
               if (bytes > 0L) {
                 committedStorageHints.put(uniqueId, fileWriter.getStorageInfo)
                 if (bytes >= minimumPartitionSizeForEstimation) {
-                  logDebug(s"bytes $bytes above threshold $minimumPartitionSizeForEstimation")
                   partitionSizeList.add(bytes)
                 }
                 committedIds.add(uniqueId)
@@ -418,7 +417,9 @@ private[deploy] class Controller(
         }
       }
       // remove master locations from WorkerInfo
-      partitionLocationInfo.removeMasterPartitions(shuffleKey, masterLocations)
+      val releaseMasterLocations =
+        partitionLocationInfo.removeMasterPartitions(shuffleKey,masterLocations)
+      workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
     }
     // destroy slave locations
     if (slaveLocations != null && !slaveLocations.isEmpty) {
@@ -431,7 +432,9 @@ private[deploy] class Controller(
         }
       }
       // remove slave locations from worker info
-      partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveLocations)
+      val releaseSlaveLocations =
+        partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveLocations)
+      workerInfo.releaseSlots(shuffleKey, releaseSlaveLocations._1)
     }
     // reply
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {

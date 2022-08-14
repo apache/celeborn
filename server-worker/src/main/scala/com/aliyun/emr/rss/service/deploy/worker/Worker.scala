@@ -132,9 +132,10 @@ private[deploy] class Worker(
   assert(fetchPort > 0)
   assert(replicatePort > 0)
 
-  // worker info
+  localStorageManager.updateDiskInfos()
+  // WorkerInfo's diskInfos is a reference to localStorageManager.diskInfos
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    localStorageManager.diskSnapshot, controller.self)
+    localStorageManager.diskInfos, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)
@@ -181,10 +182,12 @@ private[deploy] class Worker(
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
+    localStorageManager.updateDiskInfos()
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
-        localStorageManager.diskSnapshot, shuffleKeys), classOf[HeartbeatResponse])
+        localStorageManager.diskInfos, shuffleKeys), classOf[HeartbeatResponse])
     if (response.registered) {
+      response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
       logError("Worker not registered in master, clean all shuffle data and register again.")
@@ -203,7 +206,7 @@ private[deploy] class Worker(
 
   def init(): Unit = {
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
-      s" with ${workerInfo.disks} slots.")
+      s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
 
     // start heartbeat
@@ -306,7 +309,7 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp = try {
         rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.disks),
+          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
           classOf[RegisterWorkerResponse]
         )
       } catch {
