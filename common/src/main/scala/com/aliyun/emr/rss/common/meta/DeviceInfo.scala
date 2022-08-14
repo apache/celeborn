@@ -43,6 +43,11 @@ class DiskInfo(
     this(mountPoint, 0, 0, 0, deviceInfo)
   }
 
+  def update(usableSpace: Long, avgFlushTime: Long): Unit = {
+    this.usableSpace = usableSpace;
+    this.avgFlushTime = avgFlushTime;
+  }
+
   @transient
   val dirInfos: ListBuffer[File] = new ListBuffer[File]()
   @transient

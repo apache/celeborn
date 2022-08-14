@@ -86,7 +86,7 @@ public class MasterUtil {
     for (WorkerInfo worker : workers) {
       List<DiskUsableInfo> usableDisks = restrictions.computeIfAbsent(worker,
         v -> new ArrayList<>());
-      for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.disks().entrySet()) {
+      for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
         usableDisks.add(new DiskUsableInfo(diskInfoEntry.getValue(),
             diskInfoEntry.getValue().availableSlots()));
       }
@@ -122,7 +122,7 @@ public class MasterUtil {
     List<DiskInfo> usableDisks = new ArrayList<>();
     Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
 
-    workers.forEach(i -> i.disks().forEach((key, diskInfo) -> {
+    workers.forEach(i -> i.diskInfos().forEach((key, diskInfo) -> {
       diskToWorkerMap.put(diskInfo, i);
       if (diskInfo.usableSpace() > minimumUsableSize) {
         usableDisks.add(diskInfo);

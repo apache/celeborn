@@ -65,7 +65,6 @@ private[worker] final class DiskFlusher(
   private val flushTotalTime = new LongAdder
   private val avgTimeWindow = new Array[(Long, Long)](timeWindow)
   private var avgTimeWindowCurrentIndex = 0
-  private val usedSlots = new LongAdder
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
   val stopFlag = new AtomicBoolean(false)
@@ -143,18 +142,6 @@ private[worker] final class DiskFlusher(
     } else {
       0L
     }
-  }
-
-  def addWriter(): Unit = {
-    usedSlots.increment()
-  }
-
-  def removeWriter(): Unit = {
-    usedSlots.decrement()
-  }
-
-  def getUsedSlots(): Long = {
-    usedSlots.sum()
   }
 
   def takeBuffer(): CompositeByteBuf = {
@@ -677,34 +664,26 @@ private[worker] final class LocalStorageManager(
     })
   }
 
-  def diskSnapshot: util.Map[String, DiskInfo] = {
-    val snapshot = new util.HashMap[String, DiskInfo]()
-    snapshot.putAll(
-      diskInfos.asScala.map { case (mountPoint, diskInfo) =>
-        val mountPointRelatedDirs = diskInfo.dirInfos
-        val totalUsage = mountPointRelatedDirs.map { dir =>
-          val writers = workingDirWriters.get(dir)
-          if (writers != null && writers.size() > 0) {
-            writers.asScala.map(_.getFileLength).sum
-          } else {
-            0
-          }
-        }.sum
-        val totalConfiguredCapacity = mountPointRelatedDirs
-          .map(file => workingDirMetas(file.getAbsolutePath)._1).sum
-        val fileSystemReportedUsableSpace = Files.getFileStore(
-          Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
-        val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
-          fileSystemReportedUsableSpace)
-        val flushTimeAverage = diskFlushers.get(diskInfo.mountPointFile).averageFlushTime()
-        logDebug(s"${diskInfo.mountPointFile} flush time list $flushTimeAverage")
-        val usedSlots = diskFlushers.get(diskInfo.mountPointFile).getUsedSlots()
-        mountPoint -> new DiskInfo(mountPoint, workingDirUsableSpace, flushTimeAverage, usedSlots)
-      }.toMap.asJava
-    )
-    if (log.isDebugEnabled()) {
-      logDebug(s"Worker disk snapshot at ${System.currentTimeMillis()} snapshot: $snapshot")
+  def updateDiskInfos(): Unit = {
+    diskInfos.asScala.foreach { case (mountPoint, diskInfo) =>
+      val mountPointRelatedDirs = diskInfo.dirInfos
+      val totalUsage = mountPointRelatedDirs.map { dir =>
+        val writers = workingDirWriters.get(dir)
+        if (writers != null && writers.size() > 0) {
+          writers.asScala.map(_.getFileLength).sum
+        } else {
+          0
+        }
+      }.sum
+      val totalConfiguredCapacity = mountPointRelatedDirs
+        .map(file => workingDirMetas(file.getAbsolutePath)._1).sum
+      val fileSystemReportedUsableSpace = Files.getFileStore(
+        Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
+      val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
+        fileSystemReportedUsableSpace)
+      val flushTimeAverage = diskFlushers.get(diskInfo.mountPointFile).averageFlushTime()
+      diskInfo.update(workingDirUsableSpace, flushTimeAverage)
     }
-    snapshot
+    logInfo(s"DiskInfos: $diskInfos")
   }
 }
