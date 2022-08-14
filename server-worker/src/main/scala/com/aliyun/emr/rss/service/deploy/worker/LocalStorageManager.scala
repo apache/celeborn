@@ -126,9 +126,9 @@ private[worker] final class DiskFlusher(
   }
 
   def averageFlushTime(): Long = {
+    logInfo(s"flushCount $flushCount")
     val currentFlushTime = flushTotalTime.sumThenReset()
     val currentFlushCount = flushCount.sumThenReset()
-    logInfo(s"flushCount $flushCount")
     if (currentFlushCount >= flushAvgTimeMinimumCount) {
       avgTimeWindow(avgTimeWindowCurrentIndex) = (currentFlushTime, currentFlushCount)
       avgTimeWindowCurrentIndex = (avgTimeWindowCurrentIndex + 1) % flushAvgTimeWindowSize
@@ -311,6 +311,7 @@ private[worker] final class LocalStorageManager(
       }
 
       if (deviceErrorType == DeviceErrorType.IoHang) {
+        logInfo("IoHang, remove dir operator")
         val operator = dirOperators.remove(dir)
         if (operator != null) {
           operator.shutdown()
@@ -521,7 +522,7 @@ private[worker] final class LocalStorageManager(
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     val workingDirs = workingDirsSnapshot()
     workingDirs.addAll(isolatedWorkingDirs.asScala.filterNot(entry => {
-      DeviceErrorType.criticalError(entry._2)
+      entry._2 == DeviceErrorType.IoHang
     }).keySet.asJava)
 
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
@@ -583,7 +584,7 @@ private[worker] final class LocalStorageManager(
     deleteRecursively: Boolean = false, expireDuration: Long): Unit = {
     val workingDirs = workingDirsSnapshot()
     workingDirs.addAll(isolatedWorkingDirs.asScala.filterNot(entry => {
-      DeviceErrorType.criticalError(entry._2)
+      entry._2 == DeviceErrorType.IoHang
     }).keySet.asJava)
 
     workingDirs.asScala.foreach { workingDir =>
