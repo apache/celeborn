@@ -54,7 +54,8 @@ private[worker] final class DiskFlusher(
     val deviceMonitor: DeviceMonitor,
     val threadCount: Int,
     val mountPoint: String,
-    val timeWindow: Int,
+    val flushAvgTimeWindowSize: Int,
+    val flushAvgTimeMinimumCount: Int,
     val diskType: StorageInfo.Type) extends DeviceObserver with Logging {
   private lazy val diskFlusherId = System.identityHashCode(this)
   private val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
@@ -63,7 +64,7 @@ private[worker] final class DiskFlusher(
   private var nextWorkerIndex: Int = 0
   private val flushCount = new LongAdder
   private val flushTotalTime = new LongAdder
-  private val avgTimeWindow = new Array[(Long, Long)](timeWindow)
+  private val avgTimeWindow = new Array[(Long, Long)](flushAvgTimeWindowSize)
   private var avgTimeWindowCurrentIndex = 0
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
@@ -73,7 +74,7 @@ private[worker] final class DiskFlusher(
   init()
 
   private def init(): Unit = {
-    for (i <- 0 until (timeWindow)) {
+    for (i <- 0 until (flushAvgTimeWindowSize)) {
       avgTimeWindow(i) = (0L, 0L)
     }
     for (index <- 0 until threadCount) {
@@ -127,8 +128,11 @@ private[worker] final class DiskFlusher(
   def averageFlushTime(): Long = {
     val currentFlushTime = flushTotalTime.sumThenReset()
     val currentFlushCount = flushCount.sumThenReset()
-    avgTimeWindow(avgTimeWindowCurrentIndex) = (currentFlushTime, currentFlushCount)
-    avgTimeWindowCurrentIndex = (avgTimeWindowCurrentIndex + 1) % timeWindow
+    logInfo(s"flushCount $flushCount")
+    if (currentFlushCount >= flushAvgTimeMinimumCount) {
+      avgTimeWindow(avgTimeWindowCurrentIndex) = (currentFlushTime, currentFlushCount)
+      avgTimeWindowCurrentIndex = (avgTimeWindowCurrentIndex + 1) % flushAvgTimeWindowSize
+    }
 
     var totalFlushTime = 0L
     var totalFlushCount = 0L
@@ -274,6 +278,7 @@ private[worker] final class LocalStorageManager(
           workingDirMetas(firstWorkingDirPath)._2,
           mountPointFile.getAbsolutePath,
           RssConf.flushAvgTimeWindow(conf),
+          RssConf.flushAvgTimeMinimumCount(conf),
           workingDirMetas(firstWorkingDirPath)._3
         )
         flushers.put(mountPointFile, flusher)
@@ -337,6 +342,7 @@ private[worker] final class LocalStorageManager(
             workingDirMetas(dirs.head.getAbsolutePath)._2,
             diskInfos.get(dirs.head.getAbsolutePath).mountPoint,
             RssConf.flushAvgTimeWindow(conf),
+            RssConf.flushAvgTimeMinimumCount(conf),
             workingDirMetas(dirs.head.getAbsolutePath)._3
           )
           diskFlushers.put(mountPointFile, flusher)
@@ -365,6 +371,7 @@ private[worker] final class LocalStorageManager(
           workingDirMetas(dir.getAbsolutePath)._2,
           diskInfos.get(dir.getAbsolutePath).mountPoint,
           RssConf.flushAvgTimeWindow(conf),
+          RssConf.flushAvgTimeMinimumCount(conf),
           workingDirMetas(dir.getAbsolutePath)._3
         )
         diskFlushers.put(dir, flusher)
