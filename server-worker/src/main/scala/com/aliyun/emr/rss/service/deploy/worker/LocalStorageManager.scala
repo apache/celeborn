@@ -305,9 +305,11 @@ private[worker] final class LocalStorageManager(
         workingDirs.remove(dir)
       }
 
-      val operator = dirOperators.remove(dir)
-      if (operator != null) {
-        operator.shutdown()
+      if (deviceErrorType == DeviceErrorType.IoHang) {
+        val operator = dirOperators.remove(dir)
+        if (operator != null) {
+          operator.shutdown()
+        }
       }
 
       val flusher = diskFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)
