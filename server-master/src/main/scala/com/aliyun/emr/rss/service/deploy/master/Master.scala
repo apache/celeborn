@@ -71,7 +71,7 @@ private[deploy] class Master(
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
-  private def minimumUsableSize = RssConf.diskMinimumUsableSize(conf)
+  private def minimumUsableSize = RssConf.diskMinimumReserveSize(conf)
   private def diskGroups = RssConf.diskGroups(conf)
   private def diskGroupGradient = RssConf.diskGroupGradient(conf)
 

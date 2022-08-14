@@ -62,7 +62,7 @@ public final class FileWriter extends DeviceObserver {
   private long nextBoundary;
   private long bytesFlushed;
 
-  private final DiskFlusher flusher;
+  public final DiskFlusher flusher;
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
