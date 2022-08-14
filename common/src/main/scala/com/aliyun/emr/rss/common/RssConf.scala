@@ -589,8 +589,8 @@ object RssConf extends Logging {
     conf.getInt("rss.flusher.ssd.thread.count", 8)
   }
 
-  def diskMinimumUsableSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.usable.size", "10G"))
+  def diskMinimumReserveSize(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "10G"))
   }
 
   /**
@@ -770,8 +770,8 @@ object RssConf extends Logging {
    * @param conf rss config
    * @return the watermark size in GB
    */
-  def diskSpaceSafeWatermarkSizeInGb(conf: RssConf): Long = {
-    conf.getSizeAsGb("rss.disk.space.safe.watermark.size", "0GB")
+  def diskSpaceSafeFreeSizeInGb(conf: RssConf): Long = {
+    conf.getSizeAsGb("rss.disk.space.safe.free.size", "0GB")
   }
 
   def workerStatusCheckTimeout(conf: RssConf): Long = {

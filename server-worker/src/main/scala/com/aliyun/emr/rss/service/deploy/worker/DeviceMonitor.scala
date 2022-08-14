@@ -312,7 +312,7 @@ object DeviceMonitor {
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskSpaceSafeWatermarkSizeInGb(essConf)
+      val status = freeSpace.toLong < RssConf.diskSpaceSafeFreeSizeInGb(essConf)
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
