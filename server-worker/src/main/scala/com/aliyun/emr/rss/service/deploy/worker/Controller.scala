@@ -418,7 +418,7 @@ private[deploy] class Controller(
       }
       // remove master locations from WorkerInfo
       val releaseMasterLocations =
-        partitionLocationInfo.removeMasterPartitions(shuffleKey,masterLocations)
+        partitionLocationInfo.removeMasterPartitions(shuffleKey, masterLocations)
       workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
     }
     // destroy slave locations
