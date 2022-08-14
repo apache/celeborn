@@ -117,6 +117,7 @@ public class FileWriterSuiteJ {
       1,
       "disk1",
       20,
+      1,
       StorageInfo.Type.HDD);
     MemoryTracker.initialize(0.8,
       0.9,
@@ -315,6 +316,7 @@ public class FileWriterSuiteJ {
         1,
         "disk2",
         20,
+        1,
         StorageInfo.Type.HDD);
   }
 
