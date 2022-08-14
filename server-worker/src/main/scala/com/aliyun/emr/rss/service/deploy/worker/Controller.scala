@@ -440,7 +440,7 @@ private[deploy] class Controller(
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.Success, null, null))
+      context.reply(DestroyResponse(StatusCode.Success, List.empty.asJava, List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
