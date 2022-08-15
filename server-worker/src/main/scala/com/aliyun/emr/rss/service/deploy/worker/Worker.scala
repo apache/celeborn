@@ -39,6 +39,7 @@ import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleCons
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.utils.ShutdownHookManager
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
@@ -57,6 +58,9 @@ private[deploy] class Worker(
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
   Utils.checkHost(host)
+
+  private val WORKER_SHUTDOWN_PRIORITY = 100
+  private val shutdown = new AtomicBoolean(false)
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
@@ -286,12 +290,13 @@ private[deploy] class Worker(
       checkFastfailTask.cancel(true)
       checkFastfailTask = null
     }
-
     forwardMessageScheduler.shutdownNow()
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
+    // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
+    partitionLocationInfo.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -352,6 +357,15 @@ private[deploy] class Worker(
   def isRegistered(): Boolean = {
     registered.get()
   }
+
+  ShutdownHookManager.get().addShutdownHook(
+    new Thread(new Runnable {
+      override def run(): Unit = {
+        shutdown.set(true)
+        // TODO: call stop after all reserved slot finished commit/destroy
+        stop()
+      }
+    }), WORKER_SHUTDOWN_PRIORITY)
 }
 
 private[deploy] object Worker extends Logging {

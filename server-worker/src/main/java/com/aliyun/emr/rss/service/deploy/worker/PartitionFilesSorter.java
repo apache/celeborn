@@ -164,6 +164,7 @@ public class PartitionFilesSorter {
   }
 
   public void close() {
+    logger.info("Start close " + this.getClass().getSimpleName());
     fileSorterSchedulerThread.interrupt();
     fileSorterExecutors.shutdownNow();
     cachedIndexMaps.clear();
