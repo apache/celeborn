@@ -180,7 +180,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       handleGetBlacklist(msg)
     case StageEnd(applicationId, shuffleId) =>
       logDebug(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleStageEnd(null, applicationId, shuffleId)
+      handleStageEnd(applicationId, shuffleId)
     case UnregisterShuffle(applicationId, shuffleId, _) =>
       logDebug(s"Received UnregisterShuffle request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
@@ -216,10 +216,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logDebug(s"Received GetShuffleFileGroup request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleGetReducerFileGroup(context, shuffleId)
-
-    case StageEnd(applicationId, shuffleId) =>
-      logDebug(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleStageEnd(context, applicationId, shuffleId)
   }
 
   /* ========================================================== *
@@ -607,19 +603,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def handleStageEnd(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int): Unit = {
+  private def handleStageEnd(applicationId: String, shuffleId: Int): Unit = {
     // check whether shuffle has registered
     if (!registeredShuffle.contains(shuffleId)) {
       logInfo(s"[handleStageEnd]" +
         s"$shuffleId not registered, maybe no shuffle data within this stage.")
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
-      if (context != null) {
-        context.reply(StageEndResponse(StatusCode.ShuffleNotRegistered))
-      }
       return
     }
 
@@ -766,17 +756,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logInfo(s"Succeed to handle stageEnd for $shuffleId.")
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
-      if (context != null) {
-        context.reply(StageEndResponse(StatusCode.Success))
-      }
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
       dataLostShuffleSet.add(shuffleId)
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
-      if (context != null) {
-        context.reply(StageEndResponse(StatusCode.PartialSuccess))
-      }
     }
   }
 
@@ -787,7 +771,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // if StageEnd has not been handled, trigger StageEnd
     if (!stageEndShuffleSet.contains(shuffleId)) {
       logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
-      handleStageEnd(null, appId, shuffleId)
+      handleStageEnd(appId, shuffleId)
     }
 
     if (partitionExists(shuffleId)) {
