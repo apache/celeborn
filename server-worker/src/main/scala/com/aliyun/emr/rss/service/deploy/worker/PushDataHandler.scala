@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
 
+import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -35,6 +36,7 @@ import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.unsafe.Platform
 
+
 class PushDataHandler extends BaseMessageHandler with Logging {
 
   var workerSource: WorkerSource = _
@@ -44,6 +46,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   var pushClientFactory: TransportClientFactory = _
   var registered: AtomicBoolean = _
+  var workerInfo: WorkerInfo = _
+  var diskMinimumReserveSize: Long = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -53,6 +57,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     unavailablePeers = worker.unavailablePeers
     pushClientFactory = worker.pushClientFactory
     registered = worker.registered
+    workerInfo = worker.workerInfo
+    diskMinimumReserveSize = RssConf.diskMinimumReserveSize(worker.conf)
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
@@ -178,7 +184,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback.onFailure(new Exception(message, exception))
       return
     }
-    if (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold()) {
+    val diskFull =
+      workerInfo.diskInfos.get(fileWriter.flusher.mountPoint).usableSpace < diskMinimumReserveSize
+    if (diskFull || (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold())) {
       fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
@@ -195,8 +203,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
           val peer = location.getPeer
-          val peerWorker = new WorkerInfo(peer.getHost, peer.getRpcPort, peer.getPushPort,
-            peer.getFetchPort, peer.getReplicatePort, -1, null)
+          val peerWorker = new WorkerInfo(
+            peer.getHost,
+            peer.getRpcPort,
+            peer.getPushPort,
+            peer.getFetchPort,
+            peer.getReplicatePort
+          )
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
@@ -328,8 +341,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         override def run(): Unit = {
           val location = locations.head
           val peer = location.getPeer
-          val peerWorker = new WorkerInfo(peer.getHost,
-            peer.getRpcPort, peer.getPushPort, peer.getFetchPort, peer.getReplicatePort, -1, null)
+          val peerWorker = new WorkerInfo(
+            peer.getHost,
+            peer.getRpcPort,
+            peer.getPushPort,
+            peer.getFetchPort,
+            peer.getReplicatePort
+          )
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))

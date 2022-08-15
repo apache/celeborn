@@ -40,7 +40,7 @@ class RssShuffleReader[K, C](
 
   private val dep = handle.dependency
   private val rssShuffleClient = ShuffleClient.get(
-    handle.essMetaServiceHost, handle.essMetaServicePort, conf)
+    handle.rssMetaServiceHost, handle.rssMetaServicePort, conf)
 
   override def read(): Iterator[Product2[K, C]] = {
 

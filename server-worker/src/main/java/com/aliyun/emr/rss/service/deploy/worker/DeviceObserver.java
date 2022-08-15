@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.service.deploy.worker;
 import java.io.File;
 import java.io.IOException;
 
+import scala.collection.mutable.Buffer;
 import scala.collection.mutable.ListBuffer;
 
 public abstract class DeviceObserver {
@@ -31,6 +32,6 @@ public abstract class DeviceObserver {
 
   public void notifySlowFlush(ListBuffer<File> dirs) {}
 
-  public void reportError(File workingDir, IOException e,
+  public void reportError(Buffer<File> workingDir, IOException e,
                           DeviceErrorType deviceErrorType) {}
 }

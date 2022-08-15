@@ -23,7 +23,9 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
+import com.aliyun.emr.rss.common.protocol.StorageInfo.Type.{HDD, SSD}
+import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -100,7 +102,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
    * @throws java.util.NoSuchElementException If the time parameter is not set
-   * @throws NumberFormatException If the value cannot be interpreted as seconds
+   * @throws NumberFormatException            If the value cannot be interpreted as seconds
    */
   def getTimeAsSeconds(key: String): Long = catchIllegalValue(key) {
     Utils.timeStringAsSeconds(get(key))
@@ -325,11 +327,10 @@ object RssConf extends Logging {
    */
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
     val configs = Seq(
-      DeprecatedConfig("none", "1.0",
-          "None")
+      DeprecatedConfig("none", "1.0", "None")
     )
 
-    Map(configs.map { cfg => (cfg.key -> cfg) } : _*)
+    Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
 
   /**
@@ -391,8 +392,8 @@ object RssConf extends Logging {
   /**
    * Holds information about keys that have been deprecated and do not have a replacement.
    *
-   * @param key The deprecated key.
-   * @param version Version of Spark where key was deprecated.
+   * @param key                The deprecated key.
+   * @param version            Version of Spark where key was deprecated.
    * @param deprecationMessage Message to include in the deprecation warning.
    */
   private case class DeprecatedConfig(
@@ -403,8 +404,8 @@ object RssConf extends Logging {
   /**
    * Information about an alternate configuration key that has been deprecated.
    *
-   * @param key The deprecated config key.
-   * @param version The Spark version in which the key was deprecated.
+   * @param key         The deprecated config key.
+   * @param version     The Spark version in which the key was deprecated.
    * @param translation A translation function for converting old config values into new ones.
    */
   private case class AlternateConfig(
@@ -490,21 +491,8 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
-  def workerFlushQueueCapacity(conf: RssConf): Int = {
-    conf.getInt("rss.worker.flush.queue.capacity", 512)
-  }
-
   def workerFetchChunkSize(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
-  }
-
-  def workerNumSlots(conf: RssConf, numDisks: Int): Int = {
-    val userNumSlots = conf.getInt("rss.worker.numSlots", -1)
-    if (userNumSlots > 0) {
-      userNumSlots
-    } else {
-      workerFlushQueueCapacity(conf: RssConf) * numDisks
-    }
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {
@@ -527,7 +515,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.reserve.slots.retry.wait", "3s")
   }
 
-
   def flushTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.flush.timeout", "120s")
   }
@@ -548,19 +535,91 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.expire.emptyDir.duration", "2h")
   }
 
-  def workerBaseDirs(conf: RssConf): Array[String] = {
+  /**
+   *
+   * @param conf
+   * @return workingDir, usable space, flusher thread count, disk type
+   *         check more details at CONFIGURATION_GUIDE.md
+   */
+  def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, Type)] = {
+    // I assume there is no disk is bigger than 1 PB in recent days.
+    var maxCapacity = 1024L * 1024 * 1024 * 1024 * 1024
     val baseDirs = conf.get("rss.worker.base.dirs", "")
     if (baseDirs.nonEmpty) {
-      baseDirs.split(",")
+      if (baseDirs.contains(":")) {
+        var diskType = HDD
+        var flushThread = -1
+        baseDirs.split(",").map(str => {
+            val parts = str.split(":")
+            val partsIter = parts.iterator
+            val workingDir = partsIter.next()
+            while (partsIter.hasNext) {
+              partsIter.next() match {
+                case capacityStr if capacityStr.startsWith("capacity") =>
+                  maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
+                case disktypeStr if disktypeStr.startsWith("disktype") =>
+                  diskType = Type.valueOf(disktypeStr.split("=")(1))
+                case threadCountStr if threadCountStr.startsWith("flushthread") =>
+                  flushThread = threadCountStr.split("=")(1).toInt
+              }
+            }
+            if (flushThread == -1) {
+              flushThread = diskType match {
+                case HDD => HDDFlusherThread(conf)
+                case SSD => SSDFlusherThread(conf)
+              }
+            }
+            (workingDir, maxCapacity, flushThread, diskType)
+          })
+      } else {
+        baseDirs.split(",").map((_, maxCapacity, 1, HDD))
+      }
     } else {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => s"$prefix$i").toArray
+      (1 to number).map(i => (s"$prefix$i", maxCapacity, 1, HDD)).toArray
     }
   }
 
-  def diskFlusherThreadCount(conf: RssConf): Int = {
-    conf.getInt("rss.flusher.thread.count", 1)
+  def HDDFlusherThread(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.hdd.thread.count", 1)
+  }
+
+  def SSDFlusherThread(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.ssd.thread.count", 8)
+  }
+
+  def diskMinimumReserveSize(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "10G"))
+  }
+
+  /**
+   * @param conf
+   * @return This configuration is a guidance for load-aware slot allocation algorithm. This value
+   *         is control how many disk groups will be created.
+   */
+  def diskGroups(conf: RssConf): Int = {
+    conf.getInt("rss.disk.groups", 5)
+  }
+
+  def diskGroupGradient(conf: RssConf): Double = {
+    conf.getDouble("rss.disk.group.gradient", 0.1)
+  }
+
+  def initialPartitionSize(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
+  }
+
+  def minimumPartitionSizeForEstimation(conf: RssConf): Long = {
+    Utils.byteStringAsBytes(conf.get("rss.minimum.estimate.partition.size", "8m"))
+  }
+
+  def partitionSizeUpdaterInitialDelay(conf: RssConf): Long = {
+    Utils.timeStringAsMs(conf.get("rss.partition.size.update.initial.delay", "5m"))
+  }
+
+  def partitionSizeUpdateInterval(conf: RssConf): Long = {
+    Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
   }
 
   def workerBaseDirPrefix(conf: RssConf): String = {
@@ -711,8 +770,8 @@ object RssConf extends Logging {
    * @param conf rss config
    * @return the watermark size in GB
    */
-  def diskSpaceSafeWatermarkSizeInGb(conf: RssConf): Long = {
-    conf.getSizeAsGb("rss.disk.space.safe.watermark.size", "0GB")
+  def diskSpaceSafeFreeSizeInGb(conf: RssConf): Long = {
+    conf.getSizeAsGb("rss.disk.space.safe.free.size", "0GB")
   }
 
   def workerStatusCheckTimeout(conf: RssConf): Long = {
@@ -817,12 +876,12 @@ object RssConf extends Logging {
       "10s")).toInt
   }
 
-  def storageHint(conf: RssConf): PartitionLocation.StorageHint = {
-    val default = PartitionLocation.StorageHint.MEMORY
-    val hintStr = conf.get("rss.storage.hint", "memory").toUpperCase
-    if (PartitionLocation.StorageHint.values().mkString.toUpperCase.contains(hintStr)) {
+  def defaultStorageType(conf: RssConf): StorageInfo.Type = {
+    val default = StorageInfo.Type.MEMORY
+    val hintStr = conf.get("rss.storage.type", "memory").toUpperCase
+    if (StorageInfo.Type.values().mkString.toUpperCase.contains(hintStr)) {
       logWarning(s"storage hint is invalid ${hintStr}")
-      PartitionLocation.StorageHint.valueOf(hintStr)
+      StorageInfo.Type.valueOf(hintStr)
     } else {
       default
     }
@@ -830,6 +889,23 @@ object RssConf extends Logging {
 
   def shutdownTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.shutdown.timeout", "600s")
+
+  def offerSlotsAlgorithm(conf: RssConf): String = {
+    var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
+    if (algorithm != "loadaware" && algorithm != "roundrobin") {
+      logWarning(s"Config rss.offer.slots.algorithm is wrong ${algorithm}." +
+        s" Use default roundrobin")
+      algorithm = "roundrobin"
+    }
+    algorithm
+  }
+
+  def flushAvgTimeWindow(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.avg.time.window", 20);
+  }
+
+  def flushAvgTimeMinimumCount(conf: RssConf): Int = {
+    conf.getInt("rss.flusher.avg.time.minimum.count", 1000);
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

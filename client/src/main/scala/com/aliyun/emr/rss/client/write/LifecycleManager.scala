@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.client.write
 import java.util
 import java.util.{List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.atomic.LongAdder
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -29,7 +30,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -46,8 +47,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
-  private val storageHint = RssConf.storageHint(conf)
-
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
@@ -59,6 +58,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   // maintain each shuffle's map relation of WorkerInfo and partition location
   private val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
+
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
@@ -100,6 +100,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   logInfo(s"Start LifecycleManager on ${rpcEnv.address}")
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
+  private val totalWritten = new LongAdder
+  private val fileCount = new LongAdder
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -111,7 +113,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       override def run(): Unit = {
         try {
           require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
-          val appHeartbeat = HeartBeatFromApplication(appId, ZERO_UUID)
+          val tmpTotalWritten = totalWritten.sumThenReset()
+          val tmpFileCount = fileCount.sumThenReset()
+          logDebug(s"Send app heart beat with $tmpTotalWritten $tmpFileCount")
+          val appHeartbeat =
+            HeartBeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
           rssHARetryClient.send(appHeartbeat)
           logDebug("Successfully send app heartbeat.")
         } catch {
@@ -338,7 +344,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
       registeredShuffle.add(shuffleId)
 
-
       shuffleMapperAttempts.synchronized {
         if (!shuffleMapperAttempts.containsKey(shuffleId)) {
           val attempts = new Array[Int](numMappers)
@@ -419,8 +424,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    logWarning(s"Do Revive for shuffle ${
-      Utils.makeShuffleKey(applicationId, shuffleId)}, oldPartition: $oldPartition, cause: $cause")
+    logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
+      s"oldPartition: $oldPartition, cause: $cause")
     blacklistPartition(oldPartition, cause)
     handleChangePartitionLocation(shuffleReviving, applicationId, shuffleId, partitionId, oldEpoch,
       oldPartition)
@@ -490,7 +495,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       epoch: Int): PartitionLocation = {
     val locs = workerSnapshots(shuffleId).values().asScala
       .flatMap(_.getLocationWithMaxEpoch(shuffleId.toString, partitionId))
-    if (!locs.isEmpty) {
+    if (locs.nonEmpty) {
       val latestLoc = locs.maxBy(_.getEpoch)
       if (latestLoc.getEpoch > epoch) {
         return latestLoc
@@ -523,8 +528,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    logDebug(s"Relocate partition for shuffle split ${Utils.makeShuffleKey(applicationId,
-      shuffleId)}, oldPartition: $oldPartition")
+    logDebug(s"Relocate partition for shuffle split " +
+      s"${Utils.makeShuffleKey(applicationId, shuffleId)}, oldPartition: $oldPartition")
 
     handleChangePartitionLocation(shuffleSplitting, applicationId, shuffleId, partitionId, oldEpoch,
       oldPartition)
@@ -623,6 +628,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val committedMasterStorageHints = new ConcurrentHashMap[String, StorageInfo]()
+    val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageInfo]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
@@ -671,9 +678,16 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         committedMasterIds.addAll(res.committedMasterIds)
         committedSlaveIds.addAll(res.committedSlaveIds)
 
+        // record committed partitions storage hint and disk hint
+        committedMasterStorageHints.putAll(res.committedMasterStorageHints)
+        committedSlaveStorageHints.putAll(res.committedSlaveStorageHints)
+
         // record failed partitions
         failedMasterIds.addAll(res.failedMasterIds)
         failedSlaveIds.addAll(res.failedSlaveIds)
+
+        totalWritten.add(res.totalWritten)
+        fileCount.add(res.fileCount)
       }
     }
 
@@ -704,17 +718,33 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (!dataLost) {
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       committedMasterIds.asScala.foreach { id =>
-        committedPartitions.put(id, masterPartMap.get(id))
+        val partition = masterPartMap.get(id)
+        val storageHint = if (committedMasterStorageHints.get(id) == null) {
+          logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
+          new StorageInfo()
+        } else {
+          committedMasterStorageHints.get(id)
+        }
+        partition.setStorageHint(storageHint)
+        committedPartitions.put(id, partition)
       }
+
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
+        val storageHint = if (committedSlaveStorageHints.get(id) == null) {
+          logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
+          new StorageInfo()
+        } else {
+          committedSlaveStorageHints.get(id)
+        }
+        slavePartition.setStorageHint(storageHint)
         val masterPartition = committedPartitions.get(id)
         if (masterPartition ne null) {
           masterPartition.setPeer(slavePartition)
           slavePartition.setPeer(masterPartition)
         } else {
           logWarning(s"Shuffle $shuffleId partition $id: master lost, " +
-            s"use slave $slavePartition.")
+              s"use slave $slavePartition.")
           committedPartitions.put(id, slavePartition)
         }
       }
@@ -789,8 +819,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    * reserve corresponding slot and prepare push data env in Worker side.
    *
    * @param applicationId Application ID
-   * @param shuffleId Application shuffle id
-   * @param slots WorkerResource to reserve slots
+   * @param shuffleId     Application shuffle id
+   * @param slots         WorkerResource to reserve slots
    * @return List of reserving slot failed workers
    */
   private def reserveSlots(
@@ -807,15 +837,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         } else {
           val res = requestReserveSlots(workerInfo.endpoint,
             ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
-              splitMode, partitionType, storageHint))
+              splitMode, partitionType))
           if (res.status.equals(StatusCode.Success)) {
             logDebug(s"Successfully allocated " +
               s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress}.")
+              s" from worker ${workerInfo.readableAddress()}.")
           } else {
             logError(s"[reserveSlots] Failed to" +
               s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress}. Reason: ${res.reason}")
+              s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
             reserveSlotFailedWorkers.add(workerInfo)
           }
         }
@@ -834,9 +864,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    *   2. Request the Worker to destroy the slot's FileWriter.
    *   3. Request the Master to release the worker slots status.
    *
-   * @param applicationId application id
-   * @param shuffleId shuffle id
-   * @param slots allocated WorkerResource
+   * @param applicationId            application id
+   * @param shuffleId                shuffle id
+   * @param slots                    allocated WorkerResource
    * @param failedPartitionLocations reserve slot failed partition location
    */
   private def releasePeerPartitionLocation(
@@ -859,7 +889,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                 WORKER_EP)
             } catch {
               case t: Throwable =>
-                logError(s"Init rpc client failed for ${destroyWorkerInfo.readableAddress}", t)
+                logError(s"Init rpc client failed for ${destroyWorkerInfo.readableAddress()}", t)
                 destroyWorkerInfo = null
             }
             destroyWorkerInfo
@@ -887,13 +917,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}, $destroyResource")
 
       val workerIds = new util.ArrayList[String]()
-      val workerAllocatedSlotsSizes = new util.ArrayList[Integer]()
-      Utils.workerToAllocatedSlotsSize(destroyResource).asScala
-        .foreach { case (workerInfo, size) =>
-        workerIds.add(workerInfo.toUniqueId())
-        workerAllocatedSlotsSizes.add(size)
+      val workerSlotsPerDisk = new util.ArrayList[util.Map[String, Integer]]()
+      Utils.getSlotsPerDisk(destroyResource).asScala.foreach {
+        case (workerInfo, slotsPerDisk) =>
+          workerIds.add(workerInfo.toUniqueId())
+          workerSlotsPerDisk.add(slotsPerDisk)
       }
-      val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerAllocatedSlotsSizes)
+      val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerSlotsPerDisk)
       requestReleaseSlots(rssHARetryClient, msg)
       logInfo(s"Released slots for reserve buffer failed workers " +
         s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
@@ -909,7 +939,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
    *
    * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots
-   * @param slots the slots tried to reserve a slot
+   * @param slots                the slots tried to reserve a slot
    * @return reserving slot failed partition locations
    */
   def getFailedPartitionLocations(
@@ -939,9 +969,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    * Reserve buffers with retry, retry on another node will cause slots to be inconsistent.
    *
    * @param applicationId application id
-   * @param shuffleId shuffle id
-   * @param candidates working worker list
-   * @param slots the total allocated worker resources that need to be applied for the slot
+   * @param shuffleId     shuffle id
+   * @param candidates    working worker list
+   * @param slots         the total allocated worker resources that need to be applied for the slot
    * @return If reserve all slots success
    */
   private def reserveSlotsWithRetry(
@@ -956,6 +986,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     var noAvailableSlots = false
     var success = false
     while (retryTimes <= maxRetryTimes && !success && !noAvailableSlots) {
+      if (retryTimes > 1) {
+        Thread.sleep(retryWaitInterval)
+      }
       // reserve buffers
       logInfo(s"Try reserve slots for ${Utils.makeShuffleKey(applicationId, shuffleId)} " +
         s"for $retryTimes times.")
@@ -999,7 +1032,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         }
       }
       retryTimes += 1
-      Thread.sleep(retryWaitInterval)
     }
     // if failed after retry, destroy all allocated buffers
     if (!success) {
@@ -1026,7 +1058,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    *
    * @param oldEpochId Current partition reduce location last epoch id
    * @param candidates WorkerInfo list can be used to offer worker slots
-   * @param slots Current WorkerResource
+   * @param slots      Current WorkerResource
    */
   private def allocateFromCandidates(
       id: Int,
@@ -1089,8 +1121,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
    * For the slots that need to be destroyed, LifecycleManager will ask the corresponding worker
    * to destroy related FileWriter.
    *
-   * @param applicationId application id
-   * @param shuffleId shuffle id
+   * @param applicationId  application id
+   * @param shuffleId      shuffle id
    * @param slotsToDestroy worker resource to be destroyed
    * @return destroy failed master and slave location unique id
    */
@@ -1209,8 +1241,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
-        CommitFilesResponse(StatusCode.Failed, List.empty.asJava, List.empty.asJava,
-          message.masterIds, message.slaveIds)
+        CommitFilesResponse(
+          StatusCode.Failed,
+          List.empty.asJava,
+          List.empty.asJava,
+          message.masterIds,
+          message.slaveIds
+        )
     }
   }
 

@@ -63,6 +63,8 @@ unit-tests.log
 work/
 assets/.jekyll-metadata
 *.crc
+metastore_db/
+spark-warehouse/
 
 logs
 pids

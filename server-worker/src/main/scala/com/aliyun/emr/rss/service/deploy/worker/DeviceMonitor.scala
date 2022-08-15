@@ -24,6 +24,7 @@ import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
 
@@ -41,19 +43,22 @@ trait DeviceMonitor {
   def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
   def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
   def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
-  def reportDeviceError(workingDir: File, e: IOException,
+  def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {}
   def close() {}
 }
 
 object EmptyDeviceMonitor extends DeviceMonitor
 
-class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
-                         dirs: util.ArrayList[File]) extends DeviceMonitor {
+class LocalDeviceMonitor(
+    essConf: RssConf,
+    observer: DeviceObserver,
+    deviceInfos: util.HashMap[String, DeviceInfo],
+    diskInfos: util.HashMap[String, DiskInfo]) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
-    var mountInfos: ListBuffer[MountInfo] = deviceInfo.mountInfos
+    var diskInfos: ListBuffer[DiskInfo] = deviceInfo.diskInfos
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
     val sysBlockDir = RssConf.sysBlockDir(essConf)
@@ -65,8 +70,8 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
     var lastReadInflight: Long = -1
     var lastWriteInflight: Long = -1
 
-    def addMountInfo(mountInfo: MountInfo): Unit = {
-      mountInfos.append(mountInfo)
+    def addDiskInfo(diskInfo: DiskInfo): Unit = {
+      diskInfos.append(diskInfo)
     }
 
     def addObserver(observer: DeviceObserver): Unit = {
@@ -109,71 +114,84 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
      * @return true if device is hang
      */
     def checkIoHang(): Boolean = {
-      var statsSource: Source = null
-      var infligtSource: Source = null
+      if (deviceInfo.deviceStatAvailable) {
+        true
+      } else {
+        var statsSource: Source = null
+        var infligtSource: Source = null
 
-      try {
-        statsSource = Source.fromFile(statFile)
-        infligtSource = Source.fromFile(inFlightFile)
-        val stats = statsSource.getLines().next().trim.split("[ \t]+", -1)
-        val inflight = infligtSource.getLines().next().trim.split("[ \t]+", -1)
-        val readComplete = stats(0).toLong
-        val writeComplete = stats(4).toLong
-        val readInflight = inflight(0).toLong
-        val writeInflight = inflight(1).toLong
+        try {
+          statsSource = Source.fromFile(statFile)
+          infligtSource = Source.fromFile(inFlightFile)
+          val stats = statsSource.getLines().next().trim.split("[ \t]+", -1)
+          val inflight = infligtSource.getLines().next().trim.split("[ \t]+", -1)
+          val readComplete = stats(0).toLong
+          val writeComplete = stats(4).toLong
+          val readInflight = inflight(0).toLong
+          val writeInflight = inflight(1).toLong
 
-        if (lastReadComplete == -1) {
-          lastReadComplete = readComplete
-          lastWriteComplete = writeComplete
-          lastReadInflight = readInflight
-          lastWriteInflight = writeInflight
-          false
-        } else {
-          val isReadHang = lastReadComplete == readComplete &&
-            readInflight >= lastReadInflight && lastReadInflight > 0
-          val isWriteHang = lastWriteComplete == writeComplete &&
-            writeInflight >= lastWriteInflight && lastWriteInflight > 0
+          if (lastReadComplete == -1) {
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
+            false
+          } else {
+            val isReadHang = lastReadComplete == readComplete &&
+              readInflight >= lastReadInflight && lastReadInflight > 0
+            val isWriteHang = lastWriteComplete == writeComplete &&
+              writeInflight >= lastWriteInflight && lastWriteInflight > 0
 
-          lastReadComplete = readComplete
-          lastWriteComplete = writeComplete
-          lastReadInflight = readInflight
-          lastWriteInflight = writeInflight
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
 
-          if (isReadHang || isWriteHang) {
-            logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
-              s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
-              s"($lastReadComplete,$lastWriteComplete,$lastReadInflight,$lastWriteInflight)\t" +
-              s"Observer cnt: ${observers.size()}"
-            )
-            logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
+            if (isReadHang || isWriteHang) {
+              logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
+                s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
+                s"($lastReadComplete,$lastWriteComplete,$lastReadInflight,$lastWriteInflight)\t" +
+                s"Observer cnt: ${observers.size()}"
+              )
+              logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
+            }
+
+            isReadHang || isWriteHang
           }
-
-          isReadHang || isWriteHang
+        } catch {
+          case e: Exception =>
+            logger.warn(s"Encounter Exception when check IO hang for device ${deviceInfo.name}", e)
+            // we should only return true if we have direct evidence that the device is hang
+            false
+        } finally {
+          if (statsSource != null) {
+            statsSource.close()
+          }
+          if (infligtSource != null) {
+            infligtSource.close()
+          }
         }
-      } finally {
-        statsSource.close()
-        infligtSource.close()
       }
     }
 
     override def toString: String = {
-      s"DeviceName: ${deviceInfo.name}\tMount Infos: ${mountInfos.mkString("\n")}"
+      s"DeviceName: ${deviceInfo.name}\tMount Infos: ${diskInfos.mkString("\n")}"
     }
   }
 
   // (deviceName -> ObservedDevice)
   var observedDevices: util.HashMap[DeviceInfo, ObservedDevice] = _
-  // (mount filesystem -> MountInfo)
-  var mountInfos: util.HashMap[String, MountInfo] = _
 
   val diskCheckInterval = diskCheckIntervalMs(essConf)
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
   def init(): Unit = {
-    val (deviceInfos, mountInfos) = DeviceInfo.getDeviceAndMountInfos(dirs)
-    this.mountInfos = mountInfos
     this.observedDevices = new util.HashMap[DeviceInfo, ObservedDevice]()
+    deviceInfos.asScala.filter(_._2.deviceStatAvailable).foreach { case (deviceName, _) =>
+      logger.warn(s"device monitor may not worker properly " +
+        s"because noDevice device $deviceName exists.")
+    }
     deviceInfos.asScala.foreach(entry => {
       val observedDevice = new ObservedDevice(entry._2)
       observedDevice.addObserver(observer)
@@ -187,14 +205,14 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
         logger.debug("Device check start")
         try {
           observedDevices.values().asScala.foreach(device => {
-            val checkDirs = device.mountInfos.flatMap(mount => mount.dirInfos)
+            val checkDirs = device.diskInfos.flatMap(mount => mount.dirInfos)
 
             if (device.checkIoHang()) {
               logger.error(s"Encounter disk io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(checkDirs, DeviceErrorType.IoHang)
             } else {
-              device.mountInfos.foreach(entry => {
+              device.diskInfos.foreach(entry => {
                 if (DeviceMonitor.checkDiskUsage(essConf, entry.mountPoint)) {
                   logger.error(s"${entry.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(entry.dirInfos)
@@ -218,32 +236,34 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
   }
 
   override def registerFileWriter(fileWriter: FileWriter): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, mountInfos)
-    observedDevices.get(mountInfos.get(mountPoint).deviceInfo).addObserver(fileWriter)
+    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
+    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(fileWriter)
   }
 
   override def unregisterFileWriter(fileWriter: FileWriter): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, mountInfos)
-    observedDevices.get(mountInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
+    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
+    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
 
   override def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDir.getAbsolutePath, mountInfos)
-    observedDevices.get(mountInfos.get(mountPoint).deviceInfo).addObserver(diskFlusher)
+    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
+      diskInfos)
+    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(diskFlusher)
   }
 
   override def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDir.getAbsolutePath, mountInfos)
-    observedDevices.get(mountInfos.get(mountPoint).deviceInfo).removeObserver(diskFlusher)
+    val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
+      diskInfos)
+    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(diskFlusher)
   }
 
-  override def reportDeviceError(workingDir: File, e: IOException,
+  override def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {
     logger.error(s"Receive report exception, $workingDir, $e")
-    val mountPoint = DeviceInfo.getMountPoint(workingDir.getAbsolutePath, mountInfos)
-    if (mountInfos.containsKey(mountPoint)) {
-      observedDevices.get(mountInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(ListBuffer(workingDir), deviceErrorType)
+    val mountPoint = DeviceInfo.getMountPoint(workingDir.head.getAbsolutePath, diskInfos)
+    if (diskInfos.containsKey(mountPoint)) {
+      observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
+        .notifyObserversOnError(workingDir.to, deviceErrorType)
     }
   }
 
@@ -258,11 +278,14 @@ object DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[DeviceMonitor])
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
-  def createDeviceMonitor(essConf: RssConf, deviceObserver: DeviceObserver,
-                          dirs: util.ArrayList[File]): DeviceMonitor = {
+  def createDeviceMonitor(
+      rssConf: RssConf,
+      deviceObserver: DeviceObserver,
+      deviceInfos: util.HashMap[String, DeviceInfo],
+      diskInfos: util.HashMap[String, DiskInfo]): DeviceMonitor = {
     try {
-      if (RssConf.deviceMonitorEnabled(essConf)) {
-        val monitor = new LocalDeviceMonitor(essConf, deviceObserver, dirs)
+      if (RssConf.deviceMonitorEnabled(rssConf)) {
+        val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, deviceInfos, diskInfos)
         monitor.init()
         logger.info("Device monitor init success")
         monitor
@@ -289,7 +312,7 @@ object DeviceMonitor {
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskSpaceSafeWatermarkSizeInGb(essConf)
+      val status = freeSpace.toLong < RssConf.diskSpaceSafeFreeSizeInGb(essConf)
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
