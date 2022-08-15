@@ -58,11 +58,11 @@ public final class ShutdownHookManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShutdownHookManager.class);
 
-  /** Minimum shutdown timeout: {@value} second(s). */
-  public static final long TIMEOUT_MINIMUM = 1;
+  /** Minimum shutdown timeout: {@value} millisecond(s). */
+  public static final long TIMEOUT_MINIMUM = 1000;
 
   /** The default time unit used: seconds. */
-  public static final TimeUnit TIME_UNIT_DEFAULT = TimeUnit.SECONDS;
+  public static final TimeUnit TIME_UNIT_DEFAULT = TimeUnit.MILLISECONDS;
 
   private static final ExecutorService EXECUTOR =
       Executors.newSingleThreadExecutor(new ThreadFactoryBuilder()
