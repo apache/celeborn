@@ -889,6 +889,7 @@ object RssConf extends Logging {
 
   def shutdownTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.shutdown.timeout", "600s")
+  }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
