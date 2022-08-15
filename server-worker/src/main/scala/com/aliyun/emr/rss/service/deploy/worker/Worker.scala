@@ -362,7 +362,14 @@ private[deploy] class Worker(
     new Thread(new Runnable {
       override def run(): Unit = {
         shutdown.set(true)
-        // TODO: call stop after all reserved slot finished commit/destroy
+        val interval = RssConf.checkSlotsFinishedInterval(conf)
+        val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
+        var waitTimes = 0
+        while (!partitionLocationInfo.isEmpty && waitTimes * interval < timeout) {
+          Thread.sleep(interval)
+          waitTimes += 1
+        }
+        logInfo(s"Waiting for all PartitionLocation released cost ${waitTimes * interval}ms")
         stop()
       }
     }), WORKER_SHUTDOWN_PRIORITY)
