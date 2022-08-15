@@ -301,7 +301,7 @@ class PartitionLocationInfo extends Logging {
     getAllIds(shuffleKey, slavePartitionLocations)
   }
 
-  def isEmpty = masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
+  def isEmpty: Boolean = masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
 
   def close(): Unit = {
     logInfo("Start close " + this.getClass.getSimpleName)
