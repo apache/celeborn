@@ -23,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,11 +34,19 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.iq80.leveldb.DB;
+import org.iq80.leveldb.DBException;
+import org.iq80.leveldb.DBIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
+import com.aliyun.emr.rss.common.LevelDBProvider;
+import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
@@ -48,6 +57,12 @@ public class PartitionFilesSorter {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
+  private LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
+  private String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
+  private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
+  private File recoverFile;
+  private ObjectMapper mapper = new ObjectMapper();
+  private boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
@@ -58,22 +73,40 @@ public class PartitionFilesSorter {
   protected final long sortTimeout;
   protected final long fetchChunkSize;
   protected final long reserveMemoryForSingleSort;
+  private long partitionSorterShutdownAwaitTime;
+  private DB sortedFilesDb;
+
   protected final AbstractSource source;
 
   private final ExecutorService fileSorterExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
   private final Thread fileSorterSchedulerThread;
 
-  PartitionFilesSorter(MemoryTracker memoryTracker, long sortTimeOut, long fetchChunkSize,
-    long reserveMemoryForSingleSort, AbstractSource source) {
-    this.sortTimeout = sortTimeOut;
-    this.fetchChunkSize = fetchChunkSize;
-    this.reserveMemoryForSingleSort = reserveMemoryForSingleSort;
+  PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
+    this.sortTimeout = RssConf.partitionSortTimeout(conf);
+    this.fetchChunkSize = RssConf.workerFetchChunkSize(conf);
+    this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
+    this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
+    String recoverPath = RssConf.workerSortedFileRecoverPath(conf);
+    this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
+    // TODO: Check if worker support recover
+    // ShuffleClient only can fetch data from a restarted worker only
+    // when the worker's fetching port is stable.
+    if (RssConf.fetchServerPort(conf) != 0) {
+      try {
+        this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION, mapper);
+        reloadPartitionInfoExecutors(this.sortedFilesDb);
+      } catch (Exception e) {
+        this.sortedFilesDb = null;
+      }
+    } else {
+      this.sortedFilesDb = null;
+    }
 
     fileSorterSchedulerThread = new Thread(() -> {
       try {
-        while (true) {
+        while (!shutdown) {
           FileSorter task = shuffleSortTaskDeque.take();
           memoryTracker.reserveSortMemory(reserveMemoryForSingleSort);
           while (!memoryTracker.sortMemoryReady()) {
@@ -158,6 +191,13 @@ public class PartitionFilesSorter {
   public void cleanup(HashSet<String> expiredShuffleKeys) {
     for (String expiredShuffleKey : expiredShuffleKeys) {
       sortingShuffleFiles.remove(expiredShuffleKey);
+      if (sortedFilesDb != null) {
+        try {
+          sortedFilesDb.delete(dbShuffleKey(expiredShuffleKey));
+        } catch (DBException e) {
+          logger.error("Error deleting $shuffleKey from state db", e);
+        }
+      }
       sortedShuffleFiles.remove(expiredShuffleKey);
       cachedIndexMaps.remove(expiredShuffleKey);
     }
@@ -165,9 +205,54 @@ public class PartitionFilesSorter {
 
   public void close() {
     logger.info("Start close " + this.getClass().getSimpleName());
-    fileSorterSchedulerThread.interrupt();
-    fileSorterExecutors.shutdownNow();
+    shutdown = true;
+    long start = System.currentTimeMillis();
+    try {
+      fileSorterExecutors.shutdown();
+      fileSorterExecutors.awaitTermination(partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
+      if (!fileSorterExecutors.isShutdown()) {
+        fileSorterExecutors.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      logger.error("Await partition sorter executor shutdown catch exception: ", e);
+    }
+    long end = System.currentTimeMillis();
+    logger.error("Await partition sorter executor complete cost " + (end - start) + "ms");
     cachedIndexMaps.clear();
+  }
+
+  private byte[] dbShuffleKey(String shuffleKey) {
+    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
+  }
+
+  private String parseDbAppExecKey(String s) {
+    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
+      throw new IllegalArgumentException("expected a string starting with " + SHUFFLE_KEY_PREFIX);
+    }
+    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+  }
+
+  private void reloadPartitionInfoExecutors(DB db) {
+    if (db != null) {
+      DBIterator itr = db.iterator();
+      itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8));
+      while (itr.hasNext()) {
+        Map.Entry<byte[], byte[]> e = itr.next();
+        String key = new String(e.getKey(), StandardCharsets.UTF_8);
+        if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
+          String shuffleKey = parseDbAppExecKey(key);
+          try {
+            logger.info("Reloading registered executors: " + shuffleKey);
+            Set<String> sortedFiles =
+                mapper.readValue(e.getValue(), new TypeReference<Set<String>>() {});
+            sortingShuffleFiles.put(shuffleKey, sortedFiles);
+          } catch (Exception exception) {
+            logger.error(
+                "Reloading registered executors for " + shuffleKey + " failed:", exception);
+          }
+        }
+      }
+    }
   }
 
   protected void writeIndex(Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFileName)
@@ -374,6 +459,15 @@ public class PartitionFilesSorter {
 
         writeIndex(sortedBlockInfoMap, indexFileName);
         sortedShuffleFiles.get(shuffleKey).add(fileId);
+        if (sortedFilesDb != null) {
+          try {
+            sortedFilesDb.put(dbShuffleKey(shuffleKey),
+                mapper.writeValueAsString(sortedShuffleFiles.get(shuffleKey))
+                    .getBytes(StandardCharsets.UTF_8));
+          } catch (IOException ioe) {
+            logger.error("Error deleting $shuffleKey from state db", ioe);
+          }
+        }
         if (!originFile.delete()) {
           logger.warn("clean origin file failed, origin file is : {}",
             originFile.getAbsolutePath());

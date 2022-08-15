@@ -102,8 +102,8 @@ public class PartitionFilesSorterSuiteJ {
   public void testSmallFile() throws InterruptedException, IOException {
     prepare(false);
     RssConf conf = new RssConf();
-    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
       fileWriter, 5, 10);
     Thread.sleep(1000);
@@ -117,8 +117,8 @@ public class PartitionFilesSorterSuiteJ {
   public void testLargeFile() throws InterruptedException, IOException {
     prepare(true);
     RssConf conf = new RssConf();
-    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
       fileWriter, 5, 10);
     Thread.sleep(30000);

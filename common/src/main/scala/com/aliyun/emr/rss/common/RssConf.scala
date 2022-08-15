@@ -891,6 +891,14 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.shutdown.timeout", "600s")
   }
 
+  def workerSortedFileRecoverPath(conf: RssConf): String = {
+    conf.get("rss.worker.sortedFileRecoverPath", "/tmp")
+  }
+
+  def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTimeMs", "120s")
+  }
+
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
