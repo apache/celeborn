@@ -93,8 +93,6 @@ public class PartitionFilesSorterSuiteJ {
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(fileWriter.getFileMeta()).thenAnswer(i -> fileMeta);
-    when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
-    when(fileWriter.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
   }
 
   public void clean() {

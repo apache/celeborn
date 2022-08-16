@@ -59,9 +59,7 @@ public final class FileWriter extends DeviceObserver {
   private volatile boolean closed;
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
-  private final ArrayList<Long> chunkOffsets = new ArrayList<>();
   private long nextBoundary;
-  private long bytesFlushed;
 
   public final DiskFlusher flusher;
   private final int flushWorkerIndex;
@@ -133,7 +131,6 @@ public final class FileWriter extends DeviceObserver {
     this.dataRootDir = workingDir;
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;
-    this.chunkOffsets.add(0L);
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
     this.splitThreshold = splitThreshold;
     this.flushBufferSize = flushBufferSize;
@@ -154,13 +151,6 @@ public final class FileWriter extends DeviceObserver {
     return file;
   }
 
-  public ArrayList<Long> getChunkOffsets() {
-    return chunkOffsets;
-  }
-
-  public long getFileLength() {
-    return bytesFlushed;
-  }
 
   public void incrementPendingWrites() {
     numPendingWrites.incrementAndGet();
@@ -177,14 +167,14 @@ public final class FileWriter extends DeviceObserver {
     FlushTask task = new FlushTask(flushBuffer, channel, notifier);
     addTask(task);
     flushBuffer = null;
-    bytesFlushed += numBytes;
+    fileMeta.bytesFlushed += numBytes;
     maybeSetChunkOffsets(finalFlush);
   }
 
   private void maybeSetChunkOffsets(boolean forceSet) {
-    if (bytesFlushed >= nextBoundary || forceSet) {
-      chunkOffsets.add(bytesFlushed);
-      nextBoundary = bytesFlushed + chunkSize;
+    if (fileMeta.bytesFlushed >= nextBoundary || forceSet) {
+      fileMeta.chunkOffsets.add(fileMeta.bytesFlushed);
+      nextBoundary = fileMeta.bytesFlushed + chunkSize;
     }
   }
 
@@ -197,7 +187,7 @@ public final class FileWriter extends DeviceObserver {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return chunkOffsets.get(chunkOffsets.size() - 1) == bytesFlushed;
+    return fileMeta.chunkOffsets.get(fileMeta.chunkOffsets.size() - 1) == fileMeta.bytesFlushed;
   }
 
   /**
@@ -265,7 +255,7 @@ public final class FileWriter extends DeviceObserver {
       deviceMonitor.unregisterFileWriter(this);
 
     }
-    return bytesFlushed;
+    return fileMeta.bytesFlushed;
   }
 
   public void destroy() {

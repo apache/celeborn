@@ -326,8 +326,8 @@ public class FileWriterSuiteJ {
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileWriter writer = new FileWriter(new LocalFileMeta("", "", file),
-      flusher, file.getParentFile(), CHUNK_SIZE,
+    LocalFileMeta fileMeta = new LocalFileMeta("", "", file);
+    FileWriter writer = new FileWriter(fileMeta, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
@@ -356,7 +356,7 @@ public class FileWriterSuiteJ {
     long bytesWritten = writer.close();
     assertEquals(length.get(), bytesWritten);
 
-    FileInfo fileInfo = new FileInfo(writer.getFile(), writer.getChunkOffsets());
+    FileInfo fileInfo = new FileInfo(writer.getFile(), fileMeta.getChunkOffsets());
 
     setupChunkServer(fileInfo);
 
