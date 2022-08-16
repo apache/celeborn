@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 
 public class PartitionFilesSorterSuiteJ {
   private File shuffleFile;
+  private LocalFileMeta fileMeta;
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
   private String originFileName;
   private long originFileLen;
@@ -51,6 +52,7 @@ public class PartitionFilesSorterSuiteJ {
     byte[] batchHeader = new byte[16];
     Random random = new Random();
     shuffleFile = File.createTempFile("RSS", "sort-suite");
+    fileMeta = new LocalFileMeta("", "", shuffleFile);
 
     originFileName = shuffleFile.getAbsolutePath();
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
@@ -90,6 +92,7 @@ public class PartitionFilesSorterSuiteJ {
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
+    when(fileWriter.getFileMeta()).thenAnswer(i -> fileMeta);
     when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
     when(fileWriter.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
   }
