@@ -1,0 +1,225 @@
+package org.apache.spark.shuffle.rss;
+
+import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.aliyun.emr.rss.client.ShuffleClient;
+import com.aliyun.emr.rss.client.write.LifecycleManager;
+import com.aliyun.emr.rss.common.RssConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.spark.*;
+import org.apache.spark.launcher.SparkLauncher;
+import org.apache.spark.shuffle.*;
+import org.apache.spark.shuffle.sort.SortShuffleManager;
+
+public class RssShuffleManager implements ShuffleManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(RssShuffleManager.class);
+
+    private static final String sortShuffleManagerName = "org.apache.spark.shuffle.sort.SortShuffleManager";
+
+    private final SparkConf conf;
+    private final RssConf rssConf;
+    private final int cores;
+    private String newAppId;
+
+    private LifecycleManager lifecycleManager;
+    private ShuffleClient rssShuffleClient;
+    private volatile SortShuffleManager _sortShuffleManager;
+    private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds = ConcurrentHashMap.newKeySet();
+    private final RssShuffleFallbackPolicyRunner fallbackPolicyRunner;
+
+    public RssShuffleManager(SparkConf conf) {
+        this.conf = conf;
+        this.rssConf = SparkUtils.fromSparkConf(conf);
+        this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+        this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(conf);
+    }
+
+    private boolean isDriver() {
+        return "driver".equals(SparkEnv.get().executorId());
+    }
+
+    private SortShuffleManager sortShuffleManager() {
+        if (_sortShuffleManager == null) {
+            synchronized (this) {
+                if (_sortShuffleManager == null) {
+                    _sortShuffleManager = RssSparkUtils$.MODULE$.instantiateClass(sortShuffleManagerName, conf, isDriver());
+                }
+            }
+        }
+        return _sortShuffleManager;
+    }
+
+    private void initializeLifecycleManager(String appId) {
+        // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
+        // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
+        // considered in this place, because if there is one RDD that depends on multiple RDDs
+        // at the same time, it may bring parallel `register shuffle`, such as Join in Sql.
+        if (isDriver() && lifecycleManager == null) {
+            synchronized (this) {
+                if (lifecycleManager == null) {
+                    lifecycleManager = new LifecycleManager(appId, rssConf);
+                    rssShuffleClient = ShuffleClient.get(lifecycleManager.self(), rssConf);
+                }
+            }
+        }
+    }
+
+    @Override
+    public <K, V, C> ShuffleHandle registerShuffle(int shuffleId, ShuffleDependency<K, V, C> dependency) {
+        // Note: generate newAppId at driver side, make sure dependency.rdd.context
+        // is the same SparkContext among different shuffleIds.
+        // This method may be called many times.
+        newAppId = SparkUtils.genNewAppId(dependency.rdd().context());
+        initializeLifecycleManager(newAppId);
+
+        if (fallbackPolicyRunner.applyAllFallbackPolicy(lifecycleManager,
+                dependency.partitioner().numPartitions())) {
+            logger.warn("Fallback to SortShuffleManager!");
+            sortShuffleIds.add(shuffleId);
+            return sortShuffleManager().registerShuffle(shuffleId, dependency);
+        } else {
+            // If not driver, use dummy rss meta service host and port.
+            String metaServiceHost = "";
+            int metaServicePort = 0;
+            if (lifecycleManager != null) {
+                metaServiceHost = lifecycleManager.getRssMetaServiceHost();
+                metaServicePort = lifecycleManager.getRssMetaServicePort();
+            }
+            return new RssShuffleHandle<>(
+                    newAppId,
+                    metaServiceHost,
+                    metaServicePort,
+                    shuffleId,
+                    dependency.rdd().getNumPartitions(),
+                    dependency);
+        }
+    }
+
+    @Override
+    public boolean unregisterShuffle(int shuffleId) {
+        if (sortShuffleIds.contains(shuffleId)) {
+            return sortShuffleManager().unregisterShuffle(shuffleId);
+        }
+        if (newAppId != null) {
+            if (rssShuffleClient != null) {
+                return rssShuffleClient.unregisterShuffle(newAppId, shuffleId, isDriver());
+            }
+            return false;
+        }
+        return true;
+    }
+
+
+    @Override
+    public ShuffleBlockResolver shuffleBlockResolver() {
+        return sortShuffleManager().shuffleBlockResolver();
+    }
+
+    @Override
+    public void stop() {
+        if (rssShuffleClient != null) {
+            rssShuffleClient.shutDown();
+        }
+        if (lifecycleManager != null) {
+            lifecycleManager.stop();
+        }
+        if (sortShuffleManager() != null) {
+            sortShuffleManager().stop();
+        }
+    }
+
+    @Override
+    public <K, V> ShuffleWriter<K, V> getWriter(ShuffleHandle handle, long mapId,
+                                                TaskContext context, ShuffleWriteMetricsReporter metrics) {
+        try {
+            if (handle instanceof RssShuffleHandle) {
+                @SuppressWarnings("unchecked")
+                RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
+                ShuffleClient client = ShuffleClient.get(h.rssMetaServiceHost(), h.rssMetaServicePort(), rssConf);
+                if ("sort".equals(RssConf.shuffleWriterMode(rssConf))) {
+                    return new SortBasedShuffleWriter<>(h.dependency(), h.newAppId(), h.numMappers(),
+                            context, rssConf, client, metrics);
+                } else if ("hash".equals(RssConf.shuffleWriterMode(rssConf))) {
+                    return new HashBasedShuffleWriter<>(h, context, rssConf, client, metrics,
+                            SendBufferPool.get(cores));
+                } else {
+                    throw new UnsupportedOperationException(
+                            "Unrecognized shuffle write mode!" + RssConf.shuffleWriterMode(rssConf));
+                }
+            } else {
+                return sortShuffleManager().getWriter(handle, mapId, context, metrics);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public <K, C> ShuffleReader<K, C> getReader(
+            ShuffleHandle handle, int startMapIndex, int endMapIndex, int startPartition, int endPartition,
+            TaskContext context, ShuffleReadMetricsReporter metrics) {
+        if (handle instanceof RssShuffleHandle) {
+            @SuppressWarnings("unchecked")
+            RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
+            return new RssShuffleReader<>(h,
+                    startPartition,
+                    endPartition,
+                    startMapIndex,
+                    endMapIndex,
+                    context,
+                    rssConf,
+                    metrics);
+        }
+        return RssSparkUtils.invokeGetReaderMethod(
+                sortShuffleManagerName,
+                "getReader",
+                sortShuffleManager(),
+                handle,
+                startMapIndex,
+                endMapIndex,
+                startPartition,
+                endPartition,
+                context,
+                metrics);
+    }
+
+    public <K, C> ShuffleReader<K, C> getReader(
+            ShuffleHandle handle, int startPartition, int endPartition,
+            TaskContext context, ShuffleReadMetricsReporter metrics) {
+        if (handle instanceof RssShuffleHandle) {
+            @SuppressWarnings("unchecked")
+            RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
+            return new RssShuffleReader<>(h,
+                    startPartition,
+                    endPartition,
+                    0,
+                    Integer.MAX_VALUE,
+                    context,
+                    rssConf,
+                    metrics);
+        }
+        return RssSparkUtils.invokeGetReaderMethod(
+                sortShuffleManagerName,
+                "getReader",
+                sortShuffleManager(),
+                handle,
+                0,
+                Integer.MAX_VALUE,
+                startPartition,
+                endPartition,
+                context,
+                metrics);
+    }
+
+    public <K, C> ShuffleReader<K, C> getReaderForRange(
+            ShuffleHandle handle, int startMapIndex, int endMapIndex, int startPartition, int endPartition,
+            TaskContext context, ShuffleReadMetricsReporter metrics) {
+        @SuppressWarnings("unchecked")
+        RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
+        return new RssShuffleReader<>(
+                h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf, metrics);
+    }
+}

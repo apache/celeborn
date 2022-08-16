@@ -20,11 +20,17 @@ package org.apache.spark.shuffle.rss;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.LongAdder;
 
+import scala.Tuple2;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
+
+import com.aliyun.emr.rss.common.RssConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,5 +59,24 @@ public class SparkUtils {
       res[i] = adders[i].longValue();
     }
     return res;
+  }
+
+  /**
+   * make rss conf from spark conf
+   */
+  public static RssConf fromSparkConf(SparkConf conf) {
+    RssConf tmpRssConf = new RssConf();
+    for (Tuple2<String, String> kv : conf.getAll()) {
+      if (kv._1.startsWith("spark.rss.")) {
+        tmpRssConf.set(kv._1.substring("spark.".length()), kv._2);
+      }
+    }
+    return tmpRssConf;
+  }
+
+  public static String genNewAppId(SparkContext context) {
+    return context.applicationAttemptId()
+            .map(id -> context.applicationId() + "_" + id)
+            .getOrElse(context::applicationId);
   }
 }

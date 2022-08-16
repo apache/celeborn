@@ -20,6 +20,7 @@ jobs:
         spark:
           - '2.4'
           - '3.0'
+          - '3.1'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
