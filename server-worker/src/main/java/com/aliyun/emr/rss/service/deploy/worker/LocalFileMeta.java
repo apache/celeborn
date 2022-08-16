@@ -1,10 +1,10 @@
 package com.aliyun.emr.rss.service.deploy.worker;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.io.File;
 import java.util.ArrayList;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class LocalFileMeta {
   String shuffleKey;
