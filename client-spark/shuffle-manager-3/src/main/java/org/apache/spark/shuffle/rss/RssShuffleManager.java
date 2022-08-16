@@ -179,6 +179,7 @@ public class RssShuffleManager implements ShuffleManager {
     }
   }
 
+  // Added in SPARK-32055, for Spark 3.1 and above
   public <K, C> ShuffleReader<K, C> getReader(
       ShuffleHandle handle,
       int startMapIndex,
@@ -206,6 +207,7 @@ public class RssShuffleManager implements ShuffleManager {
         metrics);
   }
 
+  // Marked as final in SPARK-32055, reserved for Spark 3.0
   public <K, C> ShuffleReader<K, C> getReader(
       ShuffleHandle handle,
       int startPartition,
@@ -231,6 +233,7 @@ public class RssShuffleManager implements ShuffleManager {
         metrics);
   }
 
+  // Renamed to getReader in SPARK-32055, reserved for Spark 3.0
   public <K, C> ShuffleReader<K, C> getReaderForRange(
       ShuffleHandle handle,
       int startMapIndex,
