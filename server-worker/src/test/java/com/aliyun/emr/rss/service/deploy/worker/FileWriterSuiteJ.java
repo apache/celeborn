@@ -241,7 +241,8 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
+    FileWriter writer = new FileWriter(new LocalFileMeta("", "", file),
+      flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
@@ -276,7 +277,8 @@ public class FileWriterSuiteJ {
     throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
-    FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
+    FileWriter writer = new FileWriter(new LocalFileMeta("", "", file),
+      flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
@@ -324,7 +326,8 @@ public class FileWriterSuiteJ {
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
+    FileWriter writer = new FileWriter(new LocalFileMeta("", "", file),
+      flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 

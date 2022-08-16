@@ -52,6 +52,7 @@ public final class FileWriter extends DeviceObserver {
 
   private static final long WAIT_INTERVAL_MS = 20;
 
+  private final LocalFileMeta fileMeta;
   private final File file;
   private final FileChannel channel;
   public final File dataRootDir;
@@ -114,7 +115,7 @@ public final class FileWriter extends DeviceObserver {
   private final FlushNotifier notifier = new FlushNotifier();
 
   public FileWriter(
-    File file,
+    LocalFileMeta fileMeta,
     DiskFlusher flusher,
     File workingDir,
     long chunkSize,
@@ -125,7 +126,8 @@ public final class FileWriter extends DeviceObserver {
     long splitThreshold,
     PartitionSplitMode splitMode,
     PartitionType partitionType) throws IOException {
-    this.file = file;
+    this.fileMeta = fileMeta;
+    this.file = fileMeta.file;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
     this.dataRootDir = workingDir;
@@ -138,10 +140,14 @@ public final class FileWriter extends DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    channel = new FileOutputStream(file).getChannel();
+    channel = new FileOutputStream(fileMeta.file).getChannel();
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
+  }
+
+  public LocalFileMeta getFileMeta() {
+    return fileMeta;
   }
 
   public File getFile() {

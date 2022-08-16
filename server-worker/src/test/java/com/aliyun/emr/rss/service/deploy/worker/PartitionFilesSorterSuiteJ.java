@@ -105,7 +105,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 5, 10);
+      fileWriter.getFileMeta(), 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
@@ -120,7 +120,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 5, 10);
+      fileWriter.getFileMeta(), 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);

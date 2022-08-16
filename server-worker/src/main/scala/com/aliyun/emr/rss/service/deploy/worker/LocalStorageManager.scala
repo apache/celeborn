@@ -36,7 +36,7 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, PartitionLocationInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
@@ -209,8 +209,10 @@ private[worker] final class DiskFlusher(
 }
 
 private[worker] final class LocalStorageManager(
-  conf: RssConf,
-  workerSource: AbstractSource) extends DeviceObserver with Logging with MemoryTrackerListener{
+    conf: RssConf,
+    workerSource: AbstractSource,
+    partitionLocationInfo: PartitionLocationInfo)
+  extends DeviceObserver with Logging with MemoryTrackerListener{
 
   val isolatedWorkingDirs =
     new ConcurrentHashMap[File, DeviceErrorType](RssConf.workerBaseDirs(conf).length)
@@ -418,15 +420,15 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  // shuffleKey -> (fileName -> writer)
-  private val writers =
-    new ConcurrentHashMap[String, ConcurrentHashMap[String, FileWriter]]()
+  // shuffleKey -> (fileName -> file meta)
+  private val fileMetas =
+    new ConcurrentHashMap[String, ConcurrentHashMap[String, LocalFileMeta]]()
 
   private def getNextIndex() = counter.getAndUpdate(counterOperator)
 
   private val newMapFunc =
-    new java.util.function.Function[String, ConcurrentHashMap[String, FileWriter]]() {
-      override def apply(key: String): ConcurrentHashMap[String, FileWriter] =
+    new java.util.function.Function[String, ConcurrentHashMap[String, LocalFileMeta]]() {
+      override def apply(key: String): ConcurrentHashMap[String, LocalFileMeta] =
         new ConcurrentHashMap()
     }
 
@@ -472,8 +474,10 @@ private[worker] final class LocalStorageManager(
         if (!createFileSuccess) {
           throw new RssException("create app shuffle data dir or file failed")
         }
+        val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
+        val fileMeta = new LocalFileMeta(shuffleKey, fileName, file)
         val fileWriter = new FileWriter(
-          file,
+          fileMeta,
           diskFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile),
           dir,
           fetchChunkSize,
@@ -485,12 +489,11 @@ private[worker] final class LocalStorageManager(
           splitMode,
           partitionType)
         deviceMonitor.registerFileWriter(fileWriter)
-        val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
         list.synchronized {list.add(fileWriter)}
         fileWriter.registerDestroyHook(list)
-        val shuffleMap = writers.computeIfAbsent(shuffleKey, newMapFunc)
-        shuffleMap.put(fileName, fileWriter)
+        val shuffleMap = fileMetas.computeIfAbsent(shuffleKey, newMapFunc)
+        shuffleMap.put(fileName, fileMeta)
         location.getStorageHint.setMountPoint(
           workingDirDiskInfos.get(dir.getAbsolutePath).mountPoint)
         logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
@@ -508,8 +511,8 @@ private[worker] final class LocalStorageManager(
     throw exception
   }
 
-  def getWriter(shuffleKey: String, fileName: String): FileWriter = {
-    val shuffleMap = writers.get(shuffleKey)
+  def getWriter(shuffleKey: String, fileName: String): LocalFileMeta = {
+    val shuffleMap = fileMetas.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
     } else {
@@ -517,7 +520,7 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  def shuffleKeySet(): util.Set[String] = writers.keySet()
+  def shuffleKeySet(): util.Set[String] = fileMetas.keySet()
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     val workingDirs = workingDirsSnapshot()
@@ -527,7 +530,7 @@ private[worker] final class LocalStorageManager(
 
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      writers.remove(shuffleKey)
+      fileMetas.remove(shuffleKey)
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       workingDirs.asScala.foreach { workingDir =>
         val dir = new File(workingDir, s"$appId/$shuffleId")
@@ -655,9 +658,21 @@ private[worker] final class LocalStorageManager(
   }
 
   private def flushFileWriters(): Unit = {
-    writers.entrySet().asScala.foreach(u =>
-      u.getValue.asScala
-        .foreach(f => f._2.flushOnMemoryPressure()))
+    fileMetas.keys().asScala.foreach { shuffleKey =>
+      partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
+        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
+        if (fileWriter != null) {
+          fileWriter.flusher
+        }
+      }
+
+      partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
+        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
+        if (fileWriter != null) {
+          fileWriter.flusher
+        }
+      }
+    }
   }
 
   override def onPause(moduleName: String): Unit = {
