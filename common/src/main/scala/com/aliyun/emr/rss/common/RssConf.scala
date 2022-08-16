@@ -813,6 +813,10 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
+  def partitionSplitMinimumSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.partition.split.minimum.size", "1m")
+  }
+
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
