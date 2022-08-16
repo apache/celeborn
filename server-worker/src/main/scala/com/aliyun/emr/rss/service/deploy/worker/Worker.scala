@@ -361,6 +361,7 @@ private[deploy] class Worker(
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
+        logInfo("Shutdown hook called.")
         shutdown.set(true)
         val interval = RssConf.checkSlotsFinishedInterval(conf)
         val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
