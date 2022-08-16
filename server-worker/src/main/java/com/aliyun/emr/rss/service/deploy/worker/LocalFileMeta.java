@@ -51,16 +51,8 @@ public class LocalFileMeta {
     chunkOffsets.add(0L);
   }
 
-  String getAbsolutePath() {
-    return file.getAbsolutePath();
-  }
-
   long getFileLength() {
     return bytesFlushed;
-  }
-
-  long length() {
-    return file.length();
   }
 
   public String getShuffleKey() {
