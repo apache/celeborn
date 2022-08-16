@@ -125,13 +125,13 @@ public class RssShuffleManager implements ShuffleManager {
     if (sortShuffleIds.contains(shuffleId)) {
       return sortShuffleManager().unregisterShuffle(shuffleId);
     }
-    if (newAppId != null) {
-      if (rssShuffleClient != null) {
-        return rssShuffleClient.unregisterShuffle(newAppId, shuffleId, isDriver());
-      }
+    if (newAppId == null) {
+      return true;
+    }
+    if (rssShuffleClient == null) {
       return false;
     }
-    return true;
+    return rssShuffleClient.unregisterShuffle(newAppId, shuffleId, isDriver());
   }
 
   @Override
