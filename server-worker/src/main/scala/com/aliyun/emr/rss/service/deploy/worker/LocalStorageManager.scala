@@ -511,7 +511,7 @@ private[worker] final class LocalStorageManager(
     throw exception
   }
 
-  def getWriter(shuffleKey: String, fileName: String): LocalFileMeta = {
+  def getFileMeta(shuffleKey: String, fileName: String): LocalFileMeta = {
     val shuffleMap = fileMetas.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
