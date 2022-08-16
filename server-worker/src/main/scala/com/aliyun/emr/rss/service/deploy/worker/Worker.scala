@@ -296,7 +296,6 @@ private[deploy] class Worker(
     asyncReplyPool.shutdownNow()
     // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
-    partitionLocationInfo.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()

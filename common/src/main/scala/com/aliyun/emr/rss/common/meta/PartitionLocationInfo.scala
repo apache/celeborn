@@ -302,8 +302,4 @@ class PartitionLocationInfo extends Logging {
   }
 
   def isEmpty: Boolean = masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
-
-  def close(): Unit = {
-    logInfo("Start close " + this.getClass.getSimpleName)
-  }
 }
