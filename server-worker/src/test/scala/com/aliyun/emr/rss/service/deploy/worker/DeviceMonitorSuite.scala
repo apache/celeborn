@@ -65,9 +65,9 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
   val localStorageManager = mock[DeviceObserver]
   var (deviceInfos, diskInfos, workingDirDiskInfos): (
-    java.util.HashMap[String, DeviceInfo],
-      java.util.HashMap[String, DiskInfo],
-      java.util.HashMap[String, DiskInfo]
+    java.util.Map[String, DeviceInfo],
+      java.util.Map[String, DiskInfo],
+      java.util.Map[String, DiskInfo]
     ) = (null, null, null)
 
   withObjectMocked[com.aliyun.emr.rss.common.util.Utils.type] {

@@ -53,8 +53,8 @@ object EmptyDeviceMonitor extends DeviceMonitor
 class LocalDeviceMonitor(
     essConf: RssConf,
     observer: DeviceObserver,
-    deviceInfos: util.HashMap[String, DeviceInfo],
-    diskInfos: util.HashMap[String, DiskInfo]) extends DeviceMonitor {
+    deviceInfos: util.Map[String, DeviceInfo],
+    diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
@@ -180,7 +180,7 @@ class LocalDeviceMonitor(
   }
 
   // (deviceName -> ObservedDevice)
-  var observedDevices: util.HashMap[DeviceInfo, ObservedDevice] = _
+  var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
   val diskCheckInterval = diskCheckIntervalMs(essConf)
   private val diskChecker =
@@ -281,8 +281,8 @@ object DeviceMonitor {
   def createDeviceMonitor(
       rssConf: RssConf,
       deviceObserver: DeviceObserver,
-      deviceInfos: util.HashMap[String, DeviceInfo],
-      diskInfos: util.HashMap[String, DiskInfo]): DeviceMonitor = {
+      deviceInfos: util.Map[String, DeviceInfo],
+      diskInfos: util.Map[String, DiskInfo]): DeviceMonitor = {
     try {
       if (RssConf.deviceMonitorEnabled(rssConf)) {
         val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, deviceInfos, diskInfos)
