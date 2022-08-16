@@ -662,14 +662,14 @@ private[worker] final class LocalStorageManager(
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
         if (fileWriter != null) {
-          fileWriter.flusher
+          fileWriter.flushOnMemoryPressure()
         }
       }
 
       partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
         if (fileWriter != null) {
-          fileWriter.flusher
+          fileWriter.flushOnMemoryPressure()
         }
       }
     }
