@@ -27,5 +27,4 @@ class RssShuffleHandle[K, V, C](
   shuffleId: Int,
   val numMappers: Int,
   dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, dependency) {
-}
+  extends BaseShuffleHandle(shuffleId, dependency)
