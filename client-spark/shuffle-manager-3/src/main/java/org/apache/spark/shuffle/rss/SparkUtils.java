@@ -29,10 +29,10 @@ import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
-
-import com.aliyun.emr.rss.common.RssConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.aliyun.emr.rss.common.RssConf;
 
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
