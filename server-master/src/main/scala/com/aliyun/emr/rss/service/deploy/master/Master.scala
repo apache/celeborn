@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.service.deploy.master
 
+import java.io.IOException
+import java.net.BindException
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
@@ -51,7 +53,25 @@ private[deploy] class Master(
   private val statusSystem = if (haEnabled(conf)) {
     val sys = new HAMasterMetaManager(rpcEnv, conf)
     val handler = new MetaHandler(sys)
-    handler.setUpMasterRatisServer(conf)
+    try {
+      handler.setUpMasterRatisServer(conf)
+    } catch {
+      case ioe: IOException =>
+        if (ioe.getCause.isInstanceOf[BindException]) {
+          val msg = s"HA port ${sys.getRatisServer.getRaftPort} of Ratis Server is occupied, " +
+            s"Master process will stop. Please refer to configuration doc to modify the HA port " +
+            s"in config file for each node."
+          logError(msg, ioe)
+          System.exit(1)
+        } else {
+          logError("Face unexpected IO exception during staring Ratis server", ioe)
+          throw ioe
+        }
+      case e: Exception =>
+        logError("Face unexpected exception during staring Ratis server", e)
+        throw e
+      case _ => // nothing to do
+    }
     sys
   } else {
     new SingleMasterMetaManager(rpcEnv, conf)
