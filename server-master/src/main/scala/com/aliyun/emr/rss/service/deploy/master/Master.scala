@@ -65,12 +65,7 @@ private[deploy] class Master(
           System.exit(1)
         } else {
           logError("Face unexpected IO exception during staring Ratis server", ioe)
-          throw ioe
         }
-      case e: Exception =>
-        logError("Face unexpected exception during staring Ratis server", e)
-        throw e
-      case _ => // nothing to do
     }
     sys
   } else {
