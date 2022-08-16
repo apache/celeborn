@@ -27,14 +27,9 @@
 
     <artifactId>rss-shuffle-manager</artifactId>
     <packaging>jar</packaging>
-    <name>Aliyun E-MapReduce Shuffle Service Shuffle Manager for Spark </name>
+    <name>Aliyun E-MapReduce Shuffle Service Shuffle Manager for Spark 3</name>
 
     <dependencies>
-        <dependency>
-            <groupId>com.aliyun.emr</groupId>
-            <artifactId>client</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <dependency>
             <groupId>com.aliyun.emr</groupId>
             <artifactId>common</artifactId>
@@ -44,35 +39,36 @@
             <groupId>com.aliyun.emr</groupId>
             <artifactId>client</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.aliyun.emr</groupId>
             <artifactId>shuffle-manager-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
+            <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.aliyun.emr</groupId>
+            <artifactId>client</artifactId>
+            <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>provided</scope>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

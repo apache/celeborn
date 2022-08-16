@@ -11,12 +11,7 @@
 
     <artifactId>worker</artifactId>
     <packaging>jar</packaging>
-    <name>Aliyun E-MapReduce Shuffle Service Service Worker Module</name>
-
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-    </properties>
+    <name>Aliyun E-MapReduce Shuffle Service Worker Module</name>
 
     <dependencies>
         <dependency>
@@ -25,47 +20,56 @@
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>org.mockito</groupId>
-                    <artifactId>mockito-core</artifactId>
+                    <groupId>org.apache.ratis</groupId>
+                    <artifactId>ratis-common</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.apache.ratis</groupId>
                     <artifactId>ratis-client</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>org.apache.ratis</groupId>
-                    <artifactId>ratis-common</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
-
         <dependency>
             <groupId>com.aliyun.emr</groupId>
             <artifactId>server-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
         </dependency>
-
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
-
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
         </dependency>
 
         <dependency>
+            <groupId>com.aliyun.emr</groupId>
+            <artifactId>client</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun.emr</groupId>
+            <artifactId>master</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun.emr</groupId>
+            <artifactId>rss-shuffle-manager</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.binary.version}</artifactId>
@@ -79,14 +83,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
-            <version>1.16.37</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>scala-library</artifactId>
-                    <groupId>org.scala-lang</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -95,39 +92,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.aliyun.emr</groupId>
-            <artifactId>master</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.aliyun.emr</groupId>
-            <artifactId>client</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-hive_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.aliyun.emr</groupId>
-            <artifactId>rss-shuffle-manager</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -137,7 +108,7 @@
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.5.0.Final</version>
+                <version>${maven.plugin.os.version}</version>
             </extension>
         </extensions>
         <plugins>
@@ -170,7 +141,7 @@
             <plugin>
                 <groupId>pl.project13.maven</groupId>
                 <artifactId>git-commit-id-plugin</artifactId>
-                <version>4.9.10</version>
+                <version>${maven.plugin.git.version}</version>
                 <executions>
                     <execution>
                         <id>get-the-git-infos</id>

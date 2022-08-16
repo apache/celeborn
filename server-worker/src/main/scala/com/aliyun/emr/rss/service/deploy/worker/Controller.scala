@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.IOException
-import java.util.{ArrayList => jArrayList, List => jList, Set => jSet}
+import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList, Set => jSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
@@ -31,8 +31,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.protocol.PartitionLocation.StorageHint
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
@@ -53,6 +52,7 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
+  val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimation(conf)
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -67,15 +67,15 @@ private[deploy] class Controller(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode, partitionType, storageHint) =>
+    case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
+    splitMode, partitionType) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode, partitionType, storageHint)
+          slaveLocations, splitThreshold, splitMode, partitionType)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -109,8 +109,7 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType,
-      storageHint: StorageHint): Unit = {
+      partitionType: PartitionType): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -162,9 +161,15 @@ private[deploy] class Controller(
     // reserve success, update status
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
-    workerInfo.allocateSlots(shuffleKey, masterPartitions.size() + slavePartitions.size())
-    logInfo(s"Reserved ${masterPartitions.size()} master location and ${slavePartitions.size()}" +
-      s" slave location for $shuffleKey master: ${masterPartitions}\nslave: ${slavePartitions}.")
+
+    logDebug(s"allocate slots ${masterLocations.asScala.map(_.toString).mkString(",")}" +
+      s"  ,  ${slaveLocations.asScala.map(_.toString).mkString(",")} ")
+    workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
+    logInfo(
+      s"Reserved ${masterPartitions.size()} master location" +
+        s" and ${slavePartitions.size()} slave location for $shuffleKey " +
+        s"master: $masterPartitions\nslave: $slavePartitions."
+    )
     context.reply(ReserveSlotsResponse(StatusCode.Success))
   }
 
@@ -173,6 +178,8 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: jSet[String],
       failedIds: jSet[String],
+      committedStorageHints: ConcurrentHashMap[String, StorageInfo],
+      partitionSizeList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
 
@@ -195,6 +202,10 @@ private[deploy] class Controller(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
+                committedStorageHints.put(uniqueId, fileWriter.getStorageInfo)
+                if (bytes >= minimumPartitionSizeForEstimation) {
+                  partitionSizeList.add(bytes)
+                }
                 committedIds.add(uniqueId)
               }
             } catch {
@@ -225,9 +236,15 @@ private[deploy] class Controller(
     // return null if shuffleKey does not exist
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
-      context.reply(CommitFilesResponse(
-        StatusCode.ShuffleNotRegistered, List.empty.asJava, List.empty.asJava,
-        masterIds, slaveIds))
+      context.reply(
+        CommitFilesResponse(
+          StatusCode.ShuffleNotRegistered,
+          List.empty.asJava,
+          List.empty.asJava,
+          masterIds,
+          slaveIds
+        )
+      )
       return
     }
 
@@ -239,9 +256,28 @@ private[deploy] class Controller(
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val committedMasterStorageHints = new ConcurrentHashMap[String, StorageInfo]()
+    val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageInfo]()
+    val partitionSizeList = new LinkedBlockingQueue[Long]()
 
-    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds)
-    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, false)
+    val masterFuture =
+      commitFiles(
+        shuffleKey,
+        masterIds,
+        committedMasterIds,
+        failedMasterIds,
+        committedMasterStorageHints,
+        partitionSizeList
+      )
+    val slaveFuture = commitFiles(
+      shuffleKey,
+      slaveIds,
+      committedSlaveIds,
+      failedSlaveIds,
+      committedSlaveStorageHints,
+      partitionSizeList,
+      false
+    )
 
     val future = if (masterFuture != null && slaveFuture != null) {
       CompletableFuture.allOf(masterFuture, slaveFuture)
@@ -255,27 +291,59 @@ private[deploy] class Controller(
 
     def reply(): Unit = {
       // release slots before reply.
-      val numSlotsReleased =
-        partitionLocationInfo.removeMasterPartitions(shuffleKey, masterIds) +
-        partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
-      workerInfo.releaseSlots(shuffleKey, numSlotsReleased)
+      val releaseMasterLocations =
+        partitionLocationInfo.removeMasterPartitions(shuffleKey, masterIds)
+      val releaseSlaveLocations = partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveIds)
+      logDebug(s"$shuffleKey remove" +
+        s" slots count ${releaseMasterLocations._2 + releaseSlaveLocations._2}")
+      logDebug(s"CommitFiles result" +
+        s" $committedMasterStorageHints $committedSlaveStorageHints")
+      workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
+      workerInfo.releaseSlots(shuffleKey, releaseSlaveLocations._1)
 
       val committedMasterIdList = new jArrayList[String](committedMasterIds)
       val committedSlaveIdList = new jArrayList[String](committedSlaveIds)
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
+      val committedMasterStorageAndDiskHintList =
+        new jHashMap[String, StorageInfo](committedMasterStorageHints)
+      val committedSlaveStorageAndDiskHintList =
+        new jHashMap[String, StorageInfo](committedSlaveStorageHints)
+      val totalSize = partitionSizeList.asScala.sum
+      val fileCount = partitionSizeList.size()
       // reply
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(
-          StatusCode.Success, committedMasterIdList, committedSlaveIdList,
-          List.empty.asJava, List.empty.asJava))
+        context.reply(
+          CommitFilesResponse(
+            StatusCode.Success,
+            committedMasterIdList,
+            committedSlaveIdList,
+            List.empty.asJava,
+            List.empty.asJava,
+            committedMasterStorageAndDiskHintList,
+            committedSlaveStorageAndDiskHintList,
+            totalSize,
+            fileCount
+          )
+        )
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
-        context.reply(CommitFilesResponse(StatusCode.PartialSuccess, committedMasterIdList,
-          committedSlaveIdList, failedMasterIdList, failedSlaveIdList))
+        context.reply(
+          CommitFilesResponse(
+            StatusCode.PartialSuccess,
+            committedMasterIdList,
+            committedSlaveIdList,
+            failedMasterIdList,
+            failedSlaveIdList,
+            committedMasterStorageAndDiskHintList,
+            committedSlaveStorageAndDiskHintList,
+            totalSize,
+            fileCount
+          )
+        )
       }
     }
 
@@ -349,7 +417,9 @@ private[deploy] class Controller(
         }
       }
       // remove master locations from WorkerInfo
-      partitionLocationInfo.removeMasterPartitions(shuffleKey, masterLocations)
+      val releaseMasterLocations =
+        partitionLocationInfo.removeMasterPartitions(shuffleKey, masterLocations)
+      workerInfo.releaseSlots(shuffleKey, releaseMasterLocations._1)
     }
     // destroy slave locations
     if (slaveLocations != null && !slaveLocations.isEmpty) {
@@ -362,13 +432,15 @@ private[deploy] class Controller(
         }
       }
       // remove slave locations from worker info
-      partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveLocations)
+      val releaseSlaveLocations =
+        partitionLocationInfo.removeSlavePartitions(shuffleKey, slaveLocations)
+      workerInfo.releaseSlots(shuffleKey, releaseSlaveLocations._1)
     }
     // reply
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.Success, null, null))
+      context.reply(DestroyResponse(StatusCode.Success, List.empty.asJava, List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +

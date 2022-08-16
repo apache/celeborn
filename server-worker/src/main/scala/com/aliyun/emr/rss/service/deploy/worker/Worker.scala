@@ -39,6 +39,7 @@ import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleCons
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.utils.ShutdownHookManager
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
@@ -58,6 +59,9 @@ private[deploy] class Worker(
   private val rpcPort = rpcEnv.address.port
   Utils.checkHost(host)
 
+  private val WORKER_SHUTDOWN_PRIORITY = 100
+  private val shutdown = new AtomicBoolean(false)
+
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
     val source = new WorkerSource(conf)
@@ -68,7 +72,7 @@ private[deploy] class Worker(
     source
   }
 
-  val localStorageManager = new LocalStorageManager(conf, workerSource, this)
+  val localStorageManager = new LocalStorageManager(conf, workerSource)
 
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),
@@ -132,9 +136,10 @@ private[deploy] class Worker(
   assert(fetchPort > 0)
   assert(replicatePort > 0)
 
-  // worker info
+  localStorageManager.updateDiskInfos()
+  // WorkerInfo's diskInfos is a reference to localStorageManager.diskInfos
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    RssConf.workerNumSlots(conf, localStorageManager.numDisks), controller.self)
+    localStorageManager.diskInfos, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)
@@ -150,7 +155,6 @@ private[deploy] class Worker(
   // Threads
   private val forwardMessageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
-  private var logAvailableFlushBuffersTask: ScheduledFuture[_] = _
   private var sendHeartbeatTask: ScheduledFuture[_] = _
   private var checkFastfailTask: ScheduledFuture[_] = _
   val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
@@ -169,9 +173,7 @@ private[deploy] class Worker(
 
   workerSource.addGauge(
     WorkerSource.RegisteredShuffleCount, _ => partitionLocationInfo.shuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.TotalSlots, _ => workerInfo.numSlots)
   workerSource.addGauge(WorkerSource.SlotsUsed, _ => workerInfo.usedSlots())
-  workerSource.addGauge(WorkerSource.SlotsAvailable, _ => workerInfo.freeSlots())
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
@@ -180,20 +182,16 @@ private[deploy] class Worker(
   workerSource.addGauge(WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
-  def updateNumSlots(numSlots: Int): Unit = {
-    workerInfo.setNumSlots(numSlots)
-    heartBeatToMaster()
-  }
-
   def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(localStorageManager.shuffleKeySet())
+    localStorageManager.updateDiskInfos()
     val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots,
-        shuffleKeys)
-      , classOf[HeartbeatResponse])
+      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        localStorageManager.diskInfos, shuffleKeys), classOf[HeartbeatResponse])
     if (response.registered) {
+      response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
       logError("Worker not registered in master, clean all shuffle data and register again.")
@@ -212,7 +210,7 @@ private[deploy] class Worker(
 
   def init(): Unit = {
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
-      s" with ${workerInfo.numSlots} slots.")
+      s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
 
     // start heartbeat
@@ -288,20 +286,17 @@ private[deploy] class Worker(
       sendHeartbeatTask.cancel(true)
       sendHeartbeatTask = null
     }
-    if (logAvailableFlushBuffersTask != null) {
-      logAvailableFlushBuffersTask.cancel(true)
-      logAvailableFlushBuffersTask = null
-    }
     if (checkFastfailTask != null) {
       checkFastfailTask.cancel(true)
       checkFastfailTask = null
     }
-
     forwardMessageScheduler.shutdownNow()
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
+    // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
+    partitionLocationInfo.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -319,7 +314,7 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp = try {
         rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots),
+          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
           classOf[RegisterWorkerResponse]
         )
       } catch {
@@ -362,6 +357,15 @@ private[deploy] class Worker(
   def isRegistered(): Boolean = {
     registered.get()
   }
+
+  ShutdownHookManager.get().addShutdownHook(
+    new Thread(new Runnable {
+      override def run(): Unit = {
+        shutdown.set(true)
+        // TODO: call stop after all reserved slot finished commit/destroy
+        stop()
+      }
+    }), WORKER_SHUTDOWN_PRIORITY)
 }
 
 private[deploy] object Worker extends Logging {

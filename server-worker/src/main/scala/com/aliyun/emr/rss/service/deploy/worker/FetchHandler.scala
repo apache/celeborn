@@ -87,7 +87,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
 
     if (fileInfo != null) {
-      logDebug(s"Received chunk fetch request $shuffleKey $fileName" +
+      logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
         val buffers = new FileManagedBuffers(fileInfo, conf)
