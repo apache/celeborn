@@ -15,7 +15,11 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common;
+package com.aliyun.emr.rss.service.deploy.worker;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -26,10 +30,6 @@ import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 /**
  * LevelDB utility class available in the network package.
