@@ -303,9 +303,9 @@ private[worker] final class LocalStorageManager(
       } else {
         logDebug(s"mount point $mountPoint is invalid or run out of space")
         workingDirsSnapshot()
-      }.asScala.filter(dir =>
-        workingDirDiskInfos.get(dir.getAbsolutePath)
-          .usableSpace > diskMinimumReserveSize).toList.asJava)
+      }.asScala.filter { dir =>
+        workingDirDiskInfos.get(dir.getAbsolutePath).usableSpace > diskMinimumReserveSize
+      }.toList.asJava)
   }
 
   override def notifyError(deviceName: String, dirs: ListBuffer[File],
