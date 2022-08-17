@@ -61,6 +61,11 @@ private[deploy] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
+  private val gracefulShutdown = RssConf.workerGracefulShutdown(conf)
+  assert(!gracefulShutdown || (gracefulShutdown &&
+    RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
+    RssConf.pushServerPort(conf) != 0 && RssConf.replicateServerPort(conf) != 0),
+    "If enable graceful shutdown, the worker should use stable server port.")
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
@@ -296,7 +301,6 @@ private[deploy] class Worker(
     asyncReplyPool.shutdownNow()
     // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
-    partitionLocationInfo.close()
 
     if (null != localStorageManager) {
       localStorageManager.close()
@@ -361,8 +365,26 @@ private[deploy] class Worker(
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
+        logInfo("Shutdown hook called.")
         shutdown.set(true)
-        // TODO: call stop after all reserved slot finished commit/destroy
+        if (gracefulShutdown) {
+          val interval = RssConf.checkSlotsFinishedInterval(conf)
+          val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
+          var waitTimes = 0
+
+          def waitTime: Long = waitTimes * interval
+
+          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+            Thread.sleep(interval)
+            waitTimes += 1
+          }
+          if (partitionLocationInfo.isEmpty) {
+            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+          } else {
+            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+              s"unreleased PartitionLocation: \n$partitionLocationInfo")
+          }
+        }
         stop()
       }
     }), WORKER_SHUTDOWN_PRIORITY)
