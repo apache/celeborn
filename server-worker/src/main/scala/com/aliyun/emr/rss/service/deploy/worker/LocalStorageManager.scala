@@ -295,17 +295,16 @@ private[worker] final class LocalStorageManager(
   deviceMonitor.startCheck()
 
   def getUsableWorkingDirs(mountPoint: String): util.ArrayList[File] = {
-    new util.ArrayList(
-      if (mountPoint != StorageInfo.UNKNOWN_DISK
-        && diskInfos.get(mountPoint).usableSpace > diskMinimumReserveSize) {
-        new util.ArrayList[File](diskInfos.get(mountPoint)
-          .dirInfos.filter(workingDirs.contains(_)).toList.asJava)
-      } else {
-        logDebug(s"mount point $mountPoint is invalid or run out of space")
-        workingDirsSnapshot()
-      }.asScala.filter { dir =>
+    if (mountPoint != StorageInfo.UNKNOWN_DISK
+      && diskInfos.get(mountPoint).usableSpace > diskMinimumReserveSize) {
+      new util.ArrayList[File](diskInfos.get(mountPoint)
+        .dirInfos.filter(workingDirs.contains(_)).toList.asJava)
+    } else {
+      logDebug(s"mount point $mountPoint is invalid or run out of space")
+      new util.ArrayList[File](workingDirsSnapshot().asScala.filter { dir =>
         workingDirDiskInfos.get(dir.getAbsolutePath).usableSpace > diskMinimumReserveSize
       }.toList.asJava)
+    }
   }
 
   override def notifyError(deviceName: String, dirs: ListBuffer[File],
