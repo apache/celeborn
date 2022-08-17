@@ -60,7 +60,7 @@ private[deploy] class Worker(
   Utils.checkHost(host)
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
-  private val shutdown = new AtomicBoolean(false)
+  val shutdown = new AtomicBoolean(false)
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
