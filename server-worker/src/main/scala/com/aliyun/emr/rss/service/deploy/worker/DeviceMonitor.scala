@@ -41,8 +41,8 @@ trait DeviceMonitor {
   def startCheck() {}
   def registerFileWriter(fileWriter: FileWriter): Unit = {}
   def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
-  def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
-  def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {}
+  def registerDiskFlusher(diskFlusher: Flusher): Unit = {}
+  def unregisterDiskFlusher(diskFlusher: Flusher): Unit = {}
   def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {}
   def close() {}
@@ -245,13 +245,13 @@ class LocalDeviceMonitor(
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
 
-  override def registerDiskFlusher(diskFlusher: DiskFlusher): Unit = {
+  override def registerDiskFlusher(diskFlusher: Flusher): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
       diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(diskFlusher)
   }
 
-  override def unregisterDiskFlusher(diskFlusher: DiskFlusher): Unit = {
+  override def unregisterDiskFlusher(diskFlusher: Flusher): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(diskFlusher.workingDirs.head.getAbsolutePath,
       diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(diskFlusher)
