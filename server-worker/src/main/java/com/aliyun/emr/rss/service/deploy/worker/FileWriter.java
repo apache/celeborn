@@ -113,7 +113,6 @@ public final class FileWriter extends DeviceObserver {
   public FileWriter(
     LocalFileMeta fileMeta,
     Flusher flusher,
-    File workingDir,
     long chunkSize,
     long flushBufferSize,
     AbstractSource workerSource,
