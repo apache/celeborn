@@ -45,14 +45,12 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void pauseAllChannels() {
-    synchronized (isPaused) {
-      isPaused.set(true);
-      channels.forEach(c -> {
-        if (c.config().isAutoRead()) {
-          c.config().setAutoRead(false);
-        }
-      });
-    }
+    isPaused.set(true);
+    channels.forEach(c -> {
+      if (c.config().isAutoRead()) {
+        c.config().setAutoRead(false);
+      }
+    });
   }
 
   private void trimCache(){
@@ -60,23 +58,19 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void resumeAllChannels() {
-    synchronized (isPaused) {
-      isPaused.set(false);
-      channels.forEach(c -> {
-        if (!c.config().isAutoRead()) {
-          c.config().setAutoRead(true);
-        }
-      });
-    }
+    isPaused.set(false);
+    channels.forEach(c -> {
+      if (!c.config().isAutoRead()) {
+        c.config().setAutoRead(true);
+      }
+    });
   }
 
   @Override
   public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
     channels.add(ctx.channel());
-    synchronized (isPaused) {
-      if (isPaused.get()) {
-        ctx.channel().config().setAutoRead(false);
-      }
+    if (isPaused.get()) {
+      ctx.channel().config().setAutoRead(false);
     }
     super.handlerAdded(ctx);
   }
