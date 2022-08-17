@@ -117,7 +117,7 @@ private[worker] final class Flusher(
       workers(index).start()
     }
 
-    deviceMonitor.registerDiskFlusher(this)
+    deviceMonitor.registerFlusher(this)
   }
 
   def getWorkerIndex: Int = synchronized {
@@ -184,7 +184,7 @@ private[worker] final class Flusher(
         task.buffer.clear()
       }
     }
-    deviceMonitor.unregisterDiskFlusher(this)
+    deviceMonitor.unregisterFlusher(this)
   }
 
   override def reportError(workingDir: mutable.Buffer[File], e: IOException,
