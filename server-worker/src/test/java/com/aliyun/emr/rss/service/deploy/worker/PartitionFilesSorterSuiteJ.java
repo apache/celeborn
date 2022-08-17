@@ -51,9 +51,8 @@ public class PartitionFilesSorterSuiteJ {
     byte[] batchHeader = new byte[16];
     Random random = new Random();
     shuffleFile = File.createTempFile("RSS", "sort-suite");
-    fileMeta = new LocalFileMeta("", "", shuffleFile);
-
     originFileName = shuffleFile.getAbsolutePath();
+    fileMeta = new LocalFileMeta("application-1", originFileName, shuffleFile);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -85,6 +84,7 @@ public class PartitionFilesSorterSuiteJ {
       channel.write(ByteBuffer.wrap(mockedData));
     }
     originFileLen = channel.size();
+    fileMeta.setBytesFlushed(originFileLen);
     System.out.println(shuffleFile.getAbsolutePath() +
                          " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
