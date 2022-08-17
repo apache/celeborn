@@ -210,8 +210,7 @@ private[worker] final class Flusher(
 
 private[worker] final class LocalStorageManager(
     conf: RssConf,
-    workerSource: AbstractSource,
-    partitionLocationInfo: PartitionLocationInfo)
+    workerSource: AbstractSource)
   extends DeviceObserver with Logging with MemoryTrackerListener{
 
   private val diskMinimumReserveSize = RssConf.diskMinimumReserveSize(conf)
@@ -222,6 +221,7 @@ private[worker] final class LocalStorageManager(
   private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageInfo.Type)] =
     new mutable.HashMap[String, (Long, Int, StorageInfo.Type)]()
   // mount point -> filewriter
+  // TODO: Should remove FileWriter after the file is committed or destroyed.
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
   private val workingDirs: util.ArrayList[File] = {
@@ -666,18 +666,12 @@ private[worker] final class LocalStorageManager(
   }
 
   private def flushFileWriters(): Unit = {
-    fileInfos.keys().asScala.foreach { shuffleKey =>
-      partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
-        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
-        if (fileWriter != null) {
-          fileWriter.flushOnMemoryPressure()
-        }
-      }
-
-      partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
-        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
-        if (fileWriter != null) {
-          fileWriter.flushOnMemoryPressure()
+    workingDirWriters.asScala.foreach { case (file, writers) =>
+      if(writers != null && writers.size() > 0) {
+        writers.asScala.foreach { case writer =>
+          if (writer != null && !writer.isClosed()) {
+            writer.flushOnMemoryPressure()
+          }
         }
       }
     }
