@@ -695,7 +695,7 @@ private[worker] final class LocalStorageManager(
       val totalUsage = mountPointRelatedDirs.map { dir =>
         val writers = workingDirWriters.get(dir)
         if (writers != null && writers.size() > 0) {
-          writers.asScala.map(_.getFileLength).sum
+          writers.asScala.map(_.getFileMeta.getFileLength).sum
         } else {
           0
         }
