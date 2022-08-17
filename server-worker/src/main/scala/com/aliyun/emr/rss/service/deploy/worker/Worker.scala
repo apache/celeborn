@@ -61,6 +61,8 @@ private[deploy] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   private val shutdown = new AtomicBoolean(false)
+  private val gracefulShutdown =
+    RssConf.workerGracefulShutdown(conf) && RssConf.fetchServerPort(conf) != 0
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
@@ -362,7 +364,7 @@ private[deploy] class Worker(
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
         shutdown.set(true)
-        if (RssConf.workerGracefulShutdown(conf)) {
+        if (gracefulShutdown) {
           val interval = RssConf.checkSlotsFinishedInterval(conf)
           val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
           var waitTimes = 0
