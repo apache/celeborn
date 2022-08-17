@@ -294,7 +294,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT3,
       disks1, 1, getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 1);
+    Assert.assertEquals(statusSystem.blacklist.size(), 2);
   }
 
   @Test
