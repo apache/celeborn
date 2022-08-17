@@ -61,8 +61,11 @@ private[deploy] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   private val shutdown = new AtomicBoolean(false)
-  private val gracefulShutdown =
-    RssConf.workerGracefulShutdown(conf) && RssConf.fetchServerPort(conf) != 0
+  private val gracefulShutdown = RssConf.workerGracefulShutdown(conf)
+  assert(!gracefulShutdown || (gracefulShutdown &&
+    RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
+    RssConf.pushServerPort(conf) != 0 && RssConf.replicateServerPort(conf) != 0),
+    "If enable graceful shutdown, the worker should use stable server port.")
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
