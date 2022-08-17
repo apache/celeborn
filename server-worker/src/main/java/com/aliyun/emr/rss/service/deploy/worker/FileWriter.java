@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.aliyun.emr.rss.common.network.server.FileInfo;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
@@ -38,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
@@ -261,7 +261,8 @@ public final class FileWriter extends DeviceObserver {
       try {
         channel.close();
       } catch (IOException e) {
-        logger.warn("Close channel failed for file {} caused by {}.", fileInfo.file, e.getMessage());
+        logger.warn("Close channel failed for file {} caused by {}.",
+          fileInfo.file, e.getMessage());
       }
     }
     fileInfo.file.delete();
