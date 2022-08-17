@@ -365,11 +365,17 @@ private[deploy] class Worker(
         val interval = RssConf.checkSlotsFinishedInterval(conf)
         val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
         var waitTimes = 0
-        while (!partitionLocationInfo.isEmpty && waitTimes * interval < timeout) {
+        def waitTime: Long = waitTimes * interval
+        while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
           Thread.sleep(interval)
           waitTimes += 1
         }
-        logInfo(s"Waiting for all PartitionLocation released cost ${waitTimes * interval}ms")
+        if (partitionLocationInfo.isEmpty) {
+          logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+        } else {
+          logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+            s"unreleased PartitionLocation: \n$partitionLocationInfo")
+        }
         stop()
       }
     }), WORKER_SHUTDOWN_PRIORITY)

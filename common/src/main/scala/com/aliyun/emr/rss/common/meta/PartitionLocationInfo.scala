@@ -302,4 +302,12 @@ class PartitionLocationInfo extends Logging {
   }
 
   def isEmpty: Boolean = masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
+
+  override def toString: String = {
+    s"""
+      | Partition Location Info:
+      | master: ${masterPartitionLocations.asScala}
+      | slave: ${slavePartitionLocations.asScala}
+      |""".stripMargin
+  }
 }
