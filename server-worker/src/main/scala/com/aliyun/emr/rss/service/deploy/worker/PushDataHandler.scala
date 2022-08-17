@@ -48,6 +48,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var registered: AtomicBoolean = _
   var workerInfo: WorkerInfo = _
   var diskMinimumReserveSize: Long = _
+  var partitionSplitMinimumSize: Long = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -59,6 +60,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     registered = worker.registered
     workerInfo = worker.workerInfo
     diskMinimumReserveSize = RssConf.diskMinimumReserveSize(worker.conf)
+    partitionSplitMinimumSize = RssConf.partitionSplitMinimumSize(worker.conf)
+
+    logInfo(s"diskMinimumReserveSize $diskMinimumReserveSize")
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
@@ -186,7 +190,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
     val diskFull =
       workerInfo.diskInfos.get(fileWriter.flusher.mountPoint).usableSpace < diskMinimumReserveSize
-    if (diskFull || (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold())) {
+    if ((diskFull && fileWriter.getFileLength > partitionSplitMinimumSize) ||
+      (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold())) {
       fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))

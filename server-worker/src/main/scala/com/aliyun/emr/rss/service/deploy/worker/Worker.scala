@@ -60,7 +60,7 @@ private[deploy] class Worker(
   Utils.checkHost(host)
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
-  private val shutdown = new AtomicBoolean(false)
+  val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = RssConf.workerGracefulShutdown(conf)
   assert(!gracefulShutdown || (gracefulShutdown &&
     RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
