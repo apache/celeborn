@@ -366,7 +366,7 @@ private[deploy] class Master(
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
-      statusSystem.workers.remove(workerToRegister)
+      statusSystem.handleWorkerRemove(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
       statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
         disks, requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
