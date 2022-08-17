@@ -362,19 +362,23 @@ private[deploy] class Worker(
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
         shutdown.set(true)
-        val interval = RssConf.checkSlotsFinishedInterval(conf)
-        val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
-        var waitTimes = 0
-        def waitTime: Long = waitTimes * interval
-        while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
-          Thread.sleep(interval)
-          waitTimes += 1
-        }
-        if (partitionLocationInfo.isEmpty) {
-          logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
-        } else {
-          logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
-            s"unreleased PartitionLocation: \n$partitionLocationInfo")
+        if (RssConf.workerGracefulShutdown(conf)) {
+          val interval = RssConf.checkSlotsFinishedInterval(conf)
+          val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
+          var waitTimes = 0
+
+          def waitTime: Long = waitTimes * interval
+
+          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+            Thread.sleep(interval)
+            waitTimes += 1
+          }
+          if (partitionLocationInfo.isEmpty) {
+            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+          } else {
+            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+              s"unreleased PartitionLocation: \n$partitionLocationInfo")
+          }
         }
         stop()
       }
