@@ -667,7 +667,7 @@ private[worker] final class LocalStorageManager(
 
   private def flushFileWriters(): Unit = {
     workingDirWriters.asScala.foreach { case (file, writers) =>
-      if(writers != null && writers.size() > 0) {
+      if (writers != null && writers.size() > 0) {
         writers.asScala.foreach { case writer =>
           if (writer != null && !writer.isClosed()) {
             writer.flushOnMemoryPressure()
