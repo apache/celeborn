@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 
 public class PartitionFilesSorterSuiteJ {
   private File shuffleFile;
-  private LocalFileMeta fileMeta;
+  private FileInfo fileInfo;
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
   private String originFileName;
   private long originFileLen;
@@ -52,7 +52,7 @@ public class PartitionFilesSorterSuiteJ {
     Random random = new Random();
     shuffleFile = File.createTempFile("RSS", "sort-suite");
     originFileName = shuffleFile.getAbsolutePath();
-    fileMeta = new LocalFileMeta("application-1", originFileName, shuffleFile);
+    fileInfo = new FileInfo( shuffleFile);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -84,14 +84,14 @@ public class PartitionFilesSorterSuiteJ {
       channel.write(ByteBuffer.wrap(mockedData));
     }
     originFileLen = channel.size();
-    fileMeta.setBytesFlushed(originFileLen);
+    fileInfo.setBytesFlushed(originFileLen);
     System.out.println(shuffleFile.getAbsolutePath() +
                          " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(fileWriter.getFileMeta()).thenAnswer(i -> fileMeta);
+    when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
   }
 
   public void clean() {
@@ -105,10 +105,10 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter.getFileMeta(), 5, 10);
+      fileWriter.getFileInfo(), 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
-    Assert.assertTrue(info.numChunks > 0);
+    Assert.assertTrue(info.numChunks() > 0);
     clean();
   }
 
@@ -120,10 +120,10 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter.getFileMeta(), 5, 10);
+      fileWriter.getFileInfo(), 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
-    Assert.assertTrue(info.numChunks > 0);
+    Assert.assertTrue(info.numChunks() > 0);
     clean();
   }
 }

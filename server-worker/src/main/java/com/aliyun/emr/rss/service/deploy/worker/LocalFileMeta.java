@@ -21,28 +21,20 @@ import java.io.File;
 import java.util.ArrayList;
 
 public class LocalFileMeta {
-  String shuffleKey;
-  String fileName;
   File file;
   long bytesFlushed = 0;
   ArrayList<Long> chunkOffsets = new ArrayList<>();
 
   public LocalFileMeta(
-     String shuffleKey,
-     String fileName,
      File file,
      long bytesFlushed,
      ArrayList<Long> chunkOffsets) {
-    this.shuffleKey = shuffleKey;
-    this.fileName = fileName;
     this.file = file;
     this.bytesFlushed = bytesFlushed;
     this.chunkOffsets = chunkOffsets;
   }
 
-  public LocalFileMeta(String shuffleKey, String fileName, File file) {
-    this.shuffleKey = shuffleKey;
-    this.fileName = fileName;
+  public LocalFileMeta(File file) {
     this.file = file;
     chunkOffsets.add(0L);
   }
@@ -51,21 +43,6 @@ public class LocalFileMeta {
     return bytesFlushed;
   }
 
-  public String getShuffleKey() {
-    return shuffleKey;
-  }
-
-  public void setShuffleKey(String shuffleKey) {
-    this.shuffleKey = shuffleKey;
-  }
-
-  public String getFileName() {
-    return fileName;
-  }
-
-  public void setFileName(String fileName) {
-    this.fileName = fileName;
-  }
 
   public File getFile() {
     return file;
@@ -94,9 +71,7 @@ public class LocalFileMeta {
   @Override
   public String toString() {
     return "LocalFileMeta{" +
-        "shuffleKey='" + shuffleKey + '\'' +
-        ", fileName='" + fileName + '\'' +
-        ", file=" + file +
+        "file=" + file +
         ", bytesFlushed=" + bytesFlushed +
         ", chunkOffsets=" + chunkOffsets +
         '}';

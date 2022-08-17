@@ -57,12 +57,12 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       startMapIndex: Int,
       endMapIndex: Int): FileInfo = {
     // find FileWriter responsible for the data
-    val fileMeta = localStorageManager.getFileMeta(shuffleKey, fileName)
-    if (fileMeta == null) {
+    val fileInfo = localStorageManager.getFileMeta(shuffleKey, fileName)
+    if (fileInfo == null) {
       logWarning(s"File $fileName for $shuffleKey was not found!")
       null
     } else {
-      partitionsSorter.openStream(shuffleKey, fileName, fileMeta, startMapIndex, endMapIndex)
+      partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
     }
   }
 
@@ -92,8 +92,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       try {
         val buffers = new FileManagedBuffers(fileInfo, conf)
         val streamId = streamManager.registerStream(buffers, client.getChannel)
-        val streamHandle = new StreamHandle(streamId, fileInfo.numChunks)
-        if (fileInfo.numChunks == 0) {
+        val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+        if (fileInfo.numChunks() == 0) {
           logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
             s" $startMapIndex endMapIndex $endMapIndex is empty.")
         }

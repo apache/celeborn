@@ -97,10 +97,10 @@ public class PartitionFilesSorter {
     return shuffleSortTaskDeque.size();
   }
 
-  public FileInfo openStream(String shuffleKey, String fileName, LocalFileMeta fileMeta,
+  public FileInfo openStream(String shuffleKey, String fileName, FileInfo fileInfo,
     int startMapIndex, int endMapIndex) {
     if (endMapIndex == Integer.MAX_VALUE) {
-      return new FileInfo(fileMeta.getFile(), fileMeta.getChunkOffsets());
+      return fileInfo;
     } else {
       String fileId = shuffleKey + "-" + fileName;
 
@@ -109,8 +109,8 @@ public class PartitionFilesSorter {
       Set<String> sorting =
         sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
-      String sortedFileName = fileMeta.getFile().getAbsolutePath() + SORTED_SUFFIX;
-      String indexFileName = fileMeta.getFile().getAbsolutePath() + INDEX_SUFFIX;
+      String sortedFileName = fileInfo.getFile().getAbsolutePath() + SORTED_SUFFIX;
+      String indexFileName = fileInfo.getFile().getAbsolutePath() + INDEX_SUFFIX;
 
       if (sorted.contains(fileId)) {
         return resolve(shuffleKey, fileId, sortedFileName, indexFileName,
@@ -119,7 +119,7 @@ public class PartitionFilesSorter {
 
       synchronized (sorting) {
         if (!sorting.contains(fileId)) {
-          FileSorter fileSorter = new FileSorter(fileMeta.getFile(), fileMeta.getFileLength(),
+          FileSorter fileSorter = new FileSorter(fileInfo.getFile(), fileInfo.getBytesFlushed(),
             fileId, shuffleKey);
           sorting.add(fileId);
           try {

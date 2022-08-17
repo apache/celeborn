@@ -24,17 +24,42 @@ import org.apache.commons.lang3.StringUtils;
 
 public class FileInfo {
   public final File file;
+  public long bytesFlushed = 0;
   public final ArrayList<Long> chunkOffsets;
-  public final int numChunks;
 
   public FileInfo(File file, ArrayList<Long> chunkOffsets) {
     this.file = file;
     this.chunkOffsets = chunkOffsets;
+  }
+
+  public FileInfo(File file) {
+    this.file = file;
+    this.chunkOffsets = new ArrayList<>();
+    chunkOffsets.add(0l);
+  }
+
+  public int numChunks() {
     if (!chunkOffsets.isEmpty()) {
-      this.numChunks = chunkOffsets.size() - 1;
+      return chunkOffsets.size() - 1;
     } else {
-      this.numChunks = 0;
+      return 0;
     }
+  }
+
+  public File getFile() {
+    return file;
+  }
+
+  public long getBytesFlushed() {
+    return bytesFlushed;
+  }
+
+  public void setBytesFlushed(long bytesFlushed) {
+    this.bytesFlushed = bytesFlushed;
+  }
+
+  public ArrayList<Long> getChunkOffsets() {
+    return chunkOffsets;
   }
 
   @Override
@@ -42,7 +67,7 @@ public class FileInfo {
     return "FileInfo{" +
              "file=" + file.getAbsolutePath() +
              ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
-             ", numChunks=" + numChunks +
+             ", numChunks=" + numChunks() +
              '}';
   }
 }
