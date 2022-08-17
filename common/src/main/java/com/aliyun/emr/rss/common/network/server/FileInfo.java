@@ -66,6 +66,7 @@ public class FileInfo {
   public String toString() {
     return "FileInfo{" +
              "file=" + file.getAbsolutePath() +
+             ", bytesFlushed=" + bytesFlushed +
              ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
              ", numChunks=" + numChunks() +
              '}';

@@ -32,6 +32,7 @@ import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
@@ -424,8 +425,8 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  // shuffleKey -> (fileName -> file meta)
-  private val fileMetas =
+  // shuffleKey -> (fileName -> file info)
+  private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
 
   private def getNextIndex() = counter.getAndUpdate(counterOperator)
@@ -499,7 +500,7 @@ private[worker] final class LocalStorageManager(
         val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
         list.synchronized {list.add(fileWriter)}
         fileWriter.registerDestroyHook(list)
-        val shuffleMap = fileMetas.computeIfAbsent(shuffleKey, newMapFunc)
+        val shuffleMap = fileInfos.computeIfAbsent(shuffleKey, newMapFunc)
         shuffleMap.put(fileName, fileInfo)
         location.getStorageHint.setMountPoint(
           workingDirDiskInfos.get(dir.getAbsolutePath).mountPoint)
@@ -518,8 +519,8 @@ private[worker] final class LocalStorageManager(
     throw exception
   }
 
-  def getFileMeta(shuffleKey: String, fileName: String): FileInfo = {
-    val shuffleMap = fileMetas.get(shuffleKey)
+  def getFileInfo(shuffleKey: String, fileName: String): FileInfo = {
+    val shuffleMap = fileInfos.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
     } else {
@@ -527,7 +528,7 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  def shuffleKeySet(): util.Set[String] = fileMetas.keySet()
+  def shuffleKeySet(): util.Set[String] = fileInfos.keySet()
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     val workingDirs = workingDirsSnapshot()
@@ -537,7 +538,7 @@ private[worker] final class LocalStorageManager(
 
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      fileMetas.remove(shuffleKey)
+      fileInfos.remove(shuffleKey)
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       workingDirs.asScala.foreach { workingDir =>
         val dir = new File(workingDir, s"$appId/$shuffleId")
@@ -665,7 +666,7 @@ private[worker] final class LocalStorageManager(
   }
 
   private def flushFileWriters(): Unit = {
-    fileMetas.keys().asScala.foreach { shuffleKey =>
+    fileInfos.keys().asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
         if (fileWriter != null) {

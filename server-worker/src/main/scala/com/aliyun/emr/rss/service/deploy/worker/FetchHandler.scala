@@ -57,7 +57,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       startMapIndex: Int,
       endMapIndex: Int): FileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = localStorageManager.getFileMeta(shuffleKey, fileName)
+    val fileInfo = localStorageManager.getFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       logWarning(s"File $fileName for $shuffleKey was not found!")
       null
