@@ -896,7 +896,7 @@ object RssConf extends Logging {
   }
 
   def workerGracefulShutdown(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.worker.graceful.shutdown", "false")
+    conf.getBoolean("rss.worker.graceful.shutdown", false)
   }
 
   def shutdownTimeoutMs(conf: RssConf): Long = {
