@@ -1,6 +1,8 @@
 apiVersion: v2
 name: remote-shuffle-service
-description: A Helm chart for Kubernetes
+description: >
+  Aliyun Remote Shuffle Service(RSS) is dedicated to improving the efficiency and elasticity of different map-reduce engines.
+  RSS provides an elastic and high efficient management service for shuffle data.
 
 # A chart can be either an 'application' or a 'library' chart.
 #
