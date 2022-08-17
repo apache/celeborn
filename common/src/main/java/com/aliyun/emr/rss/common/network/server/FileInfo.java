@@ -35,7 +35,7 @@ public class FileInfo {
   public FileInfo(File file) {
     this.file = file;
     this.chunkOffsets = new ArrayList<>();
-    chunkOffsets.add(0l);
+    chunkOffsets.add(0L);
   }
 
   public int numChunks() {
