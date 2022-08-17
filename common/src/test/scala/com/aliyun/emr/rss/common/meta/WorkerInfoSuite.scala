@@ -44,8 +44,8 @@ class WorkerInfoSuite extends RssFunSuite {
   }
 
   private def check(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int
-    , workerInfos: jMap[WorkerInfo, util.HashMap[String, Integer]],
-    allocationMap: util.HashMap[String, Integer]): Unit = {
+    , workerInfos: jMap[WorkerInfo, util.Map[String, Integer]],
+    allocationMap: util.Map[String, Integer]): Unit = {
     val worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null)
     val realWorker = workerInfos.get(worker)
     assertNotNull(s"Worker $worker didn't exist.", realWorker)

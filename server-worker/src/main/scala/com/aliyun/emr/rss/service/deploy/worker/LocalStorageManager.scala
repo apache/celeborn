@@ -689,10 +689,10 @@ private[worker] final class LocalStorageManager(
     })
   }
 
-  def updateDiskInfos(): Unit = {
-    diskInfos.asScala.foreach { case (mountPoint, diskInfo) =>
-      val mountPointRelatedDirs = diskInfo.dirInfos
-      val totalUsage = mountPointRelatedDirs.map { dir =>
+  def updateDiskInfos(): Unit = this.synchronized {
+    diskInfos.asScala.foreach { case (_, diskInfo) =>
+      val dirInfos = diskInfo.dirInfos.toList
+      val totalUsage = dirInfos.map { dir =>
         val writers = workingDirWriters.get(dir)
         if (writers != null && writers.size() > 0) {
           writers.asScala.map(_.getFileMeta.getFileLength).sum
@@ -700,7 +700,7 @@ private[worker] final class LocalStorageManager(
           0
         }
       }.sum
-      val totalConfiguredCapacity = mountPointRelatedDirs
+      val totalConfiguredCapacity = dirInfos
         .map(file => workingDirMetas(file.getAbsolutePath)._1).sum
       val fileSystemReportedUsableSpace = Files.getFileStore(
         Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
@@ -709,6 +709,6 @@ private[worker] final class LocalStorageManager(
       val flushTimeAverage = diskFlushers.get(diskInfo.mountPointFile).averageFlushTime()
       diskInfo.update(workingDirUsableSpace, flushTimeAverage)
     }
-    logInfo(s"DiskInfos: $diskInfos")
+    logInfo(s"Updated diskInfos: $diskInfos")
   }
 }
