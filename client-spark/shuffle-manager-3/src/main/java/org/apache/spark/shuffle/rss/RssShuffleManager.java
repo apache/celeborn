@@ -66,7 +66,7 @@ public class RssShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (_sortShuffleManager == null) {
           _sortShuffleManager =
-              RssSparkUtils$.MODULE$.instantiateClass(sortShuffleManagerName, conf, isDriver());
+              SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver());
         }
       }
     }
@@ -194,7 +194,7 @@ public class RssShuffleManager implements ShuffleManager {
       return new RssShuffleReader<>(
           h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf, metrics);
     }
-    return RssSparkUtils.invokeGetReaderMethod(
+    return SparkUtils.invokeGetReaderMethod(
         sortShuffleManagerName,
         "getReader",
         sortShuffleManager(),
@@ -220,7 +220,7 @@ public class RssShuffleManager implements ShuffleManager {
       return new RssShuffleReader<>(
           h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, rssConf, metrics);
     }
-    return RssSparkUtils.invokeGetReaderMethod(
+    return SparkUtils.invokeGetReaderMethod(
         sortShuffleManagerName,
         "getReader",
         sortShuffleManager(),
