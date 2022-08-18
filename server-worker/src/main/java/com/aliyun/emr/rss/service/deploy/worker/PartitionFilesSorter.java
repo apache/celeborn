@@ -36,8 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.aliyun.emr.rss.common.network.util.DBSerDeUtils;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBException;
 import org.iq80.leveldb.DBIterator;
@@ -60,7 +59,6 @@ public class PartitionFilesSorter {
   private String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
   private File recoverFile;
-  private ObjectMapper mapper = new ObjectMapper();
   private boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
@@ -87,13 +85,13 @@ public class PartitionFilesSorter {
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
-    String recoverPath = RssConf.workerSortedFileRecoverPath(conf);
+    String recoverPath = RssConf.workerRecoverPath(conf);
     this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
     // ShuffleClient only can fetch data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (RssConf.workerGracefulShutdown(conf)) {
       try {
-        this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION, mapper);
+        this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadPartitionInfoExecutors(this.sortedFilesDb);
       } catch (Exception e) {
         this.sortedFilesDb = null;
@@ -241,8 +239,7 @@ public class PartitionFilesSorter {
           String shuffleKey = parseDbAppExecKey(key);
           try {
             logger.info("Reloading registered executors: " + shuffleKey);
-            Set<String> sortedFiles =
-                mapper.readValue(e.getValue(), new TypeReference<Set<String>>() {});
+            Set<String> sortedFiles = DBSerDeUtils.fromPbSortedShuffleFileSet(e.getValue());
             sortingShuffleFiles.put(shuffleKey, sortedFiles);
           } catch (Exception exception) {
             logger.error(
@@ -458,13 +455,8 @@ public class PartitionFilesSorter {
         writeIndex(sortedBlockInfoMap, indexFileName);
         sortedShuffleFiles.get(shuffleKey).add(fileId);
         if (sortedFilesDb != null) {
-          try {
-            sortedFilesDb.put(dbShuffleKey(shuffleKey),
-                mapper.writeValueAsString(sortedShuffleFiles.get(shuffleKey))
-                    .getBytes(StandardCharsets.UTF_8));
-          } catch (IOException ioe) {
-            logger.error("Error deleting $shuffleKey from state db", ioe);
-          }
+          sortedFilesDb.put(dbShuffleKey(shuffleKey),
+              DBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
         }
         if (!originFile.delete()) {
           logger.warn("clean origin file failed, origin file is : {}",

@@ -907,8 +907,8 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.shutdown.timeout", "600s")
   }
 
-  def workerSortedFileRecoverPath(conf: RssConf): String = {
-    conf.get("rss.worker.sortedFileRecoverPath", "/tmp")
+  def workerRecoverPath(conf: RssConf): String = {
+    conf.get("rss.worker.recoverPath", "/tmp")
   }
 
   def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {

@@ -20,10 +20,11 @@ package com.aliyun.emr.rss.service.deploy.worker;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
+import com.aliyun.emr.rss.common.network.util.DBSerDeUtils;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.fusesource.leveldbjni.JniDBFactory;
 import org.fusesource.leveldbjni.internal.NativeDB;
 import org.iq80.leveldb.DB;
@@ -39,8 +40,7 @@ import org.slf4j.LoggerFactory;
 public class LevelDBProvider {
   private static final Logger logger = LoggerFactory.getLogger(LevelDBProvider.class);
 
-  public static DB initLevelDB(File dbFile, StoreVersion version, ObjectMapper mapper) throws
-      IOException {
+  public static DB initLevelDB(File dbFile, StoreVersion version) throws IOException {
     DB tmpDb = null;
     if (dbFile != null) {
       Options options = new Options();
@@ -101,24 +101,25 @@ public class LevelDBProvider {
    * versions.  Minor version differences are allowed -- meaning we should be able to read
    * dbs that are either earlier *or* later on the minor version.
    */
-  public static void checkVersion(DB db, StoreVersion newversion, ObjectMapper mapper) throws
+  public static void checkVersion(DB db, StoreVersion newversion) throws
       IOException {
     byte[] bytes = db.get(StoreVersion.KEY);
     if (bytes == null) {
-      storeVersion(db, newversion, mapper);
+      storeVersion(db, newversion);
     } else {
-      StoreVersion version = mapper.readValue(bytes, StoreVersion.class);
+      ArrayList<Integer> versions = DBSerDeUtils.fromPbStoreVersion(bytes);
+      StoreVersion version = new StoreVersion(versions.get(0), versions.get(1));
       if (version.major != newversion.major) {
         throw new IOException("cannot read state DB with version " + version + ", incompatible " +
             "with current version " + newversion);
       }
-      storeVersion(db, newversion, mapper);
+      storeVersion(db, newversion);
     }
   }
 
-  public static void storeVersion(DB db, StoreVersion version, ObjectMapper mapper)
+  public static void storeVersion(DB db, StoreVersion version)
       throws IOException {
-    db.put(StoreVersion.KEY, mapper.writeValueAsBytes(version));
+    db.put(StoreVersion.KEY, DBSerDeUtils.toPbStoreVersion(version.major, version.minor));
   }
 
   public static class StoreVersion {

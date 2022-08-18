@@ -357,3 +357,12 @@ message PbStageEnd {
 message PbStageEndResponse {
   int32 status = 1;
 }
+
+message PbSortedShuffleFileSet {
+  repeated string files = 1;
+}
+
+message PbStoreVersion {
+  int32 major = 1;
+  int32 minor = 2;
+}
