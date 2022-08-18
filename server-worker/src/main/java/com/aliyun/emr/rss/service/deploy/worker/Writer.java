@@ -135,7 +135,6 @@ public final class Writer implements DeviceObserver {
     this.splitMode = splitMode;
     this.partitionType = partitionType;
     channel = new FileOutputStream(fileInfo.file).getChannel();
-    FileOutputStream  stream= new FileOutputStream(file);
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
