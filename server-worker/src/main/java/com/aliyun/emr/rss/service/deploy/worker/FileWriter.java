@@ -360,8 +360,6 @@ public final class FileWriter extends DeviceObserver {
     }
   }
 
-  public boolean isClosed() { return closed; }
-
   public int hashCode() {
     return fileInfo.file.hashCode();
   }
