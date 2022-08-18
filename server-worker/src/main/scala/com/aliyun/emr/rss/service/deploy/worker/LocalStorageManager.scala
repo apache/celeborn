@@ -36,7 +36,7 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, PartitionLocationInfo}
+import com.aliyun.emr.rss.common.meta.DeviceInfo
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker}
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
@@ -74,10 +74,10 @@ private[worker] class LocalFlushTask(
 }
 
 private[worker] abstract class Flusher(
-  val workerSource: AbstractSource,
-  val threadCount: Int,
-  val flushAvgTimeWindowSize: Int,
-  val flushAvgTimeMinimumCount: Int) extends Logging {
+    val workerSource: AbstractSource,
+    val threadCount: Int,
+    val flushAvgTimeWindowSize: Int,
+    val flushAvgTimeMinimumCount: Int) extends Logging {
   protected lazy val diskFlusherId = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
@@ -208,7 +208,7 @@ private[worker] class LocalFlusher(
       flushAvgTimeMinimumCount)
       with DeviceObserver with Logging {
 
-    deviceMonitor.registerFlusher(this)
+  deviceMonitor.registerFlusher(this)
 
   override def processError(e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {
@@ -635,7 +635,7 @@ private[worker] final class LocalStorageManager(
   }, rssSlowFlushInterval, rssSlowFlushInterval, TimeUnit.MILLISECONDS)
 
   private def cleanupExpiredAppDirs(
-    deleteRecursively: Boolean = false, expireDuration: Long): Unit = {
+      deleteRecursively: Boolean = false, expireDuration: Long): Unit = {
     val workingDirs = workingDirsSnapshot()
     workingDirs.addAll(isolatedWorkingDirs.asScala.filterNot(entry => {
       entry._2 == DeviceErrorType.IoHang
