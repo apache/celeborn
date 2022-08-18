@@ -184,7 +184,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerRemove(String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
+  public void handleWorkerRemove(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
           .setCmdType(Type.WorkerRemove)
