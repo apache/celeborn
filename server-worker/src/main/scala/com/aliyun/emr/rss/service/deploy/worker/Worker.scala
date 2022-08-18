@@ -208,7 +208,7 @@ private[deploy] class Worker(
         case e: Throwable =>
           logError("Re-register worker failed after worker lost.", e)
           // Register failed then stop server
-          stop()
+          System.exit(-1)
       }
     }
   }
