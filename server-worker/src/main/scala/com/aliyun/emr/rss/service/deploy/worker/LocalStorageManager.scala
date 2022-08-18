@@ -694,7 +694,7 @@ private[worker] final class LocalStorageManager(
       val totalUsage = dirInfos.map { dir =>
         val writers = workingDirWriters.get(dir)
         if (writers != null && writers.size() > 0) {
-          writers.asScala.map(_.getFileInfo.getBytesFlushed).sum
+          writers.asScala.map(_.getFileInfo.getFileLength).sum
         } else {
           0
         }
