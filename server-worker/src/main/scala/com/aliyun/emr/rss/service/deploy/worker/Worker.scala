@@ -286,6 +286,7 @@ private[deploy] class Worker(
 
   def stop(): Unit = {
     logInfo("Stopping RSS Worker.")
+
     if (sendHeartbeatTask != null) {
       sendHeartbeatTask.cancel(true)
       sendHeartbeatTask = null
