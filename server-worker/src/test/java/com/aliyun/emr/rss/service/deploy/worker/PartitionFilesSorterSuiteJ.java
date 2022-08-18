@@ -52,7 +52,7 @@ public class PartitionFilesSorterSuiteJ {
     Random random = new Random();
     shuffleFile = File.createTempFile("RSS", "sort-suite");
     originFileName = shuffleFile.getAbsolutePath();
-    fileInfo = new FileInfo( shuffleFile);
+    fileInfo = new FileInfo(shuffleFile);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();

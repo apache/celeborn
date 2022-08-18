@@ -221,7 +221,6 @@ private[worker] final class LocalStorageManager(
   private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageInfo.Type)] =
     new mutable.HashMap[String, (Long, Int, StorageInfo.Type)]()
   // mount point -> filewriter
-  // TODO: Should remove FileWriter after the file is committed or destroyed.
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
   private val workingDirs: util.ArrayList[File] = {
