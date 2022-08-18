@@ -147,7 +147,6 @@ public final class FileWriter extends DeviceObserver {
     return fileInfo.file;
   }
 
-
   public void incrementPendingWrites() {
     numPendingWrites.incrementAndGet();
   }
