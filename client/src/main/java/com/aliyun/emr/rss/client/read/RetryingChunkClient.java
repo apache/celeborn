@@ -117,6 +117,11 @@ public class RetryingChunkClient {
   public int openChunks() throws IOException {
     int numChunks = -1;
     while (numChunks == -1 && hasRemainingRetries()) {
+      if (numTries > 0) {
+        logger.info("Retrying openChunk ({}/{}) for chunk from {} after {} ms.",
+            numTries, maxTries, getCurrentReplica(), retryWaitMs);
+        Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+      }
       Replica replica = getCurrentReplica();
       try {
         replica.getOrOpenStream();
