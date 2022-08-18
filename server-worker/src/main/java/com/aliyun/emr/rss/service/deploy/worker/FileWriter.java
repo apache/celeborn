@@ -251,7 +251,7 @@ public final class FileWriter extends DeviceObserver {
       deviceMonitor.unregisterFileWriter(this);
 
     }
-    return fileInfo.bytesFlushed;
+    return bytesFlushed;
   }
 
   public void destroy() {
