@@ -311,7 +311,7 @@ private[worker] final class LocalStorageManager(
     DeviceInfo.getDeviceAndDiskInfos(workingDirsSnapshot())
   private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, diskInfos)
 
-  private val diskFlushers: ConcurrentHashMap[File, LocalFlusher] = {
+  private val localFlushers: ConcurrentHashMap[File, LocalFlusher] = {
     val flushers = new ConcurrentHashMap[File, LocalFlusher]()
     workingDirsSnapshot().asScala.groupBy { dir =>
       workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile
@@ -368,7 +368,7 @@ private[worker] final class LocalStorageManager(
         }
       }
 
-      val flusher = diskFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)
+      val flusher = localFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)
       if (flusher == null) {
         // this branch means this localFlusher is already removed
         isolatedWorkingDirs.put(dir, deviceErrorType)
@@ -385,7 +385,7 @@ private[worker] final class LocalStorageManager(
         for (dir <- dirs) {
           isolatedWorkingDirs.remove(dir)
         }
-        if (!diskFlushers.containsKey(mountPointFile)) {
+        if (!localFlushers.containsKey(mountPointFile)) {
           val flusher = new LocalFlusher(
             dirs,
             workerSource,
@@ -396,9 +396,9 @@ private[worker] final class LocalStorageManager(
             RssConf.flushAvgTimeMinimumCount(conf),
             workingDirMetas(dirs.head.getAbsolutePath)._3
           )
-          diskFlushers.put(mountPointFile, flusher)
+          localFlushers.put(mountPointFile, flusher)
         } else {
-          diskFlushers.get(mountPointFile).workingDirs ++= dirs
+          localFlushers.get(mountPointFile).workingDirs ++= dirs
         }
         for (dir <- dirs) {
           if (!dirOperators.containsKey(dir)) {
@@ -414,7 +414,7 @@ private[worker] final class LocalStorageManager(
       }
     dirs.foreach(dir => {
       isolatedWorkingDirs.remove(dir)
-      if (!diskFlushers.containsKey(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)) {
+      if (!localFlushers.containsKey(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)) {
         val flusher = new LocalFlusher(
           dirs,
           workerSource,
@@ -425,7 +425,7 @@ private[worker] final class LocalStorageManager(
           RssConf.flushAvgTimeMinimumCount(conf),
           workingDirMetas(dir.getAbsolutePath)._3
         )
-        diskFlushers.put(dir, flusher)
+        localFlushers.put(dir, flusher)
       }
       if (!dirOperators.containsKey(dir)) {
         dirOperators.put(dir,
@@ -530,7 +530,7 @@ private[worker] final class LocalStorageManager(
         val fileInfo = new FileInfo(file)
         val fileWriter = new Writer(
           fileInfo,
-          diskFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile),
+          localFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile),
           fetchChunkSize,
           writerFlushBufferSize,
           workerSource,
@@ -620,7 +620,7 @@ private[worker] final class LocalStorageManager(
   localStorageScheduler.scheduleAtFixedRate(new Runnable {
     override def run(): Unit = {
       val currentTime = System.nanoTime()
-      diskFlushers.values().asScala.foreach(flusher => {
+      localFlushers.values().asScala.foreach(flusher => {
         logDebug(flusher.bufferQueueInfo())
         val lastFlushTimes = flusher.lastBeginFlushTime
         for (index <- 1 until lastFlushTimes.length()) {
@@ -749,7 +749,7 @@ private[worker] final class LocalStorageManager(
         Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
       val workingDirUsableSpace = Math.min(totalConfiguredCapacity - totalUsage,
         fileSystemReportedUsableSpace)
-      val flushTimeAverage = diskFlushers.get(diskInfo.mountPointFile).averageFlushTime()
+      val flushTimeAverage = localFlushers.get(diskInfo.mountPointFile).averageFlushTime()
       diskInfo.update(workingDirUsableSpace, flushTimeAverage)
     }
     logInfo(s"Updated diskInfos: $diskInfos")

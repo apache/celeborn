@@ -325,7 +325,7 @@ public class WriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file);
-    FileWriter writer = new FileWriter(fileInfo, flusher, CHUNK_SIZE,
+    Writer writer = new Writer(fileInfo, localFlusher, CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 

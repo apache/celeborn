@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -90,9 +91,9 @@ public class PartitionFilesSorterSuiteJ {
                          " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
-    fileWriter = Mockito.mock(FileWriter.class);
-    when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
+    writer = Mockito.mock(Writer.class);
+    when(writer.getFile()).thenAnswer(i -> shuffleFile);
+    when(writer.getFileInfo()).thenAnswer(i -> fileInfo);
   }
 
   public void clean() {
@@ -106,7 +107,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter.getFileInfo(), 5, 10);
+      writer.getFileInfo(), 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks() > 0);
@@ -121,7 +122,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter.getFileInfo(), 5, 10);
+      writer.getFileInfo(), 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks() > 0);

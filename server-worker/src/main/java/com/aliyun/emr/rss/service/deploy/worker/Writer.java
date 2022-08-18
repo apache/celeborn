@@ -114,7 +114,7 @@ public final class Writer implements DeviceObserver {
 
   public Writer(
     FileInfo fileInfo,
-    LocalFlusher flusher,
+    Flusher flusher,
     long chunkSize,
     long flushBufferSize,
     AbstractSource workerSource,
