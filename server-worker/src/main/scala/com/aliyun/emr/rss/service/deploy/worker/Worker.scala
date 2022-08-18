@@ -199,16 +199,16 @@ private[deploy] class Worker(
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
-      logError("Worker not registered in master, clean all shuffle data and register again.")
+      logError("Worker not registered in master, clean expired shuffle data and register again.")
       // Clean all shuffle related metadata and data
-      cleanup(shuffleKeys)
+      cleanup(response.expiredShuffleKeys)
       try {
         registerWithMaster()
       } catch {
         case e: Throwable =>
           logError("Re-register worker failed after worker lost.", e)
           // Register failed then stop server
-          controller.stop()
+          System.exit(-1)
       }
     }
   }
@@ -281,7 +281,7 @@ private[deploy] class Worker(
     cleaner.start()
 
     rpcEnv.awaitTermination()
-    stop()
+    System.exit(0)
   }
 
   def stop(): Unit = {
