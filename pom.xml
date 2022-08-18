@@ -31,27 +31,48 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <java.version>1.8</java.version>
+
+    <java.version>8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
-    <slf4j.version>1.7.16</slf4j.version>
-    <guava.version>14.0.1</guava.version>
-    <CodeCacheSize>512m</CodeCacheSize>
+
+    <checkstyle.version>8.23</checkstyle.version>
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
-    <javaxservlet.version>3.1.0</javaxservlet.version>
-    <!-- Apache Ratis version -->
-    <ratis.version>2.3.0</ratis.version>
-    <!-- gRPC version, used for protoc-gen-grpc-java plugin to download -->
-    <!-- protoc-gen-grpc-java JAR -->
+    <commons-lang3.version>3.10</commons-lang3.version>
+    <commons-io.version>2.8.0</commons-io.version>
+    <commons-crypto.version>1.0.0</commons-crypto.version>
+    <google.jsr305.version>1.3.9</google.jsr305.version>
     <grpc.version>1.44.0</grpc.version>
-    <!-- ProtocolBuffer version, used to verify the protoc version and -->
-    <!-- define the protobuf JAR version                               -->
-    <protobuf.version>3.19.2</protobuf.version><!-- Maven protoc compiler -->
-    <protobuf-maven-plugin.version>0.5.1</protobuf-maven-plugin.version>
+    <guava.version>14.0.1</guava.version>
+    <javaxservlet.version>3.1.0</javaxservlet.version>
+    <junit.version>4.12</junit.version>
+    <leveldb.version>1.8</leveldb.version>
+    <log4j.version>1.2.17</log4j.version>
+    <log4j2.version>2.17.1</log4j2.version>
+    <lz4-java.version>1.8.0</lz4-java.version>
+    <mockito.version>1.10.19</mockito.version>
+    <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
+    <netty.version>4.1.77.Final</netty.version>
+    <protobuf.version>3.19.2</protobuf.version>
+    <ratis.version>2.3.0</ratis.version>
+    <scalamock.version>5.1.0</scalamock.version>
+    <scalatest.version>3.2.3</scalatest.version>
+    <slf4j.version>1.7.16</slf4j.version>
+
+    <maven.plugin.checkstyle.version>3.0.0</maven.plugin.checkstyle.version>
+    <maven.plugin.git.version>4.9.10</maven.plugin.git.version>
+    <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
+    <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
+    <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
+    <maven.plugin.scala.version>3.3.2</maven.plugin.scala.version>
+    <maven.plugin.scalastyle.version>1.0.0</maven.plugin.scalastyle.version>
+    <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
+    <maven.plugin.shade.version>2.4.3</maven.plugin.shade.version>
+    <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
+
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <build.testJarPhase>prepare-package</build.testJarPhase>
-    <scalamock.version>5.1.0</scalamock.version>
   </properties>
 
   <modules>
@@ -66,9 +87,6 @@
 
   <repositories>
     <repository>
-      <!--
-        This is used as a fallback when the first try fails.
-      -->
       <id>central</id>
       <name>Maven Repository</name>
       <url>https://repo.maven.apache.org/maven2</url>
@@ -97,16 +115,6 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-tags_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
@@ -125,37 +133,81 @@
         <groupId>org.slf4j</groupId>
         <artifactId>jcl-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
-        <!-- runtime scope is appropriate, but causes SBT build problems -->
       </dependency>
       <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <scope>test</scope>
-        <version>4.12</version>
+        <groupId>log4j</groupId>
+        <artifactId>log4j</artifactId>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest_${scala.binary.version}</artifactId>
-        <scope>test</scope>
-        <version>3.2.3</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-          </exclusion>
-        </exclusions>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-slf4j-impl</artifactId>
+        <version>${log4j2.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-funsuite_${scala.binary.version}</artifactId>
-        <scope>test</scope>
-        <version>3.2.3</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-          </exclusion>
-        </exclusions>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-api</artifactId>
+        <version>${log4j2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>${log4j2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-1.2-api</artifactId>
+        <version>${log4j2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>${codahale.metrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-graphite</artifactId>
+        <version>${codahale.metrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-jvm</artifactId>
+        <version>${codahale.metrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-common</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-client</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-server</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-netty</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-proto-shaded</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-grpc</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>${scala.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scala-lang</groupId>
@@ -163,39 +215,71 @@
         <version>${scala.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-all</artifactId>
-        <version>4.1.77.Final</version>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-tags_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
-        <version>3.10</version>
-        <scope>compile</scope>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
       </dependency>
       <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.8.0</version>
-        <scope>compile</scope>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
       </dependency>
       <dependency>
-        <groupId>org.fusesource.leveldbjni</groupId>
-        <artifactId>leveldbjni-all</artifactId>
-        <version>1.8</version>
-        <scope>compile</scope>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-sql_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-sql_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
-        <version>1.3.9</version>
-        <scope>compile</scope>
+        <version>${google.jsr305.version}</version>
+      </dependency>
+      <dependency>
+        <artifactId>protobuf-java</artifactId>
+        <groupId>com.google.protobuf</groupId>
+        <version>${protobuf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>${javaxservlet.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-all</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>${commons-lang3.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>${commons-io.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-crypto</artifactId>
-        <version>1.0.0</version>
-        <scope>compile</scope>
+        <version>${commons-crypto.version}</version>
         <exclusions>
           <exclusion>
             <artifactId>jna</artifactId>
@@ -204,56 +288,49 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>1.10.19</version>
+        <groupId>org.fusesource.leveldbjni</groupId>
+        <artifactId>leveldbjni-all</artifactId>
+        <version>${leveldb.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>${lz4-java.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
         <scope>test</scope>
+        <version>${junit.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-core</artifactId>
-        <version>${codahale.metrics.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.ratis</groupId>
-        <artifactId>ratis-proto-shaded</artifactId>
-        <version>${ratis.version}</version>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest_${scala.binary.version}</artifactId>
+        <scope>test</scope>
+        <version>${scalatest.version}</version>
       </dependency>
       <dependency>
-        <artifactId>ratis-common</artifactId>
-        <groupId>org.apache.ratis</groupId>
-        <version>${ratis.version}</version>
-      </dependency>
-      <dependency>
-        <artifactId>ratis-client</artifactId>
-        <groupId>org.apache.ratis</groupId>
-        <version>${ratis.version}</version>
-      </dependency>
-      <dependency>
-        <artifactId>ratis-server</artifactId>
-        <groupId>org.apache.ratis</groupId>
-        <version>${ratis.version}</version>
-      </dependency>
-      <dependency>
-        <artifactId>ratis-netty</artifactId>
-        <groupId>org.apache.ratis</groupId>
-        <version>${ratis.version}</version>
-      </dependency>
-      <dependency>
-        <artifactId>ratis-grpc</artifactId>
-        <groupId>org.apache.ratis</groupId>
-        <version>${ratis.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>${protobuf.version}</version>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-funsuite_${scala.binary.version}</artifactId>
+        <scope>test</scope>
+        <version>${scalatest.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scalamock</groupId>
         <artifactId>scalamock_${scala.binary.version}</artifactId>
         <version>${scalamock.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
+        <version>${mockito-scalatest.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -264,7 +341,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.22.0</version>
+          <version>${maven.plugin.surefire.version}</version>
           <!-- Note config is repeated in scalatest config -->
           <configuration>
             <includes>
@@ -289,7 +366,7 @@
         <plugin>
           <groupId>org.scalatest</groupId>
           <artifactId>scalatest-maven-plugin</artifactId>
-          <version>1.0</version>
+          <version>${maven.plugin.scalatest.version}</version>
           <executions>
             <execution>
               <id>test</id>
@@ -302,7 +379,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>2.4.3</version>
+          <version>${maven.plugin.shade.version}</version>
           <executions>
             <execution>
               <phase>package</phase>
@@ -355,7 +432,7 @@
         <plugin>
           <groupId>net.alchim31.maven</groupId>
           <artifactId>scala-maven-plugin</artifactId>
-          <version>3.3.2</version>
+          <version>${maven.plugin.scala.version}</version>
           <executions>
             <execution>
               <id>scala-compile-first</id>
@@ -376,7 +453,7 @@
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
-          <version>4.9.10</version>
+          <version>${maven.plugin.git.version}</version>
           <executions>
             <execution>
               <id>get-the-git-infos</id>
@@ -403,7 +480,7 @@
       <plugin>
         <groupId>org.scalastyle</groupId>
         <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>1.0.0</version>
+        <version>${maven.plugin.scalastyle.version}</version>
         <configuration>
           <verbose>false</verbose>
           <failOnViolation>true</failOnViolation>
@@ -427,7 +504,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>${maven.plugin.checkstyle.version}</version>
         <configuration>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -447,7 +524,7 @@
           <dependency>
             <groupId>com.puppycrawl.tools</groupId>
             <artifactId>checkstyle</artifactId>
-            <version>8.23</version>
+            <version>${checkstyle.version}</version>
           </dependency>
         </dependencies>
         <executions>
@@ -461,7 +538,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.0.2</version>
+        <version>${maven.plugin.jar.version}</version>
         <executions>
           <execution>
             <id>prepare-test-jar</id>
@@ -482,35 +559,34 @@
 
   <profiles>
     <profile>
-      <id>spark-2</id>
+      <id>spark-2.4</id>
       <properties>
+        <jackson.version>2.6.7</jackson.version>
+        <jackson.databind.version>2.6.7.3</jackson.databind.version>
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.5</spark.version>
         <rss.shuffle.manager>shuffle-manager-2</rss.shuffle.manager>
       </properties>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>2.6.7.3</version>
-          <scope>compile</scope>
+          <artifactId>jackson-annotations</artifactId>
+          <version>${jackson.version}</version>
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-          <version>2.6.7</version>
-          <scope>compile</scope>
+          <artifactId>jackson-databind</artifactId>
+          <version>${jackson.databind.version}</version>
         </dependency>
       </dependencies>
     </profile>
 
     <profile>
-      <id>spark-3</id>
+      <id>spark-3.0</id>
       <properties>
+        <jackson.version>2.10.0</jackson.version>
+        <jackson.databind.version>2.10.0</jackson.databind.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.1</spark.version>
@@ -519,32 +595,95 @@
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>2.10.0</version>
-          <scope>compile</scope>
+          <artifactId>jackson-annotations</artifactId>
+          <version>${jackson.version}</version>
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>${jackson.databind.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>spark-3.1</id>
+      <properties>
+        <jackson.version>2.10.0</jackson.version>
+        <jackson.databind.version>2.10.0</jackson.databind.version>
+        <scala.version>2.12.10</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <spark.version>3.1.3</spark.version>
+        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-annotations</artifactId>
-          <version>2.10.0</version>
-          <scope>compile</scope>
+          <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>${jackson.databind.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>spark-3.2</id>
+      <properties>
+        <jackson.version>2.12.3</jackson.version>
+        <jackson.databind.version>2.12.3</jackson.databind.version>
+        <scala.version>2.12.15</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <spark.version>3.2.2</spark.version>
+        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+          <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>${jackson.databind.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>spark-3.3</id>
+      <properties>
+        <jackson.version>2.13.3</jackson.version>
+        <jackson.databind.version>2.13.3</jackson.databind.version>
+        <scala.version>2.12.15</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <spark.version>3.3.0</spark.version>
+        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+          <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>${jackson.databind.version}</version>
         </dependency>
       </dependencies>
     </profile>
 
     <profile>
       <id>log4j-1</id>
-      <properties>
-        <log4j.version>1.2.17</log4j.version>
-      </properties>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
       <dependencies>
         <dependency>
           <groupId>log4j</groupId>
           <artifactId>log4j</artifactId>
-          <version>${log4j.version}</version>
         </dependency>
         <dependency>
           <groupId>org.slf4j</groupId>
@@ -555,36 +694,24 @@
 
     <profile>
       <id>log4j-2</id>
-      <properties>
-        <log4j2.version>2.17.1</log4j2.version>
-      </properties>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
       <dependencies>
         <dependency>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-slf4j-impl</artifactId>
-          <version>${log4j2.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-api</artifactId>
-          <version>${log4j2.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-core</artifactId>
-          <version>${log4j2.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-1.2-api</artifactId>
-          <version>${log4j2.version}</version>
         </dependency>
       </dependencies>
     </profile>
   </profiles>
-
 </project>
-

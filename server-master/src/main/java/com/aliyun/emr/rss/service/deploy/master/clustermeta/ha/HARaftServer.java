@@ -539,4 +539,8 @@ public class HARaftServer {
   public String getRaftAddress() {
     return this.masterRatisAddress.getAddress().getHostAddress();
   }
+
+  public int getRaftPort() {
+    return this.masterRatisAddress.getPort();
+  }
 }

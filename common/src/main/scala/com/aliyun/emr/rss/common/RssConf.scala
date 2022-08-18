@@ -813,6 +813,10 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
+  def partitionSplitMinimumSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.partition.split.minimum.size", "1m")
+  }
+
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
@@ -887,8 +891,20 @@ object RssConf extends Logging {
     }
   }
 
+  def checkSlotsFinishedInterval(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.checkSlots.interval", "1s")
+  }
+
+  def checkSlotsFinishedTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.checkSlots.timeout", "480s")
+  }
+
+  def workerGracefulShutdown(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.worker.graceful.shutdown", false)
+  }
+
   def shutdownTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.shutdown.timeout", "600s")
+    conf.getTimeAsMs("rss.worker.shutdown.timeout", "600s")
   }
 
   def workerSortedFileRecoverPath(conf: RssConf): String = {

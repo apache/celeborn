@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.meta
 
 import java.io.File
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -130,9 +131,9 @@ object DeviceInfo {
    *         (working dir -> diskInfo)
    */
   def getDeviceAndDiskInfos(workingDirs: util.List[File]): (
-      util.HashMap[String, DeviceInfo],
-      util.HashMap[String, DiskInfo],
-      util.HashMap[String, DiskInfo]) = {
+      util.Map[String, DeviceInfo],
+      util.Map[String, DiskInfo],
+      util.Map[String, DiskInfo]) = {
     val allDevices = new util.HashMap[String, DeviceInfo]()
     val allDisks = new util.HashMap[String, DiskInfo]()
 
@@ -185,9 +186,9 @@ object DeviceInfo {
       allDisks.putIfAbsent(mountpoint, diskInfo)
     }
 
-    val retDeviceInfos = new util.HashMap[String, DeviceInfo]()
-    val retDiskInfos = new util.HashMap[String, DiskInfo]()
-    val retWorkingDiskInfos = new util.HashMap[String, DiskInfo]()
+    val retDeviceInfos = new ConcurrentHashMap[String, DeviceInfo]()
+    val retDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
+    val retWorkingDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
 
     workingDirs.asScala.foreach(dir => {
       val mount = getMountPoint(dir.getAbsolutePath, allDisks)
@@ -208,7 +209,7 @@ object DeviceInfo {
     (retDeviceInfos, retDiskInfos, retWorkingDiskInfos)
   }
 
-  def getMountPoint(absPath: String, diskInfos: util.HashMap[String, DiskInfo]): String = {
+  def getMountPoint(absPath: String, diskInfos: util.Map[String, DiskInfo]): String = {
     var curMax = -1
     var curMount = ""
     diskInfos.keySet().asScala.foreach(mount => {

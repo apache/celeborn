@@ -184,6 +184,27 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleWorkerRemove(String host, int rpcPort, int pushPort, int fetchPort,
+    int replicatePort, String requestId) {
+    try {
+      ratisServer.submitRequest(ResourceRequest.newBuilder()
+          .setCmdType(Type.WorkerRemove)
+          .setRequestId(requestId)
+          .setWorkerRemoveRequest(
+              ResourceProtos.WorkerRemoveRequest.newBuilder()
+                  .setHost(host)
+                  .setRpcPort(rpcPort)
+                  .setPushPort(pushPort)
+                  .setFetchPort(fetchPort)
+                  .setReplicatePort(replicatePort)
+                  .build())
+          .build());
+    } catch (ServiceException e) {
+      LOG.error("Handle worker lost for {} failed!", host, e);
+    }
+  }
+
+  @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
       int replicatePort, Map<String, DiskInfo> disks, long time, String requestId) {
     try {

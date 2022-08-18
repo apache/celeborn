@@ -50,6 +50,9 @@ public interface IMetadataHandler {
   void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort, int replicatePort,
     String requestId);
 
+  void handleWorkerRemove(String host, int rpcPort, int pushPort, int fetchPort, int replicatePort,
+    String requestId);
+
   void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
     int replicatePort, Map<String, DiskInfo> disks, long time, String requestId);
 

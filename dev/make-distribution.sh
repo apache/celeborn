@@ -13,7 +13,7 @@ function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Remote Shuffle Service"
   echo ""
   echo "usage:"
-  cl_options="[--name]"
+  cl_options="[--name <custom_name>]"
   echo "make-distribution.sh $cl_options <maven build options>"
   echo ""
   exit 1
@@ -44,11 +44,11 @@ while (( "$#" )); do
   shift
 done
 
-MVN="mvn"
+MVN="$RSS_HOME/build/mvn"
 
 if [ -z "$JAVA_HOME" ]; then
   # Fall back on JAVA_HOME from rpm, if found
-  if [ $(command -v  rpm) ]; then
+  if [ $(command -v rpm) ]; then
     RPM_JAVA_HOME="$(rpm -E %java_home 2>/dev/null)"
     if [ "$RPM_JAVA_HOME" != "%java_home" ]; then
       JAVA_HOME="$RPM_JAVA_HOME"
