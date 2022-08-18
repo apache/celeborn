@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import scala.collection.mutable.Buffer;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
@@ -47,8 +48,8 @@ import com.aliyun.emr.rss.common.protocol.StorageInfo;
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
  *       That's fine some of the internal state(e.g. bytesFlushed) may be inaccurate.
  */
-public final class FileWriter extends DeviceObserver {
-  private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
+public final class Writer implements DeviceObserver {
+  private static final Logger logger = LoggerFactory.getLogger(Writer.class);
 
   private static final long WAIT_INTERVAL_MS = 20;
 
@@ -112,9 +113,9 @@ public final class FileWriter extends DeviceObserver {
 
   private final FlushNotifier notifier = new FlushNotifier();
 
-  public FileWriter(
+  public Writer(
     File file,
-    Flusher flusher,
+    LocalFlusher flusher,
     long chunkSize,
     long flushBufferSize,
     AbstractSource workerSource,
@@ -136,6 +137,7 @@ public final class FileWriter extends DeviceObserver {
     this.splitMode = splitMode;
     this.partitionType = partitionType;
     channel = new FileOutputStream(file).getChannel();
+    FileOutputStream  stream= new FileOutputStream(file);
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
@@ -165,7 +167,7 @@ public final class FileWriter extends DeviceObserver {
     int numBytes = flushBuffer.readableBytes();
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
-    FlushTask task = new FlushTask(flushBuffer, channel, notifier);
+    LocalFlushTask task = new LocalFlushTask(flushBuffer, channel, notifier);
     addTask(task);
     flushBuffer = null;
     bytesFlushed += numBytes;
@@ -224,7 +226,12 @@ public final class FileWriter extends DeviceObserver {
   }
 
   public StorageInfo getStorageInfo(){
-    return new StorageInfo(flusher.diskType(), flusher.mountPoint(), true);
+    if (flusher instanceof LocalFlusher) {
+      LocalFlusher localFlusher = (LocalFlusher)flusher;
+      return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
+    }else{
+      return new StorageInfo(StorageInfo.Type.HDFS);
+    }
   }
 
   public long close() throws IOException {
@@ -286,8 +293,8 @@ public final class FileWriter extends DeviceObserver {
     destroyHook.run();
   }
 
-  public void registerDestroyHook(List<FileWriter> writers) {
-    FileWriter thisWriter = this;
+  public void registerDestroyHook(List<Writer> writers) {
+    Writer thisWriter = this;
     destroyHook = () -> {
       synchronized (writers) {
         writers.remove(thisWriter);
@@ -343,13 +350,13 @@ public final class FileWriter extends DeviceObserver {
     }
 
     if (flushBuffer == null) {
-      IOException e = new IOException("Take buffer encounter error from Flusher: "
+      IOException e = new IOException("Take buffer encounter error from LocalFlusher: "
         + flusher.bufferQueueInfo());
       notifier.setException(e);
     }
   }
 
-  private void addTask(FlushTask task) throws IOException {
+  private void addTask(LocalFlushTask task) throws IOException {
     if (!flusher.addTask(task, timeoutMs, flushWorkerIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
@@ -369,8 +376,8 @@ public final class FileWriter extends DeviceObserver {
   }
 
   public boolean equals(Object obj) {
-    return (obj instanceof FileWriter) &&
-        file.equals(((FileWriter) obj).file);
+    return (obj instanceof Writer) &&
+        file.equals(((Writer) obj).file);
   }
 
   public String toString() {
@@ -396,5 +403,21 @@ public final class FileWriter extends DeviceObserver {
 
   public PartitionSplitMode getSplitMode() {
     return splitMode;
+  }
+
+  @Override
+  public void notifyHealthy(ListBuffer<File> dirs) {
+  }
+
+  @Override
+  public void notifyHighDiskUsage(ListBuffer<File> dirs) {
+  }
+
+  @Override
+  public void notifySlowFlush(ListBuffer<File> dirs) {
+  }
+
+  @Override
+  public void reportError(Buffer<File> workingDir, IOException e, DeviceErrorType deviceErrorType) {
   }
 }

@@ -44,7 +44,7 @@ public class PartitionFilesSorterSuiteJ {
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
   private String originFileName;
   private long originFileLen;
-  private FileWriter fileWriter;
+  private Writer writer;
   private long sortTimeout = 16 * 1000;
 
   public void prepare(boolean largefile) throws IOException {
@@ -88,10 +88,10 @@ public class PartitionFilesSorterSuiteJ {
                          " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
-    fileWriter = Mockito.mock(FileWriter.class);
-    when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
-    when(fileWriter.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
+    writer = Mockito.mock(Writer.class);
+    when(writer.getFile()).thenAnswer(i -> shuffleFile);
+    when(writer.getFileLength()).thenAnswer(i -> originFileLen);
+    when(writer.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
   }
 
   public void clean() {
@@ -105,7 +105,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 5, 10);
+        writer, 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);
@@ -120,7 +120,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
       sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 5, 10);
+        writer, 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks > 0);

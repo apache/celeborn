@@ -39,10 +39,10 @@ import com.aliyun.emr.rss.common.util.Utils._
 
 trait DeviceMonitor {
   def startCheck() {}
-  def registerFileWriter(fileWriter: FileWriter): Unit = {}
-  def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
-  def registerFlusher(flusher: Flusher): Unit = {}
-  def unregisterFlusher(flusher: Flusher): Unit = {}
+  def registerFileWriter(fileWriter: Writer): Unit = {}
+  def unregisterFileWriter(fileWriter: Writer): Unit = {}
+  def registerFlusher(flusher: LocalFlusher): Unit = {}
+  def unregisterFlusher(flusher: LocalFlusher): Unit = {}
   def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {}
   def close() {}
@@ -235,23 +235,23 @@ class LocalDeviceMonitor(
     }, diskCheckInterval, diskCheckInterval, TimeUnit.MILLISECONDS)
   }
 
-  override def registerFileWriter(fileWriter: FileWriter): Unit = {
+  override def registerFileWriter(fileWriter: Writer): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(fileWriter)
   }
 
-  override def unregisterFileWriter(fileWriter: FileWriter): Unit = {
+  override def unregisterFileWriter(fileWriter: Writer): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
 
-  override def registerFlusher(flusher: Flusher): Unit = {
+  override def registerFlusher(flusher: LocalFlusher): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(flusher.workingDirs.head.getAbsolutePath,
       diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(flusher)
   }
 
-  override def unregisterFlusher(flusher: Flusher): Unit = {
+  override def unregisterFlusher(flusher: LocalFlusher): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(flusher.workingDirs.head.getAbsolutePath,
       diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(flusher)

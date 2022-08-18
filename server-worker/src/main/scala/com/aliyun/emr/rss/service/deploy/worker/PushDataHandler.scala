@@ -188,8 +188,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback.onFailure(new Exception(message, exception))
       return
     }
-    val diskFull =
-      workerInfo.diskInfos.get(fileWriter.flusher.mountPoint).usableSpace < diskMinimumReserveSize
+    val diskFull = workerInfo.diskInfos
+      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
+      .usableSpace < diskMinimumReserveSize
     if ((diskFull && fileWriter.getFileLength > partitionSplitMinimumSize) ||
       (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold())) {
       fileWriter.setSplitFlag()
@@ -381,7 +382,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
 
     var index = 0
-    var fileWriter: FileWriter = null
+    var fileWriter: Writer = null
     var alreadyClosed = false
     while (index < fileWriters.length) {
       fileWriter = fileWriters(index)

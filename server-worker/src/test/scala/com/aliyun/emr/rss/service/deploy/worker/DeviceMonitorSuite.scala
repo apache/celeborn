@@ -137,10 +137,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
       deviceMonitor.init()
 
-      val fw1 = mock[FileWriter]
-      val fw2 = mock[FileWriter]
-      val fw3 = mock[FileWriter]
-      val fw4 = mock[FileWriter]
+      val fw1 = mock[Writer]
+      val fw2 = mock[Writer]
+      val fw3 = mock[Writer]
+      val fw4 = mock[Writer]
 
       val f1 = new File("/mnt/disk1/data1/f1")
       val f2 = new File("/mnt/disk1/data2/f2")
@@ -182,10 +182,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       )
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(fw4))
 
-      val df1 = mock[Flusher]
-      val df2 = mock[Flusher]
-      val df3 = mock[Flusher]
-      val df4 = mock[Flusher]
+      val df1 = mock[LocalFlusher]
+      val df2 = mock[LocalFlusher]
+      val df3 = mock[LocalFlusher]
+      val df4 = mock[LocalFlusher]
 
       when(df1.stopFlag).thenReturn(new AtomicBoolean(false))
       when(df2.stopFlag).thenReturn(new AtomicBoolean(false))

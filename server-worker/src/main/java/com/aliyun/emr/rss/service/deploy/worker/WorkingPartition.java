@@ -20,16 +20,16 @@ package com.aliyun.emr.rss.service.deploy.worker;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
 public class WorkingPartition extends PartitionLocation {
-  private final transient FileWriter fileWriter;
+  private final transient Writer writer;
 
   public WorkingPartition(
       PartitionLocation partitionLocation,
-      FileWriter fileWriter) {
+      Writer writer) {
     super(partitionLocation);
-    this.fileWriter = fileWriter;
+    this.writer = writer;
   }
 
-  public FileWriter getFileWriter() {
-    return fileWriter;
+  public Writer getFileWriter() {
+    return writer;
   }
 }
