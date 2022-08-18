@@ -24,7 +24,6 @@ import org.apache.commons.lang3.StringUtils;
 
 public class FileInfo {
   public final File file;
-  public long bytesFlushed = 0;
   public final ArrayList<Long> chunkOffsets;
 
   public FileInfo(File file, ArrayList<Long> chunkOffsets) {
@@ -46,16 +45,12 @@ public class FileInfo {
     }
   }
 
+  public long getFileLength() {
+    return chunkOffsets.get(chunkOffsets.size() - 1);
+  }
+
   public File getFile() {
     return file;
-  }
-
-  public long getBytesFlushed() {
-    return bytesFlushed;
-  }
-
-  public void setBytesFlushed(long bytesFlushed) {
-    this.bytesFlushed = bytesFlushed;
   }
 
   public ArrayList<Long> getChunkOffsets() {
@@ -66,7 +61,6 @@ public class FileInfo {
   public String toString() {
     return "FileInfo{" +
              "file=" + file.getAbsolutePath() +
-             ", bytesFlushed=" + bytesFlushed +
              ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
              '}';
   }

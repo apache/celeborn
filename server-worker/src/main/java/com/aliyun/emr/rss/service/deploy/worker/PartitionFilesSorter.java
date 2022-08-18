@@ -119,7 +119,7 @@ public class PartitionFilesSorter {
 
       synchronized (sorting) {
         if (!sorting.contains(fileId)) {
-          FileSorter fileSorter = new FileSorter(fileInfo.getFile(), fileInfo.getBytesFlushed(),
+          FileSorter fileSorter = new FileSorter(fileInfo.getFile(), fileInfo.getFileLength(),
             fileId, shuffleKey);
           sorting.add(fileId);
           try {

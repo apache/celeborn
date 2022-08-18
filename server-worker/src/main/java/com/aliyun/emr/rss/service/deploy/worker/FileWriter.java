@@ -58,6 +58,7 @@ public final class FileWriter extends DeviceObserver {
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
   private long nextBoundary;
+  private long bytesFlushed;
 
   public final Flusher flusher;
   private final int flushWorkerIndex;
@@ -162,14 +163,14 @@ public final class FileWriter extends DeviceObserver {
     FlushTask task = new FlushTask(flushBuffer, channel, notifier);
     addTask(task);
     flushBuffer = null;
-    fileInfo.bytesFlushed += numBytes;
+    bytesFlushed += numBytes;
     maybeSetChunkOffsets(finalFlush);
   }
 
   private void maybeSetChunkOffsets(boolean forceSet) {
-    if (fileInfo.bytesFlushed >= nextBoundary || forceSet) {
-      fileInfo.chunkOffsets.add(fileInfo.bytesFlushed);
-      nextBoundary = fileInfo.bytesFlushed + chunkSize;
+    if (bytesFlushed >= nextBoundary || forceSet) {
+      fileInfo.chunkOffsets.add(bytesFlushed);
+      nextBoundary = bytesFlushed + chunkSize;
     }
   }
 
@@ -182,7 +183,7 @@ public final class FileWriter extends DeviceObserver {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return fileInfo.chunkOffsets.get(fileInfo.chunkOffsets.size() - 1) == fileInfo.bytesFlushed;
+    return fileInfo.chunkOffsets.get(fileInfo.chunkOffsets.size() - 1) == bytesFlushed;
   }
 
   /**
