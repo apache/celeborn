@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
+import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
@@ -53,12 +53,11 @@ public final class Writer implements DeviceObserver {
 
   private static final long WAIT_INTERVAL_MS = 20;
 
-  private final File file;
+  private final FileInfo fileInfo;
   private final FileChannel channel;
   private volatile boolean closed;
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
-  private final ArrayList<Long> chunkOffsets = new ArrayList<>();
   private long nextBoundary;
   private long bytesFlushed;
 
@@ -114,7 +113,7 @@ public final class Writer implements DeviceObserver {
   private final FlushNotifier notifier = new FlushNotifier();
 
   public Writer(
-    File file,
+    FileInfo fileInfo,
     LocalFlusher flusher,
     long chunkSize,
     long flushBufferSize,
@@ -124,35 +123,30 @@ public final class Writer implements DeviceObserver {
     long splitThreshold,
     PartitionSplitMode splitMode,
     PartitionType partitionType) throws IOException {
-    this.file = file;
+    this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;
-    this.chunkOffsets.add(0L);
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
     this.splitThreshold = splitThreshold;
     this.flushBufferSize = flushBufferSize;
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    channel = new FileOutputStream(file).getChannel();
+    channel = new FileOutputStream(fileInfo.file).getChannel();
     FileOutputStream  stream= new FileOutputStream(file);
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
   }
 
+  public FileInfo getFileInfo() {
+    return fileInfo;
+  }
+
   public File getFile() {
-    return file;
-  }
-
-  public ArrayList<Long> getChunkOffsets() {
-    return chunkOffsets;
-  }
-
-  public long getFileLength() {
-    return bytesFlushed;
+    return fileInfo.file;
   }
 
   public void incrementPendingWrites() {
@@ -176,7 +170,7 @@ public final class Writer implements DeviceObserver {
 
   private void maybeSetChunkOffsets(boolean forceSet) {
     if (bytesFlushed >= nextBoundary || forceSet) {
-      chunkOffsets.add(bytesFlushed);
+      fileInfo.chunkOffsets.add(bytesFlushed);
       nextBoundary = bytesFlushed + chunkSize;
     }
   }
@@ -190,7 +184,7 @@ public final class Writer implements DeviceObserver {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return chunkOffsets.get(chunkOffsets.size() - 1) == bytesFlushed;
+    return fileInfo.chunkOffsets.get(fileInfo.chunkOffsets.size() - 1) == bytesFlushed;
   }
 
   /**
@@ -200,7 +194,7 @@ public final class Writer implements DeviceObserver {
    */
   public void write(ByteBuf data) throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed!, fileName " + file.getAbsolutePath();
+      String msg = "FileWriter has already closed!, fileName " + fileInfo.file.getAbsolutePath();
       logger.warn(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -236,7 +230,7 @@ public final class Writer implements DeviceObserver {
 
   public long close() throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed! fileName " + file.getAbsolutePath();
+      String msg = "FileWriter has already closed! fileName " + fileInfo.file.getAbsolutePath();
       logger.error(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -274,14 +268,15 @@ public final class Writer implements DeviceObserver {
       try {
         channel.close();
       } catch (IOException e) {
-        logger.warn("Close channel failed for file {} caused by {}.", file, e.getMessage());
+        logger.warn("Close channel failed for file {} caused by {}.",
+          fileInfo.file, e.getMessage());
       }
     }
-    file.delete();
+    fileInfo.file.delete();
 
     if (splitted.get()) {
-      String indexFileStr = file.getAbsolutePath() + PartitionFilesSorter.INDEX_SUFFIX;
-      String sortedFileStr = file.getAbsolutePath() + PartitionFilesSorter.SORTED_SUFFIX;
+      String indexFileStr = fileInfo.file.getAbsolutePath() + PartitionFilesSorter.INDEX_SUFFIX;
+      String sortedFileStr = fileInfo.file.getAbsolutePath() + PartitionFilesSorter.SORTED_SUFFIX;
       File indexFile = new File(indexFileStr);
       File sortedFile = new File(sortedFileStr);
       indexFile.delete();
@@ -337,7 +332,7 @@ public final class Writer implements DeviceObserver {
     String fileAbsPath = null;
     if (source.samplePerfCritical()) {
       metricsName = WorkerSource.TakeBufferTime();
-      fileAbsPath = file.getAbsolutePath();
+      fileAbsPath = fileInfo.file.getAbsolutePath();
       source.startTimer(metricsName, fileAbsPath);
     }
 
@@ -372,16 +367,16 @@ public final class Writer implements DeviceObserver {
   }
 
   public int hashCode() {
-    return file.hashCode();
+    return fileInfo.file.hashCode();
   }
 
   public boolean equals(Object obj) {
     return (obj instanceof Writer) &&
-        file.equals(((Writer) obj).file);
+        fileInfo.file.equals(((Writer) obj).fileInfo.file);
   }
 
   public String toString() {
-    return file.getAbsolutePath();
+    return fileInfo.file.getAbsolutePath();
   }
 
   public void flushOnMemoryPressure() throws IOException {
