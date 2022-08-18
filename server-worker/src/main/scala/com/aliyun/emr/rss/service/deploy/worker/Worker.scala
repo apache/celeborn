@@ -281,7 +281,7 @@ private[deploy] class Worker(
     cleaner.start()
 
     rpcEnv.awaitTermination()
-    stop()
+    System.exit(0)
   }
 
   def stop(): Unit = {
