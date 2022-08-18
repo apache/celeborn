@@ -89,10 +89,9 @@ public class PartitionFilesSorter {
     this.source = source;
     String recoverPath = RssConf.workerSortedFileRecoverPath(conf);
     this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
-    // TODO: Check if worker support recover
     // ShuffleClient only can fetch data from a restarted worker only
-    // when the worker's fetching port is stable.
-    if (RssConf.fetchServerPort(conf) != 0) {
+    // when the worker's fetching port is stable and enables graceful shutdown.
+    if (RssConf.workerGracefulShutdown(conf)) {
       try {
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION, mapper);
         reloadPartitionInfoExecutors(this.sortedFilesDb);
