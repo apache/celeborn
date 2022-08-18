@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
-import com.aliyun.emr.rss.common.network.util.DBSerDeUtils;
+import com.aliyun.emr.rss.common.network.util.PBSerDeUtils;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.fusesource.leveldbjni.JniDBFactory;
@@ -107,7 +107,7 @@ public class LevelDBProvider {
     if (bytes == null) {
       storeVersion(db, newversion);
     } else {
-      ArrayList<Integer> versions = DBSerDeUtils.fromPbStoreVersion(bytes);
+      ArrayList<Integer> versions = PBSerDeUtils.fromPbStoreVersion(bytes);
       StoreVersion version = new StoreVersion(versions.get(0), versions.get(1));
       if (version.major != newversion.major) {
         throw new IOException("cannot read state DB with version " + version + ", incompatible " +
@@ -119,7 +119,7 @@ public class LevelDBProvider {
 
   public static void storeVersion(DB db, StoreVersion version)
       throws IOException {
-    db.put(StoreVersion.KEY, DBSerDeUtils.toPbStoreVersion(version.major, version.minor));
+    db.put(StoreVersion.KEY, PBSerDeUtils.toPbStoreVersion(version.major, version.minor));
   }
 
   public static class StoreVersion {

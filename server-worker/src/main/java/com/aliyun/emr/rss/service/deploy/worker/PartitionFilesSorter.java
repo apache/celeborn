@@ -36,7 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import com.aliyun.emr.rss.common.network.util.DBSerDeUtils;
+import com.aliyun.emr.rss.common.network.util.PBSerDeUtils;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBException;
 import org.iq80.leveldb.DBIterator;
@@ -239,7 +239,7 @@ public class PartitionFilesSorter {
           String shuffleKey = parseDbAppExecKey(key);
           try {
             logger.info("Reloading registered executors: " + shuffleKey);
-            Set<String> sortedFiles = DBSerDeUtils.fromPbSortedShuffleFileSet(e.getValue());
+            Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(e.getValue());
             sortingShuffleFiles.put(shuffleKey, sortedFiles);
           } catch (Exception exception) {
             logger.error(
@@ -456,7 +456,7 @@ public class PartitionFilesSorter {
         sortedShuffleFiles.get(shuffleKey).add(fileId);
         if (sortedFilesDb != null) {
           sortedFilesDb.put(dbShuffleKey(shuffleKey),
-              DBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
+              PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
         }
         if (!originFile.delete()) {
           logger.warn("clean origin file failed, origin file is : {}",
