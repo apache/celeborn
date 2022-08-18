@@ -75,7 +75,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
       if (isPaused.get()) {
         // If thread A runs here,and its time slice is run out while another thread B running "resumeAllChannels" method.
         // It is possible that the channel connected with ctx will pause auto read because of concurrent modification.
-        // So we need to make sure checking the paused flag and change its status will be executed atomic.
+        // So we need to make sure checking the paused flag and changing its status will be an atomic operation.
         ctx.channel().config().setAutoRead(false);
       }
     }
