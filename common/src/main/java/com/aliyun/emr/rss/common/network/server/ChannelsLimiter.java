@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.network.server;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
@@ -35,6 +36,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
+  private final AtomicBoolean isPaused = new AtomicBoolean(false);
 
   public ChannelsLimiter(String moduleName) {
     this.moduleName = moduleName;
@@ -43,6 +45,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void pauseAllChannels() {
+    isPaused.set(true);
     channels.forEach(c -> {
       if (c.config().isAutoRead()) {
         c.config().setAutoRead(false);
@@ -55,16 +58,24 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void resumeAllChannels() {
-    channels.forEach(c -> {
-      if (!c.config().isAutoRead()) {
-        c.config().setAutoRead(true);
-      }
-    });
+    synchronized (isPaused) {
+      isPaused.set(false);
+      channels.forEach(c -> {
+        if (!c.config().isAutoRead()) {
+          c.config().setAutoRead(true);
+        }
+      });
+    }
   }
 
   @Override
   public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
     channels.add(ctx.channel());
+    synchronized (isPaused) {
+      if (isPaused.get()) {
+        ctx.channel().config().setAutoRead(false);
+      }
+    }
     super.handlerAdded(ctx);
   }
 
