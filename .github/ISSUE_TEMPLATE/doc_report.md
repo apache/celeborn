@@ -1,8 +1,8 @@
 ---
-name: Refactor request
-about: Suggest a refactor for this project
-title: '[REFACTOR] title'
-labels: feature
+name: Doc report
+about: Doc refinement for this project
+title: '[DOC] title'
+labels: doc
 assignees: ''
 
 ---
@@ -12,4 +12,4 @@ A clear and concise description of what you want to do.
 
 /cc @who-need-to-know
 
-/assign @who-can-help-you
+/assign @who-can-solve-this-bug

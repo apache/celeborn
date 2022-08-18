@@ -44,12 +44,12 @@ RSS Worker's slot count is decided by `rss.worker.numSlots` or`rss.worker.flush.
 RSS worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-RSS supports Spark 2.4/3.0 and only tested under Java 8.
+RSS supports Spark 2.4/3.0/3.1/3.2/3.3 and only tested under Java 8.
 
 Build for Spark
-`
-./dev/make-distribution.sh -Pspark-2.4/-Pspark-3.0 -Plog4j-1/-Plog4j-2
-`
+```
+./dev/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/Spark-3.3 -Plog4j-1/-Plog4j-2
+```
 
 package rss-${project.version}-bin-release.tgz will be generated.
 
@@ -67,9 +67,9 @@ Build procedure will create a compressed package.
 
 ### Compatibility
 RSS server is compatible with all supported Spark versions.
-You can run different Spark versions with the same RSS server. It doesn't matter whether RSS server is compiled with -Pspark-2.4/3.0.
+You can run different Spark versions with the same RSS server. It doesn't matter whether RSS server is compiled with -Pspark-2.4/3.0/3.1/3.2/3.3.
 However, RSS client must be consistent with the version of the Spark.
-For example, if you are running Spark 2.4, you must compile RSS client with -Pspark-2.4; if you are running Spark 3.0, you must compile RSS client with -Pspark-3.0.
+For example, if you are running Spark 2.4, you must compile RSS client with -Pspark-2.4; if you are running Spark 3.2, you must compile RSS client with -Pspark-3.2.
 
 ## Usage
 RSS supports HA mode deployment.

@@ -54,7 +54,6 @@ public final class FileWriter extends DeviceObserver {
 
   private final File file;
   private final FileChannel channel;
-  public final File dataRootDir;
   private volatile boolean closed;
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
@@ -62,7 +61,7 @@ public final class FileWriter extends DeviceObserver {
   private long nextBoundary;
   private long bytesFlushed;
 
-  public final DiskFlusher flusher;
+  public final Flusher flusher;
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
@@ -115,8 +114,7 @@ public final class FileWriter extends DeviceObserver {
 
   public FileWriter(
     File file,
-    DiskFlusher flusher,
-    File workingDir,
+    Flusher flusher,
     long chunkSize,
     long flushBufferSize,
     AbstractSource workerSource,
@@ -128,7 +126,6 @@ public final class FileWriter extends DeviceObserver {
     this.file = file;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.dataRootDir = workingDir;
     this.chunkSize = chunkSize;
     this.nextBoundary = chunkSize;
     this.chunkOffsets.add(0L);
@@ -346,7 +343,7 @@ public final class FileWriter extends DeviceObserver {
     }
 
     if (flushBuffer == null) {
-      IOException e = new IOException("Take buffer encounter error from DiskFlusher: "
+      IOException e = new IOException("Take buffer encounter error from Flusher: "
         + flusher.bufferQueueInfo());
       notifier.setException(e);
     }

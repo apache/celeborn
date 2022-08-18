@@ -301,7 +301,15 @@ class PartitionLocationInfo extends Logging {
     getAllIds(shuffleKey, slavePartitionLocations)
   }
 
-  def close(): Unit = {
-    logInfo("Start close " + this.getClass.getSimpleName)
+  def isEmpty: Boolean = this.synchronized {
+    masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
+  }
+
+  override def toString: String = this.synchronized {
+    s"""
+      | Partition Location Info:
+      | master: ${masterPartitionLocations.asScala}
+      | slave: ${slavePartitionLocations.asScala}
+      |""".stripMargin
   }
 }

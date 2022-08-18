@@ -65,9 +65,9 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
   val localStorageManager = mock[DeviceObserver]
   var (deviceInfos, diskInfos, workingDirDiskInfos): (
-    java.util.HashMap[String, DeviceInfo],
-      java.util.HashMap[String, DiskInfo],
-      java.util.HashMap[String, DiskInfo]
+    java.util.Map[String, DeviceInfo],
+      java.util.Map[String, DiskInfo],
+      java.util.Map[String, DiskInfo]
     ) = (null, null, null)
 
   withObjectMocked[com.aliyun.emr.rss.common.util.Utils.type] {
@@ -182,10 +182,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       )
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(fw4))
 
-      val df1 = mock[DiskFlusher]
-      val df2 = mock[DiskFlusher]
-      val df3 = mock[DiskFlusher]
-      val df4 = mock[DiskFlusher]
+      val df1 = mock[Flusher]
+      val df2 = mock[Flusher]
+      val df3 = mock[Flusher]
+      val df4 = mock[Flusher]
 
       when(df1.stopFlag).thenReturn(new AtomicBoolean(false))
       when(df2.stopFlag).thenReturn(new AtomicBoolean(false))
@@ -197,10 +197,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       when(df3.workingDirs).thenReturn(workingDir3)
       when(df4.workingDirs).thenReturn(workingDir4)
 
-      deviceMonitor.registerDiskFlusher(df1)
-      deviceMonitor.registerDiskFlusher(df2)
-      deviceMonitor.registerDiskFlusher(df3)
-      deviceMonitor.registerDiskFlusher(df4)
+      deviceMonitor.registerFlusher(df1)
+      deviceMonitor.registerFlusher(df2)
+      deviceMonitor.registerFlusher(df3)
+      deviceMonitor.registerFlusher(df4)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
       assert(
@@ -214,8 +214,8 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df3))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      deviceMonitor.unregisterDiskFlusher(df1)
-      deviceMonitor.unregisterDiskFlusher(df3)
+      deviceMonitor.unregisterFlusher(df1)
+      deviceMonitor.unregisterFlusher(df3)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
