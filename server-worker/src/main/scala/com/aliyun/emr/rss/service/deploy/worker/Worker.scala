@@ -286,25 +286,6 @@ private[deploy] class Worker(
 
   def stop(): Unit = {
     logInfo("Stopping RSS Worker.")
-    shutdown.set(true)
-    if (gracefulShutdown) {
-      val interval = RssConf.checkSlotsFinishedInterval(conf)
-      val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
-      var waitTimes = 0
-
-      def waitTime: Long = waitTimes * interval
-
-      while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
-        Thread.sleep(interval)
-        waitTimes += 1
-      }
-      if (partitionLocationInfo.isEmpty) {
-        logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
-      } else {
-        logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
-          s"unreleased PartitionLocation: \n$partitionLocationInfo")
-      }
-    }
     if (sendHeartbeatTask != null) {
       sendHeartbeatTask.cancel(true)
       sendHeartbeatTask = null
@@ -384,6 +365,25 @@ private[deploy] class Worker(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
+        shutdown.set(true)
+        if (gracefulShutdown) {
+          val interval = RssConf.checkSlotsFinishedInterval(conf)
+          val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
+          var waitTimes = 0
+
+          def waitTime: Long = waitTimes * interval
+
+          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+            Thread.sleep(interval)
+            waitTimes += 1
+          }
+          if (partitionLocationInfo.isEmpty) {
+            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+          } else {
+            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+              s"unreleased PartitionLocation: \n$partitionLocationInfo")
+          }
+        }
         stop()
       }
     }), WORKER_SHUTDOWN_PRIORITY)
