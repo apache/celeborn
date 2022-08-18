@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
-import com.aliyun.emr.rss.common.network.util.PBSerDeUtils;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.fusesource.leveldbjni.JniDBFactory;
@@ -31,6 +30,8 @@ import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.aliyun.emr.rss.common.network.util.PBSerDeUtils;
 
 /**
  * LevelDB utility class available in the network package.
