@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBException;
 import org.iq80.leveldb.DBIterator;
@@ -92,8 +93,9 @@ public class PartitionFilesSorter {
     if (RssConf.workerGracefulShutdown(conf)) {
       try {
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
-        reloadPartitionInfoExecutors(this.sortedFilesDb);
+        reloadSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
+        logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
         this.sortedFilesDb = null;
       }
     } else {
@@ -133,10 +135,8 @@ public class PartitionFilesSorter {
     } else {
       String fileId = shuffleKey + "-" + fileName;
 
-      Set<String> sorted =
-        sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
-      Set<String> sorting =
-        sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+      Set<String> sorted = initSortedShuffleFiles(shuffleKey);
+      Set<String> sorting = initSortedShuffleFiles(shuffleKey);
 
       String sortedFileName = fileInfo.getFile().getAbsolutePath() + SORTED_SUFFIX;
       String indexFileName = fileInfo.getFile().getAbsolutePath() + INDEX_SUFFIX;
@@ -187,14 +187,7 @@ public class PartitionFilesSorter {
   public void cleanup(HashSet<String> expiredShuffleKeys) {
     for (String expiredShuffleKey : expiredShuffleKeys) {
       sortingShuffleFiles.remove(expiredShuffleKey);
-      if (sortedFilesDb != null) {
-        try {
-          sortedFilesDb.delete(dbShuffleKey(expiredShuffleKey));
-        } catch (DBException e) {
-          logger.error("Error deleting $shuffleKey from state db", e);
-        }
-      }
-      sortedShuffleFiles.remove(expiredShuffleKey);
+      deleteSortedShuffleFiles(expiredShuffleKey);
       cachedIndexMaps.remove(expiredShuffleKey);
     }
   }
@@ -215,6 +208,13 @@ public class PartitionFilesSorter {
     long end = System.currentTimeMillis();
     logger.error("Await partition sorter executor complete cost " + (end - start) + "ms");
     cachedIndexMaps.clear();
+    if (sortedFilesDb != null) {
+      try {
+        sortedFilesDb.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   private byte[] dbShuffleKey(String shuffleKey) {
@@ -228,7 +228,7 @@ public class PartitionFilesSorter {
     return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
   }
 
-  private void reloadPartitionInfoExecutors(DB db) {
+  private void reloadSortedShuffleFiles(DB db) {
     if (db != null) {
       DBIterator itr = db.iterator();
       itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8));
@@ -238,16 +238,48 @@ public class PartitionFilesSorter {
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           String shuffleKey = parseDbAppExecKey(key);
           try {
-            logger.info("Reloading registered executors: " + shuffleKey);
             Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(e.getValue());
-            sortingShuffleFiles.put(shuffleKey, sortedFiles);
+            logger.debug("Reload DB: " + shuffleKey + " -> " + sortedFiles);
+            sortedShuffleFiles.put(shuffleKey, sortedFiles);
           } catch (Exception exception) {
-            logger.error(
-                "Reloading registered executors for " + shuffleKey + " failed:", exception);
+            logger.error("Reload DB: " + shuffleKey + " failed.", exception);
           }
         }
       }
     }
+  }
+
+  @VisibleForTesting
+  public Set<String> initSortedShuffleFiles(String shuffleKey) {
+    return sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+  }
+
+  @VisibleForTesting
+  public void updateSortedShuffleFiles(String shuffleKey, String fileId) {
+    sortedShuffleFiles.get(shuffleKey).add(fileId);
+    if (sortedFilesDb != null) {
+      sortedFilesDb.put(dbShuffleKey(shuffleKey),
+          PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
+     logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
+    }
+  }
+
+  @VisibleForTesting
+  public void deleteSortedShuffleFiles(String expiredShuffleKey) {
+    if (sortedFilesDb != null) {
+      try {
+        sortedFilesDb.delete(dbShuffleKey(expiredShuffleKey));
+        logger.debug("Delete DB: " + expiredShuffleKey);
+      } catch (DBException e) {
+        logger.error("Delete DB: " + expiredShuffleKey + " failed.", e);
+      }
+    }
+    sortedShuffleFiles.remove(expiredShuffleKey);
+  }
+
+  @VisibleForTesting
+  public Set<String> getSortedShuffleFiles(String shuffleKey) {
+    return sortedShuffleFiles.get(shuffleKey);
   }
 
   protected void writeIndex(Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFileName)
@@ -453,11 +485,7 @@ public class PartitionFilesSorter {
         ((DirectBuffer) paddingBuf).cleaner().clean();
 
         writeIndex(sortedBlockInfoMap, indexFileName);
-        sortedShuffleFiles.get(shuffleKey).add(fileId);
-        if (sortedFilesDb != null) {
-          sortedFilesDb.put(dbShuffleKey(shuffleKey),
-              PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
-        }
+        updateSortedShuffleFiles(shuffleKey, fileId);
         if (!originFile.delete()) {
           logger.warn("clean origin file failed, origin file is : {}",
             originFile.getAbsolutePath());
