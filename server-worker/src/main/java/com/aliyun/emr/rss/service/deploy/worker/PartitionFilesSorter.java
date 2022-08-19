@@ -263,26 +263,22 @@ public class PartitionFilesSorter {
 
   @VisibleForTesting
   public void clearSortedShuffleFilesInDB() {
-    if (sortedFilesDb != null) {
-      for (String shuffleKey : sortedShuffleFiles.keySet()) {
-        try {
-          sortedFilesDb.delete(dbShuffleKey(shuffleKey));
-          logger.debug("Delete DB: " + shuffleKey);
-        } catch (DBException e) {
-          logger.error("Delete DB: " + shuffleKey + " failed.", e);
-        }
+    for (String shuffleKey : sortedShuffleFiles.keySet()) {
+      try {
+        sortedFilesDb.delete(dbShuffleKey(shuffleKey));
+        logger.debug("Delete DB: " + shuffleKey);
+      } catch (DBException e) {
+        logger.error("Delete DB: " + shuffleKey + " failed.", e);
       }
     }
   }
 
   @VisibleForTesting
   public void updateSortedShuffleFilesInDB() {
-    if (sortedFilesDb != null) {
-      for (String shuffleKey : sortedShuffleFiles.keySet()) {
-        sortedFilesDb.put(dbShuffleKey(shuffleKey),
-            PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
-        logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
-      }
+    for (String shuffleKey : sortedShuffleFiles.keySet()) {
+      sortedFilesDb.put(dbShuffleKey(shuffleKey),
+          PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
+      logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
     }
   }
 
