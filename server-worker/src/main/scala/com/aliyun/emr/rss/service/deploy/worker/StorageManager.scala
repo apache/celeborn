@@ -61,9 +61,9 @@ private[worker] abstract class FlushTask(
 }
 
 private[worker] class LocalFlushTask(
-    override val buffer: CompositeByteBuf,
-    val fileChannel: FileChannel,
-    override val notifier: FileWriter.FlushNotifier) extends FlushTask(buffer, notifier) {
+    buffer: CompositeByteBuf,
+    fileChannel: FileChannel,
+    notifier: FileWriter.FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
     fileChannel.write(buffer.nioBuffers())
   }
@@ -190,10 +190,10 @@ private[worker] class LocalFlusher(
     val workingDirs: mutable.Buffer[File],
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor,
-    override val threadCount: Int,
+    threadCount: Int,
     val mountPoint: String,
-    override val flushAvgTimeWindowSize: Int,
-    override val flushAvgTimeMinimumCount: Int,
+    flushAvgTimeWindowSize: Int,
+    flushAvgTimeMinimumCount: Int,
       val diskType: StorageInfo.Type) extends Flusher(
       workerSource,
       threadCount,
