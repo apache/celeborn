@@ -89,11 +89,7 @@ private[deploy] class Worker(
     memoryTrimActionThreshold(conf))
   memoryTracker.registerMemoryListener(storageManager)
 
-  val partitionsSorter = new PartitionFilesSorter(memoryTracker,
-    partitionSortTimeout(conf),
-    RssConf.workerFetchChunkSize(conf),
-    RssConf.memoryReservedForSingleSort(conf),
-    workerSource)
+  val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
