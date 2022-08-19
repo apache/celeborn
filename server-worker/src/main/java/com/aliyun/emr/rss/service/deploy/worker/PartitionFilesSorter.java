@@ -60,7 +60,7 @@ public class PartitionFilesSorter {
   private String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
   private File recoverFile;
-  private boolean shutdown = false;
+  private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
@@ -71,6 +71,7 @@ public class PartitionFilesSorter {
   protected final long sortTimeout;
   protected final long fetchChunkSize;
   protected final long reserveMemoryForSingleSort;
+  private boolean gracefulShutdown = false;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
 
@@ -86,9 +87,10 @@ public class PartitionFilesSorter {
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
-    // ShuffleClient only can fetch shuffle data from a restarted worker only
+    this.gracefulShutdown = RssConf.workerGracefulShutdown(conf);
+    // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
-    if (RssConf.workerGracefulShutdown(conf)) {
+    if (gracefulShutdown) {
       try {
         String recoverPath = RssConf.workerRecoverPath(conf);
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
@@ -197,18 +199,23 @@ public class PartitionFilesSorter {
   public void close() {
     logger.info("Start close " + this.getClass().getSimpleName());
     shutdown = true;
-    long start = System.currentTimeMillis();
-    try {
-      fileSorterExecutors.shutdown();
-      fileSorterExecutors.awaitTermination(partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
-      if (!fileSorterExecutors.isShutdown()) {
-        fileSorterExecutors.shutdownNow();
+    if (gracefulShutdown) {
+      long start = System.currentTimeMillis();
+      try {
+        fileSorterExecutors.shutdown();
+        fileSorterExecutors.awaitTermination(partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
+        if (!fileSorterExecutors.isShutdown()) {
+          fileSorterExecutors.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        logger.error("Await partition sorter executor shutdown catch exception: ", e);
       }
-    } catch (InterruptedException e) {
-      logger.error("Await partition sorter executor shutdown catch exception: ", e);
+      long end = System.currentTimeMillis();
+      logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
+    } else {
+      fileSorterSchedulerThread.interrupt();
+      fileSorterExecutors.shutdownNow();
     }
-    long end = System.currentTimeMillis();
-    logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     cachedIndexMaps.clear();
     if (sortedFilesDb != null) {
       try {
@@ -223,7 +230,7 @@ public class PartitionFilesSorter {
     return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
   }
 
-  private String parseDbAppExecKey(String s) {
+  private String parseDbShuffleKey(String s) {
     if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
       throw new IllegalArgumentException("expected a string starting with " + SHUFFLE_KEY_PREFIX);
     }
@@ -238,7 +245,7 @@ public class PartitionFilesSorter {
         Map.Entry<byte[], byte[]> e = itr.next();
         String key = new String(e.getKey(), StandardCharsets.UTF_8);
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
-          String shuffleKey = parseDbAppExecKey(key);
+          String shuffleKey = parseDbShuffleKey(key);
           try {
             Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(e.getValue());
             logger.debug("Reload DB: " + shuffleKey + " -> " + sortedFiles);

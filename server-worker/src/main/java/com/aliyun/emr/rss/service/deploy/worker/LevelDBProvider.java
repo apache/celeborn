@@ -51,12 +51,12 @@ public class LevelDBProvider {
         tmpDb = JniDBFactory.factory.open(dbFile, options);
       } catch (NativeDB.DBException e) {
         if (e.isNotFound() || e.getMessage().contains(" does not exist ")) {
-          logger.info("Creating state database at " + dbFile);
+          logger.info("Creating recover database at " + dbFile);
           options.createIfMissing(true);
           try {
             tmpDb = JniDBFactory.factory.open(dbFile, options);
           } catch (NativeDB.DBException dbExc) {
-            throw new IOException("Unable to create state store", dbExc);
+            throw new IOException("Unable to create recover store", dbExc);
           }
         } else {
           // the leveldb file seems to be corrupt somehow.  Lets just blow it away and create a new
@@ -77,7 +77,7 @@ public class LevelDBProvider {
           try {
             tmpDb = JniDBFactory.factory.open(dbFile, options);
           } catch (NativeDB.DBException dbExc) {
-            throw new IOException("Unable to create state store", dbExc);
+            throw new IOException("Unable to create recover store", dbExc);
           }
 
         }
@@ -130,8 +130,7 @@ public class LevelDBProvider {
     public final int major;
     public final int minor;
 
-    @JsonCreator
-    public StoreVersion(@JsonProperty("major") int major, @JsonProperty("minor") int minor) {
+    public StoreVersion(int major, int minor) {
       this.major = major;
       this.minor = minor;
     }
