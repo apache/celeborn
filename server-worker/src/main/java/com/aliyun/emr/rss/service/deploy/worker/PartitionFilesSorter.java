@@ -263,9 +263,13 @@ public class PartitionFilesSorter {
   @VisibleForTesting
   public void updateSortedShuffleFilesInDB() {
     for (String shuffleKey : sortedShuffleFiles.keySet()) {
-      sortedFilesDb.put(dbShuffleKey(shuffleKey),
-          PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
-      logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
+      try {
+        sortedFilesDb.put(dbShuffleKey(shuffleKey),
+            PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
+        logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
+      } catch (Exception exception) {
+        logger.error("Update DB: " + shuffleKey + " failed.", exception);
+      }
     }
   }
 
