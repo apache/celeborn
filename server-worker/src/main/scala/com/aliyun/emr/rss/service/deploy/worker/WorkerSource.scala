@@ -42,6 +42,12 @@ class WorkerSource(essConf: RssConf)
   addTimer(TakeBufferTime)
   addTimer(SortTime)
 
+  addTimer(SlotReleaseTime)
+  addTimer(PartitionSorterCompleteTime)
+  addTimer(PartitionSorterRecoverTime)
+  addTimer(FileInfoRecoverTime)
+  addTimer(WorkerShutdownTotalTime)
+
   // start cleaner thread
   startCleaner()
 }
@@ -81,4 +87,15 @@ object WorkerSource {
   val DiskBuffer = "DiskBuffer"
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
+
+
+  // graceful shutdown
+  val SlotReleaseTime = "SlotReleaseTime"
+  // TODO
+  val PartitionSorterCompleteTime = "PartitionSorterCompleteTime"
+  // TODO
+  val PartitionSorterRecoverTime = "PartitionSorterRecoverTime"
+  // TODO
+  val FileInfoRecoverTime = "FileInfoRecoverTime"
+  val WorkerShutdownTotalTime = "WorkerShutdownTotalTime"
 }
