@@ -44,7 +44,7 @@ private[deploy] class Controller(
   extends RpcEndpoint with Logging {
 
   var workerSource: WorkerSource = _
-  var localStorageManager: StorageManager = _
+  var storageManager: StorageManager = _
   var registered: AtomicBoolean = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
   var workerInfo: WorkerInfo = _
@@ -57,7 +57,7 @@ private[deploy] class Controller(
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
-    localStorageManager = worker.storageManager
+    storageManager = worker.storageManager
     registered = worker.registered
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     workerInfo = worker.workerInfo
@@ -120,7 +120,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (!localStorageManager.hasAvailableWorkingDirs) {
+    if (!storageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
@@ -130,7 +130,7 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
+        val writer = storageManager.createWriter(applicationId, shuffleId, location,
           splitThreshold, splitMode, partitionType)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
@@ -150,7 +150,7 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId,
+        val writer = storageManager.createWriter(applicationId, shuffleId,
           location, splitThreshold, splitMode, partitionType)
         slavePartitions.add(new WorkingPartition(location, writer))
       }

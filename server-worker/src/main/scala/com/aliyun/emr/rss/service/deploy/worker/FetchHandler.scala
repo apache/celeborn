@@ -40,13 +40,13 @@ import com.aliyun.emr.rss.common.network.util.TransportConf
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()
   var source: WorkerSource = _
-  var localStorageManager: StorageManager = _
+  var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
     this.source = worker.workerSource
-    this.localStorageManager = worker.storageManager
+    this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
   }
@@ -57,7 +57,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       startMapIndex: Int,
       endMapIndex: Int): FileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = localStorageManager.getFileInfo(shuffleKey, fileName)
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       logWarning(s"File $fileName for $shuffleKey was not found!")
       null

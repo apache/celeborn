@@ -588,10 +588,10 @@ private[worker] final class StorageManager(
   private val noneEmptyDirCleanUpThreshold = RssConf.noneEmptyDirCleanUpThreshold(conf)
   private val emptyDirExpireDurationMs = RssConf.emptyDirExpireDurationMs(conf)
 
-  private val localStorageScheduler =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("local-storage-scheduler")
+  private val storageScheduler =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
-  localStorageScheduler.scheduleAtFixedRate(new Runnable {
+  storageScheduler.scheduleAtFixedRate(new Runnable {
     override def run(): Unit = {
       try {
         // Clean up empty dirs, since the appDir do not delete during expired shuffle key cleanup
@@ -611,7 +611,7 @@ private[worker] final class StorageManager(
   }, 30, 30, TimeUnit.MINUTES)
 
   val rssSlowFlushInterval: Long = RssConf.slowFlushIntervalMs(conf)
-  localStorageScheduler.scheduleAtFixedRate(new Runnable {
+  storageScheduler.scheduleAtFixedRate(new Runnable {
     override def run(): Unit = {
       val currentTime = System.nanoTime()
       localFlushers.values().asScala.foreach(flusher => {
@@ -696,7 +696,7 @@ private[worker] final class StorageManager(
         entry._2.shutdownNow()
       })
     }
-    localStorageScheduler.shutdownNow()
+    storageScheduler.shutdownNow()
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
