@@ -218,12 +218,12 @@ public final class Writer implements DeviceObserver {
     }
   }
 
-  public StorageInfo getStorageInfo(){
+  public StorageInfo getStorageInfo() {
     if (flusher instanceof LocalFlusher) {
-      LocalFlusher localFlusher = (LocalFlusher)flusher;
+      LocalFlusher localFlusher = (LocalFlusher) flusher;
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
-    }else{
-      return new StorageInfo(StorageInfo.Type.HDFS);
+    } else {
+      return new StorageInfo(StorageInfo.Type.HDFS, true);
     }
   }
 
@@ -344,13 +344,13 @@ public final class Writer implements DeviceObserver {
     }
 
     if (flushBuffer == null) {
-      IOException e = new IOException("Take buffer encounter error from LocalFlusher: "
+      IOException e = new IOException("Take buffer encounter error from Flusher: "
         + flusher.bufferQueueInfo());
       notifier.setException(e);
     }
   }
 
-  private void addTask(LocalFlushTask task) throws IOException {
+  private void addTask(FlushTask task) throws IOException {
     if (!flusher.addTask(task, timeoutMs, flushWorkerIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
@@ -399,6 +399,8 @@ public final class Writer implements DeviceObserver {
     return splitMode;
   }
 
+  //Those empty methods are intended to match scala 2.11 restrictions that
+  // trait can not be used as an interface with default implementation.
   @Override
   public void notifyHealthy(ListBuffer<File> dirs) {
   }

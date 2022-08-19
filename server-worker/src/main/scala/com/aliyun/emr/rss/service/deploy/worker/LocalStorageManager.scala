@@ -47,27 +47,23 @@ import com.aliyun.emr.rss.service.deploy.worker.Writer.FlushNotifier
 trait DeviceObserver {
   def notifyError(deviceName: String, dirs: ListBuffer[File],
     deviceErrorType: DeviceErrorType): Unit = {}
-
   def notifyHealthy(dirs: ListBuffer[File]): Unit = {}
-
   def notifyHighDiskUsage(dirs: ListBuffer[File]): Unit = {}
-
   def notifySlowFlush(dirs: ListBuffer[File]): Unit = {}
-
   def reportError(workingDir: mutable.Buffer[File], e: IOException,
     deviceErrorType: DeviceErrorType): Unit = {}
 }
 
 private[worker] abstract class FlushTask(
-  val buffer: CompositeByteBuf,
-  val notifier: FlushNotifier) {
+    val buffer: CompositeByteBuf,
+    val notifier: FlushNotifier) {
   def flush(): Unit
 }
 
 private[worker] class LocalFlushTask(
-  override val buffer: CompositeByteBuf,
-  val fileChannel: FileChannel,
-  override val notifier: Writer.FlushNotifier) extends FlushTask(buffer, notifier) {
+    override val buffer: CompositeByteBuf,
+    val fileChannel: FileChannel,
+    override val notifier: Writer.FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
     fileChannel.write(buffer.nioBuffers())
   }
@@ -117,9 +113,7 @@ private[worker] abstract class Flusher(
                   case _: ClosedByInterruptException =>
                   case e: IOException =>
                     task.notifier.setException(e)
-                    stopFlag.set(true)
-                    logError(s"$this write failed, report to DeviceMonitor, eception: $e")
-                    processError(e, DeviceErrorType.ReadOrWriteFailure)
+                    processIOException(e, DeviceErrorType.ReadOrWriteFailure)
                 }
                 lastBeginFlushTime.set(index, -1)
               }
@@ -183,14 +177,13 @@ private[worker] abstract class Flusher(
     bufferQueue.put(buffer)
   }
 
-  def addTask(task: LocalFlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
+  def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
     workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
   }
 
   def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueue.size()}"
 
-  def processError(e: IOException,
-    deviceErrorType: DeviceErrorType): Unit
+  def processIOException(e: IOException, deviceErrorType: DeviceErrorType): Unit
 }
 
 private[worker] class LocalFlusher(
@@ -210,8 +203,9 @@ private[worker] class LocalFlusher(
 
   deviceMonitor.registerFlusher(this)
 
-  override def processError(e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {
+  override def processIOException(e: IOException, deviceErrorType: DeviceErrorType): Unit = {
+    stopFlag.set(true)
+    logError(s"$this write failed, report to DeviceMonitor, eception: $e")
     deviceMonitor.reportDeviceError(workingDirs, e, deviceErrorType)
   }
 
