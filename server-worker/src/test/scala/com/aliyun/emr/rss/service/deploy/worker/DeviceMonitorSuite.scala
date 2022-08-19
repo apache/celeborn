@@ -137,10 +137,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
       deviceMonitor.init()
 
-      val fw1 = mock[Writer]
-      val fw2 = mock[Writer]
-      val fw3 = mock[Writer]
-      val fw4 = mock[Writer]
+      val fw1 = mock[FileWriter]
+      val fw2 = mock[FileWriter]
+      val fw3 = mock[FileWriter]
+      val fw4 = mock[FileWriter]
 
       val f1 = new File("/mnt/disk1/data1/f1")
       val f2 = new File("/mnt/disk1/data2/f2")

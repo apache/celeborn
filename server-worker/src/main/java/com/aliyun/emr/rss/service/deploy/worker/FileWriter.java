@@ -48,8 +48,8 @@ import com.aliyun.emr.rss.common.protocol.StorageInfo;
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
  *       That's fine some of the internal state(e.g. bytesFlushed) may be inaccurate.
  */
-public final class Writer implements DeviceObserver {
-  private static final Logger logger = LoggerFactory.getLogger(Writer.class);
+public final class FileWriter implements DeviceObserver {
+  private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
 
   private static final long WAIT_INTERVAL_MS = 20;
 
@@ -112,7 +112,7 @@ public final class Writer implements DeviceObserver {
 
   private final FlushNotifier notifier = new FlushNotifier();
 
-  public Writer(
+  public FileWriter(
     FileInfo fileInfo,
     Flusher flusher,
     long chunkSize,
@@ -287,11 +287,11 @@ public final class Writer implements DeviceObserver {
     destroyHook.run();
   }
 
-  public void registerDestroyHook(List<Writer> writers) {
-    Writer thisWriter = this;
+  public void registerDestroyHook(List<FileWriter> fileWriters) {
+    FileWriter thisFileWriter = this;
     destroyHook = () -> {
-      synchronized (writers) {
-        writers.remove(thisWriter);
+      synchronized (fileWriters) {
+        fileWriters.remove(thisFileWriter);
       }
     };
   }
@@ -370,8 +370,8 @@ public final class Writer implements DeviceObserver {
   }
 
   public boolean equals(Object obj) {
-    return (obj instanceof Writer) &&
-        fileInfo.file.equals(((Writer) obj).fileInfo.file);
+    return (obj instanceof FileWriter) &&
+        fileInfo.file.equals(((FileWriter) obj).fileInfo.file);
   }
 
   public String toString() {

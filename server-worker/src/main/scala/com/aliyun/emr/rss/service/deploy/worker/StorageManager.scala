@@ -42,7 +42,7 @@ import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker}
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.service.deploy.worker.Writer.FlushNotifier
+import com.aliyun.emr.rss.service.deploy.worker.FileWriter.FlushNotifier
 
 trait DeviceObserver {
   def notifyError(deviceName: String, dirs: ListBuffer[File],
@@ -63,7 +63,7 @@ private[worker] abstract class FlushTask(
 private[worker] class LocalFlushTask(
     override val buffer: CompositeByteBuf,
     val fileChannel: FileChannel,
-    override val notifier: Writer.FlushNotifier) extends FlushTask(buffer, notifier) {
+    override val notifier: FileWriter.FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
     fileChannel.write(buffer.nioBuffers())
   }
@@ -74,7 +74,7 @@ private[worker] abstract class Flusher(
     val threadCount: Int,
     val flushAvgTimeWindowSize: Int,
     val flushAvgTimeMinimumCount: Int) extends Logging {
-  protected lazy val diskFlusherId = System.identityHashCode(this)
+  protected lazy val flusherId = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[Thread](threadCount)
@@ -100,7 +100,7 @@ private[worker] abstract class Flusher(
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
-            val key = s"LocalFlusher-$this-${rand.nextInt()}"
+            val key = s"Flusher-$this-${rand.nextInt()}"
             workerSource.sample(WorkerSource.FlushDataTime, key) {
               if (!task.notifier.hasException) {
                 try {
@@ -243,7 +243,7 @@ private[worker] class LocalFlusher(
   }
 
   override def toString(): String = {
-    s"LocalFlusher@$diskFlusherId-" + workingDirs.toString
+    s"LocalFlusher@$flusherId-" + workingDirs.toString
   }
 }
 
@@ -259,7 +259,7 @@ private[worker] final class StorageManager(
   private val workingDirMetas: mutable.HashMap[String, (Long, Int, StorageInfo.Type)] =
     new mutable.HashMap[String, (Long, Int, StorageInfo.Type)]()
   // mount point -> filewriter
-  val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[Writer]]()
+  val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
   private val workingDirs: util.ArrayList[File] = {
     val baseDirs =
@@ -479,8 +479,8 @@ private[worker] final class StorageManager(
   }
 
   private val workingDirWriterListFunc =
-    new java.util.function.Function[File, util.ArrayList[Writer]]() {
-      override def apply(t: File): util.ArrayList[Writer] = new util.ArrayList[Writer]()
+    new java.util.function.Function[File, util.ArrayList[FileWriter]]() {
+      override def apply(t: File): util.ArrayList[FileWriter] = new util.ArrayList[FileWriter]()
     }
 
   @throws[IOException]
@@ -490,7 +490,7 @@ private[worker] final class StorageManager(
       location: PartitionLocation,
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType): Writer = {
+      partitionType: PartitionType): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
@@ -522,7 +522,7 @@ private[worker] final class StorageManager(
         }
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val fileInfo = new FileInfo(file)
-        val fileWriter = new Writer(
+        val fileWriter = new FileWriter(
           fileInfo,
           localFlushers.get(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile),
           fetchChunkSize,

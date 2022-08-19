@@ -382,7 +382,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
 
     var index = 0
-    var fileWriter: Writer = null
+    var fileWriter: FileWriter = null
     var alreadyClosed = false
     while (index < fileWriters.length) {
       fileWriter = fileWriters(index)

@@ -75,9 +75,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
-public class WriterSuiteJ {
+public class FileWriterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(WriterSuiteJ.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
 
   private static final int CHUNK_SIZE = 1024;
   private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
@@ -241,7 +241,7 @@ public class WriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    Writer writer = new Writer(new FileInfo(file), localFlusher, CHUNK_SIZE,
+    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
@@ -255,7 +255,7 @@ public class WriterSuiteJ {
         length.addAndGet(bytes.length);
         ByteBuf buf = Unpooled.wrappedBuffer(bytes);
         try {
-          writer.write(buf);
+          fileWriter.write(buf);
         } catch (IOException e) {
           LOG.error("Failed to write buffer.", e);
         }
@@ -265,10 +265,10 @@ public class WriterSuiteJ {
       future.get();
     }
 
-    long bytesWritten = writer.close();
+    long bytesWritten = fileWriter.close();
 
     assertEquals(length.get(), bytesWritten);
-    assertEquals(writer.getFile().length(), bytesWritten);
+    assertEquals(fileWriter.getFile().length(), bytesWritten);
   }
 
   @Test
@@ -276,7 +276,7 @@ public class WriterSuiteJ {
     throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
-    Writer writer = new Writer(new FileInfo(file), localFlusher, CHUNK_SIZE,
+    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
@@ -290,7 +290,7 @@ public class WriterSuiteJ {
           length.addAndGet(bytes.length);
           ByteBuf buf = Unpooled.wrappedBuffer(bytes);
           try {
-            writer.write(buf);
+            fileWriter.write(buf);
           } catch (IOException e) {
             LOG.error("Failed to write buffer.", e);
           }
@@ -301,7 +301,7 @@ public class WriterSuiteJ {
       future.get();
     }
 
-    long bytesWritten = writer.close();
+    long bytesWritten = fileWriter.close();
     assertEquals(length.get(), bytesWritten);
   }
 
@@ -325,7 +325,7 @@ public class WriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file);
-    Writer writer = new Writer(fileInfo, localFlusher, CHUNK_SIZE,
+    FileWriter fileWriter = new FileWriter(fileInfo, localFlusher, CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
@@ -339,8 +339,8 @@ public class WriterSuiteJ {
         ByteBuf buf = Unpooled.wrappedBuffer(bytes);
         buf.retain();
         try {
-          writer.incrementPendingWrites();
-          writer.write(buf);
+          fileWriter.incrementPendingWrites();
+          fileWriter.write(buf);
         } catch (IOException e) {
           LOG.error("Failed to write buffer.", e);
         }
@@ -351,7 +351,7 @@ public class WriterSuiteJ {
       future.get();
     }
 
-    long bytesWritten = writer.close();
+    long bytesWritten = fileWriter.close();
     assertEquals(length.get(), bytesWritten);
 
     setupChunkServer(fileInfo);

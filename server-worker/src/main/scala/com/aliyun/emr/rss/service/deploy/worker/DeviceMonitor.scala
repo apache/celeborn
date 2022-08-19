@@ -39,8 +39,8 @@ import com.aliyun.emr.rss.common.util.Utils._
 
 trait DeviceMonitor {
   def startCheck() {}
-  def registerFileWriter(fileWriter: Writer): Unit = {}
-  def unregisterFileWriter(fileWriter: Writer): Unit = {}
+  def registerFileWriter(fileWriter: FileWriter): Unit = {}
+  def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
   // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
@@ -236,12 +236,12 @@ class LocalDeviceMonitor(
     }, diskCheckInterval, diskCheckInterval, TimeUnit.MILLISECONDS)
   }
 
-  override def registerFileWriter(fileWriter: Writer): Unit = {
+  override def registerFileWriter(fileWriter: FileWriter): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(fileWriter)
   }
 
-  override def unregisterFileWriter(fileWriter: Writer): Unit = {
+  override def unregisterFileWriter(fileWriter: FileWriter): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
