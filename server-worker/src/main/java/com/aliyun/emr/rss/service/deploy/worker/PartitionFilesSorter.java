@@ -260,7 +260,7 @@ public class PartitionFilesSorter {
     if (sortedFilesDb != null) {
       sortedFilesDb.put(dbShuffleKey(shuffleKey),
           PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
-     logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
+      logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
     }
   }
 
