@@ -56,6 +56,7 @@ Here is an example of grafana dashboard importing.
 ![g2](assets/img/g2.png)
 ![g3](assets/img/g3.png)
 ![g4](assets/img/g4.png)
+![g6](assets/img/g6.png)
 ![g5](assets/img/g5.png)
 
 ## Details
