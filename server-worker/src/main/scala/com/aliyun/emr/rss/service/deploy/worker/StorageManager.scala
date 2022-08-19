@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.{File, IOException}
 import java.nio.channels.{ClosedByInterruptException, FileChannel}
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
@@ -32,6 +33,7 @@ import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
+import org.iq80.leveldb.DB
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
@@ -42,7 +44,9 @@ import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker}
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker.FileWriter.FlushNotifier
+import com.google.common.annotations.VisibleForTesting
 
 trait DeviceObserver {
   def notifyError(deviceName: String, dirs: ListBuffer[File],
@@ -253,7 +257,7 @@ private[worker] class LocalFlusher(
 private[worker] final class StorageManager(
     conf: RssConf,
     workerSource: AbstractSource)
-  extends DeviceObserver with Logging with MemoryTrackerListener{
+  extends ShuffleFileRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
 
   private val diskMinimumReserveSize = RssConf.diskMinimumReserveSize(conf)
   val isolatedWorkingDirs =
@@ -468,6 +472,66 @@ private[worker] final class StorageManager(
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
+  private val RECOVERY_FILE_INFOS_FILE_NAME = "fileInfos.ldb"
+  private var fileInfosDb: DB = null
+  // ShuffleClient can fetch data from a restarted worker only
+  // when the worker's fetching port is stable.
+  if (RssConf.workerGracefulShutdown(conf)) {
+    try {
+      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
+      this.fileInfosDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
+      reloadAndCleanFileInfos(this.fileInfosDb)
+    } catch {
+      case e: Exception =>
+        logError("Init level DB failed:", e)
+        this.fileInfosDb = null
+    }
+  } else {
+    this.fileInfosDb = null
+  }
+
+  private def reloadAndCleanFileInfos(db: DB): Unit = {
+    if (db != null) {
+      val itr = db.iterator
+      itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
+      while (itr.hasNext) {
+        val entry = itr.next
+        val key = new String(entry.getKey, StandardCharsets.UTF_8)
+        if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
+          val shuffleKey = parseDbShuffleKey(key)
+          try {
+            val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
+            logDebug("Reload DB: " + shuffleKey + " -> " + files)
+            logInfo(s"Reload $shuffleKey -> $files")
+            fileInfos.put(shuffleKey, files)
+            fileInfosDb.delete(entry.getKey)
+          } catch {
+            case exception: Exception =>
+              logError("Reload DB: " + shuffleKey + " failed.", exception);
+          }
+
+        }
+      }
+    }
+  }
+
+  @VisibleForTesting
+  def updateFileInfosInDB(): Unit = {
+    fileInfos.asScala.foreach { case (shuffleKey, files) =>
+      try {
+        fileInfosDb.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
+        logDebug("Update DB: " + shuffleKey + " -> " + files)
+      } catch {
+        case exception: Exception =>
+         logError("Update DB: " + shuffleKey + " failed.", exception)
+      }
+    }
+  }
+
+  def updateShuffleFileInfos(shuffleKey: String, fileName: String, fileInfo: FileInfo): Unit = {
+    val shuffleMap = fileInfos.computeIfAbsent(shuffleKey, newMapFunc)
+    shuffleMap.put(fileName, fileInfo)
+  }
 
   private def getNextIndex() = counter.getAndUpdate(counterOperator)
 
@@ -540,8 +604,7 @@ private[worker] final class StorageManager(
         val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
         list.synchronized {list.add(fileWriter)}
         fileWriter.registerDestroyHook(list)
-        val shuffleMap = fileInfos.computeIfAbsent(shuffleKey, newMapFunc)
-        shuffleMap.put(fileName, fileInfo)
+        updateShuffleFileInfos(shuffleKey, fileName, fileInfo)
         location.getStorageHint.setMountPoint(
           workingDirDiskInfos.get(dir.getAbsolutePath).mountPoint)
         logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
@@ -694,6 +757,15 @@ private[worker] final class StorageManager(
   }
 
   def close(): Unit = {
+    if (fileInfosDb != null) {
+      try {
+        updateFileInfosInDB();
+        fileInfosDb.close();
+      } catch {
+        case exception: Exception =>
+          logError("Store recover data to LevelDB failed.", exception);
+      }
+    }
     if (null != dirOperators) {
       dirOperators.asScala.foreach(entry => {
         entry._2.shutdownNow()

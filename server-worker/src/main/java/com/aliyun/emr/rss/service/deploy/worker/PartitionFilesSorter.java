@@ -51,14 +51,12 @@ import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 
-public class PartitionFilesSorter {
+public class PartitionFilesSorter extends ShuffleFileRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
   private LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
-  private String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
-  private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
@@ -92,7 +90,7 @@ public class PartitionFilesSorter {
     if (gracefulShutdown) {
       try {
         String recoverPath = RssConf.workerRecoverPath(conf);
-        this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
+        File recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
@@ -225,17 +223,6 @@ public class PartitionFilesSorter {
         logger.error("Store recover data to LevelDB failed.", e);
       }
     }
-  }
-
-  private byte[] dbShuffleKey(String shuffleKey) {
-    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
-  }
-
-  private String parseDbShuffleKey(String s) {
-    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("expected a string starting with " + SHUFFLE_KEY_PREFIX);
-    }
-    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
   }
 
   private void reloadAndCleanSortedShuffleFiles(DB db) {
