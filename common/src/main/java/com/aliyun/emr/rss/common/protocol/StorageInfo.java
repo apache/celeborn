@@ -37,6 +37,11 @@ public class StorageInfo implements Serializable {
   public StorageInfo() {
   }
 
+  public StorageInfo(Type type, boolean isFinal) {
+    this.type = type;
+    this.finalResult = isFinal;
+  }
+
   public StorageInfo(String mountPoint) {
     this.mountPoint = mountPoint;
   }
