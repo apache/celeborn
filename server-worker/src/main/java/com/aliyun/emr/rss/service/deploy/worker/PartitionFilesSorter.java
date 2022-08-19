@@ -135,8 +135,10 @@ public class PartitionFilesSorter {
     } else {
       String fileId = shuffleKey + "-" + fileName;
 
-      Set<String> sorted = initSortedShuffleFiles(shuffleKey);
-      Set<String> sorting = initSortedShuffleFiles(shuffleKey);
+      Set<String> sorted =
+          sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+      Set<String> sorting =
+          sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
       String sortedFileName = fileInfo.getFile().getAbsolutePath() + SORTED_SUFFIX;
       String indexFileName = fileInfo.getFile().getAbsolutePath() + INDEX_SUFFIX;
@@ -398,7 +400,7 @@ public class PartitionFilesSorter {
           cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
-        logger.error("Read sorted shuffle file error , detail : ", e);
+        logger.error("Read sorted shuffle file error, detail : ", e);
         return null;
       }
     }
