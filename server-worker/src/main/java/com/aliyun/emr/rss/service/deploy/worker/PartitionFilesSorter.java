@@ -204,7 +204,8 @@ public class PartitionFilesSorter {
       long start = System.currentTimeMillis();
       try {
         fileSorterExecutors.shutdown();
-        fileSorterExecutors.awaitTermination(partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
+        fileSorterExecutors.awaitTermination(
+            partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
         if (!fileSorterExecutors.isShutdown()) {
           fileSorterExecutors.shutdownNow();
         }
