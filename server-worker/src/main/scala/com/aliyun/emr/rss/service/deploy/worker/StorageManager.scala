@@ -94,6 +94,9 @@ private[worker] abstract class Flusher(
     for (i <- 0 until flushAvgTimeWindowSize) {
       avgTimeWindow(i) = (0L, 0L)
     }
+    for (i <- 0 until lastBeginFlushTime.length()) {
+      lastBeginFlushTime.set(i, -1)
+    }
     for (index <- 0 until threadCount) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
       workers(index) = new Thread(s"$this-$index") {
