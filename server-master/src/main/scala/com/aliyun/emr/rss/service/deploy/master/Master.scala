@@ -297,8 +297,7 @@ private[deploy] class Master(
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = workersSnapShot
-      .asScala.exists(_ == targetWorker)
+    val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -366,16 +365,18 @@ private[deploy] class Master(
       new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
-        s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
-      if (!statusSystem.workerLostEvents.contains(workerToRegister)) {
-        self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
-          RssHARetryClient.genRequestId()))
-      }
-      context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
+        s" ${workerToRegister.toString()} already exists, re-register.")
+      statusSystem.handleWorkerRemove(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
+      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        disks, requestId)
+      context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
-      context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
+      statusSystem.workerLostEvents.remove(workerToRegister)
+      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        disks, requestId)
+      context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
       statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
         disks, requestId)

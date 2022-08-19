@@ -145,6 +145,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.remove(worker);
   }
 
+  public void updateWorkerRemoveMeta(String host,int rpcPort, int pushPort,int fetchPort,
+    int replicatePort) {
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
+        fetchPort, replicatePort, null);
+    // remove worker from workers
+    synchronized (workers) {
+      workers.remove(worker);
+    }
+    // delete from blacklist
+    blacklist.remove(worker);
+  }
+
   public void updateWorkerHeartBeatMeta(String host, int rpcPort, int pushPort, int fetchPort,
       int replicatePort, Map<String, DiskInfo> disks, long time) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks,
