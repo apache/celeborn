@@ -159,6 +159,7 @@ public class PartitionFilesSorterSuiteJ {
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-3-1").toString(),
         "[0-0-1]");
+    partitionFilesSorter.close();
     recoverPath.delete();
   }
 }
