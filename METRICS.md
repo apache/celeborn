@@ -26,6 +26,27 @@ scrape_configs:
 
 3.You need to install Grafana server(https://grafana.com/)
 
+### Optional
+We recommend you to install node exporter(https://github.com/prometheus/node_exporter)
+on every host, and configure prometheus to scrape information about the host. 
+Grafana will need a dashboard(id:8919) to display host details.
+
+```yaml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "RSS"
+    metrics_path: /metrics/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["emr-header-1:9098","emr-worker-1:9096","emr-worker-2:9096","emr-worker-3:9096","emr-worker-4:9096"]
+  - job_name: "node"
+    static_configs:
+      - targets: ["emr-header-1:9100","emr-worker-1:9100","emr-worker-2:9100","emr-worker-3:9100","emr-worker-4:9100"]
+```
+
 ## Details
 
 |        MetricName         |       Role        |                                                  Description                                                   |
