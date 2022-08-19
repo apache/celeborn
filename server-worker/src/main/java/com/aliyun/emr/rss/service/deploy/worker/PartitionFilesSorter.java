@@ -96,6 +96,7 @@ public class PartitionFilesSorter {
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadSortedShuffleFiles(this.sortedFilesDb);
+        clearSortedShuffleFilesInDB();
       } catch (Exception e) {
         logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
         this.sortedFilesDb = null;
@@ -219,9 +220,10 @@ public class PartitionFilesSorter {
     cachedIndexMaps.clear();
     if (sortedFilesDb != null) {
       try {
+        updateSortedShuffleFilesInDB();
         sortedFilesDb.close();
       } catch (IOException e) {
-        e.printStackTrace();
+        logger.error("Store recover data to LevelDB failed.", e);
       }
     }
   }
@@ -259,6 +261,31 @@ public class PartitionFilesSorter {
   }
 
   @VisibleForTesting
+  public void clearSortedShuffleFilesInDB() {
+    if (sortedFilesDb != null) {
+      for (String shuffleKey : sortedShuffleFiles.keySet()) {
+        try {
+          sortedFilesDb.delete(dbShuffleKey(shuffleKey));
+          logger.debug("Delete DB: " + shuffleKey);
+        } catch (DBException e) {
+          logger.error("Delete DB: " + shuffleKey + " failed.", e);
+        }
+      }
+    }
+  }
+
+  @VisibleForTesting
+  public void updateSortedShuffleFilesInDB() {
+    if (sortedFilesDb != null) {
+      for (String shuffleKey : sortedShuffleFiles.keySet()) {
+        sortedFilesDb.put(dbShuffleKey(shuffleKey),
+            PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
+        logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
+      }
+    }
+  }
+
+  @VisibleForTesting
   public Set<String> initSortedShuffleFiles(String shuffleKey) {
     return sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
   }
@@ -266,23 +293,10 @@ public class PartitionFilesSorter {
   @VisibleForTesting
   public void updateSortedShuffleFiles(String shuffleKey, String fileId) {
     sortedShuffleFiles.get(shuffleKey).add(fileId);
-    if (sortedFilesDb != null) {
-      sortedFilesDb.put(dbShuffleKey(shuffleKey),
-          PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
-      logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
-    }
   }
 
   @VisibleForTesting
   public void deleteSortedShuffleFiles(String expiredShuffleKey) {
-    if (sortedFilesDb != null) {
-      try {
-        sortedFilesDb.delete(dbShuffleKey(expiredShuffleKey));
-        logger.debug("Delete DB: " + expiredShuffleKey);
-      } catch (DBException e) {
-        logger.error("Delete DB: " + expiredShuffleKey + " failed.", e);
-      }
-    }
     sortedShuffleFiles.remove(expiredShuffleKey);
   }
 
