@@ -28,7 +28,9 @@ import org.scalatest.funsuite.AnyFunSuite
 class StorageManagerSuite extends AnyFunSuite {
   test("Recover from LevelDB") {
     val recoverPath = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "recover_path")
+    val baseDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "base_dir")
     val conf: RssConf = new RssConf
+    conf.set("rss.worker.base.dirs", baseDir.getPath)
     conf.set("rss.worker.graceful.shutdown", "true")
     conf.set("rss.worker.recoverPath", recoverPath.getPath)
     val storageManager = new StorageManager(conf, new WorkerSource(conf))
@@ -55,6 +57,7 @@ class StorageManagerSuite extends AnyFunSuite {
     Assert.assertEquals(
       storageManager2.getFileInfo("application-3-1", "0-0-1").toString, "/tmp/file5")
     storageManager2.close()
-
+    recoverPath.delete()
+    baseDir.delete()
   }
 }

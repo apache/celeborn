@@ -46,7 +46,6 @@ import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker.FileWriter.FlushNotifier
-import com.google.common.annotations.VisibleForTesting
 
 trait DeviceObserver {
   def notifyError(deviceName: String, dirs: ListBuffer[File],
@@ -515,7 +514,6 @@ private[worker] final class StorageManager(
     }
   }
 
-  @VisibleForTesting
   def updateFileInfosInDB(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
