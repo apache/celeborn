@@ -57,6 +57,7 @@ public class PartitionFilesSorter extends ShuffleFileRecoverHelper {
   public static final String INDEX_SUFFIX = ".index";
   private LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
   private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
+  private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
@@ -90,7 +91,7 @@ public class PartitionFilesSorter extends ShuffleFileRecoverHelper {
     if (gracefulShutdown) {
       try {
         String recoverPath = RssConf.workerRecoverPath(conf);
-        File recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
+        this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
