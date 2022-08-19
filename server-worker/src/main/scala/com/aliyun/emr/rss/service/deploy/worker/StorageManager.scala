@@ -194,7 +194,7 @@ private[worker] class LocalFlusher(
     val mountPoint: String,
     flushAvgTimeWindowSize: Int,
     flushAvgTimeMinimumCount: Int,
-      val diskType: StorageInfo.Type) extends Flusher(
+    val diskType: StorageInfo.Type) extends Flusher(
       workerSource,
       threadCount,
       flushAvgTimeWindowSize,
