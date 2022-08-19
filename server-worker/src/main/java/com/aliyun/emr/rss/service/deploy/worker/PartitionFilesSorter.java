@@ -38,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.iq80.leveldb.DB;
-import org.iq80.leveldb.DBException;
 import org.iq80.leveldb.DBIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,8 +94,7 @@ public class PartitionFilesSorter {
         String recoverPath = RssConf.workerRecoverPath(conf);
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
-        reloadSortedShuffleFiles(this.sortedFilesDb);
-        clearSortedShuffleFilesInDB();
+        reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
         logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
         this.sortedFilesDb = null;
@@ -240,35 +238,24 @@ public class PartitionFilesSorter {
     return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
   }
 
-  private void reloadSortedShuffleFiles(DB db) {
+  private void reloadAndCleanSortedShuffleFiles(DB db) {
     if (db != null) {
       DBIterator itr = db.iterator();
       itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8));
       while (itr.hasNext()) {
-        Map.Entry<byte[], byte[]> e = itr.next();
-        String key = new String(e.getKey(), StandardCharsets.UTF_8);
+        Map.Entry<byte[], byte[]> entry = itr.next();
+        String key = new String(entry.getKey(), StandardCharsets.UTF_8);
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           String shuffleKey = parseDbShuffleKey(key);
           try {
-            Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(e.getValue());
+            Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
             logger.debug("Reload DB: " + shuffleKey + " -> " + sortedFiles);
             sortedShuffleFiles.put(shuffleKey, sortedFiles);
+            sortedFilesDb.delete(entry.getKey());
           } catch (Exception exception) {
             logger.error("Reload DB: " + shuffleKey + " failed.", exception);
           }
         }
-      }
-    }
-  }
-
-  @VisibleForTesting
-  public void clearSortedShuffleFilesInDB() {
-    for (String shuffleKey : sortedShuffleFiles.keySet()) {
-      try {
-        sortedFilesDb.delete(dbShuffleKey(shuffleKey));
-        logger.debug("Delete DB: " + shuffleKey);
-      } catch (DBException e) {
-        logger.error("Delete DB: " + shuffleKey + " failed.", e);
       }
     }
   }
