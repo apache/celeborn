@@ -44,7 +44,7 @@ private[deploy] class Controller(
   extends RpcEndpoint with Logging {
 
   var workerSource: WorkerSource = _
-  var localStorageManager: LocalStorageManager = _
+  var localStorageManager: StorageManager = _
   var registered: AtomicBoolean = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
   var workerInfo: WorkerInfo = _
@@ -57,7 +57,7 @@ private[deploy] class Controller(
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
-    localStorageManager = worker.localStorageManager
+    localStorageManager = worker.storageManager
     registered = worker.registered
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     workerInfo = worker.workerInfo

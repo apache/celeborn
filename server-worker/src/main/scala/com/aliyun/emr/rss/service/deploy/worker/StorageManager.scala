@@ -247,7 +247,7 @@ private[worker] class LocalFlusher(
   }
 }
 
-private[worker] final class LocalStorageManager(
+private[worker] final class StorageManager(
     conf: RssConf,
     workerSource: AbstractSource)
   extends DeviceObserver with Logging with MemoryTrackerListener{

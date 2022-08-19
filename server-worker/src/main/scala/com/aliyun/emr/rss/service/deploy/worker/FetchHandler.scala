@@ -40,13 +40,13 @@ import com.aliyun.emr.rss.common.network.util.TransportConf
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()
   var source: WorkerSource = _
-  var localStorageManager: LocalStorageManager = _
+  var localStorageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
     this.source = worker.workerSource
-    this.localStorageManager = worker.localStorageManager
+    this.localStorageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
   }
