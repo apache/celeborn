@@ -24,10 +24,11 @@ scrape_configs:
       - targets: [ "emr-header-1:9098","emr-worker-1:9096","emr-worker-2:9096","emr-worker-3:9096","emr-worker-4:9096" ]
 ```
 
-3.You need to install Grafana server(https://grafana.com/)
+3.You need to install Grafana server(https://grafana.com/grafana/download)
+4.Import RSS dashboard into grafana.
 
 ### Optional
-We recommend you to install node exporter(https://github.com/prometheus/node_exporter)
+We recommend you to install node exporter (https://github.com/prometheus/node_exporter)
 on every host, and configure prometheus to scrape information about the host. 
 Grafana will need a dashboard(id:8919) to display host details.
 
@@ -46,6 +47,13 @@ scrape_configs:
     static_configs:
       - targets: ["emr-header-1:9100","emr-worker-1:9100","emr-worker-2:9100","emr-worker-3:9100","emr-worker-4:9100"]
 ```
+
+Here is an example of grafana dashboard importing.
+![g1](assets/img/g1.png)
+![g2](assets/img/g2.png)
+![g3](assets/img/g3.png)
+![g4](assets/img/g4.png)
+![g5](assets/img/g5.png)
 
 ## Details
 
