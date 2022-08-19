@@ -908,7 +908,7 @@ object RssConf extends Logging {
   }
 
   def workerRecoverPath(conf: RssConf): String = {
-    conf.get("rss.worker.recoverPath", "/tmp")
+    conf.get("rss.worker.recoverPath", s"${System.getProperty("java.io.tmpdir")}/recover")
   }
 
   def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {

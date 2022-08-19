@@ -31,7 +31,7 @@ import org.iq80.leveldb.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.network.util.PBSerDeUtils;
+import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 
 /**
  * LevelDB utility class available in the network package.
