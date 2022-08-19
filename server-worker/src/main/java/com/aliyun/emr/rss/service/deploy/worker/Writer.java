@@ -160,7 +160,7 @@ public final class Writer implements DeviceObserver {
     int numBytes = flushBuffer.readableBytes();
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
-    LocalFlushTask task = new LocalFlushTask(flushBuffer, channel, notifier);
+    FlushTask task = new LocalFlushTask(flushBuffer, channel, notifier);
     addTask(task);
     flushBuffer = null;
     bytesFlushed += numBytes;
@@ -399,7 +399,7 @@ public final class Writer implements DeviceObserver {
     return splitMode;
   }
 
-  //Those empty methods are intended to match scala 2.11 restrictions that
+  // These empty methods are intended to match scala 2.11 restrictions that
   // trait can not be used as an interface with default implementation.
   @Override
   public void notifyHealthy(ListBuffer<File> dirs) {

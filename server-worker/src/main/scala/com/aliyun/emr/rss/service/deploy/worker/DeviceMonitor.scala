@@ -41,6 +41,7 @@ trait DeviceMonitor {
   def startCheck() {}
   def registerFileWriter(fileWriter: Writer): Unit = {}
   def unregisterFileWriter(fileWriter: Writer): Unit = {}
+  // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
   def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
