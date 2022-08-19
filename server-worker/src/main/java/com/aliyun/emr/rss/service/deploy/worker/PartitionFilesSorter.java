@@ -86,12 +86,12 @@ public class PartitionFilesSorter {
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
-    String recoverPath = RssConf.workerRecoverPath(conf);
-    this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
-    // ShuffleClient only can fetch data from a restarted worker only
+    // ShuffleClient only can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (RssConf.workerGracefulShutdown(conf)) {
       try {
+        String recoverPath = RssConf.workerRecoverPath(conf);
+        this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
@@ -136,9 +136,9 @@ public class PartitionFilesSorter {
       String fileId = shuffleKey + "-" + fileName;
 
       Set<String> sorted =
-          sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+        sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
       Set<String> sorting =
-          sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+        sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
       String sortedFileName = fileInfo.getFile().getAbsolutePath() + SORTED_SUFFIX;
       String indexFileName = fileInfo.getFile().getAbsolutePath() + INDEX_SUFFIX;
@@ -208,7 +208,7 @@ public class PartitionFilesSorter {
       logger.error("Await partition sorter executor shutdown catch exception: ", e);
     }
     long end = System.currentTimeMillis();
-    logger.error("Await partition sorter executor complete cost " + (end - start) + "ms");
+    logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     cachedIndexMaps.clear();
     if (sortedFilesDb != null) {
       try {
