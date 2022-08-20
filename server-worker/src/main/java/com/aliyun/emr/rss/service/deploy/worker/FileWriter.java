@@ -412,8 +412,4 @@ public final class FileWriter implements DeviceObserver {
   @Override
   public void notifySlowFlush(ListBuffer<File> dirs) {
   }
-
-  @Override
-  public void reportError(Buffer<File> workingDir, IOException e, DeviceErrorType deviceErrorType) {
-  }
 }

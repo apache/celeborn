@@ -50,8 +50,6 @@ trait DeviceObserver {
   def notifyHealthy(dirs: ListBuffer[File]): Unit = {}
   def notifyHighDiskUsage(dirs: ListBuffer[File]): Unit = {}
   def notifySlowFlush(dirs: ListBuffer[File]): Unit = {}
-  def reportError(workingDir: mutable.Buffer[File], e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {}
 }
 
 private[worker] abstract class FlushTask(
@@ -229,11 +227,6 @@ private[worker] class LocalFlusher(
       }
     }
     deviceMonitor.unregisterFlusher(this)
-  }
-
-  override def reportError(workingDir: mutable.Buffer[File], e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {
-    deviceMonitor.reportDeviceError(workingDir, e, deviceErrorType)
   }
 
   override def hashCode(): Int = {
@@ -598,8 +591,8 @@ private[worker] final class StorageManager(
         for (index <- 1 until lastFlushTimes.length()) {
           if (lastFlushTimes.get(index) != -1 &&
             currentTime - lastFlushTimes.get(index) > rssSlowFlushInterval * 1000 * 1000) {
-            flusher.reportError(flusher.workingDirs, new IOException("Slow LocalFlusher!"),
-              DeviceErrorType.FlushTimeout)
+            deviceMonitor.reportDeviceError(flusher.workingDirs,
+              new IOException("Slow LocalFlusher!"), DeviceErrorType.FlushTimeout)
           }
         }
       })
