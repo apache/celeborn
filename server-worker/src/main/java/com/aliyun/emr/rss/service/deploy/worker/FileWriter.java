@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.collection.mutable.Buffer;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
@@ -411,9 +410,5 @@ public final class FileWriter implements DeviceObserver {
 
   @Override
   public void notifySlowFlush(ListBuffer<File> dirs) {
-  }
-
-  @Override
-  public void reportError(Buffer<File> workingDir, IOException e, DeviceErrorType deviceErrorType) {
   }
 }

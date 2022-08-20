@@ -267,10 +267,6 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor.registerFileWriter(fw4)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
-      when(fw1.reportError(workingDir1, null, DeviceErrorType.IoHang))
-        .thenAnswer((workingDir: mutable.Buffer[File], e: IOException) => {
-          deviceMonitor.reportDeviceError(workingDir1, null, DeviceErrorType.IoHang)
-        })
       val dirs = new jArrayList[File]()
       dirs.add(null)
       when(fw1.notifyError(any(), any(), any()))
@@ -281,17 +277,13 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      fw1.reportError(workingDir1, null, DeviceErrorType.IoHang)
+      deviceMonitor.reportDeviceError(workingDir1, null, DeviceErrorType.IoHang)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
       )
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
 
-      when(df4.reportError(workingDir4, null, DeviceErrorType.IoHang))
-        .thenAnswer((workingDir: mutable.Buffer[File], e: IOException) => {
-          deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
-        })
       when(fw3.notifyError(any(), any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw3)
@@ -300,7 +292,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      df4.reportError(workingDir4, null, DeviceErrorType.IoHang)
+      deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
