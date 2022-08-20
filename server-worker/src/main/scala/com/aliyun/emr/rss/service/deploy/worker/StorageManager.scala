@@ -409,31 +409,6 @@ private[worker] final class StorageManager(
           }
         }
       }
-    dirs.foreach(dir => {
-      isolatedWorkingDirs.remove(dir)
-      if (!localFlushers.containsKey(workingDirDiskInfos.get(dir.getAbsolutePath).mountPointFile)) {
-        val flusher = new LocalFlusher(
-          dirs,
-          workerSource,
-          deviceMonitor,
-          workingDirMetas(dir.getAbsolutePath)._2,
-          diskInfos.get(dir.getAbsolutePath).mountPoint,
-          RssConf.flushAvgTimeWindow(conf),
-          RssConf.flushAvgTimeMinimumCount(conf),
-          workingDirMetas(dir.getAbsolutePath)._3
-        )
-        localFlushers.put(dir, flusher)
-      }
-      if (!dirOperators.containsKey(dir)) {
-        dirOperators.put(dir,
-          ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${dir.getAbsoluteFile}", 1))
-      }
-      workingDirs.synchronized{
-        if (!workingDirs.contains(dir)) {
-          workingDirs.add(dir)
-        }
-      }
-    })
   }
 
   def isolateDirs(dirs: ListBuffer[File], errorType: DeviceErrorType): Unit = this.synchronized {
