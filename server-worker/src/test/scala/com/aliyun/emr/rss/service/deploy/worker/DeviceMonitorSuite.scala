@@ -267,10 +267,6 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor.registerFileWriter(fw4)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
-      when(deviceMonitor.reportDeviceError(workingDir1, null, DeviceErrorType.IoHang))
-        .thenAnswer((workingDir: mutable.Buffer[File], e: IOException) => {
-          deviceMonitor.reportDeviceError(workingDir1, null, DeviceErrorType.IoHang)
-        })
       val dirs = new jArrayList[File]()
       dirs.add(null)
       when(fw1.notifyError(any(), any(), any()))
@@ -288,10 +284,6 @@ class DeviceMonitorSuite extends AnyFunSuite {
       )
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
 
-      when(deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang))
-        .thenAnswer((workingDir: mutable.Buffer[File], e: IOException) => {
-          deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
-        })
       when(fw3.notifyError(any(), any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw3)
