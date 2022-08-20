@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.collection.mutable.Buffer;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
