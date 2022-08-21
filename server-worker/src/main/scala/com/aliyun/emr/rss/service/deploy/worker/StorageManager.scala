@@ -243,11 +243,21 @@ private[worker] final class StorageManager(
     conf: RssConf,
     workerSource: AbstractSource)
   extends DeviceObserver with Logging with MemoryTrackerListener{
-
-  private val diskMinimumReserveSize = RssConf.diskMinimumReserveSize(conf)
-
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
+
+  val (deviceInfos, diskInfos) = {
+    val workingDirInfos =
+      RssConf.workerBaseDirs(conf).map { case (workdir, maxSpace, flusherThread, storageType) =>
+        (new File(workdir, RssConf.WorkingDirName), maxSpace, flusherThread, storageType)
+      }
+
+    if (workingDirInfos.size <= 0) {
+      throw new IOException("Empty working directory configuration!")
+    }
+
+    DeviceInfo.getDeviceAndDiskInfos(workingDirInfos)
+  }
 
   def disksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {
@@ -269,18 +279,6 @@ private[worker] final class StorageManager(
     cleaners
   }
 
-  val (deviceInfos, diskInfos) = {
-    val workingDirInfos =
-      RssConf.workerBaseDirs(conf).map { case (workdir, maxSpace, flusherThread, storageType) =>
-        (new File(workdir, RssConf.WorkingDirName), maxSpace, flusherThread, storageType)
-      }
-
-    if (workingDirInfos.size <= 0) {
-      throw new IOException("Empty working directory configuration!")
-    }
-
-    DeviceInfo.getDeviceAndDiskInfos(workingDirInfos)
-  }
   val tmpDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
   tmpDiskInfos.putAll(diskInfos)
   private val deviceMonitor =

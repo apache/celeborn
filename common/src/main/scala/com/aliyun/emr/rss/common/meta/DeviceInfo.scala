@@ -39,7 +39,7 @@ class DiskInfo(
   val deviceInfo: DeviceInfo) extends Serializable {
 
   def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
-    this(mountPoint, usableSpace, avgFlushTime, activeSlots, null, null)
+    this(mountPoint, usableSpace, avgFlushTime, activeSlots, List.empty, null)
   }
 
   def this(mountPoint: String, dirs: List[File], deviceInfo: DeviceInfo) = {
