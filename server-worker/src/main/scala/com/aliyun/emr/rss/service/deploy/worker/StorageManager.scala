@@ -381,8 +381,7 @@ private[worker] final class StorageManager(
     val suggestedMountPoint = location.getStorageHint.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
-      val dirs = if (diskInfo == null
-        || diskInfo.status.equals(DiskStatus.Healthy)) {
+      val dirs = if (diskInfo != null && diskInfo.status.equals(DiskStatus.Healthy)) {
         diskInfo.dirs
       } else {
         logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
