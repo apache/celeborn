@@ -399,7 +399,8 @@ private[worker] final class StorageManager(
         shuffleDir.mkdirs()
         val createFileSuccess = file.createNewFile()
         if (!createFileSuccess) {
-          throw new RssException(s"create app shuffle data dir or file failed! ${file.getAbsolutePath}")
+          throw new RssException("create app shuffle data dir or file failed!" +
+            s"${file.getAbsolutePath}")
         }
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val fileInfo = new FileInfo(file)
