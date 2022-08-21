@@ -261,7 +261,8 @@ private[worker] final class StorageManager(
 
   def disksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {
-      diskInfos.values().asScala.toList
+      val disks = new util.ArrayList[DiskInfo](diskInfos.values())
+      disks.asScala.toList
     }
   }
 
