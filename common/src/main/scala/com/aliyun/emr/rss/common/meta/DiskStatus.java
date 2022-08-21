@@ -21,8 +21,7 @@ public enum DiskStatus {
   Healthy(0),
   ReadOrWriteFailure(1),
   IoHang(2),
-  HighDiskUsage(3),
-  FlushTimeout(4);
+  HighDiskUsage(3);
 
   private final byte value;
 

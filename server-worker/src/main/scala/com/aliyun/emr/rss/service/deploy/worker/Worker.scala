@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
+import com.aliyun.emr.rss.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, NetWorkSource}
 import com.aliyun.emr.rss.common.network.TransportContext
@@ -139,8 +139,10 @@ private[deploy] class Worker(
 
   storageManager.updateDiskInfos()
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
+  val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  diskInfos.putAll(storageManager.diskInfos)
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    storageManager.diskInfos, controller.self)
+    diskInfos, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)

@@ -586,7 +586,7 @@ object RssConf extends Logging {
   }
 
   def diskMinimumReserveSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "10G"))
+    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "5G"))
   }
 
   /**
@@ -759,15 +759,6 @@ object RssConf extends Logging {
 
   def createFileWriterRetryCount(conf: RssConf): Int = {
     conf.getInt("rss.create.file.writer.retry.count", 3)
-  }
-
-  /**
-   * Be aware that [rss.disk.space.safe.watermark.size] cannot be set to fractional values
-   * @param conf rss config
-   * @return the watermark size in GB
-   */
-  def diskSpaceSafeFreeSizeInGb(conf: RssConf): Long = {
-    conf.getSizeAsGb("rss.disk.space.safe.free.size", "0GB")
   }
 
   def workerStatusCheckTimeout(conf: RssConf): Long = {

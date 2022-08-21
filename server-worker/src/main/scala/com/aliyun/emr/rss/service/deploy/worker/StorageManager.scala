@@ -261,7 +261,7 @@ private[worker] final class StorageManager(
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = new ConcurrentHashMap[String, ThreadPoolExecutor]()
-    diskInfos.values().asScala.foreach {
+    disksSnapshot().foreach {
       diskInfo => cleaners.put(diskInfo.mountPoint,
         ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${diskInfo.mountPoint}", 1))
     }
@@ -280,23 +280,26 @@ private[worker] final class StorageManager(
 
     DeviceInfo.getDeviceAndDiskInfos(workingDirInfos)
   }
-  private val deviceMonitor = DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, diskInfos)
+  val tmpDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  tmpDiskInfos.putAll(diskInfos)
+  private val deviceMonitor =
+    DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos)
 
   // (mountPoint -> LocalFlusher)
   private val localFlushers: ConcurrentHashMap[String, LocalFlusher] = {
     val flushers = new ConcurrentHashMap[String, LocalFlusher]()
-    diskInfos.asScala.foreach { case (mountPoint, diskInfo) =>
-      if (!flushers.containsKey(mountPoint)) {
+    disksSnapshot().foreach { case diskInfo =>
+      if (!flushers.containsKey(diskInfo.mountPoint)) {
         val flusher = new LocalFlusher(
           workerSource,
           deviceMonitor,
           diskInfo.threadCount,
-          mountPoint,
+          diskInfo.mountPoint,
           RssConf.flushAvgTimeWindow(conf),
           RssConf.flushAvgTimeMinimumCount(conf),
           diskInfo.storageType
         )
-        flushers.put(mountPoint, flusher)
+        flushers.put(diskInfo.mountPoint, flusher)
       }
     }
     flushers
@@ -318,15 +321,10 @@ private[worker] final class StorageManager(
   }
 
   override def notifyHealthy(mountPoint: String): Unit = this.synchronized {
-    diskInfos.get(mountPoint).setStatus(DiskStatus.Healthy)
     if (!diskOperators.containsKey(mountPoint)) {
       diskOperators.put(mountPoint,
         ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${mountPoint}", 1))
     }
-  }
-
-  override def notifyHighDiskUsage(mountPoint: String): Unit = {
-    diskInfos.get(mountPoint).setStatus(DiskStatus.HighDiskUsage)
   }
 
   private val fetchChunkSize = RssConf.workerFetchChunkSize(conf)
@@ -379,7 +377,7 @@ private[worker] final class StorageManager(
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageHint.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
-      var dirs = if (diskInfos.get(suggestedMountPoint).status == DiskStatus.Healthy) {
+      val dirs = if (diskInfos.get(suggestedMountPoint).status == DiskStatus.Healthy) {
         diskInfos.get(suggestedMountPoint).dirs
       } else healthyWorkingDirs()
       if (dirs.isEmpty) {
@@ -560,7 +558,7 @@ private[worker] final class StorageManager(
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
-    disksSnapshot().foreach { case diskInfo =>
+    disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
       val totalUsage = diskInfo.dirs.map { dir =>
         val writers = workingDirWriters.get(dir)
         if (writers != null && writers.size() > 0) {
@@ -577,6 +575,6 @@ private[worker] final class StorageManager(
       diskInfo.setUsableSpace(workingDirUsableSpace)
       diskInfo.setFlushTime(flushTimeAverage)
     }
-    logInfo(s"Updated diskInfos: $diskInfos")
+    logInfo(s"Updated diskInfos: ${disksSnapshot()}")
   }
 }

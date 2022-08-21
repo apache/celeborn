@@ -24,7 +24,6 @@ import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 import org.apache.commons.io.FileUtils
@@ -57,7 +56,10 @@ class LocalDeviceMonitor(
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
-    var diskInfos: ListBuffer[DiskInfo] = deviceInfo.diskInfos
+    val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+    deviceInfo.diskInfos.foreach { case diskInfo =>
+      diskInfos.put(diskInfo.mountPoint, diskInfo)
+    }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
     val sysBlockDir = RssConf.sysBlockDir(essConf)
@@ -69,10 +71,6 @@ class LocalDeviceMonitor(
     var lastReadInflight: Long = -1
     var lastWriteInflight: Long = -1
 
-    def addDiskInfo(diskInfo: DiskInfo): Unit = {
-      diskInfos.append(diskInfo)
-    }
-
     def addObserver(observer: DeviceObserver): Unit = {
       observers.add(observer)
     }
@@ -82,18 +80,22 @@ class LocalDeviceMonitor(
     }
 
     def notifyObserversOnError(mountPoints: List[String],
-      deviceErrorType: DiskStatus): Unit = this.synchronized {
+      diskStatus: DiskStatus): Unit = this.synchronized {
+      mountPoints.foreach{ case mountPoint =>
+        diskInfos.get(mountPoint).setStatus(diskStatus)
+      }
       // observer.notifyDeviceError might remove itself from observers,
       // so we need to use tmpObservers
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
         mountPoints.foreach { case mountPoint =>
-          ob.notifyError(mountPoint, deviceErrorType)
+          ob.notifyError(mountPoint, diskStatus)
         }
       })
     }
 
     def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
+      diskInfos.get(mountPoint).setStatus(DiskStatus.Healthy)
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
         ob.notifyHealthy(mountPoint)
@@ -101,6 +103,7 @@ class LocalDeviceMonitor(
     }
 
     def notifyObserversOnHighDiskUsage(mountPoint: String): Unit = this.synchronized {
+      diskInfos.get(mountPoint).setStatus(DiskStatus.HighDiskUsage)
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
         ob.notifyHighDiskUsage(mountPoint)
@@ -172,7 +175,7 @@ class LocalDeviceMonitor(
     }
 
     override def toString: String = {
-      s"DeviceName: ${deviceInfo.name}\tMount Infos: ${diskInfos.mkString("\n")}"
+      s"DeviceName: ${deviceInfo.name}\tMount Infos: ${diskInfos.values().asScala.mkString("\n")}"
     }
   }
 
@@ -202,14 +205,14 @@ class LocalDeviceMonitor(
         logger.debug("Device check start")
         try {
           observedDevices.values().asScala.foreach(device => {
-            val mountPoints = device.diskInfos.map(_.mountPoint).toList
+            val mountPoints = device.diskInfos.keySet.asScala.toList
 
             if (device.checkIoHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
-              device.diskInfos.foreach(diskInfo => {
+              device.diskInfos.values().asScala.foreach{ case diskInfo =>
                 if (DeviceMonitor.checkDiskUsage(essConf, diskInfo.mountPoint)) {
                   logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
@@ -222,7 +225,7 @@ class LocalDeviceMonitor(
                 } else {
                   device.notifyObserversOnHealthy(diskInfo.mountPoint)
                 }
-              })
+              }
             }
           })
         } catch {
@@ -305,7 +308,7 @@ object DeviceMonitor {
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskSpaceSafeFreeSizeInGb(essConf)
+      val status = freeSpace.toLong < RssConf.diskMinimumReserveSize(essConf)
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
