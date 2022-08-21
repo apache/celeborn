@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashSet => jHashSet}
+import java.util.{HashMap => JHashMap, HashSet => jHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -97,7 +97,7 @@ private[deploy] class Worker(
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.push.io.threads", storageManager.diskInfos.size() * 2)
+    val numThreads = conf.getInt("rss.push.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
@@ -109,7 +109,8 @@ private[deploy] class Worker(
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.replicate.io.threads", storageManager.diskInfos.size() * 2)
+    val numThreads = conf.getInt("rss.replicate.io.threads",
+      storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE,
       numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
@@ -121,7 +122,7 @@ private[deploy] class Worker(
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.diskInfos.size() * 2)
+    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
@@ -140,7 +141,9 @@ private[deploy] class Worker(
   storageManager.updateDiskInfos()
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
   val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
-  diskInfos.putAll(storageManager.diskInfos)
+  storageManager.disksSnapshot().foreach{ case diskInfo =>
+    diskInfos.put(diskInfo.mountPoint, diskInfo)
+  }
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
     diskInfos, controller.self)
 
@@ -190,9 +193,13 @@ private[deploy] class Worker(
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
+    val diskInfos = new JHashMap[String, DiskInfo]()
+    storageManager.disksSnapshot().foreach{ case diskInfo =>
+      diskInfos.put(diskInfo.mountPoint, diskInfo)
+    }
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
-        storageManager.diskInfos, shuffleKeys), classOf[HeartbeatResponse])
+        diskInfos, shuffleKeys), classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)

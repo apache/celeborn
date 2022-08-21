@@ -255,7 +255,7 @@ class LocalDeviceMonitor(
   }
 
   override def reportDeviceError(mountPoint: String, e: IOException,
-                                 diskStatus: DiskStatus): Unit = {
+    diskStatus: DiskStatus): Unit = {
     logger.error(s"Receive report exception, disk $mountPoint, $e")
     if (diskInfos.containsKey(mountPoint)) {
       observedDevices.get(diskInfos.get(mountPoint).deviceInfo)

@@ -258,6 +258,7 @@ private[worker] final class StorageManager(
 
     DeviceInfo.getDeviceAndDiskInfos(workingDirInfos)
   }
+  val mountPoints = new util.HashSet[String](diskInfos.keySet())
 
   def disksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {
@@ -281,7 +282,9 @@ private[worker] final class StorageManager(
   }
 
   val tmpDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
-  tmpDiskInfos.putAll(diskInfos)
+  disksSnapshot().foreach{ case diskInfo =>
+    tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
+  }
   private val deviceMonitor =
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos)
 
@@ -393,7 +396,7 @@ private[worker] final class StorageManager(
       val dir = dirs(index % dirs.size)
       val shuffleDir = new File(dir, s"$appId/$shuffleId")
       val file = new File(shuffleDir, fileName)
-      val mountPoint = DeviceInfo.getMountPoint(file.getAbsolutePath, diskInfos.keySet())
+      val mountPoint = DeviceInfo.getMountPoint(file.getAbsolutePath, mountPoints)
 
       try {
         shuffleDir.mkdirs()
