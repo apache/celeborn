@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
 
@@ -43,8 +43,7 @@ trait DeviceMonitor {
   // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
-  def reportDeviceError(mountPoint: String, e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {}
+  def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
 
@@ -83,19 +82,13 @@ class LocalDeviceMonitor(
     }
 
     def notifyObserversOnError(mountPoints: List[String],
-      deviceErrorType: DeviceErrorType): Unit = this.synchronized {
+      deviceErrorType: DiskStatus): Unit = this.synchronized {
       // observer.notifyDeviceError might remove itself from observers,
       // so we need to use tmpObservers
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
-        if (deviceErrorType == DeviceErrorType.FlushTimeout) {
-          mountPoints.foreach { case mountPoint =>
-            ob.notifySlowFlush(mountPoint)
-          }
-        } else if (DeviceErrorType.criticalError(deviceErrorType)) {
-          mountPoints.foreach { case mountPoint =>
-            ob.notifyError(mountPoint, deviceErrorType)
-          }
+        mountPoints.foreach { case mountPoint =>
+          ob.notifyError(mountPoint, deviceErrorType)
         }
       })
     }
@@ -214,7 +207,7 @@ class LocalDeviceMonitor(
             if (device.checkIoHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
-              device.notifyObserversOnError(mountPoints, DeviceErrorType.IoHang)
+              device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
               device.diskInfos.foreach(diskInfo => {
                 if (DeviceMonitor.checkDiskUsage(essConf, diskInfo.mountPoint)) {
@@ -224,7 +217,8 @@ class LocalDeviceMonitor(
                   logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
-                  device.notifyObserversOnError(List(diskInfo.mountPoint), DeviceErrorType.ReadOrWriteFailure)
+                  device.notifyObserversOnError(List(diskInfo.mountPoint),
+                    DiskStatus.ReadOrWriteFailure)
                 } else {
                   device.notifyObserversOnHealthy(diskInfo.mountPoint)
                 }
@@ -250,23 +244,19 @@ class LocalDeviceMonitor(
   }
 
   override def registerFlusher(flusher: LocalFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(flusher.workingDirs.head.getAbsolutePath,
-      diskInfos)
-    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(flusher)
+    observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).addObserver(flusher)
   }
 
   override def unregisterFlusher(flusher: LocalFlusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(flusher.workingDirs.head.getAbsolutePath,
-      diskInfos)
-    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(flusher)
+    observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).removeObserver(flusher)
   }
 
   override def reportDeviceError(mountPoint: String, e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {
+                                 diskStatus: DiskStatus): Unit = {
     logger.error(s"Receive report exception, disk $mountPoint, $e")
     if (diskInfos.containsKey(mountPoint)) {
       observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(List(mountPoint), deviceErrorType)
+        .notifyObserversOnError(List(mountPoint), diskStatus)
     }
   }
 

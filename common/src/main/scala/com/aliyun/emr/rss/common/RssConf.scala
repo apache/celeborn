@@ -17,16 +17,17 @@
 
 package com.aliyun.emr.rss.common
 
+import java.io.IOException
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
+
 import scala.collection.JavaConverters._
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type.{HDD, SSD}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
 import com.aliyun.emr.rss.common.util.Utils
-
-import java.io.IOException
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
@@ -523,16 +524,8 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.filewriter.timeout", "120s")
   }
 
-  def noneEmptyDirExpireDurationMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "3d")
-  }
-
-  def noneEmptyDirCleanUpThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.expire.nonEmptyDir.cleanUp.threshold", 10)
-  }
-
-  def emptyDirExpireDurationMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.expire.emptyDir.duration", "2h")
+  def appExpireDurationMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
   /**

@@ -17,18 +17,22 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.io.{File, IOException}
+import java.io.File
 import java.util.{ArrayList => jArrayList}
 import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters.bufferAsJavaListConverter
-import scala.collection.mutable
+
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
+
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils
 
 class DeviceMonitorSuite extends AnyFunSuite {
@@ -73,10 +77,9 @@ class DeviceMonitorSuite extends AnyFunSuite {
   withObjectMocked[com.aliyun.emr.rss.common.util.Utils.type] {
     when(Utils.runCommand(dfCmd)) thenReturn dfOut
     when(Utils.runCommand(lsCmd)) thenReturn lsOut
-    val (tdeviceInfos, tdiskInfos, tworkingDirDiskInfos) = DeviceInfo.getDeviceAndDiskInfos(dirs)
+    val (tdeviceInfos, tdiskInfos) = DeviceInfo.getDeviceAndDiskInfos(dirs.asScala.toArray.map(f => (f, Long.MaxValue, 1, StorageInfo.Type.HDD)))
     deviceInfos = tdeviceInfos
     diskInfos = tdiskInfos
-    workingDirDiskInfos = tworkingDirDiskInfos
   }
   val deviceMonitor =
     new LocalDeviceMonitor(rssConf, storageManager, deviceInfos, diskInfos)
@@ -192,10 +195,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       when(df3.stopFlag).thenReturn(new AtomicBoolean(false))
       when(df4.stopFlag).thenReturn(new AtomicBoolean(false))
 
-      when(df1.workingDirs).thenReturn(workingDir1)
-      when(df2.workingDirs).thenReturn(workingDir2)
-      when(df3.workingDirs).thenReturn(workingDir3)
-      when(df4.workingDirs).thenReturn(workingDir4)
+      when(df1.mountPoint).thenReturn("/mnt/disk1")
+      when(df2.mountPoint).thenReturn("/mnt/disk1")
+      when(df3.mountPoint).thenReturn("/mnt/disk2")
+      when(df4.mountPoint).thenReturn("/mnt/disk2")
 
       deviceMonitor.registerFlusher(df1)
       deviceMonitor.registerFlusher(df2)
@@ -227,31 +230,31 @@ class DeviceMonitorSuite extends AnyFunSuite {
       )
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      when(fw2.notifyError("vda", null, DeviceErrorType.IoHang))
+      when(fw2.notifyError("vda", DiskStatus.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      when(fw4.notifyError("vdb", null, DeviceErrorType.IoHang))
+      when(fw4.notifyError("vdb", DiskStatus.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      when(df2.notifyError("vda", null, DeviceErrorType.IoHang))
+      when(df2.notifyError("vda", DiskStatus.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
           df2.stopFlag.set(true)
         })
-      when(df4.notifyError("vdb", null, DeviceErrorType.IoHang))
+      when(df4.notifyError("vdb", DiskStatus.IoHang))
         .thenAnswer((a: String, b: List[File]) => {
           df4.stopFlag.set(true)
         })
 
       deviceMonitor.observedDevices
         .get(vdaDeviceInfo)
-        .notifyObserversOnError(null, DeviceErrorType.IoHang)
+        .notifyObserversOnError(List("/mnt/disk1"), DiskStatus.IoHang)
       deviceMonitor.observedDevices
         .get(vdbDeviceInfo)
-        .notifyObserversOnError(null, DeviceErrorType.IoHang)
-      assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
-      assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
+        .notifyObserversOnError(List("/mnt/disk2"), DiskStatus.IoHang)
+      assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
+      assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
       )
@@ -269,30 +272,30 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
       val dirs = new jArrayList[File]()
       dirs.add(null)
-      when(fw1.notifyError(any(), any(), any()))
+      when(fw1.notifyError(any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw1)
         })
-      when(fw2.notifyError(any(), any(), any()))
+      when(fw2.notifyError(any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      deviceMonitor.reportDeviceError(workingDir1, null, DeviceErrorType.IoHang)
+      deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.IoHang)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
       )
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
 
-      when(fw3.notifyError(any(), any(), any()))
+      when(fw3.notifyError(any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw3)
         })
-      when(fw4.notifyError(any(), any(), any()))
+      when(fw4.notifyError(any(), any()))
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      deviceMonitor.reportDeviceError(workingDir4, null, DeviceErrorType.IoHang)
+      deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.IoHang)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)

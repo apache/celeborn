@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+
 import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.protocol.StorageInfo
@@ -34,8 +35,8 @@ class DiskInfo(
   // avgFlushTime is nano seconds
   var avgFlushTime: Long,
   var activeSlots: Long,
-  @transient val dirs: List[File],
-  @transient val deviceInfo: DeviceInfo) extends Serializable {
+  val dirs: List[File],
+  val deviceInfo: DeviceInfo) extends Serializable {
 
   def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
     this(mountPoint, usableSpace, avgFlushTime, activeSlots, null, null)
@@ -45,34 +46,38 @@ class DiskInfo(
     this(mountPoint, 0, 0, 0, dirs, deviceInfo)
   }
 
-  def update(usableSpace: Long, avgFlushTime: Long): Unit = {
-    this.actualUsableSpace = usableSpace;
-    this.avgFlushTime = avgFlushTime;
-  }
-
-  @transient
+  var status: DiskStatus = DiskStatus.Healthy
   var threadCount = 1
-  @transient
   var configuredUsableSpace = 0L
-  @transient
   var storageType: StorageInfo.Type = _
-  @transient
   val mountPointFile = new File(mountPoint)
 
   var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
 
-  def availableSlots(): Long = {
+  def setStatus(status: DiskStatus): Unit = this.synchronized {
+    this.status = status
+  }
+
+  def setUsableSpace(usableSpace: Long): Unit = this.synchronized {
+    this.actualUsableSpace = usableSpace
+  }
+
+  def setFlushTime(avgFlushTime: Long): Unit = this.synchronized {
+    this.avgFlushTime = avgFlushTime
+  }
+
+  def availableSlots(): Long = this.synchronized {
     maxSlots - activeSlots
   }
 
-  def allocateSlots(shuffleKey: String, slots: Int): Unit = {
+  def allocateSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
     val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
     shuffleAllocations.put(shuffleKey, allocated + slots)
     activeSlots = activeSlots + slots
   }
 
-  def releaseSlots(shuffleKey: String, slots: Int): Unit = {
+  def releaseSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
     val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
     activeSlots = activeSlots - slots
     if (allocated > slots) {
@@ -82,7 +87,7 @@ class DiskInfo(
     }
   }
 
-  def releaseSlots(shuffleKey: String): Unit = {
+  def releaseSlots(shuffleKey: String): Unit = this.synchronized {
     val allocated = shuffleAllocations.remove(shuffleKey)
     if (allocated != null) {
       activeSlots = activeSlots - allocated

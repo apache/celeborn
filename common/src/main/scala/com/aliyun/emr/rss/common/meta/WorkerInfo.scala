@@ -160,7 +160,7 @@ class WorkerInfo(
       val mountPoint: String = newDisk.mountPoint
       val curDisk = diskInfos.get(mountPoint)
       if (curDisk != null) {
-        curDisk.usableSpace_$eq(newDisk.actualUsableSpace)
+        curDisk.actualUsableSpace_$eq(newDisk.actualUsableSpace)
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
         curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)

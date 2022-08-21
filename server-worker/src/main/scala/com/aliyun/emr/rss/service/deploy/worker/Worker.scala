@@ -97,7 +97,7 @@ private[deploy] class Worker(
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.push.io.threads", storageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.push.io.threads", storageManager.diskInfos.size() * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
@@ -109,7 +109,7 @@ private[deploy] class Worker(
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.replicate.io.threads", storageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.replicate.io.threads", storageManager.diskInfos.size() * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE,
       numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
@@ -121,7 +121,7 @@ private[deploy] class Worker(
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.diskInfos.size() * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
