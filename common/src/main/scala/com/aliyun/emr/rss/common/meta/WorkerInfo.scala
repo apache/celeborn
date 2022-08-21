@@ -164,6 +164,7 @@ class WorkerInfo(
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
         curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
+        curDisk.setStatus(newDisk.status)
       } else {
         newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
         diskInfos.put(mountPoint, newDisk)

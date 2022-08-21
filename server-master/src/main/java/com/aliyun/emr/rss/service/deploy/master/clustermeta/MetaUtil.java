@@ -22,6 +22,7 @@ import java.util.Map;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.util.Utils;
 
 public class MetaUtil {
   private MetaUtil() {
@@ -45,8 +46,13 @@ public class MetaUtil {
   public static Map<String, DiskInfo> fromPbDiskInfos(
       Map<String, ResourceProtos.DiskInfo> diskInfos) {
     Map<String, DiskInfo> map = new HashMap<>();
-    diskInfos.forEach((k, v) -> map.put(k,
-      new DiskInfo(v.getMountPoint(), v.getUsableSpace(), v.getAvgFlushTime(), v.getUsedSlots())));
+
+    diskInfos.forEach((k, v) -> {
+      DiskInfo diskInfo = new DiskInfo(v.getMountPoint(), v.getUsableSpace(),
+        v.getAvgFlushTime(), v.getUsedSlots());
+      diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
+      map.put(k, diskInfo);
+    });
     return map;
   }
 
@@ -55,9 +61,11 @@ public class MetaUtil {
     Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
     diskInfos.forEach((k, v) -> map.put(k,
         ResourceProtos.DiskInfo.newBuilder().setMountPoint(v.mountPoint())
-            .setUsableSpace(v.actualUsableSpace())
-            .setAvgFlushTime(v.avgFlushTime())
-            .setUsedSlots(v.activeSlots()).build()));
+          .setUsableSpace(v.actualUsableSpace())
+          .setAvgFlushTime(v.avgFlushTime())
+          .setUsedSlots(v.activeSlots())
+          .setStatus(v.status().getValue())
+          .build()));
     return map;
   }
 }

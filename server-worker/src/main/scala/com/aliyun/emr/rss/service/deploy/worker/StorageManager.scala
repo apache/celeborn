@@ -34,7 +34,8 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
+import com.aliyun.emr.rss.common.meta.DiskStatus
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker}
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
@@ -568,10 +569,10 @@ private[worker] final class StorageManager(
         }
       }.sum
       val fileSystemReportedUsableSpace = Files.getFileStore(
-        Paths.get(diskInfo.mountPointFile.getPath)).getUsableSpace
+        Paths.get(diskInfo.mountPoint)).getUsableSpace
       val workingDirUsableSpace = Math.min(diskInfo.configuredUsableSpace - totalUsage,
         fileSystemReportedUsableSpace)
-      val flushTimeAverage = localFlushers.get(diskInfo.mountPointFile).averageFlushTime()
+      val flushTimeAverage = localFlushers.get(diskInfo.mountPoint).averageFlushTime()
       diskInfo.setUsableSpace(workingDirUsableSpace)
       diskInfo.setFlushTime(flushTimeAverage)
     }

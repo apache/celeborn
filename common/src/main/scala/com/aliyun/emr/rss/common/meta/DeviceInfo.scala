@@ -50,8 +50,6 @@ class DiskInfo(
   var threadCount = 1
   var configuredUsableSpace = 0L
   var storageType: StorageInfo.Type = _
-  val mountPointFile = new File(mountPoint)
-
   var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
 
