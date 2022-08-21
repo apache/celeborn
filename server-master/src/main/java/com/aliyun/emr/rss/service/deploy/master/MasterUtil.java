@@ -124,7 +124,7 @@ public class MasterUtil {
 
     workers.forEach(i -> i.diskInfos().forEach((key, diskInfo) -> {
       diskToWorkerMap.put(diskInfo, i);
-      if (diskInfo.usableSpace() > minimumUsableSize) {
+      if (diskInfo.actualUsableSpace() > minimumUsableSize) {
         usableDisks.add(diskInfo);
       }
     }));

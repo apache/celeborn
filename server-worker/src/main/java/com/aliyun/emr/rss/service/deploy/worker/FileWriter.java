@@ -27,8 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.collection.mutable.ListBuffer;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.slf4j.Logger;
@@ -80,11 +78,10 @@ public final class FileWriter implements DeviceObserver {
   private Runnable destroyHook;
 
   @Override
-  public void notifyError(String deviceName, ListBuffer<File> dirs,
-                          DeviceErrorType deviceErrorType) {
+  public void notifyError(String mountPoint, DeviceErrorType deviceErrorType) {
     if (!notifier.hasException()) {
-      notifier.setException(new IOException("Device ERROR! Device: "
-              + deviceName + " : " + deviceErrorType));
+      notifier.setException(new IOException("Device ERROR! Disk: "
+              + mountPoint + " : " + deviceErrorType));
     }
     deviceMonitor.unregisterFileWriter(this);
   }
@@ -401,14 +398,11 @@ public final class FileWriter implements DeviceObserver {
   // These empty methods are intended to match scala 2.11 restrictions that
   // trait can not be used as an interface with default implementation.
   @Override
-  public void notifyHealthy(ListBuffer<File> dirs) {
-  }
+  public void notifyHealthy(String mountPoint) {}
 
   @Override
-  public void notifyHighDiskUsage(ListBuffer<File> dirs) {
-  }
+  public void notifyHighDiskUsage(String mountPoint) {}
 
   @Override
-  public void notifySlowFlush(ListBuffer<File> dirs) {
-  }
+  public void notifySlowFlush(String mountPoint) {}
 }

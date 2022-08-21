@@ -19,14 +19,14 @@ package com.aliyun.emr.rss.common
 
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
-
 import scala.collection.JavaConverters._
-
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type.{HDD, SSD}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
 import com.aliyun.emr.rss.common.util.Utils
+
+import java.io.IOException
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
@@ -559,6 +559,9 @@ object RssConf extends Logging {
                   maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
                 case disktypeStr if disktypeStr.startsWith("disktype") =>
                   diskType = Type.valueOf(disktypeStr.split("=")(1))
+                  if (diskType == Type.MEMORY) {
+                    throw new IOException(s"Invalid disktype! $diskType")
+                  }
                 case threadCountStr if threadCountStr.startsWith("flushthread") =>
                   flushThread = threadCountStr.split("=")(1).toInt
               }

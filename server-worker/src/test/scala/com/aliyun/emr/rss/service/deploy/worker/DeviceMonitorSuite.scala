@@ -109,19 +109,19 @@ class DeviceMonitorSuite extends AnyFunSuite {
       )
 
       assertEquals(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).dirInfos(0),
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).dirs(0),
         new File("/mnt/disk1/data1")
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).dirInfos(1),
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos(0).dirs(1),
         new File("/mnt/disk1/data2")
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).dirInfos(0),
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).dirs(0),
         new File("/mnt/disk2/data3")
       )
       assertEquals(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).dirInfos(1),
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos(0).dirs(1),
         new File("/mnt/disk2/data4")
       )
 

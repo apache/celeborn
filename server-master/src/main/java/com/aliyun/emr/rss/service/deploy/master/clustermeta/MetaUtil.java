@@ -55,7 +55,7 @@ public class MetaUtil {
     Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
     diskInfos.forEach((k, v) -> map.put(k,
         ResourceProtos.DiskInfo.newBuilder().setMountPoint(v.mountPoint())
-            .setUsableSpace(v.usableSpace())
+            .setUsableSpace(v.actualUsableSpace())
             .setAvgFlushTime(v.avgFlushTime())
             .setUsedSlots(v.activeSlots()).build()));
     return map;

@@ -145,7 +145,7 @@ class WorkerInfo(
 
   def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.usableSpace / estimatedPartitionSize)
+      disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
     }
   }
 
@@ -160,12 +160,12 @@ class WorkerInfo(
       val mountPoint: String = newDisk.mountPoint
       val curDisk = diskInfos.get(mountPoint)
       if (curDisk != null) {
-        curDisk.usableSpace_$eq(newDisk.usableSpace)
+        curDisk.usableSpace_$eq(newDisk.actualUsableSpace)
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
-        curDisk.maxSlots_$eq(curDisk.usableSpace / estimatedPartitionSize)
+        curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
       } else {
-        newDisk.maxSlots_$eq(newDisk.usableSpace / estimatedPartitionSize)
+        newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
         diskInfos.put(mountPoint, newDisk)
       }
     }
@@ -247,7 +247,7 @@ object WorkerInfo {
         item._1 ->
           PbDiskInfo
             .newBuilder()
-            .setUsableSpace(item._2.usableSpace)
+            .setUsableSpace(item._2.actualUsableSpace)
             .setAvgFlushTime(item._2.avgFlushTime)
             .setUsedSlots(item._2.activeSlots)
             .build()

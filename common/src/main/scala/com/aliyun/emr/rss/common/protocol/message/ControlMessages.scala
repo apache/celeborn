@@ -48,7 +48,7 @@ sealed trait Message extends Serializable{
           .map(item =>
             item._1 -> PbDiskInfo
               .newBuilder()
-              .setUsableSpace(item._2.usableSpace)
+              .setUsableSpace(item._2.actualUsableSpace)
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()
@@ -69,7 +69,7 @@ sealed trait Message extends Serializable{
         val pbDisks = disks.asScala
           .map(item => item._1 -> PbDiskInfo
               .newBuilder()
-              .setUsableSpace(item._2.usableSpace)
+              .setUsableSpace(item._2.actualUsableSpace)
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()

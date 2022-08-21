@@ -23,34 +23,39 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-
 import org.slf4j.LoggerFactory
 
+import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils.runCommand
 
 class DiskInfo(
   val mountPoint: String,
-  var usableSpace: Long,
+  var actualUsableSpace: Long,
   // avgFlushTime is nano seconds
   var avgFlushTime: Long,
   var activeSlots: Long,
+  @transient val dirs: List[File],
   @transient val deviceInfo: DeviceInfo) extends Serializable {
 
   def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
-    this(mountPoint, usableSpace, avgFlushTime, activeSlots, null)
+    this(mountPoint, usableSpace, avgFlushTime, activeSlots, null, null)
   }
 
-  def this(mountPoint: String, deviceInfo: DeviceInfo) = {
-    this(mountPoint, 0, 0, 0, deviceInfo)
+  def this(mountPoint: String, dirs: List[File], deviceInfo: DeviceInfo) = {
+    this(mountPoint, 0, 0, 0, dirs, deviceInfo)
   }
 
   def update(usableSpace: Long, avgFlushTime: Long): Unit = {
-    this.usableSpace = usableSpace;
+    this.actualUsableSpace = usableSpace;
     this.avgFlushTime = avgFlushTime;
   }
 
   @transient
-  val dirInfos: ListBuffer[File] = new ListBuffer[File]()
+  var threadCount = 1
+  @transient
+  var configuredUsableSpace = 0L
+  @transient
+  var storageType: StorageInfo.Type = _
   @transient
   val mountPointFile = new File(mountPoint)
 
@@ -84,17 +89,13 @@ class DiskInfo(
     }
   }
 
-  def addDir(dir: File): Unit = {
-    dirInfos.append(dir)
-  }
-
   override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
     s" shuffleAllocations: $shuffleAllocations," +
     s" mountPoint: $mountPoint," +
-    s" usableSpace: $usableSpace," +
+    s" usableSpace: $actualUsableSpace," +
     s" avgFlushTime: $avgFlushTime," +
     s" activeSlots: $activeSlots)" +
-    s" dirs ${dirInfos.mkString("\t")}"
+    s" dirs ${dirs.mkString("\t")}"
 }
 
 class DeviceInfo(val name: String) extends Serializable {
@@ -124,22 +125,19 @@ object DeviceInfo {
 
   /**
    *
-   * @param workingDirs
+   * @param workingDirs array of (workingDir, max usable space, flush thread count, storage type)
    * @return it will return three maps
    *         (deviceName -> deviceInfo)
    *         (mount point -> diskInfo)
-   *         (working dir -> diskInfo)
    */
-  def getDeviceAndDiskInfos(workingDirs: util.List[File]): (
-      util.Map[String, DeviceInfo],
-      util.Map[String, DiskInfo],
-      util.Map[String, DiskInfo]) = {
-    val allDevices = new util.HashMap[String, DeviceInfo]()
-    val allDisks = new util.HashMap[String, DiskInfo]()
+  def getDeviceAndDiskInfos(workingDirs: Array[(File, Long, Int, StorageInfo.Type)]):
+    (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
+    val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
+    val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
-    // (/dev/vdb, /mnt/disk1)
     val dfResult = runCommand("df -h").trim
     logger.info(s"df result $dfResult")
+    // (/dev/vdb, /mnt/disk1)
     val fsMounts = dfResult
       .split("[\n\r]")
       .tail
@@ -151,10 +149,9 @@ object DeviceInfo {
     // (vda, vdb)
     val lsBlockResult = runCommand("ls /sys/block/").trim
     logger.info(s"ls block $lsBlockResult")
-    val blocks = lsBlockResult
-      .split("[ \n\r\t]+")
+    val blocks = lsBlockResult.split("[ \n\r\t]+")
 
-    fsMounts.foreach { case (fileSystem, mountpoint) =>
+    fsMounts.foreach { case (fileSystem, mountPoint) =>
       val deviceName = fileSystem.substring(fileSystem.lastIndexOf('/') + 1)
       var index = -1
       var maxLength = -1
@@ -177,47 +174,55 @@ object DeviceInfo {
         }
 
       val deviceInfo = if (index >= 0) {
-        allDevices.computeIfAbsent(blocks(index), newDeviceInfoFunc)
+        deviceNameToDeviceInfo.computeIfAbsent(blocks(index), newDeviceInfoFunc)
       } else {
-        allDevices.computeIfAbsent(deviceName, newDeviceInfoFunc)
+        deviceNameToDeviceInfo.computeIfAbsent(deviceName, newDeviceInfoFunc)
       }
-      val diskInfo = new DiskInfo(mountpoint, deviceInfo = deviceInfo)
-      deviceInfo.addDiskInfo(diskInfo)
-      allDisks.putIfAbsent(mountpoint, diskInfo)
+      mountPointToDeviceInfo.putIfAbsent(mountPoint, deviceInfo)
     }
 
     val retDeviceInfos = new ConcurrentHashMap[String, DeviceInfo]()
     val retDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
-    val retWorkingDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
 
-    workingDirs.asScala.foreach(dir => {
-      val mount = getMountPoint(dir.getAbsolutePath, allDisks)
-      val diskInfo = allDisks.get(mount)
-      diskInfo.addDir(dir)
-      retDiskInfos.putIfAbsent(diskInfo.mountPoint, diskInfo)
-      retDeviceInfos.putIfAbsent(diskInfo.deviceInfo.name, diskInfo.deviceInfo)
-      retWorkingDiskInfos.put(dir.getAbsolutePath, diskInfo)
-    })
+    workingDirs.groupBy{ f =>
+      getMountPoint(f._1.getAbsolutePath, mountPointToDeviceInfo.keySet())
+    }.foreach {
+      case (mountPoint, dirs) =>
+        val deviceInfo = mountPointToDeviceInfo.get(mountPoint)
+        val diskInfo = new DiskInfo(mountPoint, dirs.map(_._1).toList, deviceInfo)
+        val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
+        diskInfo.configuredUsableSpace = maxUsableSpace
+        diskInfo.threadCount = threadCount
+        diskInfo.storageType = storageType
+        deviceInfo.addDiskInfo(diskInfo)
+        retDiskInfos.put(mountPoint, diskInfo)
+    }
+    deviceNameToDeviceInfo.asScala.foreach {
+      case (_, deviceInfo) =>
+        if (deviceInfo.diskInfos.nonEmpty) {
+          retDeviceInfos.put(deviceInfo.name, deviceInfo)
+        }
+    }
 
-    retDeviceInfos.asScala.foreach(entry => {
-      val diskInfos = entry._2.diskInfos.filter(_.dirInfos.nonEmpty)
-      entry._2.diskInfos = diskInfos
-    })
     logger.info(s"Device initialization \n " +
-      s"$retDeviceInfos \n $retDiskInfos \n $retWorkingDiskInfos")
+      s"$retDeviceInfos \n $retDiskInfos")
 
-    (retDeviceInfos, retDiskInfos, retWorkingDiskInfos)
+    (retDeviceInfos, retDiskInfos)
   }
 
-  def getMountPoint(absPath: String, diskInfos: util.Map[String, DiskInfo]): String = {
+  def getMountPoint(absPath: String, mountPoints: util.Set[String]): String = {
     var curMax = -1
     var curMount = ""
-    diskInfos.keySet().asScala.foreach(mount => {
+    mountPoints.asScala.foreach(mount => {
       if (absPath.startsWith(mount) && mount.length > curMax) {
         curMax = mount.length
         curMount = mount
       }
     })
     curMount
+  }
+
+  def getMountPoint(absPath: String, diskInfos: util.Map[String, DiskInfo]): String = {
+    getMountPoint(absPath, diskInfos.keySet())
   }
 }
