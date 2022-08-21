@@ -98,6 +98,7 @@ class DiskInfo(
     s" usableSpace: $actualUsableSpace," +
     s" avgFlushTime: $avgFlushTime," +
     s" activeSlots: $activeSlots)" +
+    s" status: $status" +
     s" dirs ${dirs.mkString("\t")}"
 }
 

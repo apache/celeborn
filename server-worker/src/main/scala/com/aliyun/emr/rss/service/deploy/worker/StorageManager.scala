@@ -376,11 +376,17 @@ private[worker] final class StorageManager(
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageHint.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
-      val dirs = if (diskInfos.get(suggestedMountPoint).status == DiskStatus.Healthy) {
-        diskInfos.get(suggestedMountPoint).dirs
-      } else healthyWorkingDirs()
+      val diskInfo = diskInfos.get(suggestedMountPoint)
+      val dirs = if (diskInfo == null
+        || diskInfo.status.equals(DiskStatus.Healthy)) {
+        diskInfo.dirs
+      } else {
+        logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
+          " working dirs. diskInfo $diskInfo")
+        healthyWorkingDirs()
+      }
       if (dirs.isEmpty) {
-        throw new IOException("No available disks!")
+        throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
       val index = getNextIndex()
       val dir = dirs(index % dirs.size)
@@ -392,7 +398,7 @@ private[worker] final class StorageManager(
         shuffleDir.mkdirs()
         val createFileSuccess = file.createNewFile()
         if (!createFileSuccess) {
-          throw new RssException("create app shuffle data dir or file failed")
+          throw new RssException(s"create app shuffle data dir or file failed! ${file.getAbsolutePath}")
         }
         val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
         val fileInfo = new FileInfo(file)
