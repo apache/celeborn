@@ -15,27 +15,22 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.common.meta;
 
-public enum DeviceErrorType {
+public enum DiskStatus {
+  Healthy(0),
   ReadOrWriteFailure(1),
   IoHang(2),
-  InsufficientDiskSpace(3),
-  FlushTimeout(4);
+  HighDiskUsage(3);
 
   private final byte value;
 
-  DeviceErrorType(int value) {
+  DiskStatus(int value) {
     assert (value >= 0 && value < 256);
     this.value = (byte) value;
   }
 
   public final byte getValue() {
     return value;
-  }
-
-  public static boolean criticalError(DeviceErrorType error) {
-    return error.equals(DeviceErrorType.IoHang) ||
-            error.equals(DeviceErrorType.ReadOrWriteFailure);
   }
 }

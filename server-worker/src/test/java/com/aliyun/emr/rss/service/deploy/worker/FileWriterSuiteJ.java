@@ -111,7 +111,7 @@ public class FileWriterSuiteJ {
 
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(tempDir);
-    localFlusher = new LocalFlusher(dirs,
+    localFlusher = new LocalFlusher(
       source,
       DeviceMonitor$.MODULE$.EmptyMonitor(),
       1,
@@ -310,7 +310,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(file);
-    localFlusher = new LocalFlusher(dirs,
+    localFlusher = new LocalFlusher(
         source,
         DeviceMonitor$.MODULE$.EmptyMonitor(),
         1,
