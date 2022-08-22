@@ -24,7 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class FileInfo {
   public final File file;
-  public final ArrayList<Long> chunkOffsets;
+  private final ArrayList<Long> chunkOffsets;
 
   public FileInfo(File file, ArrayList<Long> chunkOffsets) {
     this.file = file;
@@ -37,7 +37,11 @@ public class FileInfo {
     chunkOffsets.add(0L);
   }
 
-  public int numChunks() {
+  public synchronized void addChunkOffset(long bytesFlushed) {
+    chunkOffsets.add(bytesFlushed);
+  }
+
+  public synchronized int numChunks() {
     if (!chunkOffsets.isEmpty()) {
       return chunkOffsets.size() - 1;
     } else {
@@ -45,7 +49,11 @@ public class FileInfo {
     }
   }
 
-  public long getFileLength() {
+  public synchronized long getLastChunkOffset() {
+    return chunkOffsets.get(chunkOffsets.size() - 1);
+  }
+
+  public synchronized long getFileLength() {
     return chunkOffsets.get(chunkOffsets.size() - 1);
   }
 
@@ -53,7 +61,7 @@ public class FileInfo {
     return file;
   }
 
-  public ArrayList<Long> getChunkOffsets() {
+  public synchronized ArrayList<Long> getChunkOffsets() {
     return chunkOffsets;
   }
 

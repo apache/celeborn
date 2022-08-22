@@ -86,7 +86,7 @@ public class PartitionFilesSorterSuiteJ {
       channel.write(ByteBuffer.wrap(mockedData));
     }
     originFileLen = channel.size();
-    fileInfo.chunkOffsets.add(originFileLen);
+    fileInfo.getChunkOffsets().add(originFileLen);
     System.out.println(shuffleFile.getAbsolutePath() +
                          " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
