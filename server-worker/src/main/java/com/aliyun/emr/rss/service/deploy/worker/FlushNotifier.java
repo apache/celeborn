@@ -15,14 +15,28 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker.storage
+package com.aliyun.emr.rss.service.deploy.worker;
 
-import io.netty.buffer.CompositeByteBuf
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import com.aliyun.emr.rss.service.deploy.worker.FlushNotifier
+public class FlushNotifier {
+  public final AtomicInteger numPendingFlushes = new AtomicInteger();
+  public final AtomicReference<IOException> exception = new AtomicReference<>();
 
-private[worker] abstract class FlushTask(
-    val buffer: CompositeByteBuf,
-    val notifier: FlushNotifier) {
-  def flush(): Unit
+  public void setException(IOException e) {
+    exception.set(e);
+  }
+
+  public boolean hasException() {
+    return exception.get() != null;
+  }
+
+  public void checkException() throws IOException {
+    IOException e = exception.get();
+    if (e != null) {
+      throw e;
+    }
+  }
 }
