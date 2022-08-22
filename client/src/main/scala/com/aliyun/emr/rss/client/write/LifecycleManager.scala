@@ -615,9 +615,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       stageEndShuffleSet.add(shuffleId)
       return
     }
+    if (stageEndShuffleSet.contains(shuffleId)) {
+      logInfo(s"[handleStageEnd] Shuffle $shuffleId already ended!")
+      return
+    }
     inProcessStageEndShuffleSet.synchronized {
       if (inProcessStageEndShuffleSet.contains(shuffleId)) {
-        logWarning(s"handleStageEnd for shuffle $shuffleId is in process!")
+        logWarning(s"[handleStageEnd] Shuffle $shuffleId is in process!")
         return
       }
       inProcessStageEndShuffleSet.add(shuffleId)
