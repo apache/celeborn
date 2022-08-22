@@ -361,11 +361,17 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
+  private def blacklistPartition(
+     shuffleId: Int, oldPartition: PartitionLocation, cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
     if (cause == StatusCode.PushDataFailMain && oldPartition != null) {
-      failedWorker.add(oldPartition.getWorker)
+      val tmpWorker = oldPartition.getWorker
+      val worker = workerSnapshots(shuffleId).keySet().asScala
+        .find(_.equals(tmpWorker))
+      if (worker.isDefined) {
+        failedWorker.add(worker.get)
+      }
     }
     if (!failedWorker.isEmpty) {
       recordWorkerFailure(failedWorker)
@@ -424,7 +430,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
       s"oldPartition: $oldPartition, cause: $cause")
-    blacklistPartition(oldPartition, cause)
+    blacklistPartition(shuffleId, oldPartition, cause)
     handleChangePartitionLocation(shuffleReviving, applicationId, shuffleId, partitionId, oldEpoch,
       oldPartition)
   }
