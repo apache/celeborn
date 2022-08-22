@@ -213,7 +213,7 @@ class LocalDeviceMonitor(
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
               device.diskInfos.values().asScala.foreach{ case diskInfo =>
-                if (DeviceMonitor.checkDiskUsage(essConf, diskInfo.mountPoint)) {
+                if (DeviceMonitor.highDiskUsage(essConf, diskInfo.mountPoint)) {
                   logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                 } else if (DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
@@ -301,7 +301,7 @@ object DeviceMonitor {
    * @param diskRootPath disk root path
    * @return true if high disk usage
    */
-  def checkDiskUsage(essConf: RssConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(essConf: RssConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
       val totalSpace = usage(usage.length - 1)
@@ -314,7 +314,7 @@ object DeviceMonitor {
           s" free:$freeSpace GB, used_percent:$used_percent}")
       }
       status
-    })(true)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
+    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
@@ -357,7 +357,7 @@ object DeviceMonitor {
           logger.error(s"Disk dir $dataDir cannot read or write", t)
           true
       }
-    })(true)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
+    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 

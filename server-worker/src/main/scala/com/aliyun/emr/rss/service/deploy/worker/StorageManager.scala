@@ -605,12 +605,14 @@ private[worker] final class StorageManager(
   }
 
   private def flushFileWriters(): Unit = {
-    workingDirWriters.asScala.foreach { case (file, writers) =>
-      if (writers != null && writers.size() > 0) {
-        writers.asScala.foreach { case writer =>
-          writer.flushOnMemoryPressure()
-        }
+    val allWriters = new util.HashSet[FileWriter]()
+    workingDirWriters.asScala.foreach { case (_, writers) =>
+      writers.synchronized {
+        allWriters.addAll(writers)
       }
+    }
+    allWriters.asScala.foreach{ case writer =>
+      writer.flushOnMemoryPressure()
     }
   }
 
@@ -632,8 +634,10 @@ private[worker] final class StorageManager(
     disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
       val totalUsage = diskInfo.dirs.map { dir =>
         val writers = workingDirWriters.get(dir)
-        if (writers != null && writers.size() > 0) {
-          writers.asScala.map(_.getFileInfo.getFileLength).sum
+        if (writers != null) {
+          writers.synchronized {
+            writers.asScala.map(_.getFileInfo.getFileLength).sum
+          }
         } else {
           0
         }

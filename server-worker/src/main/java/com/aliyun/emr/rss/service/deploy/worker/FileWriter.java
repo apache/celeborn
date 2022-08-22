@@ -166,7 +166,7 @@ public final class FileWriter implements DeviceObserver {
 
   private void maybeSetChunkOffsets(boolean forceSet) {
     if (bytesFlushed >= nextBoundary || forceSet) {
-      fileInfo.chunkOffsets.add(bytesFlushed);
+      fileInfo.addChunkOffset(bytesFlushed);
       nextBoundary = bytesFlushed + chunkSize;
     }
   }
@@ -180,7 +180,7 @@ public final class FileWriter implements DeviceObserver {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return fileInfo.chunkOffsets.get(fileInfo.chunkOffsets.size() - 1) == bytesFlushed;
+    return fileInfo.getLastChunkOffset() == bytesFlushed;
   }
 
   /**
