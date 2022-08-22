@@ -223,7 +223,8 @@ class LocalDeviceMonitor(
                 if (checkDiskUsage && DeviceMonitor.highDiskUsage(essConf, diskInfo.mountPoint)) {
                   logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
-                } else if (checkReadWrite && DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
+                } else if (checkReadWrite && 
+                DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
                   logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
