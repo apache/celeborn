@@ -245,7 +245,7 @@ private[worker] class LocalFlusher(
 private[worker] final class StorageManager(
     conf: RssConf,
     workerSource: AbstractSource)
-  extends ShuffleFileRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
+  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
@@ -401,11 +401,6 @@ private[worker] final class StorageManager(
          logError("Update DB: " + shuffleKey + " failed.", exception)
       }
     }
-  }
-
-  def updateShuffleFileInfos(shuffleKey: String, fileName: String, fileInfo: FileInfo): Unit = {
-    val shuffleMap = fileInfos.computeIfAbsent(shuffleKey, newMapFunc)
-    shuffleMap.put(fileName, fileInfo)
   }
 
   private def getNextIndex() = counter.getAndUpdate(counterOperator)
@@ -602,7 +597,7 @@ private[worker] final class StorageManager(
           logError("Store recover data to LevelDB failed.", exception);
       }
     }
-    if (null != dirOperators) {
+    if (null != diskOperators) {
       diskOperators.asScala.foreach(entry => {
         entry._2.shutdownNow()
       })
