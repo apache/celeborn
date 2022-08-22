@@ -51,7 +51,7 @@ class MasterArguments(args: Array[String], conf: RssConf) {
       parse(tail)
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
-      port = value
+      port = Some(value)
       parse(tail)
 
     case ("--properties-file") :: value :: tail =>
