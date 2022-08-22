@@ -653,7 +653,7 @@ private[deploy] object Master extends Logging {
       RpcNameConstants.MASTER_SYS,
       masterArgs.host,
       masterArgs.host,
-      masterArgs.port,
+      masterArgs.port.getOrElse(0),
       conf,
       Math.max(64, Runtime.getRuntime.availableProcessors()))
     val master = new Master(rpcEnv, conf, metricsSystem)
