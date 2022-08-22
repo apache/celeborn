@@ -85,8 +85,7 @@ private[deploy] class Worker(
     workerResumeRatio(conf),
     partitionSortMaxMemoryRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
-    workerDirectMemoryReportIntervalSecond(conf),
-    memoryTrimActionThreshold(conf))
+    workerDirectMemoryReportIntervalSecond(conf))
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)

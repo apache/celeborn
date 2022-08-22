@@ -751,7 +751,7 @@ object RssConf extends Logging {
    * @return
    */
   def deviceMonitorChecklist(conf: RssConf): String = {
-    conf.get("rss.device.monitor.checklist", "readwrite,diskusage,iohang")
+    conf.get("rss.device.monitor.checklist", "readwrite,diskusage")
   }
 
   def diskCheckIntervalMs(conf: RssConf): Long = {
@@ -845,10 +845,6 @@ object RssConf extends Logging {
 
   def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
     conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
-  }
-
-  def memoryTrimActionThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.memory.trim.action.threshold", 10)
   }
 
   def workerPausePushDataRatio(conf: RssConf): Double = {
