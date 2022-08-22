@@ -366,8 +366,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
     if (cause == StatusCode.PushDataFailMain && oldPartition != null) {
+      val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
-        .find(_.equals(oldPartition.getWorker))
+        .find(_.equals(tmpWorker))
       if (worker.isDefined) {
         failedWorker.add(worker.get)
       }
