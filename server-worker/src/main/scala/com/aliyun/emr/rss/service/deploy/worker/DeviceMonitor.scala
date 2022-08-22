@@ -142,11 +142,6 @@ class LocalDeviceMonitor(
             val isWriteHang = lastWriteComplete == writeComplete &&
               writeInflight >= lastWriteInflight && lastWriteInflight > 0
 
-            lastReadComplete = readComplete
-            lastWriteComplete = writeComplete
-            lastReadInflight = readInflight
-            lastWriteInflight = writeInflight
-
             if (isReadHang || isWriteHang) {
               logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
                 s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
@@ -155,6 +150,11 @@ class LocalDeviceMonitor(
               )
               logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
             }
+
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
 
             isReadHang || isWriteHang
           }

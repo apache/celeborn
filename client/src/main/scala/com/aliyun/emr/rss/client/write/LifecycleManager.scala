@@ -48,6 +48,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
+  private val stageEndTimeout = RssConf.stageEndTimeout(conf)
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -55,6 +56,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   private val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
@@ -179,12 +181,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     case msg: GetBlacklist =>
       handleGetBlacklist(msg)
     case StageEnd(applicationId, shuffleId) =>
-      logDebug(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
+      logInfo(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleStageEnd(applicationId, shuffleId)
     case UnregisterShuffle(applicationId, shuffleId, _) =>
       logDebug(s"Received UnregisterShuffle request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleUnregisterShuffle(null, applicationId, shuffleId)
+      handleUnregisterShuffle(applicationId, shuffleId)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -578,10 +580,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       context: RpcCallContext,
       shuffleId: Int): Unit = {
     logDebug(s"Wait for StageEnd, $shuffleId.")
-    var timeout = RssConf.stageEndTimeout(conf)
-    val delta = 50
+    var timeout = stageEndTimeout
+    val delta = 100
     while (!stageEndShuffleSet.contains(shuffleId)) {
-      Thread.sleep(50)
+      Thread.sleep(delta)
+      logInfo("[handleGetReducerFileGroup] Waiting for handleStageEnd complete...")
       if (timeout <= 0) {
         logError(s"StageEnd Timeout! $shuffleId.")
         context.reply(
@@ -611,6 +614,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       return
+    }
+    inProcessStageEndShuffleSet.synchronized {
+      if (inProcessStageEndShuffleSet.contains(shuffleId)) {
+        logWarning(s"handleStageEnd for shuffle $shuffleId is in process!")
+        return
+      }
+      inProcessStageEndShuffleSet.add(shuffleId)
     }
 
     // ask allLocations workers holding partitions to commit files
@@ -762,16 +772,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
     }
+    inProcessStageEndShuffleSet.remove(shuffleId)
   }
 
   private def handleUnregisterShuffle(
-      context: RpcCallContext,
       appId: String,
       shuffleId: Int): Unit = {
     // if StageEnd has not been handled, trigger StageEnd
     if (!stageEndShuffleSet.contains(shuffleId)) {
       logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
       handleStageEnd(appId, shuffleId)
+      var timeout = stageEndTimeout
+      val delta = 100
+      while (!stageEndShuffleSet.contains(shuffleId) && timeout > 0) {
+        logInfo("[handleUnregisterShuffle] Waiting for handleStageEnd complete...")
+        Thread.sleep(delta)
+        timeout = timeout - delta
+      }
+      if (timeout <= 0) {
+        logError(s"StageEnd Timeout! $shuffleId.")
+      }
     }
 
     if (partitionExists(shuffleId)) {
@@ -789,9 +809,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
     logInfo(s"Unregister for $shuffleId success.")
-    if (context != null) {
-      context.reply(UnregisterShuffleResponse(StatusCode.Success))
-    }
   }
 
   /* ========================================================== *
