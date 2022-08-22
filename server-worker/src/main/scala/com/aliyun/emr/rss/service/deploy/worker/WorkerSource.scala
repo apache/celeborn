@@ -44,7 +44,7 @@ class WorkerSource(essConf: RssConf)
 
   addTimer(SlotReleaseTime)
   addTimer(SorterCompleteTime)
-  addTimer(PartitionSorterRecoverTime)
+  addTimer(SorterRecoverTime)
   addTimer(FileInfoRecoverTime)
   addTimer(WorkerShutdownTotalTime)
 
