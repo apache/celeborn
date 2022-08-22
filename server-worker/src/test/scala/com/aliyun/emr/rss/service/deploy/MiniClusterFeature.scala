@@ -66,7 +66,7 @@ trait MiniClusterFeature extends Logging {
       RpcNameConstants.MASTER_SYS,
       masterArguments.host,
       masterArguments.host,
-      masterArguments.port,
+      masterArguments.port.getOrElse(0),
       conf,
       4
     )
