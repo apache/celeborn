@@ -256,5 +256,3 @@ class LocalDeviceMonitor(
     }
   }
 }
-
-
