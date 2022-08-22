@@ -34,6 +34,8 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils
+import com.aliyun.emr.rss.service.deploy.worker.storage.DeviceObserver
+import com.aliyun.emr.rss.service.deploy.worker.storage.local.LocalFlusher
 
 class DeviceMonitorSuite extends AnyFunSuite {
   val dfCmd = "df -h"

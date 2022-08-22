@@ -34,6 +34,8 @@ import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
+import com.aliyun.emr.rss.service.deploy.worker.storage.local.LocalFlusher
+import com.aliyun.emr.rss.service.deploy.worker.storage.DeviceObserver
 
 trait DeviceMonitor {
   def startCheck() {}
