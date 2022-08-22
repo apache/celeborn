@@ -124,7 +124,6 @@ public class FileWriterSuiteJ {
       0.5,
       0.6,
       10,
-      10,
       10);
   }
 

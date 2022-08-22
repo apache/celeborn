@@ -838,10 +838,6 @@ object RssConf extends Logging {
     conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
   }
 
-  def memoryTrimActionThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.memory.trim.action.threshold", 10)
-  }
-
   def workerPausePushDataRatio(conf: RssConf): Double = {
     conf.getDouble("rss.pause.pushdata.memory.ratio", 0.85)
   }
