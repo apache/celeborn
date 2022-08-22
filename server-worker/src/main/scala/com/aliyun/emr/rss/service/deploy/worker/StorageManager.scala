@@ -362,8 +362,6 @@ private[worker] final class StorageManager(
         logError("Init level DB failed:", e)
         this.fileInfosDb = null
     }
-  } else {
-    this.fileInfosDb = null
   }
 
   private def reloadAndCleanFileInfos(db: DB): Unit = {
@@ -378,14 +376,12 @@ private[worker] final class StorageManager(
           try {
             val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
             logDebug("Reload DB: " + shuffleKey + " -> " + files)
-            logInfo(s"Reload $shuffleKey -> $files")
             fileInfos.put(shuffleKey, files)
             fileInfosDb.delete(entry.getKey)
           } catch {
             case exception: Exception =>
               logError("Reload DB: " + shuffleKey + " failed.", exception);
           }
-
         }
       }
     }
