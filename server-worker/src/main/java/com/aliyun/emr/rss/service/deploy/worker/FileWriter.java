@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,7 @@ public final class FileWriter implements DeviceObserver {
 
   private final FileInfo fileInfo;
   private final FileChannel channel;
+  private final FSDataOutputStream stream;
   private volatile boolean closed;
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
@@ -112,8 +114,6 @@ public final class FileWriter implements DeviceObserver {
   public FileWriter(
     FileInfo fileInfo,
     Flusher flusher,
-    long chunkSize,
-    long flushBufferSize,
     AbstractSource workerSource,
     RssConf rssConf,
     DeviceMonitor deviceMonitor,
@@ -123,15 +123,21 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.chunkSize = chunkSize;
-    this.nextBoundary = chunkSize;
+    this.chunkSize = RssConf.workerFetchChunkSize(rssConf);
+    this.nextBoundary = this.chunkSize;
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
     this.splitThreshold = splitThreshold;
-    this.flushBufferSize = flushBufferSize;
+    this.flushBufferSize = RssConf.workerFlushBufferSize(rssConf);
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    channel = new FileOutputStream(fileInfo.file).getChannel();
+    if (fileInfo.file != null) {
+      channel = new FileOutputStream(fileInfo.file).getChannel();
+      stream = null;
+    } else {
+      channel = null;
+      stream = fileInfo.fsDataOutputStream;
+    }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     takeBuffer();
@@ -157,7 +163,13 @@ public final class FileWriter implements DeviceObserver {
     int numBytes = flushBuffer.readableBytes();
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
-    FlushTask task = new LocalFlushTask(flushBuffer, channel, notifier);
+    FlushTask task = null;
+    if (channel != null) {
+      task = new LocalFlushTask(flushBuffer, channel, notifier);
+    }
+    if (stream != null) {
+      task = new HdfsFlushTask(flushBuffer, stream, notifier);
+    }
     addTask(task);
     flushBuffer = null;
     bytesFlushed += numBytes;
@@ -247,7 +259,18 @@ public final class FileWriter implements DeviceObserver {
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
       returnBuffer();
-      channel.close();
+      try {
+        if (channel != null) {
+          channel.close();
+        }
+        if (stream != null) {
+          stream.flush();
+          stream.close();
+        }
+      } catch (IOException e) {
+        logger.warn("close file writer" + this + "failed", e);
+      }
+
 
       // unregister from DeviceMonitor
       deviceMonitor.unregisterFileWriter(this);
@@ -262,7 +285,12 @@ public final class FileWriter implements DeviceObserver {
       notifier.setException(new IOException("destroyed"));
       returnBuffer();
       try {
-        channel.close();
+        if (channel != null) {
+          channel.close();
+        }
+        if (stream != null) {
+          stream.close();
+        }
       } catch (IOException e) {
         logger.warn("Close channel failed for file {} caused by {}.",
           fileInfo.file, e.getMessage());

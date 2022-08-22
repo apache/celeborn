@@ -920,6 +920,14 @@ object RssConf extends Logging {
     conf.getInt("rss.flusher.avg.time.minimum.count", 1000);
   }
 
+  def hdfsDir(conf: RssConf): String = {
+    conf.get("rss.worker.hdfs.dir", "")
+  }
+
+  def hdfsFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

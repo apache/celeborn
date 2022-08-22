@@ -79,9 +79,7 @@ public class FileWriterSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
 
-  private static final int CHUNK_SIZE = 1024;
-  private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
-  public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
+  private static final RssConf RSS_CONF = new RssConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
   public static final PartitionType partitionType= PartitionType.REDUCE_PARTITION;
@@ -101,6 +99,7 @@ public class FileWriterSuiteJ {
   @BeforeClass
   public static void beforeAll() {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
+    RSS_CONF.set("rss.worker.fetch.chunk.size","1k");
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(invocationOnMock -> {
@@ -241,8 +240,7 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher,source, RSS_CONF,
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -276,8 +274,7 @@ public class FileWriterSuiteJ {
     throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
-    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, source, RSS_CONF,
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -325,8 +322,7 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file);
-    FileWriter fileWriter = new FileWriter(fileInfo, localFlusher, CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+    FileWriter fileWriter = new FileWriter(fileInfo, localFlusher, source, RSS_CONF,
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
