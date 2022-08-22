@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
+import com.aliyun.emr.rss.common.meta.DiskStatus;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
@@ -87,8 +88,10 @@ public class MasterUtil {
       List<DiskUsableInfo> usableDisks = restrictions.computeIfAbsent(worker,
         v -> new ArrayList<>());
       for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
-        usableDisks.add(new DiskUsableInfo(diskInfoEntry.getValue(),
+        if (diskInfoEntry.getValue().status().equals(DiskStatus.Healthy)) {
+          usableDisks.add(new DiskUsableInfo(diskInfoEntry.getValue(),
             diskInfoEntry.getValue().availableSlots()));
+        }
       }
     }
     List<Integer> remain = roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate);
@@ -124,7 +127,8 @@ public class MasterUtil {
 
     workers.forEach(i -> i.diskInfos().forEach((key, diskInfo) -> {
       diskToWorkerMap.put(diskInfo, i);
-      if (diskInfo.usableSpace() > minimumUsableSize) {
+      if (diskInfo.actualUsableSpace() > minimumUsableSize
+        && diskInfo.status().equals(DiskStatus.Healthy)) {
         usableDisks.add(diskInfo);
       }
     }));

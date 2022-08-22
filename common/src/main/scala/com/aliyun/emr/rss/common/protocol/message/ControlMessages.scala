@@ -48,7 +48,7 @@ sealed trait Message extends Serializable{
           .map(item =>
             item._1 -> PbDiskInfo
               .newBuilder()
-              .setUsableSpace(item._2.usableSpace)
+              .setUsableSpace(item._2.actualUsableSpace)
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()
@@ -69,9 +69,10 @@ sealed trait Message extends Serializable{
         val pbDisks = disks.asScala
           .map(item => item._1 -> PbDiskInfo
               .newBuilder()
-              .setUsableSpace(item._2.usableSpace)
+              .setUsableSpace(item._2.actualUsableSpace)
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
+              .setStatus(item._2.status.getValue)
               .build()
           ).toMap.asJava
         val payload = TransportMessages.PbHeartbeatFromWorker.newBuilder()
@@ -703,12 +704,16 @@ object ControlMessages extends Logging{
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
         val shuffleKeys = new util.HashSet[String]()
         val disks = pbHeartbeatFromWorker.getDisksMap.asScala
-          .map(item => item._1 -> new DiskInfo(
-                item._1,
-                item._2.getUsableSpace,
-                item._2.getAvgFlushTime,
-                item._2.getUsedSlots
-              )).asJava
+          .map(item => item._1 -> {
+            val diskInfo = new DiskInfo(
+              item._1,
+              item._2.getUsableSpace,
+              item._2.getAvgFlushTime,
+              item._2.getUsedSlots
+            )
+            diskInfo.setStatus(Utils.toDiskStatus(item._2.getStatus()))
+            diskInfo
+          }).asJava
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
           shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
         }

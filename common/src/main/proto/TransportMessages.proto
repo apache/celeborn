@@ -86,6 +86,7 @@ message PbDiskInfo {
   int64 usableSpace = 2;
   int64 avgFlushTime = 3;
   int64 usedSlots = 4;
+  int32 status = 5;
 }
 
 message PbWorkerInfo {
@@ -356,4 +357,22 @@ message PbStageEnd {
 
 message PbStageEndResponse {
   int32 status = 1;
+}
+
+message PbSortedShuffleFileSet {
+  repeated string files = 1;
+}
+
+message PbStoreVersion {
+  int32 major = 1;
+  int32 minor = 2;
+}
+
+message PbFileInfo {
+  string file = 1;
+  repeated int64 chunkOffsets = 2;
+}
+
+message PBFileInfoMap {
+  map<string, PbFileInfo> values = 1;
 }

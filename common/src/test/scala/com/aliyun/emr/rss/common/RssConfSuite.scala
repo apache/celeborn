@@ -20,7 +20,6 @@ class RssConfSuite extends RssFunSuite{
     val parsedDirs = RssConf.workerBaseDirs(conf)
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 1)
-    assert(parsedDirs.head._4 == StorageInfo.Type.HDD)
     assert(parsedDirs.head._2 == defaultMaxUsableSpace)
   }
 
@@ -31,7 +30,6 @@ class RssConfSuite extends RssFunSuite{
     val parsedDirs = RssConf.workerBaseDirs(conf)
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 8)
-    assert(parsedDirs.head._4 == StorageInfo.Type.SSD)
     assert(parsedDirs.head._2 == 10 * 1024 * 1024 * 1024L)
   }
 
@@ -41,7 +39,6 @@ class RssConfSuite extends RssFunSuite{
     val parsedDirs = RssConf.workerBaseDirs(conf)
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 3)
-    assert(parsedDirs.head._4 == StorageInfo.Type.SSD)
     assert(parsedDirs.head._2 == 10 * 1024 * 1024 * 1024L)
   }
 
@@ -56,12 +53,10 @@ class RssConfSuite extends RssFunSuite{
     assert(parsedDirs.size == 2)
     assert(parsedDirs.head._1 == "/mnt/disk1")
     assert(parsedDirs.head._3 == 3)
-    assert(parsedDirs.head._4 == StorageInfo.Type.SSD)
     assert(parsedDirs.head._2 == 10 * 1024 * 1024 * 1024L)
 
     assert(parsedDirs(1)._1 == "/mnt/disk2")
     assert(parsedDirs(1)._3 == 7)
-    assert(parsedDirs(1)._4 == StorageInfo.Type.HDD)
     assert(parsedDirs(1)._2 == 15 * 1024 * 1024 * 1024L)
   }
 }

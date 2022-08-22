@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashSet => jHashSet}
+import java.util.{HashMap => JHashMap, HashSet => jHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
+import com.aliyun.emr.rss.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, NetWorkSource}
 import com.aliyun.emr.rss.common.network.TransportContext
@@ -77,7 +77,7 @@ private[deploy] class Worker(
     source
   }
 
-  val localStorageManager = new LocalStorageManager(conf, workerSource)
+  val storageManager = new StorageManager(conf, workerSource)
 
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),
@@ -87,13 +87,9 @@ private[deploy] class Worker(
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf),
     memoryTrimActionThreshold(conf))
-  memoryTracker.registerMemoryListener(localStorageManager)
+  memoryTracker.registerMemoryListener(storageManager)
 
-  val partitionsSorter = new PartitionFilesSorter(memoryTracker,
-    partitionSortTimeout(conf),
-    RssConf.workerFetchChunkSize(conf),
-    RssConf.memoryReservedForSingleSort(conf),
-    workerSource)
+  val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
@@ -101,7 +97,7 @@ private[deploy] class Worker(
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.push.io.threads", localStorageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.push.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
@@ -113,7 +109,8 @@ private[deploy] class Worker(
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.replicate.io.threads", localStorageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.replicate.io.threads",
+      storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE,
       numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
@@ -125,7 +122,7 @@ private[deploy] class Worker(
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.fetch.io.threads", localStorageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
@@ -141,10 +138,14 @@ private[deploy] class Worker(
   assert(fetchPort > 0)
   assert(replicatePort > 0)
 
-  localStorageManager.updateDiskInfos()
-  // WorkerInfo's diskInfos is a reference to localStorageManager.diskInfos
+  storageManager.updateDiskInfos()
+  // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
+  val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  storageManager.disksSnapshot().foreach{ case diskInfo =>
+    diskInfos.put(diskInfo.mountPoint, diskInfo)
+  }
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    localStorageManager.diskInfos, controller.self)
+    diskInfos, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)
@@ -190,11 +191,15 @@ private[deploy] class Worker(
   def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
-    shuffleKeys.addAll(localStorageManager.shuffleKeySet())
-    localStorageManager.updateDiskInfos()
+    shuffleKeys.addAll(storageManager.shuffleKeySet())
+    storageManager.updateDiskInfos()
+    val diskInfos = new JHashMap[String, DiskInfo]()
+    storageManager.disksSnapshot().foreach{ case diskInfo =>
+      diskInfos.put(diskInfo.mountPoint, diskInfo)
+    }
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
-        localStorageManager.diskInfos, shuffleKeys), classOf[HeartbeatResponse])
+        diskInfos, shuffleKeys), classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)
@@ -302,8 +307,8 @@ private[deploy] class Worker(
     // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
 
-    if (null != localStorageManager) {
-      localStorageManager.close()
+    if (null != storageManager) {
+      storageManager.close()
     }
 
     rssHARetryClient.close()
@@ -355,7 +360,7 @@ private[deploy] class Worker(
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
-    localStorageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
   def isRegistered(): Boolean = {
