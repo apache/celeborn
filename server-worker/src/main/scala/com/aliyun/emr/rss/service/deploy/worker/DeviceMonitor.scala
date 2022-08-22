@@ -113,9 +113,9 @@ class LocalDeviceMonitor(
     /**
      * @return true if device is hang
      */
-    def checkIoHang(): Boolean = {
+    def ioHang(): Boolean = {
       if (deviceInfo.deviceStatAvailable) {
-        true
+        false
       } else {
         var statsSource: Source = null
         var infligtSource: Source = null
@@ -207,7 +207,7 @@ class LocalDeviceMonitor(
           observedDevices.values().asScala.foreach(device => {
             val mountPoints = device.diskInfos.keySet.asScala.toList
 
-            if (device.checkIoHang()) {
+            if (device.ioHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
