@@ -51,7 +51,7 @@ private[deploy] class Worker(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
     workerArgs.host,
-    workerArgs.port,
+    workerArgs.port.getOrElse(0),
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
@@ -85,8 +85,7 @@ private[deploy] class Worker(
     workerResumeRatio(conf),
     partitionSortMaxMemoryRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
-    workerDirectMemoryReportIntervalSecond(conf),
-    memoryTrimActionThreshold(conf))
+    workerDirectMemoryReportIntervalSecond(conf))
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)

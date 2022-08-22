@@ -367,3 +367,12 @@ message PbStoreVersion {
   int32 major = 1;
   int32 minor = 2;
 }
+
+message PbFileInfo {
+  string file = 1;
+  repeated int64 chunkOffsets = 2;
+}
+
+message PBFileInfoMap {
+  map<string, PbFileInfo> values = 1;
+}

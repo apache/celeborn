@@ -113,9 +113,9 @@ class LocalDeviceMonitor(
     /**
      * @return true if device is hang
      */
-    def checkIoHang(): Boolean = {
+    def ioHang(): Boolean = {
       if (deviceInfo.deviceStatAvailable) {
-        true
+        false
       } else {
         var statsSource: Source = null
         var infligtSource: Source = null
@@ -142,11 +142,6 @@ class LocalDeviceMonitor(
             val isWriteHang = lastWriteComplete == writeComplete &&
               writeInflight >= lastWriteInflight && lastWriteInflight > 0
 
-            lastReadComplete = readComplete
-            lastWriteComplete = writeComplete
-            lastReadInflight = readInflight
-            lastWriteInflight = writeInflight
-
             if (isReadHang || isWriteHang) {
               logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
                 s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
@@ -155,6 +150,11 @@ class LocalDeviceMonitor(
               )
               logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
             }
+
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
 
             isReadHang || isWriteHang
           }
@@ -207,7 +207,7 @@ class LocalDeviceMonitor(
           observedDevices.values().asScala.foreach(device => {
             val mountPoints = device.diskInfos.keySet.asScala.toList
 
-            if (device.checkIoHang()) {
+            if (device.ioHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
@@ -304,7 +304,7 @@ object DeviceMonitor {
   def highDiskUsage(essConf: RssConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
-      val totalSpace = usage(usage.length - 1)
+      val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
