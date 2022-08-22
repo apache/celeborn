@@ -842,23 +842,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
-        if (blacklist.contains(workerInfo)) {
-          logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
-          reserveSlotFailedWorkers.add(workerInfo)
+        val res = requestReserveSlots(workerInfo.endpoint,
+          ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
+            splitMode, partitionType))
+        if (res.status.equals(StatusCode.Success)) {
+          logDebug(s"Successfully allocated " +
+            s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
+            s" from worker ${workerInfo.readableAddress()}.")
         } else {
-          val res = requestReserveSlots(workerInfo.endpoint,
-            ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
-              splitMode, partitionType))
-          if (res.status.equals(StatusCode.Success)) {
-            logDebug(s"Successfully allocated " +
-              s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress()}.")
-          } else {
-            logError(s"[reserveSlots] Failed to" +
-              s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-            reserveSlotFailedWorkers.add(workerInfo)
-          }
+          logError(s"[reserveSlots] Failed to" +
+            s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
+            s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+          reserveSlotFailedWorkers.add(workerInfo)
         }
     }
 
