@@ -745,6 +745,10 @@ object RssConf extends Logging {
     conf.getBoolean("rss.device.monitor.enabled", true)
   }
 
+  def deviceMonitorCheckList(conf: RssConf): String = {
+    conf.get("rss.device.monitor.checklist", "readwrite,diskusage")
+  }
+
   def diskCheckIntervalMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.disk.check.interval", "60s")
   }

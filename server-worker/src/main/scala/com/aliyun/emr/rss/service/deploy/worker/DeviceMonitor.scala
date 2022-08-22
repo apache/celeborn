@@ -30,6 +30,7 @@ import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.RssConf.deviceMonitorCheckList
 import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
@@ -183,6 +184,12 @@ class LocalDeviceMonitor(
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
   val diskCheckInterval = diskCheckIntervalMs(essConf)
+
+  // we should choose what the device needs to detect
+  val monitorCheckList = deviceMonitorCheckList(essConf)
+  val checkIoHang = monitorCheckList.contains("iohang")
+  val checkReadWrite = monitorCheckList.contains("readwrite")
+  val checkDiskUsage = monitorCheckList.contains("diskusage")
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -207,16 +214,17 @@ class LocalDeviceMonitor(
           observedDevices.values().asScala.foreach(device => {
             val mountPoints = device.diskInfos.keySet.asScala.toList
 
-            if (device.ioHang()) {
+            if (checkIoHang && device.ioHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
               device.diskInfos.values().asScala.foreach{ case diskInfo =>
-                if (DeviceMonitor.highDiskUsage(essConf, diskInfo.mountPoint)) {
+                if (checkDiskUsage && DeviceMonitor.highDiskUsage(essConf, diskInfo.mountPoint)) {
                   logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
-                } else if (DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
+                } else if (checkReadWrite &&
+                DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
                   logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
