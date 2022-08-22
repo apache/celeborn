@@ -86,6 +86,7 @@ message PbDiskInfo {
   int64 usableSpace = 2;
   int64 avgFlushTime = 3;
   int64 usedSlots = 4;
+  int32 status = 5;
 }
 
 message PbWorkerInfo {

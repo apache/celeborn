@@ -27,9 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.collection.mutable.Buffer;
-import scala.collection.mutable.ListBuffer;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.slf4j.Logger;
@@ -37,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
+import com.aliyun.emr.rss.common.meta.DiskStatus;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
@@ -81,11 +79,10 @@ public final class FileWriter implements DeviceObserver {
   private Runnable destroyHook;
 
   @Override
-  public void notifyError(String deviceName, ListBuffer<File> dirs,
-                          DeviceErrorType deviceErrorType) {
+  public void notifyError(String mountPoint, DiskStatus diskStatus) {
     if (!notifier.hasException()) {
-      notifier.setException(new IOException("Device ERROR! Device: "
-              + deviceName + " : " + deviceErrorType));
+      notifier.setException(new IOException("Device ERROR! Disk: "
+              + mountPoint + " : " + diskStatus));
     }
     deviceMonitor.unregisterFileWriter(this);
   }
@@ -402,18 +399,8 @@ public final class FileWriter implements DeviceObserver {
   // These empty methods are intended to match scala 2.11 restrictions that
   // trait can not be used as an interface with default implementation.
   @Override
-  public void notifyHealthy(ListBuffer<File> dirs) {
-  }
+  public void notifyHealthy(String mountPoint) {}
 
   @Override
-  public void notifyHighDiskUsage(ListBuffer<File> dirs) {
-  }
-
-  @Override
-  public void notifySlowFlush(ListBuffer<File> dirs) {
-  }
-
-  @Override
-  public void reportError(Buffer<File> workingDir, IOException e, DeviceErrorType deviceErrorType) {
-  }
+  public void notifyHighDiskUsage(String mountPoint) {}
 }
