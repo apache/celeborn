@@ -90,6 +90,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (gracefulShutdown) {
       try {
+        source.startTimer(WorkerSource.SorterRecoverTime(), "SorterRecoverTime");
         String recoverPath = RssConf.workerRecoverPath(conf);
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
@@ -97,6 +98,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } catch (Exception e) {
         logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
         this.sortedFilesDb = null;
+      } finally {
+        source.stopTimer(WorkerSource.SorterRecoverTime(), "SorterRecoverTime");
       }
     } else {
       this.sortedFilesDb = null;
@@ -200,6 +203,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     if (gracefulShutdown) {
       long start = System.currentTimeMillis();
       try {
+        source.startTimer(WorkerSource.SorterCompleteTime(), "SorterCompleteTime");
         fileSorterExecutors.shutdown();
         fileSorterExecutors.awaitTermination(
             partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
@@ -208,6 +212,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       } catch (InterruptedException e) {
         logger.error("Await partition sorter executor shutdown catch exception: ", e);
+      } finally {
+        source.stopTimer(WorkerSource.SorterCompleteTime(), "SorterCompleteTime");
       }
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");

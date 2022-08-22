@@ -43,7 +43,7 @@ class WorkerSource(essConf: RssConf)
   addTimer(SortTime)
 
   addTimer(SlotReleaseTime)
-  addTimer(PartitionSorterCompleteTime)
+  addTimer(SorterCompleteTime)
   addTimer(PartitionSorterRecoverTime)
   addTimer(FileInfoRecoverTime)
   addTimer(WorkerShutdownTotalTime)
@@ -91,11 +91,8 @@ object WorkerSource {
 
   // graceful shutdown
   val SlotReleaseTime = "SlotReleaseTime"
-  // TODO
-  val PartitionSorterCompleteTime = "PartitionSorterCompleteTime"
-  // TODO
-  val PartitionSorterRecoverTime = "PartitionSorterRecoverTime"
-  // TODO
+  val SorterCompleteTime = "SorterCompleteTime"
+  val SorterRecoverTime = "SorterRecoverTime"
   val FileInfoRecoverTime = "FileInfoRecoverTime"
   val WorkerShutdownTotalTime = "WorkerShutdownTotalTime"
 }

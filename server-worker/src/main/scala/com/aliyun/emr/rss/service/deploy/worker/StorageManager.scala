@@ -354,6 +354,7 @@ private[worker] final class StorageManager(
   // when the worker's fetching port is stable.
   if (RssConf.workerGracefulShutdown(conf)) {
     try {
+      workerSource.startTimer(WorkerSource.FileInfoRecoverTime, "FileInfoRecoverTime")
       val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
       this.fileInfosDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.fileInfosDb)
@@ -361,6 +362,8 @@ private[worker] final class StorageManager(
       case e: Exception =>
         logError("Init level DB failed:", e)
         this.fileInfosDb = null
+    } finally {
+      workerSource.stopTimer(WorkerSource.FileInfoRecoverTime, "FileInfoRecoverTime")
     }
   }
 

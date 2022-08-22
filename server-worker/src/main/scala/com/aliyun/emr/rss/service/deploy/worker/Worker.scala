@@ -370,11 +370,11 @@ private[deploy] class Worker(
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
-        workerSource.startTimer(WorkerSource.WorkerShutdownTotalTime, "Shutdown")
+        workerSource.startTimer(WorkerSource.WorkerShutdownTotalTime, "WorkerShutdownTotalTime")
         logInfo("Shutdown hook called.")
         shutdown.set(true)
         if (gracefulShutdown) {
-          workerSource.startTimer(WorkerSource.SlotReleaseTime, "SlotRelease")
+          workerSource.startTimer(WorkerSource.SlotReleaseTime, "SlotReleaseTime")
           val interval = RssConf.checkSlotsFinishedInterval(conf)
           val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
           var waitTimes = 0
@@ -392,9 +392,9 @@ private[deploy] class Worker(
               s"unreleased PartitionLocation: \n$partitionLocationInfo")
           }
         }
-        workerSource.stopTimer(WorkerSource.SlotReleaseTime, "SlotRelease")
+        workerSource.stopTimer(WorkerSource.SlotReleaseTime, "SlotReleaseTime")
         stop()
-        workerSource.stopTimer(WorkerSource.WorkerShutdownTotalTime, "Shutdown")
+        workerSource.stopTimer(WorkerSource.WorkerShutdownTotalTime, "WorkerShutdownTotalTime")
       }
     }), WORKER_SHUTDOWN_PRIORITY)
 }
