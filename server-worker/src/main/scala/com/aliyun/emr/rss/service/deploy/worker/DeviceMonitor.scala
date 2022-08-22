@@ -49,11 +49,16 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-    essConf: RssConf,
+    rssConf: RssConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
     diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
+
+  val checklist = RssConf.deviceMonitorChecklist(rssConf).toLowerCase
+  val checkIoHang = checklist.contains("iohang")
+  val checkReadWrite = checklist.contains("readwrite")
+  val checkDiskUsage = checklist.contains("diskusage")
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
     val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
@@ -62,7 +67,7 @@ class LocalDeviceMonitor(
     }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-    val sysBlockDir = RssConf.sysBlockDir(essConf)
+    val sysBlockDir = RssConf.sysBlockDir(rssConf)
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -182,7 +187,7 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = diskCheckIntervalMs(essConf)
+  val diskCheckInterval = diskCheckIntervalMs(rssConf)
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -207,16 +212,17 @@ class LocalDeviceMonitor(
           observedDevices.values().asScala.foreach(device => {
             val mountPoints = device.diskInfos.keySet.asScala.toList
 
-            if (device.ioHang()) {
+            if (checkIoHang && device.ioHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
               device.diskInfos.values().asScala.foreach{ case diskInfo =>
-                if (DeviceMonitor.highDiskUsage(essConf, diskInfo.mountPoint)) {
+                if (checkDiskUsage && DeviceMonitor.highDiskUsage(rssConf, diskInfo.mountPoint)) {
                   logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
-                } else if (DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
+                } else if (checkReadWrite &&
+                  DeviceMonitor.readWriteError(rssConf, diskInfo.dirs.head)) {
                   logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
