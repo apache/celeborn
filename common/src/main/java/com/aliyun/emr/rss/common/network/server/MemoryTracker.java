@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -63,7 +63,7 @@ public class MemoryTracker {
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
   private boolean underPressure;
-  private final AtomicInteger inProcessTrimActionCnt = new AtomicInteger(0);
+  private AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   public static MemoryTracker initialize(
     double pausePushDataRatio,
@@ -142,14 +142,14 @@ public class MemoryTracker {
           }
         } else {
           if (memoryTrackerStat != MemoryTrackerStat.resumeAll) {
-            if (inProcessTrimActionCnt.get() <= 1) {
-              inProcessTrimActionCnt.incrementAndGet();
+            if (!trimInProcess.get()) {
+              trimInProcess.set(true);
               actionService.submit(() -> {
                 try {
                   logger.info("Trigger trim action");
                   memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
                 } finally {
-                  inProcessTrimActionCnt.decrementAndGet();
+                  trimInProcess.set(false);
                 }
               });
             }
