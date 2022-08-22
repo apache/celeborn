@@ -40,13 +40,13 @@ import com.aliyun.emr.rss.common.network.util.TransportConf
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()
   var source: WorkerSource = _
-  var localStorageManager: LocalStorageManager = _
+  var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
     this.source = worker.workerSource
-    this.localStorageManager = worker.localStorageManager
+    this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
   }
@@ -57,12 +57,12 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       startMapIndex: Int,
       endMapIndex: Int): FileInfo = {
     // find FileWriter responsible for the data
-    val fileWriter = localStorageManager.getWriter(shuffleKey, fileName)
-    if (fileWriter == null) {
-      logWarning("File $fileName for $shuffleKey was not found!")
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
+    if (fileInfo == null) {
+      logWarning(s"File $fileName for $shuffleKey was not found!")
       null
     } else {
-      partitionsSorter.openStream(shuffleKey, fileName, fileWriter, startMapIndex, endMapIndex)
+      partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
     }
   }
 
@@ -92,8 +92,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       try {
         val buffers = new FileManagedBuffers(fileInfo, conf)
         val streamId = streamManager.registerStream(buffers, client.getChannel)
-        val streamHandle = new StreamHandle(streamId, fileInfo.numChunks)
-        if (fileInfo.numChunks == 0) {
+        val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+        if (fileInfo.numChunks() == 0) {
           logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
             s" $startMapIndex endMapIndex $endMapIndex is empty.")
         }

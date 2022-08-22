@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.service.deploy.master
 
+import java.io.IOException
+import java.net.BindException
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
@@ -50,7 +52,20 @@ private[deploy] class Master(
   private val statusSystem = if (haEnabled(conf)) {
     val sys = new HAMasterMetaManager(rpcEnv, conf)
     val handler = new MetaHandler(sys)
-    handler.setUpMasterRatisServer(conf)
+    try {
+      handler.setUpMasterRatisServer(conf)
+    } catch {
+      case ioe: IOException =>
+        if (ioe.getCause.isInstanceOf[BindException]) {
+          val msg = s"HA port ${sys.getRatisServer.getRaftPort} of Ratis Server is occupied, " +
+            s"Master process will stop. Please refer to configuration doc to modify the HA port " +
+            s"in config file for each node."
+          logError(msg, ioe)
+          System.exit(1)
+        } else {
+          logError("Face unexpected IO exception during staring Ratis server", ioe)
+        }
+    }
     sys
   } else {
     new SingleMasterMetaManager(rpcEnv, conf)
@@ -282,8 +297,7 @@ private[deploy] class Master(
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = workersSnapShot
-      .asScala.exists(_ == targetWorker)
+    val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -351,16 +365,18 @@ private[deploy] class Master(
       new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
-        s" ${workerToRegister.toString()} already exists,trigger WorkerLost.")
-      if (!statusSystem.workerLostEvents.contains(workerToRegister)) {
-        self.send(WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort,
-          RssHARetryClient.genRequestId()))
-      }
-      context.reply(RegisterWorkerResponse(false, "Worker already registered!"))
+        s" ${workerToRegister.toString()} already exists, re-register.")
+      statusSystem.handleWorkerRemove(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
+      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        disks, requestId)
+      context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
-      context.reply(RegisterWorkerResponse(false, "Worker in workerLostEvents."))
+      statusSystem.workerLostEvents.remove(workerToRegister)
+      statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
+        disks, requestId)
+      context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
       statusSystem.handleRegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
         disks, requestId)
@@ -637,7 +653,7 @@ private[deploy] object Master extends Logging {
       RpcNameConstants.MASTER_SYS,
       masterArgs.host,
       masterArgs.host,
-      masterArgs.port,
+      masterArgs.port.getOrElse(0),
       conf,
       Math.max(64, Runtime.getRuntime.availableProcessors()))
     val master = new Master(rpcEnv, conf, metricsSystem)

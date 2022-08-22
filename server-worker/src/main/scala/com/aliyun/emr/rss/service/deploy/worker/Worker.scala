@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashSet => jHashSet}
+import java.util.{HashMap => JHashMap, HashSet => jHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
+import com.aliyun.emr.rss.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, NetWorkSource}
 import com.aliyun.emr.rss.common.network.TransportContext
@@ -51,7 +51,7 @@ private[deploy] class Worker(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
     workerArgs.host,
-    workerArgs.port,
+    workerArgs.port.getOrElse(0),
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
@@ -60,7 +60,12 @@ private[deploy] class Worker(
   Utils.checkHost(host)
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
-  private val shutdown = new AtomicBoolean(false)
+  val shutdown = new AtomicBoolean(false)
+  private val gracefulShutdown = RssConf.workerGracefulShutdown(conf)
+  assert(!gracefulShutdown || (gracefulShutdown &&
+    RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
+    RssConf.pushServerPort(conf) != 0 && RssConf.replicateServerPort(conf) != 0),
+    "If enable graceful shutdown, the worker should use stable server port.")
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
   val workerSource = {
@@ -72,7 +77,7 @@ private[deploy] class Worker(
     source
   }
 
-  val localStorageManager = new LocalStorageManager(conf, workerSource)
+  val storageManager = new StorageManager(conf, workerSource)
 
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),
@@ -80,15 +85,10 @@ private[deploy] class Worker(
     workerResumeRatio(conf),
     partitionSortMaxMemoryRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
-    workerDirectMemoryReportIntervalSecond(conf),
-    memoryTrimActionThreshold(conf))
-  memoryTracker.registerMemoryListener(localStorageManager)
+    workerDirectMemoryReportIntervalSecond(conf))
+  memoryTracker.registerMemoryListener(storageManager)
 
-  val partitionsSorter = new PartitionFilesSorter(memoryTracker,
-    partitionSortTimeout(conf),
-    RssConf.workerFetchChunkSize(conf),
-    RssConf.memoryReservedForSingleSort(conf),
-    workerSource)
+  val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
@@ -96,7 +96,7 @@ private[deploy] class Worker(
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.push.io.threads", localStorageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.push.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
@@ -108,7 +108,8 @@ private[deploy] class Worker(
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.replicate.io.threads", localStorageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.replicate.io.threads",
+      storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE,
       numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
@@ -120,7 +121,7 @@ private[deploy] class Worker(
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.fetch.io.threads", localStorageManager.numDisks * 2)
+    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
@@ -136,10 +137,14 @@ private[deploy] class Worker(
   assert(fetchPort > 0)
   assert(replicatePort > 0)
 
-  localStorageManager.updateDiskInfos()
-  // WorkerInfo's diskInfos is a reference to localStorageManager.diskInfos
+  storageManager.updateDiskInfos()
+  // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
+  val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  storageManager.disksSnapshot().foreach{ case diskInfo =>
+    diskInfos.put(diskInfo.mountPoint, diskInfo)
+  }
   val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    localStorageManager.diskInfos, controller.self)
+    diskInfos, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)
@@ -185,25 +190,29 @@ private[deploy] class Worker(
   def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
-    shuffleKeys.addAll(localStorageManager.shuffleKeySet())
-    localStorageManager.updateDiskInfos()
+    shuffleKeys.addAll(storageManager.shuffleKeySet())
+    storageManager.updateDiskInfos()
+    val diskInfos = new JHashMap[String, DiskInfo]()
+    storageManager.disksSnapshot().foreach{ case diskInfo =>
+      diskInfos.put(diskInfo.mountPoint, diskInfo)
+    }
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
-        localStorageManager.diskInfos, shuffleKeys), classOf[HeartbeatResponse])
+        diskInfos, shuffleKeys), classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
-      logError("Worker not registered in master, clean all shuffle data and register again.")
+      logError("Worker not registered in master, clean expired shuffle data and register again.")
       // Clean all shuffle related metadata and data
-      cleanup(shuffleKeys)
+      cleanup(response.expiredShuffleKeys)
       try {
         registerWithMaster()
       } catch {
         case e: Throwable =>
           logError("Re-register worker failed after worker lost.", e)
           // Register failed then stop server
-          controller.stop()
+          System.exit(-1)
       }
     }
   }
@@ -276,7 +285,7 @@ private[deploy] class Worker(
     cleaner.start()
 
     rpcEnv.awaitTermination()
-    stop()
+    System.exit(0)
   }
 
   def stop(): Unit = {
@@ -296,10 +305,9 @@ private[deploy] class Worker(
     asyncReplyPool.shutdownNow()
     // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
-    partitionLocationInfo.close()
 
-    if (null != localStorageManager) {
-      localStorageManager.close()
+    if (null != storageManager) {
+      storageManager.close()
     }
 
     rssHARetryClient.close()
@@ -351,7 +359,7 @@ private[deploy] class Worker(
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
-    localStorageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
   def isRegistered(): Boolean = {
@@ -361,8 +369,26 @@ private[deploy] class Worker(
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
+        logInfo("Shutdown hook called.")
         shutdown.set(true)
-        // TODO: call stop after all reserved slot finished commit/destroy
+        if (gracefulShutdown) {
+          val interval = RssConf.checkSlotsFinishedInterval(conf)
+          val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
+          var waitTimes = 0
+
+          def waitTime: Long = waitTimes * interval
+
+          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+            Thread.sleep(interval)
+            waitTimes += 1
+          }
+          if (partitionLocationInfo.isEmpty) {
+            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+          } else {
+            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+              s"unreleased PartitionLocation: \n$partitionLocationInfo")
+          }
+        }
         stop()
       }
     }), WORKER_SHUTDOWN_PRIORITY)

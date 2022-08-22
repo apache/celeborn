@@ -160,6 +160,16 @@ public class MetaHandler {
           metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
+        case WorkerRemove:
+          host = request.getWorkerRemoveRequest().getHost();
+          rpcPort = request.getWorkerRemoveRequest().getRpcPort();
+          pushPort = request.getWorkerRemoveRequest().getPushPort();
+          fetchPort = request.getWorkerRemoveRequest().getFetchPort();
+          replicatePort = request.getWorkerRemoveRequest().getReplicatePort();
+          LOG.debug("Handle worker remove for {} {}", host, pushPort);
+          metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+          break;
+
         case WorkerHeartBeat:
           host = request.getWorkerHeartBeatRequest().getHost();
           rpcPort = request.getWorkerHeartBeatRequest().getRpcPort();

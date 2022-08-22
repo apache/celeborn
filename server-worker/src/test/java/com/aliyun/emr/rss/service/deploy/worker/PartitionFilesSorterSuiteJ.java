@@ -22,7 +22,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -36,11 +35,13 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
+import com.aliyun.emr.rss.common.util.Utils;
 
 import static org.mockito.Mockito.when;
 
 public class PartitionFilesSorterSuiteJ {
   private File shuffleFile;
+  private FileInfo fileInfo;
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
   private String originFileName;
   private long originFileLen;
@@ -53,6 +54,7 @@ public class PartitionFilesSorterSuiteJ {
     shuffleFile = File.createTempFile("RSS", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
+    fileInfo = new FileInfo(shuffleFile);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -84,14 +86,14 @@ public class PartitionFilesSorterSuiteJ {
       channel.write(ByteBuffer.wrap(mockedData));
     }
     originFileLen = channel.size();
+    fileInfo.getChunkOffsets().add(originFileLen);
     System.out.println(shuffleFile.getAbsolutePath() +
                          " filelen " + (double) originFileLen / 1024 / 1024.0 + "MB");
 
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10, 10);
+    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(fileWriter.getFileLength()).thenAnswer(i -> originFileLen);
-    when(fileWriter.getChunkOffsets()).thenAnswer(i -> new ArrayList<Integer>());
+    when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
   }
 
   public void clean() {
@@ -102,13 +104,13 @@ public class PartitionFilesSorterSuiteJ {
   public void testSmallFile() throws InterruptedException, IOException {
     prepare(false);
     RssConf conf = new RssConf();
-    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 5, 10);
+      fileWriter.getFileInfo(), 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
-    Assert.assertTrue(info.numChunks > 0);
+    Assert.assertTrue(info.numChunks() > 0);
     clean();
   }
 
@@ -117,13 +119,47 @@ public class PartitionFilesSorterSuiteJ {
   public void testLargeFile() throws InterruptedException, IOException {
     prepare(true);
     RssConf conf = new RssConf();
-    PartitionFilesSorter partitionFilesSorter = new PartitionFilesSorter(MemoryTracker.instance(),
-      sortTimeout, CHUNK_SIZE, 1024 * 1024, new WorkerSource(conf));
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info = partitionFilesSorter.openStream("application-1", originFileName,
-      fileWriter, 5, 10);
+      fileWriter.getFileInfo(), 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
-    Assert.assertTrue(info.numChunks > 0);
+    Assert.assertTrue(info.numChunks() > 0);
     clean();
+  }
+
+  @Test
+  public void testLevelDB() {
+    File recoverPath = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "recover_path");
+    RssConf conf = new RssConf();
+    conf.set("rss.worker.graceful.shutdown", "true");
+    conf.set("rss.worker.recoverPath", recoverPath.getPath());
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+    partitionFilesSorter.initSortedShuffleFiles("application-1-1");
+    partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-1");
+    partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-2");
+    partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-3");
+    partitionFilesSorter.initSortedShuffleFiles("application-2-1");
+    partitionFilesSorter.updateSortedShuffleFiles("application-2-1", "0-0-1");
+    partitionFilesSorter.updateSortedShuffleFiles("application-2-1", "0-0-2");
+    partitionFilesSorter.initSortedShuffleFiles("application-3-1");
+    partitionFilesSorter.updateSortedShuffleFiles("application-3-1", "0-0-1");
+    partitionFilesSorter.deleteSortedShuffleFiles("application-2-1");
+    partitionFilesSorter.close();
+    PartitionFilesSorter partitionFilesSorter2 =
+        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+    Assert.assertEquals(
+        partitionFilesSorter2.getSortedShuffleFiles("application-1-1").toString(),
+        "[0-0-3, 0-0-2, 0-0-1]");
+    Assert.assertEquals(
+        partitionFilesSorter2.getSortedShuffleFiles("application-2-1"),
+        null);
+    Assert.assertEquals(
+        partitionFilesSorter2.getSortedShuffleFiles("application-3-1").toString(),
+        "[0-0-1]");
+    partitionFilesSorter2.close();
+    recoverPath.delete();
   }
 }

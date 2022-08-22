@@ -17,6 +17,7 @@
 
 package com.aliyun.emr.rss.common
 
+import java.io.IOException
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
@@ -523,16 +524,8 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.filewriter.timeout", "120s")
   }
 
-  def noneEmptyDirExpireDurationMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "3d")
-  }
-
-  def noneEmptyDirCleanUpThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.expire.nonEmptyDir.cleanUp.threshold", 10)
-  }
-
-  def emptyDirExpireDurationMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.expire.emptyDir.duration", "2h")
+  def appExpireDurationMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
   /**
@@ -559,6 +552,9 @@ object RssConf extends Logging {
                   maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
                 case disktypeStr if disktypeStr.startsWith("disktype") =>
                   diskType = Type.valueOf(disktypeStr.split("=")(1))
+                  if (diskType == Type.MEMORY) {
+                    throw new IOException(s"Invalid disktype! $diskType")
+                  }
                 case threadCountStr if threadCountStr.startsWith("flushthread") =>
                   flushThread = threadCountStr.split("=")(1).toInt
               }
@@ -590,7 +586,7 @@ object RssConf extends Logging {
   }
 
   def diskMinimumReserveSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "10G"))
+    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "5G"))
   }
 
   /**
@@ -769,15 +765,6 @@ object RssConf extends Logging {
     conf.getInt("rss.create.file.writer.retry.count", 3)
   }
 
-  /**
-   * Be aware that [rss.disk.space.safe.watermark.size] cannot be set to fractional values
-   * @param conf rss config
-   * @return the watermark size in GB
-   */
-  def diskSpaceSafeFreeSizeInGb(conf: RssConf): Long = {
-    conf.getSizeAsGb("rss.disk.space.safe.free.size", "0GB")
-  }
-
   def workerStatusCheckTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.worker.status.check.timeout", "30s")
   }
@@ -817,6 +804,10 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
+  def partitionSplitMinimumSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.partition.split.minimum.size", "1m")
+  }
+
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
@@ -849,10 +840,6 @@ object RssConf extends Logging {
 
   def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
     conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
-  }
-
-  def memoryTrimActionThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.memory.trim.action.threshold", 10)
   }
 
   def workerPausePushDataRatio(conf: RssConf): Double = {
@@ -891,8 +878,28 @@ object RssConf extends Logging {
     }
   }
 
+  def checkSlotsFinishedInterval(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.checkSlots.interval", "1s")
+  }
+
+  def checkSlotsFinishedTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.checkSlots.timeout", "480s")
+  }
+
+  def workerGracefulShutdown(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.worker.graceful.shutdown", false)
+  }
+
   def shutdownTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.shutdown.timeout", "600s")
+    conf.getTimeAsMs("rss.worker.shutdown.timeout", "600s")
+  }
+
+  def workerRecoverPath(conf: RssConf): String = {
+    conf.get("rss.worker.recoverPath", s"${System.getProperty("java.io.tmpdir")}/recover")
+  }
+
+  def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTimeMs", "120s")
   }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {

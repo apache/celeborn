@@ -80,6 +80,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleWorkerRemove(String host, int rpcPort,
+      int pushPort, int fetchPort, int replicatePort, String requestId) {
+    updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+  }
+
+  @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
       int replicatePort, Map<String, DiskInfo> disks, long time, String requestId) {
     updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);

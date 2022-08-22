@@ -14,8 +14,9 @@ enum Type {
   WorkerLost = 17;
   WorkerHeartBeat = 18;
   RegisterWorker = 19;
-  ReportWorkerFailure = 20 ;
+  ReportWorkerFailure = 20;
   UpdatePartitionSize = 21;
+  WorkerRemove = 22;
 }
 
 message ResourceRequest {
@@ -32,6 +33,7 @@ message ResourceRequest {
   optional WorkerHeartBeatRequest workerHeartBeatRequest = 16;
   optional RegisterWorkerRequest registerWorkerRequest = 17;
   optional ReportWorkerFailureRequest reportWorkerFailureRequest = 18;
+  optional WorkerRemoveRequest workerRemoveRequest = 19;
 }
 
 message DiskInfo {
@@ -39,6 +41,7 @@ message DiskInfo {
   required int64 usableSpace = 2;
   required int64 avgFlushTime = 3;
   required int64 usedSlots = 4;
+  required int32 status = 5;
 }
 
 message RequestSlotsRequest {
@@ -73,6 +76,14 @@ message AppLostRequest {
 }
 
 message WorkerLostRequest {
+  required string host = 1;
+  required int32 rpcPort = 2;
+  required int32 pushPort = 3;
+  required int32 fetchPort = 4 ;
+  required int32 replicatePort = 5;
+}
+
+message WorkerRemoveRequest {
   required string host = 1;
   required int32 rpcPort = 2;
   required int32 pushPort = 3;

@@ -15,23 +15,22 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.common.meta;
 
-import java.io.File;
-import java.io.IOException;
+public enum DiskStatus {
+  Healthy(0),
+  ReadOrWriteFailure(1),
+  IoHang(2),
+  HighDiskUsage(3);
 
-import scala.collection.mutable.Buffer;
-import scala.collection.mutable.ListBuffer;
+  private final byte value;
 
-public abstract class DeviceObserver {
-  public void notifyError(String deviceName, ListBuffer<File> dirs,
-                          DeviceErrorType deviceErrorType) {}
-  public void notifyHealthy(ListBuffer<File> dirs) {}
+  DiskStatus(int value) {
+    assert (value >= 0 && value < 256);
+    this.value = (byte) value;
+  }
 
-  public void notifyHighDiskUsage(ListBuffer<File> dirs) {}
-
-  public void notifySlowFlush(ListBuffer<File> dirs) {}
-
-  public void reportError(Buffer<File> workingDir, IOException e,
-                          DeviceErrorType deviceErrorType) {}
+  public final byte getValue() {
+    return value;
+  }
 }

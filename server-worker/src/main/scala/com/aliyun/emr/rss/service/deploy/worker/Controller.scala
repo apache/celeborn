@@ -44,7 +44,7 @@ private[deploy] class Controller(
   extends RpcEndpoint with Logging {
 
   var workerSource: WorkerSource = _
-  var localStorageManager: LocalStorageManager = _
+  var storageManager: StorageManager = _
   var registered: AtomicBoolean = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
   var workerInfo: WorkerInfo = _
@@ -53,10 +53,11 @@ private[deploy] class Controller(
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
   val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimation(conf)
+  var shutdown: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
-    localStorageManager = worker.localStorageManager
+    storageManager = worker.storageManager
     registered = worker.registered
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     workerInfo = worker.workerInfo
@@ -64,6 +65,7 @@ private[deploy] class Controller(
     timer = worker.timer
     commitThreadPool = worker.commitThreadPool
     asyncReplyPool = worker.asyncReplyPool
+    shutdown = worker.shutdown
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -76,7 +78,7 @@ private[deploy] class Controller(
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
           slaveLocations, splitThreshold, splitMode, partitionType)
-        logDebug(s"ReserveSlots for $shuffleKey succeed.")
+        logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
     case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
@@ -111,7 +113,14 @@ private[deploy] class Controller(
       splitMode: PartitionSplitMode,
       partitionType: PartitionType): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    if (!localStorageManager.hasAvailableWorkingDirs) {
+    if (shutdown.get()) {
+      val msg = "Current worker is shutting down!"
+      logError(s"[handleReserveSlots] $msg")
+      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      return
+    }
+
+    if (storageManager.healthyWorkingDirs().size <= 0) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
@@ -121,7 +130,7 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
+        val writer = storageManager.createWriter(applicationId, shuffleId, location,
           splitThreshold, splitMode, partitionType)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
@@ -141,7 +150,7 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId,
+        val writer = storageManager.createWriter(applicationId, shuffleId,
           location, splitThreshold, splitMode, partitionType)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
