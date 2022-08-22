@@ -25,7 +25,7 @@ import com.aliyun.emr.rss.common.util.{IntParam, Utils}
 class WorkerArguments(args: Array[String], conf: RssConf) {
 
   var host = Utils.localHostName()
-  var port = RssConf.workerRPCPort(conf)
+  var port: Option[Int] = None
   // var master: String = null
   // for local testing.
   var master: String = null
@@ -35,6 +35,10 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
 
   propertiesFile = Utils.loadDefaultRssProperties(conf, propertiesFile)
 
+  if (port.isEmpty) {
+    port = Some(RssConf.workerRPCPort(conf))
+  }
+
   @tailrec
   private def parse(args: List[String]): Unit = args match {
     case ("--host" | "-h") :: value :: tail =>
@@ -43,7 +47,7 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
       parse(tail)
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
-      port = value
+      port = Some(value)
       parse(tail)
 
     case ("--properties-file") :: value :: tail =>

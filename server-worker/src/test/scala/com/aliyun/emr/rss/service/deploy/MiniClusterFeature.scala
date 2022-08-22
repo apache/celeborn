@@ -120,7 +120,7 @@ trait MiniClusterFeature extends Logging {
       RpcNameConstants.WORKER_SYS,
       workerArguments.host,
       workerArguments.host,
-      workerArguments.port,
+      workerArguments.port.getOrElse(0),
       conf,
       4
     )
