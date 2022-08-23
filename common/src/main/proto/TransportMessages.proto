@@ -26,8 +26,8 @@ enum MessageType {
   HEARTBEAT_FROM_APPLICATION = 20;
   GET_BLACKLIST = 21;
   GET_BLACKLIST_RESPONSE = 22;
-  GET_CLUSTER_LOAD_STATUS = 23;
-  GET_CLUSTER_LOAD_STATUS_RESPONSE = 24;
+  CHECK_ALIVE = 23;
+  CHECK_ALIVE_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
   REGISTER_WORKER_RESPONSE = 26;
   REREGISTER_WORKER_RESPONSE = 27;
@@ -254,12 +254,10 @@ message PbGetBlacklistResponse {
   repeated PbWorkerInfo unknownWorkers = 3;
 }
 
-message PbGetClusterLoadStatus {
-  int32 numPartitions = 1;
-}
+message PbCheckAlive {}
 
-message PbGetClusterLoadStatusResponse {
-  bool isOverload = 1;
+message PbCheckAliveResponse {
+  bool isAlive = 1;
 }
 
 message PbReportWorkerFailure {

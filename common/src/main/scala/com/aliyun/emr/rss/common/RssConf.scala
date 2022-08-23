@@ -700,10 +700,6 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.rpc.port", 0)
   }
 
-  def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
-  }
-
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
@@ -734,11 +730,15 @@ object RssConf extends Logging {
   }
 
   def maxPartitionNumSupported(conf: RssConf): Long = {
-    conf.getInt("rss.max.partition.number", 100000)
+    conf.getInt("rss.max.partition.number", 500000)
   }
 
   def forceFallback(conf: RssConf): Boolean = {
     conf.getBoolean("rss.force.fallback", false)
+  }
+
+  def clusterCheckAliveEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.cluster.checkalive.enabled", defaultValue = true)
   }
 
   def deviceMonitorEnabled(conf: RssConf): Boolean = {

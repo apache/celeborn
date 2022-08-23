@@ -291,15 +291,15 @@ sealed trait Message extends Serializable{
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
 
-      case GetClusterLoadStatus(numPartitions) =>
-        new TransportMessage(TransportMessages.MessageType.GET_CLUSTER_LOAD_STATUS,
-          PbGetClusterLoadStatus.newBuilder().setNumPartitions(numPartitions).build().toByteArray)
+      case CheckAlive =>
+        new TransportMessage(TransportMessages.MessageType.CHECK_ALIVE,
+          PbCheckAlive.newBuilder().build().toByteArray)
 
-      case GetClusterLoadStatusResponse(isOverload) =>
-        val payload = TransportMessages.PbGetClusterLoadStatusResponse.newBuilder()
-          .setIsOverload(isOverload)
+      case CheckAliveResponse(isAlive) =>
+        val payload = TransportMessages.PbCheckAliveResponse.newBuilder()
+          .setIsAlive(isAlive)
           .build().toByteArray
-        new TransportMessage(TransportMessages.MessageType.GET_CLUSTER_LOAD_STATUS_RESPONSE,
+        new TransportMessage(TransportMessages.MessageType.CHECK_ALIVE_RESPONSE,
           payload)
 
       case ReportWorkerFailure(failed, requestId) =>
@@ -604,9 +604,9 @@ object ControlMessages extends Logging{
   case class GetBlacklistResponse(statusCode: StatusCode,
       blacklist: util.List[WorkerInfo], unknownWorkers: util.List[WorkerInfo]) extends Message
 
-  case class GetClusterLoadStatus(numPartitions: Int) extends Message
+  case object CheckAlive extends Message
 
-  case class GetClusterLoadStatusResponse(isOverload: Boolean) extends Message
+  case class CheckAliveResponse(alive: Boolean) extends Message
 
   case class ReportWorkerFailure(
       failed: util.List[WorkerInfo],
@@ -858,14 +858,13 @@ object ControlMessages extends Logging{
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
             .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
-      case GET_CLUSTER_LOAD_STATUS =>
-        val pbGetClusterLoadStats = PbGetClusterLoadStatus.parseFrom(message.getPayload)
-        GetClusterLoadStatus(pbGetClusterLoadStats.getNumPartitions)
+      case CHECK_ALIVE =>
+        CheckAlive
 
-      case GET_CLUSTER_LOAD_STATUS_RESPONSE =>
-        val pbGetClusterLoadStatusResponse = PbGetClusterLoadStatusResponse
+      case CHECK_ALIVE_RESPONSE =>
+        val pbCheckAliveResponse = PbCheckAliveResponse
           .parseFrom(message.getPayload)
-        GetClusterLoadStatusResponse(pbGetClusterLoadStatusResponse.getIsOverload)
+        CheckAliveResponse(pbCheckAliveResponse.getIsAlive)
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
