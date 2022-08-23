@@ -30,7 +30,10 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import io.netty.buffer.{CompositeByteBuf, Unpooled}
+import io.netty.buffer.{ByteBufUtil, CompositeByteBuf, Unpooled}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream, Path}
+import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
 
 import com.aliyun.emr.rss.common.RssConf
@@ -64,6 +67,15 @@ private[worker] class LocalFlushTask(
     notifier: FileWriter.FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
     fileChannel.write(buffer.nioBuffers())
+  }
+}
+
+private[worker] class HdfsFlushTask(
+  buffer: CompositeByteBuf,
+  fsStream: FSDataOutputStream,
+  notifier: FileWriter.FlushNotifier) extends FlushTask(buffer, notifier) {
+  override def flush(): Unit = {
+    fsStream.write(ByteBufUtil.getBytes(buffer))
   }
 }
 
@@ -187,6 +199,22 @@ private[worker] abstract class Flusher(
 
   def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueue.size()}"
 
+  def stopAndCleanFlusher(): Unit = {
+    stopFlag.set(true)
+    try {
+      workers.foreach(_.interrupt())
+    } catch {
+      case e: Exception =>
+        logError(s"Exception when interrupt worker: ${workers.mkString(",")}, $e")
+    }
+    workingQueues.foreach { queue =>
+      queue.asScala.foreach { task =>
+        task.buffer.removeComponents(0, task.buffer.numComponents())
+        task.buffer.clear()
+      }
+    }
+  }
+
   def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit
 }
 
@@ -215,19 +243,7 @@ private[worker] class LocalFlusher(
   override def notifyError(mountPoint: String,
                            diskStatus: DiskStatus): Unit = {
     logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalFlusher.")
-    stopFlag.set(true)
-    try {
-      workers.foreach(_.interrupt())
-    } catch {
-      case e: Exception =>
-        logError(s"Exception when interrupt worker: ${workers.mkString(",")}, $e")
-    }
-    workingQueues.foreach { queue =>
-      queue.asScala.foreach { task =>
-        task.buffer.removeComponents(0, task.buffer.numComponents())
-        task.buffer.clear()
-      }
-    }
+    stopAndCleanFlusher()
     deviceMonitor.unregisterFlusher(this)
   }
 
@@ -242,6 +258,24 @@ private[worker] class LocalFlusher(
 
   override def toString(): String = {
     s"LocalFlusher@$flusherId-$mountPoint"
+  }
+}
+
+private[worker] final class HdfsFlusher(
+    workerSource: AbstractSource,
+    threadCount: Int,
+    flushAvgTimeWindowSize: Int,
+    flushAvgTimeMinimumCount: Int) extends Flusher(
+      workerSource,
+      threadCount,
+      flushAvgTimeWindowSize,
+      flushAvgTimeMinimumCount) with Logging {
+
+  override def toString: String = s"HdfsFlusher@$flusherId"
+
+  override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
+    stopAndCleanFlusher()
+    logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
   }
 }
 
@@ -275,8 +309,6 @@ private[worker] final class StorageManager(
 
   def healthyWorkingDirs(): List[File] =
     disksSnapshot().filter(_.status == DiskStatus.Healthy).flatMap(_.dirs)
-
-  val writerFlushBufferSize: Long = RssConf.workerFlushBufferSize(conf)
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = new ConcurrentHashMap[String, ThreadPoolExecutor]()
@@ -319,6 +351,24 @@ private[worker] final class StorageManager(
 
   deviceMonitor.startCheck()
 
+  val hdfsDir = RssConf.hdfsDir(conf)
+  var hdfsFs: FileSystem = _
+  val hdfsPermission = FsPermission.createImmutable(755)
+  val hdfsWriters = new util.ArrayList[FileWriter]()
+  val hdfsFlusher = if (!hdfsDir.isEmpty) {
+    val hdfsConfiguration = new Configuration
+    hdfsConfiguration.set("fs.defaultFS", hdfsDir)
+    hdfsConfiguration.set("dfs.replication", "1")
+    hdfsFs = FileSystem.get(hdfsConfiguration)
+    Some(new HdfsFlusher(
+      workerSource,
+      RssConf.hdfsFlusherThreadCount(conf),
+      RssConf.flushAvgTimeWindow(conf),
+      RssConf.flushAvgTimeMinimumCount(conf)))
+  } else {
+    None
+  }
+
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.IoHang) {
       logInfo("IoHang, remove disk operator")
@@ -335,8 +385,6 @@ private[worker] final class StorageManager(
         ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${mountPoint}", 1))
     }
   }
-
-  private val fetchChunkSize = RssConf.workerFetchChunkSize(conf)
 
   private val counter = new AtomicInteger()
   private val counterOperator = new IntUnaryOperator() {
@@ -444,50 +492,68 @@ private[worker] final class StorageManager(
           " working dirs. diskInfo $diskInfo")
         healthyWorkingDirs()
       }
-      if (dirs.isEmpty) {
+      if (dirs.isEmpty && hdfsFlusher.isEmpty) {
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
-      val index = getNextIndex()
-      val dir = dirs(index % dirs.size)
-      val shuffleDir = new File(dir, s"$appId/$shuffleId")
-      val file = new File(shuffleDir, fileName)
-      val mountPoint = DeviceInfo.getMountPoint(file.getAbsolutePath, mountPoints)
-
-      try {
-        shuffleDir.mkdirs()
-        val createFileSuccess = file.createNewFile()
-        if (!createFileSuccess) {
-          throw new RssException("create app shuffle data dir or file failed!" +
-            s"${file.getAbsolutePath}")
-        }
-        val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
-        val fileInfo = new FileInfo(file)
-        val fileWriter = new FileWriter(
+      val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
+      if (dirs.isEmpty) {
+        FileSystem.mkdirs(hdfsFs, new Path(s"$hdfsDir/$appId/$shuffleId"), hdfsPermission)
+        val fileInfo = new FileInfo(FileSystem.create(hdfsFs,
+          new Path(s"$hdfsDir/$appId/$shuffleId/$fileName"), hdfsPermission))
+        val hdfsWriter = new FileWriter(
           fileInfo,
-          localFlushers.get(mountPoint),
-          fetchChunkSize,
-          writerFlushBufferSize,
+          hdfsFlusher.get,
           workerSource,
           conf,
           deviceMonitor,
           splitThreshold,
           splitMode,
           partitionType)
-        deviceMonitor.registerFileWriter(fileWriter)
-        val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
-        list.synchronized {list.add(fileWriter)}
-        fileWriter.registerDestroyHook(list)
-        val shuffleMap = fileInfos.computeIfAbsent(shuffleKey, newMapFunc)
-        shuffleMap.put(fileName, fileInfo)
-        location.getStorageHint.setMountPoint(mountPoint)
-        logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
-        return fileWriter
-      } catch {
-        case t: Throwable =>
-          logError("Create Writer failed, report to DeviceMonitor", t)
-          exception = new IOException(t)
-          deviceMonitor.reportDeviceError(mountPoint, exception,
-            DiskStatus.ReadOrWriteFailure)
+        fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
+        hdfsWriters.synchronized {
+          hdfsWriters.add(hdfsWriter)
+        }
+        hdfsWriter.registerDestroyHook(hdfsWriters)
+        return hdfsWriter
+      } else {
+        val dir = dirs(getNextIndex() % dirs.size)
+        val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
+        val shuffleDir = new File(dir, s"$appId/$shuffleId")
+        val file = new File(shuffleDir, fileName)
+        try {
+          shuffleDir.mkdirs()
+          val createFileSuccess = file.createNewFile()
+          if (!createFileSuccess) {
+            throw new RssException("create app shuffle data dir or file failed!" +
+              s"${file.getAbsolutePath}")
+          }
+          val fileInfo = new FileInfo(file)
+          val fileWriter = new FileWriter(
+            fileInfo,
+            localFlushers.get(mountPoint),
+            workerSource,
+            conf,
+            deviceMonitor,
+            splitThreshold,
+            splitMode,
+            partitionType)
+          deviceMonitor.registerFileWriter(fileWriter)
+          val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
+          list.synchronized {
+            list.add(fileWriter)
+          }
+          fileWriter.registerDestroyHook(list)
+          fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
+          location.getStorageHint.setMountPoint(mountPoint)
+          logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
+          return fileWriter
+        } catch {
+          case t: Throwable =>
+            logError("Create Writer failed, report to DeviceMonitor", t)
+            exception = new IOException(t)
+            deviceMonitor.reportDeviceError(mountPoint, exception,
+              DiskStatus.ReadOrWriteFailure)
+        }
       }
       retryCount += 1
     }

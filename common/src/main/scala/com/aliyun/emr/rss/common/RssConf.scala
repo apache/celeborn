@@ -492,8 +492,8 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
-  def workerFetchChunkSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
+  def chunkSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.chunk.size", "8m")
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {
@@ -918,6 +918,14 @@ object RssConf extends Logging {
 
   def flushAvgTimeMinimumCount(conf: RssConf): Int = {
     conf.getInt("rss.flusher.avg.time.minimum.count", 1000);
+  }
+
+  def hdfsDir(conf: RssConf): String = {
+    conf.get("rss.worker.hdfs.dir", "")
+  }
+
+  def hdfsFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

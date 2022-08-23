@@ -81,7 +81,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
-    this.fetchChunkSize = RssConf.workerFetchChunkSize(conf);
+    this.fetchChunkSize = RssConf.chunkSize(conf);
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
