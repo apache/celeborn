@@ -298,20 +298,8 @@
         <version>${hadoop.version}</version>
         <exclusions>
           <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-mapreduce-client-app</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-yarn-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-mapreduce-client-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+            <groupId>org.fusesource.leveldbjni</groupId>
+            <artifactId>leveldbjni-all</artifactId>
           </exclusion>
           <exclusion>
             <groupId>asm</groupId>
@@ -327,6 +315,10 @@
           </exclusion>
           <exclusion>
             <groupId>org.jboss.netty</groupId>
+            <artifactId>netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
             <artifactId>netty</artifactId>
           </exclusion>
           <exclusion>
@@ -369,6 +361,19 @@
           <exclusion>
             <groupId>net.java.dev.jets3t</groupId>
             <artifactId>jets3t</artifactId>
+          </exclusion>
+          <!-- Hadoop-3.2 -->
+          <exclusion>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>jsr311-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.thoughtworks.paranamer</groupId>
+            <artifactId>paranamer</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -790,23 +795,16 @@
     </profile>
 
     <profile>
-      <id>hadoop-2.6</id>
-      <properties>
-        <hadoop.version>2.6.5</hadoop.version>
-      </properties>
-    </profile>
-
-    <profile>
       <id>hadoop-2.7</id>
       <properties>
-        <hadoop.version>2.7.3</hadoop.version>
+        <hadoop.version>2.7.4</hadoop.version>
       </properties>
     </profile>
 
     <profile>
-      <id>hadoop-3.1</id>
+      <id>hadoop-3.3</id>
       <properties>
-        <hadoop.version>3.1.0</hadoop.version>
+        <hadoop.version>3.3.1</hadoop.version>
       </properties>
     </profile>
   </profiles>
