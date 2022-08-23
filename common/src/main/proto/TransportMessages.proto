@@ -254,14 +254,6 @@ message PbGetBlacklistResponse {
   repeated PbWorkerInfo unknownWorkers = 3;
 }
 
-message PbGetClusterLoadStatus {
-  int32 numPartitions = 1;
-}
-
-message PbGetClusterLoadStatusResponse {
-  bool isOverload = 1;
-}
-
 message PbReportWorkerFailure {
   repeated PbWorkerInfo failed = 1;
   string requestId = 2;
