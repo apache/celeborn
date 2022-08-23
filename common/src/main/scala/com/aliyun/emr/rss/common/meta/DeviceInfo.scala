@@ -86,7 +86,7 @@ class DiskInfo(
     if (allocated > slots) {
       shuffleAllocations.put(shuffleKey, allocated - slots)
     } else {
-      shuffleAllocations.remove(shuffleKey)
+      shuffleAllocations.put(shuffleKey, 0)
     }
   }
 
@@ -97,14 +97,22 @@ class DiskInfo(
     }
   }
 
-  override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
-    s" shuffleAllocations: $shuffleAllocations," +
-    s" mountPoint: $mountPoint," +
-    s" usableSpace: $actualUsableSpace," +
-    s" avgFlushTime: $avgFlushTime," +
-    s" activeSlots: $activeSlots)" +
-    s" status: $status" +
-    s" dirs ${dirs.mkString("\t")}"
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    new util.HashSet(shuffleAllocations.keySet())
+  }
+
+  override def toString: String = this.synchronized {
+    val (emptyShuffles, nonEmptyShuffles) = shuffleAllocations.asScala.partition(_._2 == 0)
+    s"DiskInfo(maxSlots: $maxSlots," +
+      s" committed shuffles ${emptyShuffles.size}" +
+      s" shuffleAllocations: $nonEmptyShuffles," +
+      s" mountPoint: $mountPoint," +
+      s" usableSpace: $actualUsableSpace," +
+      s" avgFlushTime: $avgFlushTime," +
+      s" activeSlots: $activeSlots)" +
+      s" status: $status" +
+      s" dirs ${dirs.mkString("\t")}"
+  }
 }
 
 class DeviceInfo(val name: String) extends Serializable {

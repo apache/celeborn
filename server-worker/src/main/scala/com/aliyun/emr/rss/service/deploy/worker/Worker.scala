@@ -177,8 +177,8 @@ private[deploy] class Worker(
   var cleaner: Thread = _
 
   workerSource.addGauge(
-    WorkerSource.RegisteredShuffleCount, _ => partitionLocationInfo.shuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.SlotsUsed, _ => workerInfo.usedSlots())
+    WorkerSource.RegisteredShuffleCount, _ => workerInfo.getShuffleKeySet.size())
+  workerSource.addGauge(WorkerSource.SlotsAllocated, _ => workerInfo.allocationsInLastHour())
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())

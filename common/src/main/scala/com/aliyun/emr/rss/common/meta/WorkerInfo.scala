@@ -69,6 +69,14 @@ class WorkerInfo(
     )
   }
 
+  val allocationBuckets = new Array[Int](61)
+  var bucketIndex = 0
+  var bucketTime = System.currentTimeMillis()
+  var bucketAllocations = 0
+  0 until allocationBuckets.length foreach { case idx =>
+    allocationBuckets(idx) = 0
+  }
+
   def isActive: Boolean = {
     endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
   }
@@ -81,6 +89,7 @@ class WorkerInfo(
   def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
     this.synchronized {
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
+      var totalSlots = 0
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
         if (!diskInfos.containsKey(disk)) {
           logDebug(s"Unknown disk $disk")
@@ -92,7 +101,16 @@ class WorkerInfo(
         } else {
           diskInfos.get(disk).allocateSlots(shuffleKey, slots)
         }
+        totalSlots += slots
       }
+
+      val current = System.currentTimeMillis()
+      if (current - bucketTime > 60 * 1000) {
+        bucketIndex = (bucketIndex + 1) % allocationBuckets.length
+        allocationBuckets(bucketIndex) = 0
+        bucketTime = current
+      }
+      allocationBuckets(bucketIndex) = allocationBuckets(bucketIndex) + totalSlots
     }
 
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
@@ -110,6 +128,22 @@ class WorkerInfo(
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
     diskInfos.asScala.foreach(_._2.releaseSlots(shuffleKey))
     unknownDiskSlots.remove(shuffleKey)
+  }
+
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    val shuffleKeySet = new util.HashSet[String]()
+    diskInfos.values().asScala.foreach { diskInfo =>
+      shuffleKeySet.addAll(diskInfo.getShuffleKeySet())
+    }
+    shuffleKeySet
+  }
+
+  def allocationsInLastHour(): Int = this.synchronized {
+    var total = 0
+    1 to 60 foreach { case delta =>
+      total += allocationBuckets((bucketIndex + delta) % allocationBuckets.length)
+    }
+    total
   }
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
