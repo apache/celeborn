@@ -173,12 +173,16 @@ private[deploy] class Controller(
 
     logDebug(s"allocate slots ${masterLocations.asScala.map(_.toString).mkString(",")}" +
       s"  ,  ${slaveLocations.asScala.map(_.toString).mkString(",")} ")
+
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
-    logInfo(
-      s"Reserved ${masterPartitions.size()} master location" +
-        s" and ${slavePartitions.size()} slave location for $shuffleKey " +
-        s"master: $masterPartitions\nslave: $slavePartitions."
-    )
+
+    if (log.isDebugEnabled()) {
+      logDebug(
+        s"Reserved ${masterPartitions.size()} master location" +
+          s" and ${slavePartitions.size()} slave location for $shuffleKey " +
+          s"master: $masterPartitions\nslave: $slavePartitions."
+      )
+    }
     context.reply(ReserveSlotsResponse(StatusCode.Success))
   }
 

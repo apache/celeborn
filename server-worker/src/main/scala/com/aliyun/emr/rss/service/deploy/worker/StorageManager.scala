@@ -140,7 +140,10 @@ private[worker] abstract class Flusher(
   }
 
   def averageFlushTime(): Long = {
-    logInfo(s"flushCount $flushCount")
+    if (this.isInstanceOf[LocalFlusher]) {
+      logInfo(s"Flush count in ${this.asInstanceOf[LocalFlusher].mountPoint}" +
+        s" last heartbeat interval: $flushCount")
+    }
     val currentFlushTime = flushTotalTime.sumThenReset()
     val currentFlushCount = flushCount.sumThenReset()
     if (currentFlushCount >= flushAvgTimeMinimumCount) {
@@ -576,9 +579,9 @@ private[worker] final class StorageManager(
         }
       }
       if (deleteSuccess) {
-        logInfo(s"Deleted expired app dirs $file.")
+        logDebug(s"Deleted expired shuffle file $file.")
       } else {
-        logWarning(s"Delete expired app dirs $file failed.")
+        logWarning(s"Failed to delete expired shuffle file $file.")
       }
     }
   }
