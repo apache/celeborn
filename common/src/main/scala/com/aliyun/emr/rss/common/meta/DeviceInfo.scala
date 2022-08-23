@@ -97,6 +97,10 @@ class DiskInfo(
     }
   }
 
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    new util.HashSet(shuffleAllocations.keySet())
+  }
+
   override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
     s" shuffleAllocations: $shuffleAllocations," +
     s" mountPoint: $mountPoint," +

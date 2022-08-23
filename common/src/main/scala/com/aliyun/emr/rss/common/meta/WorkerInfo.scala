@@ -112,6 +112,14 @@ class WorkerInfo(
     unknownDiskSlots.remove(shuffleKey)
   }
 
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    val shuffleKeySet = new util.HashSet[String]()
+    diskInfos.values().asScala.foreach { diskInfo =>
+      shuffleKeySet.addAll(diskInfo.getShuffleKeySet())
+    }
+    shuffleKeySet
+  }
+
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
     rpcPort == other.rpcPort &&
       pushPort == other.pushPort &&
