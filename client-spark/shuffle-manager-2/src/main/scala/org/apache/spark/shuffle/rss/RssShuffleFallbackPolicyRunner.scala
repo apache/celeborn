@@ -25,7 +25,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 
 class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
-  private lazy val essConf = RssShuffleManager.fromSparkConf(sparkConf)
+  private lazy val rssConf = RssShuffleManager.fromSparkConf(sparkConf)
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
@@ -36,7 +36,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * if rss.force.fallback is true, fallback to external shuffle
    * @return return rss.force.fallback
    */
-  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(essConf)
+  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(rssConf)
 
   /**
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
@@ -44,7 +44,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * @return return if shuffle partitions bigger than limit
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = RssConf.maxPartitionNumSupported(essConf)
+    val confNumPartitions = RssConf.maxPartitionNumSupported(rssConf)
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
       logInfo(s"Shuffle num of partitions: $numPartitions" +
@@ -60,7 +60,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    */
   def applyClusterLoadFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int):
     Boolean = {
-    if (!RssConf.clusterLoadFallbackEnabled(essConf)) {
+    if (!RssConf.clusterLoadFallbackEnabled(rssConf)) {
       return false
     }
 
