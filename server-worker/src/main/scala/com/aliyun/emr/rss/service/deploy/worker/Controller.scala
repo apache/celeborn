@@ -171,14 +171,13 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
 
-    logDebug(s"allocate slots ${masterLocations.asScala.map(_.toString).mkString(",")}" +
-      s"  ,  ${slaveLocations.asScala.map(_.toString).mkString(",")} ")
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
-    logInfo(
-      s"Reserved ${masterPartitions.size()} master location" +
-        s" and ${slavePartitions.size()} slave location for $shuffleKey " +
-        s"master: $masterPartitions\nslave: $slavePartitions."
-    )
+
+    logInfo(s"Reserved ${masterPartitions.size()} master location" +
+        s" and ${slavePartitions.size()} slave location for $shuffleKey ")
+    if (log.isDebugEnabled()) {
+      logDebug(s"master: $masterPartitions\nslave: $slavePartitions.")
+    }
     context.reply(ReserveSlotsResponse(StatusCode.Success))
   }
 

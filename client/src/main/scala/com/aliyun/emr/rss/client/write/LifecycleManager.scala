@@ -585,12 +585,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int): Unit = {
-    logDebug(s"Wait for StageEnd, $shuffleId.")
     var timeout = stageEndTimeout
     val delta = 100
     while (!stageEndShuffleSet.contains(shuffleId)) {
       Thread.sleep(delta)
-      logInfo("[handleGetReducerFileGroup] Waiting for handleStageEnd complete...")
       if (timeout <= 0) {
         logError(s"StageEnd Timeout! $shuffleId.")
         context.reply(
@@ -599,6 +597,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
       timeout = timeout - delta
     }
+    logInfo("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
+      s" ${stageEndTimeout - timeout}ms")
 
     if (dataLostShuffleSet.contains(shuffleId)) {
       context.reply(
@@ -795,12 +795,14 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       var timeout = stageEndTimeout
       val delta = 100
       while (!stageEndShuffleSet.contains(shuffleId) && timeout > 0) {
-        logInfo("[handleUnregisterShuffle] Waiting for handleStageEnd complete...")
         Thread.sleep(delta)
         timeout = timeout - delta
       }
       if (timeout <= 0) {
         logError(s"StageEnd Timeout! $shuffleId.")
+      } else {
+        logInfo("[handleUnregisterShuffle] Wait for handleStageEnd complete cost" +
+          s" ${stageEndTimeout - timeout}ms")
       }
     }
 
