@@ -357,13 +357,13 @@ private[worker] final class StorageManager(
     hdfsConfiguration.set("fs.defaultFS", hdfsDir)
     hdfsConfiguration.set("dfs.replication", "1")
     hdfsFs = FileSystem.get(hdfsConfiguration)
-    Option.apply(new HdfsFlusher(
+    Some(new HdfsFlusher(
       workerSource,
       RssConf.hdfsFlusherThreadCount(conf),
       RssConf.flushAvgTimeWindow(conf),
       RssConf.flushAvgTimeMinimumCount(conf)))
   } else {
-    Option.empty[HdfsFlusher]
+    None
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {

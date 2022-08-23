@@ -23,6 +23,10 @@ jobs:
           - '3.1'
           - '3.2'
           - '3.3'
+        hadoop:
+          - '2.6'
+          - '2.7'
+          - '3.1'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
@@ -33,10 +37,10 @@ jobs:
         cache: maven
         check-latest: false
     - name: Build with Maven
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 install -DskipTests
+      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 -Phadoop-${{ matrix.hadoop }} install -DskipTests
     - name: Check Java Code Style
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 checkstyle:check
+      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 -Phadoop-${{ matrix.hadoop }} checkstyle:check
     - name: Check Scale Code Style
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 scalastyle:check
+      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 -Phadoop-${{ matrix.hadoop }} scalastyle:check
     - name: Unit Test
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 test
+      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 -Phadoop-${{ matrix.hadoop }} test

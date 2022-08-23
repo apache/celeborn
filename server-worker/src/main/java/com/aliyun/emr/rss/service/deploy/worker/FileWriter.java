@@ -53,8 +53,8 @@ public final class FileWriter implements DeviceObserver {
   private static final long WAIT_INTERVAL_MS = 20;
 
   private final FileInfo fileInfo;
-  private final FileChannel channel;
-  private final FSDataOutputStream stream;
+  private FileChannel channel;
+  private FSDataOutputStream stream;
   private volatile boolean closed;
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
@@ -123,7 +123,7 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.chunkSize = RssConf.workerFetchChunkSize(rssConf);
+    this.chunkSize = RssConf.chunkSize(rssConf);
     this.nextBoundary = this.chunkSize;
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
     this.splitThreshold = splitThreshold;
@@ -133,9 +133,7 @@ public final class FileWriter implements DeviceObserver {
     this.partitionType = partitionType;
     if (fileInfo.file != null) {
       channel = new FileOutputStream(fileInfo.file).getChannel();
-      stream = null;
     } else {
-      channel = null;
       stream = fileInfo.fsDataOutputStream;
     }
     source = workerSource;
@@ -166,8 +164,7 @@ public final class FileWriter implements DeviceObserver {
     FlushTask task = null;
     if (channel != null) {
       task = new LocalFlushTask(flushBuffer, channel, notifier);
-    }
-    if (stream != null) {
+    } else if (stream != null) {
       task = new HdfsFlushTask(flushBuffer, stream, notifier);
     }
     addTask(task);
@@ -264,7 +261,6 @@ public final class FileWriter implements DeviceObserver {
           channel.close();
         }
         if (stream != null) {
-          stream.flush();
           stream.close();
         }
       } catch (IOException e) {

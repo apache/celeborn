@@ -492,8 +492,8 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
-  def workerFetchChunkSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
+  def chunkSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.chunk.size", "8m")
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {

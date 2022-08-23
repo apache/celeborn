@@ -70,8 +70,7 @@
     <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>2.4.3</maven.plugin.shade.version>
     <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
-    <!-- spark 2.4 oldest hadoop version is 2.6.5    -->
-    <hadoop.version>2.6.5</hadoop.version>
+
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <build.testJarPhase>prepare-package</build.testJarPhase>
   </properties>
@@ -217,11 +216,6 @@
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-tags_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
       </dependency>
@@ -302,8 +296,23 @@
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-client</artifactId>
         <version>${hadoop.version}</version>
-        <scope>provided</scope>
         <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-app</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-yarn-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>asm</groupId>
             <artifactId>asm</artifactId>
@@ -778,6 +787,27 @@
           <artifactId>log4j-1.2-api</artifactId>
         </dependency>
       </dependencies>
+    </profile>
+
+    <profile>
+      <id>hadoop-2.6</id>
+      <properties>
+        <hadoop.version>2.6.5</hadoop.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>hadoop-2.7</id>
+      <properties>
+        <hadoop.version>2.7.3</hadoop.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>hadoop-3.1</id>
+      <properties>
+        <hadoop.version>3.1.0</hadoop.version>
+      </properties>
     </profile>
   </profiles>
 </project>
