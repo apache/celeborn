@@ -64,7 +64,6 @@ Here is an example of grafana dashboard importing.
 |        MetricName         |       Role        |                                                  Description                                                   |
 |:-------------------------:|:-----------------:|:--------------------------------------------------------------------------------------------------------------:|
 |        WorkerCount        |      master       |                                          The count of active workers.                                          |
-|    OverloadWorkerCount    |      master       |                                        The count of overloaded workers.                                        |
 |  BlacklistedWorkerCount   |      master       |                                       The count of workers in blacklist.                                       |
 |      OfferSlotsTime       |      master       |                                            The time of offer slots.                                            |
 |       PartitionSize       |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.          |
