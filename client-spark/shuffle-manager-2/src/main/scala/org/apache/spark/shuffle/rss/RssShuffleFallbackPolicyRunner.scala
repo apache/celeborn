@@ -61,7 +61,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
   def checkAlive(lifecycleManager: LifecycleManager):
     Boolean = {
     if (!RssConf.clusterCheckAliveEnabled(rssConf)) {
-      return false
+      return true
     }
 
     val alive = lifecycleManager.checkAlive()

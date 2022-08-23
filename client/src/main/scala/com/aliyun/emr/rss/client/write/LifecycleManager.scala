@@ -1308,7 +1308,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync Cluster Load Status failed.", e)
-        true
+        false
     }
   }
 
