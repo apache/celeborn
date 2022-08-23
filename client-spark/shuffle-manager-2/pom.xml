@@ -34,6 +34,12 @@
             <groupId>com.aliyun.emr</groupId>
             <artifactId>common</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>hadoop-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.aliyun.emr</groupId>
@@ -126,10 +132,6 @@
                                     <pattern>io.netty</pattern>
                                     <shadedPattern>com.aliyun.emr.io.netty</shadedPattern>
                                 </relocation>
-                                <relocation>
-                                    <pattern>org.apache.hadoop</pattern>
-                                    <shadedPattern>com.aliyun.emr.org.apache.hadoop</shadedPattern>
-                                </relocation>
                             </relocations>
                             <artifactSet>
                                 <includes>
@@ -142,7 +144,6 @@
                                     <include>com.google.protobuf:protobuf-java</include>
                                     <include>com.google.guava:guava</include>
                                     <include>io.netty:*</include>
-                                    <include>org.apache.hadoop:*</include>
                                 </includes>
                             </artifactSet>
                             <filters>

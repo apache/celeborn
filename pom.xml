@@ -795,16 +795,5 @@
         </dependency>
       </dependencies>
     </profile>
-
-    <profile>
-      <id>hadoop-2.7</id>
-      <properties>
-        <hadoop.version>2.7.4</hadoop.version>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>hadoop-3.3</id>
-    </profile>
   </profiles>
 </project>
