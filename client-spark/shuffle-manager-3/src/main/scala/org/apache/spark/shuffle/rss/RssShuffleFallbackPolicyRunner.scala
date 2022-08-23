@@ -29,7 +29,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-       checkAlive(lifecycleManager)
+       !checkAlive(lifecycleManager)
   }
 
   /**
