@@ -569,11 +569,11 @@
       "targets": [
         {
           "datasource": "${DS_PROMETHEUS}",
-          "expr": "metrics_SlotsUsed_Value",
+          "expr": "metrics_SlotsAllocated_Value",
           "refId": "A"
         }
       ],
-      "title": "metrics_SlotsUsed_Value",
+      "title": "metrics_SlotsAllocated_Value",
       "type": "timeseries"
     },
     {

@@ -119,10 +119,6 @@ private[deploy] class Master(
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
-    // worker slots used count
-    source.addGauge(MasterSource.WorkerSlotsUsedCount,
-      _ => workersSnapShot.asScala.map(_.usedSlots()).sum)
 
     source.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
     // is master active under HA mode
