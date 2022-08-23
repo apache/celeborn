@@ -59,6 +59,8 @@
     <scalamock.version>5.1.0</scalamock.version>
     <scalatest.version>3.2.3</scalatest.version>
     <slf4j.version>1.7.16</slf4j.version>
+    <!--  default hadoop version  -->
+    <hadoop.version>3.3.1</hadoop.version>
 
     <maven.plugin.checkstyle.version>3.0.0</maven.plugin.checkstyle.version>
     <maven.plugin.git.version>4.9.10</maven.plugin.git.version>
@@ -803,9 +805,6 @@
 
     <profile>
       <id>hadoop-3.3</id>
-      <properties>
-        <hadoop.version>3.3.1</hadoop.version>
-      </properties>
     </profile>
   </profiles>
 </project>
