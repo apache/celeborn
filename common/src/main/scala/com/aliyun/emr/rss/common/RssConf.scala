@@ -700,6 +700,10 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.rpc.port", 0)
   }
 
+  def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
+  }
+
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
@@ -790,6 +794,10 @@ object RssConf extends Logging {
 
   def haStorageDir(conf: RssConf): String = {
     conf.get(HA_RATIS_STORAGE_DIR, HA_RATIS_STORAGE_DIR_DEFAULT)
+  }
+
+  def clusterSlotsUsageLimitPercent(conf: RssConf): Double = {
+    conf.getDouble("rss.slots.usage.overload.percent", 0.95)
   }
 
   def partitionSplitThreshold(conf: RssConf): Long = {
