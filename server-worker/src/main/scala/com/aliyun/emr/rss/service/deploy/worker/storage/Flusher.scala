@@ -19,8 +19,8 @@ package com.aliyun.emr.rss.service.deploy.worker.storage
 
 import java.io.IOException
 import java.nio.channels.ClosedByInterruptException
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray, LongAdder}
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
