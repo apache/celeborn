@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,6 +36,7 @@ import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.Utils;
+import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 import static org.mockito.Mockito.when;
 
