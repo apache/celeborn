@@ -528,6 +528,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
+  def workingDirName(conf: RssConf): String = {
+    conf.get("rss.worker.workingDirName", "hadoop/rss-worker/shuffle_data")
+  }
+
   /**
    *
    * @param conf
@@ -927,8 +931,6 @@ object RssConf extends Logging {
   def hdfsFlusherThreadCount(conf: RssConf): Int = {
     conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
   }
-
-  val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can
   // add "rss.ha.service.ids" each for one raft group
