@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 
 import io.netty.channel.ChannelFuture
 import org.apache.commons.lang3.RandomStringUtils
-import org.junit.{Assert, Test}
+import org.junit.{Assert, BeforeClass, Test}
 
 import com.aliyun.emr.rss.client.ShuffleClientImpl
 import com.aliyun.emr.rss.client.compress.Compressor.CompressionMode
@@ -35,7 +35,6 @@ class ClusterReadWriteTest extends MiniClusterFeature {
   @Test
   def testMiniCluster(): Unit = {
     CompressionMode.values().foreach { mode =>
-      setUpMiniCluster()
 
       val APP = "app-1"
 
@@ -95,5 +94,12 @@ class ClusterReadWriteTest extends MiniClusterFeature {
       shuffleClient.shutDown()
       metaSystem.rpcEnv.shutdown()
     }
+  }
+}
+
+object ClusterReadWriteTest extends MiniClusterFeature {
+  @BeforeClass
+  def beforeAll(): Unit = {
+    setUpMiniCluster()
   }
 }

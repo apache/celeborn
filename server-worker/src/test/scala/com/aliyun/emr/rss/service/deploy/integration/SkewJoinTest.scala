@@ -21,7 +21,7 @@ class SkewJoinTest extends SparkTestBase {
 
   @Test
   def test(): Unit = {
-    for(mode <- CompressionMode.values()) {
+    CompressionMode.values().foreach { mode =>
 
       val sparkConf = new SparkConf().setAppName("rss-demo")
         .setMaster("local[4]")
