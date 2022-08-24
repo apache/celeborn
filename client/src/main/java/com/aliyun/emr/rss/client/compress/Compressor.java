@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.client.compress;
 
+import com.aliyun.emr.rss.common.RssConf;
+
 public interface Compressor {
 
   void initCompressBuffer(int maxDestLength);
@@ -34,12 +36,15 @@ public interface Compressor {
     buf[off++] = (byte) (i >>> 24);
   }
 
-  static Compressor getCompressorByMode(String mode, int blockSize) {
+  static Compressor getCompressor(RssConf conf) {
+    String mode = RssConf.compressionMode(conf);
+    int blockSize = RssConf.pushDataBufferSize(conf);
+    int zstdLevel = RssConf.zstdCompressLevel(conf);
     switch (mode) {
       case "LZ4":
         return new RssLz4Compressor(blockSize);
       case "ZSTD":
-        return new RssZstdCompressor(blockSize);
+        return new RssZstdCompressor(blockSize, zstdLevel);
       default:
         throw new IllegalArgumentException("Unknown compression mode: " + mode);
     }

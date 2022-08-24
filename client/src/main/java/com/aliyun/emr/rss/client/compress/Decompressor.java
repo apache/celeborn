@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.client.compress;
 
+import com.aliyun.emr.rss.common.RssConf;
+
 public interface Decompressor {
 
   int decompress(byte[] src, byte[] dst, int dstOff);
@@ -28,7 +30,8 @@ public interface Decompressor {
             ((buf[i + 2] & 0xFF) << 16) | ((buf[i + 3] & 0xFF) << 24);
   }
 
-  static Decompressor getDecompressorByMode(String mode) {
+  static Decompressor getDecompressor(RssConf conf) {
+    String mode = RssConf.compressionMode(conf);
     switch (mode) {
       case "LZ4":
         return new RssLz4Decompressor();
@@ -39,7 +42,8 @@ public interface Decompressor {
     }
   }
 
-  static int getHeaderLengthByMode(String mode) {
+  static int getCompressionHeaderLength(RssConf conf) {
+    String mode = RssConf.compressionMode(conf);
     switch (mode) {
       case "LZ4":
         return RssLz4Trait.HEADER_LENGTH;

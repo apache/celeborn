@@ -82,13 +82,13 @@ public class ShuffleClientSuiteJ {
   @Test
   public void testPushData() throws IOException, InterruptedException {
     for (CompressionMode mode : CompressionMode.values()) {
-      setupEnv(mode);
+      RssConf conf = setupEnv(mode);
 
       int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
               TEST_BUF1.length, 1, 1);
 
-      Compressor compressor = Compressor.getCompressorByMode(mode.name(), 256 * 1024);
+      Compressor compressor = Compressor.getCompressor(conf);
       compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
       final int compressedTotalSize = compressor.getCompressedTotalSize();
 
@@ -99,13 +99,13 @@ public class ShuffleClientSuiteJ {
   @Test
   public void testMergeData() throws IOException, InterruptedException {
     for (CompressionMode mode : CompressionMode.values()) {
-      setupEnv(mode);
+      RssConf conf = setupEnv(mode);
 
       int mergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
               TEST_BUF1.length, 1, 1);
 
-      Compressor compressor = Compressor.getCompressorByMode(mode.name(), 256 * 1024);
+      Compressor compressor = Compressor.getCompressor(conf);
       compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
       final int compressedTotalSize = compressor.getCompressedTotalSize();
 
@@ -120,7 +120,7 @@ public class ShuffleClientSuiteJ {
               TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
               buf1k, 0, buf1k.length, 1, 1);
 
-      compressor = Compressor.getCompressorByMode(mode.name(), 256 * 1024);
+      compressor = Compressor.getCompressor(conf);
       compressor.compress(buf1k, 0, buf1k.length);
       int compressedTotalSize1 = compressor.getCompressedTotalSize();
 
@@ -140,7 +140,7 @@ public class ShuffleClientSuiteJ {
     return ia.getHostName();
   }
 
-  private void setupEnv(CompressionMode mode) throws IOException, InterruptedException {
+  private RssConf setupEnv(CompressionMode mode) throws IOException, InterruptedException {
     RssConf conf = new RssConf();
     conf.set("rss.client.compression.mode", mode.name());
     conf.set("rss.pushdata.retry.thread.num", "1");
@@ -290,6 +290,7 @@ public class ShuffleClientSuiteJ {
       .thenAnswer(t -> client);
 
     shuffleClient.dataClientFactory = clientFactory;
+    return conf;
   }
 
 }

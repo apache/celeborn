@@ -101,9 +101,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   ThreadLocal<Compressor> compressorThreadLocal = new ThreadLocal<Compressor>() {
     @Override
     protected Compressor initialValue() {
-      int blockSize = RssConf.pushDataBufferSize(conf);
-      String mode = RssConf.compressionMode(conf);
-      return Compressor.getCompressorByMode(mode, blockSize);
+      return Compressor.getCompressor(conf);
     }
   };
 

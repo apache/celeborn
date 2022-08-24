@@ -143,13 +143,12 @@ public abstract class RssInputStream extends InputStream {
 
       maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
 
-      String compressionMode = RssConf.compressionMode(conf);
-      int headerLen = Decompressor.getHeaderLengthByMode(compressionMode);
+      int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = RssConf.pushDataBufferSize(conf) + headerLen;
       compressedBuf = new byte[blockSize];
       decompressedBuf = new byte[blockSize];
 
-      decompressor = Decompressor.getDecompressorByMode(compressionMode);
+      decompressor = Decompressor.getDecompressor(conf);
 
       moveToNextReader();
     }

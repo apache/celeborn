@@ -33,9 +33,11 @@ public class RssZstdCompressor extends RssZstdTrait implements Compressor {
   }
 
   public RssZstdCompressor(int blockSize) {
-    // Using 1 by default
-    compressionLevel = 1;
-    // Using CRC32 which is suitable for error detect rather than
+    this(blockSize, 1);
+  }
+
+  public RssZstdCompressor(int blockSize, int level) {
+    compressionLevel = level;
     checksum = new CRC32();
     initCompressBuffer(blockSize);
   }
