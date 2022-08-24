@@ -37,7 +37,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,17 +49,14 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
-import com.aliyun.emr.rss.service.deploy.worker.LevelDBProvider;
-import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecoverHelper;
+import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecover;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
-public class PartitionFilesSorter extends ShuffleRecoverHelper {
+public class PartitionFilesSorter extends ShuffleRecover {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
-  private LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
   private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
-  private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
@@ -72,9 +68,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final long sortTimeout;
   protected final long fetchChunkSize;
   protected final long reserveMemoryForSingleSort;
-  private boolean gracefulShutdown = false;
+  private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
-  private DB sortedFilesDb;
 
   protected final AbstractSource source;
 
@@ -83,27 +78,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final Thread fileSorterSchedulerThread;
 
   public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
+    super(conf);
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
     this.fetchChunkSize = RssConf.chunkSize(conf);
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
     this.gracefulShutdown = RssConf.workerGracefulShutdown(conf);
-    // ShuffleClient can fetch shuffle data from a restarted worker only
-    // when the worker's fetching port is stable and enables graceful shutdown.
-    if (gracefulShutdown) {
-      try {
-        String recoverPath = RssConf.workerRecoverPath(conf);
-        this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
-        this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
-        reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
-      } catch (Exception e) {
-        logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
-        this.sortedFilesDb = null;
-      }
-    } else {
-      this.sortedFilesDb = null;
-    }
 
     fileSorterSchedulerThread = new Thread(() -> {
       try {
@@ -197,6 +178,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
+  @Override
   public void close() {
     logger.info("Start close " + this.getClass().getSimpleName());
     shutdown = true;
@@ -219,43 +201,40 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       fileSorterExecutors.shutdownNow();
     }
     cachedIndexMaps.clear();
-    if (sortedFilesDb != null) {
-      try {
-        updateSortedShuffleFilesInDB();
-        sortedFilesDb.close();
-      } catch (IOException e) {
-        logger.error("Store recover data to LevelDB failed.", e);
-      }
-    }
+    super.close();
   }
 
-  private void reloadAndCleanSortedShuffleFiles(DB db) {
-    if (db != null) {
-      DBIterator itr = db.iterator();
-      itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8));
-      while (itr.hasNext()) {
-        Map.Entry<byte[], byte[]> entry = itr.next();
-        String key = new String(entry.getKey(), StandardCharsets.UTF_8);
-        if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
-          String shuffleKey = parseDbShuffleKey(key);
-          try {
-            Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
-            logger.debug("Reload DB: " + shuffleKey + " -> " + sortedFiles);
-            sortedShuffleFiles.put(shuffleKey, sortedFiles);
-            sortedFilesDb.delete(entry.getKey());
-          } catch (Exception exception) {
-            logger.error("Reload DB: " + shuffleKey + " failed.", exception);
-          }
+  @Override
+  protected String recoverFileName() {
+    return RECOVERY_SORTED_FILES_FILE_NAME;
+  }
+
+  @Override
+  protected void reloadAndCleanDBContent() {
+    DBIterator itr = db.iterator();
+    itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8));
+    while (itr.hasNext()) {
+      Map.Entry<byte[], byte[]> entry = itr.next();
+      String key = new String(entry.getKey(), StandardCharsets.UTF_8);
+      if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
+        String shuffleKey = parseDbShuffleKey(key);
+        try {
+          Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
+          logger.debug("Reload DB: " + shuffleKey + " -> " + sortedFiles);
+          sortedShuffleFiles.put(shuffleKey, sortedFiles);
+          db.delete(entry.getKey());
+        } catch (Exception exception) {
+          logger.error("Reload DB: " + shuffleKey + " failed.", exception);
         }
       }
     }
   }
 
-  @VisibleForTesting
-  public void updateSortedShuffleFilesInDB() {
+  @Override
+  protected void updateDBContent() {
     for (String shuffleKey : sortedShuffleFiles.keySet()) {
       try {
-        sortedFilesDb.put(dbShuffleKey(shuffleKey),
+        db.put(dbShuffleKey(shuffleKey),
             PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
         logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
       } catch (Exception exception) {

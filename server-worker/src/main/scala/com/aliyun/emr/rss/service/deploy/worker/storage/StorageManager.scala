@@ -31,7 +31,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
-import org.iq80.leveldb.DB
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
@@ -46,7 +45,7 @@ import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
 
 private[worker] final class StorageManager(conf: RssConf, workerSource: AbstractSource)
-  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
+  extends ShuffleRecover(conf) with DeviceObserver with Logging with MemoryTrackerListener{
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
@@ -163,49 +162,35 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
-  private val RECOVERY_FILE_INFOS_FILE_NAME = "fileInfos.ldb"
-  private var fileInfosDb: DB = null
-  // ShuffleClient can fetch data from a restarted worker only
-  // when the worker's fetching port is stable.
-  if (RssConf.workerGracefulShutdown(conf)) {
-    try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
-      this.fileInfosDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
-      reloadAndCleanFileInfos(this.fileInfosDb)
-    } catch {
-      case e: Exception =>
-        logError("Init level DB failed:", e)
-        this.fileInfosDb = null
-    }
-  }
+  private val RECOVERY_FILEINFOS_FILE_NAME = "fileInfos.ldb"
 
-  private def reloadAndCleanFileInfos(db: DB): Unit = {
-    if (db != null) {
-      val itr = db.iterator
-      itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
-      while (itr.hasNext) {
-        val entry = itr.next
-        val key = new String(entry.getKey, StandardCharsets.UTF_8)
-        if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
-          val shuffleKey = parseDbShuffleKey(key)
-          try {
-            val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
-            logDebug("Reload DB: " + shuffleKey + " -> " + files)
-            fileInfos.put(shuffleKey, files)
-            fileInfosDb.delete(entry.getKey)
-          } catch {
-            case exception: Exception =>
-              logError("Reload DB: " + shuffleKey + " failed.", exception);
-          }
+  override protected def recoverFileName(): String = RECOVERY_FILEINFOS_FILE_NAME
+
+  override def reloadAndCleanDBContent(): Unit = {
+    val itr = db.iterator
+    itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
+    while (itr.hasNext) {
+      val entry = itr.next
+      val key = new String(entry.getKey, StandardCharsets.UTF_8)
+      if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
+        val shuffleKey = parseDbShuffleKey(key)
+        try {
+          val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
+          logDebug("Reload DB: " + shuffleKey + " -> " + files)
+          fileInfos.put(shuffleKey, files)
+          db.delete(entry.getKey)
+        } catch {
+          case exception: Exception =>
+            logError("Reload DB: " + shuffleKey + " failed.", exception);
         }
       }
     }
   }
 
-  def updateFileInfosInDB(): Unit = {
+  override def updateDBContent(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        fileInfosDb.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
+        db.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
         logDebug("Update DB: " + shuffleKey + " -> " + files)
       } catch {
         case exception: Exception =>
@@ -418,16 +403,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  def close(): Unit = {
-    if (fileInfosDb != null) {
-      try {
-        updateFileInfosInDB();
-        fileInfosDb.close();
-      } catch {
-        case exception: Exception =>
-          logError("Store recover data to LevelDB failed.", exception);
-      }
-    }
+  override def close(): Unit = {
     if (null != diskOperators) {
       diskOperators.asScala.foreach(entry => {
         entry._2.shutdownNow()
@@ -437,6 +413,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
+    super.close()
   }
 
   private def flushFileWriters(): Unit = {

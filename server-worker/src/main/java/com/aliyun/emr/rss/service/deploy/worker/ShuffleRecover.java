@@ -17,11 +17,39 @@
 
 package com.aliyun.emr.rss.service.deploy.worker;
 
+import com.aliyun.emr.rss.common.RssConf;
+import org.iq80.leveldb.DB;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public abstract class ShuffleRecoverHelper {
+public abstract class ShuffleRecover {
+  private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ShuffleRecover.class);
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   protected LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
+  protected DB db = null;
+
+  public ShuffleRecover(RssConf conf) {
+    // ShuffleClient can fetch shuffle data from a restarted worker only
+    // when the worker's fetching port is stable and enables graceful shutdown.
+    if (RssConf.workerGracefulShutdown(conf)) {
+      File recoverFile = new File(RssConf.workerRecoverPath(conf), recoverFileName());
+      try {
+        this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
+        reloadAndCleanDB();
+      } catch (Exception e) {
+        logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
+      }
+    }
+  }
+
+  protected abstract String recoverFileName();
+
+  protected abstract void reloadAndCleanDBContent();
+
+  protected abstract void updateDBContent();
 
   protected byte[] dbShuffleKey(String shuffleKey) {
     return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
@@ -32,5 +60,26 @@ public abstract class ShuffleRecoverHelper {
       throw new IllegalArgumentException("expected a string starting with " + SHUFFLE_KEY_PREFIX);
     }
     return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+  }
+
+  protected void reloadAndCleanDB() {
+    if (db != null) {
+      reloadAndCleanDBContent();
+    }
+  }
+
+  protected void updateAndCloseDB() {
+    if (db != null) {
+      try {
+        updateDBContent();
+        db.close();
+      } catch (IOException e) {
+        logger.error("Store recover data to LevelDB failed.", e);
+      }
+    }
+  }
+
+  protected void close() {
+    updateAndCloseDB();
   }
 }
