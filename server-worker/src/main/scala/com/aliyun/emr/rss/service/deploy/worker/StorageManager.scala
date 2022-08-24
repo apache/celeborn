@@ -289,7 +289,7 @@ private[worker] final class StorageManager(
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
       RssConf.workerBaseDirs(conf).map { case (workdir, maxSpace, flusherThread, storageType) =>
-        (new File(workdir, RssConf.localWorkingDirName(conf)), maxSpace, flusherThread, storageType)
+        (new File(workdir, RssConf.workingDirPrefix(conf)), maxSpace, flusherThread, storageType)
       }
 
     if (workingDirInfos.size <= 0) {
