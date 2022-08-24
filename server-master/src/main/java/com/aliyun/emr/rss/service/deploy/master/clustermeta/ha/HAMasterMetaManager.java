@@ -263,17 +263,19 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                               .build())
               .build());
     } catch (ServiceException e) {
-      LOG.error("Handle report node failure for {} failed !", failedNodes);
+      LOG.error("Handle report node failure for {} failed!", failedNodes, e);
     }
   }
 
   @Override
   public void handleUpdatePartitionSize() {
-    try{
-      ratisServer.submitRequest(ResourceRequest.newBuilder().setCmdType(Type.UpdatePartitionSize)
-                                  .setRequestId(ControlMessages.ZERO_UUID()).build());
-    }catch (ServiceException e){
-      LOG.error("Handle update partition size failed !");
+    try {
+      ratisServer.submitRequest(ResourceRequest.newBuilder()
+              .setCmdType(Type.UpdatePartitionSize)
+              .setRequestId(ControlMessages.ZERO_UUID())
+              .build());
+    } catch (ServiceException e) {
+      LOG.error("Handle update partition size failed!", e);
     }
   }
 }
