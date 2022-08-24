@@ -42,7 +42,6 @@ import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.ShutdownHookManager
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
-import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Worker(
     val conf: RssConf,

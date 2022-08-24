@@ -36,7 +36,6 @@ import com.aliyun.emr.rss.common.network.server.FileManagedBuffers
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager
 import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.network.util.TransportConf
-import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()

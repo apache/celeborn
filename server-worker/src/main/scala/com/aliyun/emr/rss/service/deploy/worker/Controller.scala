@@ -36,7 +36,6 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.Utils
-import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,

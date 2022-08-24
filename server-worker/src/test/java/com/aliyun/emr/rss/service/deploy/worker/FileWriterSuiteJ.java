@@ -70,7 +70,6 @@ import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
-import com.aliyun.emr.rss.service.deploy.worker.storage.local.LocalFlusher;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
