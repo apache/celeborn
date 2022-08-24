@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import com.aliyun.emr.rss.service.deploy.worker.storage.FileWriter;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -37,6 +36,7 @@ import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.Utils;
+import com.aliyun.emr.rss.service.deploy.worker.storage.FileWriter;
 
 import static org.mockito.Mockito.when;
 

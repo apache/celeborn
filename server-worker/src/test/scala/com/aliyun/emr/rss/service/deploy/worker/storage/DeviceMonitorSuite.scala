@@ -24,14 +24,15 @@ import java.util.{ArrayList => jArrayList}
 import scala.collection.JavaConverters.{bufferAsJavaListConverter, _}
 import scala.collection.mutable.ListBuffer
 
-import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
-import com.aliyun.emr.rss.common.protocol.StorageInfo
-import com.aliyun.emr.rss.common.util.Utils
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
+
+import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import com.aliyun.emr.rss.common.protocol.StorageInfo
+import com.aliyun.emr.rss.common.util.Utils
 
 class DeviceMonitorSuite extends AnyFunSuite {
   val dfCmd = "df -h"
