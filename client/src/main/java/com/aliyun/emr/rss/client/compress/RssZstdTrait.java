@@ -29,5 +29,5 @@ public abstract class RssZstdTrait {
                   + 4;         // checksum
 
   protected static final int COMPRESSION_METHOD_RAW = 0x10;
-  protected static final int COMPRESSION_METHOD_ZSTD = 0x20;
+  protected static final int COMPRESSION_METHOD_ZSTD = 0x30;
 }

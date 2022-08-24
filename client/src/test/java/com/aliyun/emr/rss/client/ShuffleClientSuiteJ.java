@@ -84,8 +84,8 @@ public class ShuffleClientSuiteJ {
     for (CompressionMode mode : CompressionMode.values()) {
       setupEnv(mode);
 
-      int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
-              TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
+      int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
               TEST_BUF1.length, 1, 1);
 
       Compressor compressor = Compressor.getCompressorByMode(mode.name(), 256 * 1024);
