@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
+
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.NetWorkSource

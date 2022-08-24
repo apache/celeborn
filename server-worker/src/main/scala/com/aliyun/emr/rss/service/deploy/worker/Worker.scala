@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.JavaConverters._
 
 import io.netty.util.HashedWheelTimer
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException

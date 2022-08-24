@@ -15,12 +15,28 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker.storage
+package com.aliyun.emr.rss.service.deploy.worker.storage;
 
-import com.aliyun.emr.rss.common.meta.DiskStatus
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-trait DeviceObserver {
-  def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {}
-  def notifyHealthy(mountPoint: String): Unit = {}
-  def notifyHighDiskUsage(mountPoint: String): Unit = {}
+public class FlushNotifier {
+  final AtomicInteger numPendingFlushes = new AtomicInteger();
+  final AtomicReference<IOException> exception = new AtomicReference<>();
+
+  void setException(IOException e) {
+    exception.set(e);
+  }
+
+  boolean hasException() {
+    return exception.get() != null;
+  }
+
+  void checkException() throws IOException {
+    IOException e = exception.get();
+    if (e != null) {
+      throw e;
+    }
+  }
 }

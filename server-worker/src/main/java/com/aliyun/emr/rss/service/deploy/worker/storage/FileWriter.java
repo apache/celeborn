@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.aliyun.emr.rss.service.deploy.worker.PartitionFilesSorter;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
@@ -89,26 +88,6 @@ public final class FileWriter implements DeviceObserver {
               + mountPoint + " : " + diskStatus));
     }
     deviceMonitor.unregisterFileWriter(this);
-  }
-
-  static class FlushNotifier {
-    final AtomicInteger numPendingFlushes = new AtomicInteger();
-    final AtomicReference<IOException> exception = new AtomicReference<>();
-
-    void setException(IOException e) {
-      exception.set(e);
-    }
-
-    boolean hasException() {
-      return exception.get() != null;
-    }
-
-    void checkException() throws IOException {
-      IOException e = exception.get();
-      if (e != null) {
-        throw e;
-      }
-    }
   }
 
   private final FlushNotifier notifier = new FlushNotifier();

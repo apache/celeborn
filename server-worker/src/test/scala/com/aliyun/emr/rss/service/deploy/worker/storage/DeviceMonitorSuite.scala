@@ -15,25 +15,23 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker
+package com.aliyun.emr.rss.service.deploy.worker.storage
 
 import java.io.File
-import java.util.{ArrayList => jArrayList}
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.{ArrayList => jArrayList}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.{bufferAsJavaListConverter, _}
 import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters.bufferAsJavaListConverter
 
-import org.junit.Assert.assertEquals
-import org.mockito.ArgumentMatchers._
-import org.mockito.MockitoSugar._
-import org.scalatest.funsuite.AnyFunSuite
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils
-import com.aliyun.emr.rss.service.deploy.worker.storage.{DeviceMonitor, FileWriter, LocalDeviceMonitor, LocalFlusher}
+import org.junit.Assert.assertEquals
+import org.mockito.ArgumentMatchers._
+import org.mockito.MockitoSugar._
+import org.scalatest.funsuite.AnyFunSuite
 
 class DeviceMonitorSuite extends AnyFunSuite {
   val dfCmd = "df -h"

@@ -26,13 +26,14 @@ import java.util.{Set => jSet}
 import scala.collection.JavaConverters._
 import scala.io.Source
 
+import org.apache.commons.io.FileUtils
+import org.slf4j.LoggerFactory
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.{deviceMonitorCheckList, diskCheckIntervalMs}
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
-import org.apache.commons.io.FileUtils
-import org.slf4j.LoggerFactory
 
 trait DeviceMonitor {
   def startCheck() {}
