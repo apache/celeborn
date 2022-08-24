@@ -528,8 +528,8 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
-  def workingDirPrefix(conf: RssConf): String = {
-    conf.get("rss.worker.workingDirPrefix", "hadoop/rss-worker/shuffle_data")
+  def workingDirName(conf: RssConf): String = {
+    conf.get("rss.worker.workingDirName", "hadoop/rss-worker/shuffle_data")
   }
 
   /**
