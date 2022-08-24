@@ -41,7 +41,6 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
-import com.aliyun.emr.rss.service.deploy.worker.PartitionFilesSorter;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
