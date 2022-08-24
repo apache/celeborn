@@ -501,7 +501,7 @@ private[worker] final class StorageManager(
           "$appId/$shuffleId")
         FileSystem.mkdirs(hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo = new FileInfo(FileSystem.create(hdfsFs,
-          new Path(shuffleDir, s"$fileName"), hdfsPermission))
+          new Path(shuffleDir, fileName), hdfsPermission))
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
