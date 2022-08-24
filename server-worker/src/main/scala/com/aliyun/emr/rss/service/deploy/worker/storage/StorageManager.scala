@@ -261,9 +261,11 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       }
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
-        FileSystem.mkdirs(hdfsFs, new Path(s"$hdfsDir/$appId/$shuffleId"), hdfsPermission)
+        val shuffleDir = new Path(new Path(hdfsDir, RssConf.workingDirName(conf)),
+          "$appId/$shuffleId")
+        FileSystem.mkdirs(hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo = new FileInfo(FileSystem.create(hdfsFs,
-          new Path(s"$hdfsDir/$appId/$shuffleId/$fileName"), hdfsPermission))
+          new Path(shuffleDir, fileName), hdfsPermission))
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
