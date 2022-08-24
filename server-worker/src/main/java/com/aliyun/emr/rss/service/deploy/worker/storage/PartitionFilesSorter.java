@@ -284,9 +284,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedShuffleFiles.get(shuffleKey);
   }
 
-  protected void writeIndex(Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFileName)
+  protected void writeIndex(Map<Integer, List<ShuffleBlockInfo>> indexMap, File indexFile)
     throws IOException {
-    File indexFile = new File(indexFileName);
     FileChannel indexFileChannel = new FileOutputStream(indexFile).getChannel();
 
     int indexSize = 0;
@@ -415,24 +414,30 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   class FileSorter {
     private final File originFile;
-    private final String sortedFileName;
-    private final String indexFileName;
+    private final File sortedFile;
+    private final File indexFile;
     private final long originFileLen;
     private final String fileId;
     private final String shuffleKey;
 
     FileSorter(File originFile, long originFileLen, String fileId, String shuffleKey) {
       this.originFile = originFile;
-      this.sortedFileName = originFile.getAbsolutePath() + SORTED_SUFFIX;
-      this.indexFileName = originFile.getAbsolutePath() + INDEX_SUFFIX;
+      this.sortedFile = new File(originFile.getParentFile(), originFile.getName() + SORTED_SUFFIX);
+      this.indexFile = new File(originFile.getParentFile(), originFile.getName() + INDEX_SUFFIX);
       this.originFileLen = originFileLen;
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
+      if (sortedFile.exists()) {
+        sortedFile.delete();
+      }
+      if (indexFile.exists()) {
+        indexFile.delete();
+      }
     }
 
     public void sort() {
       try (FileChannel originFileChannel = new FileInputStream(originFile).getChannel();
-           FileChannel sortedFileChannel = new FileOutputStream(sortedFileName).getChannel()) {
+           FileChannel sortedFileChannel = new FileOutputStream(sortedFile).getChannel()) {
         int batchHeaderLen = 16;
 
         Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
@@ -486,7 +491,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         ((DirectBuffer) paddingBuf).cleaner().clean();
 
-        writeIndex(sortedBlockInfoMap, indexFileName);
+        writeIndex(sortedBlockInfoMap, indexFile);
         updateSortedShuffleFiles(shuffleKey, fileId);
         if (!originFile.delete()) {
           logger.warn("clean origin file failed, origin file is : {}",
