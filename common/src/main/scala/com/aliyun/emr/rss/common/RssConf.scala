@@ -528,6 +528,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
+  def localWorkingDirName(conf: RssConf): String = {
+    conf.get("rss.worker.workingDir", "hadoop/rss-worker/shuffle_data")
+  }
+
   /**
    *
    * @param conf
@@ -926,11 +930,6 @@ object RssConf extends Logging {
 
   def hdfsFlusherThreadCount(conf: RssConf): Int = {
     conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
-  }
-
-  def workingDirName(conf: RssConf): String = {
-    conf.get("rss.working.dir", "hadoop/rss-worker/shuffle_data")
-
   }
 
   // If we want to use multi-raft group we can
