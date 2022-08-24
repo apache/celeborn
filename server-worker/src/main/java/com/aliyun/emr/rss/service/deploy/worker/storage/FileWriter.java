@@ -112,7 +112,7 @@ public final class FileWriter implements DeviceObserver {
     this.splitMode = splitMode;
     this.partitionType = partitionType;
     if (fileInfo.getFile() != null) {
-      channel = new FileOutputStream(fileInfo.filePath).getChannel();
+      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
       stream = fileInfo.fsDataOutputStream;
     }
@@ -179,7 +179,7 @@ public final class FileWriter implements DeviceObserver {
    */
   public void write(ByteBuf data) throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed!, fileName " + fileInfo.filePath;
+      String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
       logger.warn(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -215,7 +215,7 @@ public final class FileWriter implements DeviceObserver {
 
   public long close() throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed! fileName " + fileInfo.filePath;
+      String msg = "FileWriter has already closed! fileName " + fileInfo.getFilePath();
       logger.error(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -269,14 +269,14 @@ public final class FileWriter implements DeviceObserver {
         }
       } catch (IOException e) {
         logger.warn("Close channel failed for file {} caused by {}.",
-          fileInfo.filePath, e.getMessage());
+          fileInfo.getFilePath(), e.getMessage());
       }
     }
     fileInfo.getFile().delete();
 
     if (splitted.get()) {
-      String indexFileStr = fileInfo.filePath + PartitionFilesSorter.INDEX_SUFFIX;
-      String sortedFileStr = fileInfo.filePath + PartitionFilesSorter.SORTED_SUFFIX;
+      String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
+      String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
       if (fileInfo.getIndexPath() != null) {
         sortedFileStr = fileInfo.getIndexPath();
       }
@@ -335,7 +335,7 @@ public final class FileWriter implements DeviceObserver {
     String fileAbsPath = null;
     if (source.samplePerfCritical()) {
       metricsName = WorkerSource.TakeBufferTime();
-      fileAbsPath = fileInfo.filePath;
+      fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
     }
 
@@ -370,16 +370,16 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public int hashCode() {
-    return fileInfo.filePath.hashCode();
+    return fileInfo.getFilePath().hashCode();
   }
 
   public boolean equals(Object obj) {
     return (obj instanceof FileWriter) &&
-        fileInfo.filePath.equals(((FileWriter) obj).fileInfo.filePath);
+        fileInfo.getFilePath().equals(((FileWriter) obj).fileInfo.getFilePath());
   }
 
   public String toString() {
-    return fileInfo.filePath;
+    return fileInfo.getFilePath();
   }
 
   public void flushOnMemoryPressure() throws IOException {

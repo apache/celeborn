@@ -24,7 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 
 public class FileInfo {
-  public final String filePath;
+  private final String filePath;
   private final ArrayList<Long> chunkOffsets;
   public final FSDataOutputStream fsDataOutputStream;
   private transient File file;

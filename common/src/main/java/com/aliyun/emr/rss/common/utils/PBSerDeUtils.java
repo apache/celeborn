@@ -76,7 +76,7 @@ public class PBSerDeUtils {
 
   public static TransportMessages.PbFileInfo toPbFileInfo(FileInfo fileInfo) {
     TransportMessages.PbFileInfo.Builder builder = TransportMessages.PbFileInfo.newBuilder();
-    builder.setFilePath(fileInfo.filePath)
+    builder.setFilePath(fileInfo.getFilePath())
         .addAllChunkOffsets(fileInfo.getChunkOffsets());
     if (fileInfo.getIndexPath() != null) {
       builder.setIndexPath(fileInfo.getIndexPath());
