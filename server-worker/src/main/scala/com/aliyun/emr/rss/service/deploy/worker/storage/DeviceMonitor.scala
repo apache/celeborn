@@ -311,7 +311,7 @@ object DeviceMonitor {
   def highDiskUsage(rssConf: RssConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
-      val totalSpace = usage(usage.length - 1)
+      val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 

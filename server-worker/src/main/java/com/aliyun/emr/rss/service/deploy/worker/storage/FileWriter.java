@@ -26,8 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aliyun.emr.rss.service.deploy.worker.PartitionFilesSorter;
-import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -43,6 +42,8 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
+import com.aliyun.emr.rss.service.deploy.worker.PartitionFilesSorter;
+import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
