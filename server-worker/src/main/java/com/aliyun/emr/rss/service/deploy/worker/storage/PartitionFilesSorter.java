@@ -82,7 +82,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
   private final Thread fileSorterSchedulerThread;
 
-  PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
+  public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
     this.fetchChunkSize = RssConf.chunkSize(conf);
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
