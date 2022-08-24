@@ -303,14 +303,14 @@ public class MasterUtil {
   }
 
   private static Map<WorkerInfo, List<DiskUsableInfo>> getRestriction(List<List<DiskInfo>> groups,
-      Map<DiskInfo, WorkerInfo> diskWorkerMap, int required) {
+      Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
     int groupSize = groups.size();
     long[] groupAllocations = new long[groupSize];
     Map<WorkerInfo, List<DiskUsableInfo>> restrictions = new HashMap<>();
-    long[] diskGroupTotalSlots = new long[groupSize];
+    long[] groupAvailableSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
       for (DiskInfo disk : groups.get(i)) {
-        diskGroupTotalSlots[i] += disk.availableSlots();
+        groupAvailableSlots[i] += disk.availableSlots();
       }
     }
     double[] currentAllocation = new double[groupSize];
@@ -326,19 +326,19 @@ public class MasterUtil {
       }
     }
     long toNextGroup = 0;
-    long left = required;
+    long left = partitionCnt;
     for (int i = 0; i < groupSize; i++) {
       if (left <= 0) {
         break;
       }
       long estimateAllocation = (int) Math.ceil(
-          required * currentAllocation[i]);
+          partitionCnt * currentAllocation[i]);
       if (estimateAllocation > left) {
         estimateAllocation = left;
       }
-      if (estimateAllocation + toNextGroup > diskGroupTotalSlots[i]) {
-        groupAllocations[i] = diskGroupTotalSlots[i];
-        toNextGroup = estimateAllocation - diskGroupTotalSlots[i] + toNextGroup;
+      if (estimateAllocation + toNextGroup > groupAvailableSlots[i]) {
+        groupAllocations[i] = groupAvailableSlots[i];
+        toNextGroup = estimateAllocation - groupAvailableSlots[i] + toNextGroup;
       } else {
         groupAllocations[i] = estimateAllocation + toNextGroup;
       }
@@ -390,7 +390,7 @@ public class MasterUtil {
         }
         sb.append(" | ");
       }
-      logger.debug("total {} allocate with group {} with allocations {}", required,
+      logger.debug("total {} allocate with group {} with allocations {}", partitionCnt,
           StringUtils.join(groupAllocations, ','), sb);
     }
     return restrictions;
