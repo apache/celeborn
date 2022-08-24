@@ -90,6 +90,7 @@ private[deploy] class Worker(
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
+  partitionsSorter.setStorageManager(storageManager)
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)

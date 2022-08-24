@@ -111,7 +111,7 @@ public final class FileWriter implements DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    if (fileInfo.filePath != null) {
+    if (fileInfo.getFile() != null) {
       channel = new FileOutputStream(fileInfo.filePath).getChannel();
     } else {
       stream = fileInfo.fsDataOutputStream;
@@ -126,7 +126,7 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public File getFile() {
-    return new File(fileInfo.filePath);
+    return fileInfo.getFile();
   }
 
   public void incrementPendingWrites() {
@@ -277,6 +277,9 @@ public final class FileWriter implements DeviceObserver {
     if (splitted.get()) {
       String indexFileStr = fileInfo.filePath + PartitionFilesSorter.INDEX_SUFFIX;
       String sortedFileStr = fileInfo.filePath + PartitionFilesSorter.SORTED_SUFFIX;
+      if (fileInfo.getIndexPath() != null) {
+        sortedFileStr = fileInfo.getIndexPath();
+      }
       File indexFile = new File(indexFileStr);
       File sortedFile = new File(sortedFileStr);
       indexFile.delete();

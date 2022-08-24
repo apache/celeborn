@@ -17,7 +17,6 @@
 
 package com.aliyun.emr.rss.common.utils;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
@@ -66,14 +65,22 @@ public class PBSerDeUtils {
 
   public static FileInfo fromPbFileInfo(TransportMessages.PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
+    String indexPath = null;
+    if(pbFileInfo.hasIndexPath()){
+      indexPath = pbFileInfo.getIndexPath();
+    }
     return new FileInfo(pbFileInfo.getFilePath(),
-        new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
+        new ArrayList<>(pbFileInfo.getChunkOffsetsList()),
+        indexPath);
   }
 
   public static TransportMessages.PbFileInfo toPbFileInfo(FileInfo fileInfo) {
     TransportMessages.PbFileInfo.Builder builder = TransportMessages.PbFileInfo.newBuilder();
     builder.setFilePath(fileInfo.filePath)
         .addAllChunkOffsets(fileInfo.getChunkOffsets());
+    if (fileInfo.getIndexPath() != null) {
+      builder.setIndexPath(fileInfo.getIndexPath());
+    }
     return builder.build();
   }
 

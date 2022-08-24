@@ -27,14 +27,17 @@ public class FileInfo {
   public final String filePath;
   private final ArrayList<Long> chunkOffsets;
   public final FSDataOutputStream fsDataOutputStream;
-  transient private File file;
-  transient private boolean isHdfs = false;
+  private transient File file;
+  private transient boolean isHdfs = false;
+  private String indexPath = null;
 
-  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
+  public FileInfo(String filePath, ArrayList<Long> chunkOffsets, String indexPath) {
     this.filePath = filePath;
-    file = new File(filePath);
+    this.file = new File(filePath);
     this.chunkOffsets = chunkOffsets;
     this.fsDataOutputStream = null;
+    this.indexPath = indexPath;
+    isHdfs = filePath.startsWith("hdfs://");
   }
 
   public FileInfo(File file) {
@@ -51,6 +54,7 @@ public class FileInfo {
     this.fsDataOutputStream = outputStream;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
+    isHdfs = true;
   }
 
   public synchronized void addChunkOffset(long bytesFlushed) {
@@ -77,12 +81,20 @@ public class FileInfo {
     return file;
   }
 
-  public String getPath(){
+  public String getFilePath(){
     return filePath;
   }
 
   public boolean isHdfs(){
     return isHdfs;
+  }
+
+  public void setIndexPath(String indexPath) {
+    this.indexPath = indexPath;
+  }
+
+  public String getIndexPath() {
+    return indexPath;
   }
 
   public synchronized ArrayList<Long> getChunkOffsets() {

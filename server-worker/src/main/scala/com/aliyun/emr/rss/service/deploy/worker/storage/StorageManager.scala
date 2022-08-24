@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
@@ -73,6 +74,14 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
 
   def healthyWorkingDirs(): List[File] =
     disksSnapshot().filter(_.status == DiskStatus.Healthy).flatMap(_.dirs)
+
+  def getOneHealthyWorkingDir(): File = {
+    val healthyDirs = healthyWorkingDirs()
+    if (healthyDirs.isEmpty) {
+      null
+    }
+    healthyDirs(Random.nextInt(healthyDirs.size))
+  }
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = new ConcurrentHashMap[String, ThreadPoolExecutor]()
@@ -265,7 +274,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
           "$appId/$shuffleId")
         FileSystem.mkdirs(hdfsFs, shuffleDir, hdfsPermission)
         val shuffleFilePath = new Path(shuffleDir, fileName)
-        val fileInfo = new FileInfo(shuffleFilePath.toString,FileSystem.create(hdfsFs, new Path(shuffleDir, fileName), hdfsPermission))
+        val fileInfo = new FileInfo(shuffleFilePath.toString,
+          FileSystem.create(hdfsFs, new Path(shuffleDir, fileName), hdfsPermission))
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,

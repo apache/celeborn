@@ -369,6 +369,7 @@ message PbStoreVersion {
 message PbFileInfo {
   string filePath = 1;
   repeated int64 chunkOffsets = 2;
+  optional string indexPath = 3;
 }
 
 message PBFileInfoMap {
