@@ -195,10 +195,13 @@ case $option in
         done
         run_command class "$@"
       else
-        echo "no $command to restart"
+        rm -f "$pid"
+        echo "no $command to stop, directly start"
+        run_command class "$@"
       fi
     else
-      echo "no $command to restart"
+      echo "no $command to stop, directly start"
+      run_command class "$@"
     fi
     ;;
 
