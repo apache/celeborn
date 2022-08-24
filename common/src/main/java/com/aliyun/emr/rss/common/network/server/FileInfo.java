@@ -24,24 +24,29 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 
 public class FileInfo {
-  public final File file;
+  public final String filePath;
   private final ArrayList<Long> chunkOffsets;
   public final FSDataOutputStream fsDataOutputStream;
+  transient private File file;
+  transient private boolean isHdfs = false;
 
-  public FileInfo(File file, ArrayList<Long> chunkOffsets) {
-    this.file = file;
+  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
+    this.filePath = filePath;
+    file = new File(filePath);
     this.chunkOffsets = chunkOffsets;
     this.fsDataOutputStream = null;
   }
 
   public FileInfo(File file) {
+    this.filePath = file.getAbsolutePath();
     this.file = file;
     this.fsDataOutputStream = null;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
   }
 
-  public FileInfo(FSDataOutputStream outputStream){
+  public FileInfo(String filePath, FSDataOutputStream outputStream){
+    this.filePath = filePath;
     this.file = null;
     this.fsDataOutputStream = outputStream;
     this.chunkOffsets = new ArrayList<>();
@@ -72,6 +77,14 @@ public class FileInfo {
     return file;
   }
 
+  public String getPath(){
+    return filePath;
+  }
+
+  public boolean isHdfs(){
+    return isHdfs;
+  }
+
   public synchronized ArrayList<Long> getChunkOffsets() {
     return chunkOffsets;
   }
@@ -79,7 +92,7 @@ public class FileInfo {
   @Override
   public String toString() {
     return "FileInfo{" +
-             "file=" + file.getAbsolutePath() +
+             "file=" + filePath +
              ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
              '}';
   }

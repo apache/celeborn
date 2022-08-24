@@ -37,7 +37,7 @@ public class FileManagedBuffers {
   private volatile boolean fullyRead = false;
 
   public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) throws IOException {
-    file = fileInfo.file;
+    file = new File(fileInfo.filePath);
     numChunks = fileInfo.numChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];

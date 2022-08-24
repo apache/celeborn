@@ -66,14 +66,13 @@ public class PBSerDeUtils {
 
   public static FileInfo fromPbFileInfo(TransportMessages.PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
-    return new FileInfo(
-        new File(pbFileInfo.getFile()),
+    return new FileInfo(pbFileInfo.getFilePath(),
         new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
   }
 
   public static TransportMessages.PbFileInfo toPbFileInfo(FileInfo fileInfo) {
     TransportMessages.PbFileInfo.Builder builder = TransportMessages.PbFileInfo.newBuilder();
-    builder.setFile(fileInfo.file.getPath())
+    builder.setFilePath(fileInfo.filePath)
         .addAllChunkOffsets(fileInfo.getChunkOffsets());
     return builder.build();
   }

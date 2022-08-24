@@ -401,8 +401,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         return null;
       }
     }
-    return new FileInfo(new File(sortedFileName),
-      getChunkOffsets(startMapIndex, endMapIndex, sortedFileName, indexMap));
+    return new FileInfo(sortedFileName,
+        getChunkOffsets(startMapIndex, endMapIndex, sortedFileName, indexMap));
   }
 
   static class ShuffleBlockInfo {
