@@ -20,8 +20,8 @@ package com.aliyun.emr.rss.service.deploy.worker.storage
 import java.io._
 import java.nio.charset.Charset
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.{Set => jSet}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.io.Source

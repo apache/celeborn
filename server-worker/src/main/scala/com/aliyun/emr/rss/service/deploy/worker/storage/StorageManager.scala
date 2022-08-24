@@ -45,9 +45,7 @@ import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
 
-private[worker] final class StorageManager(
-    conf: RssConf,
-    workerSource: AbstractSource)
+private[worker] final class StorageManager(conf: RssConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()

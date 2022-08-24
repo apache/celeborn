@@ -174,17 +174,17 @@ private[worker] abstract class Flusher(
 }
 
 private[worker] class LocalFlusher(
-  workerSource: AbstractSource,
-  val deviceMonitor: DeviceMonitor,
-  threadCount: Int,
-  val mountPoint: String,
-  flushAvgTimeWindowSize: Int,
-  flushAvgTimeMinimumCount: Int,
-  val diskType: StorageInfo.Type) extends Flusher(
-  workerSource,
-  threadCount,
-  flushAvgTimeWindowSize,
-  flushAvgTimeMinimumCount)
+    workerSource: AbstractSource,
+    val deviceMonitor: DeviceMonitor,
+    threadCount: Int,
+    val mountPoint: String,
+    flushAvgTimeWindowSize: Int,
+    flushAvgTimeMinimumCount: Int,
+    val diskType: StorageInfo.Type) extends Flusher(
+    workerSource,
+    threadCount,
+    flushAvgTimeWindowSize,
+    flushAvgTimeMinimumCount)
   with DeviceObserver with Logging {
 
   deviceMonitor.registerFlusher(this)
@@ -195,8 +195,7 @@ private[worker] class LocalFlusher(
     deviceMonitor.reportDeviceError(mountPoint, e, deviceErrorType)
   }
 
-  override def notifyError(mountPoint: String,
-    diskStatus: DiskStatus): Unit = {
+  override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {
     logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalFlusher.")
     stopAndCleanFlusher()
     deviceMonitor.unregisterFlusher(this)
