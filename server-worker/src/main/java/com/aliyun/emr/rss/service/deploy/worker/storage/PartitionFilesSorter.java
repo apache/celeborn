@@ -49,14 +49,13 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
-import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecover;
+import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecovery;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
-public class PartitionFilesSorter extends ShuffleRecover {
+public class PartitionFilesSorter extends ShuffleRecovery {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
   public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
-  private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
     new ConcurrentHashMap<>();
@@ -206,7 +205,7 @@ public class PartitionFilesSorter extends ShuffleRecover {
 
   @Override
   protected String recoverFileName() {
-    return RECOVERY_SORTED_FILES_FILE_NAME;
+    return "sortedFiles.ldb";
   }
 
   @Override

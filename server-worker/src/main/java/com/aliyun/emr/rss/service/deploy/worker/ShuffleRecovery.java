@@ -25,13 +25,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public abstract class ShuffleRecover {
-  private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ShuffleRecover.class);
+public abstract class ShuffleRecovery {
+  private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ShuffleRecovery.class);
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   protected LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
   protected DB db = null;
 
-  public ShuffleRecover(RssConf conf) {
+  public ShuffleRecovery(RssConf conf) {
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (RssConf.workerGracefulShutdown(conf)) {

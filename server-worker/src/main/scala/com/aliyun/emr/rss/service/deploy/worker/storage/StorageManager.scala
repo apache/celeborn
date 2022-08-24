@@ -45,7 +45,7 @@ import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
 
 private[worker] final class StorageManager(conf: RssConf, workerSource: AbstractSource)
-  extends ShuffleRecover(conf) with DeviceObserver with Logging with MemoryTrackerListener{
+  extends ShuffleRecovery(conf) with DeviceObserver with Logging with MemoryTrackerListener{
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
@@ -162,11 +162,10 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
-  private val RECOVERY_FILEINFOS_FILE_NAME = "fileInfos.ldb"
 
-  override protected def recoverFileName(): String = RECOVERY_FILEINFOS_FILE_NAME
+  override protected def recoverFileName(): String = "fileInfos.ldb"
 
-  override def reloadAndCleanDBContent(): Unit = {
+  override protected def reloadAndCleanDBContent(): Unit = {
     val itr = db.iterator
     itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
     while (itr.hasNext) {
@@ -187,7 +186,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  override def updateDBContent(): Unit = {
+  override protected def updateDBContent(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
         db.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
