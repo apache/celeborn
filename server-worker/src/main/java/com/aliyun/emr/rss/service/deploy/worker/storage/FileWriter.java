@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.aliyun.emr.rss.service.deploy.worker.PartitionFilesSorter;
+import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -61,7 +63,7 @@ public final class FileWriter implements DeviceObserver {
   private long nextBoundary;
   private long bytesFlushed;
 
-  public final Flusher flusher;
+  public final FlushTask flusher;
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
@@ -112,14 +114,14 @@ public final class FileWriter implements DeviceObserver {
   private final FlushNotifier notifier = new FlushNotifier();
 
   public FileWriter(
-    FileInfo fileInfo,
-    Flusher flusher,
-    AbstractSource workerSource,
-    RssConf rssConf,
-    DeviceMonitor deviceMonitor,
-    long splitThreshold,
-    PartitionSplitMode splitMode,
-    PartitionType partitionType) throws IOException {
+      FileInfo fileInfo,
+      FlushTask flusher,
+      AbstractSource workerSource,
+      RssConf rssConf,
+      DeviceMonitor deviceMonitor,
+      long splitThreshold,
+      PartitionSplitMode splitMode,
+      PartitionType partitionType) throws IOException {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();

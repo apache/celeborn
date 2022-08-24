@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import com.aliyun.emr.rss.service.deploy.worker.storage.FileWriter;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;

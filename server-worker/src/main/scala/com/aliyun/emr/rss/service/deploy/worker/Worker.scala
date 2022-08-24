@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.JavaConverters._
 
 import io.netty.util.HashedWheelTimer
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
@@ -42,6 +41,7 @@ import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.ShutdownHookManager
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
+import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Worker(
     val conf: RssConf,

@@ -18,6 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.worker;
 
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
+import com.aliyun.emr.rss.service.deploy.worker.storage.FileWriter;
 
 public class WorkingPartition extends PartitionLocation {
   private final transient FileWriter fileWriter;

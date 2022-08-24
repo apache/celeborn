@@ -26,7 +26,6 @@ import java.util.function.BiFunction
 import scala.collection.JavaConverters._
 
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -36,6 +35,7 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.Utils
+import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
