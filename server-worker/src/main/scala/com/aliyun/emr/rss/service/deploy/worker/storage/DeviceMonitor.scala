@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker
+package com.aliyun.emr.rss.service.deploy.worker.storage
 
-import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
+import java.io._
 import java.nio.charset.Charset
 import java.util
 import java.util.{Set => jSet}
@@ -30,8 +30,7 @@ import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.deviceMonitorCheckList
-import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
+import com.aliyun.emr.rss.common.RssConf.{deviceMonitorCheckList, diskCheckIntervalMs}
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
