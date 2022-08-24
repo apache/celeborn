@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker
+package com.aliyun.emr.rss.service.deploy.worker.storage
 
 import java.io.File
-import java.util.{ArrayList => jArrayList}
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.{ArrayList => jArrayList}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.{bufferAsJavaListConverter, _}
 import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters.bufferAsJavaListConverter
 
 import org.junit.Assert.assertEquals
 import org.mockito.ArgumentMatchers._

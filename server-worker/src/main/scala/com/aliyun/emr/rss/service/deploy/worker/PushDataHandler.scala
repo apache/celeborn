@@ -35,7 +35,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.unsafe.Platform
-
+import com.aliyun.emr.rss.service.deploy.worker.storage.{FileWriter, LocalFlusher}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
 

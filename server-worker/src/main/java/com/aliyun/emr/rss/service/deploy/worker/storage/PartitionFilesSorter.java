@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,6 +50,9 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
+import com.aliyun.emr.rss.service.deploy.worker.LevelDBProvider;
+import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecoverHelper;
+import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
@@ -79,7 +82,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
   private final Thread fileSorterSchedulerThread;
 
-  PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
+  public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
     this.fetchChunkSize = RssConf.chunkSize(conf);
     this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);

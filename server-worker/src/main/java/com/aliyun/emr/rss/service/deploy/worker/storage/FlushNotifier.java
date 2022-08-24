@@ -15,22 +15,28 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.service.deploy.worker.storage;
 
-import com.aliyun.emr.rss.common.protocol.PartitionLocation;
-import com.aliyun.emr.rss.service.deploy.worker.storage.FileWriter;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class WorkingPartition extends PartitionLocation {
-  private final transient FileWriter fileWriter;
+public class FlushNotifier {
+  final AtomicInteger numPendingFlushes = new AtomicInteger();
+  final AtomicReference<IOException> exception = new AtomicReference<>();
 
-  public WorkingPartition(
-      PartitionLocation partitionLocation,
-      FileWriter fileWriter) {
-    super(partitionLocation);
-    this.fileWriter = fileWriter;
+  void setException(IOException e) {
+    exception.set(e);
   }
 
-  public FileWriter getFileWriter() {
-    return fileWriter;
+  boolean hasException() {
+    return exception.get() != null;
+  }
+
+  void checkException() throws IOException {
+    IOException e = exception.get();
+    if (e != null) {
+      throw e;
+    }
   }
 }
