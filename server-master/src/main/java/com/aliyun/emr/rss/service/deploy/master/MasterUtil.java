@@ -167,29 +167,41 @@ public class MasterUtil {
       Map<WorkerInfo, List<DiskUsableInfo>> restrictions,
       List<WorkerInfo> workers,
       int workerIndex,
-      Map<WorkerInfo, Integer> workerDiskIndex) {
+      Map<WorkerInfo, Tuple2<Integer, Integer>> workerDiskIndex,
+      boolean isMaster) {
     WorkerInfo selectedWorker = workers.get(workerIndex);
-    workerDiskIndex.putIfAbsent(selectedWorker, 0);
-    int currentDiskIndex = workerDiskIndex.get(selectedWorker);
+    workerDiskIndex.putIfAbsent(selectedWorker, new Tuple2<>(0, 0));
+    Tuple2<Integer, Integer> tuple2 = workerDiskIndex.get(selectedWorker);
+    int currentDiskIndex;
+    if (isMaster) {
+      currentDiskIndex = tuple2._1;
+    } else {
+      currentDiskIndex = tuple2._2;
+    }
     while (restrictions.get(selectedWorker).get(currentDiskIndex).usable <= 0) {
       currentDiskIndex = (currentDiskIndex + 1) % restrictions.get(selectedWorker).size();
     }
     restrictions.get(selectedWorker).get(currentDiskIndex).usable--;
-    workerDiskIndex.put(selectedWorker,
-      (currentDiskIndex + 1) % restrictions.get(selectedWorker).size());
+    if (isMaster) {
+      workerDiskIndex.put(selectedWorker,
+        new Tuple2<>((currentDiskIndex + 1) % restrictions.get(selectedWorker).size(), tuple2._2));
+    } else {
+      workerDiskIndex.put(selectedWorker,
+        new Tuple2<>(tuple2._1, (currentDiskIndex + 1) % restrictions.get(selectedWorker).size()));
+    }
     return new Tuple2<>(restrictions.get(selectedWorker).get(currentDiskIndex).diskInfo,
       new StorageInfo(
         restrictions.get(selectedWorker).get(currentDiskIndex).diskInfo.mountPoint()));
   }
 
   private static List<Integer> roundRobin(
-      Map<WorkerInfo, Tuple2<List<PartitionLocation>,
-      List<PartitionLocation>>> slots,
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
       List<Integer> partitionIds,
       List<WorkerInfo> workers,
       Map<WorkerInfo, List<DiskUsableInfo>> restrictions,
       boolean shouldReplicate) {
-    Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
+    // wokerInfo -> (diskIndexForMaster, diskIndexForSlave)
+    Map<WorkerInfo, Tuple2<Integer, Integer>> workerDiskIndex = new HashMap<>();
     List<Integer> partitionIdList = new ArrayList<>(partitionIds);
     int masterIndex = rand.nextInt(workers.size());
     Tuple2<DiskInfo, StorageInfo> storageInfo = null;
@@ -207,7 +219,7 @@ public class MasterUtil {
             break outer;
           }
         }
-        storageInfo = getStorageInfo(restrictions, workers, nextMasterInd, workerDiskIndex);
+        storageInfo = getStorageInfo(restrictions, workers, nextMasterInd, workerDiskIndex, true);
       }
       PartitionLocation masterPartition = createLocation(partitionId,
           workers.get(nextMasterInd),
@@ -224,7 +236,7 @@ public class MasterUtil {
               break outer;
             }
           }
-          storageInfo = getStorageInfo(restrictions, workers, nextSlaveInd, workerDiskIndex);
+          storageInfo = getStorageInfo(restrictions, workers, nextSlaveInd, workerDiskIndex, false);
         }
         PartitionLocation slavePartition = createLocation(
             partitionId,
