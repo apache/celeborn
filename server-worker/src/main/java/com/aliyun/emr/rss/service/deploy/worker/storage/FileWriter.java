@@ -63,7 +63,7 @@ public final class FileWriter implements DeviceObserver {
   private long nextBoundary;
   private long bytesFlushed;
 
-  public final FlushTask flusher;
+  public final Flusher flusher;
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
@@ -115,7 +115,7 @@ public final class FileWriter implements DeviceObserver {
 
   public FileWriter(
       FileInfo fileInfo,
-      FlushTask flusher,
+      Flusher flusher,
       AbstractSource workerSource,
       RssConf rssConf,
       DeviceMonitor deviceMonitor,
