@@ -838,6 +838,10 @@ object RssConf extends Logging {
     conf.getInt("rss.client.split.pool.size", 8)
   }
 
+  def compressionMode(conf: RssConf): String = {
+    conf.get("rss.client.compression.mode", "LZ4").toUpperCase
+  }
+
   def partitionSortTimeout(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }

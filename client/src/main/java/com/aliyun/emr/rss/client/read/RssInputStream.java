@@ -35,8 +35,7 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.client.compress.RssLz4Decompressor;
-import com.aliyun.emr.rss.client.compress.RssLz4Trait;
+import com.aliyun.emr.rss.client.compress.Decompressor;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
@@ -103,7 +102,7 @@ public abstract class RssInputStream extends InputStream {
 
     private byte[] compressedBuf;
     private byte[] decompressedBuf;
-    private final RssLz4Decompressor decompressor;
+    private final Decompressor decompressor;
 
     private ByteBuf currentChunk;
     private PartitionReader currentReader;
@@ -144,11 +143,13 @@ public abstract class RssInputStream extends InputStream {
 
       maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
 
-      int blockSize = RssConf.pushDataBufferSize(conf) + RssLz4Trait.HEADER_LENGTH;
+      String compressionMode = RssConf.compressionMode(conf);
+      int headerLen = Decompressor.getHeaderLengthByMode(compressionMode);
+      int blockSize = RssConf.pushDataBufferSize(conf) + headerLen;
       compressedBuf = new byte[blockSize];
       decompressedBuf = new byte[blockSize];
 
-      decompressor = new RssLz4Decompressor();
+      decompressor = Decompressor.getDecompressorByMode(compressionMode);
 
       moveToNextReader();
     }

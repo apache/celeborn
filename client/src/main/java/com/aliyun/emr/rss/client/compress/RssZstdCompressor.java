@@ -17,28 +17,26 @@
 
 package com.aliyun.emr.rss.client.compress;
 
+import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
-import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Factory;
-import net.jpountz.xxhash.XXHashFactory;
+import com.github.luben.zstd.Zstd;
 
-public class RssLz4Compressor extends RssLz4Trait implements Compressor {
+public class RssZstdCompressor extends RssZstdTrait implements Compressor {
   private final int compressionLevel;
-  private final LZ4Compressor compressor;
   private final Checksum checksum;
   private byte[] compressedBuffer;
   private int compressedTotalSize;
 
-  public RssLz4Compressor() {
+  public RssZstdCompressor() {
     this(256 * 1024);
   }
 
-  public RssLz4Compressor(int blockSize) {
-    int level = 32 - Integer.numberOfLeadingZeros(blockSize - 1) - COMPRESSION_LEVEL_BASE;
-    this.compressionLevel = Math.max(0, level);
-    this.compressor = LZ4Factory.fastestInstance().fastCompressor();
-    checksum = XXHashFactory.fastestInstance().newStreamingHash32(DEFAULT_SEED).asChecksum();
+  public RssZstdCompressor(int blockSize) {
+    // Using 1 by default
+    compressionLevel = 1;
+    // Using CRC32 which is suitable for error detect rather than
+    checksum = new CRC32();
     initCompressBuffer(blockSize);
   }
 
@@ -54,19 +52,20 @@ public class RssLz4Compressor extends RssLz4Trait implements Compressor {
     checksum.reset();
     checksum.update(data, offset, length);
     final int check = (int) checksum.getValue();
-    int maxDestLength = compressor.maxCompressedLength(length);
+    int maxDestLength = (int) Zstd.compressBound(length);
     if (compressedBuffer.length - HEADER_LENGTH < maxDestLength) {
       initCompressBuffer(maxDestLength);
     }
-    int compressedLength = compressor.compress(
-        data, offset, length, compressedBuffer, HEADER_LENGTH);
+    // Using customized Checksum instead of default checksum;
+    int compressedLength = (int) Zstd.compressByteArray(compressedBuffer, HEADER_LENGTH,
+            maxDestLength - HEADER_LENGTH, data, offset, length, compressionLevel);
     final int compressMethod;
     if (compressedLength >= length) {
       compressMethod = COMPRESSION_METHOD_RAW;
       compressedLength = length;
       System.arraycopy(data, offset, compressedBuffer, HEADER_LENGTH, length);
     } else {
-      compressMethod = COMPRESSION_METHOD_LZ4;
+      compressMethod = COMPRESSION_METHOD_ZSTD;
     }
 
     compressedBuffer[MAGIC_LENGTH] = (byte) (compressMethod | compressionLevel);
