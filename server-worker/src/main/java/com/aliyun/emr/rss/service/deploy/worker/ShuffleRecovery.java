@@ -17,12 +17,12 @@
 
 package com.aliyun.emr.rss.service.deploy.worker;
 
-import org.iq80.leveldb.DB;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+
+import org.iq80.leveldb.DB;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 
