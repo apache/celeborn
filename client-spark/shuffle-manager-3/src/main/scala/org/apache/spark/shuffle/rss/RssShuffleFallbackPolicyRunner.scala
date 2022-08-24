@@ -29,7 +29,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-       applyClusterLoadFallbackPolicy(lifecycleManager, numPartitions)
+       !checkAlive(lifecycleManager)
   }
 
   /**
@@ -58,17 +58,16 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * if rss cluster is under high load, fallback to external shuffle
    * @return if rss cluster's slots used percent is overhead the limit
    */
-  def applyClusterLoadFallbackPolicy(lifeCycleManager: LifecycleManager, numPartitions: Int):
+  def checkAlive(lifeCycleManager: LifecycleManager):
     Boolean = {
-    if (!RssConf.clusterLoadFallbackEnabled(rssConf)) {
-      return false
+    if (!RssConf.clusterCheckAliveEnabled(rssConf)) {
+      return true
     }
 
-    val needFallback = lifeCycleManager.isClusterOverload(numPartitions)
-    if (needFallback) {
-      logWarning(s"Cluster is overload: $needFallback")
+    val alive = lifeCycleManager.checkAlive()
+    if (!alive) {
+      logWarning(s"Cluster is not alive!")
     }
-    needFallback
+    alive
   }
-
 }

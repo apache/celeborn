@@ -30,6 +30,7 @@ import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.RssConf.deviceMonitorCheckList
 import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
@@ -49,7 +50,7 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-    essConf: RssConf,
+    rssConf: RssConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
     diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
@@ -62,7 +63,7 @@ class LocalDeviceMonitor(
     }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-    val sysBlockDir = RssConf.sysBlockDir(essConf)
+    val sysBlockDir = RssConf.sysBlockDir(rssConf)
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -113,9 +114,9 @@ class LocalDeviceMonitor(
     /**
      * @return true if device is hang
      */
-    def checkIoHang(): Boolean = {
+    def ioHang(): Boolean = {
       if (deviceInfo.deviceStatAvailable) {
-        true
+        false
       } else {
         var statsSource: Source = null
         var infligtSource: Source = null
@@ -142,11 +143,6 @@ class LocalDeviceMonitor(
             val isWriteHang = lastWriteComplete == writeComplete &&
               writeInflight >= lastWriteInflight && lastWriteInflight > 0
 
-            lastReadComplete = readComplete
-            lastWriteComplete = writeComplete
-            lastReadInflight = readInflight
-            lastWriteInflight = writeInflight
-
             if (isReadHang || isWriteHang) {
               logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
                 s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
@@ -155,6 +151,11 @@ class LocalDeviceMonitor(
               )
               logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
             }
+
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
 
             isReadHang || isWriteHang
           }
@@ -182,7 +183,13 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = diskCheckIntervalMs(essConf)
+  val diskCheckInterval = diskCheckIntervalMs(rssConf)
+
+  // we should choose what the device needs to detect
+  val monitorCheckList = deviceMonitorCheckList(rssConf)
+  val checkIoHang = monitorCheckList.contains("iohang")
+  val checkReadWrite = monitorCheckList.contains("readwrite")
+  val checkDiskUsage = monitorCheckList.contains("diskusage")
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -207,16 +214,17 @@ class LocalDeviceMonitor(
           observedDevices.values().asScala.foreach(device => {
             val mountPoints = device.diskInfos.keySet.asScala.toList
 
-            if (device.checkIoHang()) {
+            if (checkIoHang && device.ioHang()) {
               logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
               device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
               device.diskInfos.values().asScala.foreach{ case diskInfo =>
-                if (DeviceMonitor.highDiskUsage(essConf, diskInfo.mountPoint)) {
+                if (checkDiskUsage && DeviceMonitor.highDiskUsage(rssConf, diskInfo.mountPoint)) {
                   logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                   device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
-                } else if (DeviceMonitor.readWriteError(essConf, diskInfo.dirs.head)) {
+                } else if (checkReadWrite &&
+                DeviceMonitor.readWriteError(rssConf, diskInfo.dirs.head)) {
                   logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
@@ -301,20 +309,20 @@ object DeviceMonitor {
    * @param diskRootPath disk root path
    * @return true if high disk usage
    */
-  def highDiskUsage(essConf: RssConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(rssConf: RssConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
       val totalSpace = usage(usage.length - 1)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskMinimumReserveSize(essConf) / 1024 / 1024 / 1024
+      val status = freeSpace.toLong < RssConf.diskMinimumReserveSize(rssConf) / 1024 / 1024 / 1024
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
       }
       status
-    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
+    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(rssConf),
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
@@ -324,7 +332,7 @@ object DeviceMonitor {
    * @param dataDir one of shuffle data dirs in mount disk
    * @return true if disk has read-write problem
    */
-  def readWriteError(essConf: RssConf, dataDir: File): Boolean = {
+  def readWriteError(rssConf: RssConf, dataDir: File): Boolean = {
     if (null == dataDir || !dataDir.isDirectory) {
       return false
     }
@@ -357,7 +365,7 @@ object DeviceMonitor {
           logger.error(s"Disk dir $dataDir cannot read or write", t)
           true
       }
-    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
+    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(rssConf),
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 

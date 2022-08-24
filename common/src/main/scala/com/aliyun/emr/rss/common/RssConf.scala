@@ -492,8 +492,8 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
-  def workerFetchChunkSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
+  def chunkSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.chunk.size", "8m")
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {
@@ -700,10 +700,6 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.rpc.port", 0)
   }
 
-  def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
-  }
-
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
@@ -734,15 +730,23 @@ object RssConf extends Logging {
   }
 
   def maxPartitionNumSupported(conf: RssConf): Long = {
-    conf.getInt("rss.max.partition.number", 100000)
+    conf.getInt("rss.max.partition.number", 500000)
   }
 
   def forceFallback(conf: RssConf): Boolean = {
     conf.getBoolean("rss.force.fallback", false)
   }
 
+  def clusterCheckAliveEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.cluster.checkalive.enabled", defaultValue = true)
+  }
+
   def deviceMonitorEnabled(conf: RssConf): Boolean = {
     conf.getBoolean("rss.device.monitor.enabled", true)
+  }
+
+  def deviceMonitorCheckList(conf: RssConf): String = {
+    conf.get("rss.device.monitor.checklist", "readwrite,diskusage")
   }
 
   def diskCheckIntervalMs(conf: RssConf): Long = {
@@ -838,10 +842,6 @@ object RssConf extends Logging {
     conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
   }
 
-  def memoryTrimActionThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.memory.trim.action.threshold", 10)
-  }
-
   def workerPausePushDataRatio(conf: RssConf): Double = {
     conf.getDouble("rss.pause.pushdata.memory.ratio", 0.85)
   }
@@ -918,6 +918,14 @@ object RssConf extends Logging {
 
   def flushAvgTimeMinimumCount(conf: RssConf): Int = {
     conf.getInt("rss.flusher.avg.time.minimum.count", 1000);
+  }
+
+  def hdfsDir(conf: RssConf): String = {
+    conf.get("rss.worker.hdfs.dir", "")
+  }
+
+  def hdfsFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"

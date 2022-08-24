@@ -55,7 +55,7 @@ class MasterSuite extends AnyFunSuite
       RpcNameConstants.MASTER_SYS,
       masterArgs.host,
       masterArgs.host,
-      masterArgs.port,
+      masterArgs.port.getOrElse(0),
       conf,
       4)
 

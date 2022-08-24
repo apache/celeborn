@@ -26,6 +26,7 @@ import scala.collection.mutable.ListBuffer
 
 import org.slf4j.LoggerFactory
 
+import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils.runCommand
 
@@ -36,7 +37,7 @@ class DiskInfo(
   var avgFlushTime: Long,
   var activeSlots: Long,
   val dirs: List[File],
-  val deviceInfo: DeviceInfo) extends Serializable {
+  val deviceInfo: DeviceInfo) extends Serializable with Logging {
 
   def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
     this(mountPoint, usableSpace, avgFlushTime, activeSlots, List.empty, null)
@@ -77,7 +78,11 @@ class DiskInfo(
 
   def releaseSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
     val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
-    activeSlots = activeSlots - slots
+    if (allocated < slots) {
+      logError(s"allocated $allocated is less than to release $slots !")
+    }
+    val delta = Math.min(allocated, slots)
+    activeSlots = activeSlots - delta
     if (allocated > slots) {
       shuffleAllocations.put(shuffleKey, allocated - slots)
     } else {
@@ -92,14 +97,22 @@ class DiskInfo(
     }
   }
 
-  override def toString: String = s"DiskInfo(maxSlots: $maxSlots," +
-    s" shuffleAllocations: $shuffleAllocations," +
-    s" mountPoint: $mountPoint," +
-    s" usableSpace: $actualUsableSpace," +
-    s" avgFlushTime: $avgFlushTime," +
-    s" activeSlots: $activeSlots)" +
-    s" status: $status" +
-    s" dirs ${dirs.mkString("\t")}"
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    new util.HashSet(shuffleAllocations.keySet())
+  }
+
+  override def toString: String = this.synchronized {
+    val (emptyShuffles, nonEmptyShuffles) = shuffleAllocations.asScala.partition(_._2 == 0)
+    s"DiskInfo(maxSlots: $maxSlots," +
+      s" committed shuffles ${emptyShuffles.size}" +
+      s" shuffleAllocations: $nonEmptyShuffles," +
+      s" mountPoint: $mountPoint," +
+      s" usableSpace: $actualUsableSpace," +
+      s" avgFlushTime: $avgFlushTime," +
+      s" activeSlots: $activeSlots)" +
+      s" status: $status" +
+      s" dirs ${dirs.mkString("\t")}"
+  }
 }
 
 class DeviceInfo(val name: String) extends Serializable {

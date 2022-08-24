@@ -51,7 +51,7 @@ private[deploy] class Worker(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
     workerArgs.host,
-    workerArgs.port,
+    workerArgs.port.getOrElse(0),
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
@@ -85,8 +85,7 @@ private[deploy] class Worker(
     workerResumeRatio(conf),
     partitionSortMaxMemoryRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
-    workerDirectMemoryReportIntervalSecond(conf),
-    memoryTrimActionThreshold(conf))
+    workerDirectMemoryReportIntervalSecond(conf))
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
@@ -178,8 +177,8 @@ private[deploy] class Worker(
   var cleaner: Thread = _
 
   workerSource.addGauge(
-    WorkerSource.RegisteredShuffleCount, _ => partitionLocationInfo.shuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.SlotsUsed, _ => workerInfo.usedSlots())
+    WorkerSource.RegisteredShuffleCount, _ => workerInfo.getShuffleKeySet.size())
+  workerSource.addGauge(WorkerSource.SlotsAllocated, _ => workerInfo.allocationsInLastHour())
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())

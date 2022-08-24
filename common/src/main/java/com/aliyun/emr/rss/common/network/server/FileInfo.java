@@ -21,18 +21,29 @@ import java.io.File;
 import java.util.ArrayList;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FSDataOutputStream;
 
 public class FileInfo {
   public final File file;
   private final ArrayList<Long> chunkOffsets;
+  public final FSDataOutputStream fsDataOutputStream;
 
   public FileInfo(File file, ArrayList<Long> chunkOffsets) {
     this.file = file;
     this.chunkOffsets = chunkOffsets;
+    this.fsDataOutputStream = null;
   }
 
   public FileInfo(File file) {
     this.file = file;
+    this.fsDataOutputStream = null;
+    this.chunkOffsets = new ArrayList<>();
+    chunkOffsets.add(0L);
+  }
+
+  public FileInfo(FSDataOutputStream outputStream){
+    this.file = null;
+    this.fsDataOutputStream = outputStream;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
   }

@@ -64,7 +64,6 @@ Here is an example of grafana dashboard importing.
 |        MetricName         |       Role        |                                                  Description                                                   |
 |:-------------------------:|:-----------------:|:--------------------------------------------------------------------------------------------------------------:|
 |        WorkerCount        |      master       |                                          The count of active workers.                                          |
-|    OverloadWorkerCount    |      master       |                                        The count of overloaded workers.                                        |
 |  BlacklistedWorkerCount   |      master       |                                       The count of workers in blacklist.                                       |
 |      OfferSlotsTime       |      master       |                                            The time of offer slots.                                            |
 |       PartitionSize       |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.          |
@@ -78,7 +77,7 @@ Here is an example of grafana dashboard importing.
 |     SlavePushDataTime     |      worker       |                       MasterPushData means handle pushdata of slave partition location.                        |
 |     PushDataFailCount     |      worker       |                                The count of failed PushData or PushMergedData.                                 |
 |      TakeBufferTime       |      worker       |                             TakeBuffer means get a disk buffer from disk flusher.                              |
-|         SlotsUsed         |      worker       |                                                                                                                |
+|      SlotsAllocated       |      worker       |                                          Slots allocated in last hour                                          |
 |        NettyMemory        |      worker       |                        The value measures all kinds of transport memory used by netty.                         |
 |         SortTime          |      worker       |                           SortTime measures the time used by sorting a shuffle file.                           |
 |        SortMemory         |      worker       |                       SortMemory means total reserved memory for sorting shuffle files .                       |

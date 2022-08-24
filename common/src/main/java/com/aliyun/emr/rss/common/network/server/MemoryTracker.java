@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -62,7 +63,7 @@ public class MemoryTracker {
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
   private boolean underPressure;
-  private int trimCount = 0;
+  private AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   public static MemoryTracker initialize(
     double pausePushDataRatio,
@@ -70,8 +71,7 @@ public class MemoryTracker {
     double resumeRatio,
     double maxSortRatio,
     int checkInterval,
-    int reportInterval,
-    int trimActionThreshold) {
+    int reportInterval) {
     if (_INSTANCE == null) {
       _INSTANCE = new MemoryTracker(
         pausePushDataRatio,
@@ -79,8 +79,7 @@ public class MemoryTracker {
         resumeRatio,
         maxSortRatio,
         checkInterval,
-        reportInterval,
-        trimActionThreshold);
+        reportInterval);
     }
     return _INSTANCE;
   }
@@ -101,8 +100,7 @@ public class MemoryTracker {
     double resumeRatio,
     double maxSortMemRatio,
     int checkInterval,
-    int reportInterval,
-    int trimActionThreshold) {
+    int reportInterval) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
@@ -144,12 +142,16 @@ public class MemoryTracker {
           }
         } else {
           if (memoryTrackerStat != MemoryTrackerStat.resumeAll) {
-            if (trimCount++ % trimActionThreshold == 0) {
+            if (!trimInProcess.get()) {
+              trimInProcess.set(true);
               actionService.submit(() -> {
-                logger.info("Trigger trim action");
-                memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                try {
+                  logger.info("Trigger trim action");
+                  memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                } finally {
+                  trimInProcess.set(false);
+                }
               });
-              trimCount = 0;
             }
           }
         }
