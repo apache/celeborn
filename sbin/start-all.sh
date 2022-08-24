@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Starts the rss master on the machine this script is executed on.
+# Starts the rss master and workers on the machine this script is executed on.
 
 if [ -z "${RSS_HOME}" ]; then
   export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"

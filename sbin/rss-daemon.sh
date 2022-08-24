@@ -181,6 +181,27 @@ case $option in
     fi
     ;;
 
+  (restart)
+
+    if [ -f $pid ]; then
+      TARGET_ID="$(cat "$pid")"
+      if [[ $(ps -p "$TARGET_ID" -o comm=) =~ "java" ]] || [[ $(ps -p "$TARGET_ID" -o comm=) =~ "jboot" ]]; then
+        echo "stopping $command"
+        kill "$TARGET_ID" && rm -f "$pid"
+        while [[ $(ps -p "$TARGET_ID" -o comm=) != "" ]];
+        do
+          echo "waiting worker graceful shutdown, sleep 1s"
+          sleep 1s
+        done
+        run_command class "$@"
+      else
+        echo "no $command to restart"
+      fi
+    else
+      echo "no $command to restart"
+    fi
+    ;;
+
   (status)
 
     if [ -f $pid ]; then
