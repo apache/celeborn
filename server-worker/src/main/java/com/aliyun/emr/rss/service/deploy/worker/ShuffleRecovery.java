@@ -17,13 +17,14 @@
 
 package com.aliyun.emr.rss.service.deploy.worker;
 
-import com.aliyun.emr.rss.common.RssConf;
 import org.iq80.leveldb.DB;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+
+import com.aliyun.emr.rss.common.RssConf;
 
 public abstract class ShuffleRecovery {
   private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ShuffleRecovery.class);
