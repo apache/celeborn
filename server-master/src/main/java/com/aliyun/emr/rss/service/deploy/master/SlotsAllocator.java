@@ -31,44 +31,21 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
 
-public class MasterUtil {
-  static class DiskUsableInfo {
+public class SlotsAllocator {
+  static class UsableDiskInfo {
     DiskInfo diskInfo;
-    long usable;
+    long usableSlots;
 
-    DiskUsableInfo(DiskInfo diskInfo, long usable) {
+    UsableDiskInfo(DiskInfo diskInfo, long usableSlots) {
       this.diskInfo = diskInfo;
-      this.usable = usable;
+      this.usableSlots = usableSlots;
     }
   }
 
-  private static final Logger logger = LoggerFactory.getLogger(MasterUtil.class);
+  private static final Logger logger = LoggerFactory.getLogger(SlotsAllocator.class);
   private static final Random rand = new Random();
   private static boolean initialized = false;
   private static double[] taskAllocationRatio = null;
-
-  public static Map<WorkerInfo, Map<String, Integer>> slotsToDiskAllocations(
-      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
-    Iterator<WorkerInfo> workers = slots.keySet().iterator();
-    Map<WorkerInfo, Map<String, Integer>> workerToSlots = new HashMap<>();
-    while (workers.hasNext()) {
-      WorkerInfo worker = workers.next();
-      Map<String, Integer> slotsPerDisk =
-          workerToSlots.computeIfAbsent(worker, v-> new HashMap<>());
-      List<PartitionLocation> jointLocations = new ArrayList<>();
-      jointLocations.addAll(slots.get(worker)._1);
-      jointLocations.addAll(slots.get(worker)._2);
-      for (PartitionLocation location : jointLocations) {
-        String mountPoint = location.getStorageHint().getMountPoint();
-        if (slotsPerDisk.containsKey(mountPoint)) {
-          slotsPerDisk.put(mountPoint, slotsPerDisk.get(mountPoint) + 1);
-        } else {
-          slotsPerDisk.put(mountPoint, 1);
-        }
-      }
-    }
-    return workerToSlots;
-  }
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
     offerSlotsRoundRobin(
@@ -83,13 +60,13 @@ public class MasterUtil {
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
-    Map<WorkerInfo, List<DiskUsableInfo>> restrictions = new HashMap<>();
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
     for (WorkerInfo worker : workers) {
-      List<DiskUsableInfo> usableDisks = restrictions.computeIfAbsent(worker,
+      List<UsableDiskInfo> usableDisks = restrictions.computeIfAbsent(worker,
         v -> new ArrayList<>());
       for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
         if (diskInfoEntry.getValue().status().equals(DiskStatus.Healthy)) {
-          usableDisks.add(new DiskUsableInfo(diskInfoEntry.getValue(),
+          usableDisks.add(new UsableDiskInfo(diskInfoEntry.getValue(),
             diskInfoEntry.getValue().availableSlots()));
         }
       }
@@ -147,7 +124,7 @@ public class MasterUtil {
       initLoadAwareAlgorithm(diskGroupCount, diskGroupGradient);
     }
 
-    Map<WorkerInfo, List<DiskUsableInfo>> restriction =
+    Map<WorkerInfo, List<UsableDiskInfo>> restriction =
         getRestriction(placeDisksToGroups(usableDisks, diskGroupCount),
             diskToWorkerMap, shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
 
@@ -163,80 +140,70 @@ public class MasterUtil {
     return slots;
   }
 
-  private static Tuple2<DiskInfo, StorageInfo> getStorageInfo(
-      Map<WorkerInfo, List<DiskUsableInfo>> restrictions,
-      List<WorkerInfo> workers,
-      int workerIndex,
-      Map<WorkerInfo, Tuple2<Integer, Integer>> workerDiskIndex,
-      boolean isMaster) {
+  private static StorageInfo getStorageInfo(
+    List<WorkerInfo> workers,
+    int workerIndex,
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
+    Map<WorkerInfo, Integer> workerDiskIndex) {
     WorkerInfo selectedWorker = workers.get(workerIndex);
-    workerDiskIndex.putIfAbsent(selectedWorker, new Tuple2<>(0, 0));
-    Tuple2<Integer, Integer> tuple2 = workerDiskIndex.get(selectedWorker);
-    int currentDiskIndex;
-    if (isMaster) {
-      currentDiskIndex = tuple2._1;
-    } else {
-      currentDiskIndex = tuple2._2;
+    List<UsableDiskInfo> usableDiskInfos = restrictions.get(selectedWorker);
+    int diskIndex = workerDiskIndex.computeIfAbsent(selectedWorker, v -> 0);
+    while (usableDiskInfos.get(diskIndex).usableSlots <= 0) {
+      diskIndex = (diskIndex + 1) % usableDiskInfos.size();
     }
-    while (restrictions.get(selectedWorker).get(currentDiskIndex).usable <= 0) {
-      currentDiskIndex = (currentDiskIndex + 1) % restrictions.get(selectedWorker).size();
-    }
-    restrictions.get(selectedWorker).get(currentDiskIndex).usable--;
-    if (isMaster) {
-      workerDiskIndex.put(selectedWorker,
-        new Tuple2<>((currentDiskIndex + 1) % restrictions.get(selectedWorker).size(), tuple2._2));
-    } else {
-      workerDiskIndex.put(selectedWorker,
-        new Tuple2<>(tuple2._1, (currentDiskIndex + 1) % restrictions.get(selectedWorker).size()));
-    }
-    return new Tuple2<>(restrictions.get(selectedWorker).get(currentDiskIndex).diskInfo,
-      new StorageInfo(
-        restrictions.get(selectedWorker).get(currentDiskIndex).diskInfo.mountPoint()));
+    usableDiskInfos.get(diskIndex).usableSlots--;
+    StorageInfo storageInfo = new StorageInfo(usableDiskInfos.get(diskIndex).diskInfo.mountPoint());
+    workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
+    return storageInfo;
   }
 
   private static List<Integer> roundRobin(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
       List<Integer> partitionIds,
       List<WorkerInfo> workers,
-      Map<WorkerInfo, List<DiskUsableInfo>> restrictions,
+      Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
       boolean shouldReplicate) {
     // wokerInfo -> (diskIndexForMaster, diskIndexForSlave)
-    Map<WorkerInfo, Tuple2<Integer, Integer>> workerDiskIndex = new HashMap<>();
+    Map<WorkerInfo, Integer> workerDiskIndexForMaster = new HashMap<>();
+    Map<WorkerInfo, Integer> workerDiskIndexForSlave = new HashMap<>();
     List<Integer> partitionIdList = new ArrayList<>(partitionIds);
     int masterIndex = rand.nextInt(workers.size());
-    Tuple2<DiskInfo, StorageInfo> storageInfo = null;
     Iterator<Integer> iter = partitionIdList.iterator();
     outer:
     while (iter.hasNext()) {
       int nextMasterInd = masterIndex;
 
       int partitionId = iter.next();
+      StorageInfo storageInfo = new StorageInfo();
       if (restrictions != null) {
         while (restrictions.get(workers.get(nextMasterInd)).stream()
-                 .mapToLong(i -> i.usable).sum() <= 0) {
+                 .mapToLong(i -> i.usableSlots).sum() <= 0) {
           nextMasterInd = (nextMasterInd + 1) % workers.size();
           if (nextMasterInd == masterIndex) {
             break outer;
           }
         }
-        storageInfo = getStorageInfo(restrictions, workers, nextMasterInd, workerDiskIndex, true);
+        storageInfo = getStorageInfo(
+          workers, nextMasterInd, restrictions, workerDiskIndexForMaster);
       }
       PartitionLocation masterPartition = createLocation(partitionId,
           workers.get(nextMasterInd),
           null,
           storageInfo,
           true);
+
       if (shouldReplicate) {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
           while (restrictions.get(workers.get(nextSlaveInd)).stream()
-                   .mapToLong(i -> i.usable).sum() <= 0) {
+                   .mapToLong(i -> i.usableSlots).sum() <= 0) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
             }
           }
-          storageInfo = getStorageInfo(restrictions, workers, nextSlaveInd, workerDiskIndex, false);
+          storageInfo = getStorageInfo(
+            workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
         }
         PartitionLocation slavePartition = createLocation(
             partitionId,
@@ -244,17 +211,17 @@ public class MasterUtil {
             masterPartition,
             storageInfo,
             false);
-        storageInfo = null;
         masterPartition.setPeer(slavePartition);
-        Tuple2<List<PartitionLocation>, List<PartitionLocation>> slaveLocations =
+        Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
           slots.computeIfAbsent(workers.get(nextSlaveInd),
             v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
-        slaveLocations._2.add(slavePartition);
+        locations._2.add(slavePartition);
       }
-      Tuple2<List<PartitionLocation>, List<PartitionLocation>> masterLocations =
+
+      Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
         slots.computeIfAbsent(workers.get(nextMasterInd),
           v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
-      masterLocations._1.add(masterPartition);
+      locations._1.add(masterPartition);
       masterIndex = (nextMasterInd + 1) % workers.size();
       iter.remove();
     }
@@ -302,11 +269,11 @@ public class MasterUtil {
     return diskGroups;
   }
 
-  private static Map<WorkerInfo, List<DiskUsableInfo>> getRestriction(List<List<DiskInfo>> groups,
-      Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
+  private static Map<WorkerInfo, List<UsableDiskInfo>> getRestriction(List<List<DiskInfo>> groups,
+    Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
     int groupSize = groups.size();
     long[] groupAllocations = new long[groupSize];
-    Map<WorkerInfo, List<DiskUsableInfo>> restrictions = new HashMap<>();
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
     long[] groupAvailableSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
       for (DiskInfo disk : groups.get(i)) {
@@ -353,7 +320,7 @@ public class MasterUtil {
         if (groupRequired <= 0) {
           break;
         }
-        List<DiskUsableInfo> diskAllocation =
+        List<UsableDiskInfo> diskAllocation =
             restrictions.computeIfAbsent(diskWorkerMap.get(disk), v -> new ArrayList<>());
         long allocated = (int) Math.ceil((groupAllocations[i] + groupLeft)
                                              / (double) disksInsideGroup);
@@ -363,7 +330,7 @@ public class MasterUtil {
         if (allocated > groupRequired) {
           allocated = groupRequired;
         }
-        diskAllocation.add(new DiskUsableInfo(disk, Math.toIntExact(allocated)));
+        diskAllocation.add(new UsableDiskInfo(disk, Math.toIntExact(allocated)));
         groupRequired -= allocated;
       }
       groupLeft = groupRequired;
@@ -378,9 +345,9 @@ public class MasterUtil {
           String workerHost = workerInfo.host();
           long allocation = 0;
           if (restrictions.get(workerInfo) != null) {
-            for (DiskUsableInfo usableInfo : restrictions.get(workerInfo)) {
+            for (UsableDiskInfo usableInfo : restrictions.get(workerInfo)) {
               if (usableInfo.diskInfo.equals(diskInfo)) {
-                allocation = usableInfo.usable;
+                allocation = usableInfo.usableSlots;
               }
             }
           }
@@ -400,7 +367,7 @@ public class MasterUtil {
       int partitionIndex,
       WorkerInfo workerInfo,
       PartitionLocation peer,
-      Tuple2<DiskInfo, StorageInfo> storageInfo,
+      StorageInfo storageInfo,
       boolean isMaster) {
     return new PartitionLocation(
         partitionIndex,
@@ -412,7 +379,30 @@ public class MasterUtil {
         workerInfo.replicatePort(),
         isMaster ? PartitionLocation.Mode.Master : PartitionLocation.Mode.Slave,
         peer,
-        storageInfo == null ? new StorageInfo() : storageInfo._2
+        storageInfo
     );
+  }
+
+  public static Map<WorkerInfo, Map<String, Integer>> slotsToDiskAllocations(
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
+    Iterator<WorkerInfo> workers = slots.keySet().iterator();
+    Map<WorkerInfo, Map<String, Integer>> workerToSlots = new HashMap<>();
+    while (workers.hasNext()) {
+      WorkerInfo worker = workers.next();
+      Map<String, Integer> slotsPerDisk =
+        workerToSlots.computeIfAbsent(worker, v-> new HashMap<>());
+      List<PartitionLocation> jointLocations = new ArrayList<>();
+      jointLocations.addAll(slots.get(worker)._1);
+      jointLocations.addAll(slots.get(worker)._2);
+      for (PartitionLocation location : jointLocations) {
+        String mountPoint = location.getStorageHint().getMountPoint();
+        if (slotsPerDisk.containsKey(mountPoint)) {
+          slotsPerDisk.put(mountPoint, slotsPerDisk.get(mountPoint) + 1);
+        } else {
+          slotsPerDisk.put(mountPoint, 1);
+        }
+      }
+    }
+    return workerToSlots;
   }
 }
