@@ -1,18 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: rss-svc
+  name: rss-worker-svc
   labels:
     {{- include "remote-shuffle-service.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      protocol: TCP
-      name: rss
   clusterIP: None
   selector:
     {{- include "remote-shuffle-service.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/name: shuffleservicemaster
-    app.kubernetes.io/role: master
+    app.kubernetes.io/name: shuffleserviceworker
+    app.kubernetes.io/role: worker
