@@ -21,13 +21,13 @@ import java.nio.channels.FileChannel
 
 import io.netty.buffer.CompositeByteBuf
 
-import com.aliyun.emr.rss.service.deploy.worker.FlushNotifier
+import com.aliyun.emr.rss.service.deploy.worker.FileWriter
 import com.aliyun.emr.rss.service.deploy.worker.storage.FlushTask
 
 private[worker] class LocalFlushTask(
     buffer: CompositeByteBuf,
     fileChannel: FileChannel,
-    notifier: FlushNotifier) extends FlushTask(buffer, notifier) {
+    notifier: FileWriter.FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
     fileChannel.write(buffer.nioBuffers())
   }

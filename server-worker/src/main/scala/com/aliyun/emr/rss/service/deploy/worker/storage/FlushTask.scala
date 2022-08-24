@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker.storage
 
 import io.netty.buffer.CompositeByteBuf
 
-import com.aliyun.emr.rss.service.deploy.worker.FlushNotifier
+import com.aliyun.emr.rss.service.deploy.worker.FileWriter.FlushNotifier
 
 private[worker] abstract class FlushTask(
     val buffer: CompositeByteBuf,

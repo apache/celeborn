@@ -8,7 +8,8 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.DiskStatus
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.protocol.StorageInfo
-import com.aliyun.emr.rss.service.deploy.worker.storage.{DeviceMonitor, DeviceObserver, Flusher}
+import com.aliyun.emr.rss.service.deploy.worker.DeviceMonitor
+import com.aliyun.emr.rss.service.deploy.worker.storage.{DeviceObserver, Flusher}
 
 
 private[worker] class LocalFlusher(
