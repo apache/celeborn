@@ -29,14 +29,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.meta.DiskStatus;
+import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
-import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
@@ -111,10 +112,10 @@ public final class FileWriter implements DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    if (fileInfo.getFile() != null) {
+    if (!fileInfo.isHdfs()) {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
-      stream = fileInfo.fsDataOutputStream;
+      stream = StorageManager.hdfsFs().create(new Path(fileInfo.getFilePath()), true);
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
@@ -272,18 +273,29 @@ public final class FileWriter implements DeviceObserver {
           fileInfo.getFilePath(), e.getMessage());
       }
     }
-    fileInfo.getFile().delete();
 
-    if (splitted.get()) {
-      String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
-      String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
-      if (fileInfo.getIndexPath() != null) {
-        indexFileStr = fileInfo.getIndexPath();
+    if (fileInfo.isHdfs()) {
+      try {
+        StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+        if (splitted.get()) {
+          String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
+          String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
+          StorageManager.hdfsFs().delete(new Path(indexFileStr), false);
+          StorageManager.hdfsFs().delete(new Path(sortedFileStr), false);
+        }
+      } catch (Exception e) {
+        logger.warn("clean hdfs file {}", fileInfo.getFilePath());
       }
-      File indexFile = new File(indexFileStr);
-      File sortedFile = new File(sortedFileStr);
-      indexFile.delete();
-      sortedFile.delete();
+    } else {
+      fileInfo.getFile().delete();
+      if (splitted.get()) {
+        String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
+        String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
+        File indexFile = new File(indexFileStr);
+        File sortedFile = new File(sortedFileStr);
+        indexFile.delete();
+        sortedFile.delete();
+      }
     }
 
     // unregister from DeviceMonitor

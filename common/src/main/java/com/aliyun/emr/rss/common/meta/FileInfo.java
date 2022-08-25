@@ -15,47 +15,36 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.server;
+package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
 import java.util.ArrayList;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.FSDataOutputStream;
 
 public class FileInfo {
   private final String filePath;
   private final ArrayList<Long> chunkOffsets;
-  public final FSDataOutputStream fsDataOutputStream;
-  private transient File file;
-  private transient boolean isHdfs = false;
-  private String indexPath = null;
 
-  public FileInfo(String filePath, ArrayList<Long> chunkOffsets, String indexPath) {
+  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
     this.filePath = filePath;
-    this.file = new File(filePath);
     this.chunkOffsets = chunkOffsets;
-    this.fsDataOutputStream = null;
-    this.indexPath = indexPath;
-    isHdfs = filePath.startsWith("hdfs://");
   }
 
+  public FileInfo(String filePath){
+    this.filePath = filePath;
+    this.chunkOffsets = new ArrayList<>();
+    chunkOffsets.add(0L);
+  }
+
+  @VisibleForTesting
   public FileInfo(File file) {
     this.filePath = file.getAbsolutePath();
-    this.file = file;
-    this.fsDataOutputStream = null;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
   }
 
-  public FileInfo(String filePath, FSDataOutputStream outputStream){
-    this.filePath = filePath;
-    this.file = null;
-    this.fsDataOutputStream = outputStream;
-    this.chunkOffsets = new ArrayList<>();
-    chunkOffsets.add(0L);
-    isHdfs = true;
-  }
 
   public synchronized void addChunkOffset(long bytesFlushed) {
     chunkOffsets.add(bytesFlushed);
@@ -78,7 +67,7 @@ public class FileInfo {
   }
 
   public File getFile() {
-    return file;
+    return new File(filePath);
   }
 
   public String getFilePath(){
@@ -86,15 +75,7 @@ public class FileInfo {
   }
 
   public boolean isHdfs(){
-    return isHdfs;
-  }
-
-  public void setIndexPath(String indexPath) {
-    this.indexPath = indexPath;
-  }
-
-  public String getIndexPath() {
-    return indexPath;
+    return filePath.startsWith("hdfs://");
   }
 
   public synchronized ArrayList<Long> getChunkOffsets() {

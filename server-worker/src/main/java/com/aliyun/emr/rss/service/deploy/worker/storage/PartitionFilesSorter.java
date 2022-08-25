@@ -40,7 +40,6 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
@@ -50,7 +49,7 @@ import sun.nio.ch.DirectBuffer;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
-import com.aliyun.emr.rss.common.network.server.FileInfo;
+import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
@@ -86,8 +85,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ExecutorService fileSorterExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
   private final Thread fileSorterSchedulerThread;
-  private FileSystem hdfsFs = null;
-  private StorageManager storageManager = null;
 
   public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
@@ -296,7 +293,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     FSDataOutputStream hdfsIndexOutput = null;
     FileChannel indexFileChannel = null;
     if (isHdfs) {
-      hdfsIndexOutput = hdfsFs.create(new Path(indexFilePath));
+      hdfsIndexOutput = StorageManager.hdfsFs().create(new Path(indexFilePath));
     } else {
       indexFileChannel = new FileOutputStream(indexFilePath).getChannel();
     }
@@ -377,8 +374,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     // Worker read a shuffle block whose size is 256K by default.
     // So there is no need to worry about integer overflow.
     ByteBuffer buffer = ByteBuffer.allocate(Math.toIntExact(length));
+    long transferredSize = 0;
     while (buffer.hasRemaining()) {
-      if (-1 == origin.read(offset, buffer)) {
+      int read = origin.read(offset + transferredSize, buffer);
+      transferredSize += read;
+      if (-1 == read) {
         throw new IOException("Unexpected EOF, file name : " + originFilePath +
           " position :" + origin.getPos() + " buffer size :" + buffer.limit());
       }
@@ -389,12 +389,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private long transferChannelFully(FileChannel originChannel, FileChannel targetChannel,
     long offset, long length) throws IOException {
-    long transferedSize = 0;
-    while (transferedSize != length) {
-      transferedSize += originChannel.transferTo(offset + transferedSize,
-        length - transferedSize, targetChannel);
+    long transferredSize = 0;
+    while (transferredSize != length) {
+      transferredSize += originChannel.transferTo(offset + transferredSize,
+        length - transferredSize, targetChannel);
     }
-    return transferedSize;
+    return transferredSize;
   }
 
   ArrayList<Long> getChunkOffsets(int startMapIndex, int endMapIndex, String sortedFilePath,
@@ -451,12 +451,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     return new FileInfo(sortedFilePath,
-        getChunkOffsets(startMapIndex, endMapIndex, sortedFilePath, indexMap), null);
-  }
-
-  public void setStorageManager(StorageManager storageManager) {
-    this.storageManager = storageManager;
-    this.hdfsFs = storageManager.hdfsFs();
+        getChunkOffsets(startMapIndex, endMapIndex, sortedFilePath, indexMap));
   }
 
   static class ShuffleBlockInfo {
@@ -485,18 +480,16 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
-      if (isHdfs) {
-        File dir = storageManager.getOneHealthyWorkingDir();
-        if (dir != null) {
-          File shuffleIndexDir = new File(dir, "ShuffleIndex");
-          shuffleIndexDir.mkdirs();
-          this.indexFilePath = new File(shuffleIndexDir, fileId).getAbsolutePath();
-          fileInfo.setIndexPath(this.indexFilePath);
-        } else {
-          this.indexFilePath = originFilePath + INDEX_SUFFIX;
+      this.indexFilePath = originFilePath + INDEX_SUFFIX;
+      if (!isHdfs) {
+        File sortedFile = new File(this.sortedFilePath);
+        if (sortedFile.exists()) {
+          sortedFile.delete();
         }
-      } else {
-        this.indexFilePath = originFilePath + INDEX_SUFFIX;
+        File indexFile = new File(this.indexFilePath);
+        if (indexFile.exists()) {
+          indexFile.delete();
+        }
       }
     }
 
@@ -533,6 +526,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
           paddingBuf.limit(compressedSize);
+          // TODO: check weather skip or read fully performance difference.
           readBufferFully(paddingBuf);
         }
 
@@ -570,8 +564,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void initializeFiles() throws IOException {
       if (isHdfs) {
-        hdfsOriginInput = hdfsFs.open(new Path(originFilePath));
-        hdfsSortedOutput = hdfsFs.create(new Path(sortedFilePath));
+        hdfsOriginInput = StorageManager.hdfsFs().open(new Path(originFilePath));
+        hdfsSortedOutput = StorageManager.hdfsFs().create(new Path(sortedFilePath));
       } else {
         originFileChannel = new FileInputStream(originFilePath).getChannel();
         sortedFileChannel = new FileOutputStream(sortedFilePath).getChannel();
@@ -604,13 +598,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     private void deleteOriginFiles() throws IOException {
-      boolean deleteOriginFile = false;
+      boolean deleteSuccess = false;
       if (isHdfs) {
-        deleteOriginFile = hdfsFs.delete(new Path(originFilePath), false);
+        deleteSuccess = StorageManager.hdfsFs().delete(new Path(originFilePath), false);
       } else {
-        deleteOriginFile = new File(originFilePath).delete();
+        deleteSuccess = new File(originFilePath).delete();
       }
-      if (!deleteOriginFile) {
+      if (!deleteSuccess) {
         logger.warn("clean origin file failed, origin file is : {}",
             originFilePath);
       }
