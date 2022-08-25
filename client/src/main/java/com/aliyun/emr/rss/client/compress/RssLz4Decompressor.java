@@ -57,7 +57,8 @@ public class RssLz4Decompressor extends RssLz4Trait implements Decompressor {
         int compressedLen2 = decompressor.decompress(
             src, HEADER_LENGTH, dst, dstOff, originalLen);
         if (compressedLen != compressedLen2) {
-          logger.error("Compressed length corrupted! expected: {}, actual: {}.", compressedLen, compressedLen2);
+          logger.error("Compressed length corrupted! expected: {}, actual: {}.",
+                  compressedLen, compressedLen2);
           return -1;
         }
     }
