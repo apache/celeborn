@@ -57,8 +57,7 @@ public class RssLz4Decompressor extends RssLz4Trait implements Decompressor {
         int compressedLen2 = decompressor.decompress(
             src, HEADER_LENGTH, dst, dstOff, originalLen);
         if (compressedLen != compressedLen2) {
-          logger.error("Compressed length corrupted! need {}, but {}.",
-              compressedLen, compressedLen2);
+          logger.error("Compressed length corrupted! expected: {}, actual: {}.", compressedLen, compressedLen2);
           return -1;
         }
     }
@@ -66,7 +65,7 @@ public class RssLz4Decompressor extends RssLz4Trait implements Decompressor {
     checksum.reset();
     checksum.update(dst, dstOff, originalLen);
     if ((int) checksum.getValue() != check) {
-      logger.error("Checksum not equal! need {}, but {}.", check, checksum.getValue());
+      logger.error("Checksum not equal! expected: {}, actual: {}.", check, checksum.getValue());
       return -1;
     }
 

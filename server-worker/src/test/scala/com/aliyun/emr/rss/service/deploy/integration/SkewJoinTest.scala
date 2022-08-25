@@ -1,12 +1,11 @@
 package com.aliyun.emr.rss.service.deploy.integration
 
-import scala.util.Random
+import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
 
+import scala.util.Random
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.junit.{AfterClass, BeforeClass, Test}
-
-import com.aliyun.emr.rss.client.compress.Compressor.CompressionMode
 import com.aliyun.emr.rss.common.util.Utils
 import com.aliyun.emr.rss.service.deploy.SparkTestBase
 
@@ -21,7 +20,7 @@ class SkewJoinTest extends SparkTestBase {
 
   @Test
   def test(): Unit = {
-    CompressionMode.values().foreach { mode =>
+    CompressionCodec.values().foreach { codec =>
 
       val sparkConf = new SparkConf().setAppName("rss-demo")
         .setMaster("local[4]")
@@ -33,7 +32,7 @@ class SkewJoinTest extends SparkTestBase {
         .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.parquet.compression.codec", "gzip")
-        .set("rss.client.compression.mode", mode.name());
+        .set("rss.client.compression.codec", codec.name());
 
       enableRss(sparkConf)
 

@@ -37,20 +37,20 @@ public interface Compressor {
   }
 
   static Compressor getCompressor(RssConf conf) {
-    String mode = RssConf.compressionMode(conf);
+    String codec = RssConf.compressionCodec(conf);
     int blockSize = RssConf.pushDataBufferSize(conf);
-    int zstdLevel = RssConf.zstdCompressLevel(conf);
-    switch (mode) {
-      case "LZ4":
+    switch (codec) {
+      case "lz4":
         return new RssLz4Compressor(blockSize);
-      case "ZSTD":
+      case "zstd":
+        int zstdLevel = RssConf.zstdCompressLevel(conf);
         return new RssZstdCompressor(blockSize, zstdLevel);
       default:
-        throw new IllegalArgumentException("Unknown compression mode: " + mode);
+        throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }
   }
 
-  enum CompressionMode {
+  enum CompressionCodec {
     LZ4, ZSTD;
   }
 }

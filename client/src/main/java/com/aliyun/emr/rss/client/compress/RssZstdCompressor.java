@@ -28,14 +28,6 @@ public class RssZstdCompressor extends RssZstdTrait implements Compressor {
   private byte[] compressedBuffer;
   private int compressedTotalSize;
 
-  public RssZstdCompressor() {
-    this(256 * 1024);
-  }
-
-  public RssZstdCompressor(int blockSize) {
-    this(blockSize, 1);
-  }
-
   public RssZstdCompressor(int blockSize, int level) {
     compressionLevel = level;
     checksum = new CRC32();
@@ -58,7 +50,6 @@ public class RssZstdCompressor extends RssZstdTrait implements Compressor {
     if (compressedBuffer.length - HEADER_LENGTH < maxDestLength) {
       initCompressBuffer(maxDestLength);
     }
-    // Using customized Checksum instead of default checksum;
     int compressedLength = (int) Zstd.compressByteArray(compressedBuffer, HEADER_LENGTH,
             maxDestLength - HEADER_LENGTH, data, offset, length, compressionLevel);
     final int compressMethod;

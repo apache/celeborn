@@ -53,7 +53,7 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
         int originalLen2 = (int) Zstd.decompressByteArray(dst, dstOff,
                 originalLen, src, HEADER_LENGTH, compressedLen);
         if (originalLen != originalLen2) {
-          logger.error("Original length corrupted! need {}, but {}.", originalLen, originalLen2);
+          logger.error("Original length corrupted! expected: {}, actual: {}.", originalLen, originalLen2);
           return -1;
         }
     }
@@ -61,7 +61,7 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
     checksum.reset();
     checksum.update(dst, dstOff, originalLen);
     if ((int) checksum.getValue() != check) {
-      logger.error("Checksum not equal! need {}, but {}.", check, checksum.getValue());
+      logger.error("Checksum not equal! expected: {}, actual: {}.", check, checksum.getValue());
       return -1;
     }
     return originalLen;

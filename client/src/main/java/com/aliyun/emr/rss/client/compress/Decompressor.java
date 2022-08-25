@@ -31,26 +31,26 @@ public interface Decompressor {
   }
 
   static Decompressor getDecompressor(RssConf conf) {
-    String mode = RssConf.compressionMode(conf);
-    switch (mode) {
-      case "LZ4":
+    String codec = RssConf.compressionCodec(conf);
+    switch (codec) {
+      case "lz4":
         return new RssLz4Decompressor();
-      case "ZSTD":
+      case "zstd":
         return new RssZstdDecompressor();
       default:
-        throw new IllegalArgumentException("Unknown compression mode: " + mode);
+        throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }
   }
 
   static int getCompressionHeaderLength(RssConf conf) {
-    String mode = RssConf.compressionMode(conf);
-    switch (mode) {
-      case "LZ4":
+    String codec = RssConf.compressionCodec(conf);
+    switch (codec) {
+      case "lz4":
         return RssLz4Trait.HEADER_LENGTH;
-      case "ZSTD":
+      case "zstd":
         return RssZstdTrait.HEADER_LENGTH;
       default:
-        throw new IllegalArgumentException("Unknown compression mode: " + mode);
+        throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }
   }
 }

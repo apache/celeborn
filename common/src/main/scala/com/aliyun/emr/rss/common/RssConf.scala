@@ -838,13 +838,16 @@ object RssConf extends Logging {
     conf.getInt("rss.client.split.pool.size", 8)
   }
 
-  def compressionMode(conf: RssConf): String = {
-    conf.get("rss.client.compression.mode", "LZ4").toUpperCase
+  // Support 2 type codecs: lz4 and zstd
+  def compressionCodec(conf: RssConf): String = {
+    conf.get("rss.client.compression.codec", "lz4").toLowerCase
   }
 
   def zstdCompressLevel(conf: RssConf): Int = {
     val level = conf.getInt("rss.client.compression.zstd.level", 1)
-    Math.max(Math.max(level, 1), Math.min(22, level))
+    val zstdMinLevel = -5
+    val zstdMaxLevel = 22
+    Math.min(Math.max(Math.max(level, zstdMinLevel), Math.min(level, zstdMaxLevel)), zstdMaxLevel)
   }
 
   def partitionSortTimeout(conf: RssConf): Long = {

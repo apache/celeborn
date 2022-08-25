@@ -19,13 +19,11 @@ package com.aliyun.emr.rss.service.deploy.cluster
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
-
 import io.netty.channel.ChannelFuture
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.{Assert, BeforeClass, Test}
-
 import com.aliyun.emr.rss.client.ShuffleClientImpl
-import com.aliyun.emr.rss.client.compress.Compressor.CompressionMode
+import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.rpc.RpcEnv
@@ -34,12 +32,12 @@ import com.aliyun.emr.rss.service.deploy.MiniClusterFeature
 class ClusterReadWriteTest extends MiniClusterFeature {
   @Test
   def testMiniCluster(): Unit = {
-    CompressionMode.values().foreach { mode =>
+    CompressionCodec.values().foreach { codec =>
 
       val APP = "app-1"
 
       val clientConf = new RssConf()
-      clientConf.set("rss.client.compression.mode", mode.name());
+      clientConf.set("rss.client.compression.codec", codec.name());
       clientConf.set("rss.push.data.replicate", "true")
       clientConf.set("rss.push.data.buffer.size", "256K")
       val metaSystem = new LifecycleManager(APP, clientConf)

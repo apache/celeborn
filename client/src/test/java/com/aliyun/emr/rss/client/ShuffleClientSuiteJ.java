@@ -36,7 +36,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 
 import com.aliyun.emr.rss.client.compress.Compressor;
-import com.aliyun.emr.rss.client.compress.Compressor.CompressionMode;
+import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
@@ -81,8 +81,8 @@ public class ShuffleClientSuiteJ {
 
   @Test
   public void testPushData() throws IOException, InterruptedException {
-    for (CompressionMode mode : CompressionMode.values()) {
-      RssConf conf = setupEnv(mode);
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      RssConf conf = setupEnv(codec);
 
       int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
@@ -98,8 +98,8 @@ public class ShuffleClientSuiteJ {
 
   @Test
   public void testMergeData() throws IOException, InterruptedException {
-    for (CompressionMode mode : CompressionMode.values()) {
-      RssConf conf = setupEnv(mode);
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      RssConf conf = setupEnv(codec);
 
       int mergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
@@ -140,9 +140,9 @@ public class ShuffleClientSuiteJ {
     return ia.getHostName();
   }
 
-  private RssConf setupEnv(CompressionMode mode) throws IOException, InterruptedException {
+  private RssConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
     RssConf conf = new RssConf();
-    conf.set("rss.client.compression.mode", mode.name());
+    conf.set("rss.client.compression.codec", codec.name());
     conf.set("rss.pushdata.retry.thread.num", "1");
     conf.set("rss.push.data.buffer.size", "1K");
     shuffleClient = new ShuffleClientImpl(conf);
