@@ -188,10 +188,12 @@ case $option in
       if [[ $(ps -p "$TARGET_ID" -o comm=) =~ "java" ]] || [[ $(ps -p "$TARGET_ID" -o comm=) =~ "jboot" ]]; then
         echo "stopping $command"
         kill "$TARGET_ID" && rm -f "$pid"
+        wait_time=0
         while [[ $(ps -p "$TARGET_ID" -o comm=) != "" ]];
         do
-          echo "waiting worker graceful shutdown, sleep 1s"
           sleep 1s
+          ((wait_time++))
+          echo "waiting for worker graceful shutdown, wait for ${wait_time}s"
         done
         run_command class "$@"
       else
