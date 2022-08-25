@@ -189,13 +189,18 @@ case $option in
         echo "stopping $command"
         kill "$TARGET_ID" && rm -f "$pid"
         wait_time=0
-        while [[ $(ps -p "$TARGET_ID" -o comm=) != "" ]];
+        wait_timeout=1800
+        while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
         do
           sleep 1s
           ((wait_time++))
           echo "waiting for worker graceful shutdown, wait for ${wait_time}s"
         done
-        run_command class "$@"
+        if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
+          run_command class "$@"
+        else
+          echo "stopping $command failed."
+        fi
       else
         rm -f "$pid"
         echo "no $command to stop, directly start"
