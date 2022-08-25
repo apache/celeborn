@@ -189,7 +189,8 @@ case $option in
         echo "stopping $command"
         kill "$TARGET_ID" && rm -f "$pid"
         wait_time=0
-        wait_timeout=1800
+        # keep same with `rss.worker.shutdown.timeout`
+        wait_timeout=600
         while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
         do
           sleep 1s
