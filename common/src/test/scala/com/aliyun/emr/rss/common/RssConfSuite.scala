@@ -63,7 +63,7 @@ class RssConfSuite extends RssFunSuite{
   test("zstd level") {
     val conf = new RssConf()
     conf.set("rss.client.compression.zstd.level", "-100")
-    assert(RssConf.zstdCompressLevel(conf) == -100)
+    assert(RssConf.zstdCompressLevel(conf) == -5)
     conf.set("rss.client.compression.zstd.level", "-5")
     assert(RssConf.zstdCompressLevel(conf) == -5)
     conf.set("rss.client.compression.zstd.level", "0")
@@ -71,6 +71,6 @@ class RssConfSuite extends RssFunSuite{
     conf.set("rss.client.compression.zstd.level", "22")
     assert(RssConf.zstdCompressLevel(conf) == 22)
     conf.set("rss.client.compression.zstd.level", "100")
-    assert(RssConf.zstdCompressLevel(conf) == 100)
+    assert(RssConf.zstdCompressLevel(conf) == 22)
   }
 }
