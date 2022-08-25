@@ -48,8 +48,8 @@ import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
 import com.aliyun.emr.rss.common.RssConf;
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.meta.FileInfo;
+import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
@@ -370,7 +370,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   private long transferStreamFully(FSDataInputStream origin, FSDataOutputStream sorted,
-      long offset, long length, String originFilePath) throws IOException {
+      long offset, long length) throws IOException {
     // Worker read a shuffle block whose size is 256K by default.
     // So there is no need to worry about integer overflow.
     ByteBuffer buffer = ByteBuffer.allocate(Math.toIntExact(length));
@@ -379,8 +379,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       int read = origin.read(offset + transferredSize, buffer);
       transferredSize += read;
       if (-1 == read) {
-        throw new IOException("Unexpected EOF, file name : " + originFilePath +
-          " position :" + origin.getPos() + " buffer size :" + buffer.limit());
+        throw new IOException(
+          "Unexpected EOF, position :" + origin.getPos() + " buffer size :" + buffer.limit());
       }
     }
     sorted.write(buffer.array());
@@ -526,7 +526,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
           paddingBuf.limit(compressedSize);
-          // TODO: check weather skip or read fully performance difference.
+          // TODO: compare skip or read performance differential
           readBufferFully(paddingBuf);
         }
 
@@ -590,7 +590,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private long transferBlock(long offset, long length) throws IOException {
       if (isHdfs) {
         return transferStreamFully(hdfsOriginInput, hdfsSortedOutput,
-            offset, length, originFilePath);
+            offset, length);
       } else {
         return transferChannelFully(originFileChannel, sortedFileChannel,
             offset, length);
