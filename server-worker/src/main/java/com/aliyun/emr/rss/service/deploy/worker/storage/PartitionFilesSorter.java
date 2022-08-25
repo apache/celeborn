@@ -157,12 +157,15 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
       synchronized (sorting) {
         if (!sorting.contains(fileId)) {
-          FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
-          sorting.add(fileId);
           try {
+            FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
+            sorting.add(fileId);
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
             logger.info("scheduler thread is interrupted means worker is shutting down.");
+            return null;
+          } catch (IOException e) {
+            logger.error("File sorter access hdfs failed.", e);
             return null;
           }
         }
@@ -473,7 +476,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel originFileChannel = null;
     private FileChannel sortedFileChannel = null;
 
-    FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) {
+    FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = originFilePath + SORTED_SUFFIX;
       this.isHdfs = fileInfo.isHdfs();
@@ -489,6 +492,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         File indexFile = new File(this.indexFilePath);
         if (indexFile.exists()) {
           indexFile.delete();
+        }
+      } else {
+        if (StorageManager.hdfsFs().exists(new Path(this.sortedFilePath))) {
+          StorageManager.hdfsFs().delete(new Path(this.sortedFilePath), false);
+        }
+        if (StorageManager.hdfsFs().exists(new Path(this.indexFilePath))) {
+          StorageManager.hdfsFs().delete(new Path(this.indexFilePath), false);
         }
       }
     }
