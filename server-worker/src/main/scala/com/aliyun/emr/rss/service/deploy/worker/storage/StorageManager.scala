@@ -262,7 +262,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
         diskInfo.dirs
       } else {
         logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
-          " working dirs. diskInfo $diskInfo")
+          s" working dirs. diskInfo $diskInfo")
         healthyWorkingDirs()
       }
       if (dirs.isEmpty && hdfsFlusher.isEmpty) {
@@ -271,7 +271,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir = new Path(new Path(hdfsDir, RssConf.workingDirName(conf)),
-          "$appId/$shuffleId")
+          s"$appId/$shuffleId")
         FileSystem.mkdirs(hdfsFs, shuffleDir, hdfsPermission)
         val shuffleFilePath = new Path(shuffleDir, fileName)
         val fileInfo = new FileInfo(shuffleFilePath.toString,

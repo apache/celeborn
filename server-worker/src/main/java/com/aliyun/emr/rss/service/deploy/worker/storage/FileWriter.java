@@ -278,7 +278,7 @@ public final class FileWriter implements DeviceObserver {
       String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
       String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
       if (fileInfo.getIndexPath() != null) {
-        sortedFileStr = fileInfo.getIndexPath();
+        indexFileStr = fileInfo.getIndexPath();
       }
       File indexFile = new File(indexFileStr);
       File sortedFile = new File(sortedFileStr);
