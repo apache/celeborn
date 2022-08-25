@@ -15,35 +15,32 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.server;
+package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
 import java.util.ArrayList;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.FSDataOutputStream;
 
 public class FileInfo {
-  public final File file;
+  private final String filePath;
   private final ArrayList<Long> chunkOffsets;
-  public final FSDataOutputStream fsDataOutputStream;
 
-  public FileInfo(File file, ArrayList<Long> chunkOffsets) {
-    this.file = file;
+  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
+    this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
-    this.fsDataOutputStream = null;
   }
 
-  public FileInfo(File file) {
-    this.file = file;
-    this.fsDataOutputStream = null;
+  public FileInfo(String filePath){
+    this.filePath = filePath;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
   }
 
-  public FileInfo(FSDataOutputStream outputStream){
-    this.file = null;
-    this.fsDataOutputStream = outputStream;
+  @VisibleForTesting
+  public FileInfo(File file) {
+    this.filePath = file.getAbsolutePath();
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
   }
@@ -69,7 +66,15 @@ public class FileInfo {
   }
 
   public File getFile() {
-    return file;
+    return new File(filePath);
+  }
+
+  public String getFilePath(){
+    return filePath;
+  }
+
+  public boolean isHdfs(){
+    return filePath.startsWith("hdfs://");
   }
 
   public synchronized ArrayList<Long> getChunkOffsets() {
@@ -79,7 +84,7 @@ public class FileInfo {
   @Override
   public String toString() {
     return "FileInfo{" +
-             "file=" + file.getAbsolutePath() +
+             "file=" + filePath +
              ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
              '}';
   }

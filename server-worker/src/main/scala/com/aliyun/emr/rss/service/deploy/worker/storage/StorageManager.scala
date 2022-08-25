@@ -36,9 +36,8 @@ import org.iq80.leveldb.DB
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
-import com.aliyun.emr.rss.common.network.server.FileInfo
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -116,14 +115,13 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   deviceMonitor.startCheck()
 
   val hdfsDir = RssConf.hdfsDir(conf)
-  var hdfsFs: FileSystem = _
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher = if (!hdfsDir.isEmpty) {
     val hdfsConfiguration = new Configuration
     hdfsConfiguration.set("fs.defaultFS", hdfsDir)
     hdfsConfiguration.set("dfs.replication", "1")
-    hdfsFs = FileSystem.get(hdfsConfiguration)
+    StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
     Some(new HdfsFlusher(
       workerSource,
       RssConf.hdfsFlusherThreadCount(conf),
@@ -253,7 +251,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
         diskInfo.dirs
       } else {
         logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
-          " working dirs. diskInfo $diskInfo")
+          s" working dirs. diskInfo $diskInfo")
         healthyWorkingDirs()
       }
       if (dirs.isEmpty && hdfsFlusher.isEmpty) {
@@ -262,10 +260,9 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir = new Path(new Path(hdfsDir, RssConf.workingDirName(conf)),
-          "$appId/$shuffleId")
-        FileSystem.mkdirs(hdfsFs, shuffleDir, hdfsPermission)
-        val fileInfo = new FileInfo(FileSystem.create(hdfsFs,
-          new Path(shuffleDir, fileName), hdfsPermission))
+          s"$appId/$shuffleId")
+        FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
+        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString)
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
@@ -293,7 +290,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
             throw new RssException("create app shuffle data dir or file failed!" +
               s"${file.getAbsolutePath}")
           }
-          val fileInfo = new FileInfo(file)
+          val fileInfo = new FileInfo(file.getAbsolutePath)
           val fileWriter = new FileWriter(
             fileInfo,
             localFlushers.get(mountPoint),
@@ -487,4 +484,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
   }
+}
+
+object StorageManager {
+  var hdfsFs: FileSystem = _
 }

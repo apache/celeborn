@@ -30,6 +30,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aliyun.emr.rss.common.meta.FileManagedBuffers;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 
 /**
