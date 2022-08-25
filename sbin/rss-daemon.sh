@@ -181,6 +181,38 @@ case $option in
     fi
     ;;
 
+  (restart)
+
+    if [ -f $pid ]; then
+      TARGET_ID="$(cat "$pid")"
+      if [[ $(ps -p "$TARGET_ID" -o comm=) =~ "java" ]] || [[ $(ps -p "$TARGET_ID" -o comm=) =~ "jboot" ]]; then
+        echo "stopping $command"
+        kill "$TARGET_ID" && rm -f "$pid"
+        wait_time=0
+        # keep same with `rss.worker.shutdown.timeout`
+        wait_timeout=600
+        while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
+        do
+          sleep 1s
+          ((wait_time++))
+          echo "waiting for worker graceful shutdown, wait for ${wait_time}s"
+        done
+        if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
+          run_command class "$@"
+        else
+          echo "stopping $command failed."
+        fi
+      else
+        rm -f "$pid"
+        echo "no $command to stop, directly start"
+        run_command class "$@"
+      fi
+    else
+      echo "no $command to stop, directly start"
+      run_command class "$@"
+    fi
+    ;;
+
   (status)
 
     if [ -f $pid ]; then
