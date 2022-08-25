@@ -45,7 +45,6 @@ public class FileInfo {
     chunkOffsets.add(0L);
   }
 
-
   public synchronized void addChunkOffset(long bytesFlushed) {
     chunkOffsets.add(bytesFlushed);
   }
