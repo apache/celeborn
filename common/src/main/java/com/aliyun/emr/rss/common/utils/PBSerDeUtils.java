@@ -17,7 +17,6 @@
 
 package com.aliyun.emr.rss.common.utils;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import com.aliyun.emr.rss.common.network.server.FileInfo;
+import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.protocol.TransportMessages;
 
 public class PBSerDeUtils {
@@ -66,14 +65,13 @@ public class PBSerDeUtils {
 
   public static FileInfo fromPbFileInfo(TransportMessages.PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
-    return new FileInfo(
-        new File(pbFileInfo.getFile()),
+    return new FileInfo(pbFileInfo.getFilePath(),
         new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
   }
 
   public static TransportMessages.PbFileInfo toPbFileInfo(FileInfo fileInfo) {
     TransportMessages.PbFileInfo.Builder builder = TransportMessages.PbFileInfo.newBuilder();
-    builder.setFile(fileInfo.file.getPath())
+    builder.setFilePath(fileInfo.getFilePath())
         .addAllChunkOffsets(fileInfo.getChunkOffsets());
     return builder.build();
   }

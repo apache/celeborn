@@ -164,8 +164,7 @@ private[worker] abstract class Flusher(
     }
     workingQueues.foreach { queue =>
       queue.asScala.foreach { task =>
-        task.buffer.removeComponents(0, task.buffer.numComponents())
-        task.buffer.clear()
+        returnBuffer(task.buffer)
       }
     }
   }
