@@ -362,11 +362,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-  protected void readChannelFully(FileChannel channel, ByteBuffer buffer, String filePath)
+  protected void readChannelFully(FileChannel channel, ByteBuffer buffer, String path)
     throws IOException {
     while (buffer.hasRemaining()) {
       if (-1 == channel.read(buffer)) {
-        throw new IOException("Unexpected EOF, file name : " + filePath +
+        throw new IOException("Unexpected EOF, file name : " + path +
           " position :" + channel.position() + " buffer size :" + buffer.limit());
       }
     }
@@ -473,6 +473,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String shuffleKey;
     private final boolean isHdfs;
 
+    private FSDataInputStream hdfsOriginInput = null;
+    private FSDataOutputStream hdfsSortedOutput = null;
+    private FileChannel originFileChannel = null;
+    private FileChannel sortedFileChannel = null;
+
     FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) {
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = originFilePath + SORTED_SUFFIX;
@@ -496,18 +501,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     public void sort() {
-      FSDataInputStream hdfsOriginInput = null;
-      FSDataOutputStream hdfsSortedOutput = null;
-      FileChannel originFileChannel = null;
-      FileChannel sortedFileChannel = null;
       try {
-        if (isHdfs) {
-          hdfsOriginInput = hdfsFs.open(new Path(originFilePath));
-          hdfsSortedOutput = hdfsFs.create(new Path(sortedFilePath));
-        } else {
-          originFileChannel = new FileInputStream(originFilePath).getChannel();
-          sortedFileChannel = new FileOutputStream(sortedFilePath).getChannel();
-        }
+        initializeFiles();
 
         Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
@@ -519,11 +514,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         long index = 0;
         while (index != originFileLen) {
           long blockStartIndex = index;
-          if (isHdfs) {
-            readStreamFully(hdfsOriginInput, headerBuf, originFilePath);
-          } else {
-            readChannelFully(originFileChannel, headerBuf, originFilePath);
-          }
+          readBufferFully(headerBuf);
           byte[] batchHeader = headerBuf.array();
           headerBuf.rewind();
 
@@ -542,11 +533,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
           paddingBuf.limit(compressedSize);
-          if (isHdfs) {
-            readStreamFully(hdfsOriginInput, headerBuf, originFilePath);
-          } else {
-            readChannelFully(originFileChannel, paddingBuf, originFilePath);
-          }
+          readBufferFully(paddingBuf);
         }
 
         long fileIndex = 0;
@@ -562,13 +549,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             sortedBlock.offset = fileIndex;
             sortedBlock.length = length;
             sortedShuffleBlocks.add(sortedBlock);
-            if (isHdfs) {
-              transferStreamFully(hdfsOriginInput, hdfsSortedOutput,
-                  offset, length, originFilePath);
-            } else {
-              fileIndex += transferChannelFully(originFileChannel, sortedFileChannel,
-                  offset, length);
-            }
+            fileIndex += transferBlock(offset, length);
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
@@ -577,29 +558,63 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId);
-
-        boolean deleteOriginFile = false;
-        if (isHdfs) {
-          deleteOriginFile = hdfsFs.delete(new Path(originFilePath), false);
-        } else {
-          deleteOriginFile = new File(originFilePath).delete();
-        }
-        if (!deleteOriginFile) {
-          logger.warn("clean origin file failed, origin file is : {}",
-              originFilePath);
-        }
-
+        deleteOriginFiles();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
         logger.error("sort shuffle file {} error", originFilePath, e);
       } finally {
         sortingShuffleFiles.get(shuffleKey).remove(fileId);
-
-        IOUtils.closeQuietly(hdfsOriginInput, null);
-        IOUtils.closeQuietly(hdfsSortedOutput, null);
-        IOUtils.closeQuietly(originFileChannel, null);
-        IOUtils.closeQuietly(sortedFileChannel, null);
+        closeFiles();
       }
     }
+
+    private void initializeFiles() throws IOException {
+      if (isHdfs) {
+        hdfsOriginInput = hdfsFs.open(new Path(originFilePath));
+        hdfsSortedOutput = hdfsFs.create(new Path(sortedFilePath));
+      } else {
+        originFileChannel = new FileInputStream(originFilePath).getChannel();
+        sortedFileChannel = new FileOutputStream(sortedFilePath).getChannel();
+      }
+    }
+
+    private void closeFiles() {
+      IOUtils.closeQuietly(hdfsOriginInput, null);
+      IOUtils.closeQuietly(hdfsSortedOutput, null);
+      IOUtils.closeQuietly(originFileChannel, null);
+      IOUtils.closeQuietly(sortedFileChannel, null);
+    }
+
+    private void readBufferFully(ByteBuffer buffer) throws IOException {
+      if (isHdfs) {
+        readStreamFully(hdfsOriginInput, buffer, originFilePath);
+      } else {
+        readChannelFully(originFileChannel, buffer, originFilePath);
+      }
+    }
+
+    private long transferBlock(long offset, long length) throws IOException {
+      if (isHdfs) {
+        return transferStreamFully(hdfsOriginInput, hdfsSortedOutput,
+            offset, length, originFilePath);
+      } else {
+        return transferChannelFully(originFileChannel, sortedFileChannel,
+            offset, length);
+      }
+    }
+
+    private void deleteOriginFiles() throws IOException {
+      boolean deleteOriginFile = false;
+      if (isHdfs) {
+        deleteOriginFile = hdfsFs.delete(new Path(originFilePath), false);
+      } else {
+        deleteOriginFile = new File(originFilePath).delete();
+      }
+      if (!deleteOriginFile) {
+        logger.warn("clean origin file failed, origin file is : {}",
+            originFilePath);
+      }
+    }
+
   }
 }
