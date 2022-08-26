@@ -269,8 +269,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           splitThreshold,
           splitMode,
-          partitionType,
-          hasReplication)
+          partitionType)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.synchronized {
           hdfsWriters.add(hdfsWriter)
