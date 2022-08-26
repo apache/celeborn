@@ -136,13 +136,13 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   lazy val hdfsDelayedCleanMap = new ConcurrentHashMap[String, Long]()
   lazy val hdfsCheckCleanPool =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("Hdfs-Cleaner-Scheduler")
-  lazy val hdfsCleanerDelay = RssConf.hdfsCleanDelayHeartBeatCount(conf)
+  lazy val hdfsCleanDelay = RssConf.hdfsCleanDelayHeartBeatCount(conf)
   lazy val hdfsCleanActionPool = ThreadUtils.newDaemonCachedThreadPool("Hdfs-Cleaner", 8, 60)
   hdfsCheckCleanPool.scheduleAtFixedRate(new Runnable {
     override def run(): Unit = {
       val currentHeartBeatCount = heartBeatCount.get()
       val filesToDelete = hdfsDelayedCleanMap.asScala
-        .filter(p => (currentHeartBeatCount - p._2 > hdfsCleanerDelay))
+        .filter(p => (currentHeartBeatCount - p._2 > hdfsCleanDelay))
         .map(_._1)
       if (filesToDelete.nonEmpty) {
         for (file <- filesToDelete) {
