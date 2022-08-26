@@ -205,6 +205,10 @@ public class MetaHandler {
           metaSystem.updateBlacklistByReportWorkerFailure(failedWorkers);
           break;
 
+        case UpdatePartitionSize:
+          metaSystem.updatePartitionSize();
+          break;
+
         default:
           throw new IOException("Can not parse this command!" + request);
       }
