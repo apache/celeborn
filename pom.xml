@@ -51,6 +51,7 @@
     <log4j.version>1.2.17</log4j.version>
     <log4j2.version>2.17.1</log4j2.version>
     <lz4-java.version>1.8.0</lz4-java.version>
+    <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <mockito.version>1.10.19</mockito.version>
     <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
     <netty.version>4.1.77.Final</netty.version>
@@ -293,6 +294,11 @@
         <groupId>org.lz4</groupId>
         <artifactId>lz4-java</artifactId>
         <version>${lz4-java.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.luben</groupId>
+        <artifactId>zstd-jni</artifactId>
+        <version>${zstd-jni.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
