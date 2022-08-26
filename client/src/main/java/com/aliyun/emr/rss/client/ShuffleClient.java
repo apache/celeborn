@@ -19,6 +19,9 @@ package com.aliyun.emr.rss.client;
 
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+
 import com.aliyun.emr.rss.client.read.RssInputStream;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
@@ -30,6 +33,7 @@ import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 public abstract class ShuffleClient implements Cloneable {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initFinished = false;
+  public static FileSystem hdfsFs;
 
   protected ShuffleClient() {}
 
@@ -77,6 +81,22 @@ public abstract class ShuffleClient implements Cloneable {
       }
     }
     return _instance;
+  }
+
+  public static FileSystem getHdfsFs(RssConf conf) {
+    if (null == hdfsFs) {
+      synchronized (ShuffleClient.class) {
+        Configuration hdfsConfiguration = new Configuration();
+        hdfsConfiguration.set("fs.defaultFS", RssConf.hdfsDir(conf));
+        try {
+          hdfsFs = FileSystem.get(hdfsConfiguration);
+        } catch (IOException e) {
+          System.err.println("Rss initialize hdfs failed.");
+          e.printStackTrace(System.err);
+        }
+      }
+    }
+    return hdfsFs;
   }
 
   public abstract void setupMetaServiceRef(String host, int port);

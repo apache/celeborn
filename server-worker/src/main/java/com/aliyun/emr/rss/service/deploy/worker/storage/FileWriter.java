@@ -210,7 +210,7 @@ public final class FileWriter implements DeviceObserver {
       LocalFlusher localFlusher = (LocalFlusher) flusher;
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
     } else {
-      return new StorageInfo(StorageInfo.Type.HDFS, true);
+      return new StorageInfo(StorageInfo.Type.HDFS, true, fileInfo.getFilePath());
     }
   }
 

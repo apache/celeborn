@@ -358,8 +358,8 @@ sealed trait Message extends Serializable{
         committedSlaveIds,
         failedMasterIds,
         failedSlaveIds,
-        committedMasterStorageHints,
-        committedSlaveStorageHints,
+        committedMasterStorageInfos,
+        committedSlaveStorageInfos,
         totalWritten,
         fileCount) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
@@ -368,10 +368,10 @@ sealed trait Message extends Serializable{
         builder.addAllCommittedSlaveIds(committedSlaveIds)
         builder.addAllFailedMasterIds(failedMasterIds)
         builder.addAllFailedSlaveIds(failedSlaveIds)
-        committedMasterStorageHints.asScala.foreach(entry =>
-          builder.putCommittedMasterStorageHints(entry._1, StorageInfo.toPb(entry._2)))
-        committedSlaveStorageHints.asScala.foreach(entry =>
-          builder.putCommittedSlaveStorageHints(entry._1, StorageInfo.toPb(entry._2)))
+        committedMasterStorageInfos.asScala.foreach(entry =>
+          builder.putCommittedMasterStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
+        committedSlaveStorageInfos.asScala.foreach(entry =>
+          builder.putCommittedSlaveStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -647,9 +647,9 @@ object ControlMessages extends Logging{
     committedSlaveIds: util.List[String],
     failedMasterIds: util.List[String],
     failedSlaveIds: util.List[String],
-    committedMasterStorageHints: util.Map[String, StorageInfo] =
+    committedMasterStorageInfos: util.Map[String, StorageInfo] =
       Map.empty[String, StorageInfo].asJava,
-    committedSlaveStorageHints: util.Map[String, StorageInfo] =
+    committedSlaveStorageInfos: util.Map[String, StorageInfo] =
       Map.empty[String, StorageInfo].asJava,
     totalWritten: Long = 0,
     fileCount: Int = 0
@@ -906,20 +906,20 @@ object ControlMessages extends Logging{
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
-        val committedMasterStorageHints = new util.HashMap[String, StorageInfo]()
-        val committedSlaveStorageHints = new util.HashMap[String, StorageInfo]()
-        pbCommitFilesResponse.getCommittedMasterStorageHintsMap.asScala.foreach(entry =>
-          committedMasterStorageHints.put(entry._1, StorageInfo.fromPb(entry._2)))
-        pbCommitFilesResponse.getCommittedSlaveStorageHintsMap.asScala.foreach(entry =>
-          committedSlaveStorageHints.put(entry._1, StorageInfo.fromPb(entry._2)))
+        val committedMasterStorageInfos = new util.HashMap[String, StorageInfo]()
+        val committedSlaveStorageInfos = new util.HashMap[String, StorageInfo]()
+        pbCommitFilesResponse.getCommittedMasterStorageInfosMap.asScala.foreach(entry =>
+          committedMasterStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
+        pbCommitFilesResponse.getCommittedSlaveStorageInfosMap.asScala.foreach(entry =>
+          committedSlaveStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedMasterIdsList,
           pbCommitFilesResponse.getCommittedSlaveIdsList,
           pbCommitFilesResponse.getFailedMasterIdsList,
           pbCommitFilesResponse.getFailedSlaveIdsList,
-          committedMasterStorageHints,
-          committedSlaveStorageHints,
+          committedMasterStorageInfos,
+          committedSlaveStorageInfos,
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount)
 

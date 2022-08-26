@@ -925,7 +925,13 @@ object RssConf extends Logging {
   }
 
   def hdfsDir(conf: RssConf): String = {
-    conf.get("rss.worker.hdfs.dir", "")
+    val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
+    if (!hdfsDir.startsWith("hdfs:")) {
+      log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
+      ""
+    } else {
+      hdfsDir
+    }
   }
 
   def hdfsFlusherThreadCount(conf: RssConf): Int = {
