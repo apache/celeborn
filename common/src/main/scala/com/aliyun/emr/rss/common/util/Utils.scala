@@ -814,4 +814,12 @@ object Utils extends Logging {
       case _ => null
     }
   }
+
+  def getPeerPath(path: String): String = {
+    if (path.endsWith("0")) {
+      path.substring(0, path.length - 1) + "1"
+    } else {
+      path.substring(0, path.length - 1) + "0"
+    }
+  }
 }

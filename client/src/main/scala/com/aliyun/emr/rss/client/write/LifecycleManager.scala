@@ -728,34 +728,29 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (!dataLost) {
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       committedMasterIds.asScala.foreach { id =>
-        val partition = masterPartMap.get(id)
-        val storageHint = if (committedMasterStorageHints.get(id) == null) {
+        if (committedMasterStorageHints.get(id) == null) {
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
-          new StorageInfo()
         } else {
-          committedMasterStorageHints.get(id)
+          masterPartMap.get(id).setStorageHint(committedMasterStorageHints.get(id))
+          committedPartitions.put(id, masterPartMap.get(id))
         }
-        partition.setStorageHint(storageHint)
-        committedPartitions.put(id, partition)
       }
 
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
-        val storageHint = if (committedSlaveStorageHints.get(id) == null) {
+        if (committedSlaveStorageHints.get(id) == null) {
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
-          new StorageInfo()
         } else {
-          committedSlaveStorageHints.get(id)
-        }
-        slavePartition.setStorageHint(storageHint)
-        val masterPartition = committedPartitions.get(id)
-        if (masterPartition ne null) {
-          masterPartition.setPeer(slavePartition)
-          slavePartition.setPeer(masterPartition)
-        } else {
-          logWarning(s"Shuffle $shuffleId partition $id: master lost, " +
+          slavePartition.setStorageHint(committedSlaveStorageHints.get(id))
+          val masterPartition = committedPartitions.get(id)
+          if (masterPartition ne null) {
+            masterPartition.setPeer(slavePartition)
+            slavePartition.setPeer(masterPartition)
+          } else {
+            logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
               s"use slave $slavePartition.")
-          committedPartitions.put(id, slavePartition)
+            committedPartitions.put(id, slavePartition)
+          }
         }
       }
 
