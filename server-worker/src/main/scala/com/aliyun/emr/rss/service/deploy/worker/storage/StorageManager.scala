@@ -21,8 +21,8 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -43,6 +43,7 @@ import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
+import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 
 private[worker] final class StorageManager(conf: RssConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
@@ -120,7 +121,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   val hdfsFlusher = if (!hdfsDir.isEmpty) {
     val hdfsConfiguration = new Configuration
     hdfsConfiguration.set("fs.defaultFS", hdfsDir)
-    hdfsConfiguration.set("dfs.replication", "1")
+    hdfsConfiguration.set("dfs.replication", "2")
     StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
     Some(new HdfsFlusher(
       workerSource,
@@ -130,6 +131,36 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   } else {
     None
   }
+
+  lazy val heartBeatCount = new AtomicLong()
+  lazy val hdfsDelayedCleanMap = new ConcurrentHashMap[String, Long]()
+  lazy val hdfsCheckCleanPool =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("Hdfs-Cleaner-Scheduler")
+  lazy val hdfsCleanerDelay = RssConf.hdfsCleanDelayHeartBeatCount(conf)
+  lazy val hdfsCleanActionPool = ThreadUtils.newDaemonCachedThreadPool("Hdfs-Cleaner", 8, 60)
+  hdfsCheckCleanPool.scheduleAtFixedRate(new Runnable {
+    override def run(): Unit = {
+      val currentHeartBeatCount = heartBeatCount.get()
+      val filesToDelete = hdfsDelayedCleanMap.asScala
+        .filter(p => (currentHeartBeatCount - p._2 > hdfsCleanerDelay))
+        .map(_._1)
+      if (filesToDelete.nonEmpty) {
+        for (file <- filesToDelete) {
+          hdfsDelayedCleanMap.remove(file)
+          hdfsCleanActionPool.submit(new Runnable {
+            override def run(): Unit = {
+              try {
+                StorageManager.hdfsFs.delete(new Path(file), true)
+              } catch {
+                case ioe: IOException =>
+                  log.warn(s"Clean hdfs file ${file} failed", ioe)
+              }
+            }
+          })
+        }
+      }
+    }
+  }, RssConf.workerTimeoutMs(conf) / 8, RssConf.workerTimeoutMs(conf) / 8, TimeUnit.MILLISECONDS)
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.IoHang) {
@@ -237,11 +268,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       throw new IOException("No available working dirs!")
     }
 
-    val partitionId = location.getId
-    val epoch = location.getEpoch
-    val mode = location.getMode
-    val fileName = s"$partitionId-$epoch-${mode.mode()}"
-
+    val fileName = location.getFileName
+    val hasReplication = location.getPeer != null
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageHint.getMountPoint
@@ -271,7 +299,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          hasReplication)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.synchronized {
           hdfsWriters.add(hdfsWriter)
@@ -338,13 +367,20 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      fileInfos.remove(shuffleKey)
+      val hasHdfs = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs).size > 0
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach{ case diskInfo =>
         diskInfo.dirs.foreach { case dir =>
           val file = new File(dir, s"$appId/$shuffleId")
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
+      }
+      if (hasHdfs) {
+        val hdfsFilePath = new Path(new Path(hdfsDir, RssConf.workingDirName(conf)),
+          s"$appId/$shuffleId").toString
+        val hdfsFileSuccessPath = hdfsFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS
+        hdfsDelayedCleanMap.put(hdfsFilePath, heartBeatCount.get())
+        hdfsDelayedCleanMap.put(hdfsFileSuccessPath, heartBeatCount.get())
       }
     }
   }
@@ -366,8 +402,6 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }, 0, 30, TimeUnit.MINUTES)
 
-  val rssSlowFlushInterval: Long = RssConf.slowFlushIntervalMs(conf)
-
   private def cleanupExpiredAppDirs(expireTime: Long): Unit = {
     disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
       diskInfo.dirs.foreach { case workingDir =>
@@ -377,6 +411,16 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
             deleteDirectory(appDir, threadPool)
             logInfo(s"Delete expired app dir $appDir.")
           }
+        }
+      }
+    }
+
+    if (hdfsFs != null) {
+      val iter = hdfsFs.listFiles(new Path(hdfsDir, RssConf.workingDirName(conf)), false)
+      while (iter.hasNext) {
+        val fileStatus = iter.next()
+        if (fileStatus.getModificationTime < expireTime) {
+          hdfsDelayedCleanMap.put(fileStatus.getPath.toString, heartBeatCount.get())
         }
       }
     }
@@ -431,6 +475,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       })
     }
     storageScheduler.shutdownNow()
+    hdfsCheckCleanPool.shutdownNow()
+    hdfsCleanActionPool.shutdownNow()
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
@@ -483,6 +529,10 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       diskInfo.setFlushTime(flushTimeAverage)
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
+  }
+
+  def onHeartBeat(): Unit = {
+    heartBeatCount.incrementAndGet()
   }
 }
 

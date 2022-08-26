@@ -10,7 +10,8 @@ public class StorageInfo implements Serializable {
   public static String UNKNOWN_DISK = "UNKNOWN_DISK";
 
   public enum Type {
-    MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4);
+    // DELETE means that the partition is deleted on HDFS while its replication is ready.
+    MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4), DELETE(5);
     private final int type;
 
     Type(int type) {
@@ -31,7 +32,7 @@ public class StorageInfo implements Serializable {
   // Default storage Type is MEMORY.
   private Type type = Type.MEMORY;
   private String mountPoint = UNKNOWN_DISK;
-  // if a file is commited, field "finalResult" will be true
+  // if a file is committed, field "finalResult" will be true
   private boolean finalResult = false;
 
   public StorageInfo() {

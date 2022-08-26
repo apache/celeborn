@@ -42,6 +42,7 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
+import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
@@ -50,6 +51,7 @@ import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
  */
 public final class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
+  public static final String SUFFIX_HDFS_WRITE_SUCCESS = ".success";
 
   private static final long WAIT_INTERVAL_MS = 20;
 
@@ -80,6 +82,9 @@ public final class FileWriter implements DeviceObserver {
   private final PartitionType partitionType;
 
   private Runnable destroyHook;
+  // only will be true if it is on hdfs and deleted because of replication is ready.
+  private boolean deleted = false;
+  private boolean hasReplication = false;
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
@@ -91,6 +96,21 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private final FlushNotifier notifier = new FlushNotifier();
+
+  public FileWriter(
+      FileInfo fileInfo,
+      Flusher flusher,
+      AbstractSource workerSource,
+      RssConf rssConf,
+      DeviceMonitor deviceMonitor,
+      long splitThreshold,
+      PartitionSplitMode splitMode,
+      PartitionType partitionType,
+      boolean hasReplication) throws IOException {
+    this(fileInfo, flusher, workerSource, rssConf, deviceMonitor,
+        splitThreshold, splitMode, partitionType);
+    this.hasReplication = hasReplication;
+  }
 
   public FileWriter(
       FileInfo fileInfo,
@@ -210,7 +230,11 @@ public final class FileWriter implements DeviceObserver {
       LocalFlusher localFlusher = (LocalFlusher) flusher;
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
     } else {
-      return new StorageInfo(StorageInfo.Type.HDFS, true);
+      if (deleted) {
+        return new StorageInfo(StorageInfo.Type.DELETE, true);
+      } else {
+        return new StorageInfo(StorageInfo.Type.HDFS, true);
+      }
     }
   }
 
@@ -243,15 +267,24 @@ public final class FileWriter implements DeviceObserver {
         }
         if (stream != null) {
           stream.close();
+          if (hasReplication) {
+            String peerPath = Utils.getPeerPath(fileInfo.getFilePath());
+            if (StorageManager.hdfsFs().exists(
+                new Path(peerPath + SUFFIX_HDFS_WRITE_SUCCESS))) {
+              StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+              deleted = true;
+            }
+          } else {
+            StorageManager.hdfsFs().create(
+                new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS)).close();
+          }
         }
       } catch (IOException e) {
         logger.warn("close file writer" + this + "failed", e);
       }
 
-
       // unregister from DeviceMonitor
       deviceMonitor.unregisterFileWriter(this);
-
     }
     return bytesFlushed;
   }
@@ -277,6 +310,8 @@ public final class FileWriter implements DeviceObserver {
     if (fileInfo.isHdfs()) {
       try {
         StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+        StorageManager.hdfsFs().delete(
+            new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS), false);
         if (splitted.get()) {
           String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
           String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
