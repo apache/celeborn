@@ -26,9 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.AbstractMetaManager;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
@@ -272,7 +272,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.UpdatePartitionSize)
-              .setRequestId(ControlMessages.ZERO_UUID())
+              .setRequestId(RssHARetryClient.genRequestId())
               .build());
     } catch (ServiceException e) {
       LOG.error("Handle update partition size failed!", e);
