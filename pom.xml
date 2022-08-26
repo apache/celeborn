@@ -64,6 +64,7 @@
     <hadoop.version>3.3.1</hadoop.version>
 
     <maven.plugin.checkstyle.version>3.0.0</maven.plugin.checkstyle.version>
+    <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.git.version>4.9.10</maven.plugin.git.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
@@ -76,6 +77,7 @@
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <build.testJarPhase>prepare-package</build.testJarPhase>
+    <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
   </properties>
 
   <modules>
@@ -560,6 +562,25 @@
             </includeOnlyProperties>
             <commitIdGenerationMode>full</commitIdGenerationMode>
           </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>${maven.plugin.dependency.version}</version>
+          <executions>
+            <execution>
+              <id>copy-module-dependencies</id>
+              <phase>package</phase>
+              <goals>
+                <goal>copy-dependencies</goal>
+              </goals>
+              <configuration>
+                <includeScope>runtime</includeScope>
+                <outputDirectory>${jars.target.dir}</outputDirectory>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
       </plugins>
     </pluginManagement>
