@@ -367,7 +367,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      val hasHdfs = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs).size > 0
+      val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach{ case diskInfo =>
         diskInfo.dirs.foreach { case dir =>
@@ -375,12 +375,12 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
       }
-      if (hasHdfs) {
-        val hdfsFilePath = new Path(new Path(hdfsDir, RssConf.workingDirName(conf)),
-          s"$appId/$shuffleId").toString
-        val hdfsFileSuccessPath = hdfsFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS
-        hdfsDelayedCleanMap.put(hdfsFilePath, heartBeatCount.get())
-        hdfsDelayedCleanMap.put(hdfsFileSuccessPath, heartBeatCount.get())
+      if (hdfsInfos.size > 0) {
+        for ((_, info) <- hdfsInfos) {
+          hdfsDelayedCleanMap.put(info.getFilePath, heartBeatCount.get())
+          hdfsDelayedCleanMap.put(
+            info.getFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS, heartBeatCount.get())
+        }
       }
     }
   }
