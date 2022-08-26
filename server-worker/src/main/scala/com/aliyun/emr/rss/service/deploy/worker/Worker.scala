@@ -193,7 +193,6 @@ private[deploy] class Worker(
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
-    storageManager.onHeartBeat()
     val diskInfos = new JHashMap[String, DiskInfo]()
     storageManager.disksSnapshot().foreach{ case diskInfo =>
       diskInfos.put(diskInfo.mountPoint, diskInfo)

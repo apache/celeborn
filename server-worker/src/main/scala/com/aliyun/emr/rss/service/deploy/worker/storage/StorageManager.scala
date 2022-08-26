@@ -132,36 +132,6 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     None
   }
 
-  lazy val heartBeatCount = new AtomicLong()
-  lazy val hdfsDelayedCleanMap = new ConcurrentHashMap[String, Long]()
-  lazy val hdfsCheckCleanPool =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("Hdfs-Cleaner-Scheduler")
-  lazy val hdfsCleanDelay = RssConf.hdfsCleanDelayHeartBeatCount(conf)
-  lazy val hdfsCleanActionPool = ThreadUtils.newDaemonCachedThreadPool("Hdfs-Cleaner", 8, 60)
-  hdfsCheckCleanPool.scheduleAtFixedRate(new Runnable {
-    override def run(): Unit = {
-      val currentHeartBeatCount = heartBeatCount.get()
-      val filesToDelete = hdfsDelayedCleanMap.asScala
-        .filter(p => (currentHeartBeatCount - p._2 > hdfsCleanDelay))
-        .map(_._1)
-      if (filesToDelete.nonEmpty) {
-        for (file <- filesToDelete) {
-          hdfsDelayedCleanMap.remove(file)
-          hdfsCleanActionPool.submit(new Runnable {
-            override def run(): Unit = {
-              try {
-                StorageManager.hdfsFs.delete(new Path(file), true)
-              } catch {
-                case ioe: IOException =>
-                  log.warn(s"Clean hdfs file ${file} failed", ioe)
-              }
-            }
-          })
-        }
-      }
-    }
-  }, RssConf.workerTimeoutMs(conf) / 8, RssConf.workerTimeoutMs(conf) / 8, TimeUnit.MILLISECONDS)
-
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.IoHang) {
       logInfo("IoHang, remove disk operator")
@@ -377,9 +347,9 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       }
       if (hdfsInfos.size > 0) {
         for ((_, info) <- hdfsInfos) {
-          hdfsDelayedCleanMap.put(info.getFilePath, heartBeatCount.get())
-          hdfsDelayedCleanMap.put(
-            info.getFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS, heartBeatCount.get())
+          StorageManager.hdfsFs.delete(new Path(info.getFilePath), false)
+          StorageManager.hdfsFs.delete(
+            new Path(info.getFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS), false)
         }
       }
     }
@@ -420,7 +390,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       while (iter.hasNext) {
         val fileStatus = iter.next()
         if (fileStatus.getModificationTime < expireTime) {
-          hdfsDelayedCleanMap.put(fileStatus.getPath.toString, heartBeatCount.get())
+          StorageManager.hdfsFs.delete(fileStatus.getPath, false)
         }
       }
     }
@@ -475,8 +445,6 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       })
     }
     storageScheduler.shutdownNow()
-    hdfsCheckCleanPool.shutdownNow()
-    hdfsCleanActionPool.shutdownNow()
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
@@ -529,10 +497,6 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       diskInfo.setFlushTime(flushTimeAverage)
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
-  }
-
-  def onHeartBeat(): Unit = {
-    heartBeatCount.incrementAndGet()
   }
 }
 

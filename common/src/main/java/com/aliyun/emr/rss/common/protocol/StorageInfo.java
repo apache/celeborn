@@ -10,8 +10,7 @@ public class StorageInfo implements Serializable {
   public static String UNKNOWN_DISK = "UNKNOWN_DISK";
 
   public enum Type {
-    // DELETE means that the partition is deleted on HDFS while its replication is ready.
-    MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4), DELETE(5);
+    MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4);
     private final int type;
 
     Type(int type) {

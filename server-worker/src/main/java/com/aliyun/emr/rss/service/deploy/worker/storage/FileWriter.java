@@ -82,9 +82,7 @@ public final class FileWriter implements DeviceObserver {
   private final PartitionType partitionType;
 
   private Runnable destroyHook;
-  // only will be true if it is on hdfs and deleted because of replication is ready.
   private boolean deleted = false;
-  private boolean hasReplication = false;
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
@@ -96,21 +94,6 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private final FlushNotifier notifier = new FlushNotifier();
-
-  public FileWriter(
-      FileInfo fileInfo,
-      Flusher flusher,
-      AbstractSource workerSource,
-      RssConf rssConf,
-      DeviceMonitor deviceMonitor,
-      long splitThreshold,
-      PartitionSplitMode splitMode,
-      PartitionType partitionType,
-      boolean hasReplication) throws IOException {
-    this(fileInfo, flusher, workerSource, rssConf, deviceMonitor,
-        splitThreshold, splitMode, partitionType);
-    this.hasReplication = hasReplication;
-  }
 
   public FileWriter(
       FileInfo fileInfo,
@@ -231,7 +214,7 @@ public final class FileWriter implements DeviceObserver {
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
     } else {
       if (deleted) {
-        return new StorageInfo(StorageInfo.Type.DELETE, true);
+        return null;
       } else {
         return new StorageInfo(StorageInfo.Type.HDFS, true);
       }
