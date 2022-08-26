@@ -49,6 +49,7 @@
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <build.testJarPhase>prepare-package</build.testJarPhase>
     <scalamock.version>5.1.0</scalamock.version>
+    <zstd-jni.version>1.5.2-3</zstd-jni.version>
   </properties>
 
   <modules>
@@ -175,6 +176,11 @@
         <artifactId>leveldbjni-all</artifactId>
         <version>1.8</version>
         <scope>compile</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.github.luben</groupId>
+        <artifactId>zstd-jni</artifactId>
+        <version>${zstd-jni.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
