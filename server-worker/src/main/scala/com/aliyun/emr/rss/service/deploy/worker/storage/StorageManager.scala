@@ -21,8 +21,8 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -239,7 +239,6 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
 
     val fileName = location.getFileName
-    val hasReplication = location.getPeer != null
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageHint.getMountPoint
@@ -389,7 +388,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       while (iter.hasNext) {
         val fileStatus = iter.next()
         if (fileStatus.getModificationTime < expireTime) {
-          StorageManager.hdfsFs.delete(fileStatus.getPath, false)
+          StorageManager.hdfsFs.delete(fileStatus.getPath, true)
         }
       }
     }
