@@ -129,7 +129,9 @@ echo "RSS $VERSION$GITREVSTRING" > "$DISTDIR/RELEASE"
 echo "Build flags: $@" >> "$DISTDIR/RELEASE"
 
 # Copy jars
+cp "$RSS_HOME"/server-master/target/master-"$VERSION".jar "$DISTDIR/master-jars/"
 cp "$RSS_HOME"/server-master/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/master-jars/"
+cp "$RSS_HOME"/server-worker/target/worker-"$VERSION".jar "$DISTDIR/worker-jars/"
 cp "$RSS_HOME"/server-worker/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/worker-jars/"
 cp "$RSS_HOME"/client-spark/${SHUFFLE_MANAGER_DIR}/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/spark/"
 
