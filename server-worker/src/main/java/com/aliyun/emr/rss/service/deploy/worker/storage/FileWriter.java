@@ -250,13 +250,11 @@ public final class FileWriter implements DeviceObserver {
         }
         if (stream != null) {
           stream.close();
-          if (hasReplication) {
-            String peerPath = Utils.getPeerPath(fileInfo.getFilePath());
-            if (StorageManager.hdfsFs().exists(
-                new Path(peerPath + SUFFIX_HDFS_WRITE_SUCCESS))) {
-              StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
-              deleted = true;
-            }
+          String peerPath = Utils.getPeerPath(fileInfo.getFilePath());
+          if (StorageManager.hdfsFs().exists(
+              new Path(peerPath + SUFFIX_HDFS_WRITE_SUCCESS))) {
+            StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+            deleted = true;
           } else {
             StorageManager.hdfsFs().create(
                 new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS)).close();
