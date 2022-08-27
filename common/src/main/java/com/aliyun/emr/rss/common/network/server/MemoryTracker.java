@@ -49,13 +49,13 @@ public class MemoryTracker {
 
   private final ScheduledExecutorService checkService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-check-thread").build());
+      .setNameFormat("MemoryTracker-check-thread").setDaemon(true).build());
   private final ScheduledExecutorService reportService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-report-thread").build());
+      .setNameFormat("MemoryTracker-report-thread").setDaemon(true).build());
   private final ExecutorService actionService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-action-thread").build());
+      .setNameFormat("MemoryTracker-action-thread").setDaemon(true).build());
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -64,7 +64,7 @@ public class MemoryTracker {
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
   private boolean underPressure;
-  private AtomicBoolean trimInProcess = new AtomicBoolean(false);
+  private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   public static MemoryTracker initialize(
     double pausePushDataRatio,
