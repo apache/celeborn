@@ -28,13 +28,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
-import com.aliyun.emr.rss.common.network.util.ByteUnit;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.VM;
 
+import com.aliyun.emr.rss.common.network.util.ByteUnit;
 import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
 
 public class MemoryTracker {
