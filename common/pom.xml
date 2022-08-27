@@ -154,6 +154,15 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-maven-plugin</artifactId>
+        <configuration>
+          <parallel>false</parallel>
+          <forkMode>once</forkMode>
+          <argLine>-Xmx2048m</argLine>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>${maven.plugin.protobuf.version}</version>
