@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.aliyun.emr.rss.common.network.util.ByteUnit;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
@@ -160,25 +161,21 @@ public class MemoryTracker {
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}," +
-        "disk buffer size:{}, sort memory size : {}",
+    reportService.scheduleWithFixedDelay(() -> logger.info(
+            "Direct memory usage: {}/{}MB, disk buffer size: {}MB, sort memory size: {}MB",
         toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory),
         toMb(diskBufferCounter.get()), toMb(sortMemoryCounter.get())),
       reportInterval, reportInterval, TimeUnit.SECONDS);
 
-    logger.info("Memory tracker initialized with :  " +
-                  "\n max direct memory : {} ({} MB)" +
-                  "\n pause pushdata memory : {} ({} MB)" +
-                  "\n pause replication memory : {} ({} MB)" +
-                  "\n resume memory : {} ({} MB)",
-      maxDirectorMemory, toMb(maxDirectorMemory),
-      pausePushDataThreshold, toMb(pausePushDataThreshold),
-      pauseReplicateThreshold, toMb(pauseReplicateThreshold),
-      resumeThreshold, toMb(resumeThreshold));
+    logger.info("Memory tracker initialized with: " +
+                "max direct memory: {}MB, pause pushdata memory: {}MB, " +
+                "pause replication memory: {}MB, resume memory: {}MB",
+            toMb(maxDirectorMemory), toMb(pausePushDataThreshold),
+            toMb(pauseReplicateThreshold), toMb(resumeThreshold));
   }
 
-  private double toMb(long bytes) {
-    return bytes / 1024.0 / 1024.0;
+  private long toMb(long bytes) {
+    return ByteUnit.BYTE.toMiB(bytes);
   }
 
   private void initDirectMemoryIndicator() {
