@@ -149,6 +149,6 @@ class WorkerInfoSuite extends RssFunSuite {
   test("WorkerInfo equals when numSlots different.") {
     val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
     val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, null, null)
-    assertEquals(worker1, worker2)
+    assertNotEquals(worker1, worker2)
   }
 }
