@@ -56,7 +56,7 @@ public class SlotsAllocator {
       return new HashMap<>();
     }
     if (workers.size() < 2 && shouldReplicate) {
-      return null;
+      return new HashMap<>();
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
@@ -96,7 +96,7 @@ public class SlotsAllocator {
       return new HashMap<>();
     }
     if (workers.size() < 2 && shouldReplicate) {
-      return null;
+      return new HashMap<>();
     }
 
     List<DiskInfo> usableDisks = new ArrayList<>();
