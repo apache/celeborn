@@ -75,7 +75,6 @@ message PbPartitionLocation {
   int32 replicatePort = 8;
   PbPartitionLocation peer = 9;
   PbStorageInfo storageInfo = 10;
-  string hdfsPath = 11;
 }
 
 message PbWorkerResource {

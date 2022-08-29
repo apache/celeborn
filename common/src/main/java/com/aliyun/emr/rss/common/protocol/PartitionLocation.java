@@ -53,7 +53,7 @@ public class PartitionLocation implements Serializable {
   private int replicatePort;
   private Mode mode;
   private PartitionLocation peer;
-  private StorageInfo storageInfo;
+  private StorageInfo storageInfo = new StorageInfo();
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;

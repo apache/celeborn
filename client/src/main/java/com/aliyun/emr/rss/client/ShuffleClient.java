@@ -33,7 +33,7 @@ import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 public abstract class ShuffleClient implements Cloneable {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initFinished = false;
-  public static FileSystem hdfsFs;
+  private static volatile FileSystem hdfsFs;
 
   protected ShuffleClient() {}
 

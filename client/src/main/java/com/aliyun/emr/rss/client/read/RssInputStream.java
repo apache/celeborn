@@ -134,8 +134,6 @@ public abstract class RssInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
 
-
-
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = RssConf.pushDataBufferSize(conf) + headerLen;
       compressedBuf = new byte[blockSize];
