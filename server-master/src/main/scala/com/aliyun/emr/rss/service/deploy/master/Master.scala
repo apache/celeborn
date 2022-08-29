@@ -119,10 +119,6 @@ private[deploy] class Master(
     // worker count
     source.addGauge(MasterSource.WorkerCount,
       _ => statusSystem.workers.size())
-    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
-    // worker slots used count
-    source.addGauge(MasterSource.WorkerSlotsUsedCount,
-      _ => workersSnapShot.asScala.map(_.usedSlots()).sum)
 
     source.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
     // is master active under HA mode
@@ -248,8 +244,8 @@ private[deploy] class Master(
       executeWithLeaderChecker(context,
         handleReportNodeFailure(context, failedWorkers, requestId))
 
-    case GetClusterLoadStatus(numPartitions: Int) =>
-      executeWithLeaderChecker(context, handleGetClusterLoadStatus(context, numPartitions))
+    case CheckAlive =>
+      executeWithLeaderChecker(context, handleCheckAlive(context))
   }
 
   private def timeoutDeadWorkers() {
@@ -394,13 +390,13 @@ private[deploy] class Master(
       s"offerSlots-${Random.nextInt()}") {
       statusSystem.workers.synchronized {
         if (offerSlotsAlgorithm == "roundrobin") {
-          MasterUtil.offerSlotsRoundRobin(
+          SlotsAllocator.offerSlotsRoundRobin(
             workersNotBlacklisted(),
             requestSlots.partitionIdList,
             requestSlots.shouldReplicate
           )
         } else {
-          MasterUtil.offerSlotsLoadAware(
+          SlotsAllocator.offerSlotsLoadAware(
             workersNotBlacklisted(),
             requestSlots.partitionIdList,
             requestSlots.shouldReplicate,
@@ -413,7 +409,7 @@ private[deploy] class Master(
     }
 
     if (log.isDebugEnabled()) {
-      val distributions = MasterUtil.slotsToDiskAllocations(slots)
+      val distributions = SlotsAllocator.slotsToDiskAllocations(slots)
       logDebug(s"allocate slots for shuffle $shuffleKey $slots" +
         s" distributions: ${distributions.asScala.map(m => m._1.toUniqueId() -> m._2)}")
     }
@@ -520,36 +516,8 @@ private[deploy] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  private def handleGetClusterLoadStatus(context: RpcCallContext, numPartitions: Int): Unit = {
-    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
-    val (totalSlots, usedSlots, _) = getClusterLoad
-
-    val totalUsedRatio: Double = (usedSlots + numPartitions) / totalSlots.toDouble
-    val result = totalUsedRatio >= clusterSlotsUsageLimit
-    logInfo(s"Current cluster slots usage:$totalUsedRatio, conf:$clusterSlotsUsageLimit, " +
-        s"overload:$result")
-    context.reply(GetClusterLoadStatusResponse(result))
-  }
-
-  private def getClusterLoad: (Long, Long, Long) = {
-    val workers: mutable.Buffer[WorkerInfo] = workersSnapShot.asScala
-    if (workers.isEmpty) {
-      return (0, 0, 0)
-    }
-
-    val clusterSlotsUsageLimit: Double = RssConf.clusterSlotsUsageLimitPercent(conf)
-
-    val (totalSlots, usedSlots, overloadWorkers) = workers.map(workerInfo => {
-        val allSlots: Long = workerInfo.getTotalSlots
-        val usedSlots: Long = workerInfo.usedSlots()
-        val flag: Int = if (usedSlots / allSlots.toDouble >= clusterSlotsUsageLimit) 1 else 0
-        (allSlots, usedSlots, flag)
-      })
-      .reduce((pair1, pair2) => {
-        (pair1._1 + pair2._1, pair1._2 + pair2._2, pair1._3 + pair2._3)
-      })
-
-    (totalSlots, usedSlots, overloadWorkers)
+  private def handleCheckAlive(context: RpcCallContext): Unit = {
+    context.reply(CheckAliveResponse(true))
   }
 
   private def workersNotBlacklisted(
@@ -653,7 +621,7 @@ private[deploy] object Master extends Logging {
       RpcNameConstants.MASTER_SYS,
       masterArgs.host,
       masterArgs.host,
-      masterArgs.port,
+      masterArgs.port.getOrElse(0),
       conf,
       Math.max(64, Runtime.getRuntime.availableProcessors()))
     val master = new Master(rpcEnv, conf, metricsSystem)

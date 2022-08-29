@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
@@ -59,7 +60,6 @@ import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
-import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
@@ -70,6 +70,8 @@ import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
+import com.aliyun.emr.rss.service.deploy.worker.FetchHandler;
+import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -79,15 +81,13 @@ public class FileWriterSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
 
-  private static final int CHUNK_SIZE = 1024;
-  private static final int FLUSH_TIMEOUT = 240 * 1000; // 240s
-  public static final int FLUSH_BUFFER_SIZE_LIMIT = 256 * 1024; //256KB
+  private static final RssConf RSS_CONF = new RssConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
   public static final PartitionType partitionType= PartitionType.REDUCE_PARTITION;
 
   private static File tempDir = null;
-  private static Flusher flusher = null;
+  private static LocalFlusher localFlusher = null;
   private static WorkerSource source = null;
 
   private static TransportServer server;
@@ -101,6 +101,7 @@ public class FileWriterSuiteJ {
   @BeforeClass
   public static void beforeAll() {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
+    RSS_CONF.set("rss.worker.fetch.chunk.size","1k");
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(invocationOnMock -> {
@@ -111,7 +112,7 @@ public class FileWriterSuiteJ {
 
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(tempDir);
-    flusher = new Flusher(dirs,
+    localFlusher = new LocalFlusher(
       source,
       DeviceMonitor$.MODULE$.EmptyMonitor(),
       1,
@@ -123,7 +124,6 @@ public class FileWriterSuiteJ {
       0.9,
       0.5,
       0.6,
-      10,
       10,
       10);
   }
@@ -241,8 +241,7 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileWriter writer = new FileWriter(new FileInfo(file), flusher, CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher,source, RSS_CONF,
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -255,7 +254,7 @@ public class FileWriterSuiteJ {
         length.addAndGet(bytes.length);
         ByteBuf buf = Unpooled.wrappedBuffer(bytes);
         try {
-          writer.write(buf);
+          fileWriter.write(buf);
         } catch (IOException e) {
           LOG.error("Failed to write buffer.", e);
         }
@@ -265,10 +264,10 @@ public class FileWriterSuiteJ {
       future.get();
     }
 
-    long bytesWritten = writer.close();
+    long bytesWritten = fileWriter.close();
 
     assertEquals(length.get(), bytesWritten);
-    assertEquals(writer.getFile().length(), bytesWritten);
+    assertEquals(fileWriter.getFile().length(), bytesWritten);
   }
 
   @Test
@@ -276,8 +275,7 @@ public class FileWriterSuiteJ {
     throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
-    FileWriter writer = new FileWriter(new FileInfo(file), flusher, CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, source, RSS_CONF,
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -290,7 +288,7 @@ public class FileWriterSuiteJ {
           length.addAndGet(bytes.length);
           ByteBuf buf = Unpooled.wrappedBuffer(bytes);
           try {
-            writer.write(buf);
+            fileWriter.write(buf);
           } catch (IOException e) {
             LOG.error("Failed to write buffer.", e);
           }
@@ -301,7 +299,7 @@ public class FileWriterSuiteJ {
       future.get();
     }
 
-    long bytesWritten = writer.close();
+    long bytesWritten = fileWriter.close();
     assertEquals(length.get(), bytesWritten);
   }
 
@@ -310,7 +308,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(file);
-    flusher = new Flusher(dirs,
+    localFlusher = new LocalFlusher(
         source,
         DeviceMonitor$.MODULE$.EmptyMonitor(),
         1,
@@ -325,8 +323,7 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file);
-    FileWriter writer = new FileWriter(fileInfo, flusher, CHUNK_SIZE,
-      FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
+    FileWriter fileWriter = new FileWriter(fileInfo, localFlusher, source, RSS_CONF,
       DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -339,8 +336,8 @@ public class FileWriterSuiteJ {
         ByteBuf buf = Unpooled.wrappedBuffer(bytes);
         buf.retain();
         try {
-          writer.incrementPendingWrites();
-          writer.write(buf);
+          fileWriter.incrementPendingWrites();
+          fileWriter.write(buf);
         } catch (IOException e) {
           LOG.error("Failed to write buffer.", e);
         }
@@ -351,7 +348,7 @@ public class FileWriterSuiteJ {
       future.get();
     }
 
-    long bytesWritten = writer.close();
+    long bytesWritten = fileWriter.close();
     assertEquals(length.get(), bytesWritten);
 
     setupChunkServer(fileInfo);

@@ -46,7 +46,7 @@ helm install rss-helm ${RSS_HOME}/docker/helm -n ${rss namespace}
 #### Connect to RSS in K8s pod
 After installation, you can connect to RSS master through headless service. For example, this is the spark configuration for 3-master RSS:
 `
-spark.rss.ha.master.hosts=shuffleservice-master-0.rss-svc.${rss namespace},shuffleservice-master-1.rss-svc.${rss namespace},shuffleservice-master-2.rss-svc.${rss namespace}
+spark.rss.ha.master.hosts=shuffleservice-master-0.rss-master-svc.${rss namespace},shuffleservice-master-1.rss-master-svc.${rss namespace},shuffleservice-master-2.rss-master-svc.${rss namespace}
 `
 
 #### Uninstall RSS

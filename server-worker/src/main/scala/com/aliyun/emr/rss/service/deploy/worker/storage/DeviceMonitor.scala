@@ -15,25 +15,23 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker
+package com.aliyun.emr.rss.service.deploy.worker.storage
 
-import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
+import java.io._
 import java.nio.charset.Charset
 import java.util
 import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.RssConf.diskCheckIntervalMs
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo}
+import com.aliyun.emr.rss.common.RssConf.{deviceMonitorCheckList, diskCheckIntervalMs}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import com.aliyun.emr.rss.common.util.ThreadUtils
 import com.aliyun.emr.rss.common.util.Utils._
 
@@ -41,27 +39,30 @@ trait DeviceMonitor {
   def startCheck() {}
   def registerFileWriter(fileWriter: FileWriter): Unit = {}
   def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
-  def registerFlusher(flusher: Flusher): Unit = {}
-  def unregisterFlusher(flusher: Flusher): Unit = {}
-  def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {}
+  // Only local flush needs device monitor.
+  def registerFlusher(flusher: LocalFlusher): Unit = {}
+  def unregisterFlusher(flusher: LocalFlusher): Unit = {}
+  def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
 
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-    essConf: RssConf,
+    rssConf: RssConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
     diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
   class ObservedDevice(val deviceInfo: DeviceInfo) {
-    var diskInfos: ListBuffer[DiskInfo] = deviceInfo.diskInfos
+    val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+    deviceInfo.diskInfos.foreach { case diskInfo =>
+      diskInfos.put(diskInfo.mountPoint, diskInfo)
+    }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-    val sysBlockDir = RssConf.sysBlockDir(essConf)
+    val sysBlockDir = RssConf.sysBlockDir(rssConf)
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -69,10 +70,6 @@ class LocalDeviceMonitor(
     var lastWriteComplete: Long = -1
     var lastReadInflight: Long = -1
     var lastWriteInflight: Long = -1
-
-    def addDiskInfo(diskInfo: DiskInfo): Unit = {
-      diskInfos.append(diskInfo)
-    }
 
     def addObserver(observer: DeviceObserver): Unit = {
       observers.add(observer)
@@ -82,40 +79,43 @@ class LocalDeviceMonitor(
       observers.remove(observer)
     }
 
-    def notifyObserversOnError(dirs: ListBuffer[File],
-      deviceErrorType: DeviceErrorType): Unit = this.synchronized {
+    def notifyObserversOnError(mountPoints: List[String],
+      diskStatus: DiskStatus): Unit = this.synchronized {
+      mountPoints.foreach{ case mountPoint =>
+        diskInfos.get(mountPoint).setStatus(diskStatus)
+      }
       // observer.notifyDeviceError might remove itself from observers,
       // so we need to use tmpObservers
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
-        if (deviceErrorType == DeviceErrorType.FlushTimeout) {
-          ob.notifySlowFlush(dirs)
-        } else if (DeviceErrorType.criticalError(deviceErrorType)) {
-          ob.notifyError(deviceInfo.name, dirs, deviceErrorType)
+        mountPoints.foreach { case mountPoint =>
+          ob.notifyError(mountPoint, diskStatus)
         }
       })
     }
 
-    def notifyObserversOnHealthy(dirs: ListBuffer[File]): Unit = this.synchronized {
+    def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
+      diskInfos.get(mountPoint).setStatus(DiskStatus.Healthy)
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
-        ob.notifyHealthy(dirs)
+        ob.notifyHealthy(mountPoint)
       })
     }
 
-    def notifyObserversOnHighDiskUsage(dirs: ListBuffer[File]): Unit = this.synchronized {
+    def notifyObserversOnHighDiskUsage(mountPoint: String): Unit = this.synchronized {
+      diskInfos.get(mountPoint).setStatus(DiskStatus.HighDiskUsage)
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
-        ob.notifyHighDiskUsage(dirs)
+        ob.notifyHighDiskUsage(mountPoint)
       })
     }
 
     /**
      * @return true if device is hang
      */
-    def checkIoHang(): Boolean = {
+    def ioHang(): Boolean = {
       if (deviceInfo.deviceStatAvailable) {
-        true
+        false
       } else {
         var statsSource: Source = null
         var infligtSource: Source = null
@@ -142,11 +142,6 @@ class LocalDeviceMonitor(
             val isWriteHang = lastWriteComplete == writeComplete &&
               writeInflight >= lastWriteInflight && lastWriteInflight > 0
 
-            lastReadComplete = readComplete
-            lastWriteComplete = writeComplete
-            lastReadInflight = readInflight
-            lastWriteInflight = writeInflight
-
             if (isReadHang || isWriteHang) {
               logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
                 s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
@@ -155,6 +150,11 @@ class LocalDeviceMonitor(
               )
               logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
             }
+
+            lastReadComplete = readComplete
+            lastWriteComplete = writeComplete
+            lastReadInflight = readInflight
+            lastWriteInflight = writeInflight
 
             isReadHang || isWriteHang
           }
@@ -175,14 +175,20 @@ class LocalDeviceMonitor(
     }
 
     override def toString: String = {
-      s"DeviceName: ${deviceInfo.name}\tMount Infos: ${diskInfos.mkString("\n")}"
+      s"DeviceName: ${deviceInfo.name}\tMount Infos: ${diskInfos.values().asScala.mkString("\n")}"
     }
   }
 
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = diskCheckIntervalMs(essConf)
+  val diskCheckInterval = diskCheckIntervalMs(rssConf)
+
+  // we should choose what the device needs to detect
+  val monitorCheckList = deviceMonitorCheckList(rssConf)
+  val checkIoHang = monitorCheckList.contains("iohang")
+  val checkReadWrite = monitorCheckList.contains("readwrite")
+  val checkDiskUsage = monitorCheckList.contains("diskusage")
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -205,26 +211,28 @@ class LocalDeviceMonitor(
         logger.debug("Device check start")
         try {
           observedDevices.values().asScala.foreach(device => {
-            val checkDirs = device.diskInfos.flatMap(mount => mount.dirInfos)
+            val mountPoints = device.diskInfos.keySet.asScala.toList
 
-            if (device.checkIoHang()) {
-              logger.error(s"Encounter disk io hang error!" +
+            if (checkIoHang && device.ioHang()) {
+              logger.error(s"Encounter device io hang error!" +
                 s"${device.deviceInfo.name}, notify observers")
-              device.notifyObserversOnError(checkDirs, DeviceErrorType.IoHang)
+              device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
             } else {
-              device.diskInfos.foreach(entry => {
-                if (DeviceMonitor.checkDiskUsage(essConf, entry.mountPoint)) {
-                  logger.error(s"${entry.mountPoint} high_disk_usage error, notify observers")
-                  device.notifyObserversOnHighDiskUsage(entry.dirInfos)
-                } else if (DeviceMonitor.checkDiskReadAndWrite(essConf, entry.dirInfos)) {
-                  logger.error(s"${entry.mountPoint} read-write error, notify observers")
+              device.diskInfos.values().asScala.foreach{ case diskInfo =>
+                if (checkDiskUsage && DeviceMonitor.highDiskUsage(rssConf, diskInfo.mountPoint)) {
+                  logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
+                  device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
+                } else if (checkReadWrite &&
+                DeviceMonitor.readWriteError(rssConf, diskInfo.dirs.head)) {
+                  logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                   // We think that if one dir in device has read-write problem, if possible all
                   // dirs in this device have the problem
-                  device.notifyObserversOnError(entry.dirInfos, DeviceErrorType.ReadOrWriteFailure)
+                  device.notifyObserversOnError(List(diskInfo.mountPoint),
+                    DiskStatus.ReadOrWriteFailure)
                 } else {
-                  device.notifyObserversOnHealthy(entry.dirInfos)
+                  device.notifyObserversOnHealthy(diskInfo.mountPoint)
                 }
-              })
+              }
             }
           })
         } catch {
@@ -245,25 +253,20 @@ class LocalDeviceMonitor(
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
 
-  override def registerFlusher(flusher: Flusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(flusher.workingDirs.head.getAbsolutePath,
-      diskInfos)
-    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(flusher)
+  override def registerFlusher(flusher: LocalFlusher): Unit = {
+    observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).addObserver(flusher)
   }
 
-  override def unregisterFlusher(flusher: Flusher): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(flusher.workingDirs.head.getAbsolutePath,
-      diskInfos)
-    observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(flusher)
+  override def unregisterFlusher(flusher: LocalFlusher): Unit = {
+    observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).removeObserver(flusher)
   }
 
-  override def reportDeviceError(workingDir: mutable.Buffer[File], e: IOException,
-    deviceErrorType: DeviceErrorType): Unit = {
-    logger.error(s"Receive report exception, $workingDir, $e")
-    val mountPoint = DeviceInfo.getMountPoint(workingDir.head.getAbsolutePath, diskInfos)
+  override def reportDeviceError(mountPoint: String, e: IOException,
+    diskStatus: DiskStatus): Unit = {
+    logger.error(s"Receive report exception, disk $mountPoint, $e")
     if (diskInfos.containsKey(mountPoint)) {
       observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(workingDir.to, deviceErrorType)
+        .notifyObserversOnError(List(mountPoint), diskStatus)
     }
   }
 
@@ -305,71 +308,64 @@ object DeviceMonitor {
    * @param diskRootPath disk root path
    * @return true if high disk usage
    */
-  def checkDiskUsage(essConf: RssConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(rssConf: RssConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
-      val totalSpace = usage(usage.length - 1)
+      val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskSpaceSafeFreeSizeInGb(essConf)
+      val status = freeSpace.toLong < RssConf.diskMinimumReserveSize(rssConf) / 1024 / 1024 / 1024
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
       }
       status
-    })(true)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
+    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(rssConf),
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
   /**
    * check if the data dir has read-write problem
    * @param rssConf conf
-   * @param dataDirs shuffle data dirs in on mount disk
+   * @param dataDir one of shuffle data dirs in mount disk
    * @return true if disk has read-write problem
    */
-  def checkDiskReadAndWrite(essConf: RssConf, dataDirs: ListBuffer[File]): Boolean = {
-    if (null == dataDirs || dataDirs.isEmpty) {
+  def readWriteError(rssConf: RssConf, dataDir: File): Boolean = {
+    if (null == dataDir || !dataDir.isDirectory) {
       return false
     }
 
-    var diskHealthy = true
-    for (i <- dataDirs.indices if diskHealthy) {
-      val dir = dataDirs(i)
-      diskHealthy = tryWithTimeoutAndCallback({
-        try {
-          dir.mkdirs()
-          val file = new File(dir, s"_SUCCESS_${System.currentTimeMillis()}")
-          if (!file.exists() && !file.createNewFile()) {
-            false
-          } else {
-            FileUtils.write(file, "test", Charset.defaultCharset)
-            var fileInputStream: FileInputStream = null
-            var inputStreamReader: InputStreamReader = null
-            var bufferReader: BufferedReader = null
-            try {
-              fileInputStream = FileUtils.openInputStream(file)
-              inputStreamReader = new InputStreamReader(fileInputStream, Charset.defaultCharset())
-              bufferReader = new BufferedReader(inputStreamReader)
-              bufferReader.readLine()
-            } finally {
-              bufferReader.close()
-              inputStreamReader.close()
-              fileInputStream.close()
-            }
-            FileUtils.forceDelete(file)
-            true
+    tryWithTimeoutAndCallback({
+      try {
+        val file = new File(dataDir, s"_SUCCESS_${System.currentTimeMillis()}")
+        if (!file.exists() && !file.createNewFile()) {
+          true
+        } else {
+          FileUtils.write(file, "test", Charset.defaultCharset)
+          var fileInputStream: FileInputStream = null
+          var inputStreamReader: InputStreamReader = null
+          var bufferReader: BufferedReader = null
+          try {
+            fileInputStream = FileUtils.openInputStream(file)
+            inputStreamReader = new InputStreamReader(fileInputStream, Charset.defaultCharset())
+            bufferReader = new BufferedReader(inputStreamReader)
+            bufferReader.readLine()
+          } finally {
+            bufferReader.close()
+            inputStreamReader.close()
+            fileInputStream.close()
           }
-        } catch {
-          case t: Throwable =>
-            logger.error(s"Disk $dir cannot read or write", t)
-            false
+          FileUtils.forceDelete(file)
+          false
         }
-      })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(essConf),
-        s"Disk: $dir Read_Write Check Timeout")
-    }
-
-    !diskHealthy
+      } catch {
+        case t: Throwable =>
+          logger.error(s"Disk dir $dataDir cannot read or write", t)
+          true
+      }
+    })(false)(deviceCheckThreadPool, RssConf.workerStatusCheckTimeout(rssConf),
+      s"Disk: $dataDir Read_Write Check Timeout")
   }
 
   def EmptyMonitor(): DeviceMonitor = EmptyDeviceMonitor

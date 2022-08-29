@@ -15,29 +15,41 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.server;
+package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
 import java.util.ArrayList;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 
 public class FileInfo {
-  public final File file;
-  public final ArrayList<Long> chunkOffsets;
+  private final String filePath;
+  private final ArrayList<Long> chunkOffsets;
 
-  public FileInfo(File file, ArrayList<Long> chunkOffsets) {
-    this.file = file;
+  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
+    this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
   }
 
-  public FileInfo(File file) {
-    this.file = file;
+  public FileInfo(String filePath){
+    this.filePath = filePath;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
   }
 
-  public int numChunks() {
+  @VisibleForTesting
+  public FileInfo(File file) {
+    this.filePath = file.getAbsolutePath();
+    this.chunkOffsets = new ArrayList<>();
+    chunkOffsets.add(0L);
+  }
+
+  public synchronized void addChunkOffset(long bytesFlushed) {
+    chunkOffsets.add(bytesFlushed);
+  }
+
+  public synchronized int numChunks() {
     if (!chunkOffsets.isEmpty()) {
       return chunkOffsets.size() - 1;
     } else {
@@ -45,22 +57,34 @@ public class FileInfo {
     }
   }
 
-  public long getFileLength() {
+  public synchronized long getLastChunkOffset() {
+    return chunkOffsets.get(chunkOffsets.size() - 1);
+  }
+
+  public synchronized long getFileLength() {
     return chunkOffsets.get(chunkOffsets.size() - 1);
   }
 
   public File getFile() {
-    return file;
+    return new File(filePath);
   }
 
-  public ArrayList<Long> getChunkOffsets() {
+  public String getFilePath(){
+    return filePath;
+  }
+
+  public boolean isHdfs(){
+    return filePath.startsWith("hdfs://");
+  }
+
+  public synchronized ArrayList<Long> getChunkOffsets() {
     return chunkOffsets;
   }
 
   @Override
   public String toString() {
     return "FileInfo{" +
-             "file=" + file.getAbsolutePath() +
+             "file=" + filePath +
              ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
              '}';
   }

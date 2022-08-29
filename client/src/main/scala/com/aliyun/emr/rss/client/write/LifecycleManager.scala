@@ -48,6 +48,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
+  private val stageEndTimeout = RssConf.stageEndTimeout(conf)
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -55,6 +56,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   private val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
@@ -179,12 +181,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     case msg: GetBlacklist =>
       handleGetBlacklist(msg)
     case StageEnd(applicationId, shuffleId) =>
-      logDebug(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
+      logInfo(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleStageEnd(applicationId, shuffleId)
     case UnregisterShuffle(applicationId, shuffleId, _) =>
       logDebug(s"Received UnregisterShuffle request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
-      handleUnregisterShuffle(null, applicationId, shuffleId)
+      handleUnregisterShuffle(applicationId, shuffleId)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -359,11 +361,17 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def blacklistPartition(oldPartition: PartitionLocation, cause: StatusCode): Unit = {
+  private def blacklistPartition(
+     shuffleId: Int, oldPartition: PartitionLocation, cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
     if (cause == StatusCode.PushDataFailMain && oldPartition != null) {
-      failedWorker.add(oldPartition.getWorker)
+      val tmpWorker = oldPartition.getWorker
+      val worker = workerSnapshots(shuffleId).keySet().asScala
+        .find(_.equals(tmpWorker))
+      if (worker.isDefined) {
+        failedWorker.add(worker.get)
+      }
     }
     if (!failedWorker.isEmpty) {
       recordWorkerFailure(failedWorker)
@@ -422,7 +430,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
       s"oldPartition: $oldPartition, cause: $cause")
-    blacklistPartition(oldPartition, cause)
+    blacklistPartition(shuffleId, oldPartition, cause)
     handleChangePartitionLocation(shuffleReviving, applicationId, shuffleId, partitionId, oldEpoch,
       oldPartition)
   }
@@ -577,11 +585,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int): Unit = {
-    logDebug(s"Wait for StageEnd, $shuffleId.")
-    var timeout = RssConf.stageEndTimeout(conf)
-    val delta = 50
+    var timeout = stageEndTimeout
+    val delta = 100
     while (!stageEndShuffleSet.contains(shuffleId)) {
-      Thread.sleep(50)
+      Thread.sleep(delta)
       if (timeout <= 0) {
         logError(s"StageEnd Timeout! $shuffleId.")
         context.reply(
@@ -590,6 +597,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
       timeout = timeout - delta
     }
+    logInfo("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
+      s" ${stageEndTimeout - timeout}ms")
 
     if (dataLostShuffleSet.contains(shuffleId)) {
       context.reply(
@@ -611,6 +620,17 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
       return
+    }
+    if (stageEndShuffleSet.contains(shuffleId)) {
+      logInfo(s"[handleStageEnd] Shuffle $shuffleId already ended!")
+      return
+    }
+    inProcessStageEndShuffleSet.synchronized {
+      if (inProcessStageEndShuffleSet.contains(shuffleId)) {
+        logWarning(s"[handleStageEnd] Shuffle $shuffleId is in process!")
+        return
+      }
+      inProcessStageEndShuffleSet.add(shuffleId)
     }
 
     // ask allLocations workers holding partitions to commit files
@@ -708,34 +728,29 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (!dataLost) {
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       committedMasterIds.asScala.foreach { id =>
-        val partition = masterPartMap.get(id)
-        val storageHint = if (committedMasterStorageHints.get(id) == null) {
+        if (committedMasterStorageHints.get(id) == null) {
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
-          new StorageInfo()
         } else {
-          committedMasterStorageHints.get(id)
+          masterPartMap.get(id).setStorageHint(committedMasterStorageHints.get(id))
+          committedPartitions.put(id, masterPartMap.get(id))
         }
-        partition.setStorageHint(storageHint)
-        committedPartitions.put(id, partition)
       }
 
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
-        val storageHint = if (committedSlaveStorageHints.get(id) == null) {
+        if (committedSlaveStorageHints.get(id) == null) {
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
-          new StorageInfo()
         } else {
-          committedSlaveStorageHints.get(id)
-        }
-        slavePartition.setStorageHint(storageHint)
-        val masterPartition = committedPartitions.get(id)
-        if (masterPartition ne null) {
-          masterPartition.setPeer(slavePartition)
-          slavePartition.setPeer(masterPartition)
-        } else {
-          logWarning(s"Shuffle $shuffleId partition $id: master lost, " +
+          slavePartition.setStorageHint(committedSlaveStorageHints.get(id))
+          val masterPartition = committedPartitions.get(id)
+          if (masterPartition ne null) {
+            masterPartition.setPeer(slavePartition)
+            slavePartition.setPeer(masterPartition)
+          } else {
+            logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
               s"use slave $slavePartition.")
-          committedPartitions.put(id, slavePartition)
+            committedPartitions.put(id, slavePartition)
+          }
         }
       }
 
@@ -762,16 +777,28 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // record in stageEndShuffleSet
       stageEndShuffleSet.add(shuffleId)
     }
+    inProcessStageEndShuffleSet.remove(shuffleId)
   }
 
   private def handleUnregisterShuffle(
-      context: RpcCallContext,
       appId: String,
       shuffleId: Int): Unit = {
     // if StageEnd has not been handled, trigger StageEnd
     if (!stageEndShuffleSet.contains(shuffleId)) {
       logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
       handleStageEnd(appId, shuffleId)
+      var timeout = stageEndTimeout
+      val delta = 100
+      while (!stageEndShuffleSet.contains(shuffleId) && timeout > 0) {
+        Thread.sleep(delta)
+        timeout = timeout - delta
+      }
+      if (timeout <= 0) {
+        logError(s"StageEnd Timeout! $shuffleId.")
+      } else {
+        logInfo("[handleUnregisterShuffle] Wait for handleStageEnd complete cost" +
+          s" ${stageEndTimeout - timeout}ms")
+      }
     }
 
     if (partitionExists(shuffleId)) {
@@ -789,9 +816,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
     logInfo(s"Unregister for $shuffleId success.")
-    if (context != null) {
-      context.reply(UnregisterShuffleResponse(StatusCode.Success))
-    }
   }
 
   /* ========================================================== *
@@ -815,23 +839,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
-        if (blacklist.contains(workerInfo)) {
-          logWarning(s"[reserve buffer] failed due to blacklist: $workerInfo")
-          reserveSlotFailedWorkers.add(workerInfo)
+        val res = requestReserveSlots(workerInfo.endpoint,
+          ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
+            splitMode, partitionType))
+        if (res.status.equals(StatusCode.Success)) {
+          logDebug(s"Successfully allocated " +
+            s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
+            s" from worker ${workerInfo.readableAddress()}.")
         } else {
-          val res = requestReserveSlots(workerInfo.endpoint,
-            ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreshold,
-              splitMode, partitionType))
-          if (res.status.equals(StatusCode.Success)) {
-            logDebug(s"Successfully allocated " +
-              s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress()}.")
-          } else {
-            logError(s"[reserveSlots] Failed to" +
-              s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
-              s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-            reserveSlotFailedWorkers.add(workerInfo)
-          }
+          logError(s"[reserveSlots] Failed to" +
+            s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
+            s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+          reserveSlotFailedWorkers.add(workerInfo)
         }
     }
 
@@ -1278,14 +1297,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     blacklist.addAll(failedWorker)
   }
 
-  def isClusterOverload(numPartitions: Int = 0): Boolean = {
+  def checkAlive(): Boolean = {
     try {
-      rssHARetryClient.askSync[GetClusterLoadStatusResponse](GetClusterLoadStatus(numPartitions),
-        classOf[GetClusterLoadStatusResponse]).isOverload
+      rssHARetryClient.askSync[CheckAliveResponse](CheckAlive, classOf[CheckAliveResponse]).alive
     } catch {
       case e: Exception =>
         logError(s"AskSync Cluster Load Status failed.", e)
-        true
+        false
     }
   }
 

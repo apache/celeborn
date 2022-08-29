@@ -26,8 +26,8 @@ enum MessageType {
   HEARTBEAT_FROM_APPLICATION = 20;
   GET_BLACKLIST = 21;
   GET_BLACKLIST_RESPONSE = 22;
-  GET_CLUSTER_LOAD_STATUS = 23;
-  GET_CLUSTER_LOAD_STATUS_RESPONSE = 24;
+  CHECK_ALIVE = 23;
+  CHECK_ALIVE_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
   REGISTER_WORKER_RESPONSE = 26;
   REREGISTER_WORKER_RESPONSE = 27;
@@ -86,6 +86,7 @@ message PbDiskInfo {
   int64 usableSpace = 2;
   int64 avgFlushTime = 3;
   int64 usedSlots = 4;
+  int32 status = 5;
 }
 
 message PbWorkerInfo {
@@ -253,12 +254,10 @@ message PbGetBlacklistResponse {
   repeated PbWorkerInfo unknownWorkers = 3;
 }
 
-message PbGetClusterLoadStatus {
-  int32 numPartitions = 1;
-}
+message PbCheckAlive {}
 
-message PbGetClusterLoadStatusResponse {
-  bool isOverload = 1;
+message PbCheckAliveResponse {
+  bool isAlive = 1;
 }
 
 message PbReportWorkerFailure {
@@ -356,4 +355,22 @@ message PbStageEnd {
 
 message PbStageEndResponse {
   int32 status = 1;
+}
+
+message PbSortedShuffleFileSet {
+  repeated string files = 1;
+}
+
+message PbStoreVersion {
+  int32 major = 1;
+  int32 minor = 2;
+}
+
+message PbFileInfo {
+  string filePath = 1;
+  repeated int64 chunkOffsets = 2;
+}
+
+message PBFileInfoMap {
+  map<string, PbFileInfo> values = 1;
 }

@@ -27,26 +27,27 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.meta.{FileInfo, FileManagedBuffers}
 import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
-import com.aliyun.emr.rss.common.network.server.{BaseMessageHandler, FileInfo}
-import com.aliyun.emr.rss.common.network.server.FileManagedBuffers
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager
 import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.network.util.TransportConf
+import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()
   var source: WorkerSource = _
-  var localStorageManager: LocalStorageManager = _
+  var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
     this.source = worker.workerSource
-    this.localStorageManager = worker.localStorageManager
+    this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
   }
@@ -57,7 +58,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       startMapIndex: Int,
       endMapIndex: Int): FileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = localStorageManager.getFileInfo(shuffleKey, fileName)
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       logWarning(s"File $fileName for $shuffleKey was not found!")
       null

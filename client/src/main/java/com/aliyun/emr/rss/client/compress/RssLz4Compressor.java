@@ -23,7 +23,7 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.xxhash.XXHashFactory;
 
-public class RssLz4Compressor extends RssLz4Trait {
+public class RssLz4Compressor extends RssLz4Trait implements Compressor {
   private final int compressionLevel;
   private final LZ4Compressor compressor;
   private final Checksum checksum;
@@ -42,12 +42,14 @@ public class RssLz4Compressor extends RssLz4Trait {
     initCompressBuffer(blockSize);
   }
 
-  private void initCompressBuffer(int maxDestLength) {
+  @Override
+  public void initCompressBuffer(int maxDestLength) {
     int compressedBlockSize = HEADER_LENGTH + maxDestLength;
     compressedBuffer = new byte[compressedBlockSize];
     System.arraycopy(MAGIC, 0, compressedBuffer, 0, MAGIC_LENGTH);
   }
 
+  @Override
   public void compress(byte[] data, int offset, int length) {
     checksum.reset();
     checksum.update(data, offset, length);
@@ -75,18 +77,13 @@ public class RssLz4Compressor extends RssLz4Trait {
     compressedTotalSize = HEADER_LENGTH + compressedLength;
   }
 
+  @Override
   public int getCompressedTotalSize() {
     return compressedTotalSize;
   }
 
+  @Override
   public byte[] getCompressedBuffer() {
     return compressedBuffer;
-  }
-
-  private static void writeIntLE(int i, byte[] buf, int off) {
-    buf[off++] = (byte) i;
-    buf[off++] = (byte) (i >>> 8);
-    buf[off++] = (byte) (i >>> 16);
-    buf[off++] = (byte) (i >>> 24);
   }
 }

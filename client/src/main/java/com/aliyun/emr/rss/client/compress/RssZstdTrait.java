@@ -15,23 +15,19 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.worker;
+package com.aliyun.emr.rss.client.compress;
 
-import java.io.File;
-import java.io.IOException;
+public abstract class RssZstdTrait {
+  protected static final byte[] MAGIC = new byte[]{'Z', 'S', 'T', 'D', 'B', 'l', 'o', 'c', 'k'};
+  protected static final int MAGIC_LENGTH = MAGIC.length;
 
-import scala.collection.mutable.Buffer;
-import scala.collection.mutable.ListBuffer;
+  public static final int HEADER_LENGTH =
+          MAGIC_LENGTH // magic bytes
+                  + 1          // token
+                  + 4          // compressed length
+                  + 4          // decompressed length
+                  + 4;         // checksum
 
-public abstract class DeviceObserver {
-  public void notifyError(String deviceName, ListBuffer<File> dirs,
-                          DeviceErrorType deviceErrorType) {}
-  public void notifyHealthy(ListBuffer<File> dirs) {}
-
-  public void notifyHighDiskUsage(ListBuffer<File> dirs) {}
-
-  public void notifySlowFlush(ListBuffer<File> dirs) {}
-
-  public void reportError(Buffer<File> workingDir, IOException e,
-                          DeviceErrorType deviceErrorType) {}
+  protected static final int COMPRESSION_METHOD_RAW = 0x10;
+  protected static final int COMPRESSION_METHOD_ZSTD = 0x30;
 }

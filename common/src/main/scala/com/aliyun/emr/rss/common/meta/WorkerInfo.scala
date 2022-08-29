@@ -69,6 +69,14 @@ class WorkerInfo(
     )
   }
 
+  val allocationBuckets = new Array[Int](61)
+  var bucketIndex = 0
+  var bucketTime = System.currentTimeMillis()
+  var bucketAllocations = 0
+  0 until allocationBuckets.length foreach { case idx =>
+    allocationBuckets(idx) = 0
+  }
+
   def isActive: Boolean = {
     endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
   }
@@ -81,6 +89,7 @@ class WorkerInfo(
   def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
     this.synchronized {
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
+      var totalSlots = 0
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
         if (!diskInfos.containsKey(disk)) {
           logDebug(s"Unknown disk $disk")
@@ -92,7 +101,16 @@ class WorkerInfo(
         } else {
           diskInfos.get(disk).allocateSlots(shuffleKey, slots)
         }
+        totalSlots += slots
       }
+
+      val current = System.currentTimeMillis()
+      if (current - bucketTime > 60 * 1000) {
+        bucketIndex = (bucketIndex + 1) % allocationBuckets.length
+        allocationBuckets(bucketIndex) = 0
+        bucketTime = current
+      }
+      allocationBuckets(bucketIndex) = allocationBuckets(bucketIndex) + totalSlots
     }
 
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
@@ -110,6 +128,22 @@ class WorkerInfo(
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
     diskInfos.asScala.foreach(_._2.releaseSlots(shuffleKey))
     unknownDiskSlots.remove(shuffleKey)
+  }
+
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    val shuffleKeySet = new util.HashSet[String]()
+    diskInfos.values().asScala.foreach { diskInfo =>
+      shuffleKeySet.addAll(diskInfo.getShuffleKeySet())
+    }
+    shuffleKeySet
+  }
+
+  def allocationsInLastHour(): Int = this.synchronized {
+    var total = 0
+    1 to 60 foreach { case delta =>
+      total += allocationBuckets((bucketIndex + delta) % allocationBuckets.length)
+    }
+    total
   }
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
@@ -145,7 +179,7 @@ class WorkerInfo(
 
   def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.usableSpace / estimatedPartitionSize)
+      disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
     }
   }
 
@@ -160,12 +194,13 @@ class WorkerInfo(
       val mountPoint: String = newDisk.mountPoint
       val curDisk = diskInfos.get(mountPoint)
       if (curDisk != null) {
-        curDisk.usableSpace_$eq(newDisk.usableSpace)
+        curDisk.actualUsableSpace_$eq(newDisk.actualUsableSpace)
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
-        curDisk.maxSlots_$eq(curDisk.usableSpace / estimatedPartitionSize)
+        curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
+        curDisk.setStatus(newDisk.status)
       } else {
-        newDisk.maxSlots_$eq(newDisk.usableSpace / estimatedPartitionSize)
+        newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
         diskInfos.put(mountPoint, newDisk)
       }
     }
@@ -247,7 +282,7 @@ object WorkerInfo {
         item._1 ->
           PbDiskInfo
             .newBuilder()
-            .setUsableSpace(item._2.usableSpace)
+            .setUsableSpace(item._2.actualUsableSpace)
             .setAvgFlushTime(item._2.avgFlushTime)
             .setUsedSlots(item._2.activeSlots)
             .build()

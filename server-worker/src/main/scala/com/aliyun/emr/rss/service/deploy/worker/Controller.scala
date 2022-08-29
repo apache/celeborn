@@ -36,6 +36,7 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.Utils
+import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -44,7 +45,7 @@ private[deploy] class Controller(
   extends RpcEndpoint with Logging {
 
   var workerSource: WorkerSource = _
-  var localStorageManager: LocalStorageManager = _
+  var storageManager: StorageManager = _
   var registered: AtomicBoolean = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
   var workerInfo: WorkerInfo = _
@@ -57,7 +58,7 @@ private[deploy] class Controller(
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
-    localStorageManager = worker.localStorageManager
+    storageManager = worker.storageManager
     registered = worker.registered
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     workerInfo = worker.workerInfo
@@ -120,7 +121,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (!localStorageManager.hasAvailableWorkingDirs) {
+    if (storageManager.healthyWorkingDirs().size <= 0) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
@@ -130,7 +131,7 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
+        val writer = storageManager.createWriter(applicationId, shuffleId, location,
           splitThreshold, splitMode, partitionType)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
@@ -150,7 +151,7 @@ private[deploy] class Controller(
     try {
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
-        val writer = localStorageManager.createWriter(applicationId, shuffleId,
+        val writer = storageManager.createWriter(applicationId, shuffleId,
           location, splitThreshold, splitMode, partitionType)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
@@ -171,14 +172,13 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
 
-    logDebug(s"allocate slots ${masterLocations.asScala.map(_.toString).mkString(",")}" +
-      s"  ,  ${slaveLocations.asScala.map(_.toString).mkString(",")} ")
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
-    logInfo(
-      s"Reserved ${masterPartitions.size()} master location" +
-        s" and ${slavePartitions.size()} slave location for $shuffleKey " +
-        s"master: $masterPartitions\nslave: $slavePartitions."
-    )
+
+    logInfo(s"Reserved ${masterPartitions.size()} master location" +
+        s" and ${slavePartitions.size()} slave location for $shuffleKey ")
+    if (log.isDebugEnabled()) {
+      logDebug(s"master: $masterPartitions\nslave: $slavePartitions.")
+    }
     context.reply(ReserveSlotsResponse(StatusCode.Success))
   }
 
@@ -211,7 +211,9 @@ private[deploy] class Controller(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
-                committedStorageHints.put(uniqueId, fileWriter.getStorageInfo)
+                if (fileWriter.getStorageInfo != null) {
+                  committedStorageHints.put(uniqueId, fileWriter.getStorageInfo)
+                }
                 if (bytes >= minimumPartitionSizeForEstimation) {
                   partitionSizeList.add(bytes)
                 }

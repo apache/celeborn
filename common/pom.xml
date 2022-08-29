@@ -103,6 +103,10 @@
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-reflect</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-client</artifactId>
+    </dependency>
 
     <!-- Test dependencies -->
     <dependency>
@@ -147,6 +151,15 @@
           <forkCount>1</forkCount>
           <reuseForks>false</reuseForks>
           <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-maven-plugin</artifactId>
+        <configuration>
+          <parallel>false</parallel>
+          <forkMode>once</forkMode>
+          <argLine>-Xmx2048m</argLine>
         </configuration>
       </plugin>
       <plugin>

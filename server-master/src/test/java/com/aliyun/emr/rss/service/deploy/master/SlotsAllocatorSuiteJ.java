@@ -37,7 +37,7 @@ import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
-public class MasterUtilSuiteJ {
+public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers() {
     long assumedPartitionSize = 64 * 1024 * 1024;
 
@@ -55,9 +55,9 @@ public class MasterUtilSuiteJ {
       random.nextInt() + 90 * 1024 * 1024 * 1024L,
       random.nextInt(1000),
       0);
-    diskInfo1.maxSlots_$eq(diskInfo1.usableSpace() / assumedPartitionSize);
-    diskInfo2.maxSlots_$eq(diskInfo2.usableSpace() / assumedPartitionSize);
-    diskInfo3.maxSlots_$eq(diskInfo3.usableSpace() / assumedPartitionSize);
+    diskInfo1.maxSlots_$eq(diskInfo1.actualUsableSpace() / assumedPartitionSize);
+    diskInfo2.maxSlots_$eq(diskInfo2.actualUsableSpace() / assumedPartitionSize);
+    diskInfo3.maxSlots_$eq(diskInfo3.actualUsableSpace() / assumedPartitionSize);
     disks1.put("/mnt/disk1", diskInfo1);
     disks1.put("/mnt/disk2", diskInfo2);
     disks1.put("/mnt/disk3", diskInfo3);
@@ -75,9 +75,9 @@ public class MasterUtilSuiteJ {
       random.nextInt() + 90 * 1024 * 1024 * 1024L,
       random.nextInt(1000),
       0);
-    diskInfo4.maxSlots_$eq(diskInfo4.usableSpace() / assumedPartitionSize);
-    diskInfo5.maxSlots_$eq(diskInfo5.usableSpace() / assumedPartitionSize);
-    diskInfo6.maxSlots_$eq(diskInfo6.usableSpace() / assumedPartitionSize);
+    diskInfo4.maxSlots_$eq(diskInfo4.actualUsableSpace() / assumedPartitionSize);
+    diskInfo5.maxSlots_$eq(diskInfo5.actualUsableSpace() / assumedPartitionSize);
+    diskInfo6.maxSlots_$eq(diskInfo6.actualUsableSpace() / assumedPartitionSize);
     disks2.put("/mnt/disk1", diskInfo4);
     disks2.put("/mnt/disk2", diskInfo5);
     disks2.put("/mnt/disk3", diskInfo6);
@@ -95,9 +95,9 @@ public class MasterUtilSuiteJ {
       random.nextInt() + 90 * 1024 * 1024 * 1024L,
       random.nextInt(1000),
       0);
-    diskInfo7.maxSlots_$eq(diskInfo7.usableSpace() / assumedPartitionSize);
-    diskInfo8.maxSlots_$eq(diskInfo8.usableSpace() / assumedPartitionSize);
-    diskInfo9.maxSlots_$eq(diskInfo9.usableSpace() / assumedPartitionSize);
+    diskInfo7.maxSlots_$eq(diskInfo7.actualUsableSpace() / assumedPartitionSize);
+    diskInfo8.maxSlots_$eq(diskInfo8.actualUsableSpace() / assumedPartitionSize);
+    diskInfo9.maxSlots_$eq(diskInfo9.actualUsableSpace() / assumedPartitionSize);
     disks3.put("/mnt/disk1", diskInfo7);
     disks3.put("/mnt/disk2", diskInfo8);
     disks3.put("/mnt/disk3", diskInfo9);
@@ -215,7 +215,7 @@ public class MasterUtilSuiteJ {
     rssConf.set("rss.disk.groups","2");
     rssConf.set("rss.disk.group.gradient","1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        MasterUtil.offerSlotsLoadAware(
+        SlotsAllocator.offerSlotsLoadAware(
             workers,
             partitionIds,
             shouldReplicate,
@@ -226,7 +226,7 @@ public class MasterUtilSuiteJ {
       if (shouldReplicate) {
         slots.forEach((k, v) -> {
           Set<String> locationDuplicationSet = new HashSet<>();
-          v._1.stream().forEach(i -> {
+          v._1.forEach(i -> {
             String uniqueId = i.getUniqueId();
             assert !locationDuplicationSet.contains(uniqueId);
             locationDuplicationSet.add(uniqueId);
@@ -240,7 +240,7 @@ public class MasterUtilSuiteJ {
         });
       }
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
-        MasterUtil.slotsToDiskAllocations(slots);
+        SlotsAllocator.slotsToDiskAllocations(slots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
         WorkerInfo worker = entry.getKey();
         Map<String, Integer> allocationMap = entry.getValue();
@@ -256,7 +256,7 @@ public class MasterUtilSuiteJ {
         Assert.assertEquals(partitionIds.size(), usedTotalSlots);
       }
     } else {
-      assert null == slots :
+      assert slots.isEmpty() :
         "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }
   }

@@ -25,19 +25,23 @@ import com.aliyun.emr.rss.common.util.{IntParam, Utils}
 class MasterArguments(args: Array[String], conf: RssConf) {
 
   var host = Utils.localHostName()
-  var port = RssConf.masterPort(conf)
+  var port: Option[Int] = None
   var propertiesFile: String = null
 
   if (System.getenv("RSS_MASTER_HOST") != null) {
     host = System.getenv("RSS_MASTER_HOST")
   }
   if (System.getenv("RSS_MASTER_PORT") != null) {
-    port = System.getenv("RSS_MASTER_PORT").toInt
+    port = Some(System.getenv("RSS_MASTER_PORT").toInt)
   }
 
   parse(args.toList)
 
   propertiesFile = Utils.loadDefaultRssProperties(conf, propertiesFile)
+
+  if (port.isEmpty) {
+    port = Some(RssConf.masterPort(conf))
+  }
 
   @tailrec
   private def parse(args: List[String]): Unit = args match {
@@ -47,7 +51,7 @@ class MasterArguments(args: Array[String], conf: RssConf) {
       parse(tail)
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
-      port = value
+      port = Some(value)
       parse(tail)
 
     case ("--properties-file") :: value :: tail =>

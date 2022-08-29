@@ -35,7 +35,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode}
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.unsafe.Platform
-
+import com.aliyun.emr.rss.service.deploy.worker.storage.{FileWriter, LocalFlusher}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
 
@@ -188,8 +188,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback.onFailure(new Exception(message, exception))
       return
     }
-    val diskFull =
-      workerInfo.diskInfos.get(fileWriter.flusher.mountPoint).usableSpace < diskMinimumReserveSize
+    val diskFull = workerInfo.diskInfos
+      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
+      .actualUsableSpace < diskMinimumReserveSize
     if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
       (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
       fileWriter.setSplitFlag()

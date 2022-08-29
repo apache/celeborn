@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.VM;
 
+import com.aliyun.emr.rss.common.network.util.ByteUnit;
 import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
 
 public class MemoryTracker {
@@ -47,13 +49,13 @@ public class MemoryTracker {
 
   private final ScheduledExecutorService checkService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-check-thread").build());
+      .setNameFormat("MemoryTracker-check-thread").setDaemon(true).build());
   private final ScheduledExecutorService reportService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-report-thread").build());
+      .setNameFormat("MemoryTracker-report-thread").setDaemon(true).build());
   private final ExecutorService actionService = Executors
     .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-action-thread").build());
+      .setNameFormat("MemoryTracker-action-thread").setDaemon(true).build());
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -62,7 +64,7 @@ public class MemoryTracker {
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
   private boolean underPressure;
-  private int trimCount = 0;
+  private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   public static MemoryTracker initialize(
     double pausePushDataRatio,
@@ -70,8 +72,7 @@ public class MemoryTracker {
     double resumeRatio,
     double maxSortRatio,
     int checkInterval,
-    int reportInterval,
-    int trimActionThreshold) {
+    int reportInterval) {
     if (_INSTANCE == null) {
       _INSTANCE = new MemoryTracker(
         pausePushDataRatio,
@@ -79,8 +80,7 @@ public class MemoryTracker {
         resumeRatio,
         maxSortRatio,
         checkInterval,
-        reportInterval,
-        trimActionThreshold);
+        reportInterval);
     }
     return _INSTANCE;
   }
@@ -101,8 +101,7 @@ public class MemoryTracker {
     double resumeRatio,
     double maxSortMemRatio,
     int checkInterval,
-    int reportInterval,
-    int trimActionThreshold) {
+    int reportInterval) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
@@ -144,12 +143,16 @@ public class MemoryTracker {
           }
         } else {
           if (memoryTrackerStat != MemoryTrackerStat.resumeAll) {
-            if (trimCount++ % trimActionThreshold == 0) {
+            if (!trimInProcess.get()) {
+              trimInProcess.set(true);
               actionService.submit(() -> {
-                logger.info("Trigger trim action");
-                memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                try {
+                  logger.info("Trigger trim action");
+                  memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                } finally {
+                  trimInProcess.set(false);
+                }
               });
-              trimCount = 0;
             }
           }
         }
@@ -158,25 +161,21 @@ public class MemoryTracker {
       }
     }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.info("Track all direct memory usage :{}/{}," +
-        "disk buffer size:{}, sort memory size : {}",
+    reportService.scheduleWithFixedDelay(() -> logger.info(
+            "Direct memory usage: {}/{}MB, disk buffer size: {}MB, sort memory size: {}MB",
         toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory),
         toMb(diskBufferCounter.get()), toMb(sortMemoryCounter.get())),
       reportInterval, reportInterval, TimeUnit.SECONDS);
 
-    logger.info("Memory tracker initialized with :  " +
-                  "\n max direct memory : {} ({} MB)" +
-                  "\n pause pushdata memory : {} ({} MB)" +
-                  "\n pause replication memory : {} ({} MB)" +
-                  "\n resume memory : {} ({} MB)",
-      maxDirectorMemory, toMb(maxDirectorMemory),
-      pausePushDataThreshold, toMb(pausePushDataThreshold),
-      pauseReplicateThreshold, toMb(pauseReplicateThreshold),
-      resumeThreshold, toMb(resumeThreshold));
+    logger.info("Memory tracker initialized with: " +
+                "max direct memory: {}MB, pause pushdata memory: {}MB, " +
+                "pause replication memory: {}MB, resume memory: {}MB",
+            toMb(maxDirectorMemory), toMb(pausePushDataThreshold),
+            toMb(pauseReplicateThreshold), toMb(resumeThreshold));
   }
 
-  private double toMb(long bytes) {
-    return bytes / 1024.0 / 1024.0;
+  private long toMb(long bytes) {
+    return ByteUnit.BYTE.toMiB(bytes);
   }
 
   private void initDirectMemoryIndicator() {

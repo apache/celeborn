@@ -25,7 +25,7 @@ import net.jpountz.xxhash.XXHashFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RssLz4Decompressor extends RssLz4Trait {
+public class RssLz4Decompressor extends RssLz4Trait implements Decompressor {
   private static final Logger logger = LoggerFactory.getLogger(RssLz4Decompressor.class);
   private final LZ4FastDecompressor decompressor;
   private final Checksum checksum;
@@ -35,10 +35,12 @@ public class RssLz4Decompressor extends RssLz4Trait {
     checksum = XXHashFactory.fastestInstance().newStreamingHash32(DEFAULT_SEED).asChecksum();
   }
 
+  @Override
   public int getOriginalLen(byte[] src) {
     return readIntLE(src, MAGIC_LENGTH + 5);
   }
 
+  @Override
   public int decompress(byte[] src, byte[] dst, int dstOff) {
     int token = src[MAGIC_LENGTH] & 0xFF;
     int compressionMethod = token & 0xF0;
@@ -55,8 +57,8 @@ public class RssLz4Decompressor extends RssLz4Trait {
         int compressedLen2 = decompressor.decompress(
             src, HEADER_LENGTH, dst, dstOff, originalLen);
         if (compressedLen != compressedLen2) {
-          logger.error("Compressed length corrupted! need {}, but {}.",
-              compressedLen, compressedLen2);
+          logger.error("Compressed length corrupted! expected: {}, actual: {}.",
+                  compressedLen, compressedLen2);
           return -1;
         }
     }
@@ -64,15 +66,10 @@ public class RssLz4Decompressor extends RssLz4Trait {
     checksum.reset();
     checksum.update(dst, dstOff, originalLen);
     if ((int) checksum.getValue() != check) {
-      logger.error("Checksum not equal! need {}, but {}.", check, checksum.getValue());
+      logger.error("Checksum not equal! expected: {}, actual: {}.", check, checksum.getValue());
       return -1;
     }
 
     return originalLen;
-  }
-
-  public static int readIntLE(byte[] buf, int i) {
-    return (buf[i] & 0xFF) | ((buf[i + 1] & 0xFF) << 8) |
-        ((buf[i + 2] & 0xFF) << 16) | ((buf[i + 3] & 0xFF) << 24);
   }
 }

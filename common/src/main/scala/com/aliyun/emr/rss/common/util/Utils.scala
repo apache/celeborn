@@ -39,7 +39,7 @@ import org.apache.commons.lang3.SystemUtils
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.WorkerInfo
+import com.aliyun.emr.rss.common.meta.{DiskStatus, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
@@ -802,6 +802,24 @@ object Utils extends Logging {
       case _ =>
         logWarning(s"invalid partitionType $value, fallback to ReducePartition")
         PartitionType.REDUCE_PARTITION
+    }
+  }
+
+  def toDiskStatus(value: Int): DiskStatus = {
+    value match {
+      case 0 => DiskStatus.Healthy
+      case 1 => DiskStatus.ReadOrWriteFailure
+      case 2 => DiskStatus.IoHang
+      case 3 => DiskStatus.HighDiskUsage
+      case _ => null
+    }
+  }
+
+  def getPeerPath(path: String): String = {
+    if (path.endsWith("0")) {
+      path.substring(0, path.length - 1) + "1"
+    } else {
+      path.substring(0, path.length - 1) + "0"
     }
   }
 }

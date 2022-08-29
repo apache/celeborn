@@ -17,25 +17,20 @@
 
 package com.aliyun.emr.rss.service.deploy.worker;
 
-public enum DeviceErrorType {
-  ReadOrWriteFailure(1),
-  IoHang(2),
-  InsufficientDiskSpace(3),
-  FlushTimeout(4);
+import java.nio.charset.StandardCharsets;
 
-  private final byte value;
+public abstract class ShuffleRecoverHelper {
+  protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
+  protected LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
 
-  DeviceErrorType(int value) {
-    assert (value >= 0 && value < 256);
-    this.value = (byte) value;
+  protected byte[] dbShuffleKey(String shuffleKey) {
+    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
   }
 
-  public final byte getValue() {
-    return value;
-  }
-
-  public static boolean criticalError(DeviceErrorType error) {
-    return error.equals(DeviceErrorType.IoHang) ||
-            error.equals(DeviceErrorType.ReadOrWriteFailure);
+  protected String parseDbShuffleKey(String s) {
+    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
+      throw new IllegalArgumentException("expected a string starting with " + SHUFFLE_KEY_PREFIX);
+    }
+    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
   }
 }

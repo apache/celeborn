@@ -17,6 +17,7 @@
 
 package com.aliyun.emr.rss.common
 
+import java.io.IOException
 import java.util.{Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
@@ -491,8 +492,8 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
   }
 
-  def workerFetchChunkSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.fetch.chunk.size", "8m")
+  def chunkSize(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.chunk.size", "8m")
   }
 
   def rpcMaxParallelism(conf: RssConf): Int = {
@@ -523,16 +524,12 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.filewriter.timeout", "120s")
   }
 
-  def noneEmptyDirExpireDurationMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "3d")
+  def appExpireDurationMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
-  def noneEmptyDirCleanUpThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.expire.nonEmptyDir.cleanUp.threshold", 10)
-  }
-
-  def emptyDirExpireDurationMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.expire.emptyDir.duration", "2h")
+  def workingDirName(conf: RssConf): String = {
+    conf.get("rss.worker.workingDirName", "hadoop/rss-worker/shuffle_data")
   }
 
   /**
@@ -559,6 +556,9 @@ object RssConf extends Logging {
                   maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
                 case disktypeStr if disktypeStr.startsWith("disktype") =>
                   diskType = Type.valueOf(disktypeStr.split("=")(1))
+                  if (diskType == Type.MEMORY) {
+                    throw new IOException(s"Invalid disktype! $diskType")
+                  }
                 case threadCountStr if threadCountStr.startsWith("flushthread") =>
                   flushThread = threadCountStr.split("=")(1).toInt
               }
@@ -590,7 +590,7 @@ object RssConf extends Logging {
   }
 
   def diskMinimumReserveSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "10G"))
+    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "5G"))
   }
 
   /**
@@ -704,10 +704,6 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.rpc.port", 0)
   }
 
-  def clusterLoadFallbackEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.clusterLoad.fallback.enabled", defaultValue = true)
-  }
-
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
@@ -738,15 +734,23 @@ object RssConf extends Logging {
   }
 
   def maxPartitionNumSupported(conf: RssConf): Long = {
-    conf.getInt("rss.max.partition.number", 100000)
+    conf.getInt("rss.max.partition.number", 500000)
   }
 
   def forceFallback(conf: RssConf): Boolean = {
     conf.getBoolean("rss.force.fallback", false)
   }
 
+  def clusterCheckAliveEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.cluster.checkalive.enabled", defaultValue = true)
+  }
+
   def deviceMonitorEnabled(conf: RssConf): Boolean = {
     conf.getBoolean("rss.device.monitor.enabled", true)
+  }
+
+  def deviceMonitorCheckList(conf: RssConf): String = {
+    conf.get("rss.device.monitor.checklist", "readwrite,diskusage")
   }
 
   def diskCheckIntervalMs(conf: RssConf): Long = {
@@ -763,15 +767,6 @@ object RssConf extends Logging {
 
   def createFileWriterRetryCount(conf: RssConf): Int = {
     conf.getInt("rss.create.file.writer.retry.count", 3)
-  }
-
-  /**
-   * Be aware that [rss.disk.space.safe.watermark.size] cannot be set to fractional values
-   * @param conf rss config
-   * @return the watermark size in GB
-   */
-  def diskSpaceSafeFreeSizeInGb(conf: RssConf): Long = {
-    conf.getSizeAsGb("rss.disk.space.safe.free.size", "0GB")
   }
 
   def workerStatusCheckTimeout(conf: RssConf): Long = {
@@ -843,16 +838,24 @@ object RssConf extends Logging {
     conf.getInt("rss.client.split.pool.size", 8)
   }
 
+  // Support 2 type codecs: lz4 and zstd
+  def compressionCodec(conf: RssConf): String = {
+    conf.get("rss.client.compression.codec", "lz4").toLowerCase
+  }
+
+  def zstdCompressLevel(conf: RssConf): Int = {
+    val level = conf.getInt("rss.client.compression.zstd.level", 1)
+    val zstdMinLevel = -5
+    val zstdMaxLevel = 22
+    Math.min(Math.max(Math.max(level, zstdMinLevel), Math.min(level, zstdMaxLevel)), zstdMaxLevel)
+  }
+
   def partitionSortTimeout(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
 
   def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
     conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
-  }
-
-  def memoryTrimActionThreshold(conf: RssConf): Int = {
-    conf.getInt("rss.memory.trim.action.threshold", 10)
   }
 
   def workerPausePushDataRatio(conf: RssConf): Double = {
@@ -907,6 +910,14 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.shutdown.timeout", "600s")
   }
 
+  def workerRecoverPath(conf: RssConf): String = {
+    conf.get("rss.worker.recoverPath", s"${System.getProperty("java.io.tmpdir")}/recover")
+  }
+
+  def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTimeMs", "120s")
+  }
+
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
@@ -925,7 +936,13 @@ object RssConf extends Logging {
     conf.getInt("rss.flusher.avg.time.minimum.count", 1000);
   }
 
-  val WorkingDirName = "hadoop/rss-worker/shuffle_data"
+  def hdfsDir(conf: RssConf): String = {
+    conf.get("rss.worker.hdfs.dir", "")
+  }
+
+  def hdfsFlusherThreadCount(conf: RssConf): Int = {
+    conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
+  }
 
   // If we want to use multi-raft group we can
   // add "rss.ha.service.ids" each for one raft group
