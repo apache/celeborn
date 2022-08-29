@@ -84,7 +84,8 @@ public class DfsPartitionReader implements PartitionReader {
       }
     } else {
       offset = 0;
-      length = hdfsInputStream.available();
+      length = ShuffleClient.getHdfsFs(conf)
+                 .getFileStatus(new Path(location.getStorageInfo().getFilePath())).getLen();
     }
     if (offset != 0) {
       hdfsInputStream.seek(offset);

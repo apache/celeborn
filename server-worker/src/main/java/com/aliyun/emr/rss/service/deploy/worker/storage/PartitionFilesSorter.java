@@ -36,8 +36,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import scala.Tuple2;
-
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -55,7 +53,6 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
-import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 import com.aliyun.emr.rss.service.deploy.worker.LevelDBProvider;
 import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecoverHelper;
@@ -439,20 +436,36 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
       indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
     } else {
-      try (FileInputStream indexStream = new FileInputStream(indexFilePath)) {
-        File indexFile = new File(indexFilePath);
-        int indexSize = (int) indexFile.length();
-        ByteBuffer indexBuf = ByteBuffer.allocateDirect(indexSize);
-        readChannelFully(indexStream.getChannel(), indexBuf, indexFilePath);
+      FileInputStream indexStream = null;
+      FSDataInputStream hdfsIndexStream = null;
+      boolean isHdfs = indexFilePath.startsWith("hdfs:");
+      int indexSize = 0;
+      try {
+        if (isHdfs) {
+          hdfsIndexStream = StorageManager.hdfsFs().open(new Path(indexFilePath));
+          indexSize = (int) StorageManager.hdfsFs().getFileStatus(new Path(indexFilePath)).getLen();
+        } else {
+          indexStream = new FileInputStream(indexFilePath);
+          File indexFile = new File(indexFilePath);
+          indexSize = (int) indexFile.length();
+        }
+        ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
+        if (isHdfs) {
+          readStreamFully(hdfsIndexStream, indexBuf, indexFilePath);
+        } else {
+          readChannelFully(indexStream.getChannel(), indexBuf, indexFilePath);
+        }
         indexBuf.rewind();
         indexMap = readIndex(indexBuf);
-        ((DirectBuffer) indexBuf).cleaner().clean();
         Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
           cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
         logger.error("Read sorted shuffle file error, detail : ", e);
         return null;
+      } finally {
+        IOUtils.closeQuietly(indexStream, null);
+        IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
     return new FileInfo(sortedFilePath,
