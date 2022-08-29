@@ -86,13 +86,14 @@ public abstract class ShuffleClient implements Cloneable {
   public static FileSystem getHdfsFs(RssConf conf) {
     if (null == hdfsFs) {
       synchronized (ShuffleClient.class) {
-        Configuration hdfsConfiguration = new Configuration();
-        hdfsConfiguration.set("fs.defaultFS", RssConf.hdfsDir(conf));
-        try {
-          hdfsFs = FileSystem.get(hdfsConfiguration);
-        } catch (IOException e) {
-          System.err.println("Rss initialize hdfs failed.");
-          e.printStackTrace(System.err);
+        if (null == hdfsFs) {
+          Configuration hdfsConfiguration = new Configuration();
+          try {
+            hdfsFs = FileSystem.get(hdfsConfiguration);
+          } catch (IOException e) {
+            System.err.println("Rss initialize hdfs failed.");
+            e.printStackTrace(System.err);
+          }
         }
       }
     }

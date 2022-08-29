@@ -22,7 +22,7 @@ import java.io.IOException;
 import io.netty.buffer.ByteBuf;
 
 public interface PartitionReader {
-  boolean hasData();
+  boolean hasNext();
 
   ByteBuf next() throws IOException;
 
