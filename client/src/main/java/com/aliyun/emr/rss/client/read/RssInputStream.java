@@ -154,7 +154,7 @@ public abstract class RssInputStream extends InputStream {
       currentReader = createReader(currentLocation);
       logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
           currentLocation, startMapIndex, endMapIndex, fileIndex, locationCount);
-      while (currentReader.hasData() && fileIndex < locationCount - 1) {
+      while (!currentReader.hasNext() && fileIndex < locationCount - 1) {
         fileIndex++;
         currentLocation = locations[fileIndex];
         currentReader.close();
@@ -162,7 +162,7 @@ public abstract class RssInputStream extends InputStream {
         logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
             currentLocation, startMapIndex, endMapIndex, fileIndex, locationCount);
       }
-      if (currentReader.hasData()) {
+      if (currentReader.hasNext()) {
         currentChunk = currentReader.next();
         fileIndex++;
       } else {
@@ -183,7 +183,7 @@ public abstract class RssInputStream extends InputStream {
       StorageInfo storageInfo = location.getStorageInfo();
       if (storageInfo.getType() == StorageInfo.Type.HDD
               || storageInfo.getType() == StorageInfo.Type.SSD) {
-        return new RemotePartitionReader(conf, shuffleKey, location,
+        return new WorkerPartitionReader(conf, shuffleKey, location,
             clientFactory, startMapIndex, endMapIndex);
       }
       if (storageInfo.getType() == StorageInfo.Type.HDFS) {
@@ -267,7 +267,7 @@ public abstract class RssInputStream extends InputStream {
         currentChunk.release();
       }
       currentChunk = null;
-      if (currentReader.hasData()) {
+      if (currentReader.hasNext()) {
         currentChunk = currentReader.next();
         return true;
       } else if (fileIndex < locations.length) {

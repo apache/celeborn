@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +34,8 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
-public class RemotePartitionReader implements PartitionReader {
-  private final Logger logger = LoggerFactory.getLogger(RemotePartitionReader.class);
+public class WorkerPartitionReader implements PartitionReader {
+  private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private final RetryingChunkClient client;
   private final int numChunks;
 
@@ -42,13 +43,12 @@ public class RemotePartitionReader implements PartitionReader {
   private int chunkIndex;
 
   private final LinkedBlockingQueue<ByteBuf> results;
-  private final ChunkReceivedCallback callback;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int maxInFlight;
   private boolean closed = false;
 
-  RemotePartitionReader(
+  WorkerPartitionReader(
     RssConf conf,
     String shuffleKey,
     PartitionLocation location,
@@ -57,7 +57,8 @@ public class RemotePartitionReader implements PartitionReader {
     int endMapIndex) throws IOException {
     maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
     results = new LinkedBlockingQueue<>();
-    callback = new ChunkReceivedCallback() {
+    // only add the buffer to results queue if this reader is not closed.
+    ChunkReceivedCallback callback = new ChunkReceivedCallback() {
       @Override
       public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
         // only add the buffer to results queue if this reader is not closed.
@@ -78,12 +79,12 @@ public class RemotePartitionReader implements PartitionReader {
       }
     };
     client = new RetryingChunkClient(conf, shuffleKey, location,
-      callback, clientFactory, startMapIndex, endMapIndex);
+        callback, clientFactory, startMapIndex, endMapIndex);
     numChunks = client.openChunks();
   }
 
-  public boolean hasData() {
-    return returnedChunks < numChunks && numChunks >= 1;
+  public boolean hasNext() {
+    return returnedChunks < numChunks;
   }
 
   public ByteBuf next() throws IOException {
@@ -112,7 +113,7 @@ public class RemotePartitionReader implements PartitionReader {
       closed = true;
     }
     if (results.size() > 0) {
-      results.forEach(res -> res.release());
+      results.forEach(ReferenceCounted::release);
     }
     results.clear();
   }

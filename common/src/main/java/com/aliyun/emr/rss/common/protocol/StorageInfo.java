@@ -11,20 +11,20 @@ public class StorageInfo implements Serializable {
 
   public enum Type {
     MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4);
-    private final int type;
+    private final int value;
 
-    Type(int type) {
-      this.type = type;
+    Type(int value) {
+      this.value = value;
     }
 
-    public int getType() {
-      return type;
+    public int getValue() {
+      return value;
     }
   }
 
   public static Map<Integer, Type> typesMap = new HashMap() {{
       for (Type type : Type.values()) {
-        put(type.type, type);
+        put(type.value, type);
       }
     }};
 
@@ -103,7 +103,7 @@ public class StorageInfo implements Serializable {
   public static PbStorageInfo toPb(StorageInfo storageInfo) {
     String filePath = storageInfo.getFilePath();
     PbStorageInfo.Builder builder = PbStorageInfo.newBuilder();
-    builder.setType(storageInfo.type.type)
+    builder.setType(storageInfo.type.value)
       .setFinalResult(storageInfo.finalResult)
       .setMountPoint(storageInfo.mountPoint);
     if (filePath != null) {
