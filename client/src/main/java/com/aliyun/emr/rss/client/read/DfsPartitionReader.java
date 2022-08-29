@@ -26,11 +26,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCounted;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.client.ShuffleClient;
 import com.aliyun.emr.rss.common.RssConf;
@@ -39,20 +38,16 @@ import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
-import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
-import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
-  private static Logger logger = LoggerFactory.getLogger(DfsPartitionReader.class);
-
   private final int chunkSize;
   private final int maxInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
-  private boolean closed = false;
+  private volatile boolean closed = false;
   private Thread fetchThread;
   private long offset = 0;
   private long length = -1;
@@ -108,28 +103,21 @@ public class DfsPartitionReader implements PartitionReader {
             hdfsInputStream.readFully(offset, header);
             offset += 16;
             int bodySize = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET + 12);
-            if (chunkSize - buffer.position() > bodySize + 16) {
-              buffer.put(header);
-              byte[] body = new byte[bodySize];
-              hdfsInputStream.readFully(offset, body);
-              buffer.put(body);
-              offset += bodySize;
-            } else {
+            if (chunkSize - buffer.position() < bodySize + 16) {
               ByteBuf buf = Unpooled.wrappedBuffer(buffer);
               results.add(buf);
-
               buffer = ByteBuffer.allocate(chunkSize);
-              buffer.put(header);
-              byte[] body = new byte[bodySize];
-              hdfsInputStream.readFully(offset, body);
-              buffer.put(body);
-              offset += bodySize;
             }
+            buffer.put(header);
+            byte[] body = new byte[bodySize];
+            hdfsInputStream.readFully(offset, body);
+            buffer.put(body);
+            offset += bodySize;
           }
         } catch (IOException e) {
           exception.set(e);
         } catch (InterruptedException e) {
-          throw new RuntimeException(e);
+          // cancel a task for speculative, ignore this exception
         }
       });
       fetchThread.start();
@@ -138,7 +126,7 @@ public class DfsPartitionReader implements PartitionReader {
 
   @Override
   public boolean hasNext() {
-    return offset < lastPos && length > 0;
+    return offset < lastPos;
   }
 
   @Override
@@ -174,7 +162,7 @@ public class DfsPartitionReader implements PartitionReader {
     fetchThread.interrupt();
     IOUtils.closeQuietly(hdfsInputStream, null);
     if (results.size() > 0) {
-      results.forEach(res -> res.release());
+      results.forEach(ReferenceCounted::release);
     }
     results.clear();
   }
