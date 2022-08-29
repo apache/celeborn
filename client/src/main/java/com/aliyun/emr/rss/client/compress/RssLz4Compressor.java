@@ -30,10 +30,6 @@ public class RssLz4Compressor extends RssLz4Trait implements Compressor {
   private byte[] compressedBuffer;
   private int compressedTotalSize;
 
-  public RssLz4Compressor() {
-    this(256 * 1024);
-  }
-
   public RssLz4Compressor(int blockSize) {
     int level = 32 - Integer.numberOfLeadingZeros(blockSize - 1) - COMPRESSION_LEVEL_BASE;
     this.compressionLevel = Math.max(0, level);
