@@ -822,4 +822,14 @@ object Utils extends Logging {
       path.substring(0, path.length - 1) + "0"
     }
   }
+
+  def convertStreamHandlerToOffsetAndLength(streamId: Long, numChunks: Int): (Long, Long) = {
+
+  }
+
+  def convertOffsetLengthToStreamHandler(offset: Long, Length: Long): (Long, Int) = {
+
+  }
+
+
 }
