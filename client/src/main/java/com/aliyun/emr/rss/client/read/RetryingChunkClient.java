@@ -124,6 +124,7 @@ public class RetryingChunkClient {
         replica.getOrOpenStream();
         numChunks = replica.getNumChunks();
       } catch (Exception e) {
+        //Spark will interrupt the read thread when canceling the speculation tasks.
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
           throw new IOException(e);

@@ -112,7 +112,7 @@ public abstract class RssInputStream extends InputStream {
 
     private MetricsCallback callback;
 
-    // mapId, attempId, batchId, size
+    // mapId, attemptId, batchId, size
     private final int BATCH_HEADER_SIZE = 4 * 4;
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
 
