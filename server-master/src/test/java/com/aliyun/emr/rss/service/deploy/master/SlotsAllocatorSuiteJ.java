@@ -226,7 +226,7 @@ public class SlotsAllocatorSuiteJ {
       if (shouldReplicate) {
         slots.forEach((k, v) -> {
           Set<String> locationDuplicationSet = new HashSet<>();
-          v._1.stream().forEach(i -> {
+          v._1.forEach(i -> {
             String uniqueId = i.getUniqueId();
             assert !locationDuplicationSet.contains(uniqueId);
             locationDuplicationSet.add(uniqueId);
@@ -256,7 +256,7 @@ public class SlotsAllocatorSuiteJ {
         Assert.assertEquals(partitionIds.size(), usedTotalSlots);
       }
     } else {
-      assert null == slots :
+      assert slots.isEmpty() :
         "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }
   }
