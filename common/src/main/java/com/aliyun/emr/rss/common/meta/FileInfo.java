@@ -27,6 +27,10 @@ public class FileInfo {
   private final String filePath;
   private final ArrayList<Long> chunkOffsets;
 
+  // only used for hdfs read sorted shuffle file
+  private long streamId = 0;
+  private long numChunk = 0;
+
   public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
@@ -79,6 +83,22 @@ public class FileInfo {
 
   public synchronized ArrayList<Long> getChunkOffsets() {
     return chunkOffsets;
+  }
+
+  public long getStreamId() {
+    return streamId;
+  }
+
+  public void setStreamId(long streamId) {
+    this.streamId = streamId;
+  }
+
+  public long getNumChunk() {
+    return numChunk;
+  }
+
+  public void setNumChunk(long numChunk) {
+    this.numChunk = numChunk;
   }
 
   @Override

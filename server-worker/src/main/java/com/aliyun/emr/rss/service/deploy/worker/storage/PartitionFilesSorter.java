@@ -36,6 +36,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import scala.Tuple2;
+
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -53,6 +55,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
+import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 import com.aliyun.emr.rss.service.deploy.worker.LevelDBProvider;
 import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecoverHelper;
@@ -452,7 +455,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         return null;
       }
     }
-
     return new FileInfo(sortedFilePath,
         getChunkOffsets(startMapIndex, endMapIndex, sortedFilePath, indexMap));
   }
