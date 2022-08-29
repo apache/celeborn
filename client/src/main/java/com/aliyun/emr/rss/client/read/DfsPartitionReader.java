@@ -137,7 +137,7 @@ public class DfsPartitionReader implements PartitionReader {
   }
 
   @Override
-  public boolean hasData() {
+  public boolean hasNext() {
     return offset < lastPos && length > 0;
   }
 
