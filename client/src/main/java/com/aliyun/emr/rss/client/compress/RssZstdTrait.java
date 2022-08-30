@@ -22,7 +22,7 @@ public abstract class RssZstdTrait {
   protected static final int MAGIC_LENGTH = MAGIC.length;
 
   public static final int HEADER_LENGTH =
-          MAGIC_LENGTH // magic bytes
+          MAGIC_LENGTH         // magic bytes
                   + 1          // token
                   + 4          // compressed length
                   + 4          // decompressed length
