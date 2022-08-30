@@ -853,9 +853,13 @@ object Utils extends Logging {
       streamId = streamId | ((0xFF.toLong & bytes(i)) << (i * 8))
     }
     for (i <- 0 to 3) {
-      numChunk = numChunk | ((0xFF.toInt & bytes(i + 8)) << (i * 8))
+      numChunk = numChunk | ((0xFF & bytes(i + 8)) << (i * 8))
     }
 
     (streamId, numChunk)
+  }
+
+  def isHdfsPath(path: String): Boolean = {
+    path.startsWith("hdfs://")
   }
 }

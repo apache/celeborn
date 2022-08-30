@@ -49,10 +49,9 @@ public class DfsPartitionReader implements PartitionReader {
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
   private Thread fetchThread;
-  private long offset = 0;
-  private long length = -1;
-  private long lastPos = 0;
-  private FSDataInputStream hdfsInputStream;
+  private long offset;
+  private long lastPos;
+  private final FSDataInputStream hdfsInputStream;
 
   public DfsPartitionReader(RssConf conf, String shuffleKey, PartitionLocation location,
     TransportClientFactory clientFactory, int startMapIndex, int endMapIndex) throws IOException {
@@ -62,6 +61,7 @@ public class DfsPartitionReader implements PartitionReader {
 
     hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(
       new Path(location.getStorageInfo().getFilePath()));
+    long length = -1;
     if (endMapIndex != Integer.MAX_VALUE) {
       // send rpc to the worker and get stream handler which has 12 bytes,
       // and I think there is no single shuffle file larger than 2^48(256).

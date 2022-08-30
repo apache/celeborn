@@ -53,6 +53,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
+import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 import com.aliyun.emr.rss.service.deploy.worker.LevelDBProvider;
 import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecoverHelper;
@@ -438,7 +439,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       FileInputStream indexStream = null;
       FSDataInputStream hdfsIndexStream = null;
-      boolean isHdfs = indexFilePath.startsWith("hdfs:");
+      boolean isHdfs = Utils.isHdfsPath(indexFilePath);
       int indexSize = 0;
       try {
         if (isHdfs) {
