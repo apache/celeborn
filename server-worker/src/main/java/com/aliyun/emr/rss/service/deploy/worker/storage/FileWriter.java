@@ -295,7 +295,7 @@ public final class FileWriter implements DeviceObserver {
             new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS), false);
         if (splitted.get()) {
           String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
-          String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
+          String sortedFileStr = Utils.getSortedFilePath(fileInfo.getFilePath());
           StorageManager.hdfsFs().delete(new Path(indexFileStr), false);
           StorageManager.hdfsFs().delete(new Path(sortedFileStr), false);
         }
@@ -306,7 +306,7 @@ public final class FileWriter implements DeviceObserver {
       fileInfo.getFile().delete();
       if (splitted.get()) {
         String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
-        String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
+        String sortedFileStr = Utils.getSortedFilePath(fileInfo.getFilePath());
         File indexFile = new File(indexFileStr);
         File sortedFile = new File(sortedFileStr);
         indexFile.delete();

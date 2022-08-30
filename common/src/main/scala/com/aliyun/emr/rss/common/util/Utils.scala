@@ -862,4 +862,10 @@ object Utils extends Logging {
   def isHdfsPath(path: String): Boolean = {
     path.startsWith("hdfs://")
   }
+
+  val SORTED_SUFFIX = ".sorted"
+
+  def getSortedFilePath(path: String): String = {
+    path + SORTED_SUFFIX
+  }
 }

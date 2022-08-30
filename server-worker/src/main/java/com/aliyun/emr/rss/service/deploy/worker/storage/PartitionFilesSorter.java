@@ -61,7 +61,6 @@ import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
-  public static final String SORTED_SUFFIX = ".sorted";
   public static final String INDEX_SUFFIX = ".index";
   private LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
   private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
@@ -148,7 +147,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       Set<String> sorting =
         sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
-      String sortedFilePath = fileInfo.getFilePath() + SORTED_SUFFIX;
+      String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
       String indexFilePath = fileInfo.getFilePath() + INDEX_SUFFIX;
 
       if (sorted.contains(fileId)) {
@@ -494,7 +493,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
       this.originFilePath = fileInfo.getFilePath();
-      this.sortedFilePath = originFilePath + SORTED_SUFFIX;
+      this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;

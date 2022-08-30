@@ -59,8 +59,7 @@ public class DfsPartitionReader implements PartitionReader {
     maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
     results = new LinkedBlockingQueue<>();
 
-    hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(
-      new Path(location.getStorageInfo().getFilePath()));
+
     long length = -1;
     if (endMapIndex != Integer.MAX_VALUE) {
       // send rpc to the worker and get stream handler which has 12 bytes,
@@ -82,8 +81,12 @@ public class DfsPartitionReader implements PartitionReader {
         throw new IOException("read shuffle file from hdfs failed, filePath: " +
                                 location.getStorageInfo().getFilePath(), e);
       }
+      hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(
+        new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
     } else {
       offset = 0;
+      hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(
+        new Path(location.getStorageInfo().getFilePath()));
       length = ShuffleClient.getHdfsFs(conf)
                  .getFileStatus(new Path(location.getStorageInfo().getFilePath())).getLen();
     }
