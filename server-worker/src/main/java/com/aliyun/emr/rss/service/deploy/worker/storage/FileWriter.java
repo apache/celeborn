@@ -29,18 +29,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.meta.DiskStatus;
+import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
-import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
+import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
@@ -49,6 +51,7 @@ import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
  */
 public final class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
+  public static final String SUFFIX_HDFS_WRITE_SUCCESS = ".success";
 
   private static final long WAIT_INTERVAL_MS = 20;
 
@@ -79,6 +82,7 @@ public final class FileWriter implements DeviceObserver {
   private final PartitionType partitionType;
 
   private Runnable destroyHook;
+  private boolean deleted = false;
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
@@ -111,10 +115,10 @@ public final class FileWriter implements DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    if (fileInfo.file != null) {
-      channel = new FileOutputStream(fileInfo.file).getChannel();
+    if (!fileInfo.isHdfs()) {
+      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
-      stream = fileInfo.fsDataOutputStream;
+      stream = StorageManager.hdfsFs().create(new Path(fileInfo.getFilePath()), true);
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
@@ -126,7 +130,7 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public File getFile() {
-    return fileInfo.file;
+    return fileInfo.getFile();
   }
 
   public void incrementPendingWrites() {
@@ -179,7 +183,7 @@ public final class FileWriter implements DeviceObserver {
    */
   public void write(ByteBuf data) throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed!, fileName " + fileInfo.file.getAbsolutePath();
+      String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
       logger.warn(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -209,13 +213,17 @@ public final class FileWriter implements DeviceObserver {
       LocalFlusher localFlusher = (LocalFlusher) flusher;
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
     } else {
-      return new StorageInfo(StorageInfo.Type.HDFS, true);
+      if (deleted) {
+        return null;
+      } else {
+        return new StorageInfo(StorageInfo.Type.HDFS, true, fileInfo.getFilePath());
+      }
     }
   }
 
   public long close() throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed! fileName " + fileInfo.file.getAbsolutePath();
+      String msg = "FileWriter has already closed! fileName " + fileInfo.getFilePath();
       logger.error(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -242,15 +250,22 @@ public final class FileWriter implements DeviceObserver {
         }
         if (stream != null) {
           stream.close();
+          String peerPath = Utils.getPeerPath(fileInfo.getFilePath());
+          if (StorageManager.hdfsFs().exists(
+              new Path(peerPath + SUFFIX_HDFS_WRITE_SUCCESS))) {
+            StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+            deleted = true;
+          } else {
+            StorageManager.hdfsFs().create(
+                new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS)).close();
+          }
         }
       } catch (IOException e) {
         logger.warn("close file writer" + this + "failed", e);
       }
 
-
       // unregister from DeviceMonitor
       deviceMonitor.unregisterFileWriter(this);
-
     }
     return bytesFlushed;
   }
@@ -269,18 +284,34 @@ public final class FileWriter implements DeviceObserver {
         }
       } catch (IOException e) {
         logger.warn("Close channel failed for file {} caused by {}.",
-          fileInfo.file, e.getMessage());
+          fileInfo.getFilePath(), e.getMessage());
       }
     }
-    fileInfo.file.delete();
 
-    if (splitted.get()) {
-      String indexFileStr = fileInfo.file.getAbsolutePath() + PartitionFilesSorter.INDEX_SUFFIX;
-      String sortedFileStr = fileInfo.file.getAbsolutePath() + PartitionFilesSorter.SORTED_SUFFIX;
-      File indexFile = new File(indexFileStr);
-      File sortedFile = new File(sortedFileStr);
-      indexFile.delete();
-      sortedFile.delete();
+    if (fileInfo.isHdfs()) {
+      try {
+        StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+        StorageManager.hdfsFs().delete(
+            new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS), false);
+        if (splitted.get()) {
+          String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
+          String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
+          StorageManager.hdfsFs().delete(new Path(indexFileStr), false);
+          StorageManager.hdfsFs().delete(new Path(sortedFileStr), false);
+        }
+      } catch (Exception e) {
+        logger.warn("clean hdfs file {}", fileInfo.getFilePath());
+      }
+    } else {
+      fileInfo.getFile().delete();
+      if (splitted.get()) {
+        String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
+        String sortedFileStr = fileInfo.getFilePath() + PartitionFilesSorter.SORTED_SUFFIX;
+        File indexFile = new File(indexFileStr);
+        File sortedFile = new File(sortedFileStr);
+        indexFile.delete();
+        sortedFile.delete();
+      }
     }
 
     // unregister from DeviceMonitor
@@ -332,7 +363,7 @@ public final class FileWriter implements DeviceObserver {
     String fileAbsPath = null;
     if (source.samplePerfCritical()) {
       metricsName = WorkerSource.TakeBufferTime();
-      fileAbsPath = fileInfo.file.getAbsolutePath();
+      fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
     }
 
@@ -367,16 +398,16 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public int hashCode() {
-    return fileInfo.file.hashCode();
+    return fileInfo.getFilePath().hashCode();
   }
 
   public boolean equals(Object obj) {
     return (obj instanceof FileWriter) &&
-        fileInfo.file.equals(((FileWriter) obj).fileInfo.file);
+        fileInfo.getFilePath().equals(((FileWriter) obj).fileInfo.getFilePath());
   }
 
   public String toString() {
-    return fileInfo.file.getAbsolutePath();
+    return fileInfo.getFilePath();
   }
 
   public void flushOnMemoryPressure() throws IOException {

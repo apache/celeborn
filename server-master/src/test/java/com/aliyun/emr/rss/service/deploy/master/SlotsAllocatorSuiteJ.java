@@ -37,7 +37,7 @@ import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
-public class MasterUtilSuiteJ {
+public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers() {
     long assumedPartitionSize = 64 * 1024 * 1024;
 
@@ -215,7 +215,7 @@ public class MasterUtilSuiteJ {
     rssConf.set("rss.disk.groups","2");
     rssConf.set("rss.disk.group.gradient","1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        MasterUtil.offerSlotsLoadAware(
+        SlotsAllocator.offerSlotsLoadAware(
             workers,
             partitionIds,
             shouldReplicate,
@@ -226,7 +226,7 @@ public class MasterUtilSuiteJ {
       if (shouldReplicate) {
         slots.forEach((k, v) -> {
           Set<String> locationDuplicationSet = new HashSet<>();
-          v._1.stream().forEach(i -> {
+          v._1.forEach(i -> {
             String uniqueId = i.getUniqueId();
             assert !locationDuplicationSet.contains(uniqueId);
             locationDuplicationSet.add(uniqueId);
@@ -240,7 +240,7 @@ public class MasterUtilSuiteJ {
         });
       }
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
-        MasterUtil.slotsToDiskAllocations(slots);
+        SlotsAllocator.slotsToDiskAllocations(slots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
         WorkerInfo worker = entry.getKey();
         Map<String, Integer> allocationMap = entry.getValue();
@@ -256,7 +256,7 @@ public class MasterUtilSuiteJ {
         Assert.assertEquals(partitionIds.size(), usedTotalSlots);
       }
     } else {
-      assert null == slots :
+      assert slots.isEmpty() :
         "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }
   }

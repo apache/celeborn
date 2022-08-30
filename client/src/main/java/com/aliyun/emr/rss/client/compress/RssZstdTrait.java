@@ -15,38 +15,19 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.client.write;
+package com.aliyun.emr.rss.client.compress;
 
-public class PushTask {
-  private int partitionId;
-  private int size;
+public abstract class RssZstdTrait {
+  protected static final byte[] MAGIC = new byte[]{'Z', 'S', 'T', 'D', 'B', 'l', 'o', 'c', 'k'};
+  protected static final int MAGIC_LENGTH = MAGIC.length;
 
-  private byte[] buffer;
+  public static final int HEADER_LENGTH =
+          MAGIC_LENGTH         // magic bytes
+                  + 1          // token
+                  + 4          // compressed length
+                  + 4          // decompressed length
+                  + 4;         // checksum
 
-  public PushTask(int bufferSize) {
-    this.buffer = new byte[bufferSize];
-  }
-
-  public int getPartitionId() {
-    return partitionId;
-  }
-
-  public void setPartitionId(int partitionId) {
-    this.partitionId = partitionId;
-  }
-
-  public int getSize() {
-    return size;
-  }
-
-  public void setSize(int size) {
-    if (size > buffer.length) {
-      buffer = new byte[size];
-    }
-    this.size = size;
-  }
-
-  public byte[] getBuffer() {
-    return buffer;
-  }
+  protected static final int COMPRESSION_METHOD_RAW = 0x10;
+  protected static final int COMPRESSION_METHOD_ZSTD = 0x30;
 }

@@ -32,7 +32,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.aliyun.emr.rss.common.RssConf;
-import com.aliyun.emr.rss.common.network.server.FileInfo;
+import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.Utils;

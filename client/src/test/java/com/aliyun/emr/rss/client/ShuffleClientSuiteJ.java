@@ -35,7 +35,8 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 
-import com.aliyun.emr.rss.client.compress.RssLz4Compressor;
+import com.aliyun.emr.rss.client.compress.Compressor;
+import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
@@ -80,49 +81,51 @@ public class ShuffleClientSuiteJ {
 
   @Test
   public void testPushData() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      RssConf conf = setupEnv(codec);
 
-    setupEnv();
+      int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
+              TEST_BUF1.length, 1, 1);
 
-    int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
-      TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
-      TEST_BUF1.length, 1, 1);
+      Compressor compressor = Compressor.getCompressor(conf);
+      compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
+      final int compressedTotalSize = compressor.getCompressedTotalSize();
 
-    RssLz4Compressor compressor = new RssLz4Compressor();
-    compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
-    final int compressedTotalSize = compressor.getCompressedTotalSize();
-
-    assert (pushDataLen == compressedTotalSize + BATCH_HEADER_SIZE);
-
+      assert (pushDataLen == compressedTotalSize + BATCH_HEADER_SIZE);
+    }
   }
 
   @Test
   public void testMergeData() throws IOException, InterruptedException {
-    setupEnv();
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      RssConf conf = setupEnv(codec);
 
-    int mergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
-      TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
-      TEST_BUF1.length, 1, 1);
+      int mergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
+              TEST_BUF1.length, 1, 1);
 
-    RssLz4Compressor compressor = new RssLz4Compressor();
-    compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
-    final int compressedTotalSize = compressor.getCompressedTotalSize();
+      Compressor compressor = Compressor.getCompressor(conf);
+      compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
+      final int compressedTotalSize = compressor.getCompressedTotalSize();
 
-    shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
-      TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
-      TEST_BUF1, 0, TEST_BUF1.length, 1, 1);
+      shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
+              TEST_BUF1, 0, TEST_BUF1.length, 1, 1);
 
-    assert (mergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
+      assert (mergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
 
-    byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
-    int largeMergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
-      TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
-      buf1k, 0, buf1k.length, 1, 1);
+      byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
+      int largeMergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
+              buf1k, 0, buf1k.length, 1, 1);
 
-    compressor = new RssLz4Compressor();
-    compressor.compress(buf1k, 0, buf1k.length);
-    int compressedTotalSize1 = compressor.getCompressedTotalSize();
+      compressor = Compressor.getCompressor(conf);
+      compressor.compress(buf1k, 0, buf1k.length);
+      int compressedTotalSize1 = compressor.getCompressedTotalSize();
 
-    assert (largeMergeSize == compressedTotalSize1 + BATCH_HEADER_SIZE);
+      assert (largeMergeSize == compressedTotalSize1 + BATCH_HEADER_SIZE);
+    }
   }
 
   private synchronized String getLocalHost() {
@@ -137,8 +140,9 @@ public class ShuffleClientSuiteJ {
     return ia.getHostName();
   }
 
-  private void setupEnv() throws IOException, InterruptedException {
+  private RssConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
     RssConf conf = new RssConf();
+    conf.set("rss.client.compression.codec", codec.name());
     conf.set("rss.pushdata.retry.thread.num", "1");
     conf.set("rss.push.data.buffer.size", "1K");
     shuffleClient = new ShuffleClientImpl(conf);
@@ -286,6 +290,7 @@ public class ShuffleClientSuiteJ {
       .thenAnswer(t -> client);
 
     shuffleClient.dataClientFactory = clientFactory;
+    return conf;
   }
 
 }

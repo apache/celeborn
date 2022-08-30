@@ -51,7 +51,7 @@ public enum ByteUnit {
     }
   }
 
-  public double toBytes(long d) {
+  public long toBytes(long d) {
     if (d < 0) {
       throw new IllegalArgumentException("Negative size value. Size must be positive: " + d);
     }

@@ -53,10 +53,11 @@ enum MessageType {
   PARTITION_SPLIT = 47;
 }
 
-message PbStorageHint {
+message PbStorageInfo {
   int32 type = 1;
   string mountPoint = 2;
   bool finalResult = 3;
+  string filePath = 4;
 }
 
 message PbPartitionLocation {
@@ -73,7 +74,7 @@ message PbPartitionLocation {
   int32 fetchPort = 7;
   int32 replicatePort = 8;
   PbPartitionLocation peer = 9;
-  PbStorageHint storageHint = 10;
+  PbStorageInfo storageInfo = 10;
 }
 
 message PbWorkerResource {
@@ -303,8 +304,8 @@ message PbCommitFilesResponse {
   repeated string committedSlaveIds = 3;
   repeated string failedMasterIds = 4;
   repeated string failedSlaveIds = 5;
-  map<string, PbStorageHint> committedMasterStorageHints = 6;
-  map<string, PbStorageHint> committedSlaveStorageHints = 7;
+  map<string, PbStorageInfo> committedMasterStorageInfos = 6;
+  map<string, PbStorageInfo> committedSlaveStorageInfos = 7;
   int64 totalWritten = 8;
   int32 fileCount = 9;
 }
@@ -367,7 +368,7 @@ message PbStoreVersion {
 }
 
 message PbFileInfo {
-  string file = 1;
+  string filePath = 1;
   repeated int64 chunkOffsets = 2;
 }
 
