@@ -28,7 +28,6 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{FileInfo, FileManagedBuffers}
-import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
@@ -117,7 +116,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
-    source.startTimer(NetWorkSource.FetchChunkTime, req.toString)
+    source.startTimer(WorkerSource.FetchChunkTime, req.toString)
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
@@ -125,7 +124,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     if (chunksBeingTransferred >= conf.maxChunksBeingTransferred) {
       logError(s"The number of chunks being transferred $chunksBeingTransferred" +
         s"is above ${conf.maxChunksBeingTransferred()}.")
-      source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
+      source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
     } else {
       try {
         val buf = streamManager.getChunk(req.streamChunkSlice.streamId,
@@ -135,7 +134,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           .addListener(new GenericFutureListener[Future[_ >: Void]] {
             override def operationComplete(future: Future[_ >: Void]): Unit = {
               streamManager.chunkSent(req.streamChunkSlice.streamId)
-              source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
+              source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
             }
           })
       } catch {
@@ -144,7 +143,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             s" ${NettyUtils.getRemoteAddress(client.getChannel)}"), e)
           client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
-          source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
+          source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
       }
     }
   }
