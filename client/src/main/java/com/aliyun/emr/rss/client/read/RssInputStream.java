@@ -27,9 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -37,11 +34,9 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.client.compress.Decompressor;
 import com.aliyun.emr.rss.common.RssConf;
-import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
-import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
+import com.aliyun.emr.rss.common.protocol.StorageInfo;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 
 public abstract class RssInputStream extends InputStream {
@@ -96,8 +91,6 @@ public abstract class RssInputStream extends InputStream {
     private final int startMapIndex;
     private final int endMapIndex;
 
-    private final int maxInFlight;
-
     private final Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
 
     private byte[] compressedBuf;
@@ -112,7 +105,7 @@ public abstract class RssInputStream extends InputStream {
 
     private MetricsCallback callback;
 
-    // mapId, attempId, batchId, size
+    // mapId, attemptId, batchId, size
     private final int BATCH_HEADER_SIZE = 4 * 4;
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
 
@@ -141,8 +134,6 @@ public abstract class RssInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
 
-      maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
-
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = RssConf.pushDataBufferSize(conf) + headerLen;
       compressedBuf = new byte[blockSize];
@@ -158,19 +149,20 @@ public abstract class RssInputStream extends InputStream {
         currentReader.close();
       }
 
-      currentReader = createReader(locations[fileIndex]);
-      logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
-                    "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
-        fileIndex, locations.length, currentReader.numChunks);
-      while (currentReader.numChunks < 1 && fileIndex < locations.length - 1) {
+      int locationCount = locations.length;
+      PartitionLocation currentLocation = locations[fileIndex];
+      currentReader = createReader(currentLocation);
+      logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
+          currentLocation, startMapIndex, endMapIndex, fileIndex, locationCount);
+      while (!currentReader.hasNext() && fileIndex < locationCount - 1) {
         fileIndex++;
+        currentLocation = locations[fileIndex];
         currentReader.close();
-        currentReader = createReader(locations[fileIndex]);
-        logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read , " +
-                      "get chunks size {}", locations[fileIndex], startMapIndex, endMapIndex,
-          fileIndex, locations.length, currentReader.numChunks);
+        currentReader = createReader(currentLocation);
+        logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
+            currentLocation, startMapIndex, endMapIndex, fileIndex, locationCount);
       }
-      if (currentReader.numChunks > 0) {
+      if (currentReader.hasNext()) {
         currentChunk = currentReader.next();
         fileIndex++;
       } else {
@@ -188,7 +180,19 @@ public abstract class RssInputStream extends InputStream {
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
 
-      return new PartitionReader(location);
+      StorageInfo storageInfo = location.getStorageInfo();
+      if (storageInfo.getType() == StorageInfo.Type.HDD
+              || storageInfo.getType() == StorageInfo.Type.SSD) {
+        return new WorkerPartitionReader(conf, shuffleKey, location,
+            clientFactory, startMapIndex, endMapIndex);
+      }
+      if (storageInfo.getType() == StorageInfo.Type.HDFS) {
+        // create hdfs partition reader here
+        // return new DfsPartitionReader(conf, location, clientFactory, startMapIndex, endMapIndex);
+      }
+
+      throw new IOException("Unknown storage info " + storageInfo
+                                + " to read location " + location);
     }
 
     public void setCallback(MetricsCallback callback) {
@@ -328,98 +332,5 @@ public abstract class RssInputStream extends InputStream {
       return hasData;
     }
 
-    private final class PartitionReader {
-      private final RetryingChunkClient client;
-      private final int numChunks;
-
-      private int returnedChunks;
-      private int chunkIndex;
-
-      private final LinkedBlockingQueue<ByteBuf> results;
-      private final ChunkReceivedCallback callback;
-
-      private final AtomicReference<IOException> exception = new AtomicReference<>();
-
-      private boolean closed = false;
-
-      PartitionReader(PartitionLocation location) throws IOException {
-        results = new LinkedBlockingQueue<>();
-        callback = new ChunkReceivedCallback() {
-          @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-            // only add the buffer to results queue if this reader is not closed.
-            synchronized(PartitionReader.this) {
-              ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-              if (!closed) {
-                buf.retain();
-                results.add(buf);
-              }
-            }
-          }
-
-          @Override
-          public void onFailure(int chunkIndex, Throwable e) {
-            String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
-            logger.error(errorMsg, e);
-            exception.set(new IOException(errorMsg, e));
-          }
-        };
-        client = new RetryingChunkClient(conf, shuffleKey, location,
-          callback, clientFactory, startMapIndex, endMapIndex);
-        numChunks = client.openChunks();
-      }
-
-      boolean hasNext() {
-        return returnedChunks < numChunks;
-      }
-
-      ByteBuf next() throws IOException {
-        checkException();
-        if (chunkIndex < numChunks) {
-          fetchChunks();
-        }
-        ByteBuf chunk = null;
-        try {
-          while (chunk == null) {
-            checkException();
-            chunk = results.poll(500, TimeUnit.MILLISECONDS);
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          IOException ioe = new IOException(e);
-          exception.set(ioe);
-          throw ioe;
-        }
-        returnedChunks++;
-        return chunk;
-      }
-
-      void close() {
-        synchronized(this) {
-          closed = true;
-        }
-        if (results.size() > 0) {
-          results.forEach(res -> res.release());
-        }
-        results.clear();
-      }
-
-      private void fetchChunks() {
-        final int inFlight = chunkIndex - returnedChunks;
-        if (inFlight < maxInFlight) {
-          final int toFetch = Math.min(maxInFlight - inFlight + 1, numChunks - chunkIndex);
-          for (int i = 0; i < toFetch; i++) {
-            client.fetchChunk(chunkIndex++);
-          }
-        }
-      }
-
-      private void checkException() throws IOException {
-        IOException e = exception.get();
-        if (e != null) {
-          throw e;
-        }
-      }
-    }
   }
 }

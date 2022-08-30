@@ -915,7 +915,7 @@ object RssConf extends Logging {
   }
 
   def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTimeMs", "120s")
+    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
@@ -937,7 +937,13 @@ object RssConf extends Logging {
   }
 
   def hdfsDir(conf: RssConf): String = {
-    conf.get("rss.worker.hdfs.dir", "")
+    val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
+    if (hdfsDir.nonEmpty && !hdfsDir.startsWith("hdfs:")) {
+      log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
+      ""
+    } else {
+      hdfsDir
+    }
   }
 
   def hdfsFlusherThreadCount(conf: RssConf): Int = {

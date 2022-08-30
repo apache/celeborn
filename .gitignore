@@ -21,6 +21,7 @@
 .scala_dependencies
 .settings
 /lib/
+build/apache-maven*
 cache
 checkpoint
 conf/*.cmd
