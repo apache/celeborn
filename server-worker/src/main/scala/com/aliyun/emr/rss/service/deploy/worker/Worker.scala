@@ -32,7 +32,7 @@ import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, NetWorkSource}
+import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource}
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker}
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
@@ -72,7 +72,6 @@ private[deploy] class Worker(
   val workerSource = {
     val source = new WorkerSource(conf)
     metricsSystem.registerSource(source)
-    metricsSystem.registerSource(new NetWorkSource(conf, MetricsSystem.ROLE_WOKRER))
     metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WOKRER))
     metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WOKRER))
     source
