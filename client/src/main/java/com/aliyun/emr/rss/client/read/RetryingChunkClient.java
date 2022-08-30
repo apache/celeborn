@@ -150,11 +150,13 @@ public class RetryingChunkClient {
     if (numChunks == -1) {
       if (currentException != null) {
         throw new IOException(
-            String.format("Could not open chunks %s from  after %d tries.", currentReplica, numTries),
-            currentException);
+          String.format("Could not open chunks %s from  after %d tries.",
+            currentReplica, numTries),
+          currentException);
       } else {
         throw new IOException(
-            String.format("Could not open chunks %s from  after %d tries.", currentReplica, numTries));
+          String.format("Could not open chunks %s from  after %d tries.",
+            currentReplica, numTries));
       }
     }
     return numChunks;
