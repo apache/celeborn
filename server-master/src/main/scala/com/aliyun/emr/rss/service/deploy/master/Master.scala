@@ -390,13 +390,13 @@ private[deploy] class Master(
       s"offerSlots-${Random.nextInt()}") {
       statusSystem.workers.synchronized {
         if (offerSlotsAlgorithm == "roundrobin") {
-          MasterUtil.offerSlotsRoundRobin(
+          SlotsAllocator.offerSlotsRoundRobin(
             workersNotBlacklisted(),
             requestSlots.partitionIdList,
             requestSlots.shouldReplicate
           )
         } else {
-          MasterUtil.offerSlotsLoadAware(
+          SlotsAllocator.offerSlotsLoadAware(
             workersNotBlacklisted(),
             requestSlots.partitionIdList,
             requestSlots.shouldReplicate,
@@ -409,7 +409,7 @@ private[deploy] class Master(
     }
 
     if (log.isDebugEnabled()) {
-      val distributions = MasterUtil.slotsToDiskAllocations(slots)
+      val distributions = SlotsAllocator.slotsToDiskAllocations(slots)
       logDebug(s"allocate slots for shuffle $shuffleKey $slots" +
         s" distributions: ${distributions.asScala.map(m => m._1.toUniqueId() -> m._2)}")
     }

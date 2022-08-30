@@ -208,11 +208,11 @@ public class PartitionLocation implements Serializable {
     this.replicatePort = replicatePort;
   }
 
-  public StorageInfo getStorageHint() {
+  public StorageInfo getStorageInfo() {
     return storageInfo;
   }
 
-  public void setStorageHint(StorageInfo storageInfo) {
+  public void setStorageInfo(StorageInfo storageInfo) {
     this.storageInfo = storageInfo;
   }
 
@@ -267,7 +267,7 @@ public class PartitionLocation implements Serializable {
             pbLoc.getReplicatePort(),
             mode,
             null,
-            StorageInfo.fromPb(pbLoc.getStorageHint()));
+            StorageInfo.fromPb(pbLoc.getStorageInfo()));
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.Master;
@@ -284,7 +284,7 @@ public class PartitionLocation implements Serializable {
           peerPb.getReplicatePort(),
           peerMode,
           partitionLocation,
-          StorageInfo.fromPb(peerPb.getStorageHint()));
+          StorageInfo.fromPb(peerPb.getStorageInfo()));
       partitionLocation.setPeer(peerLocation);
     }
 
@@ -306,7 +306,7 @@ public class PartitionLocation implements Serializable {
     builder.setPushPort(location.getPushPort());
     builder.setFetchPort(location.getFetchPort());
     builder.setReplicatePort(location.getReplicatePort());
-    builder.setStorageHint(StorageInfo.toPb(location.storageInfo));
+    builder.setStorageInfo(StorageInfo.toPb(location.storageInfo));
 
     if (location.getPeer() != null) {
       PbPartitionLocation.Builder peerBuilder = TransportMessages
@@ -323,7 +323,7 @@ public class PartitionLocation implements Serializable {
       peerBuilder.setPushPort(location.getPeer().getPushPort());
       peerBuilder.setFetchPort(location.getPeer().getFetchPort());
       peerBuilder.setReplicatePort(location.getPeer().getReplicatePort());
-      peerBuilder.setStorageHint(StorageInfo.toPb(location.getPeer().getStorageHint()));
+      peerBuilder.setStorageInfo(StorageInfo.toPb(location.getPeer().getStorageInfo()));
       builder.setPeer(peerBuilder.build());
     }
 

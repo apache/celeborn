@@ -22,6 +22,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.aliyun.emr.rss.common.meta.FileManagedBuffers;
+
 public class OneForOneStreamManagerSuiteJ {
   @Test
   public void streamStatesAreFreedWhenConnectionIsClosedEvenIfBufferIteratorThrowsException() {

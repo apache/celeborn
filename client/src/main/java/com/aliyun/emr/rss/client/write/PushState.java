@@ -84,7 +84,7 @@ public class PushState {
     return batches.getTotalSize() > pushBufferSize;
   }
 
-  public DataBatches takeDataBaches(String addressPair) {
+  public DataBatches takeDataBatches(String addressPair) {
     return batchesMap.remove(addressPair);
   }
 }

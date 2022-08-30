@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.network.server;
+package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,7 +37,7 @@ public class FileManagedBuffers {
   private volatile boolean fullyRead = false;
 
   public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) throws IOException {
-    file = fileInfo.file;
+    file = fileInfo.getFile();
     numChunks = fileInfo.numChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];

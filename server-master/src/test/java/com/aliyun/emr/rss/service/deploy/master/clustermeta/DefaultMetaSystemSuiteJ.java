@@ -317,4 +317,9 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReportWorkerFailure(failedWorkers, getNewReqeustId());
     assert 1 == statusSystem.blacklist.size();
   }
+
+  @Test
+  public void testHandleUpdatePartitionSize(){
+    statusSystem.handleUpdatePartitionSize();
+  }
 }

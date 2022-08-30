@@ -27,12 +27,12 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.meta.{FileInfo, FileManagedBuffers}
 import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
-import com.aliyun.emr.rss.common.network.server.{BaseMessageHandler, FileInfo}
-import com.aliyun.emr.rss.common.network.server.FileManagedBuffers
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager
 import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.network.util.TransportConf

@@ -838,6 +838,18 @@ object RssConf extends Logging {
     conf.getInt("rss.client.split.pool.size", 8)
   }
 
+  // Support 2 type codecs: lz4 and zstd
+  def compressionCodec(conf: RssConf): String = {
+    conf.get("rss.client.compression.codec", "lz4").toLowerCase
+  }
+
+  def zstdCompressLevel(conf: RssConf): Int = {
+    val level = conf.getInt("rss.client.compression.zstd.level", 1)
+    val zstdMinLevel = -5
+    val zstdMaxLevel = 22
+    Math.min(Math.max(Math.max(level, zstdMinLevel), Math.min(level, zstdMaxLevel)), zstdMaxLevel)
+  }
+
   def partitionSortTimeout(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
@@ -903,7 +915,7 @@ object RssConf extends Logging {
   }
 
   def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTimeMs", "120s")
+    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
@@ -925,7 +937,13 @@ object RssConf extends Logging {
   }
 
   def hdfsDir(conf: RssConf): String = {
-    conf.get("rss.worker.hdfs.dir", "")
+    val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
+    if (hdfsDir.nonEmpty && !hdfsDir.startsWith("hdfs:")) {
+      log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
+      ""
+    } else {
+      hdfsDir
+    }
   }
 
   def hdfsFlusherThreadCount(conf: RssConf): Int = {

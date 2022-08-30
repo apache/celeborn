@@ -555,4 +555,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
     Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
   }
+
+  @Test
+  public void testHandleUpdatePartitionSize() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleUpdatePartitionSize();
+    Thread.sleep(3000L);
+  }
+
 }

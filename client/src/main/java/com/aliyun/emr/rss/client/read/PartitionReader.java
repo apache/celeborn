@@ -15,38 +15,16 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.client.write;
+package com.aliyun.emr.rss.client.read;
 
-public class PushTask {
-  private int partitionId;
-  private int size;
+import java.io.IOException;
 
-  private byte[] buffer;
+import io.netty.buffer.ByteBuf;
 
-  public PushTask(int bufferSize) {
-    this.buffer = new byte[bufferSize];
-  }
+public interface PartitionReader {
+  boolean hasNext();
 
-  public int getPartitionId() {
-    return partitionId;
-  }
+  ByteBuf next() throws IOException;
 
-  public void setPartitionId(int partitionId) {
-    this.partitionId = partitionId;
-  }
-
-  public int getSize() {
-    return size;
-  }
-
-  public void setSize(int size) {
-    if (size > buffer.length) {
-      buffer = new byte[size];
-    }
-    this.size = size;
-  }
-
-  public byte[] getBuffer() {
-    return buffer;
-  }
+  void close();
 }

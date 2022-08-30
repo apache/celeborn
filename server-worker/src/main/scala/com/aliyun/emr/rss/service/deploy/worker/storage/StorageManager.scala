@@ -36,14 +36,14 @@ import org.iq80.leveldb.DB
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
-import com.aliyun.emr.rss.common.network.server.FileInfo
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
+import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 
 private[worker] final class StorageManager(conf: RssConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
@@ -116,14 +116,13 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   deviceMonitor.startCheck()
 
   val hdfsDir = RssConf.hdfsDir(conf)
-  var hdfsFs: FileSystem = _
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher = if (!hdfsDir.isEmpty) {
     val hdfsConfiguration = new Configuration
     hdfsConfiguration.set("fs.defaultFS", hdfsDir)
-    hdfsConfiguration.set("dfs.replication", "1")
-    hdfsFs = FileSystem.get(hdfsConfiguration)
+    hdfsConfiguration.set("dfs.replication", "2")
+    StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
     Some(new HdfsFlusher(
       workerSource,
       RssConf.hdfsFlusherThreadCount(conf),
@@ -239,21 +238,17 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       throw new IOException("No available working dirs!")
     }
 
-    val partitionId = location.getId
-    val epoch = location.getEpoch
-    val mode = location.getMode
-    val fileName = s"$partitionId-$epoch-${mode.mode()}"
-
+    val fileName = location.getFileName
     var retryCount = 0
     var exception: IOException = null
-    val suggestedMountPoint = location.getStorageHint.getMountPoint
+    val suggestedMountPoint = location.getStorageInfo.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs = if (diskInfo != null && diskInfo.status.equals(DiskStatus.Healthy)) {
         diskInfo.dirs
       } else {
         logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
-          " working dirs. diskInfo $diskInfo")
+          s" working dirs. diskInfo $diskInfo")
         healthyWorkingDirs()
       }
       if (dirs.isEmpty && hdfsFlusher.isEmpty) {
@@ -262,10 +257,9 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir = new Path(new Path(hdfsDir, RssConf.workingDirName(conf)),
-          "$appId/$shuffleId")
-        FileSystem.mkdirs(hdfsFs, shuffleDir, hdfsPermission)
-        val fileInfo = new FileInfo(FileSystem.create(hdfsFs,
-          new Path(shuffleDir, fileName), hdfsPermission))
+          s"$appId/$shuffleId")
+        FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
+        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString)
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
@@ -293,7 +287,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
             throw new RssException("create app shuffle data dir or file failed!" +
               s"${file.getAbsolutePath}")
           }
-          val fileInfo = new FileInfo(file)
+          val fileInfo = new FileInfo(file.getAbsolutePath)
           val fileWriter = new FileWriter(
             fileInfo,
             localFlushers.get(mountPoint),
@@ -310,8 +304,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
           }
           fileWriter.registerDestroyHook(list)
           fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
-          location.getStorageHint.setMountPoint(mountPoint)
-          logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
+          location.getStorageInfo.setMountPoint(mountPoint)
+          logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
           return fileWriter
         } catch {
           case t: Throwable =>
@@ -341,12 +335,19 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      fileInfos.remove(shuffleKey)
+      val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach{ case diskInfo =>
         diskInfo.dirs.foreach { case dir =>
           val file = new File(dir, s"$appId/$shuffleId")
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
+        }
+      }
+      if (hdfsInfos.size > 0) {
+        for ((_, info) <- hdfsInfos) {
+          StorageManager.hdfsFs.delete(new Path(info.getFilePath), false)
+          StorageManager.hdfsFs.delete(
+            new Path(info.getFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS), false)
         }
       }
     }
@@ -369,8 +370,6 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }, 0, 30, TimeUnit.MINUTES)
 
-  val rssSlowFlushInterval: Long = RssConf.slowFlushIntervalMs(conf)
-
   private def cleanupExpiredAppDirs(expireTime: Long): Unit = {
     disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
       diskInfo.dirs.foreach { case workingDir =>
@@ -380,6 +379,16 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
             deleteDirectory(appDir, threadPool)
             logInfo(s"Delete expired app dir $appDir.")
           }
+        }
+      }
+    }
+
+    if (hdfsFs != null) {
+      val iter = hdfsFs.listFiles(new Path(hdfsDir, RssConf.workingDirName(conf)), false)
+      while (iter.hasNext) {
+        val fileStatus = iter.next()
+        if (fileStatus.getModificationTime < expireTime) {
+          StorageManager.hdfsFs.delete(fileStatus.getPath, true)
         }
       }
     }
@@ -487,4 +496,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
   }
+}
+
+object StorageManager {
+  var hdfsFs: FileSystem = _
 }
