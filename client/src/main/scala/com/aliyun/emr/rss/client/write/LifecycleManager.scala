@@ -638,8 +638,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
-    val committedMasterStorageHints = new ConcurrentHashMap[String, StorageInfo]()
-    val committedSlaveStorageHints = new ConcurrentHashMap[String, StorageInfo]()
+    val committedMasterStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
+    val committedSlaveStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
@@ -689,8 +689,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         committedSlaveIds.addAll(res.committedSlaveIds)
 
         // record committed partitions storage hint and disk hint
-        committedMasterStorageHints.putAll(res.committedMasterStorageHints)
-        committedSlaveStorageHints.putAll(res.committedSlaveStorageHints)
+        committedMasterStorageInfos.putAll(res.committedMasterStorageInfos)
+        committedSlaveStorageInfos.putAll(res.committedSlaveStorageInfos)
 
         // record failed partitions
         failedMasterIds.addAll(res.failedMasterIds)
@@ -728,20 +728,20 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (!dataLost) {
       val committedPartitions = new util.HashMap[String, PartitionLocation]
       committedMasterIds.asScala.foreach { id =>
-        if (committedMasterStorageHints.get(id) == null) {
+        if (committedMasterStorageInfos.get(id) == null) {
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
-          masterPartMap.get(id).setStorageHint(committedMasterStorageHints.get(id))
+          masterPartMap.get(id).setStorageInfo(committedMasterStorageInfos.get(id))
           committedPartitions.put(id, masterPartMap.get(id))
         }
       }
 
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
-        if (committedSlaveStorageHints.get(id) == null) {
+        if (committedSlaveStorageInfos.get(id) == null) {
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
-          slavePartition.setStorageHint(committedSlaveStorageHints.get(id))
+          slavePartition.setStorageInfo(committedSlaveStorageInfos.get(id))
           val masterPartition = committedPartitions.get(id)
           if (masterPartition ne null) {
             masterPartition.setPeer(slavePartition)

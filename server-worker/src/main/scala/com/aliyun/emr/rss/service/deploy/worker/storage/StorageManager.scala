@@ -241,7 +241,7 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
     val fileName = location.getFileName
     var retryCount = 0
     var exception: IOException = null
-    val suggestedMountPoint = location.getStorageHint.getMountPoint
+    val suggestedMountPoint = location.getStorageInfo.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs = if (diskInfo != null && diskInfo.status.equals(DiskStatus.Healthy)) {
@@ -304,8 +304,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
           }
           fileWriter.registerDestroyHook(list)
           fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
-          location.getStorageHint.setMountPoint(mountPoint)
-          logDebug(s"location $location set disk hint to ${location.getStorageHint} ")
+          location.getStorageInfo.setMountPoint(mountPoint)
+          logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
           return fileWriter
         } catch {
           case t: Throwable =>

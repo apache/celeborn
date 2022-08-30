@@ -216,7 +216,7 @@ public final class FileWriter implements DeviceObserver {
       if (deleted) {
         return null;
       } else {
-        return new StorageInfo(StorageInfo.Type.HDFS, true);
+        return new StorageInfo(StorageInfo.Type.HDFS, true, fileInfo.getFilePath());
       }
     }
   }
