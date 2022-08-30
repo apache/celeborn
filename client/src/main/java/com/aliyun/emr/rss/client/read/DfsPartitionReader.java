@@ -76,7 +76,7 @@ public class DfsPartitionReader implements PartitionReader {
         offset = (long) Utils.convertStreamHandlerToOffsetAndLength(streamHandle.streamId,
           streamHandle.numChunks)._1;
         length = (long) Utils.convertStreamHandlerToOffsetAndLength(streamHandle.streamId,
-          streamHandle.numChunks)._1;
+          streamHandle.numChunks)._2;
       } catch (IOException | InterruptedException e) {
         throw new IOException("read shuffle file from hdfs failed, filePath: " +
                                 location.getStorageInfo().getFilePath(), e);
