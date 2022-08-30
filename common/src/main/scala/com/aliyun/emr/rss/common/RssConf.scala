@@ -915,7 +915,7 @@ object RssConf extends Logging {
   }
 
   def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTimeMs", "120s")
+    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
