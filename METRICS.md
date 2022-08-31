@@ -90,7 +90,6 @@ Here is an example of grafana dashboard importing.
 
 RSS master metric : `com/aliyun/emr/rss/service/deploy/master/MasterSource.scala`  
 RSS worker metric : `com/aliyun/emr/rss/service/deploy/worker/WorkerSource.scala`
-and `com.aliyun.emr.rss.common.metrics.source.NetWorkSource`
 
 ## Grafana Dashboard
 

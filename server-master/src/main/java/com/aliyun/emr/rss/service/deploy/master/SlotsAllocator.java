@@ -395,7 +395,7 @@ public class SlotsAllocator {
       jointLocations.addAll(slots.get(worker)._1);
       jointLocations.addAll(slots.get(worker)._2);
       for (PartitionLocation location : jointLocations) {
-        String mountPoint = location.getStorageHint().getMountPoint();
+        String mountPoint = location.getStorageInfo().getMountPoint();
         if (slotsPerDisk.containsKey(mountPoint)) {
           slotsPerDisk.put(mountPoint, slotsPerDisk.get(mountPoint) + 1);
         } else {

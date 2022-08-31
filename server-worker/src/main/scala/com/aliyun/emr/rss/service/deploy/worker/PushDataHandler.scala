@@ -193,7 +193,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       .actualUsableSpace < diskMinimumReserveSize
     if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
       (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
-      fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
       } else {

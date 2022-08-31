@@ -22,13 +22,14 @@ import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.JavaConverters.asScalaBufferConverter
+
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{FileInfo, FileManagedBuffers}
-import com.aliyun.emr.rss.common.metrics.source.NetWorkSource
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
@@ -36,6 +37,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager
 import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.network.util.TransportConf
+import com.aliyun.emr.rss.common.util.Utils
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
@@ -91,15 +93,21 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
-        val buffers = new FileManagedBuffers(fileInfo, conf)
-        val streamId = streamManager.registerStream(buffers, client.getChannel)
-        val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
-        if (fileInfo.numChunks() == 0) {
-          logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-            s" $startMapIndex endMapIndex $endMapIndex is empty.")
+        if (fileInfo.isHdfs) {
+          val streamHandle = new StreamHandle(0, 0)
+          client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+            new NioManagedBuffer(streamHandle.toByteBuffer)))
+        } else {
+          val buffers = new FileManagedBuffers(fileInfo, conf)
+          val streamId = streamManager.registerStream(buffers, client.getChannel)
+          val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+          if (fileInfo.numChunks() == 0) {
+            logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
+              s" $startMapIndex endMapIndex $endMapIndex is empty.")
+          }
+          client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+            new NioManagedBuffer(streamHandle.toByteBuffer)))
         }
-        client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
-          new NioManagedBuffer(streamHandle.toByteBuffer)))
       } catch {
         case e: IOException =>
           client.getChannel.writeAndFlush(new RpcFailure(request.requestId,
@@ -117,7 +125,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
-    source.startTimer(NetWorkSource.FetchChunkTime, req.toString)
+    source.startTimer(WorkerSource.FetchChunkTime, req.toString)
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
@@ -125,7 +133,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     if (chunksBeingTransferred >= conf.maxChunksBeingTransferred) {
       logError(s"The number of chunks being transferred $chunksBeingTransferred" +
         s"is above ${conf.maxChunksBeingTransferred()}.")
-      source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
+      source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
     } else {
       try {
         val buf = streamManager.getChunk(req.streamChunkSlice.streamId,
@@ -135,7 +143,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           .addListener(new GenericFutureListener[Future[_ >: Void]] {
             override def operationComplete(future: Future[_ >: Void]): Unit = {
               streamManager.chunkSent(req.streamChunkSlice.streamId)
-              source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
+              source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
             }
           })
       } catch {
@@ -144,7 +152,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             s" ${NettyUtils.getRemoteAddress(client.getChannel)}"), e)
           client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
-          source.stopTimer(NetWorkSource.FetchChunkTime, req.toString)
+          source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
       }
     }
   }

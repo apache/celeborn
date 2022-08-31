@@ -230,7 +230,7 @@ class PartitionLocationInfo extends Logging {
           locations.remove(targetLocation)
           numSlotsReleased += 1
           locMap.compute(
-            targetLocation.getStorageHint.getMountPoint,
+            targetLocation.getStorageInfo.getMountPoint,
             new BiFunction[String, Integer, Integer] {
               override def apply(t: String, u: Integer): Integer = {
                 if (u == null) 1 else u + 1

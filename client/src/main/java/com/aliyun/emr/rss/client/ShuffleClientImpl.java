@@ -558,7 +558,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       boolean shoudPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
       if (shoudPush) {
         limitMaxInFlight(mapKey, pushState, maxInFlight);
-        DataBatches dataBatches = pushState.takeDataBaches(addressPair);
+        DataBatches dataBatches = pushState.takeDataBatches(addressPair);
         doPushMergedData(
           addressPair.split("-")[0],
           applicationId,

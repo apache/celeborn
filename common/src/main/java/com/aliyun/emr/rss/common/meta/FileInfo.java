@@ -18,16 +18,22 @@
 package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import com.aliyun.emr.rss.common.util.Utils;
 
 public class FileInfo {
   private final String filePath;
-  private final ArrayList<Long> chunkOffsets;
+  private final List<Long> chunkOffsets;
 
-  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
+  public FileInfo(String filePath, List<Long> chunkOffsets) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
   }
@@ -73,11 +79,52 @@ public class FileInfo {
     return filePath;
   }
 
-  public boolean isHdfs(){
-    return filePath.startsWith("hdfs://");
+  public String getSortedPath() {
+    return Utils.getSortedFilePath(filePath);
   }
 
-  public synchronized ArrayList<Long> getChunkOffsets() {
+  public String getIndexPath() {
+    return Utils.getIndexFilePath(filePath);
+  }
+
+  public Path getHdfsPath() {
+    return new Path(filePath);
+  }
+
+  public Path getHdfsIndexPath() {
+    return new Path(Utils.getIndexFilePath(filePath));
+  }
+
+  public Path getHdfsSortedPath() {
+    return new Path(Utils.getSortedFilePath(filePath));
+  }
+
+  public Path getHdfsWriterSuccessPath() {
+    return new Path(Utils.getWriteSuccessFilePath(filePath));
+  }
+
+  public Path getHdfsPeerWriterSuccessPath() {
+    return new Path(Utils.getWriteSuccessFilePath(Utils.getPeerPath(filePath)));
+  }
+
+  public void deleteAllFiles(FileSystem hdfsFs) throws IOException {
+    if (isHdfs()) {
+      hdfsFs.delete(getHdfsPath(), false);
+      hdfsFs.delete(getHdfsWriterSuccessPath(), false);
+      hdfsFs.delete(getHdfsIndexPath(), false);
+      hdfsFs.delete(getHdfsSortedPath(), false);
+    } else {
+      getFile().delete();
+      new File(getIndexPath()).delete();
+      new File(getSortedPath()).delete();
+    }
+  }
+
+  public boolean isHdfs(){
+    return Utils.isHdfsPath(filePath);
+  }
+
+  public synchronized List<Long> getChunkOffsets() {
     return chunkOffsets;
   }
 

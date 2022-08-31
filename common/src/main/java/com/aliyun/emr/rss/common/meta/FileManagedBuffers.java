@@ -18,9 +18,8 @@
 package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 
 import com.aliyun.emr.rss.common.network.buffer.FileSegmentManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
@@ -36,12 +35,12 @@ public class FileManagedBuffers {
 
   private volatile boolean fullyRead = false;
 
-  public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) throws IOException {
+  public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) {
     file = fileInfo.getFile();
     numChunks = fileInfo.numChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
-      ArrayList<Long> chunkOffsets = fileInfo.getChunkOffsets();
+      List<Long> chunkOffsets = fileInfo.getChunkOffsets();
       for (int i = 0; i <= numChunks; i++) {
         offsets[i] = chunkOffsets.get(i);
       }

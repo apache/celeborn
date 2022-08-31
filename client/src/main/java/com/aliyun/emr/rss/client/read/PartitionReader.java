@@ -15,21 +15,16 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.metrics.source
+package com.aliyun.emr.rss.client.read;
 
-import com.aliyun.emr.rss.common.RssConf
+import java.io.IOException;
 
-class NetWorkSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
-  override val sourceName = s"network"
+import io.netty.buffer.ByteBuf;
 
-  import NetWorkSource._
-  // add timer
-  addTimer(FetchChunkTime)
+public interface PartitionReader {
+  boolean hasNext();
 
-  // start cleaner
-  startCleaner()
-}
+  ByteBuf next() throws IOException;
 
-object NetWorkSource {
-  val FetchChunkTime = "FetchChunkTime"
+  void close();
 }

@@ -18,7 +18,6 @@
 package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -36,9 +35,6 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.protocol.Message;
-import com.aliyun.emr.rss.common.network.protocol.OpenStream;
-import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
@@ -116,26 +112,30 @@ public class RetryingChunkClient {
    */
   public int openChunks() throws IOException {
     int numChunks = -1;
+    Replica currentReplica = null;
+    Exception currentException = null;
     while (numChunks == -1 && hasRemainingRetries()) {
       // Only not wait for first request to each replicate.
+      currentReplica = getCurrentReplica();
       if (numTries >= replicas.size()) {
         logger.info("Retrying openChunk ({}/{}) for chunk from {} after {} ms.",
-            numTries, maxTries, getCurrentReplica(), retryWaitMs);
+            numTries, maxTries, currentReplica, retryWaitMs);
         Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+      } else {
+        logger.info("Retrying openChunk ({}/{}) for chunks from {} immediately.",
+            numTries, maxTries, currentReplica);
       }
-      Replica replica = getCurrentReplica();
       try {
-        replica.getOrOpenStream();
-        numChunks = replica.getNumChunks();
+        currentReplica.getOrOpenStream();
+        numChunks = currentReplica.getNumChunks();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException(e);
       } catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-          throw new IOException(e);
-        }
-
-        logger.warn("Exception raised while sending open chunks message to {}.", replica, e);
-
+        logger.error(
+            "Exception raised while sending open chunks message to " + currentReplica + ".", e);
         numChunks = -1;
+        currentException = e;
         if (shouldRetry(e)) {
           numTries += 1; // openChunks will not be concurrently called.
         } else {
@@ -144,7 +144,16 @@ public class RetryingChunkClient {
       }
     }
     if (numChunks == -1) {
-      throw new IOException(String.format("Could not open chunks after %d tries.", numTries));
+      if (currentException != null) {
+        throw new IOException(
+          String.format("Could not open chunks %s from  after %d tries.",
+            currentReplica, numTries),
+          currentException);
+      } else {
+        throw new IOException(
+          String.format("Could not open chunks %s from  after %d tries.",
+            currentReplica, numTries));
+      }
     }
     return numChunks;
   }
@@ -236,72 +245,5 @@ public class RetryingChunkClient {
         callback.onFailure(chunkIndex, e);
       }
     }
-  }
-}
-
-class Replica {
-  private static final Logger logger = LoggerFactory.getLogger(Replica.class);
-  private final long timeoutMs;
-  private final String shuffleKey;
-  private final PartitionLocation location;
-  private final TransportClientFactory clientFactory;
-
-  private StreamHandle streamHandle;
-  private TransportClient client;
-  private int startMapIndex;
-  private int endMapIndex;
-
-  Replica(
-      long timeoutMs,
-      String shuffleKey,
-      PartitionLocation location,
-      TransportClientFactory clientFactory,
-      int startMapIndex,
-      int endMapIndex) {
-    this.timeoutMs = timeoutMs;
-    this.shuffleKey = shuffleKey;
-    this.location = location;
-    this.clientFactory = clientFactory;
-    this.startMapIndex = startMapIndex;
-    this.endMapIndex = endMapIndex;
-  }
-
-  Replica(
-      long timeoutMs,
-      String shuffleKey,
-      PartitionLocation location,
-      TransportClientFactory clientFactory) {
-    this(timeoutMs, shuffleKey, location, clientFactory, 0, Integer.MAX_VALUE);
-  }
-
-  public synchronized TransportClient getOrOpenStream()
-      throws IOException, InterruptedException {
-    if (client == null || !client.isActive()) {
-      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
-
-      OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
-        startMapIndex, endMapIndex);
-      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
-      streamHandle = (StreamHandle) Message.decode(response);
-    }
-    return client;
-  }
-
-  public long getStreamId() {
-    return streamHandle.streamId;
-  }
-
-  public int getNumChunks() {
-    return streamHandle.numChunks;
-  }
-
-  @Override
-  public String toString() {
-    return location.getHost() + ":" + location.getFetchPort();
-  }
-
-  @VisibleForTesting
-  PartitionLocation getLocation() {
-    return location;
   }
 }
