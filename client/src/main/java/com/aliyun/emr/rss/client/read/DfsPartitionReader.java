@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -50,8 +51,8 @@ public class DfsPartitionReader implements PartitionReader {
   private volatile boolean closed = false;
   private Thread fetchThread;
   private final FSDataInputStream hdfsInputStream;
-  private volatile int numChunks = -1;
-  private volatile int currentChunkIndex = 0;
+  private int numChunks = -1;
+  private final AtomicInteger currentChunkIndex = new AtomicInteger(0);
 
   public DfsPartitionReader(RssConf conf, String shuffleKey, PartitionLocation location,
     TransportClientFactory clientFactory, int startMapIndex, int endMapIndex) throws IOException {
@@ -59,7 +60,7 @@ public class DfsPartitionReader implements PartitionReader {
     maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
     results = new LinkedBlockingQueue<>();
 
-    List<Long> chunkOffsets = new ArrayList<>();
+    final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
       long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
       try {
@@ -76,27 +77,28 @@ public class DfsPartitionReader implements PartitionReader {
       }
       hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(
         new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
-      getChunkOffsetsFromSortedIndex(conf, location, chunkOffsets, startMapIndex, endMapIndex);
+      chunkOffsets.addAll(getChunkOffsetsFromSortedIndex(conf, location, startMapIndex,
+        endMapIndex));
     } else {
       hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(
         new Path(location.getStorageInfo().getFilePath()));
-      getChunkOffsetsFromUnsortedIndex(conf, location, chunkOffsets);
+      chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
-    numChunks = chunkOffsets.size() - 1;
     if (chunkOffsets.size() > 1) {
+      // numChunk will be -1 if there is no data.
+      numChunks = chunkOffsets.size() - 1;
       fetchThread = new Thread(() -> {
         try {
-          int currentChunkIndex = 0;
-          while (!closed && currentChunkIndex < numChunks) {
+          while (!closed && currentChunkIndex.get() < numChunks) {
             while (results.size() >= maxInFlight) {
               Thread.sleep(50);
             }
-            long offset = chunkOffsets.get(currentChunkIndex);
-            long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
+            long offset = chunkOffsets.get(currentChunkIndex.get());
+            long length = chunkOffsets.get(currentChunkIndex.get() + 1) - offset;
             ByteBuffer buffer = ByteBuffer.allocate((int) length);
             hdfsInputStream.readFully(offset, buffer);
             results.add(Unpooled.wrappedBuffer(buffer));
-            currentChunkIndex++;
+            currentChunkIndex.incrementAndGet();
           }
         } catch (IOException e) {
           exception.set(e);
@@ -108,34 +110,37 @@ public class DfsPartitionReader implements PartitionReader {
     }
   }
 
-  private void getChunkOffsetsFromUnsortedIndex(RssConf conf, PartitionLocation location,
-    List<Long> chunkOffsets) throws IOException {
+  private List<Long> getChunkOffsetsFromUnsortedIndex(RssConf conf, PartitionLocation location)
+    throws IOException {
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(
       new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())));
+    List<Long> offsets = new ArrayList<>();
     int offsetCount = indexInputStream.readInt();
     for (int i = 0; i < offsetCount; i++) {
-      chunkOffsets.add(indexInputStream.readLong());
+      offsets.add(indexInputStream.readLong());
     }
     indexInputStream.close();
+    return offsets;
   }
 
-  private void getChunkOffsetsFromSortedIndex(RssConf conf, PartitionLocation location,
-    List<Long> chunkOffsets, int startMapIndex, int endMapIndex) throws IOException {
+  private List<Long> getChunkOffsetsFromSortedIndex(RssConf conf, PartitionLocation location,
+    int startMapIndex, int endMapIndex) throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
     long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
     // Index size won't be large, so it's safe to do the conversion.
     ByteBuffer indexBuffer = ByteBuffer.allocate((int) indexSize);
     indexInputStream.readFully(0L, indexBuffer);
-    chunkOffsets.addAll(ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(startMapIndex,
-      endMapIndex, chunkSize,
-      ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
+    List<Long> offsets = new ArrayList<>(
+      ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(startMapIndex, endMapIndex,
+        chunkSize, ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
     indexInputStream.close();
+    return offsets;
   }
 
   @Override
   public boolean hasNext() {
-    return currentChunkIndex <= numChunks;
+    return currentChunkIndex.get() <= numChunks;
   }
 
   @Override
