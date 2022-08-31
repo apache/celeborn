@@ -140,7 +140,7 @@ public class DfsPartitionReader implements PartitionReader {
 
   @Override
   public boolean hasNext() {
-    return currentChunkIndex.get() <= numChunks;
+    return currentChunkIndex.get() < numChunks;
   }
 
   @Override
