@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +40,6 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
-import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
@@ -50,8 +48,6 @@ import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
  */
 public final class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
-  public static final String SUFFIX_HDFS_WRITE_SUCCESS = ".success";
-
   private static final long WAIT_INTERVAL_MS = 20;
 
   private final FileInfo fileInfo;
@@ -116,7 +112,7 @@ public final class FileWriter implements DeviceObserver {
     if (!fileInfo.isHdfs()) {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
-      stream = StorageManager.hdfsFs().create(new Path(fileInfo.getFilePath()), true);
+      stream = StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true);
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
@@ -248,16 +244,13 @@ public final class FileWriter implements DeviceObserver {
         }
         if (stream != null) {
           stream.close();
-          String peerPath = Utils.getPeerPath(fileInfo.getFilePath());
-          if (StorageManager.hdfsFs().exists(
-              new Path(peerPath + SUFFIX_HDFS_WRITE_SUCCESS))) {
-            StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
+          if (StorageManager.hdfsFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
+            StorageManager.hdfsFs().delete(fileInfo.getHdfsPath(), false);
             deleted = true;
           } else {
-            StorageManager.hdfsFs().create(
-                new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS)).close();
+            StorageManager.hdfsFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
             FSDataOutputStream indexOutputStream = StorageManager.hdfsFs().create(
-              new Path(Utils.getIndexFilePath(fileInfo.getFilePath())));
+              fileInfo.getHdfsIndexPath());
             indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
             for (Long offset : fileInfo.getChunkOffsets()) {
               indexOutputStream.writeLong(offset);
@@ -293,22 +286,10 @@ public final class FileWriter implements DeviceObserver {
       }
     }
 
-    if (fileInfo.isHdfs()) {
-      try {
-        StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
-        StorageManager.hdfsFs().delete(
-          new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS), false);
-        StorageManager.hdfsFs().delete(
-          new Path(Utils.getIndexFilePath(fileInfo.getFilePath())), false);
-        StorageManager.hdfsFs().delete(
-          new Path(Utils.getSortedFilePath(fileInfo.getFilePath())), false);
-      } catch (Exception e) {
-        logger.warn("clean hdfs file {}", fileInfo.getFilePath());
-      }
-    } else {
-      fileInfo.getFile().delete();
-      new File(Utils.getIndexFilePath(fileInfo.getFilePath())).delete();
-      new File(Utils.getSortedFilePath(fileInfo.getFilePath())).delete();
+    try {
+      fileInfo.deleteAllFiles(StorageManager.hdfsFs());
+    } catch (Exception e) {
+      logger.warn("clean hdfs file {}", fileInfo.getFilePath());
     }
 
     // unregister from DeviceMonitor

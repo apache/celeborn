@@ -461,11 +461,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFile.delete();
         }
       } else {
-        if (StorageManager.hdfsFs().exists(new Path(this.sortedFilePath))) {
-          StorageManager.hdfsFs().delete(new Path(this.sortedFilePath), false);
+        if (StorageManager.hdfsFs().exists(fileInfo.getHdfsSortedPath())) {
+          StorageManager.hdfsFs().delete(fileInfo.getHdfsSortedPath(), false);
         }
-        if (StorageManager.hdfsFs().exists(new Path(this.indexFilePath))) {
-          StorageManager.hdfsFs().delete(new Path(this.indexFilePath), false);
+        if (StorageManager.hdfsFs().exists(fileInfo.getHdfsIndexPath())) {
+          StorageManager.hdfsFs().delete(fileInfo.getHdfsIndexPath(), false);
         }
       }
     }

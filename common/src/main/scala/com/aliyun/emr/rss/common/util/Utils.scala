@@ -823,12 +823,13 @@ object Utils extends Logging {
     }
   }
 
+  val SORTED_SUFFIX = ".sorted"
+  val INDEX_SUFFIX = ".index"
+  val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
+
   def isHdfsPath(path: String): Boolean = {
     path.startsWith("hdfs://")
   }
-
-  val SORTED_SUFFIX = ".sorted"
-  val INDEX_SUFFIX = ".index"
 
   def getSortedFilePath(path: String): String = {
     path + SORTED_SUFFIX
@@ -836,5 +837,9 @@ object Utils extends Logging {
 
   def getIndexFilePath(path: String): String = {
     path + INDEX_SUFFIX
+  }
+
+  def getWriteSuccessFilePath(path: String): String = {
+    path + SUFFIX_HDFS_WRITE_SUCCESS
   }
 }

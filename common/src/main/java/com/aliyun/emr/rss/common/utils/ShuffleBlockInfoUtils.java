@@ -62,7 +62,7 @@ public class ShuffleBlockInfoUtils {
   }
 
   public static Map<Integer, List<ShuffleBlockInfo>>
-  parseShuffleBlockInfosFromByteBuffer(ByteBuffer buffer) {
+    parseShuffleBlockInfosFromByteBuffer(ByteBuffer buffer) {
     Map<Integer, List<ShuffleBlockInfo>> indexMap = new HashMap<>();
     while (buffer.hasRemaining()) {
       int mapId = buffer.getInt();

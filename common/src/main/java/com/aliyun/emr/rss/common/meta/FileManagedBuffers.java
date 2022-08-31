@@ -18,7 +18,6 @@
 package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.BitSet;
 import java.util.List;
 

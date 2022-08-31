@@ -345,9 +345,8 @@ private[worker] final class StorageManager(conf: RssConf, workerSource: Abstract
       }
       if (hdfsInfos.size > 0) {
         for ((_, info) <- hdfsInfos) {
-          StorageManager.hdfsFs.delete(new Path(info.getFilePath), false)
-          StorageManager.hdfsFs.delete(
-            new Path(info.getFilePath + FileWriter.SUFFIX_HDFS_WRITE_SUCCESS), false)
+          StorageManager.hdfsFs.delete(info.getHdfsPath(), false)
+          StorageManager.hdfsFs.delete(info.getHdfsWriterSuccessPath(), false)
         }
       }
     }
