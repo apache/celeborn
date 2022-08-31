@@ -140,7 +140,7 @@ public class FileWriterSuiteJ {
       }
 
       @Override
-      public WorkerSource source() {
+      public WorkerSource workerSource() {
         return source;
       }
 
