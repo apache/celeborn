@@ -581,8 +581,7 @@ private[rss] class NettyRpcHandler(
     val messageLen = message.remaining()
     val clientAddr = RpcAddress(addr.getHostString, addr.getPort)
     val requestMessage = RequestMessage(nettyEnv, client, message)
-      nettyEnv.source.foreach(_.asInstanceOf[RPCSource]
-        .updateMessageMetrics(requestMessage.content, messageLen))
+    nettyEnv.source.foreach(_.updateMessageMetrics(requestMessage.content, messageLen))
     if (requestMessage.senderAddress == null) {
       // Create a new message with the socket address of the client as the sender.
       new RequestMessage(clientAddr, requestMessage.receiver, requestMessage.content)
