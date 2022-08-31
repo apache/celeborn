@@ -823,49 +823,18 @@ object Utils extends Logging {
     }
   }
 
-  def convertStreamHandlerToOffsetAndLength(streamId: Long, numChunks: Int): (Long, Long) = {
-    val bytes = new Array[Byte](12)
-    for (i <- 0 to 7) {
-      bytes(i) = (streamId >> (i * 8)).byteValue()
-    }
-    for (i <- 0 to 3) {
-      bytes(i + 8) = (numChunks >> (i * 8)).byteValue()
-    }
-
-    var (offset, length) = (0L, 0L)
-    for (i <- 0 to 5) {
-      offset = offset | (0xFF.toLong & bytes(i)) << (i * 8)
-      length = length | (0xFF.toLong & bytes(6 + i)) << (i * 8)
-    }
-
-    (offset, length)
-  }
-
-  def convertOffsetLengthToStreamHandler(offset: Long, length: Long): (Long, Int) = {
-    val bytes = new Array[Byte](12)
-    for (i <- 0 to 5) {
-      bytes(i) = (offset >> (i * 8)).byteValue()
-      bytes(i + 6) = (length >> (i * 8)).byteValue()
-    }
-
-    var (streamId, numChunk) = (0L, 0)
-    for (i <- 0 to 7) {
-      streamId = streamId | ((0xFF.toLong & bytes(i)) << (i * 8))
-    }
-    for (i <- 0 to 3) {
-      numChunk = numChunk | ((0xFF & bytes(i + 8)) << (i * 8))
-    }
-
-    (streamId, numChunk)
-  }
-
   def isHdfsPath(path: String): Boolean = {
     path.startsWith("hdfs://")
   }
 
   val SORTED_SUFFIX = ".sorted"
+  val INDEX_SUFFIX = ".index"
 
   def getSortedFilePath(path: String): String = {
     path + SORTED_SUFFIX
+  }
+
+  def getIndexFilePath(path: String): String = {
+    path + INDEX_SUFFIX
   }
 }

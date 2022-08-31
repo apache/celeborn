@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.meta;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
@@ -27,9 +28,9 @@ import com.aliyun.emr.rss.common.util.Utils;
 
 public class FileInfo {
   private final String filePath;
-  private final ArrayList<Long> chunkOffsets;
+  private final List<Long> chunkOffsets;
 
-  public FileInfo(String filePath, ArrayList<Long> chunkOffsets) {
+  public FileInfo(String filePath, List<Long> chunkOffsets) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
   }
@@ -79,7 +80,7 @@ public class FileInfo {
     return Utils.isHdfsPath(filePath);
   }
 
-  public synchronized ArrayList<Long> getChunkOffsets() {
+  public synchronized List<Long> getChunkOffsets() {
     return chunkOffsets;
   }
 

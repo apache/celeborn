@@ -95,11 +95,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
         if (fileInfo.isHdfs) {
-          val (streamId, numChunk) = Utils.convertOffsetLengthToStreamHandler(
-            fileInfo.getChunkOffsets.asScala.head,
-            fileInfo.getChunkOffsets.asScala.last - fileInfo.getChunkOffsets.asScala.head)
-          // reuse stream handler object
-          val streamHandle = new StreamHandle(streamId, numChunk)
+          val streamHandle = new StreamHandle(0, 0)
           client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
             new NioManagedBuffer(streamHandle.toByteBuffer)))
         } else {

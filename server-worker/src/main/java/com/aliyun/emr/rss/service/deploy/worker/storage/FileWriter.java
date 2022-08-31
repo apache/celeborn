@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.buffer.ByteBuf;
@@ -77,7 +76,6 @@ public final class FileWriter implements DeviceObserver {
   private final AbstractSource source; // metrics
 
   private long splitThreshold = 0;
-  private final AtomicBoolean splitted = new AtomicBoolean(false);
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
 
@@ -258,6 +256,13 @@ public final class FileWriter implements DeviceObserver {
           } else {
             StorageManager.hdfsFs().create(
                 new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS)).close();
+            FSDataOutputStream indexOutputStream = StorageManager.hdfsFs().create(
+              new Path(Utils.getIndexFilePath(fileInfo.getFilePath())));
+            indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
+            for (Long offset : fileInfo.getChunkOffsets()) {
+              indexOutputStream.writeLong(offset);
+            }
+            indexOutputStream.close();
           }
         }
       } catch (IOException e) {
@@ -292,26 +297,18 @@ public final class FileWriter implements DeviceObserver {
       try {
         StorageManager.hdfsFs().delete(new Path(fileInfo.getFilePath()), false);
         StorageManager.hdfsFs().delete(
-            new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS), false);
-        if (splitted.get()) {
-          String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
-          String sortedFileStr = Utils.getSortedFilePath(fileInfo.getFilePath());
-          StorageManager.hdfsFs().delete(new Path(indexFileStr), false);
-          StorageManager.hdfsFs().delete(new Path(sortedFileStr), false);
-        }
+          new Path(fileInfo.getFilePath() + SUFFIX_HDFS_WRITE_SUCCESS), false);
+        StorageManager.hdfsFs().delete(
+          new Path(Utils.getIndexFilePath(fileInfo.getFilePath())), false);
+        StorageManager.hdfsFs().delete(
+          new Path(Utils.getSortedFilePath(fileInfo.getFilePath())), false);
       } catch (Exception e) {
         logger.warn("clean hdfs file {}", fileInfo.getFilePath());
       }
     } else {
       fileInfo.getFile().delete();
-      if (splitted.get()) {
-        String indexFileStr = fileInfo.getFilePath() + PartitionFilesSorter.INDEX_SUFFIX;
-        String sortedFileStr = Utils.getSortedFilePath(fileInfo.getFilePath());
-        File indexFile = new File(indexFileStr);
-        File sortedFile = new File(sortedFileStr);
-        indexFile.delete();
-        sortedFile.delete();
-      }
+      new File(Utils.getIndexFilePath(fileInfo.getFilePath())).delete();
+      new File(Utils.getSortedFilePath(fileInfo.getFilePath())).delete();
     }
 
     // unregister from DeviceMonitor
@@ -417,10 +414,6 @@ public final class FileWriter implements DeviceObserver {
         takeBuffer();
       }
     }
-  }
-
-  public void setSplitFlag() {
-    splitted.set(true);
   }
 
   public long getSplitThreshold() {
