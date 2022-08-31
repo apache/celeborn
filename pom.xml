@@ -69,6 +69,7 @@
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
+    <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
     <maven.plugin.scala.version>3.3.2</maven.plugin.scala.version>
     <maven.plugin.scalastyle.version>1.0.0</maven.plugin.scalastyle.version>
     <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
@@ -581,6 +582,31 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.rat</groupId>
+          <artifactId>apache-rat-plugin</artifactId>
+          <version>${maven.plugin.rat.version}</version>
+          <inherited>true</inherited>
+          <executions>
+            <execution>
+              <phase>verify</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+          <configuration>
+            <excludeSubProjects>false</excludeSubProjects>
+            <numUnapprovedLicenses>0</numUnapprovedLicenses>
+            <licenseFamilies>
+              <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
+                <familyName>Apache License 2.0</familyName>
+              </licenseFamily>
+            </licenseFamilies>
+            <excludesFile>.rat-excludes</excludesFile>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
