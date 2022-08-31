@@ -569,7 +569,15 @@ private[deploy] class Master(
   }
 
   def getHostnameList: String = {
-    statusSystem.hostnameSet.asScala.mkString(",")
+    statusSystem.hostnameSet.asScala.mkString("\n")
+  }
+
+  def getApplicationList: String = {
+    statusSystem.appHeartbeatTime.keys().asScala.mkString("\n")
+  }
+
+  def getShuffleList: String = {
+    statusSystem.registeredShuffle.asScala.mkString("\n")
   }
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {

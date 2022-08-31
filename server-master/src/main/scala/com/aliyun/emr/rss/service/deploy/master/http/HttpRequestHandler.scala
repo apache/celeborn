@@ -28,8 +28,9 @@ import com.aliyun.emr.rss.common.metrics.sink.PrometheusHttpRequestHandler
 import com.aliyun.emr.rss.service.deploy.master.Master
 
 @Sharable
-class HttpRequestHandler(val master: Master,
-                         prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
+class HttpRequestHandler(
+    val master: Master,
+    prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
   extends SimpleChannelInboundHandler[FullHttpRequest] with Logging{
 
   private val INVALID = "invalid"
@@ -68,6 +69,10 @@ class HttpRequestHandler(val master: Master,
         master.getThreadDump
       case "/hostnames" =>
         master.getHostnameList
+      case "/applications" =>
+        master.getApplicationList
+      case "/shuffles" =>
+        master.getShuffleList
       case _ => INVALID
     }
   }
