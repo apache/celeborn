@@ -120,7 +120,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
     workerSource.startTimer(WorkerSource.FetchChunkTime, req.toString)
-    rpcSource.updateMessageMetrics(req, req.body().size())
+    rpcSource.updateMessageMetrics(req, 0)
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
