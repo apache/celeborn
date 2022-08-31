@@ -250,7 +250,7 @@ private[deploy] class Worker(
         try {
           val httpServer = new HttpServer(
             new HttpServerInitializer(
-              new HttpRequestHandler(metricsSystem.getPrometheusHandler)), port)
+              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)), port)
           httpServer.start()
           initialized = true
         } catch {
@@ -360,6 +360,10 @@ private[deploy] class Worker(
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
     storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+  }
+
+  def getShuffleList: String = {
+    storageManager.shuffleKeySet().asScala.mkString("\n")
   }
 
   def isRegistered(): Boolean = {
