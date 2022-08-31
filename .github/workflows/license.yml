@@ -22,11 +22,11 @@ name: License check
 on:
   pull_request:
     branches:
-      - master
+      - main
       - branch-*
 
 concurrency:
-  group: lincense-${{ github.ref }}
+  group: license-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
