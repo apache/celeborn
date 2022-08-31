@@ -51,7 +51,7 @@ public class DfsPartitionReader implements PartitionReader {
   private volatile boolean closed = false;
   private Thread fetchThread;
   private final FSDataInputStream hdfsInputStream;
-  private int numChunks = -1;
+  private int numChunks = 0;
   private final AtomicInteger currentChunkIndex = new AtomicInteger(0);
 
   public DfsPartitionReader(RssConf conf, String shuffleKey, PartitionLocation location,
@@ -85,7 +85,6 @@ public class DfsPartitionReader implements PartitionReader {
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
     if (chunkOffsets.size() > 1) {
-      // numChunk will be -1 if there is no data.
       numChunks = chunkOffsets.size() - 1;
       fetchThread = new Thread(() -> {
         try {
