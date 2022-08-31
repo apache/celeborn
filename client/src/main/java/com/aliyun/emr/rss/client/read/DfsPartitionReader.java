@@ -48,7 +48,7 @@ public class DfsPartitionReader implements PartitionReader {
   private final int maxInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
-  private boolean closed = false;
+  private volatile boolean closed = false;
   private Thread fetchThread;
   private final FSDataInputStream hdfsInputStream;
   private int numChunks = -1;
