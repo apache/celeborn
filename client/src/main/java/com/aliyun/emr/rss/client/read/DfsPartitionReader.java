@@ -48,7 +48,7 @@ public class DfsPartitionReader implements PartitionReader {
   private final int maxInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
-  private volatile boolean closed = false;
+  private boolean closed = false;
   private Thread fetchThread;
   private final FSDataInputStream hdfsInputStream;
   private int numChunks = -1;
@@ -170,9 +170,7 @@ public class DfsPartitionReader implements PartitionReader {
 
   @Override
   public void close() {
-    synchronized (this) {
-      closed = true;
-    }
+    closed = true;
     fetchThread.interrupt();
     IOUtils.closeQuietly(hdfsInputStream, null);
     if (results.size() > 0) {
