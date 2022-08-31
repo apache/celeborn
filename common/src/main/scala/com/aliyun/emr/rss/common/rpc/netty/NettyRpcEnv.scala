@@ -33,6 +33,7 @@ import com.google.common.base.Throwables
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.metrics.source.RPCSource
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client._
@@ -58,6 +59,7 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
+  var source: Option[RPCSource] = None
 
   private val transportContext = new TransportContext(transportConf,
     new NettyRpcHandler(dispatcher, this))
@@ -104,10 +106,14 @@ class NettyRpcEnv(
     if (server != null) RpcAddress(host, server.getPort()) else null
   }
 
-  override def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef = {
+  override def setupEndpoint(
+      name: String,
+      endpoint: RpcEndpoint,
+      abstractSource: Option[RPCSource] = None): RpcEndpointRef = {
     if (name == RpcNameConstants.WORKER_EP) {
       worker = endpoint
     }
+    source = abstractSource
     dispatcher.registerRpcEndpoint(name, endpoint)
   }
 
@@ -572,8 +578,11 @@ private[rss] class NettyRpcHandler(
   private def internalReceive(client: TransportClient, message: ByteBuffer): RequestMessage = {
     val addr = client.getChannel().remoteAddress().asInstanceOf[InetSocketAddress]
     assert(addr != null)
+    val messageLen = message.remaining()
     val clientAddr = RpcAddress(addr.getHostString, addr.getPort)
     val requestMessage = RequestMessage(nettyEnv, client, message)
+      nettyEnv.source.foreach(_.asInstanceOf[RPCSource]
+        .updateMessageMetrics(requestMessage.content, messageLen))
     if (requestMessage.senderAddress == null) {
       // Create a new message with the socket address of the client as the sender.
       new RequestMessage(clientAddr, requestMessage.receiver, requestMessage.content)

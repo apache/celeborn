@@ -18,11 +18,11 @@
 package com.aliyun.emr.rss.common.rpc
 
 import java.io.File
-import java.nio.channels.ReadableByteChannel
 
 import scala.concurrent.Future
 
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.metrics.source.RPCSource
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEnvFactory
 import com.aliyun.emr.rss.common.util.RpcUtils
 
@@ -41,12 +41,12 @@ object RpcEnv {
   }
 
   def create(
-              name: String,
-              bindAddress: String,
-              advertiseAddress: String,
-              port: Int,
-              conf: RssConf,
-              numUsableCores: Int): RpcEnv = {
+      name: String,
+      bindAddress: String,
+      advertiseAddress: String,
+      port: Int,
+      conf: RssConf,
+      numUsableCores: Int): RpcEnv = {
     val config = RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port,
       numUsableCores)
     new NettyRpcEnvFactory().create(config)
@@ -81,7 +81,10 @@ abstract class RpcEnv(conf: RssConf) {
    * Register a [[RpcEndpoint]] with a name and return its [[RpcEndpointRef]]. [[RpcEnv]] does not
    * guarantee thread-safety.
    */
-  def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef
+  def setupEndpoint(
+      name: String,
+      endpoint: RpcEndpoint,
+      source: Option[RPCSource] = None): RpcEndpointRef
 
   /**
    * Retrieve the [[RpcEndpointRef]] represented by `uri` asynchronously.
@@ -173,9 +176,9 @@ private[rss] trait RpcEnvFileServer {
 }
 
 private[rss] case class RpcEnvConfig(
-                                      conf: RssConf,
-                                      name: String,
-                                      bindAddress: String,
-                                      advertiseAddress: String,
-                                      port: Int,
-                                      numUsableCores: Int)
+    conf: RssConf,
+    name: String,
+    bindAddress: String,
+    advertiseAddress: String,
+    port: Int,
+    numUsableCores: Int)

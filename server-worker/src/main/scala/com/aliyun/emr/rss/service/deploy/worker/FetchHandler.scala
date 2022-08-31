@@ -28,6 +28,7 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{FileInfo, FileManagedBuffers}
+import com.aliyun.emr.rss.common.metrics.source.RPCSource
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
@@ -39,13 +40,15 @@ import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, S
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var streamManager = new OneForOneStreamManager()
-  var source: WorkerSource = _
+  var workerSource: WorkerSource = _
+  var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
-    this.source = worker.workerSource
+    this.workerSource = worker.workerSource
+    this.rpcSource = worker.rpcSource
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
@@ -83,7 +86,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val startMapIndex = openBlocks.startMapIndex
     val endMapIndex = openBlocks.endMapIndex
     // metrics start
-    source.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
+    workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
 
     if (fileInfo != null) {
@@ -105,18 +108,19 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             Throwables.getStackTraceAsString(new RssException("Chunk offsets meta exception ", e))))
       } finally {
         // metrics end
-        source.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
         request.body().release()
       }
     } else {
-      source.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+      workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
       client.getChannel.writeAndFlush(new RpcFailure(request.requestId,
         Throwables.getStackTraceAsString(new FileNotFoundException)))
     }
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
-    source.startTimer(WorkerSource.FetchChunkTime, req.toString)
+    workerSource.startTimer(WorkerSource.FetchChunkTime, req.toString)
+    rpcSource.updateMessageMetrics(req, req.body().size())
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
@@ -124,7 +128,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     if (chunksBeingTransferred >= conf.maxChunksBeingTransferred) {
       logError(s"The number of chunks being transferred $chunksBeingTransferred" +
         s"is above ${conf.maxChunksBeingTransferred()}.")
-      source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+      workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
     } else {
       try {
         val buf = streamManager.getChunk(req.streamChunkSlice.streamId,
@@ -134,7 +138,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           .addListener(new GenericFutureListener[Future[_ >: Void]] {
             override def operationComplete(future: Future[_ >: Void]): Unit = {
               streamManager.chunkSent(req.streamChunkSlice.streamId)
-              source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+              workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
             }
           })
       } catch {
@@ -143,7 +147,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             s" ${NettyUtils.getRemoteAddress(client.getChannel)}"), e)
           client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
-          source.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+          workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
       }
     }
   }
