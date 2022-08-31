@@ -22,6 +22,8 @@ import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.JavaConverters.asScalaBufferConverter
+
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
@@ -35,6 +37,7 @@ import com.aliyun.emr.rss.common.network.server.BaseMessageHandler
 import com.aliyun.emr.rss.common.network.server.OneForOneStreamManager
 import com.aliyun.emr.rss.common.network.util.NettyUtils
 import com.aliyun.emr.rss.common.network.util.TransportConf
+import com.aliyun.emr.rss.common.util.Utils
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
@@ -90,15 +93,21 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
-        val buffers = new FileManagedBuffers(fileInfo, conf)
-        val streamId = streamManager.registerStream(buffers, client.getChannel)
-        val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
-        if (fileInfo.numChunks() == 0) {
-          logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-            s" $startMapIndex endMapIndex $endMapIndex is empty.")
+        if (fileInfo.isHdfs) {
+          val streamHandle = new StreamHandle(0, 0)
+          client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+            new NioManagedBuffer(streamHandle.toByteBuffer)))
+        } else {
+          val buffers = new FileManagedBuffers(fileInfo, conf)
+          val streamId = streamManager.registerStream(buffers, client.getChannel)
+          val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+          if (fileInfo.numChunks() == 0) {
+            logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
+              s" $startMapIndex endMapIndex $endMapIndex is empty.")
+          }
+          client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+            new NioManagedBuffer(streamHandle.toByteBuffer)))
         }
-        client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
-          new NioManagedBuffer(streamHandle.toByteBuffer)))
       } catch {
         case e: IOException =>
           client.getChannel.writeAndFlush(new RpcFailure(request.requestId,

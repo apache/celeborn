@@ -938,7 +938,7 @@ object RssConf extends Logging {
 
   def hdfsDir(conf: RssConf): String = {
     val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
-    if (hdfsDir.nonEmpty && !hdfsDir.startsWith("hdfs:")) {
+    if (hdfsDir.nonEmpty && Utils.isHdfsPath(hdfsDir)) {
       log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
       ""
     } else {

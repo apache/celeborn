@@ -182,13 +182,13 @@ public abstract class RssInputStream extends InputStream {
 
       StorageInfo storageInfo = location.getStorageInfo();
       if (storageInfo.getType() == StorageInfo.Type.HDD
-              || storageInfo.getType() == StorageInfo.Type.SSD) {
+            || storageInfo.getType() == StorageInfo.Type.SSD) {
         return new WorkerPartitionReader(conf, shuffleKey, location,
-            clientFactory, startMapIndex, endMapIndex);
+          clientFactory, startMapIndex, endMapIndex);
       }
       if (storageInfo.getType() == StorageInfo.Type.HDFS) {
-        // create hdfs partition reader here
-        // return new DfsPartitionReader(conf, location, clientFactory, startMapIndex, endMapIndex);
+        return new DfsPartitionReader(conf, shuffleKey, location, clientFactory,
+          startMapIndex, endMapIndex);
       }
 
       throw new IOException("Unknown storage info " + storageInfo
