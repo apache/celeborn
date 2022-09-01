@@ -47,7 +47,6 @@
     <javaxservlet.version>3.1.0</javaxservlet.version>
     <junit.version>4.12</junit.version>
     <leveldb.version>1.8</leveldb.version>
-    <log4j.version>1.2.17</log4j.version>
     <log4j2.version>2.17.1</log4j2.version>
     <lz4-java.version>1.8.0</lz4-java.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
@@ -62,6 +61,7 @@
     <!--  default hadoop version  -->
     <hadoop.version>3.3.1</hadoop.version>
 
+    <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
@@ -122,11 +122,6 @@
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-log4j12</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.slf4j</groupId>
         <artifactId>jul-to-slf4j</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
@@ -134,11 +129,6 @@
         <groupId>org.slf4j</groupId>
         <artifactId>jcl-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>log4j</groupId>
-        <artifactId>log4j</artifactId>
-        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
@@ -381,6 +371,14 @@
             <groupId>com.thoughtworks.paranamer</groupId>
             <artifactId>paranamer</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>ch.qos.reload4j</groupId>
+            <artifactId>reload4j</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -426,6 +424,26 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>${maven.plugin.antrun.version}</version>
+          <executions>
+            <execution>
+              <id>create-tmp-dir</id>
+              <phase>generate-test-resources</phase>
+              <goals>
+                <goal>run</goal>
+              </goals>
+              <configuration>
+                <target>
+                  <mkdir dir="${project.build.directory}/tmp"/>
+                </target>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven.plugin.surefire.version}</version>
           <!-- Note config is repeated in scalatest config -->
@@ -449,6 +467,7 @@
             </execution>
           </executions>
         </plugin>
+
         <plugin>
           <groupId>org.scalatest</groupId>
           <artifactId>scalatest-maven-plugin</artifactId>
@@ -461,7 +480,18 @@
               </goals>
             </execution>
           </executions>
+          <configuration>
+            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+            <filereports>TestSuite.txt</filereports>
+            <systemProperties>
+              <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
+              <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
+              <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
+              <spark.driver.memory>1g</spark.driver.memory>
+            </systemProperties>
+          </configuration>
         </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
@@ -628,6 +658,11 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>${maven.plugin.jar.version}</version>
         <executions>
@@ -790,42 +825,6 @@
           <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-databind</artifactId>
           <version>${jackson.databind.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>log4j-1</id>
-      <dependencies>
-        <dependency>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>log4j-2</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-api</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-core</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-1.2-api</artifactId>
         </dependency>
       </dependencies>
     </profile>
