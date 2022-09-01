@@ -86,11 +86,11 @@ trait MiniClusterFeature extends Logging {
         new com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler(master, null)
       }
 
-    val httpServer =
-      new HttpServer(
-        RssConf.workerPrometheusMetricHost(conf),
-        RssConf.masterPrometheusMetricPort(conf),
-        new HttpServerInitializer(handlers))
+    val httpServer = new HttpServer(
+      "test-master",
+      RssConf.workerPrometheusMetricHost(conf),
+      RssConf.masterPrometheusMetricPort(conf),
+      new HttpServerInitializer(handlers))
     val channelfuture = httpServer.start()
 
     Thread.sleep(5000L)
