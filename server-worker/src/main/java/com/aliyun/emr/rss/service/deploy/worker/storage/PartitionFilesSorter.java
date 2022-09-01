@@ -152,12 +152,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
       String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
 
-      if (sorted.contains(fileId)) {
-        return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath,
-          startMapIndex, endMapIndex);
-      }
-
       synchronized (sorting) {
+        if (sorted.contains(fileId)) {
+          return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath,
+              startMapIndex, endMapIndex);
+        }
         if (!sorting.contains(fileId)) {
           try {
             FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
@@ -534,7 +533,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } catch (Exception e) {
         logger.error("sort shuffle file {} error", originFilePath, e);
       } finally {
-        sortingShuffleFiles.get(shuffleKey).remove(fileId);
+        Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
+        synchronized (sorting) {
+          sorting.remove(fileId);
+        }
         closeFiles();
       }
     }
