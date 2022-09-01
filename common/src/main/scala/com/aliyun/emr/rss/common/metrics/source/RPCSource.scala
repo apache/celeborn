@@ -38,8 +38,8 @@ class RPCSource(rssConf: RssConf)
   addCounter(RPCDestroySize)
   addCounter(RPCPushDataNum)
   addCounter(RPCPushDataSize)
-  addCounter(RPCPushMergeDataNum)
-  addCounter(RPCPushMergeDataSize)
+  addCounter(RPCPushMergedDataNum)
+  addCounter(RPCPushMergedDataSize)
   addCounter(RPCChunkFetchRequestNum)
 
 
@@ -58,8 +58,8 @@ class RPCSource(rssConf: RssConf)
         incCounter(RPCPushDataNum)
         incCounter(RPCPushDataSize, messageLen)
       case _: PushMergedData =>
-        incCounter(RPCPushMergeDataNum)
-        incCounter(RPCPushMergeDataSize, messageLen)
+        incCounter(RPCPushMergedDataNum)
+        incCounter(RPCPushMergedDataSize, messageLen)
       case _: ChunkFetchRequest =>
         incCounter(RPCChunkFetchRequestNum)
       case _ => // Do nothing
@@ -77,7 +77,7 @@ object RPCSource {
   val RPCDestroySize = "RPCDestroySize"
   val RPCPushDataNum = "RPCPushDataNum"
   val RPCPushDataSize = "RPCPushDataSize"
-  val RPCPushMergeDataNum = "RPCPushMergeDataNum"
-  val RPCPushMergeDataSize = "RPCPushMergeDataSize"
+  val RPCPushMergedDataNum = "RPCPushMergedDataNum"
+  val RPCPushMergedDataSize = "RPCPushMergedDataSize"
   val RPCChunkFetchRequestNum = "RPCChunkFetchRequestNum"
 }

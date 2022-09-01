@@ -759,7 +759,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           dataClientFactory.createClient(host, port);
       client.pushMergedData(mergedData, wrappedCallback);
     } catch (Exception e) {
-      logger.warn("PushMergeData failed", e);
+      logger.warn("PushMergedData failed", e);
       wrappedCallback.onFailure(
         new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
     }
