@@ -23,7 +23,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback
 import com.aliyun.emr.rss.common.rpc.{RpcAddress, RpcCallContext}
 
-private[rss] abstract class NettyRpcCallContext(override val senderAddress: RpcAddress)
+abstract private[rss] class NettyRpcCallContext(override val senderAddress: RpcAddress)
   extends RpcCallContext with Logging {
 
   protected def send(message: Any): Unit

@@ -48,8 +48,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReleaseSlots(String shuffleKey, List<String> workerIds,
-      List<Map<String, Integer>> slotStrings, String requestId) {
+  public void handleReleaseSlots(
+      String shuffleKey,
+      List<String> workerIds,
+      List<Map<String, Integer>> slotStrings,
+      String requestId) {
     updateReleaseSlotsMeta(shuffleKey, workerIds, slotStrings);
   }
 
@@ -60,11 +63,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppHeartbeat(
-      String appId,
-      long totalWritten,
-      long fileCount,
-      long time,
-      String requestId) {
+      String appId, long totalWritten, long fileCount, long time, String requestId) {
     updateAppHeartBeatMeta(appId, time, totalWritten, fileCount);
   }
 
@@ -74,26 +73,39 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerLost(String host, int rpcPort,
-      int pushPort, int fetchPort, int replicatePort, String requestId) {
+  public void handleWorkerLost(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
   @Override
-  public void handleWorkerRemove(String host, int rpcPort,
-      int pushPort, int fetchPort, int replicatePort, String requestId) {
+  public void handleWorkerRemove(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
   @Override
-  public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-      int replicatePort, Map<String, DiskInfo> disks, long time, String requestId) {
+  public void handleWorkerHeartBeat(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      long time,
+      String requestId) {
     updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
   }
 
   @Override
-  public void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
-      int replicatePort, Map<String, DiskInfo> disks, String requestId) {
+  public void handleRegisterWorker(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      String requestId) {
     updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks);
   }
 

@@ -20,14 +20,10 @@ package com.aliyun.emr.rss.common.network.server;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.protocol.RequestMessage;
 
-/**
- * Handler for sendRPC() messages sent by {@link TransportClient}s.
- */
+/** Handler for sendRPC() messages sent by {@link TransportClient}s. */
 public class BaseMessageHandler {
 
-  public void receive(
-    TransportClient client,
-    RequestMessage msg) {
+  public void receive(TransportClient client, RequestMessage msg) {
     throw new UnsupportedOperationException();
   }
 
@@ -35,16 +31,14 @@ public class BaseMessageHandler {
     throw new UnsupportedOperationException();
   }
 
-  /**
-   * Invoked when the channel associated with the given client is active.
-   */
-  public void channelActive(TransportClient client) { }
+  /** Invoked when the channel associated with the given client is active. */
+  public void channelActive(TransportClient client) {}
 
   /**
-   * Invoked when the channel associated with the given client is inactive.
-   * No further requests will come from this client.
+   * Invoked when the channel associated with the given client is inactive. No further requests will
+   * come from this client.
    */
-  public void channelInactive(TransportClient client) { }
+  public void channelInactive(TransportClient client) {}
 
-  public void exceptionCaught(Throwable cause, TransportClient client) { }
+  public void exceptionCaught(Throwable cause, TransportClient client) {}
 }

@@ -25,9 +25,7 @@ import com.google.common.base.Objects;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 
-/**
- * A {@link ManagedBuffer} backed by {@link ByteBuffer}.
- */
+/** A {@link ManagedBuffer} backed by {@link ByteBuffer}. */
 public class NioManagedBuffer extends ManagedBuffer {
   private final ByteBuffer buf;
 
@@ -67,9 +65,6 @@ public class NioManagedBuffer extends ManagedBuffer {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-      .add("buf", buf)
-      .toString();
+    return Objects.toStringHelper(this).add("buf", buf).toString();
   }
 }
-

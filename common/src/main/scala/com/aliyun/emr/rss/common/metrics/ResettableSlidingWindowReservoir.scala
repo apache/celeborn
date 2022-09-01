@@ -48,7 +48,7 @@ class ResettableSlidingWindowReservoir(size: Int) extends Reservoir {
   override def getSnapshot: Snapshot = {
     val values = new Array[Long](size())
     this.synchronized {
-      0 until values.length foreach(idx => values(idx) = measurements(idx))
+      0 until values.length foreach (idx => values(idx) = measurements(idx))
     }
     new UniformSnapshot(values)
   }

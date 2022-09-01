@@ -38,7 +38,7 @@ public class FileInfo {
     this.chunkOffsets = chunkOffsets;
   }
 
-  public FileInfo(String filePath){
+  public FileInfo(String filePath) {
     this.filePath = filePath;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
@@ -75,7 +75,7 @@ public class FileInfo {
     return new File(filePath);
   }
 
-  public String getFilePath(){
+  public String getFilePath() {
     return filePath;
   }
 
@@ -120,7 +120,7 @@ public class FileInfo {
     }
   }
 
-  public boolean isHdfs(){
+  public boolean isHdfs() {
     return Utils.isHdfsPath(filePath);
   }
 
@@ -130,9 +130,11 @@ public class FileInfo {
 
   @Override
   public String toString() {
-    return "FileInfo{" +
-             "file=" + filePath +
-             ", chunkOffsets=" + StringUtils.join(this.chunkOffsets, ",") +
-             '}';
+    return "FileInfo{"
+        + "file="
+        + filePath
+        + ", chunkOffsets="
+        + StringUtils.join(this.chunkOffsets, ",")
+        + '}';
   }
 }

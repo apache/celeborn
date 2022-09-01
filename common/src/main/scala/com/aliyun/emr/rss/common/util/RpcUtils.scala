@@ -33,20 +33,17 @@ private[rss] object RpcUtils {
   }
 
   def haClientAskRpcTimeout(conf: RssConf): RpcTimeout = {
-    RpcTimeout(conf, Seq("rss.haclient.rpc.askTimeout",
-      "rss.network.timeout"), "30s")
+    RpcTimeout(conf, Seq("rss.haclient.rpc.askTimeout", "rss.network.timeout"), "30s")
   }
 
   /** Returns the default Spark timeout to use for RPC ask operations. */
   def askRpcTimeout(conf: RssConf): RpcTimeout = {
-    RpcTimeout(conf, Seq("rss.rpc.askTimeout",
-      "rss.network.timeout"), "240s")
+    RpcTimeout(conf, Seq("rss.rpc.askTimeout", "rss.network.timeout"), "240s")
   }
 
   /** Returns the default Spark timeout to use for RPC remote endpoint lookup. */
   def lookupRpcTimeout(conf: RssConf): RpcTimeout = {
-    RpcTimeout(conf, Seq("rss.rpc.lookupTimeout",
-      "rss.network.timeout"), "30s")
+    RpcTimeout(conf, Seq("rss.rpc.lookupTimeout", "rss.network.timeout"), "30s")
   }
 
   private val MAX_MESSAGE_SIZE_IN_MB = Int.MaxValue / 1024 / 1024

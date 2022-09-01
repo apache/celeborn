@@ -31,7 +31,7 @@ import com.aliyun.emr.rss.service.deploy.master.Master
 class HttpRequestHandler(
     val master: Master,
     prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
-  extends SimpleChannelInboundHandler[FullHttpRequest] with Logging{
+  extends SimpleChannelInboundHandler[FullHttpRequest] with Logging {
 
   private val INVALID = "invalid"
 
@@ -55,8 +55,7 @@ class HttpRequestHandler(
     val res = new DefaultFullHttpResponse(
       HttpVersion.HTTP_1_1,
       HttpResponseStatus.OK,
-      Unpooled.copiedBuffer(response, CharsetUtil.UTF_8)
-    )
+      Unpooled.copiedBuffer(response, CharsetUtil.UTF_8))
     res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8");
     ctx.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE);
   }

@@ -34,7 +34,7 @@ import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 /**
  * LevelDB utility class available in the network package.
  *
- * Note: code copied from Apache Spark's LevelDBProvider.
+ * <p>Note: code copied from Apache Spark's LevelDBProvider.
  */
 public class LevelDBProvider {
   private static final Logger logger = LoggerFactory.getLogger(LevelDBProvider.class);
@@ -59,8 +59,11 @@ public class LevelDBProvider {
         } else {
           // the leveldb file seems to be corrupt somehow.  Lets just blow it away and create a new
           // one, so we can keep processing new apps
-          logger.error("error opening leveldb file {}.  Creating new file, will not be able to " +
-              "recover state for existing applications", dbFile, e);
+          logger.error(
+              "error opening leveldb file {}.  Creating new file, will not be able to "
+                  + "recover state for existing applications",
+              dbFile,
+              e);
           if (dbFile.isDirectory()) {
             for (File f : dbFile.listFiles()) {
               if (!f.delete()) {
@@ -77,7 +80,6 @@ public class LevelDBProvider {
           } catch (NativeDB.DBException dbExc) {
             throw new IOException("Unable to create recover store", dbExc);
           }
-
         }
       }
       // if there is a version mismatch, we throw an exception, which means the service is unusable
@@ -96,12 +98,11 @@ public class LevelDBProvider {
   }
 
   /**
-   * Simple major.minor versioning scheme.  Any incompatible changes should be across major
-   * versions.  Minor version differences are allowed -- meaning we should be able to read
-   * dbs that are either earlier *or* later on the minor version.
+   * Simple major.minor versioning scheme. Any incompatible changes should be across major versions.
+   * Minor version differences are allowed -- meaning we should be able to read dbs that are either
+   * earlier *or* later on the minor version.
    */
-  public static void checkVersion(DB db, StoreVersion newversion) throws
-      IOException {
+  public static void checkVersion(DB db, StoreVersion newversion) throws IOException {
     byte[] bytes = db.get(StoreVersion.KEY);
     if (bytes == null) {
       storeVersion(db, newversion);
@@ -109,15 +110,18 @@ public class LevelDBProvider {
       ArrayList<Integer> versions = PBSerDeUtils.fromPbStoreVersion(bytes);
       StoreVersion version = new StoreVersion(versions.get(0), versions.get(1));
       if (version.major != newversion.major) {
-        throw new IOException("cannot read state DB with version " + version + ", incompatible " +
-            "with current version " + newversion);
+        throw new IOException(
+            "cannot read state DB with version "
+                + version
+                + ", incompatible "
+                + "with current version "
+                + newversion);
       }
       storeVersion(db, newversion);
     }
   }
 
-  public static void storeVersion(DB db, StoreVersion version)
-      throws IOException {
+  public static void storeVersion(DB db, StoreVersion version) throws IOException {
     db.put(StoreVersion.KEY, PBSerDeUtils.toPbStoreVersion(version.major, version.minor));
   }
 

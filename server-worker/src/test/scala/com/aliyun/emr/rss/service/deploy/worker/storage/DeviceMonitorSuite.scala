@@ -18,8 +18,8 @@
 package com.aliyun.emr.rss.service.deploy.worker.storage
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{ArrayList => jArrayList}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters.{bufferAsJavaListConverter, _}
 import scala.collection.mutable.ListBuffer
@@ -68,15 +68,15 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
   val storageManager = mock[DeviceObserver]
   var (deviceInfos, diskInfos, workingDirDiskInfos): (
-    java.util.Map[String, DeviceInfo],
+      java.util.Map[String, DeviceInfo],
       java.util.Map[String, DiskInfo],
-      java.util.Map[String, DiskInfo]
-    ) = (null, null, null)
+      java.util.Map[String, DiskInfo]) = (null, null, null)
 
   withObjectMocked[com.aliyun.emr.rss.common.util.Utils.type] {
     when(Utils.runCommand(dfCmd)) thenReturn dfOut
     when(Utils.runCommand(lsCmd)) thenReturn lsOut
-    val (tdeviceInfos, tdiskInfos) = DeviceInfo.getDeviceAndDiskInfos(dirs.asScala.toArray.map(f => (f, Long.MaxValue, 1, StorageInfo.Type.HDD)))
+    val (tdeviceInfos, tdiskInfos) = DeviceInfo.getDeviceAndDiskInfos(dirs.asScala.toArray.map(f =>
+      (f, Long.MaxValue, 1, StorageInfo.Type.HDD)))
     deviceInfos = tdeviceInfos
     diskInfos = tdiskInfos
   }
@@ -102,28 +102,22 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos.size, 1)
 
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos.containsKey("/mnt/disk1")
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos.containsKey("/mnt/disk1"))
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos.containsKey("/mnt/disk2")
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos.containsKey("/mnt/disk2"))
 
       assertEquals(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos.get("/mnt/disk1").dirs(0),
-        new File("/mnt/disk1/data1")
-      )
+        new File("/mnt/disk1/data1"))
       assertEquals(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).diskInfos.get("/mnt/disk1").dirs(1),
-        new File("/mnt/disk1/data2")
-      )
+        new File("/mnt/disk1/data2"))
       assertEquals(
         deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos.get("/mnt/disk2").dirs(0),
-        new File("/mnt/disk2/data3")
-      )
+        new File("/mnt/disk2/data3"))
       assertEquals(
         deviceMonitor.observedDevices.get(vdbDeviceInfo).diskInfos.get("/mnt/disk2").dirs(1),
-        new File("/mnt/disk2/data4")
-      )
+        new File("/mnt/disk2/data4"))
 
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 1)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 1)
@@ -159,13 +153,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(fw1))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(fw2))
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(fw3))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(fw4))
 
@@ -174,12 +166,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(fw2))
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(fw4))
 
       val df1 = mock[LocalFlusher]
@@ -204,13 +194,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df1))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df3))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
@@ -219,12 +207,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
       when(fw2.notifyError("vda", DiskStatus.IoHang))
@@ -253,12 +239,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
       deviceMonitor.registerFileWriter(fw1)
@@ -280,8 +264,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.IoHang)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
       assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
 
       when(fw3.notifyError(any(), any()))
@@ -295,8 +278,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.IoHang)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
       assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager)
-      )
+        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
     }
   }

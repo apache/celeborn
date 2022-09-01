@@ -22,23 +22,23 @@ import io.netty.channel.Channel;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 
 /**
- * The StreamManager is used to fetch individual chunks from a stream. This is used in
- * {@link TransportRequestHandler} in order to respond to fetchChunk() requests. Creation of the
- * stream is outside the scope of the transport layer, but a given stream is guaranteed to be read
- * by only one client connection, meaning that getChunk() for a particular stream will be called
- * serially and that once the connection associated with the stream is closed, that stream will
- * never be used again.
+ * The StreamManager is used to fetch individual chunks from a stream. This is used in {@link
+ * TransportRequestHandler} in order to respond to fetchChunk() requests. Creation of the stream is
+ * outside the scope of the transport layer, but a given stream is guaranteed to be read by only one
+ * client connection, meaning that getChunk() for a particular stream will be called serially and
+ * that once the connection associated with the stream is closed, that stream will never be used
+ * again.
  */
 public abstract class StreamManager {
   /**
    * Called in response to a fetchChunk() request. The returned buffer will be passed as-is to the
-   * client. A single stream will be associated with a single TCP connection, so this method
-   * will not be called in parallel for a particular stream.
+   * client. A single stream will be associated with a single TCP connection, so this method will
+   * not be called in parallel for a particular stream.
    *
-   * Chunks may be requested in any order, and requests may be repeated, but it is not required
+   * <p>Chunks may be requested in any order, and requests may be repeated, but it is not required
    * that implementations support this behavior.
    *
-   * The returned ManagedBuffer will be release()'d after being written to the network.
+   * <p>The returned ManagedBuffer will be release()'d after being written to the network.
    *
    * @param streamId id of a stream that has been previously registered with the StreamManager.
    * @param chunkIndex 0-indexed chunk of the stream that's requested
@@ -46,11 +46,11 @@ public abstract class StreamManager {
   public abstract ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len);
 
   /**
-   * Called in response to a stream() request. The returned data is streamed to the client
-   * through a single TCP connection.
+   * Called in response to a stream() request. The returned data is streamed to the client through a
+   * single TCP connection.
    *
-   * Note the <code>streamId</code> argument is not related to the similarly named argument in the
-   * {@link #getChunk(long, int, int, int)} method.
+   * <p>Note the <code>streamId</code> argument is not related to the similarly named argument in
+   * the {@link #getChunk(long, int, int, int)} method.
    *
    * @param streamId id of a stream that has been previously registered with the StreamManager.
    * @return A managed buffer for the stream, or null if the stream was not found.
@@ -63,33 +63,22 @@ public abstract class StreamManager {
    * Indicates that the given channel has been terminated. After this occurs, we are guaranteed not
    * to read from the associated streams again, so any state can be cleaned up.
    */
-  public void connectionTerminated(Channel channel) { }
+  public void connectionTerminated(Channel channel) {}
 
-  /**
-   * Return the number of chunks being transferred and not finished yet in this StreamManager.
-   */
+  /** Return the number of chunks being transferred and not finished yet in this StreamManager. */
   public long chunksBeingTransferred() {
     return 0;
   }
 
-  /**
-   * Called when start sending a chunk.
-   */
-  public void chunkBeingSent(long streamId) { }
+  /** Called when start sending a chunk. */
+  public void chunkBeingSent(long streamId) {}
 
-  /**
-   * Called when start sending a stream.
-   */
-  public void streamBeingSent(String streamId) { }
+  /** Called when start sending a stream. */
+  public void streamBeingSent(String streamId) {}
 
-  /**
-   * Called when a chunk is successfully sent.
-   */
-  public void chunkSent(long streamId) { }
+  /** Called when a chunk is successfully sent. */
+  public void chunkSent(long streamId) {}
 
-  /**
-   * Called when a stream is successfully sent.
-   */
-  public void streamSent(String streamId) { }
-
+  /** Called when a stream is successfully sent. */
+  public void streamSent(String streamId) {}
 }

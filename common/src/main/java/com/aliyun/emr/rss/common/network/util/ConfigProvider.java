@@ -53,5 +53,4 @@ public abstract class ConfigProvider {
   public boolean getBoolean(String name, boolean defaultValue) {
     return Boolean.parseBoolean(get(name, Boolean.toString(defaultValue)));
   }
-
 }

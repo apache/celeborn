@@ -27,9 +27,7 @@ public class NodeDetails {
   private int rpcPort;
   private int ratisPort;
 
-  /**
-   * Constructs MasterNodeDetails object.
-   */
+  /** Constructs MasterNodeDetails object. */
   private NodeDetails(
       String serviceId, String nodeId, InetSocketAddress rpcAddr, int rpcPort, int ratisPort) {
     this.serviceId = serviceId;
@@ -42,17 +40,20 @@ public class NodeDetails {
   @Override
   public String toString() {
     return "MasterNodeDetails["
-        + "serviceId=" + serviceId +
-        ", nodeId=" + nodeId +
-        ", rpcAddress=" + rpcAddress +
-        ", rpcPort=" + rpcPort +
-        ", ratisPort=" + ratisPort +
-        "]";
+        + "serviceId="
+        + serviceId
+        + ", nodeId="
+        + nodeId
+        + ", rpcAddress="
+        + rpcAddress
+        + ", rpcPort="
+        + rpcPort
+        + ", ratisPort="
+        + ratisPort
+        + "]";
   }
 
-  /**
-   * Builder class for MasterNodeDetails.
-   */
+  /** Builder class for MasterNodeDetails. */
   public static class Builder {
     private String serviceId;
     private String nodeId;
@@ -112,9 +113,7 @@ public class NodeDetails {
 
   public String getRatisHostPortStr() {
     StringBuilder hostPort = new StringBuilder();
-    hostPort.append(getHostName())
-        .append(":")
-        .append(ratisPort);
+    hostPort.append(getHostName()).append(":").append(ratisPort);
     return hostPort.toString();
   }
 

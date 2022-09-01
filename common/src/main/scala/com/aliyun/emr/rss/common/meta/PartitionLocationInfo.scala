@@ -43,7 +43,7 @@ class PartitionLocationInfo extends Logging {
 
   def containsShuffle(shuffleKey: String): Boolean = this.synchronized {
     masterPartitionLocations.containsKey(shuffleKey) ||
-      slavePartitionLocations.containsKey(shuffleKey)
+    slavePartitionLocations.containsKey(shuffleKey)
   }
 
   def addMasterPartition(shuffleKey: String, location: PartitionLocation): Int = {
@@ -111,14 +111,14 @@ class PartitionLocationInfo extends Logging {
   }
 
   def removeMasterPartitions(
-    shuffleKey: String,
-    uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
+      shuffleKey: String,
+      uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
     removePartitions(shuffleKey, uniqueIds, masterPartitionLocations)
   }
 
   def removeSlavePartitions(
-    shuffleKey: String,
-    uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
+      shuffleKey: String,
+      uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
     removePartitions(shuffleKey, uniqueIds, slavePartitionLocations)
   }
 
@@ -149,7 +149,8 @@ class PartitionLocationInfo extends Logging {
   }
 
   def getLocationWithMaxEpoch(
-      shuffleKey: String, partitionId: Int): Option[PartitionLocation] = this.synchronized {
+      shuffleKey: String,
+      partitionId: Int): Option[PartitionLocation] = this.synchronized {
     if (!masterPartitionLocations.containsKey(shuffleKey) ||
       !masterPartitionLocations.get(shuffleKey).containsKey(partitionId)) {
       return None
@@ -174,8 +175,7 @@ class PartitionLocationInfo extends Logging {
       location: PartitionLocation,
       partitionInfo: PartitionInfo): Int = this.synchronized {
     if (location != null) {
-      partitionInfo.putIfAbsent(shuffleKey,
-        new util.HashMap[Int, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       reduceLocMap.putIfAbsent(location.getId, new util.ArrayList[PartitionLocation]())
       val locations = reduceLocMap.get(location.getId)
@@ -191,8 +191,7 @@ class PartitionLocationInfo extends Logging {
       locations: util.List[PartitionLocation],
       partitionInfo: PartitionInfo): Unit = this.synchronized {
     if (locations != null && locations.size() > 0) {
-      partitionInfo.putIfAbsent(shuffleKey,
-        new util.HashMap[Int, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
         reduceLocMap.putIfAbsent(loc.getId, new util.ArrayList[PartitionLocation]())
@@ -203,16 +202,15 @@ class PartitionLocationInfo extends Logging {
   }
 
   /**
-   *
    * @param shuffleKey
    * @param uniqueIds
    * @param partitionInfo
    * @return disk related freed slot number and total freed slots number
    */
   private def removePartitions(
-    shuffleKey: String,
-    uniqueIds: util.Collection[String],
-    partitionInfo: PartitionInfo): (util.Map[String, Integer], Integer) = this.synchronized {
+      shuffleKey: String,
+      uniqueIds: util.Collection[String],
+      partitionInfo: PartitionInfo): (util.Map[String, Integer], Integer) = this.synchronized {
     if (!partitionInfo.containsKey(shuffleKey)) {
       return (Map.empty[String, Integer].asJava, 0)
     }
@@ -235,8 +233,7 @@ class PartitionLocationInfo extends Logging {
               override def apply(t: String, u: Integer): Integer = {
                 if (u == null) 1 else u + 1
               }
-            }
-          )
+            })
         }
       }
       if (locations == null || locations.size() == 0) {
@@ -307,9 +304,9 @@ class PartitionLocationInfo extends Logging {
 
   override def toString: String = this.synchronized {
     s"""
-      | Partition Location Info:
-      | master: ${masterPartitionLocations.asScala}
-      | slave: ${slavePartitionLocations.asScala}
-      |""".stripMargin
+       | Partition Location Info:
+       | master: ${masterPartitionLocations.asScala}
+       | slave: ${slavePartitionLocations.asScala}
+       |""".stripMargin
   }
 }

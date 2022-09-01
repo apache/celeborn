@@ -74,17 +74,18 @@ public class OneForOneStreamManager extends StreamManager {
   public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
     StreamState state = streams.get(streamId);
     if (state == null) {
-      throw new IllegalStateException(String.format(
-        "Stream %s for chunk %s is not registered(Maybe removed).", streamId, chunkIndex));
+      throw new IllegalStateException(
+          String.format(
+              "Stream %s for chunk %s is not registered(Maybe removed).", streamId, chunkIndex));
     } else if (chunkIndex >= state.buffers.numChunks()) {
-      throw new IllegalStateException(String.format(
-        "Requested chunk index beyond end %s", chunkIndex));
+      throw new IllegalStateException(
+          String.format("Requested chunk index beyond end %s", chunkIndex));
     }
 
     FileManagedBuffers buffers = state.buffers;
     if (buffers.hasAlreadyRead(chunkIndex)) {
-      throw new IllegalStateException(String.format(
-          "Chunk %s for stream %s has already been read.", chunkIndex, streamId));
+      throw new IllegalStateException(
+          String.format("Chunk %s for stream %s has already been read.", chunkIndex, streamId));
     }
     ManagedBuffer nextChunk = buffers.chunk(chunkIndex, offset, len);
 
@@ -107,8 +108,7 @@ public class OneForOneStreamManager extends StreamManager {
   // stream.
   public static Pair<Long, Integer> parseStreamChunkId(String streamChunkId) {
     String[] array = streamChunkId.split("_");
-    assert array.length == 2:
-      "Stream id and chunk index should be specified.";
+    assert array.length == 2 : "Stream id and chunk index should be specified.";
     long streamId = Long.valueOf(array[0]);
     int chunkIndex = Integer.valueOf(array[1]);
     return ImmutablePair.of(streamId, chunkIndex);
@@ -117,7 +117,7 @@ public class OneForOneStreamManager extends StreamManager {
   @Override
   public void connectionTerminated(Channel channel) {
     // Close all streams which have been associated with the channel.
-    for (Map.Entry<Long, StreamState> entry: streams.entrySet()) {
+    for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
       StreamState state = entry.getValue();
       if (state.associatedChannel == channel) {
         streams.remove(entry.getKey());
@@ -154,7 +154,7 @@ public class OneForOneStreamManager extends StreamManager {
   @Override
   public long chunksBeingTransferred() {
     long sum = 0L;
-    for (StreamState streamState: streams.values()) {
+    for (StreamState streamState : streams.values()) {
       sum += streamState.chunksBeingTransferred;
     }
     return sum;
@@ -166,12 +166,12 @@ public class OneForOneStreamManager extends StreamManager {
    * client connection is closed before the iterator is fully drained, then the remaining buffers
    * will all be release()'d.
    *
-   * If an app ID is provided, only callers who've authenticated with the given app ID will be
+   * <p>If an app ID is provided, only callers who've authenticated with the given app ID will be
    * allowed to fetch from this stream.
    *
-   * This method also associates the stream with a single client connection, which is guaranteed
-   * to be the only reader of the stream. Once the connection is closed, the stream will never
-   * be used again, enabling cleanup by `connectionTerminated`.
+   * <p>This method also associates the stream with a single client connection, which is guaranteed
+   * to be the only reader of the stream. Once the connection is closed, the stream will never be
+   * used again, enabling cleanup by `connectionTerminated`.
    */
   public long registerStream(FileManagedBuffers buffers, Channel channel) {
     long myStreamId = nextStreamId.getAndIncrement();

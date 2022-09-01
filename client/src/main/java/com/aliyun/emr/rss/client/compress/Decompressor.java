@@ -26,8 +26,10 @@ public interface Decompressor {
   int getOriginalLen(byte[] src);
 
   default int readIntLE(byte[] buf, int i) {
-    return (buf[i] & 0xFF) | ((buf[i + 1] & 0xFF) << 8) |
-            ((buf[i + 2] & 0xFF) << 16) | ((buf[i + 3] & 0xFF) << 24);
+    return (buf[i] & 0xFF)
+        | ((buf[i + 1] & 0xFF) << 8)
+        | ((buf[i + 2] & 0xFF) << 16)
+        | ((buf[i + 3] & 0xFF) << 24);
   }
 
   static Decompressor getDecompressor(RssConf conf) {

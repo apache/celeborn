@@ -22,7 +22,7 @@ import java.nio.channels.FileChannel
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.FSDataOutputStream
 
-private[worker] abstract class FlushTask(
+abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,
     val notifier: FlushNotifier) {
   def flush(): Unit

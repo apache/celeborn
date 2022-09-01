@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
 import javax.annotation.Nullable;
 
 import scala.Tuple2;
@@ -81,8 +82,7 @@ public class RssHARetryClient {
 
   public static Tuple2<String, Long> decodeRequestId(String requestId) {
     if (requestId.contains(SPLITER)) {
-      return new Tuple2<>(requestId.split(SPLITER)[0],
-          Long.valueOf(requestId.split(SPLITER)[1]));
+      return new Tuple2<>(requestId.split(SPLITER)[0], Long.valueOf(requestId.split(SPLITER)[1]));
     } else {
       return null;
     }
@@ -93,8 +93,9 @@ public class RssHARetryClient {
   }
 
   /**
-   * For message sent by Master itself like ApplicationLost or WorkerLost,
-   * we should set requestId manually.
+   * For message sent by Master itself like ApplicationLost or WorkerLost, we should set requestId
+   * manually.
+   *
    * @return
    */
   public static String genRequestId() {
@@ -106,13 +107,14 @@ public class RssHARetryClient {
     // switched, we must adopt a synchronous method, but for a one-way message, we don’t care
     // whether it can be sent successfully, so we adopt an asynchronous method. Therefore, we
     // choose to use one Thread pool to use synchronization.
-    oneWayMessageSender.submit(() -> {
-      try {
-        sendMessageInner(message, OneWayMessageResponse$.class);
-      } catch (Throwable e) {
-        LOG.warn("Exception occurs while send one-way message.", e);
-      }
-    });
+    oneWayMessageSender.submit(
+        () -> {
+          try {
+            sendMessageInner(message, OneWayMessageResponse$.class);
+          } catch (Throwable e) {
+            LOG.warn("Exception occurs while send one-way message.", e);
+          }
+        });
     LOG.debug("Send one-way message {}.", message);
   }
 
@@ -130,8 +132,8 @@ public class RssHARetryClient {
     int numTries = 0;
     boolean shouldRetry = true;
     if (message instanceof MasterRequestMessage) {
-      ((MasterRequestMessage) message).requestId_(
-          encodeRequestId(UUID.randomUUID().toString(), nextCallId()));
+      ((MasterRequestMessage) message)
+          .requestId_(encodeRequestId(UUID.randomUUID().toString(), nextCallId()));
     }
 
     LOG.debug("Send rpc message " + message);
@@ -152,8 +154,8 @@ public class RssHARetryClient {
         if (shouldRetry) {
           numTries++;
 
-          Uninterruptibles.sleepUninterruptibly(Math.min(numTries * 100L, sleepLimitTime),
-              TimeUnit.MILLISECONDS);
+          Uninterruptibles.sleepUninterruptibly(
+              Math.min(numTries * 100L, sleepLimitTime), TimeUnit.MILLISECONDS);
         }
       }
     }
@@ -200,21 +202,21 @@ public class RssHARetryClient {
   /**
    * This method is used to obtain a non-empty RpcEndpointRef.
    *
-   * First, determine whether the global `rpcEndpointRef` is empty, and if it is not empty, return
-   * directly.
+   * <p>First, determine whether the global `rpcEndpointRef` is empty, and if it is not empty,
+   * return directly.
    *
-   * When `rpcEndpointRef` is empty, we need to assign a value to it and return this value; but
+   * <p>When `rpcEndpointRef` is empty, we need to assign a value to it and return this value; but
    * because it is a multi-threaded environment, we need to ensure that the old value is still empty
    * when setting the value of `rpcEndpointRef`, otherwise we should use the new value of
    * `rpcEndpointRef`. Only if the setting is successful, update `currentIndex` to ensure that all
    * Masters can be used.
    *
-   * This method must be the only entry to get RpcEndpointRef, otherwise it is difficult to ensure
-   * thread safety.
+   * <p>This method must be the only entry to get RpcEndpointRef, otherwise it is difficult to
+   * ensure thread safety.
    *
    * @param currentIndex current attempt master address index.
    * @throws IllegalStateException If after several attempts, the non-empty RpcEndpointRef still
-   * cannot be obtained.
+   *     cannot be obtained.
    * @return non-empty RpcEndpointRef.
    */
   private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex) {
@@ -232,8 +234,9 @@ public class RssHARetryClient {
       currentIndex.set(index);
 
       if (endpointRef == null) {
-        throw new IllegalStateException("After trying all the available Master Addresses," +
-          " an usable link still couldn't be created.");
+        throw new IllegalStateException(
+            "After trying all the available Master Addresses,"
+                + " an usable link still couldn't be created.");
       } else {
         LOG.info("connect to master {}.", endpointRef.address());
       }
@@ -244,8 +247,8 @@ public class RssHARetryClient {
   private RpcEndpointRef setupEndpointRef(String host) {
     RpcEndpointRef endpointRef = null;
     try {
-      endpointRef = rpcEnv.setupEndpointRef(
-        new RpcAddress(host, masterPort), RpcNameConstants.MASTER_EP);
+      endpointRef =
+          rpcEnv.setupEndpointRef(new RpcAddress(host, masterPort), RpcNameConstants.MASTER_EP);
     } catch (Exception e) {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
@@ -254,5 +257,4 @@ public class RssHARetryClient {
     }
     return endpointRef;
   }
-
 }

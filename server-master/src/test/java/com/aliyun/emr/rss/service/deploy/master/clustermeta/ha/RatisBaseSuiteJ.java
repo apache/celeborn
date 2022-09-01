@@ -44,16 +44,16 @@ public class RatisBaseSuiteJ {
     conf.set("rss.ha.storage.dir", tmpDir1.getAbsolutePath());
     String id = UUID.randomUUID().toString();
     int ratisPort = 9999;
-    InetSocketAddress rpcAddress = new InetSocketAddress(
-        InetAddress.getLocalHost(), 0);
-    NodeDetails nodeDetails = new NodeDetails.Builder()
-        .setRpcAddress(rpcAddress)
-        .setRatisPort(ratisPort)
-        .setNodeId(id)
-        .setServiceId(DEFAULT_SERVICE_ID)
-        .build();
-    ratisServer = HARaftServer.newMasterRatisServer(handler,
-        conf, nodeDetails, Collections.emptyList());
+    InetSocketAddress rpcAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+    NodeDetails nodeDetails =
+        new NodeDetails.Builder()
+            .setRpcAddress(rpcAddress)
+            .setRatisPort(ratisPort)
+            .setNodeId(id)
+            .setServiceId(DEFAULT_SERVICE_ID)
+            .build();
+    ratisServer =
+        HARaftServer.newMasterRatisServer(handler, conf, nodeDetails, Collections.emptyList());
     ratisServer.start();
   }
 

@@ -20,9 +20,8 @@ package com.aliyun.emr.rss.common.network.server;
 import com.aliyun.emr.rss.common.network.protocol.Message;
 
 /**
- * Handles either request or response messages coming off of Netty. A MessageHandler instance
- * is associated with a single Netty Channel (though it may have multiple clients on the same
- * Channel.)
+ * Handles either request or response messages coming off of Netty. A MessageHandler instance is
+ * associated with a single Netty Channel (though it may have multiple clients on the same Channel.)
  */
 public abstract class MessageHandler<T extends Message> {
   /** Handles the receipt of a single message. */

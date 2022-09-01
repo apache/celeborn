@@ -31,12 +31,14 @@ class JVMSource(rssConf: RssConf, role: String)
   override val sourceName = "JVM"
 
   // all of metrics of GCMetricSet and BufferPoolMetricSet are Gauge
-  Seq(new GarbageCollectorMetricSet(),
+  Seq(
+    new GarbageCollectorMetricSet(),
     new MemoryUsageGaugeSet(),
     new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer))
-    .map { x => x.getMetrics.asScala.map {
-      case (name: String, metric: Gauge[_]) => addGauge(name, metric)
-    }
+    .map { x =>
+      x.getMetrics.asScala.map {
+        case (name: String, metric: Gauge[_]) => addGauge(name, metric)
+      }
     }
   // start cleaner
   startCleaner()

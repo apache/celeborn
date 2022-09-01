@@ -20,9 +20,7 @@ package com.aliyun.emr.rss.common.network.protocol;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
-/**
-* Encapsulates a request for a particular chunk of a stream.
-*/
+/** Encapsulates a request for a particular chunk of a stream. */
 public final class StreamChunkSlice implements Encodable {
   public final long streamId;
   public final int chunkIndex;
@@ -75,8 +73,10 @@ public final class StreamChunkSlice implements Encodable {
   public boolean equals(Object other) {
     if (other instanceof StreamChunkSlice) {
       StreamChunkSlice o = (StreamChunkSlice) other;
-      return streamId == o.streamId && chunkIndex == o.chunkIndex &&
-        offset == o.offset && len == o.len;
+      return streamId == o.streamId
+          && chunkIndex == o.chunkIndex
+          && offset == o.offset
+          && len == o.len;
     }
     return false;
   }
@@ -84,10 +84,10 @@ public final class StreamChunkSlice implements Encodable {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamId", streamId)
-      .add("chunkIndex", chunkIndex)
-      .add("offset", offset)
-      .add("len", len)
-      .toString();
+        .add("streamId", streamId)
+        .add("chunkIndex", chunkIndex)
+        .add("offset", offset)
+        .add("len", len)
+        .toString();
   }
 }

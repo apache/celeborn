@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.common.network;
 
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -43,14 +45,12 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
-import static org.junit.Assert.*;
-
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
  * failed, and the connection closed.
  *
- * In this suite, we use 10 seconds as the connection timeout, with some slack given in the tests,
- * to ensure stability in different test environments.
+ * <p>In this suite, we use 10 seconds as the connection timeout, with some slack given in the
+ * tests, to ensure stability in different test environments.
  */
 public class RequestTimeoutIntegrationSuiteJ {
 
@@ -69,12 +69,13 @@ public class RequestTimeoutIntegrationSuiteJ {
     configMap.put("rss.shuffle.io.connectionTimeout", "2s");
     conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
 
-    defaultManager = new StreamManager() {
-      @Override
-      public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
-        throw new UnsupportedOperationException();
-      }
-    };
+    defaultManager =
+        new StreamManager() {
+          @Override
+          public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
+            throw new UnsupportedOperationException();
+          }
+        };
   }
 
   @After
@@ -92,26 +93,28 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutInactiveRequests() throws Exception {
     final Semaphore semaphore = new Semaphore(1);
     final int responseSize = 16;
-    BaseMessageHandler handler = new BaseMessageHandler() {
-      @Override
-      public void receive(
-          TransportClient client,
-          RequestMessage message) {
-        try {
-          semaphore.acquire();
-          client.getChannel().writeAndFlush(new RpcResponse(
-            ((RpcRequest) message).requestId,
-            new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
-        } catch (InterruptedException e) {
-          // do nothing
-        }
-      }
+    BaseMessageHandler handler =
+        new BaseMessageHandler() {
+          @Override
+          public void receive(TransportClient client, RequestMessage message) {
+            try {
+              semaphore.acquire();
+              client
+                  .getChannel()
+                  .writeAndFlush(
+                      new RpcResponse(
+                          ((RpcRequest) message).requestId,
+                          new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
+            } catch (InterruptedException e) {
+              // do nothing
+            }
+          }
 
-      @Override
-      public boolean checkRegistered() {
-        return true;
-      }
-    };
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
 
     TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
@@ -140,26 +143,28 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutCleanlyClosesClient() throws Exception {
     final Semaphore semaphore = new Semaphore(0);
     final int responseSize = 16;
-    BaseMessageHandler handler = new BaseMessageHandler() {
-      @Override
-      public void receive(
-        TransportClient client,
-        RequestMessage message) {
-        try {
-          semaphore.acquire();
-          client.getChannel().writeAndFlush(new RpcResponse(
-            ((RpcRequest) message).requestId,
-            new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
-        } catch (InterruptedException e) {
-          // do nothing
-        }
-      }
+    BaseMessageHandler handler =
+        new BaseMessageHandler() {
+          @Override
+          public void receive(TransportClient client, RequestMessage message) {
+            try {
+              semaphore.acquire();
+              client
+                  .getChannel()
+                  .writeAndFlush(
+                      new RpcResponse(
+                          ((RpcRequest) message).requestId,
+                          new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
+            } catch (InterruptedException e) {
+              // do nothing
+            }
+          }
 
-      @Override
-      public boolean checkRegistered() {
-        return true;
-      }
-    };
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
 
     TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
@@ -167,7 +172,7 @@ public class RequestTimeoutIntegrationSuiteJ {
 
     // First request should eventually fail.
     TransportClient client0 =
-      clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+        clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
     TestCallback callback0 = new TestCallback();
     client0.sendRpc(ByteBuffer.allocate(0), callback0);
     callback0.latch.await();
@@ -177,7 +182,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     // Increment the semaphore and the second request should succeed quickly.
     semaphore.release(2);
     TransportClient client1 =
-      clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+        clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
     TestCallback callback1 = new TestCallback();
     client1.sendRpc(ByteBuffer.allocate(0), callback1);
     callback1.latch.await();
@@ -190,29 +195,29 @@ public class RequestTimeoutIntegrationSuiteJ {
   @Test
   public void furtherRequestsDelay() throws Exception {
     final byte[] response = new byte[16];
-    final StreamManager manager = new StreamManager() {
-      @Override
-      public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
-        Uninterruptibles.sleepUninterruptibly(FOREVER, TimeUnit.MILLISECONDS);
-        return new NioManagedBuffer(ByteBuffer.wrap(response));
-      }
-    };
-    BaseMessageHandler handler = new BaseMessageHandler() {
-      @Override
-      public void receive(
-        TransportClient client,
-        RequestMessage msg) {
-        StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
-        ManagedBuffer buf = manager.getChunk(slice.streamId, slice.chunkIndex,
-          slice.offset, slice.len);
-        client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
-      }
+    final StreamManager manager =
+        new StreamManager() {
+          @Override
+          public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
+            Uninterruptibles.sleepUninterruptibly(FOREVER, TimeUnit.MILLISECONDS);
+            return new NioManagedBuffer(ByteBuffer.wrap(response));
+          }
+        };
+    BaseMessageHandler handler =
+        new BaseMessageHandler() {
+          @Override
+          public void receive(TransportClient client, RequestMessage msg) {
+            StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+            ManagedBuffer buf =
+                manager.getChunk(slice.streamId, slice.chunkIndex, slice.offset, slice.len);
+            client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
+          }
 
-      @Override
-      public boolean checkRegistered() {
-        return true;
-      }
-    };
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
 
     TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
@@ -242,8 +247,8 @@ public class RequestTimeoutIntegrationSuiteJ {
   }
 
   /**
-   * Callback which sets 'success' or 'failure' on completion.
-   * Additionally notifies all waiters on this callback when invoked.
+   * Callback which sets 'success' or 'failure' on completion. Additionally notifies all waiters on
+   * this callback when invoked.
    */
   static class TestCallback implements RpcResponseCallback, ChunkReceivedCallback {
 

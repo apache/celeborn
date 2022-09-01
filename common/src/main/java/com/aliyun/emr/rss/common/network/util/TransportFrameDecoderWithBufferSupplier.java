@@ -28,8 +28,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import com.aliyun.emr.rss.common.network.protocol.Message;
 
-public class TransportFrameDecoderWithBufferSupplier
-  extends ChannelInboundHandlerAdapter implements FrameDecoder {
+public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
+    implements FrameDecoder {
   private final Function<Integer, Supplier<ByteBuf>> bufferSuppliers;
   private int msgSize = -1;
   private int bodySize = -1;
@@ -41,22 +41,22 @@ public class TransportFrameDecoderWithBufferSupplier
   private Message curMsg = null;
 
   public TransportFrameDecoderWithBufferSupplier() {
-    this.bufferSuppliers = new Function<Integer, Supplier<ByteBuf>>() {
-      @Override
-      public Supplier<ByteBuf> apply(Integer size) {
-        return new Supplier<ByteBuf>() {
+    this.bufferSuppliers =
+        new Function<Integer, Supplier<ByteBuf>>() {
           @Override
-          public ByteBuf get() {
-            return Unpooled.buffer(size);
+          public Supplier<ByteBuf> apply(Integer size) {
+            return new Supplier<ByteBuf>() {
+              @Override
+              public ByteBuf get() {
+                return Unpooled.buffer(size);
+              }
+            };
           }
         };
-      }
-    };
   }
 
   public TransportFrameDecoderWithBufferSupplier(
-      Function<Integer,
-      Supplier<ByteBuf>> bufferSuppliers) {
+      Function<Integer, Supplier<ByteBuf>> bufferSuppliers) {
     this.bufferSuppliers = bufferSuppliers;
   }
 

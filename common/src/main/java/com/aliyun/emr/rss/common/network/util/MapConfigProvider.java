@@ -52,5 +52,4 @@ public class MapConfigProvider extends ConfigProvider {
   public Iterable<Map.Entry<String, String>> getAll() {
     return config.entrySet();
   }
-
 }

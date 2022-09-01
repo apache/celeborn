@@ -59,8 +59,8 @@ class Replica {
     if (client == null || !client.isActive()) {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
 
-      OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
-          startMapIndex, endMapIndex);
+      OpenStream openBlocks =
+          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
       ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
       streamHandle = (StreamHandle) Message.decode(response);
     }

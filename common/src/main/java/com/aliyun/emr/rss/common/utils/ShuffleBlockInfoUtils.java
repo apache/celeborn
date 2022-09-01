@@ -31,10 +31,10 @@ public class ShuffleBlockInfoUtils {
   }
 
   public static List<Long> getChunkOffsetsFromShuffleBlockInfos(
-    int startMapIndex,
-    int endMapIndex,
-    long fetchChunkSize,
-    Map<Integer, List<ShuffleBlockInfo>> indexMap) {
+      int startMapIndex,
+      int endMapIndex,
+      long fetchChunkSize,
+      Map<Integer, List<ShuffleBlockInfo>> indexMap) {
     List<Long> sortedChunkOffset = new ArrayList<>();
     ShuffleBlockInfo lastBlock = null;
     for (int i = startMapIndex; i < endMapIndex; i++) {
@@ -60,8 +60,8 @@ public class ShuffleBlockInfoUtils {
     return sortedChunkOffset;
   }
 
-  public static Map<Integer, List<ShuffleBlockInfo>>
-    parseShuffleBlockInfosFromByteBuffer(ByteBuffer buffer) {
+  public static Map<Integer, List<ShuffleBlockInfo>> parseShuffleBlockInfosFromByteBuffer(
+      ByteBuffer buffer) {
     Map<Integer, List<ShuffleBlockInfo>> indexMap = new HashMap<>();
     while (buffer.hasRemaining()) {
       int mapId = buffer.getInt();

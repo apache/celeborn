@@ -17,6 +17,10 @@
 
 package com.aliyun.emr.rss.common.haclient;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,10 +46,6 @@ import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 public class RssHARetryClientSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(RssHARetryClientSuiteJ.class);
 
@@ -60,9 +60,10 @@ public class RssHARetryClientSuiteJ {
 
   @Before
   public void beforeEach() {
-    rssConf.set("rss.rpc.askTimeout", "5s")
-      .set("rss.network.timeout", "5s")
-      .set("rss.master.port", String.valueOf(masterPort));
+    rssConf
+        .set("rss.rpc.askTimeout", "5s")
+        .set("rss.network.timeout", "5s")
+        .set("rss.master.port", String.valueOf(masterPort));
     rpcEnv = Mockito.mock(RpcEnv.class);
     endpointRef = Mockito.mock(RpcEndpointRef.class);
   }
@@ -72,10 +73,11 @@ public class RssHARetryClientSuiteJ {
     final SettableFuture<Boolean> success = SettableFuture.create();
     final RssConf conf = prepareForRssConfWithoutHA();
 
-    prepareForEndpointRefWithoutRetry(() -> {
-      success.set(true);
-      return Future$.MODULE$.successful(response);
-    });
+    prepareForEndpointRefWithoutRetry(
+        () -> {
+          success.set(true);
+          return Future$.MODULE$.successful(response);
+        });
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
@@ -97,10 +99,12 @@ public class RssHARetryClientSuiteJ {
     final SettableFuture<Boolean> success = SettableFuture.create();
     final RssConf conf = prepareForRssConfWithoutHA();
 
-    prepareForEndpointRefWithRetry(numTries, () -> {
-      success.set(true);
-      return Future$.MODULE$.successful(response);
-    });
+    prepareForEndpointRefWithRetry(
+        numTries,
+        () -> {
+          success.set(true);
+          return Future$.MODULE$.successful(response);
+        });
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
@@ -123,10 +127,11 @@ public class RssHARetryClientSuiteJ {
 
     final SettableFuture<Boolean> success = SettableFuture.create();
 
-    prepareForRpcEnvWithHA(() -> {
-      success.set(true);
-      return Future$.MODULE$.successful(response);
-    });
+    prepareForRpcEnvWithHA(
+        () -> {
+          success.set(true);
+          return Future$.MODULE$.successful(response);
+        });
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
     HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
@@ -223,22 +228,31 @@ public class RssHARetryClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(Future$.MODULE$.failed(new MasterNotLeaderException("host1", "host2")))
-        .when(master1).ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .when(master1)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
 
     Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
-        .when(master3).ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .when(master3)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
 
-    Mockito.doAnswer((invocation) -> {
-      RpcAddress address = invocation.getArgumentAt(0, RpcAddress.class);
-      switch (address.host()) {
-        case "host1": return master1;
-        case "host2": throw new RssException("test", causedByException);
-        case "host3": return master3;
-        default:
-          fail("Should use master host1/host2/host3:" + masterPort + ", but use " + address);
-      }
-      return null;
-    }).when(rpcEnv).setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+    Mockito.doAnswer(
+            (invocation) -> {
+              RpcAddress address = invocation.getArgumentAt(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  return master1;
+                case "host2":
+                  throw new RssException("test", causedByException);
+                case "host3":
+                  return master3;
+                default:
+                  fail(
+                      "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
@@ -261,73 +275,100 @@ public class RssHARetryClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(Future$.MODULE$.failed(new MasterNotLeaderException("host1", "host2")))
-      .when(ref1).ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .when(ref1)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
     // Assume host2 down.
     Mockito.doReturn(Future$.MODULE$.failed(new IOException("Test IOException")))
-      .when(ref2).ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .when(ref2)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
     // master leader switch to host3 after host2 down.
     Mockito.doReturn(supplier.get())
-      .when(ref3).ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .when(ref3)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
 
-    Mockito.doAnswer(invocation -> {
-      RpcAddress address = invocation.getArgumentAt(0, RpcAddress.class);
-      if (address.port() == masterPort) {
-        switch (address.host()) {
-          case "host1": return ref1;
-          case "host2": return ref2;
-          case "host3": return ref3;
-          default:
-            fail("Should use master host1/host2/host3:" + masterPort + ", but use " + address);
-        }
-      } else {
-        fail("Should use master host1/host2/host3:" + masterPort + ", but use " + address);
-      }
-      return null;
-    }).when(rpcEnv).setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgumentAt(0, RpcAddress.class);
+              if (address.port() == masterPort) {
+                switch (address.host()) {
+                  case "host1":
+                    return ref1;
+                  case "host2":
+                    return ref2;
+                  case "host3":
+                    return ref3;
+                  default:
+                    fail(
+                        "Should use master host1/host2/host3:"
+                            + masterPort
+                            + ", but use "
+                            + address);
+                }
+              } else {
+                fail("Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
   }
 
   private void prepareForRpcEnvWithoutHA() {
-    Mockito.doAnswer((invocationOnMock) -> {
-      RpcAddress address = invocationOnMock.getArgumentAt(0, RpcAddress.class);
-      if (address.host().equals(masterHost) && address.port() == masterPort) {
-        return endpointRef;
-      } else {
-        fail("Should only use master + " + masterHost + ":" + masterPort +  ", but use " + address);
-        return null;
-      }
-    }).when(rpcEnv).setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+    Mockito.doAnswer(
+            (invocationOnMock) -> {
+              RpcAddress address = invocationOnMock.getArgumentAt(0, RpcAddress.class);
+              if (address.host().equals(masterHost) && address.port() == masterPort) {
+                return endpointRef;
+              } else {
+                fail(
+                    "Should only use master + "
+                        + masterHost
+                        + ":"
+                        + masterPort
+                        + ", but use "
+                        + address);
+                return null;
+              }
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
   }
 
   private void prepareForEndpointRefWithRetry(
       final AtomicInteger numTries, Supplier<Future<?>> supplier) {
-    Mockito.doAnswer(invocation -> {
-      switch (numTries.getAndIncrement()) {
-        case 0: return Future$.MODULE$.failed(new IOException("Test 1"));
-        case 1: return Future$.MODULE$.failed(new IOException("Test 2"));
-        case 2: return supplier.get();
-        default:
-          return Future$.MODULE$.failed(new IllegalStateException("too many tries."));
-      }
-    }).when(endpointRef).ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+    Mockito.doAnswer(
+            invocation -> {
+              switch (numTries.getAndIncrement()) {
+                case 0:
+                  return Future$.MODULE$.failed(new IOException("Test 1"));
+                case 1:
+                  return Future$.MODULE$.failed(new IOException("Test 2"));
+                case 2:
+                  return supplier.get();
+                default:
+                  return Future$.MODULE$.failed(new IllegalStateException("too many tries."));
+              }
+            })
+        .when(endpointRef)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
   }
 
   private void prepareForEndpointRefWithoutRetry(Supplier<Future<?>> supplier) {
     Mockito.doAnswer(invocation -> supplier.get())
-      .when(endpointRef)
-      .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .when(endpointRef)
+        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
   }
 
   private RssConf prepareForRssConfWithoutHA() {
-    return rssConf.clone()
-      .set("rss.ha.enabled", "false")
-      .set("rss.master.host", masterHost);
+    return rssConf.clone().set("rss.ha.enabled", "false").set("rss.master.host", masterHost);
   }
 
   private RssConf prepareForRssConfWithHA() {
     String masterHosts = "host1,host2,host3";
-    return rssConf.clone()
-      .set("rss.ha.enabled", "true")
-      .set("rss.ha.master.hosts", masterHosts)
-      .set("rss.ha.client.maxTries", "5");
+    return rssConf
+        .clone()
+        .set("rss.ha.enabled", "true")
+        .set("rss.ha.master.hosts", masterHosts)
+        .set("rss.ha.client.maxTries", "5");
   }
 }

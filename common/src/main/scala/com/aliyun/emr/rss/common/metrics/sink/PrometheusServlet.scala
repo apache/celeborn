@@ -28,13 +28,14 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.source.Source
 
-class PrometheusServlet(val property: Properties,
-  val registry: MetricRegistry,
-  val sources: mutable.ArrayBuffer[Source],
-  val servletPath: String) extends Sink with Logging{
+class PrometheusServlet(
+    val property: Properties,
+    val registry: MetricRegistry,
+    val sources: mutable.ArrayBuffer[Source],
+    val servletPath: String) extends Sink with Logging {
 
   def getHandler(conf: RssConf): PrometheusHttpRequestHandler = {
-      new PrometheusHttpRequestHandler(servletPath, this)
+    new PrometheusHttpRequestHandler(servletPath, this)
   }
 
   def getMetricsSnapshot(): String = {
@@ -43,16 +44,17 @@ class PrometheusServlet(val property: Properties,
     sb.toString()
   }
 
-  override def start(): Unit = { }
+  override def start(): Unit = {}
 
-  override def stop(): Unit = { }
+  override def stop(): Unit = {}
 
-  override def report(): Unit = { }
+  override def report(): Unit = {}
 }
 
 @Sharable
 class PrometheusHttpRequestHandler(
-    path: String, prometheusServlet: PrometheusServlet) extends Logging {
+    path: String,
+    prometheusServlet: PrometheusServlet) extends Logging {
 
   def handleRequest(uri: String): String = {
     uri match {

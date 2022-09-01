@@ -27,7 +27,11 @@ public class StorageInfo implements Serializable {
   public static String UNKNOWN_DISK = "UNKNOWN_DISK";
 
   public enum Type {
-    MEMORY(0), HDD(1), SSD(2), HDFS(3), OSS(4);
+    MEMORY(0),
+    HDD(1),
+    SSD(2),
+    HDFS(3),
+    OSS(4);
     private final int value;
 
     Type(int value) {
@@ -39,11 +43,14 @@ public class StorageInfo implements Serializable {
     }
   }
 
-  public static Map<Integer, Type> typesMap = new HashMap() {{
-      for (Type type : Type.values()) {
-        put(type.value, type);
-      }
-    }};
+  public static Map<Integer, Type> typesMap =
+      new HashMap() {
+        {
+          for (Type type : Type.values()) {
+            put(type.value, type);
+          }
+        }
+      };
 
   // Default storage Type is MEMORY.
   private Type type = Type.MEMORY;
@@ -52,8 +59,7 @@ public class StorageInfo implements Serializable {
   private boolean finalResult = false;
   private String filePath;
 
-  public StorageInfo() {
-  }
+  public StorageInfo() {}
 
   public StorageInfo(Type type, boolean isFinal, String filePath) {
     this.type = type;
@@ -109,20 +115,26 @@ public class StorageInfo implements Serializable {
 
   @Override
   public String toString() {
-    return "StorageInfo{" +
-             "type=" + type +
-             ", mountPoint='" + mountPoint + '\'' +
-             ", finalResult=" + finalResult +
-             ", filePath=" + filePath +
-             '}';
+    return "StorageInfo{"
+        + "type="
+        + type
+        + ", mountPoint='"
+        + mountPoint
+        + '\''
+        + ", finalResult="
+        + finalResult
+        + ", filePath="
+        + filePath
+        + '}';
   }
 
   public static PbStorageInfo toPb(StorageInfo storageInfo) {
     String filePath = storageInfo.getFilePath();
     PbStorageInfo.Builder builder = PbStorageInfo.newBuilder();
-    builder.setType(storageInfo.type.value)
-      .setFinalResult(storageInfo.finalResult)
-      .setMountPoint(storageInfo.mountPoint);
+    builder
+        .setType(storageInfo.type.value)
+        .setFinalResult(storageInfo.finalResult)
+        .setMountPoint(storageInfo.mountPoint);
     if (filePath != null) {
       builder.setFilePath(filePath);
     }
@@ -130,7 +142,10 @@ public class StorageInfo implements Serializable {
   }
 
   public static StorageInfo fromPb(PbStorageInfo pbStorageInfo) {
-    return new StorageInfo(typesMap.get(pbStorageInfo.getType()), pbStorageInfo.getMountPoint(),
-      pbStorageInfo.getFinalResult(), pbStorageInfo.getFilePath());
+    return new StorageInfo(
+        typesMap.get(pbStorageInfo.getType()),
+        pbStorageInfo.getMountPoint(),
+        pbStorageInfo.getFinalResult(),
+        pbStorageInfo.getFilePath());
   }
 }

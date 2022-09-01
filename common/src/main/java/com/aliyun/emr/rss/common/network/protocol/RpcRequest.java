@@ -25,9 +25,8 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 
 /**
- * A generic RPC which is handled by a remote {@link BaseMessageHandler}.
- * This will correspond to a single
- * {@link ResponseMessage} (either success or failure).
+ * A generic RPC which is handled by a remote {@link BaseMessageHandler}. This will correspond to a
+ * single {@link ResponseMessage} (either success or failure).
  */
 public final class RpcRequest extends RequestMessage {
   /** Used to link an RPC request with its response. */
@@ -39,7 +38,9 @@ public final class RpcRequest extends RequestMessage {
   }
 
   @Override
-  public Type type() { return Type.RpcRequest; }
+  public Type type() {
+    return Type.RpcRequest;
+  }
 
   @Override
   public int encodedLength() {
@@ -87,9 +88,6 @@ public final class RpcRequest extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-      .add("requestId", requestId)
-      .add("body", body())
-      .toString();
+    return Objects.toStringHelper(this).add("requestId", requestId).add("body", body()).toString();
   }
 }

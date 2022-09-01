@@ -39,9 +39,7 @@ public class HANodeDetails {
   private final NodeDetails localNodeDetails;
   private final List<NodeDetails> peerNodeDetails;
 
-  public HANodeDetails(
-      NodeDetails localNodeDetails,
-      List<NodeDetails> peerNodeDetails) {
+  public HANodeDetails(NodeDetails localNodeDetails, List<NodeDetails> peerNodeDetails) {
     this.localNodeDetails = localNodeDetails;
     this.peerNodeDetails = peerNodeDetails;
   }
@@ -62,8 +60,7 @@ public class HANodeDetails {
 
     String serviceId = conf.get(RssConf.HA_SERVICE_ID_KEY());
     if (serviceId == null) {
-      throwConfException("Configuration has no %s service id.",
-          RssConf.HA_SERVICE_ID_KEY());
+      throwConfException("Configuration has no %s service id.", RssConf.HA_SERVICE_ID_KEY());
       return null;
     }
 
@@ -72,39 +69,47 @@ public class HANodeDetails {
     if (nodeIdsStr != null) {
       nodeIds = Arrays.asList(nodeIdsStr.split(","));
     } else {
-      throwConfException("Configuration does not have any value set for %s " +
-          "for the service %s. List of Node ID's should be specified " +
-          "for an Master service", RssConf.HA_NODES_KEY(), serviceId);
+      throwConfException(
+          "Configuration does not have any value set for %s "
+              + "for the service %s. List of Node ID's should be specified "
+              + "for an Master service",
+          RssConf.HA_NODES_KEY(), serviceId);
       return null;
     }
 
     List<NodeDetails> peerNodesList = new ArrayList<>();
     for (String nodeId : nodeIds) {
-      String rpcAddrKey = RssConf.concatKeySuffix(RssConf.concatKeySuffix(
-          RssConf.HA_ADDRESS_KEY(), serviceId), nodeId);
+      String rpcAddrKey =
+          RssConf.concatKeySuffix(
+              RssConf.concatKeySuffix(RssConf.HA_ADDRESS_KEY(), serviceId), nodeId);
       String rpcAddrStr = conf.get(rpcAddrKey);
       if (rpcAddrStr == null || rpcAddrStr.isEmpty()) {
-        throwConfException("Configuration does not have any value set for " +
-            "%s. Ratis RPC Address should be set for all nodes.", rpcAddrKey);
+        throwConfException(
+            "Configuration does not have any value set for "
+                + "%s. Ratis RPC Address should be set for all nodes.",
+            rpcAddrKey);
         return null;
       }
 
-      String ratisPortKey = RssConf.concatKeySuffix(RssConf.concatKeySuffix(
-          RssConf.HA_RATIS_PORT_KEY(), serviceId), nodeId);
+      String ratisPortKey =
+          RssConf.concatKeySuffix(
+              RssConf.concatKeySuffix(RssConf.HA_RATIS_PORT_KEY(), serviceId), nodeId);
       int ratisPort = conf.getInt(ratisPortKey, RssConf.HA_RATIS_PORT_DEFAULT());
 
       InetSocketAddress addr = null;
       try {
         addr = NetUtils.createSocketAddr(rpcAddrStr, ratisPort);
       } catch (Exception e) {
-        LOG.error("Couldn't create socket address for {} : {}", nodeId,
-            rpcAddrStr, e);
+        LOG.error("Couldn't create socket address for {} : {}", nodeId, rpcAddrStr, e);
         throw e;
       }
 
       if (addr.isUnresolved()) {
-        LOG.error("Address for {} : {} couldn't be resolved. Proceeding " +
-            "with unresolved host to create Ratis ring.", nodeId, rpcAddrStr);
+        LOG.error(
+            "Address for {} : {} couldn't be resolved. Proceeding "
+                + "with unresolved host to create Ratis ring.",
+            nodeId,
+            rpcAddrStr);
       }
 
       if (!addr.isUnresolved() && isLocalAddress(addr.getAddress())) {
@@ -116,12 +121,14 @@ public class HANodeDetails {
         peerNodesList.add(getHANodeDetails(serviceId, nodeId, addr, ratisPort));
       }
     }
-    return new HANodeDetails(getHANodeDetails(localServiceId,
-        localNodeId, localRpcAddress, localRatisPort), peerNodesList);
+    return new HANodeDetails(
+        getHANodeDetails(localServiceId, localNodeId, localRpcAddress, localRatisPort),
+        peerNodesList);
   }
 
   /**
    * Create Local Node Details.
+   *
    * @param serviceId - Service ID this ratis server belongs to,
    * @param nodeId - Node ID of this ratis server.
    * @param rpcAddress - Rpc Address of the ratis server.

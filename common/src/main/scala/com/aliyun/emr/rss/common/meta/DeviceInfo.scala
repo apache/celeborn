@@ -31,13 +31,13 @@ import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils.runCommand
 
 class DiskInfo(
-  val mountPoint: String,
-  var actualUsableSpace: Long,
-  // avgFlushTime is nano seconds
-  var avgFlushTime: Long,
-  var activeSlots: Long,
-  val dirs: List[File],
-  val deviceInfo: DeviceInfo) extends Serializable with Logging {
+    val mountPoint: String,
+    var actualUsableSpace: Long,
+    // avgFlushTime is nano seconds
+    var avgFlushTime: Long,
+    var activeSlots: Long,
+    val dirs: List[File],
+    val deviceInfo: DeviceInfo) extends Serializable with Logging {
 
   def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
     this(mountPoint, usableSpace, avgFlushTime, activeSlots, List.empty, null)
@@ -141,14 +141,13 @@ object DeviceInfo {
   val logger = LoggerFactory.getLogger(classOf[DeviceInfo])
 
   /**
-   *
    * @param workingDirs array of (workingDir, max usable space, flush thread count, storage type)
    * @return it will return three maps
    *         (deviceName -> deviceInfo)
    *         (mount point -> diskInfo)
    */
-  def getDeviceAndDiskInfos(workingDirs: Array[(File, Long, Int, StorageInfo.Type)]):
-    (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
+  def getDeviceAndDiskInfos(workingDirs: Array[(File, Long, Int, StorageInfo.Type)])
+      : (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
@@ -190,18 +189,19 @@ object DeviceInfo {
           }
         }
 
-      val deviceInfo = if (index >= 0) {
-        deviceNameToDeviceInfo.computeIfAbsent(blocks(index), newDeviceInfoFunc)
-      } else {
-        deviceNameToDeviceInfo.computeIfAbsent(deviceName, newDeviceInfoFunc)
-      }
+      val deviceInfo =
+        if (index >= 0) {
+          deviceNameToDeviceInfo.computeIfAbsent(blocks(index), newDeviceInfoFunc)
+        } else {
+          deviceNameToDeviceInfo.computeIfAbsent(deviceName, newDeviceInfoFunc)
+        }
       mountPointToDeviceInfo.putIfAbsent(mountPoint, deviceInfo)
     }
 
     val retDeviceInfos = new ConcurrentHashMap[String, DeviceInfo]()
     val retDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
 
-    workingDirs.groupBy{ f =>
+    workingDirs.groupBy { f =>
       getMountPoint(f._1.getAbsolutePath, mountPointToDeviceInfo.keySet())
     }.foreach {
       case (mountPoint, dirs) =>

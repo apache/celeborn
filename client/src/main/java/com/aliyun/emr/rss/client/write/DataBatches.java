@@ -70,4 +70,3 @@ public class DataBatches {
     return retBatches;
   }
 }
-

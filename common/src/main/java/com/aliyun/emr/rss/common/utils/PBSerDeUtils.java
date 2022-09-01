@@ -37,8 +37,7 @@ public class PBSerDeUtils {
     return files;
   }
 
-  public static byte[] toPbSortedShuffleFileSet(
-      Set<String> files) {
+  public static byte[] toPbSortedShuffleFileSet(Set<String> files) {
     TransportMessages.PbSortedShuffleFileSet.Builder builder =
         TransportMessages.PbSortedShuffleFileSet.newBuilder();
     builder.addAllFiles(files);
@@ -65,14 +64,13 @@ public class PBSerDeUtils {
 
   public static FileInfo fromPbFileInfo(TransportMessages.PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
-    return new FileInfo(pbFileInfo.getFilePath(),
-        new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
+    return new FileInfo(
+        pbFileInfo.getFilePath(), new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
   }
 
   public static TransportMessages.PbFileInfo toPbFileInfo(FileInfo fileInfo) {
     TransportMessages.PbFileInfo.Builder builder = TransportMessages.PbFileInfo.newBuilder();
-    builder.setFilePath(fileInfo.getFilePath())
-        .addAllChunkOffsets(fileInfo.getChunkOffsets());
+    builder.setFilePath(fileInfo.getFilePath()).addAllChunkOffsets(fileInfo.getChunkOffsets());
     return builder.build();
   }
 

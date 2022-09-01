@@ -77,8 +77,9 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     newAppId = Some(RssShuffleManager.genNewAppId(dependency.rdd.context))
     newAppId.foreach(initializeLifecycleManager)
 
-    if (fallbackPolicyRunner.applyAllFallbackPolicy(lifecycleManager.get,
-      dependency.partitioner.numPartitions)) {
+    if (fallbackPolicyRunner.applyAllFallbackPolicy(
+        lifecycleManager.get,
+        dependency.partitioner.numPartitions)) {
       logWarning("Fallback to SortShuffleManager!")
       sortShuffleIds.add(shuffleId)
       sortShuffleManager.registerShuffle(shuffleId, numMaps, dependency)
@@ -99,11 +100,10 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       mapId: Int,
       context: TaskContext): ShuffleWriter[K, V] = {
     handle match {
-      case h: RssShuffleHandle[K@unchecked, V@unchecked, _] =>
+      case h: RssShuffleHandle[K @unchecked, V @unchecked, _] =>
         val client = ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf)
         if (RssConf.shuffleWriterMode(rssConf) == "sort") {
-          new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMaps, context,
-            rssConf, client)
+          new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMaps, context, rssConf, client)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
           new HashBasedShuffleWriter(h, mapId, context, rssConf, client, SendBufferPool.get(cores))
         } else {
@@ -120,7 +120,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       endPartition: Int,
       context: TaskContext): ShuffleReader[K, C] = {
     handle match {
-      case _: RssShuffleHandle[K@unchecked, C@unchecked, _] =>
+      case _: RssShuffleHandle[K @unchecked, C @unchecked, _] =>
         new RssShuffleReader(
           handle.asInstanceOf[RssShuffleHandle[K, _, C]],
           startPartition,
@@ -140,7 +140,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       startMapIndex: Int,
       endMapIndex: Int): ShuffleReader[K, C] = {
     handle match {
-      case _: RssShuffleHandle[K@unchecked, C@unchecked, _] =>
+      case _: RssShuffleHandle[K @unchecked, C @unchecked, _] =>
         new RssShuffleReader(
           handle.asInstanceOf[RssShuffleHandle[K, _, C]],
           startPartition,
@@ -151,7 +151,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           rssConf)
       case _ =>
         RssShuffleManager.instantiateMethod(sortShuffleManagerName, "getReader")
-          .invoke(handle,
+          .invoke(
+            handle,
             startPartition.asInstanceOf[AnyRef],
             endPartition.asInstanceOf[AnyRef],
             context,
@@ -234,8 +235,14 @@ object RssShuffleManager {
   def instantiateMethod(className: String, methodName: String): Method = {
     val cls = Utils.classForName(className)
     try {
-      cls.getMethod(methodName, classOf[ShuffleHandle], Integer.TYPE, Integer.TYPE,
-        classOf[TaskContext], Integer.TYPE, Integer.TYPE)
+      cls.getMethod(
+        methodName,
+        classOf[ShuffleHandle],
+        Integer.TYPE,
+        Integer.TYPE,
+        classOf[TaskContext],
+        Integer.TYPE,
+        Integer.TYPE)
     } catch {
       case e: NoSuchMethodException =>
         throw new Exception("Get getReader method failed.", e)
@@ -250,5 +257,4 @@ class RssShuffleHandle[K, V, C](
     shuffleId: Int,
     numMaps: Int,
     dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, numMaps, dependency) {
-}
+  extends BaseShuffleHandle(shuffleId, numMaps, dependency) {}

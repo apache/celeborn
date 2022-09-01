@@ -31,20 +31,19 @@ import com.aliyun.emr.rss.common.network.protocol.ResponseMessage;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 
 /**
- * The single Transport-level Channel handler which is used for delegating requests to the
- * {@link TransportRequestHandler} and responses to the {@link TransportResponseHandler}.
+ * The single Transport-level Channel handler which is used for delegating requests to the {@link
+ * TransportRequestHandler} and responses to the {@link TransportResponseHandler}.
  *
- * All channels created in the transport layer are bidirectional. When the Client initiates a Netty
- * Channel with a RequestMessage (which gets handled by the Server's RequestHandler), the Server
- * will produce a ResponseMessage (handled by the Client's ResponseHandler). However, the Server
- * also gets a handle on the same Channel, so it may then begin to send RequestMessages to the
- * Client.
- * This means that the Client also needs a RequestHandler and the Server needs a ResponseHandler,
- * for the Client's responses to the Server's requests.
+ * <p>All channels created in the transport layer are bidirectional. When the Client initiates a
+ * Netty Channel with a RequestMessage (which gets handled by the Server's RequestHandler), the
+ * Server will produce a ResponseMessage (handled by the Client's ResponseHandler). However, the
+ * Server also gets a handle on the same Channel, so it may then begin to send RequestMessages to
+ * the Client. This means that the Client also needs a RequestHandler and the Server needs a
+ * ResponseHandler, for the Client's responses to the Server's requests.
  *
- * This class also handles timeouts from a {@link io.netty.handler.timeout.IdleStateHandler}.
- * We consider a connection timed out if there are outstanding fetch or RPC requests but no traffic
- * on the channel for at least `requestTimeoutMs`. Note that this is duplex traffic; we will not
+ * <p>This class also handles timeouts from a {@link io.netty.handler.timeout.IdleStateHandler}. We
+ * consider a connection timed out if there are outstanding fetch or RPC requests but no traffic on
+ * the channel for at least `requestTimeoutMs`. Note that this is duplex traffic; we will not
  * timeout if the client is continuously sending but getting no responses, for simplicity.
  */
 public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
@@ -75,8 +74,8 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    logger.warn("Exception in connection from " + NettyUtils.getRemoteAddress(ctx.channel()),
-      cause);
+    logger.warn(
+        "Exception in connection from " + NettyUtils.getRemoteAddress(ctx.channel()), cause);
     requestHandler.exceptionCaught(cause);
     responseHandler.exceptionCaught(cause);
     ctx.close();
@@ -130,12 +129,15 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
       IdleStateEvent e = (IdleStateEvent) evt;
       synchronized (this) {
         boolean isActuallyOverdue =
-          System.nanoTime() - responseHandler.getTimeOfLastRequestNs() > requestTimeoutNs;
+            System.nanoTime() - responseHandler.getTimeOfLastRequestNs() > requestTimeoutNs;
         if (e.state() == IdleState.ALL_IDLE && isActuallyOverdue) {
           if (responseHandler.numOutstandingRequests() > 0) {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
-            logger.error("Connection to {} has been quiet for {} ms while there are outstanding " +
-              "requests.", address, requestTimeoutNs / 1000 / 1000);
+            logger.error(
+                "Connection to {} has been quiet for {} ms while there are outstanding "
+                    + "requests.",
+                address,
+                requestTimeoutNs / 1000 / 1000);
           }
           if (closeIdleConnections) {
             // While CloseIdleConnections is enable, we also close idle connection
@@ -151,5 +153,4 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   public TransportResponseHandler getResponseHandler() {
     return responseHandler;
   }
-
 }

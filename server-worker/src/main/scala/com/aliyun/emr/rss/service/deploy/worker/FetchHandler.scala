@@ -99,7 +99,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       try {
         if (fileInfo.isHdfs) {
           val streamHandle = new StreamHandle(0, 0)
-          client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+          client.getChannel.writeAndFlush(new RpcResponse(
+            request.requestId,
             new NioManagedBuffer(streamHandle.toByteBuffer)))
         } else {
           val buffers = new FileManagedBuffers(fileInfo, conf)
@@ -109,12 +110,14 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
               s" $startMapIndex endMapIndex $endMapIndex is empty.")
           }
-          client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
+          client.getChannel.writeAndFlush(new RpcResponse(
+            request.requestId,
             new NioManagedBuffer(streamHandle.toByteBuffer)))
         }
       } catch {
         case e: IOException =>
-          client.getChannel.writeAndFlush(new RpcFailure(request.requestId,
+          client.getChannel.writeAndFlush(new RpcFailure(
+            request.requestId,
             Throwables.getStackTraceAsString(new RssException("Chunk offsets meta exception ", e))))
       } finally {
         // metrics end
@@ -123,7 +126,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       }
     } else {
       workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
-      client.getChannel.writeAndFlush(new RpcFailure(request.requestId,
+      client.getChannel.writeAndFlush(new RpcFailure(
+        request.requestId,
         Throwables.getStackTraceAsString(new FileNotFoundException)))
     }
   }
@@ -140,8 +144,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
     } else {
       try {
-        val buf = streamManager.getChunk(req.streamChunkSlice.streamId,
-          req.streamChunkSlice.chunkIndex, req.streamChunkSlice.offset, req.streamChunkSlice.len)
+        val buf = streamManager.getChunk(
+          req.streamChunkSlice.streamId,
+          req.streamChunkSlice.chunkIndex,
+          req.streamChunkSlice.offset,
+          req.streamChunkSlice.len)
         streamManager.chunkBeingSent(req.streamChunkSlice.streamId)
         client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
           .addListener(new GenericFutureListener[Future[_ >: Void]] {
@@ -152,9 +159,12 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           })
       } catch {
         case e: Exception =>
-          logError(String.format(s"Error opening block ${req.streamChunkSlice} for request from" +
-            s" ${NettyUtils.getRemoteAddress(client.getChannel)}"), e)
-          client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice,
+          logError(
+            String.format(s"Error opening block ${req.streamChunkSlice} for request from" +
+              s" ${NettyUtils.getRemoteAddress(client.getChannel)}"),
+            e)
+          client.getChannel.writeAndFlush(new ChunkFetchFailure(
+            req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
           workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
       }

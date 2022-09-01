@@ -34,7 +34,7 @@ import com.aliyun.emr.rss.common.network.protocol.*;
  * attached to a single Netty channel, and keeps track of which streams have been fetched via this
  * channel, in order to clean them up if the channel is terminated (see #channelUnregistered).
  *
- * The messages should have been processed by the pipeline setup by {@link TransportServer}.
+ * <p>The messages should have been processed by the pipeline setup by {@link TransportServer}.
  */
 public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
@@ -50,9 +50,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   private final BaseMessageHandler msgHandler;
 
   public TransportRequestHandler(
-      Channel channel,
-      TransportClient reverseClient,
-      BaseMessageHandler msgHandler) {
+      Channel channel, TransportClient reverseClient, BaseMessageHandler msgHandler) {
     this.channel = channel;
     this.reverseClient = reverseClient;
     this.msgHandler = msgHandler;
@@ -84,10 +82,11 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     if (!msgHandler.checkRegistered()) {
       IOException e = new IOException("Worker Not Registered!");
       if (req instanceof RpcRequest) {
-        respond(new RpcFailure(((RpcRequest)req).requestId, Throwables.getStackTraceAsString(e)));
+        respond(new RpcFailure(((RpcRequest) req).requestId, Throwables.getStackTraceAsString(e)));
       } else if (req instanceof ChunkFetchRequest) {
-        respond(new ChunkFetchFailure(((ChunkFetchRequest)req).streamChunkSlice,
-            Throwables.getStackTraceAsString(e)));
+        respond(
+            new ChunkFetchFailure(
+                ((ChunkFetchRequest) req).streamChunkSlice, Throwables.getStackTraceAsString(e)));
       } else if (req instanceof OneWayMessage) {
         logger.warn("Ignore OneWayMessage since worker is not registered!");
       }
@@ -97,18 +96,24 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   }
 
   /**
-   * Responds to a single message with some Encodable object. If a failure occurs while sending,
-   * it will be logged and the channel closed.
+   * Responds to a single message with some Encodable object. If a failure occurs while sending, it
+   * will be logged and the channel closed.
    */
   private ChannelFuture respond(Encodable result) {
     SocketAddress remoteAddress = channel.remoteAddress();
-    return channel.writeAndFlush(result).addListener(future -> {
-      if (future.isSuccess()) {
-        logger.trace("Sent result {} to client {}", result, remoteAddress);
-      } else {
-        logger.warn(String.format("Fail to sending result %s to %s; closing connection",
-          result, remoteAddress), future.cause());
-      }
-    });
+    return channel
+        .writeAndFlush(result)
+        .addListener(
+            future -> {
+              if (future.isSuccess()) {
+                logger.trace("Sent result {} to client {}", result, remoteAddress);
+              } else {
+                logger.warn(
+                    String.format(
+                        "Fail to sending result %s to %s; closing connection",
+                        result, remoteAddress),
+                    future.cause());
+              }
+            });
   }
 }

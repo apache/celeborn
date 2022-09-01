@@ -88,4 +88,3 @@ private class GraphiteSink(val property: Properties, val registry: MetricRegistr
     reporter.report()
   }
 }
-

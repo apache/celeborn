@@ -20,9 +20,7 @@ package com.aliyun.emr.rss.common.network.protocol;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
-/**
- * Response to {@link ChunkFetchRequest} when there is an error fetching the chunk.
- */
+/** Response to {@link ChunkFetchRequest} when there is an error fetching the chunk. */
 public final class ChunkFetchFailure extends ResponseMessage {
   public final StreamChunkSlice streamChunkSlice;
   public final String errorString;
@@ -33,7 +31,9 @@ public final class ChunkFetchFailure extends ResponseMessage {
   }
 
   @Override
-  public Type type() { return Type.ChunkFetchFailure; }
+  public Type type() {
+    return Type.ChunkFetchFailure;
+  }
 
   @Override
   public int encodedLength() {
@@ -69,8 +69,8 @@ public final class ChunkFetchFailure extends ResponseMessage {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkSlice)
-      .add("errorString", errorString)
-      .toString();
+        .add("streamChunkId", streamChunkSlice)
+        .add("errorString", errorString)
+        .toString();
   }
 }

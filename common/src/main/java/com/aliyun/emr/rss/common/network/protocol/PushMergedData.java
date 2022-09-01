@@ -36,11 +36,7 @@ public final class PushMergedData extends RequestMessage {
   public final int[] batchOffsets;
 
   public PushMergedData(
-      byte mode,
-      String shuffleKey,
-      String[] partitionIds,
-      int[] batchOffsets,
-      ManagedBuffer body) {
+      byte mode, String shuffleKey, String[] partitionIds, int[] batchOffsets, ManagedBuffer body) {
     this(0L, mode, shuffleKey, partitionIds, batchOffsets, body);
   }
 
@@ -66,9 +62,11 @@ public final class PushMergedData extends RequestMessage {
 
   @Override
   public int encodedLength() {
-    return 8 + 1 + Encoders.Strings.encodedLength(shuffleKey) +
-        Encoders.StringArrays.encodedLength(partitionUniqueIds) +
-        Encoders.IntArrays.encodedLength(batchOffsets);
+    return 8
+        + 1
+        + Encoders.Strings.encodedLength(shuffleKey)
+        + Encoders.StringArrays.encodedLength(partitionUniqueIds)
+        + Encoders.IntArrays.encodedLength(batchOffsets);
   }
 
   @Override
@@ -92,26 +90,16 @@ public final class PushMergedData extends RequestMessage {
     int[] batchOffsets = Encoders.IntArrays.decode(buf);
     if (decodeBody) {
       return new PushMergedData(
-        requestId,
-        mode,
-        shuffleKey,
-        partitionIds,
-        batchOffsets,
-        new NettyManagedBuffer(buf));
+          requestId, mode, shuffleKey, partitionIds, batchOffsets, new NettyManagedBuffer(buf));
     } else {
-      return new PushMergedData(requestId,
-        mode,
-        shuffleKey,
-        partitionIds,
-        batchOffsets,
-        NettyManagedBuffer.EmptyBuffer);
+      return new PushMergedData(
+          requestId, mode, shuffleKey, partitionIds, batchOffsets, NettyManagedBuffer.EmptyBuffer);
     }
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(
-        requestId, mode, shuffleKey, partitionUniqueIds, batchOffsets, body());
+    return Objects.hashCode(requestId, mode, shuffleKey, partitionUniqueIds, batchOffsets, body());
   }
 
   @Override

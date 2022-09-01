@@ -32,7 +32,9 @@ public final class ChunkFetchRequest extends RequestMessage {
   }
 
   @Override
-  public Type type() { return Type.ChunkFetchRequest; }
+  public Type type() {
+    return Type.ChunkFetchRequest;
+  }
 
   @Override
   public int encodedLength() {
@@ -64,8 +66,6 @@ public final class ChunkFetchRequest extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkSlice)
-      .toString();
+    return Objects.toStringHelper(this).add("streamChunkId", streamChunkSlice).toString();
   }
 }

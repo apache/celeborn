@@ -31,9 +31,11 @@ public final class OpenStream extends RequestMessage {
   public int endMapIndex;
 
   public OpenStream(String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
-    this(shuffleKey.getBytes(StandardCharsets.UTF_8),
-      fileName.getBytes(StandardCharsets.UTF_8),
-      startMapIndex, endMapIndex);
+    this(
+        shuffleKey.getBytes(StandardCharsets.UTF_8),
+        fileName.getBytes(StandardCharsets.UTF_8),
+        startMapIndex,
+        endMapIndex);
   }
 
   public OpenStream(byte[] shuffleKey, byte[] fileName, int startMapIndex, int endMapIndex) {
@@ -44,13 +46,13 @@ public final class OpenStream extends RequestMessage {
   }
 
   @Override
-  public Type type() { return Type.OpenStream; }
+  public Type type() {
+    return Type.OpenStream;
+  }
 
   @Override
   public int encodedLength() {
-    return 4 + shuffleKey.length +
-      4 + fileName.length +
-      4 + 4;
+    return 4 + shuffleKey.length + 4 + fileName.length + 4 + 4;
   }
 
   @Override
@@ -82,11 +84,10 @@ public final class OpenStream extends RequestMessage {
   public boolean equals(Object other) {
     if (other instanceof OpenStream) {
       OpenStream o = (OpenStream) other;
-      return startMapIndex == o.startMapIndex &&
-        endMapIndex == o.endMapIndex &&
-        Arrays.equals(shuffleKey, o.shuffleKey) &&
-        Arrays.equals(fileName, o.fileName);
-
+      return startMapIndex == o.startMapIndex
+          && endMapIndex == o.endMapIndex
+          && Arrays.equals(shuffleKey, o.shuffleKey)
+          && Arrays.equals(fileName, o.fileName);
     }
     return false;
   }
@@ -94,10 +95,10 @@ public final class OpenStream extends RequestMessage {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("shuffleKey", new String(shuffleKey, StandardCharsets.UTF_8))
-      .add("fileName", new String(fileName, StandardCharsets.UTF_8))
-      .add("startMapIndex", startMapIndex)
-      .add("endMapIndex", endMapIndex)
-      .toString();
+        .add("shuffleKey", new String(shuffleKey, StandardCharsets.UTF_8))
+        .add("fileName", new String(fileName, StandardCharsets.UTF_8))
+        .add("startMapIndex", startMapIndex)
+        .add("endMapIndex", endMapIndex)
+        .toString();
   }
 }

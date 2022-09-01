@@ -60,7 +60,7 @@ public class Encoders {
     public static int[] decode(ByteBuf buf) {
       int length = buf.readInt();
       int[] ints = new int[length];
-      for (int i = 0; i < ints.length; i ++) {
+      for (int i = 0; i < ints.length; i++) {
         ints[i] = buf.readInt();
       }
       return ints;
@@ -87,7 +87,7 @@ public class Encoders {
     public static String[] decode(ByteBuf buf) {
       int numStrings = buf.readInt();
       String[] strings = new String[numStrings];
-      for (int i = 0; i < strings.length; i ++) {
+      for (int i = 0; i < strings.length; i++) {
         strings[i] = Strings.decode(buf);
       }
       return strings;

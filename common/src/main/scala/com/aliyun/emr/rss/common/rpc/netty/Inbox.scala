@@ -25,17 +25,17 @@ import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.rpc.{RpcAddress, RpcEndpoint, ThreadSafeRpcEndpoint}
 
-private[rss] sealed trait InboxMessage
+sealed private[rss] trait InboxMessage
 
 private[rss] case class OneWayMessage(
-  senderAddress: RpcAddress,
-  content: Any)
+    senderAddress: RpcAddress,
+    content: Any)
   extends InboxMessage
 
 private[rss] case class RpcMessage(
-  senderAddress: RpcAddress,
-  content: Any,
-  context: NettyRpcCallContext)
+    senderAddress: RpcAddress,
+    content: Any,
+    context: NettyRpcCallContext)
   extends InboxMessage
 
 private[rss] case object OnStart
@@ -60,8 +60,8 @@ private[rss] case class RemoteProcessConnectionError(cause: Throwable, remoteAdd
  * An inbox that stores messages for an [[RpcEndpoint]] and posts messages to it thread-safely.
  */
 private[rss] class Inbox(
-  val endpointRef: NettyRpcEndpointRef,
-  val endpoint: RpcEndpoint)
+    val endpointRef: NettyRpcEndpointRef,
+    val endpoint: RpcEndpoint)
   extends Logging {
 
   inbox => // Give this an alias so we can use it more clearly in closures.
@@ -107,9 +107,11 @@ private[rss] class Inbox(
         message match {
           case RpcMessage(_sender, content, context) =>
             try {
-              endpoint.receiveAndReply(context).applyOrElse[Any, Unit](content, { msg =>
-                throw new RssException(s"Unsupported message $message from ${_sender}")
-              })
+              endpoint.receiveAndReply(context).applyOrElse[Any, Unit](
+                content,
+                { msg =>
+                  throw new RssException(s"Unsupported message $message from ${_sender}")
+                })
             } catch {
               case e: Throwable =>
                 context.sendFailure(e)
@@ -119,9 +121,11 @@ private[rss] class Inbox(
             }
 
           case OneWayMessage(_sender, content) =>
-            endpoint.receive.applyOrElse[Any, Unit](content, { msg =>
-              throw new RssException(s"Unsupported message $message from ${_sender}")
-            })
+            endpoint.receive.applyOrElse[Any, Unit](
+              content,
+              { msg =>
+                throw new RssException(s"Unsupported message $message from ${_sender}")
+              })
 
           case OnStart =>
             endpoint.onStart()
@@ -137,7 +141,8 @@ private[rss] class Inbox(
             val activeThreads = inbox.synchronized {
               inbox.numActiveThreads
             }
-            assert(activeThreads == 1,
+            assert(
+              activeThreads == 1,
               s"There should be only a single active thread but found $activeThreads threads.")
             dispatcher.removeRpcEndpointRef(endpoint)
             endpoint.onStop()
@@ -211,9 +216,11 @@ private[rss] class Inbox(
    * Calls action closure, and calls the endpoint's onError function in the case of exceptions.
    */
   private def safelyCall(endpoint: RpcEndpoint)(action: => Unit): Unit = {
-    try action catch {
+    try action
+    catch {
       case NonFatal(e) =>
-        try endpoint.onError(e) catch {
+        try endpoint.onError(e)
+        catch {
           case NonFatal(ee) =>
             if (stopped) {
               logDebug("Ignoring error", ee)

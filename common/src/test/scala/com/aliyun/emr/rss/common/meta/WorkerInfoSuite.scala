@@ -17,18 +17,18 @@
 
 package com.aliyun.emr.rss.common.meta
 
+import java.util
 import java.util.{ArrayList => jArrayList}
 import java.util.{Map => jMap}
-import java.util
 import java.util.concurrent.{Future, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
+import com.aliyun.emr.RssFunSuite
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
-import com.aliyun.emr.RssFunSuite
 import com.aliyun.emr.rss.common.util.ThreadUtils
 
 class WorkerInfoSuite extends RssFunSuite {
@@ -43,9 +43,14 @@ class WorkerInfoSuite extends RssFunSuite {
     run(block)
   }
 
-  private def check(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int
-    , workerInfos: jMap[WorkerInfo, util.Map[String, Integer]],
-    allocationMap: util.Map[String, Integer]): Unit = {
+  private def check(
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      workerInfos: jMap[WorkerInfo, util.Map[String, Integer]],
+      allocationMap: util.Map[String, Integer]): Unit = {
     val worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null)
     val realWorker = workerInfos.get(worker)
     assertNotNull(s"Worker $worker didn't exist.", realWorker)
@@ -135,8 +140,8 @@ class WorkerInfoSuite extends RssFunSuite {
   }
 
   test("WorkerInfo not equals when push port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000,null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000,null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, null, null)
     assertNotEquals(worker1, worker2)
   }
 

@@ -38,7 +38,7 @@ public class PushState {
 
   public final AtomicInteger batchId = new AtomicInteger();
   public final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
@@ -72,6 +72,7 @@ public class PushState {
 
   /**
    * Not thread-safe
+   *
    * @param addressPair
    * @param loc
    * @param batchId

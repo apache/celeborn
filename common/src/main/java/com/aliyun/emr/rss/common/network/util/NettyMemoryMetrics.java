@@ -31,9 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 
-/**
- * A Netty memory metrics class to collect metrics from Netty PooledByteBufAllocator.
- */
+/** A Netty memory metrics class to collect metrics from Netty PooledByteBufAllocator. */
 public class NettyMemoryMetrics {
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -45,33 +43,34 @@ public class NettyMemoryMetrics {
 
   private final AbstractSource source;
 
-  @VisibleForTesting
-  static final Set<String> VERBOSE_METRICS = new HashSet<>();
+  @VisibleForTesting static final Set<String> VERBOSE_METRICS = new HashSet<>();
 
   static {
-    VERBOSE_METRICS.addAll(Arrays.asList(
-      "numAllocations",
-      "numTinyAllocations",
-      "numSmallAllocations",
-      "numNormalAllocations",
-      "numHugeAllocations",
-      "numDeallocations",
-      "numTinyDeallocations",
-      "numSmallDeallocations",
-      "numNormalDeallocations",
-      "numHugeDeallocations",
-      "numActiveAllocations",
-      "numActiveTinyAllocations",
-      "numActiveSmallAllocations",
-      "numActiveNormalAllocations",
-      "numActiveHugeAllocations",
-      "numActiveBytes"));
+    VERBOSE_METRICS.addAll(
+        Arrays.asList(
+            "numAllocations",
+            "numTinyAllocations",
+            "numSmallAllocations",
+            "numNormalAllocations",
+            "numHugeAllocations",
+            "numDeallocations",
+            "numTinyDeallocations",
+            "numSmallDeallocations",
+            "numNormalDeallocations",
+            "numHugeDeallocations",
+            "numActiveAllocations",
+            "numActiveTinyAllocations",
+            "numActiveSmallAllocations",
+            "numActiveNormalAllocations",
+            "numActiveHugeAllocations",
+            "numActiveBytes"));
   }
 
-  public NettyMemoryMetrics(PooledByteBufAllocator pooledAllocator,
-    String metricPrefix,
-    TransportConf conf,
-    AbstractSource source) {
+  public NettyMemoryMetrics(
+      PooledByteBufAllocator pooledAllocator,
+      String metricPrefix,
+      TransportConf conf,
+      AbstractSource source) {
     this.pooledAllocator = pooledAllocator;
     this.metricPrefix = metricPrefix;
     this.verboseMetricsEnabled = conf.verboseMetrics();
@@ -86,10 +85,12 @@ public class NettyMemoryMetrics {
     // Register general metrics.
     if (source != null) {
       logger.debug("setup netty metrics");
-      source.addGauge(MetricRegistry.name(metricPrefix, "usedHeapMemory"),
-        pooledAllocatorMetric::usedHeapMemory);
-      source.addGauge(MetricRegistry.name(metricPrefix, "usedDirectMemory"),
-        pooledAllocatorMetric::usedDirectMemory);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "usedHeapMemory"),
+          pooledAllocatorMetric::usedHeapMemory);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "usedDirectMemory"),
+          pooledAllocatorMetric::usedDirectMemory);
       if (verboseMetricsEnabled) {
         int directArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
@@ -124,22 +125,26 @@ public class NettyMemoryMetrics {
       Class<?> returnType = m.getReturnType();
       String metricName = MetricRegistry.name(metricPrefix, arenaName, m.getName());
       if (returnType.equals(int.class)) {
-        source.addGauge(metricName, () -> {
-          try {
-            return (Integer) m.invoke(arenaMetric);
-          } catch (Exception e) {
-            return -1; // Swallow the exceptions.
-          }
-        });
+        source.addGauge(
+            metricName,
+            () -> {
+              try {
+                return (Integer) m.invoke(arenaMetric);
+              } catch (Exception e) {
+                return -1; // Swallow the exceptions.
+              }
+            });
 
       } else if (returnType.equals(long.class)) {
-        source.addGauge(metricName, () -> {
-          try {
-            return (Long) m.invoke(arenaMetric);
-          } catch (Exception e) {
-            return -1L; // Swallow the exceptions.
-          }
-        });
+        source.addGauge(
+            metricName,
+            () -> {
+              try {
+                return (Long) m.invoke(arenaMetric);
+              } catch (Exception e) {
+                return -1L; // Swallow the exceptions.
+              }
+            });
       }
     }
   }

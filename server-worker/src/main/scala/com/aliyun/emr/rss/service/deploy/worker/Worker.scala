@@ -63,9 +63,10 @@ private[deploy] class Worker(
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = RssConf.workerGracefulShutdown(conf)
-  assert(!gracefulShutdown || (gracefulShutdown &&
-    RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
-    RssConf.pushServerPort(conf) != 0 && RssConf.replicateServerPort(conf) != 0),
+  assert(
+    !gracefulShutdown || (gracefulShutdown &&
+      RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
+      RssConf.pushServerPort(conf) != 0 && RssConf.replicateServerPort(conf) != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
@@ -100,17 +101,18 @@ private[deploy] class Worker(
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
     val transportContext: TransportContext =
       new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
-    (transportContext.createServer(RssConf.pushServerPort(conf)),
+    (
+      transportContext.createServer(RssConf.pushServerPort(conf)),
       transportContext.createClientFactory())
   }
 
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
     val closeIdleConnections = RssConf.closeIdleConnections(conf)
-    val numThreads = conf.getInt("rss.replicate.io.threads",
-      storageManager.disksSnapshot().size * 2)
-    val transportConf = Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE,
-      numThreads)
+    val numThreads =
+      conf.getInt("rss.replicate.io.threads", storageManager.disksSnapshot().size * 2)
+    val transportConf =
+      Utils.fromRssConf(conf, TransportModuleConstants.REPLICATE_MODULE, numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
     val transportContext: TransportContext =
       new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
@@ -139,11 +141,11 @@ private[deploy] class Worker(
   storageManager.updateDiskInfos()
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
   val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
-  storageManager.disksSnapshot().foreach{ case diskInfo =>
+  storageManager.disksSnapshot().foreach { case diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
-  val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-    diskInfos, controller.self)
+  val workerInfo =
+    new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, diskInfos, controller.self)
 
   // whether this Worker registered to Master succesfully
   val registered = new AtomicBoolean(false)
@@ -162,9 +164,11 @@ private[deploy] class Worker(
   private var sendHeartbeatTask: ScheduledFuture[_] = _
   private var checkFastfailTask: ScheduledFuture[_] = _
   val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
-    "worker-replicate-data", RssConf.workerReplicateNumThreads(conf))
+    "worker-replicate-data",
+    RssConf.workerReplicateNumThreads(conf))
   val commitThreadPool = ThreadUtils.newDaemonCachedThreadPool(
-    "Worker-CommitFiles", RssConf.workerAsyncCommitFileThreads(conf))
+    "Worker-CommitFiles",
+    RssConf.workerAsyncCommitFileThreads(conf))
   val asyncReplyPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
 
@@ -176,14 +180,16 @@ private[deploy] class Worker(
   var cleaner: Thread = _
 
   workerSource.addGauge(
-    WorkerSource.RegisteredShuffleCount, _ => workerInfo.getShuffleKeySet.size())
+    WorkerSource.RegisteredShuffleCount,
+    _ => workerInfo.getShuffleKeySet.size())
   workerSource.addGauge(WorkerSource.SlotsAllocated, _ => workerInfo.allocationsInLastHour())
   workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
   workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
   workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
   workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryTracker.getPausePushDataCounter)
-  workerSource.addGauge(WorkerSource.PausePushDataAndReplicateCount,
+  workerSource.addGauge(
+    WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   def heartBeatToMaster(): Unit = {
@@ -192,12 +198,19 @@ private[deploy] class Worker(
     shuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
     val diskInfos = new JHashMap[String, DiskInfo]()
-    storageManager.disksSnapshot().foreach{ case diskInfo =>
+    storageManager.disksSnapshot().foreach { case diskInfo =>
       diskInfos.put(diskInfo.mountPoint, diskInfo)
     }
     val response = rssHARetryClient.askSync[HeartbeatResponse](
-      HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort,
-        diskInfos, shuffleKeys), classOf[HeartbeatResponse])
+      HeartbeatFromWorker(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        diskInfos,
+        shuffleKeys),
+      classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
       cleanTaskQueue.put(response.expiredShuffleKeys)
@@ -222,22 +235,30 @@ private[deploy] class Worker(
     registerWithMaster()
 
     // start heartbeat
-    sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
-      override def run(): Unit = Utils.tryLogNonFatalError {
-        heartBeatToMaster()
-      }
-    }, HEARTBEAT_MILLIS, HEARTBEAT_MILLIS, TimeUnit.MILLISECONDS)
+    sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          heartBeatToMaster()
+        }
+      },
+      HEARTBEAT_MILLIS,
+      HEARTBEAT_MILLIS,
+      TimeUnit.MILLISECONDS)
 
-    checkFastfailTask = forwardMessageScheduler.scheduleAtFixedRate(new Runnable {
-      override def run(): Unit = Utils.tryLogNonFatalError {
-        unavailablePeers.entrySet().asScala.foreach(entry => {
-          if (System.currentTimeMillis() - entry.getValue >
-            REPLICATE_FAST_FAIL_DURATION) {
-            unavailablePeers.remove(entry.getKey)
-          }
-        })
-      }
-    }, 0, REPLICATE_FAST_FAIL_DURATION, TimeUnit.MILLISECONDS)
+    checkFastfailTask = forwardMessageScheduler.scheduleAtFixedRate(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          unavailablePeers.entrySet().asScala.foreach(entry => {
+            if (System.currentTimeMillis() - entry.getValue >
+                REPLICATE_FAST_FAIL_DURATION) {
+              unavailablePeers.remove(entry.getKey)
+            }
+          })
+        }
+      },
+      0,
+      REPLICATE_FAST_FAIL_DURATION,
+      TimeUnit.MILLISECONDS)
 
     if (RssConf.metricsSystemEnable(conf)) {
       logInfo(s"Metrics system enabled!")
@@ -249,7 +270,8 @@ private[deploy] class Worker(
         try {
           val httpServer = new HttpServer(
             new HttpServerInitializer(
-              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)), port)
+              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)),
+            port)
           httpServer.start()
           initialized = true
         } catch {
@@ -319,17 +341,18 @@ private[deploy] class Worker(
     var registerTimeout = RssConf.registerWorkerTimeoutMs(conf)
     val delta = 2000
     while (registerTimeout > 0) {
-      val rsp = try {
-        rssHARetryClient.askSync[RegisterWorkerResponse](
-          RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
-          classOf[RegisterWorkerResponse]
-        )
-      } catch {
-        case throwable: Throwable =>
-          logWarning(s"Register worker to master failed, will retry after 2s, exception: ",
-            throwable)
-          null
-      }
+      val rsp =
+        try {
+          rssHARetryClient.askSync[RegisterWorkerResponse](
+            RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
+            classOf[RegisterWorkerResponse])
+        } catch {
+          case throwable: Throwable =>
+            logWarning(
+              s"Register worker to master failed, will retry after 2s, exception: ",
+              throwable)
+            null
+        }
       // Register successfully
       if (null != rsp && rsp.success) {
         registered.set(true)
@@ -394,7 +417,8 @@ private[deploy] class Worker(
         }
         stop()
       }
-    }), WORKER_SHUTDOWN_PRIORITY)
+    }),
+    WORKER_SHUTDOWN_PRIORITY)
 }
 
 private[deploy] object Worker extends Logging {

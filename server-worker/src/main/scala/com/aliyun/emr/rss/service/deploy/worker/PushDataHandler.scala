@@ -73,22 +73,28 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case pushData: PushData =>
         try {
           rpcSource.updateMessageMetrics(pushData, pushData.body().size())
-          handlePushData(pushData, new RpcResponseCallback {
-            override def onSuccess(response: ByteBuffer): Unit = {
-              client.getChannel.writeAndFlush(new RpcResponse(
-                pushData.requestId, new NioManagedBuffer(response)))
-            }
+          handlePushData(
+            pushData,
+            new RpcResponseCallback {
+              override def onSuccess(response: ByteBuffer): Unit = {
+                client.getChannel.writeAndFlush(new RpcResponse(
+                  pushData.requestId,
+                  new NioManagedBuffer(response)))
+              }
 
-            override def onFailure(e: Throwable): Unit = {
-              logError("[processPushData] Process pushData onFailure! ShuffleKey: "
-                + pushData.shuffleKey + ", partitionUniqueId: " + pushData.partitionUniqueId, e)
-              client.getChannel.writeAndFlush(new RpcFailure(pushData.requestId, e.getMessage))
-            }
-          })
+              override def onFailure(e: Throwable): Unit = {
+                logError(
+                  "[processPushData] Process pushData onFailure! ShuffleKey: "
+                    + pushData.shuffleKey + ", partitionUniqueId: " + pushData.partitionUniqueId,
+                  e)
+                client.getChannel.writeAndFlush(new RpcFailure(pushData.requestId, e.getMessage))
+              }
+            })
         } catch {
           case e: Exception =>
             logError(s"Error while handlePushData $pushData", e)
-            client.getChannel.writeAndFlush(new RpcFailure(pushData.requestId,
+            client.getChannel.writeAndFlush(new RpcFailure(
+              pushData.requestId,
               Throwables.getStackTraceAsString(e)))
         } finally {
           pushData.body().release()
@@ -96,24 +102,30 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case pushMergedData: PushMergedData =>
         try {
           rpcSource.updateMessageMetrics(pushMergedData, pushMergedData.body().size())
-          handlePushMergedData(pushMergedData, new RpcResponseCallback {
-            override def onSuccess(response: ByteBuffer): Unit = {
-              client.getChannel.writeAndFlush(new RpcResponse(
-                pushMergedData.requestId, new NioManagedBuffer(response)))
-            }
+          handlePushMergedData(
+            pushMergedData,
+            new RpcResponseCallback {
+              override def onSuccess(response: ByteBuffer): Unit = {
+                client.getChannel.writeAndFlush(new RpcResponse(
+                  pushMergedData.requestId,
+                  new NioManagedBuffer(response)))
+              }
 
-            override def onFailure(e: Throwable): Unit = {
-              logError("[processPushMergedData] Process PushMergedData onFailure! ShuffleKey: " +
-                pushMergedData.shuffleKey +
-                ", partitionUniqueId: " + pushMergedData.partitionUniqueIds.mkString(","), e)
-              client.getChannel.writeAndFlush(
-                new RpcFailure(pushMergedData.requestId, e.getMessage()))
-            }
-          })
+              override def onFailure(e: Throwable): Unit = {
+                logError(
+                  "[processPushMergedData] Process PushMergedData onFailure! ShuffleKey: " +
+                    pushMergedData.shuffleKey +
+                    ", partitionUniqueId: " + pushMergedData.partitionUniqueIds.mkString(","),
+                  e)
+                client.getChannel.writeAndFlush(
+                  new RpcFailure(pushMergedData.requestId, e.getMessage()))
+              }
+            })
         } catch {
           case e: Exception =>
             logError(s"Error while handlePushMergedData $pushMergedData", e);
-            client.getChannel.writeAndFlush(new RpcFailure(pushMergedData.requestId,
+            client.getChannel.writeAndFlush(new RpcFailure(
+              pushMergedData.requestId,
               Throwables.getStackTraceAsString(e)));
         } finally {
           pushMergedData.body().release()
@@ -134,11 +146,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
 
     // find FileWriter responsible for the data
-    val location = if (isMaster) {
-      partitionLocationInfo.getMasterLocation(shuffleKey, pushData.partitionUniqueId)
-    } else {
-      partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
-    }
+    val location =
+      if (isMaster) {
+        partitionLocationInfo.getMasterLocation(shuffleKey, pushData.partitionUniqueId)
+      } else {
+        partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
+      }
 
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
@@ -185,11 +198,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val exception = fileWriter.getException
     if (exception != null) {
       logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
-      val message = if (isMaster) {
-        StatusCode.PushDataFailMain.getMessage()
-      } else {
-        StatusCode.PushDataFailSlave.getMessage()
-      }
+      val message =
+        if (isMaster) {
+          StatusCode.PushDataFailMain.getMessage()
+        } else {
+          StatusCode.PushDataFailSlave.getMessage()
+        }
       callback.onFailure(new Exception(message, exception))
       return
     }
@@ -218,16 +232,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getRpcPort,
             peer.getPushPort,
             peer.getFetchPort,
-            peer.getReplicatePort
-          )
+            peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
             return
           }
           try {
-            val client = pushClientFactory.createClient(peer.getHost, peer.getReplicatePort,
-              location.getId)
+            val client =
+              pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
               PartitionLocation.Mode.Slave.mode(),
               shuffleKey,
@@ -252,9 +265,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case e: AlreadyClosedException =>
         fileWriter.decrementPendingWrites()
         val (mapId, attemptId) = getMapAttempt(body)
-        val endedAttempt = if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-          shuffleMapperAttempts.get(shuffleKey)(mapId)
-        } else -1
+        val endedAttempt =
+          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+            shuffleMapperAttempts.get(shuffleKey)(mapId)
+          } else -1
         logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
           s" $attemptId), caused by ${e.getMessage}")
       case e: Exception =>
@@ -304,11 +318,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // find FileWriters responsible for the data
     val locations = pushMergedData.partitionUniqueIds.map { id =>
-      val loc = if (isMaster) {
-        partitionLocationInfo.getMasterLocation(shuffleKey, id)
-      } else {
-        partitionLocationInfo.getSlaveLocation(shuffleKey, id)
-      }
+      val loc =
+        if (isMaster) {
+          partitionLocationInfo.getMasterLocation(shuffleKey, id)
+        } else {
+          partitionLocationInfo.getSlaveLocation(shuffleKey, id)
+        }
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         if (shuffleMapperAttempts.containsKey(shuffleKey)
@@ -334,11 +349,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       val exception = fileWriterWithException.get.getException
       logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
         s" has Exception $exception")
-      val message = if (isMaster) {
-        StatusCode.PushDataFailMain.getMessage()
-      } else {
-        StatusCode.PushDataFailSlave.getMessage()
-      }
+      val message =
+        if (isMaster) {
+          StatusCode.PushDataFailMain.getMessage()
+        } else {
+          StatusCode.PushDataFailSlave.getMessage()
+        }
       callback.onFailure(new Exception(message, exception))
       return
     }
@@ -356,8 +372,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getRpcPort,
             peer.getPushPort,
             peer.getFetchPort,
-            peer.getReplicatePort
-          )
+            peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
@@ -365,7 +380,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           }
           try {
             val client = pushClientFactory.createClient(
-              peer.getHost, peer.getReplicatePort, location.getId)
+              peer.getHost,
+              peer.getReplicatePort,
+              location.getId)
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.Slave.mode(),
               shuffleKey,
@@ -391,11 +408,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     while (index < fileWriters.length) {
       fileWriter = fileWriters(index)
       val offset = body.readerIndex() + batchOffsets(index)
-      val length = if (index == fileWriters.length - 1) {
-        body.readableBytes() - batchOffsets(index)
-      } else {
-        batchOffsets(index + 1) - batchOffsets(index)
-      }
+      val length =
+        if (index == fileWriters.length - 1) {
+          body.readableBytes() - batchOffsets(index)
+        } else {
+          batchOffsets(index + 1) - batchOffsets(index)
+        }
       val batchBody = body.slice(offset, length)
 
       try {
@@ -409,9 +427,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           fileWriter.decrementPendingWrites()
           alreadyClosed = true
           val (mapId, attemptId) = getMapAttempt(body)
-          val endedAttempt = if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-            shuffleMapperAttempts.get(shuffleKey)(mapId)
-          } else -1
+          val endedAttempt =
+            if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+              shuffleMapperAttempts.get(shuffleKey)(mapId)
+            } else -1
           logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
             s" $attemptId), caused by ${e.getMessage}")
         case e: Exception =>

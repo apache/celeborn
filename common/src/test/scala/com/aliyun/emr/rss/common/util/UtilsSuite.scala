@@ -84,11 +84,9 @@ class UtilsSuite extends RssFunSuite {
   }
 
   test("bytesToInt") {
-    assert(1229202015 == Utils.bytesToInt(Array(73.toByte, 68.toByte,
-      34.toByte, 95.toByte)))
+    assert(1229202015 == Utils.bytesToInt(Array(73.toByte, 68.toByte, 34.toByte, 95.toByte)))
 
-    assert(1596081225 == Utils.bytesToInt(Array(73.toByte, 68.toByte,
-      34.toByte, 95.toByte), false))
+    assert(1596081225 == Utils.bytesToInt(Array(73.toByte, 68.toByte, 34.toByte, 95.toByte), false))
   }
 
   test("getThreadDump") {

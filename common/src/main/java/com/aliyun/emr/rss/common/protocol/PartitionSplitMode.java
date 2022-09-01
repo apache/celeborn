@@ -40,8 +40,6 @@ public enum PartitionSplitMode {
 
   @Override
   public String toString() {
-    return "ShuffleSplitMode{" +
-             "value=" + name() +
-             '}';
+    return "ShuffleSplitMode{" + "value=" + name() + '}';
   }
 }
