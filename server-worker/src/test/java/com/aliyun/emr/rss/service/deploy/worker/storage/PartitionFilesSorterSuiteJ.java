@@ -32,6 +32,8 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.FileInfo;
@@ -41,6 +43,9 @@ import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 public class PartitionFilesSorterSuiteJ {
+
+  private static Logger logger = LoggerFactory.getLogger(PartitionFilesSorterSuiteJ.class);
+
   private File shuffleFile;
   private FileInfo fileInfo;
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
@@ -140,6 +145,10 @@ public class PartitionFilesSorterSuiteJ {
 
   @Test
   public void testLevelDB() {
+    if (Utils.isMacOnAppleSilicon()) {
+      logger.info("Skip on Apple Silicon platform");
+      return;
+    }
     File recoverPath = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "recover_path");
     RssConf conf = new RssConf();
     conf.set("rss.worker.graceful.shutdown", "true");
