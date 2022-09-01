@@ -74,6 +74,7 @@
     <maven.plugin.scalastyle.version>1.0.0</maven.plugin.scalastyle.version>
     <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>2.4.3</maven.plugin.shade.version>
+    <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
@@ -608,6 +609,45 @@
             <excludesFile>.rat-excludes</excludesFile>
           </configuration>
         </plugin>
+
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${maven.plugin.spotless.version}</version>
+          <configuration>
+            <upToDateChecking>
+              <enabled>true</enabled>
+            </upToDateChecking>
+            <java>
+              <includes>
+                <include>src/main/java/**/*.java</include>
+                <include>src/test/java/**/*.java</include>
+              </includes>
+              <googleJavaFormat>
+                <version>1.7</version>
+                <style>GOOGLE</style>
+              </googleJavaFormat>
+              <removeUnusedImports />
+            </java>
+            <scala>
+              <includes>
+                <include>src/main/scala/**/*.scala</include>
+                <include>src/test/scala/**/*.scala</include>
+              </includes>
+              <scalafmt>
+                <version>3.1.1</version>
+                <file>${maven.multiModuleProjectDirectory}/.scalafmt.conf</file>
+              </scalafmt>
+            </scala>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -688,6 +728,11 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
