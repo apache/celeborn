@@ -82,8 +82,6 @@
   <modules>
     <module>common</module>
     <module>client</module>
-    <module>./client-spark/shuffle-manager-common</module>
-    <module>./client-spark/${rss.shuffle.manager}</module>
     <module>server-common</module>
     <module>server-master</module>
     <module>server-worker</module>
@@ -685,8 +683,11 @@
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.5</spark.version>
-        <rss.shuffle.manager>shuffle-manager-2</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-2</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -709,8 +710,11 @@
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.1</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -733,8 +737,11 @@
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.1.3</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -757,8 +764,11 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.2</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -781,8 +791,11 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.0</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>

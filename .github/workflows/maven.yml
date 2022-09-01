@@ -33,10 +33,4 @@ jobs:
         cache: maven
         check-latest: false
     - name: Build with Maven
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 install -DskipTests
-    - name: Check Java Code Style
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 checkstyle:check
-    - name: Check Scale Code Style
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 scalastyle:check
-    - name: Unit Test
       run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 test
