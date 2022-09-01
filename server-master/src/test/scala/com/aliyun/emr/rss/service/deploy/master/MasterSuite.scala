@@ -45,6 +45,7 @@ class MasterSuite extends AnyFunSuite
     conf.set("rss.ha.storage.dir", getTmpDir())
     conf.set("rss.worker.base.dirs", getTmpDir())
     conf.set("rss.metrics.system.enabled", "true")
+    conf.set("rss.master.prometheus.metric.host", "127.0.0.1")
     conf.set("rss.master.prometheus.metric.port", "11112")
 
     val args = Array("-h", "localhost", "-p", "9097")
@@ -72,8 +73,11 @@ class MasterSuite extends AnyFunSuite
         new HttpRequestHandler(master, null)
       }
 
-    val httpServer =
-      new HttpServer(new HttpServerInitializer(handlers), RssConf.masterPrometheusMetricPort(conf))
+    val httpServer = new HttpServer(
+      "test-master",
+      RssConf.masterPrometheusMetricHost(conf),
+      RssConf.masterPrometheusMetricPort(conf),
+      new HttpServerInitializer(handlers))
     httpServer.start()
 
     Thread.sleep(5000L)

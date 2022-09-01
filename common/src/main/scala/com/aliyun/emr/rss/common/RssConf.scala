@@ -689,8 +689,16 @@ object RssConf extends Logging {
     conf.getInt("rss.inner.metrics.size", 4096)
   }
 
+  def masterPrometheusMetricHost(conf: RssConf): String = {
+    conf.get("rss.master.prometheus.metric.host", "0.0.0.0")
+  }
+
   def masterPrometheusMetricPort(conf: RssConf): Int = {
     conf.getInt("rss.master.prometheus.metric.port", 9098)
+  }
+
+  def workerPrometheusMetricHost(conf: RssConf): String = {
+    conf.get("rss.worker.prometheus.metric.host", "0.0.0.0")
   }
 
   def workerPrometheusMetricPort(conf: RssConf): Int = {

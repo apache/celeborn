@@ -264,14 +264,17 @@ private[deploy] class Worker(
       logInfo(s"Metrics system enabled!")
       metricsSystem.start()
 
+      val host = RssConf.workerPrometheusMetricHost(conf)
       var port = RssConf.workerPrometheusMetricPort(conf)
       var initialized = false
       while (!initialized) {
         try {
           val httpServer = new HttpServer(
+            "worker",
+            host,
+            port,
             new HttpServerInitializer(
-              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)),
-            port)
+              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)))
           httpServer.start()
           initialized = true
         } catch {

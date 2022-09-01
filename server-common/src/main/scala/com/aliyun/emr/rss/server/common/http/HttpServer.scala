@@ -21,24 +21,31 @@ import java.net.InetSocketAddress
 
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.{ChannelFuture, ChannelInitializer}
-import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.handler.logging.LogLevel
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.network.util.{IOMode, NettyUtils}
 
-class HttpServer(channelInitializer: ChannelInitializer[_], port: Int) extends Logging {
+class HttpServer(
+    role: String,
+    host: String,
+    port: Int,
+    channelInitializer: ChannelInitializer[_]) extends Logging {
   @throws[Exception]
   def start(): ChannelFuture = {
     val bootstrap = new ServerBootstrap
-    val boss = new NioEventLoopGroup(2)
-    val work = new NioEventLoopGroup(2)
+    val boss = NettyUtils.createEventLoop(IOMode.NIO, 1, role + "-http-boss")
+    val worker = NettyUtils.createEventLoop(IOMode.NIO, 2, role + "-http-worker")
 
-    bootstrap.group(boss, work).handler(new LoggingHandler(LogLevel.DEBUG)).channel(
-      classOf[NioServerSocketChannel]).childHandler(channelInitializer)
+    bootstrap
+      .group(boss, worker)
+      .handler(new LoggingHandler(LogLevel.DEBUG))
+      .channel(classOf[NioServerSocketChannel])
+      .childHandler(channelInitializer)
 
-    val f = bootstrap.bind(new InetSocketAddress(port)).sync
+    val f = bootstrap.bind(new InetSocketAddress(host, port)).sync
     logInfo(s"HttpServer started on port $port.")
     f.syncUninterruptibly()
     f

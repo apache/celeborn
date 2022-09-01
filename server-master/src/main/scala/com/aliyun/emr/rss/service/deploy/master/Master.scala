@@ -88,7 +88,9 @@ private[deploy] class Master(
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
   private def minimumUsableSize = RssConf.diskMinimumReserveSize(conf)
+
   private def diskGroups = RssConf.diskGroups(conf)
+
   private def diskGroupGradient = RssConf.diskGroupGradient(conf)
 
   private val partitionSizeUpdateInitialDelay = RssConf.partitionSizeUpdaterInitialDelay(conf)
@@ -698,8 +700,11 @@ private[deploy] object Master extends Logging {
         new HttpRequestHandler(master, null)
       }
 
-    val httpServer =
-      new HttpServer(new HttpServerInitializer(handlers), RssConf.masterPrometheusMetricPort(conf))
+    val httpServer = new HttpServer(
+      "master",
+      RssConf.masterPrometheusMetricHost(conf),
+      RssConf.masterPrometheusMetricPort(conf),
+      new HttpServerInitializer(handlers))
     httpServer.start()
 
     rpcEnv.awaitTermination()
