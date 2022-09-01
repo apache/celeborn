@@ -77,7 +77,8 @@ class Replica {
 
   @Override
   public String toString() {
-    String shufflePartition = String.format("%s:%d %s", location.getHost(), location.getFetchPort(), shuffleKey);
+    String shufflePartition =
+        String.format("%s:%d %s", location.getHost(), location.getFetchPort(), shuffleKey);
     if (startMapIndex == 0 && endMapIndex == Integer.MAX_VALUE) {
       return shufflePartition;
     } else {
