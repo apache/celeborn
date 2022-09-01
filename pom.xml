@@ -625,7 +625,7 @@
               <removeUnusedImports />
               <importOrder>
                 <wildcardsLast>false</wildcardsLast>
-                <order>java,javax,scala,org,com,com.aliyun.emr.rss,,\\#,\\#com.aliyun.emr.rss</order>
+                <order>java,javax,scala,,com.aliyun.emr.rss,\\#,\\#com.aliyun.emr.rss</order>
               </importOrder>
             </java>
             <scala>
