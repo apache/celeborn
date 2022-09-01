@@ -24,14 +24,15 @@ import io.netty.channel.{ChannelFuture, ChannelInitializer}
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.handler.logging.LogLevel
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.util.{IOMode, NettyUtils}
 
 class HttpServer(
-  role: String,
-  host: String,
-  port: Int,
-  channelInitializer: ChannelInitializer[_]) extends Logging {
+    role: String,
+    host: String,
+    port: Int,
+    channelInitializer: ChannelInitializer[_]) extends Logging {
   @throws[Exception]
   def start(): ChannelFuture = {
     val bootstrap = new ServerBootstrap
