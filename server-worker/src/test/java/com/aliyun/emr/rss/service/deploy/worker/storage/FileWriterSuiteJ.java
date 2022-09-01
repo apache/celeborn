@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.FileInfo;
+import com.aliyun.emr.rss.common.metrics.source.RPCSource;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
@@ -140,8 +141,13 @@ public class FileWriterSuiteJ {
       }
 
       @Override
-      public WorkerSource source() {
+      public WorkerSource workerSource() {
         return source;
+      }
+
+      @Override
+      public RPCSource rpcSource() {
+        return new RPCSource(RSS_CONF);
       }
 
       @Override

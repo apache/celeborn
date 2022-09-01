@@ -28,6 +28,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.AlreadyClosedException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
+import com.aliyun.emr.rss.common.metrics.source.RPCSource
 import com.aliyun.emr.rss.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
 import com.aliyun.emr.rss.common.network.protocol.{PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
@@ -40,6 +41,7 @@ import com.aliyun.emr.rss.service.deploy.worker.storage.{FileWriter, LocalFlushe
 class PushDataHandler extends BaseMessageHandler with Logging {
 
   var workerSource: WorkerSource = _
+  var rpcSource: RPCSource = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
   var replicateThreadPool: ThreadPoolExecutor = _
@@ -52,6 +54,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
+    rpcSource = worker.rpcSource
     partitionLocationInfo = worker.partitionLocationInfo
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     replicateThreadPool = worker.replicateThreadPool
@@ -69,6 +72,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     msg match {
       case pushData: PushData =>
         try {
+          rpcSource.updateMessageMetrics(pushData, pushData.body().size())
           handlePushData(pushData, new RpcResponseCallback {
             override def onSuccess(response: ByteBuffer): Unit = {
               client.getChannel.writeAndFlush(new RpcResponse(
@@ -91,6 +95,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       case pushMergedData: PushMergedData =>
         try {
+          rpcSource.updateMessageMetrics(pushMergedData, pushMergedData.body().size())
           handlePushMergedData(pushMergedData, new RpcResponseCallback {
             override def onSuccess(response: ByteBuffer): Unit = {
               client.getChannel.writeAndFlush(new RpcResponse(
@@ -258,8 +263,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   def handlePushMergedData(
-    pushMergedData: PushMergedData,
-    callback: RpcResponseCallback): Unit = {
+      pushMergedData: PushMergedData,
+      callback: RpcResponseCallback): Unit = {
     val shuffleKey = pushMergedData.shuffleKey
     val mode = PartitionLocation.getMode(pushMergedData.mode)
     val batchOffsets = pushMergedData.batchOffsets

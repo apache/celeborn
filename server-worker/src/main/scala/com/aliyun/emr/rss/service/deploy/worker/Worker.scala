@@ -32,7 +32,7 @@ import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource}
+import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker}
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
@@ -69,13 +69,12 @@ private[deploy] class Worker(
     "If enable graceful shutdown, the worker should use stable server port.")
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
-  val workerSource = {
-    val source = new WorkerSource(conf)
-    metricsSystem.registerSource(source)
-    metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WOKRER))
-    metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WOKRER))
-    source
-  }
+  val rpcSource = new RPCSource(conf)
+  val workerSource = new WorkerSource(conf)
+  metricsSystem.registerSource(workerSource)
+  metricsSystem.registerSource(rpcSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WOKRER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WOKRER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
@@ -91,7 +90,7 @@ private[deploy] class Worker(
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
+  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller, Some(rpcSource))
 
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
