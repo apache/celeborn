@@ -35,7 +35,7 @@ private[worker] class LocalFlushTask(
   override def flush(): Unit = {
     val buffers = buffer.nioBuffers()
     for (buffer <- buffers) {
-      while(buffer.hasRemaining) {
+      while (buffer.hasRemaining) {
         fileChannel.write(buffer)
       }
     }
