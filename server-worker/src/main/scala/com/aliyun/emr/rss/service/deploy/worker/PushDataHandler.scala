@@ -72,6 +72,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     msg match {
       case pushData: PushData =>
         try {
+          rpcSource.updateMessageMetrics(pushData, pushData.body().size())
           handlePushData(pushData, new RpcResponseCallback {
             override def onSuccess(response: ByteBuffer): Unit = {
               client.getChannel.writeAndFlush(new RpcResponse(
@@ -94,6 +95,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       case pushMergedData: PushMergedData =>
         try {
+          rpcSource.updateMessageMetrics(pushMergedData, pushMergedData.body().size())
           handlePushMergedData(pushMergedData, new RpcResponseCallback {
             override def onSuccess(response: ByteBuffer): Unit = {
               client.getChannel.writeAndFlush(new RpcResponse(
@@ -130,7 +132,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     } else {
       workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
     }
-    rpcSource.updateMessageMetrics(pushData, pushData.body().size())
 
     // find FileWriter responsible for the data
     val location = if (isMaster) {
@@ -277,7 +278,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     } else {
       workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
     }
-    rpcSource.updateMessageMetrics(pushMergedData, pushMergedData.body().size())
 
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
