@@ -44,6 +44,7 @@ public final class Platform {
   public static final int DOUBLE_ARRAY_OFFSET;
 
   private static final boolean unaligned;
+
   static {
     boolean _unaligned;
     String arch = System.getProperty("os.arch", "");
@@ -69,7 +70,7 @@ public final class Platform {
 
   /**
    * @return true when running JVM is having sun's Unsafe package available in it and underlying
-   *         system having unaligned-access capability.
+   *     system having unaligned-access capability.
    */
   public static boolean unaligned() {
     return unaligned;
@@ -156,8 +157,8 @@ public final class Platform {
 
   /**
    * Uses internal JDK APIs to allocate a DirectByteBuffer while ignoring the JVM's
-   * MaxDirectMemorySize limit (the default limit is too low and we do not want to require users
-   * to increase it).
+   * MaxDirectMemorySize limit (the default limit is too low and we do not want to require users to
+   * increase it).
    */
   @SuppressWarnings("unchecked")
   public static ByteBuffer allocateDirectBuffer(int size) {
@@ -208,20 +209,17 @@ public final class Platform {
         _UNSAFE.copyMemory(src, srcOffset, dst, dstOffset, size);
         length -= size;
       }
-
     }
   }
 
-  /**
-   * Raises an exception bypassing compiler checks for checked exceptions.
-   */
+  /** Raises an exception bypassing compiler checks for checked exceptions. */
   public static void throwException(Throwable t) {
     _UNSAFE.throwException(t);
   }
 
   /**
-   * Limits the number of bytes to copy per {@link Unsafe#copyMemory(long, long, long)} to
-   * allow safepoint polling during a large copy.
+   * Limits the number of bytes to copy per {@link Unsafe#copyMemory(long, long, long)} to allow
+   * safepoint polling during a large copy.
    */
   private static final long UNSAFE_COPY_THRESHOLD = 1024L * 1024L;
 

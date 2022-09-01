@@ -21,5 +21,4 @@ import java.util.concurrent.TimeUnit
 
 import com.aliyun.emr.rss.common.network.util.ByteUnit
 
-package object config {
-}
+package object config {}

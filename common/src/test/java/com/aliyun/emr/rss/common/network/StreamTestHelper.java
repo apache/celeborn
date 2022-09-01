@@ -32,7 +32,7 @@ import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
 class StreamTestHelper {
-  static final String[] STREAMS = { "largeBuffer", "smallBuffer", "emptyBuffer", "file" };
+  static final String[] STREAMS = {"largeBuffer", "smallBuffer", "emptyBuffer", "file"};
 
   final File testFile;
   final File tempDir;
@@ -43,7 +43,7 @@ class StreamTestHelper {
 
   private static ByteBuffer createBuffer(int bufSize) {
     ByteBuffer buf = ByteBuffer.allocate(bufSize);
-    for (int i = 0; i < bufSize; i ++) {
+    for (int i = 0; i < bufSize; i++) {
       buf.put((byte) i);
     }
     buf.flip();

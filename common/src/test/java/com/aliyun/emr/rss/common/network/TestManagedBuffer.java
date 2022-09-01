@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 /**
  * A ManagedBuffer implementation that contains 0, 1, 2, 3, ..., (len-1).
  *
- * Used for testing.
+ * <p>Used for testing.
  */
 public class TestManagedBuffer extends ManagedBuffer {
 
@@ -41,7 +41,7 @@ public class TestManagedBuffer extends ManagedBuffer {
     Preconditions.checkArgument(len <= Byte.MAX_VALUE);
     this.len = len;
     byte[] byteArray = new byte[len];
-    for (int i = 0; i < len; i ++) {
+    for (int i = 0; i < len; i++) {
       byteArray[i] = (byte) i;
     }
     this.underlying = new NettyManagedBuffer(Unpooled.wrappedBuffer(byteArray));
@@ -92,7 +92,7 @@ public class TestManagedBuffer extends ManagedBuffer {
         if (nioBuf.remaining() != len) {
           return false;
         } else {
-          for (int i = 0; i < len; i ++) {
+          for (int i = 0; i < len; i++) {
             if (nioBuf.get() != i) {
               return false;
             }

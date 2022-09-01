@@ -23,7 +23,7 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 
 class WorkerSource(rssConf: RssConf)
-    extends AbstractSource(rssConf, MetricsSystem.ROLE_WOKRER) with Logging {
+  extends AbstractSource(rssConf, MetricsSystem.ROLE_WOKRER) with Logging {
   override val sourceName = "worker"
 
   import WorkerSource._
@@ -58,7 +58,6 @@ object WorkerSource {
   val OpenStreamTime = "OpenStreamTime"
 
   val FetchChunkTime = "FetchChunkTime"
-
 
   // push data
   val MasterPushDataTime = "MasterPushDataTime"

@@ -68,23 +68,22 @@ trait MiniClusterFeature extends Logging {
       masterArguments.host,
       masterArguments.port.getOrElse(0),
       conf,
-      4
-    )
+      4)
 
     val metricsSystem = MetricsSystem.createMetricsSystem("master", conf, MasterSource.ServletPath)
     val master = new Master(rpcEnv, conf, metricsSystem)
     rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, master)
 
-    val handlers = if (RssConf.metricsSystemEnable(conf)) {
-      logInfo(s"Metrics system enabled.")
-      metricsSystem.start()
-      new com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler(
-        master,
-        metricsSystem.getPrometheusHandler
-      )
-    } else {
-      new com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler(master, null)
-    }
+    val handlers =
+      if (RssConf.metricsSystemEnable(conf)) {
+        logInfo(s"Metrics system enabled.")
+        metricsSystem.start()
+        new com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler(
+          master,
+          metricsSystem.getPrometheusHandler)
+      } else {
+        new com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler(master, null)
+      }
 
     val httpServer =
       new HttpServer(new HttpServerInitializer(handlers), RssConf.masterPrometheusMetricPort(conf))
@@ -122,8 +121,7 @@ trait MiniClusterFeature extends Logging {
       workerArguments.host,
       workerArguments.port.getOrElse(0),
       conf,
-      4
-    )
+      4)
 
     logInfo("worker rpc env created")
 
@@ -140,9 +138,9 @@ trait MiniClusterFeature extends Logging {
   }
 
   def setUpMiniCluster(
-    masterConfs: Map[String, String] = null,
-    workerConfs: Map[String, String] = null
-  ): (Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv) = {
+      masterConfs: Map[String, String] = null,
+      workerConfs: Map[String, String] = null)
+      : (Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv) = {
     val (master, masterRpcEnv, masterMetric) = createMaster(masterConfs)
     val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
     masterThread.start()
@@ -187,7 +185,6 @@ trait MiniClusterFeature extends Logging {
       worker4,
       workerRpcEnv4,
       worker5,
-      workerRpcEnv5
-    )
+      workerRpcEnv5)
   }
 }

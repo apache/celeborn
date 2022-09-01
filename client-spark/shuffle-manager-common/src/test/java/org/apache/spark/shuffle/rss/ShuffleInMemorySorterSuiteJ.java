@@ -35,7 +35,7 @@ import org.junit.Test;
 public class ShuffleInMemorySorterSuiteJ {
 
   final TestMemoryManager memoryManager =
-    new TestMemoryManager(new SparkConf().set("spark.memory.offHeap.enabled", "false"));
+      new TestMemoryManager(new SparkConf().set("spark.memory.offHeap.enabled", "false"));
   final TaskMemoryManager taskMemoryManager = new TaskMemoryManager(memoryManager, 0);
   final TestMemoryConsumer consumer = new TestMemoryConsumer(taskMemoryManager);
 
@@ -47,48 +47,45 @@ public class ShuffleInMemorySorterSuiteJ {
 
   @Test
   public void testSortingEmptyInput() {
-    final ShuffleInMemorySorter sorter = new ShuffleInMemorySorter(
-      consumer, 100);
+    final ShuffleInMemorySorter sorter = new ShuffleInMemorySorter(consumer, 100);
     final ShuffleInMemorySorter.ShuffleSorterIterator iter = sorter.getSortedIterator();
     Assert.assertFalse(iter.hasNext());
   }
 
   @Test
   public void testBasicSorting() throws Exception {
-    final String[] dataToSort = new String[] {
-      "Boba",
-      "Pearls",
-      "Tapioca",
-      "Taho",
-      "Condensed Milk",
-      "Jasmine",
-      "Milk Tea",
-      "Lychee",
-      "Mango"
-    };
+    final String[] dataToSort =
+        new String[] {
+          "Boba",
+          "Pearls",
+          "Tapioca",
+          "Taho",
+          "Condensed Milk",
+          "Jasmine",
+          "Milk Tea",
+          "Lychee",
+          "Mango"
+        };
     final SparkConf conf = new SparkConf().set("spark.memory.offHeap.enabled", "false");
-    final TaskMemoryManager memoryManager =
-      new TaskMemoryManager(new TestMemoryManager(conf), 0);
+    final TaskMemoryManager memoryManager = new TaskMemoryManager(new TestMemoryManager(conf), 0);
     final MemoryConsumer c = new TestMemoryConsumer(memoryManager);
     final MemoryBlock dataPage = memoryManager.allocatePage(2048, c);
     final Object baseObject = dataPage.getBaseObject();
-    final ShuffleInMemorySorter sorter = new ShuffleInMemorySorter(
-      consumer, 4);
+    final ShuffleInMemorySorter sorter = new ShuffleInMemorySorter(consumer, 4);
     final HashPartitioner hashPartitioner = new HashPartitioner(4);
 
     // Write the records into the data page and store pointers into the sorter
     long position = dataPage.getBaseOffset();
     for (String str : dataToSort) {
       if (!sorter.hasSpaceForAnotherRecord()) {
-        sorter.expandPointerArray(
-          consumer.allocateArray(sorter.getMemoryUsage() / 8 * 2));
+        sorter.expandPointerArray(consumer.allocateArray(sorter.getMemoryUsage() / 8 * 2));
       }
       final long recordAddress = memoryManager.encodePageNumberAndOffset(dataPage, position);
       final byte[] strBytes = str.getBytes(StandardCharsets.UTF_8);
       Platform.putInt(baseObject, position, strBytes.length);
       position += 4;
       Platform.copyMemory(
-        strBytes, Platform.BYTE_ARRAY_OFFSET, baseObject, position, strBytes.length);
+          strBytes, Platform.BYTE_ARRAY_OFFSET, baseObject, position, strBytes.length);
       position += strBytes.length;
       sorter.insertRecord(recordAddress, hashPartitioner.getPartition(str));
     }
@@ -102,15 +99,18 @@ public class ShuffleInMemorySorterSuiteJ {
       iter.loadNext();
       final int partitionId = iter.packedRecordPointer.getPartitionId();
       Assert.assertTrue(partitionId >= 0 && partitionId <= 3);
-      Assert.assertTrue("Partition id " + partitionId + " should be >= prev id " + prevPartitionId,
-        partitionId >= prevPartitionId);
+      Assert.assertTrue(
+          "Partition id " + partitionId + " should be >= prev id " + prevPartitionId,
+          partitionId >= prevPartitionId);
       final long recordAddress = iter.packedRecordPointer.getRecordPointer();
-      final int recordLength = Platform.getInt(
-        memoryManager.getPage(recordAddress), memoryManager.getOffsetInPage(recordAddress));
-      final String str = getStringFromDataPage(
-        memoryManager.getPage(recordAddress),
-        memoryManager.getOffsetInPage(recordAddress) + 4, // skip over record length
-        recordLength);
+      final int recordLength =
+          Platform.getInt(
+              memoryManager.getPage(recordAddress), memoryManager.getOffsetInPage(recordAddress));
+      final String str =
+          getStringFromDataPage(
+              memoryManager.getPage(recordAddress),
+              memoryManager.getOffsetInPage(recordAddress) + 4, // skip over record length
+              recordLength);
       Assert.assertTrue(Arrays.binarySearch(dataToSort, str) != -1);
     }
     Assert.assertFalse(iter.hasNext());

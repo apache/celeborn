@@ -30,9 +30,7 @@ import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.LimitedInputStream;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
-/**
- * A {@link ManagedBuffer} backed by a segment in a file.
- */
+/** A {@link ManagedBuffer} backed by a segment in a file. */
 public final class FileSegmentManagedBuffer extends ManagedBuffer {
   private final TransportConf conf;
   private final File file;
@@ -62,9 +60,10 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
         channel.position(offset);
         while (buf.remaining() != 0) {
           if (channel.read(buf) == -1) {
-            throw new IOException(String.format("Reached EOF before filling buffer\n" +
-              "offset=%s\nfile=%s\nbuf.remaining=%s",
-              offset, file.getAbsoluteFile(), buf.remaining()));
+            throw new IOException(
+                String.format(
+                    "Reached EOF before filling buffer\n" + "offset=%s\nfile=%s\nbuf.remaining=%s",
+                    offset, file.getAbsoluteFile(), buf.remaining()));
           }
         }
         buf.flip();
@@ -132,18 +131,24 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
     }
   }
 
-  public File getFile() { return file; }
+  public File getFile() {
+    return file;
+  }
 
-  public long getOffset() { return offset; }
+  public long getOffset() {
+    return offset;
+  }
 
-  public long getLength() { return length; }
+  public long getLength() {
+    return length;
+  }
 
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("file", file)
-      .add("offset", offset)
-      .add("length", length)
-      .toString();
+        .add("file", file)
+        .add("offset", offset)
+        .add("length", length)
+        .toString();
   }
 }

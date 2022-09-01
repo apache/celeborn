@@ -47,8 +47,7 @@ object RpcEnv {
       port: Int,
       conf: RssConf,
       numUsableCores: Int): RpcEnv = {
-    val config = RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port,
-      numUsableCores)
+    val config = RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port, numUsableCores)
     new NettyRpcEnvFactory().create(config)
   }
 }
@@ -168,7 +167,8 @@ private[rss] trait RpcEnvFileServer {
   /** Validates and normalizes the base URI for directories. */
   protected def validateDirectoryUri(baseUri: String): String = {
     val fixedBaseUri = "/" + baseUri.stripPrefix("/").stripSuffix("/")
-    require(fixedBaseUri != "/files" && fixedBaseUri != "/jars",
+    require(
+      fixedBaseUri != "/files" && fixedBaseUri != "/jars",
       "Directory URI cannot be /files nor /jars.")
     fixedBaseUri
   }

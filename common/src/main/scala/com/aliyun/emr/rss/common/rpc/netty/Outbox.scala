@@ -28,7 +28,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.client.{RpcResponseCallback, TransportClient}
 import com.aliyun.emr.rss.common.rpc.{RpcAddress, RpcEnvStoppedException}
 
-private[rss] sealed trait OutboxMessage {
+sealed private[rss] trait OutboxMessage {
 
   def sendWith(client: TransportClient): Unit
 

@@ -81,8 +81,8 @@ public final class FileWriter implements DeviceObserver {
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
     if (!notifier.hasException()) {
-      notifier.setException(new IOException("Device ERROR! Disk: "
-              + mountPoint + " : " + diskStatus));
+      notifier.setException(
+          new IOException("Device ERROR! Disk: " + mountPoint + " : " + diskStatus));
     }
     deviceMonitor.unregisterFileWriter(this);
   }
@@ -97,7 +97,8 @@ public final class FileWriter implements DeviceObserver {
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      PartitionType partitionType) throws IOException {
+      PartitionType partitionType)
+      throws IOException {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
@@ -189,8 +190,8 @@ public final class FileWriter implements DeviceObserver {
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
-      if (flushBuffer.readableBytes() != 0 &&
-        flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
+      if (flushBuffer.readableBytes() != 0
+          && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
         takeBuffer();
       }
@@ -249,8 +250,8 @@ public final class FileWriter implements DeviceObserver {
             deleted = true;
           } else {
             StorageManager.hdfsFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
-            FSDataOutputStream indexOutputStream = StorageManager.hdfsFs().create(
-              fileInfo.getHdfsIndexPath());
+            FSDataOutputStream indexOutputStream =
+                StorageManager.hdfsFs().create(fileInfo.getHdfsIndexPath());
             indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
             for (Long offset : fileInfo.getChunkOffsets()) {
               indexOutputStream.writeLong(offset);
@@ -281,8 +282,10 @@ public final class FileWriter implements DeviceObserver {
           stream.close();
         }
       } catch (IOException e) {
-        logger.warn("Close channel failed for file {} caused by {}.",
-          fileInfo.getFilePath(), e.getMessage());
+        logger.warn(
+            "Close channel failed for file {} caused by {}.",
+            fileInfo.getFilePath(),
+            e.getMessage());
       }
     }
 
@@ -299,11 +302,12 @@ public final class FileWriter implements DeviceObserver {
 
   public void registerDestroyHook(List<FileWriter> fileWriters) {
     FileWriter thisFileWriter = this;
-    destroyHook = () -> {
-      synchronized (fileWriters) {
-        fileWriters.remove(thisFileWriter);
-      }
-    };
+    destroyHook =
+        () -> {
+          synchronized (fileWriters) {
+            fileWriters.remove(thisFileWriter);
+          }
+        };
   }
 
   public IOException getException() {
@@ -354,8 +358,8 @@ public final class FileWriter implements DeviceObserver {
     }
 
     if (flushBuffer == null) {
-      IOException e = new IOException("Take buffer encounter error from Flusher: "
-        + flusher.bufferQueueInfo());
+      IOException e =
+          new IOException("Take buffer encounter error from Flusher: " + flusher.bufferQueueInfo());
       notifier.setException(e);
     }
   }
@@ -380,8 +384,8 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public boolean equals(Object obj) {
-    return (obj instanceof FileWriter) &&
-        fileInfo.getFilePath().equals(((FileWriter) obj).fileInfo.getFilePath());
+    return (obj instanceof FileWriter)
+        && fileInfo.getFilePath().equals(((FileWriter) obj).fileInfo.getFilePath());
   }
 
   public String toString() {

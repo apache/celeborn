@@ -51,6 +51,7 @@ public interface Compressor {
   }
 
   enum CompressionCodec {
-    LZ4, ZSTD;
+    LZ4,
+    ZSTD;
   }
 }

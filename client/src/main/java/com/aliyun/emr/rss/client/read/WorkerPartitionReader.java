@@ -49,37 +49,40 @@ public class WorkerPartitionReader implements PartitionReader {
   private boolean closed = false;
 
   WorkerPartitionReader(
-    RssConf conf,
-    String shuffleKey,
-    PartitionLocation location,
-    TransportClientFactory clientFactory,
-    int startMapIndex,
-    int endMapIndex) throws IOException {
+      RssConf conf,
+      String shuffleKey,
+      PartitionLocation location,
+      TransportClientFactory clientFactory,
+      int startMapIndex,
+      int endMapIndex)
+      throws IOException {
     maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
-    ChunkReceivedCallback callback = new ChunkReceivedCallback() {
-      @Override
-      public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-        // only add the buffer to results queue if this reader is not closed.
-        synchronized (this) {
-          ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-          if (!closed) {
-            buf.retain();
-            results.add(buf);
+    ChunkReceivedCallback callback =
+        new ChunkReceivedCallback() {
+          @Override
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+            // only add the buffer to results queue if this reader is not closed.
+            synchronized (this) {
+              ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
+              if (!closed) {
+                buf.retain();
+                results.add(buf);
+              }
+            }
           }
-        }
-      }
 
-      @Override
-      public void onFailure(int chunkIndex, Throwable e) {
-        String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
-        logger.error(errorMsg, e);
-        exception.set(new IOException(errorMsg, e));
-      }
-    };
-    client = new RetryingChunkClient(conf, shuffleKey, location,
-        callback, clientFactory, startMapIndex, endMapIndex);
+          @Override
+          public void onFailure(int chunkIndex, Throwable e) {
+            String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
+            logger.error(errorMsg, e);
+            exception.set(new IOException(errorMsg, e));
+          }
+        };
+    client =
+        new RetryingChunkClient(
+            conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex);
     numChunks = client.openChunks();
   }
 

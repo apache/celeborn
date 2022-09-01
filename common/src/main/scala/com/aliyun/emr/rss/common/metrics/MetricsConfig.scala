@@ -37,8 +37,7 @@ private class MetricsConfig(conf: RssConf) extends Logging {
   private[metrics] val properties = new Properties()
   private[metrics] var perInstanceSubProperties: mutable.HashMap[String, Properties] = null
 
-  private def setDefaultProperties(prop: Properties): Unit = {
-  }
+  private def setDefaultProperties(prop: Properties): Unit = {}
 
   /**
    * Load properties from various places, based on precedence
@@ -62,7 +61,7 @@ private class MetricsConfig(conf: RssConf) extends Logging {
     if (perInstanceSubProperties.contains(DEFAULT_PREFIX)) {
       val defaultSubProperties = perInstanceSubProperties(DEFAULT_PREFIX).asScala
       for ((instance, prop) <- perInstanceSubProperties if (instance != DEFAULT_PREFIX);
-           (k, v) <- defaultSubProperties if (prop.get(k) == null)) {
+        (k, v) <- defaultSubProperties if (prop.get(k) == null)) {
         prop.put(k, v)
       }
     }

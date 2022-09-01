@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class ChannelsLimiter extends ChannelDuplexHandler
-  implements MemoryTracker.MemoryTrackerListener {
+    implements MemoryTracker.MemoryTrackerListener {
 
   private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
@@ -46,25 +46,27 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   private void pauseAllChannels() {
     isPaused.set(true);
-    channels.forEach(c -> {
-      if (c.config().isAutoRead()) {
-        c.config().setAutoRead(false);
-      }
-    });
+    channels.forEach(
+        c -> {
+          if (c.config().isAutoRead()) {
+            c.config().setAutoRead(false);
+          }
+        });
   }
 
-  private void trimCache(){
-    channels.forEach(c->c.pipeline().fireUserEventTriggered(new TrimCache()));
+  private void trimCache() {
+    channels.forEach(c -> c.pipeline().fireUserEventTriggered(new TrimCache()));
   }
 
   private void resumeAllChannels() {
     synchronized (isPaused) {
       isPaused.set(false);
-      channels.forEach(c -> {
-        if (!c.config().isAutoRead()) {
-          c.config().setAutoRead(true);
-        }
-      });
+      channels.forEach(
+          c -> {
+            if (!c.config().isAutoRead()) {
+              c.config().setAutoRead(true);
+            }
+          });
     }
   }
 
@@ -126,6 +128,5 @@ public class ChannelsLimiter extends ChannelDuplexHandler
     trimCache();
   }
 
-  class TrimCache{
-  }
+  class TrimCache {}
 }

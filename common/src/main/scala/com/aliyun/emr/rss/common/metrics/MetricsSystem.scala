@@ -32,7 +32,7 @@ import com.aliyun.emr.rss.common.metrics.sink.{PrometheusHttpRequestHandler, Pro
 import com.aliyun.emr.rss.common.metrics.source.Source
 import com.aliyun.emr.rss.common.util.Utils
 
-class MetricsSystem(val instance: String, conf: RssConf, val servletPath: String) extends Logging{
+class MetricsSystem(val instance: String, conf: RssConf, val servletPath: String) extends Logging {
   private[this] val metricsConfig = new MetricsConfig(conf)
 
   private val sinks = new mutable.ArrayBuffer[Sink]
@@ -125,8 +125,10 @@ class MetricsSystem(val instance: String, conf: RssConf, val servletPath: String
           if (kv._1 == "prometheusServlet") {
             val servlet = Utils.classForName(classPath)
               .getConstructor(
-                classOf[Properties], classOf[MetricRegistry],
-                classOf[ArrayBuffer[Source]], classOf[String])
+                classOf[Properties],
+                classOf[MetricRegistry],
+                classOf[ArrayBuffer[Source]],
+                classOf[String])
               .newInstance(kv._2, registry, sources, servletPath)
             prometheusServlet = Some(servlet.asInstanceOf[PrometheusServlet])
           } else {

@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.common.network;
 
+import static org.junit.Assert.*;
+
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -46,8 +48,6 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
-import static org.junit.Assert.*;
-
 public class ChunkFetchIntegrationSuiteJ {
   static final long STREAM_ID = 1;
   static final int BUFFER_CHUNK_INDEX = 0;
@@ -65,7 +65,7 @@ public class ChunkFetchIntegrationSuiteJ {
   public static void setUp() throws Exception {
     int bufSize = 100000;
     final ByteBuffer buf = ByteBuffer.allocate(bufSize);
-    for (int i = 0; i < bufSize; i ++) {
+    for (int i = 0; i < bufSize; i++) {
       buf.put((byte) i);
     }
     buf.flip();
@@ -87,35 +87,35 @@ public class ChunkFetchIntegrationSuiteJ {
     final TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
 
-    streamManager = new StreamManager() {
-      @Override
-      public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
-        assertEquals(STREAM_ID, streamId);
-        if (chunkIndex == BUFFER_CHUNK_INDEX) {
-          return new NioManagedBuffer(buf);
-        } else if (chunkIndex == FILE_CHUNK_INDEX) {
-          return new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
-        } else {
-          throw new IllegalArgumentException("Invalid chunk index: " + chunkIndex);
-        }
-      }
-    };
-    BaseMessageHandler handler = new BaseMessageHandler() {
-      @Override
-      public void receive(
-        TransportClient client,
-        RequestMessage msg) {
-        StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
-        ManagedBuffer buf = streamManager.getChunk(slice.streamId, slice.chunkIndex,
-          slice.offset, slice.len);
-        client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
-      }
+    streamManager =
+        new StreamManager() {
+          @Override
+          public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
+            assertEquals(STREAM_ID, streamId);
+            if (chunkIndex == BUFFER_CHUNK_INDEX) {
+              return new NioManagedBuffer(buf);
+            } else if (chunkIndex == FILE_CHUNK_INDEX) {
+              return new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
+            } else {
+              throw new IllegalArgumentException("Invalid chunk index: " + chunkIndex);
+            }
+          }
+        };
+    BaseMessageHandler handler =
+        new BaseMessageHandler() {
+          @Override
+          public void receive(TransportClient client, RequestMessage msg) {
+            StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+            ManagedBuffer buf =
+                streamManager.getChunk(slice.streamId, slice.chunkIndex, slice.offset, slice.len);
+            client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
+          }
 
-      @Override
-      public boolean checkRegistered() {
-        return true;
-      }
-    };
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
     TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
@@ -150,21 +150,22 @@ public class ChunkFetchIntegrationSuiteJ {
     res.failedChunks = Collections.synchronizedSet(new HashSet<Integer>());
     res.buffers = Collections.synchronizedList(new LinkedList<ManagedBuffer>());
 
-    ChunkReceivedCallback callback = new ChunkReceivedCallback() {
-      @Override
-      public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-        buffer.retain();
-        res.successChunks.add(chunkIndex);
-        res.buffers.add(buffer);
-        sem.release();
-      }
+    ChunkReceivedCallback callback =
+        new ChunkReceivedCallback() {
+          @Override
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+            buffer.retain();
+            res.successChunks.add(chunkIndex);
+            res.buffers.add(buffer);
+            sem.release();
+          }
 
-      @Override
-      public void onFailure(int chunkIndex, Throwable e) {
-        res.failedChunks.add(chunkIndex);
-        sem.release();
-      }
-    };
+          @Override
+          public void onFailure(int chunkIndex, Throwable e) {
+            res.failedChunks.add(chunkIndex);
+            sem.release();
+          }
+        };
 
     for (int chunkIndex : chunkIndices) {
       client.fetchChunk(STREAM_ID, chunkIndex, callback);
@@ -223,7 +224,7 @@ public class ChunkFetchIntegrationSuiteJ {
   private static void assertBufferListsEqual(List<ManagedBuffer> list0, List<ManagedBuffer> list1)
       throws Exception {
     assertEquals(list0.size(), list1.size());
-    for (int i = 0; i < list0.size(); i ++) {
+    for (int i = 0; i < list0.size(); i++) {
       assertBuffersEqual(list0.get(i), list1.get(i));
     }
   }
@@ -235,7 +236,7 @@ public class ChunkFetchIntegrationSuiteJ {
 
     int len = nio0.remaining();
     assertEquals(nio0.remaining(), nio1.remaining());
-    for (int i = 0; i < len; i ++) {
+    for (int i = 0; i < len; i++) {
       assertEquals(nio0.get(), nio1.get());
     }
   }

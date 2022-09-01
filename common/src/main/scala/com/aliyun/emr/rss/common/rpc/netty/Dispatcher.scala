@@ -72,7 +72,7 @@ private[rss] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extend
       }
       val data = endpoints.get(name)
       endpointRefs.put(data.endpoint, data.ref)
-      receivers.offer(data)  // for the OnStart message
+      receivers.offer(data) // for the OnStart message
     }
     endpointRef
   }
@@ -86,7 +86,7 @@ private[rss] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extend
     val data = endpoints.remove(name)
     if (data != null) {
       data.inbox.stop()
-      receivers.offer(data)  // for the OnStop message
+      receivers.offer(data) // for the OnStop message
     }
     // Don't clean `endpointRefs` here because it's possible that some messages are being processed
     // now and they can use `getRpcEndpointRef`. So `endpointRefs` will be cleaned in Inbox via
@@ -112,11 +112,16 @@ private[rss] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extend
     val iter = endpoints.keySet().iterator()
     while (iter.hasNext) {
       val name = iter.next
-        postMessage(name, message, (e) => { e match {
-          case e: RpcEnvStoppedException => logDebug (s"Message $message dropped. ${e.getMessage}")
-          case e: Throwable => logWarning(s"Message $message dropped. ${e.getMessage}")
-        }}
-      )}
+      postMessage(
+        name,
+        message,
+        (e) => {
+          e match {
+            case e: RpcEnvStoppedException => logDebug(s"Message $message dropped. ${e.getMessage}")
+            case e: Throwable => logWarning(s"Message $message dropped. ${e.getMessage}")
+          }
+        })
+    }
   }
 
   /** Posts a message sent by a remote endpoint. */
@@ -137,7 +142,9 @@ private[rss] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extend
 
   /** Posts a one-way message. */
   def postOneWayMessage(message: RequestMessage): Unit = {
-    postMessage(message.receiver.name, OneWayMessage(message.senderAddress, message.content),
+    postMessage(
+      message.receiver.name,
+      OneWayMessage(message.senderAddress, message.content),
       (e) => throw e)
   }
 
@@ -196,8 +203,8 @@ private[rss] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extend
   /** Thread pool used for dispatching messages. */
   private val threadpool: ThreadPoolExecutor = {
     val availableCores =
-      if (numUsableCores > 0) numUsableCores else Math.max(16,
-        Runtime.getRuntime.availableProcessors())
+      if (numUsableCores > 0) numUsableCores
+      else Math.max(16, Runtime.getRuntime.availableProcessors())
     val numThreads = nettyEnv.conf.getInt("rss.rpc.dispatcher.numThreads", availableCores)
     val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "dispatcher-event-loop")
     logInfo(s"Dispatcher numThreads: $numThreads")

@@ -24,7 +24,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.service.deploy.master.MasterSource.OfferSlotsTime
 
 class MasterSource(rssConf: RssConf)
-    extends AbstractSource(rssConf, MetricsSystem.ROLE_MASTER) with Logging {
+  extends AbstractSource(rssConf, MetricsSystem.ROLE_MASTER) with Logging {
   override val sourceName = s"master"
 
   addTimer(OfferSlotsTime)

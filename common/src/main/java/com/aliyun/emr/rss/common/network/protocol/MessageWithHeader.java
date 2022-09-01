@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.common.network.protocol;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+
 import javax.annotation.Nullable;
 
 import com.google.common.base.Preconditions;
@@ -33,7 +34,7 @@ import com.aliyun.emr.rss.common.network.util.AbstractFileRegion;
 /**
  * A wrapper message that holds two separate pieces (a header and a body).
  *
- * The header must be a ByteBuf, while the body can be a ByteBuf or a FileRegion.
+ * <p>The header must be a ByteBuf, while the body can be a ByteBuf or a FileRegion.
  */
 class MessageWithHeader extends AbstractFileRegion {
 
@@ -56,23 +57,20 @@ class MessageWithHeader extends AbstractFileRegion {
    * Construct a new MessageWithHeader.
    *
    * @param managedBuffer the {@link ManagedBuffer} that the message body came from. This needs to
-   *                      be passed in so that the buffer can be freed when this message is
-   *                      deallocated. Ownership of the caller's reference to this buffer is
-   *                      transferred to this class, so if the caller wants to continue to use the
-   *                      ManagedBuffer in other messages then they will need to call retain() on
-   *                      it before passing it to this constructor. This may be null if and only if
-   *                      `body` is a {@link FileRegion}.
+   *     be passed in so that the buffer can be freed when this message is deallocated. Ownership of
+   *     the caller's reference to this buffer is transferred to this class, so if the caller wants
+   *     to continue to use the ManagedBuffer in other messages then they will need to call retain()
+   *     on it before passing it to this constructor. This may be null if and only if `body` is a
+   *     {@link FileRegion}.
    * @param header the message header.
    * @param body the message body. Must be either a {@link ByteBuf} or a {@link FileRegion}.
    * @param bodyLength the length of the message body, in bytes.
-     */
+   */
   MessageWithHeader(
-      @Nullable ManagedBuffer managedBuffer,
-      ByteBuf header,
-      Object body,
-      long bodyLength) {
-    Preconditions.checkArgument(body instanceof ByteBuf || body instanceof FileRegion,
-      "Body must be a ByteBuf or a FileRegion.");
+      @Nullable ManagedBuffer managedBuffer, ByteBuf header, Object body, long bodyLength) {
+    Preconditions.checkArgument(
+        body instanceof ByteBuf || body instanceof FileRegion,
+        "Body must be a ByteBuf or a FileRegion.");
     this.managedBuffer = managedBuffer;
     this.header = header;
     this.headerLength = header.readableBytes();
@@ -96,11 +94,11 @@ class MessageWithHeader extends AbstractFileRegion {
   }
 
   /**
-   * This code is more complicated than you would think because we might require multiple
-   * transferTo invocations in order to transfer a single MessageWithHeader to avoid busy waiting.
+   * This code is more complicated than you would think because we might require multiple transferTo
+   * invocations in order to transfer a single MessageWithHeader to avoid busy waiting.
    *
-   * The contract is that the caller will ensure position is properly set to the total number
-   * of bytes transferred so far (i.e. value returned by transferred()).
+   * <p>The contract is that the caller will ensure position is properly set to the total number of
+   * bytes transferred so far (i.e. value returned by transferred()).
    */
   @Override
   public long transferTo(final WritableByteChannel target, final long position) throws IOException {
@@ -148,7 +146,7 @@ class MessageWithHeader extends AbstractFileRegion {
       written = target.write(buffer);
     } else {
       ByteBuffer[] buffers = buf.nioBuffers(buf.readerIndex(), length);
-      for (ByteBuffer buffer: buffers) {
+      for (ByteBuffer buffer : buffers) {
         int remaining = buffer.remaining();
         int w = target.write(buffer);
         written += w;

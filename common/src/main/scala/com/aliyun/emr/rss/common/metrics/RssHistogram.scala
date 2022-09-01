@@ -19,5 +19,4 @@ package com.aliyun.emr.rss.common.metrics
 
 import com.codahale.metrics.{Histogram, Reservoir}
 
-class RssHistogram(val reservoir: Reservoir) extends Histogram(reservoir) {
-}
+class RssHistogram(val reservoir: Reservoir) extends Histogram(reservoir) {}

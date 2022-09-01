@@ -43,18 +43,15 @@ public class SlotsAllocatorSuiteJ {
 
     Random random = new Random();
     Map<String, DiskInfo> disks1 = new HashMap<>();
-    DiskInfo diskInfo1 = new DiskInfo("/mnt/disk1",
-      random.nextInt() + 100 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
-    DiskInfo diskInfo2 = new DiskInfo("/mnt/disk2",
-      random.nextInt() + 95 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
-    DiskInfo diskInfo3 = new DiskInfo("/mnt/disk3",
-      random.nextInt() + 90 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
+    DiskInfo diskInfo1 =
+        new DiskInfo(
+            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+    DiskInfo diskInfo2 =
+        new DiskInfo(
+            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+    DiskInfo diskInfo3 =
+        new DiskInfo(
+            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
     diskInfo1.maxSlots_$eq(diskInfo1.actualUsableSpace() / assumedPartitionSize);
     diskInfo2.maxSlots_$eq(diskInfo2.actualUsableSpace() / assumedPartitionSize);
     diskInfo3.maxSlots_$eq(diskInfo3.actualUsableSpace() / assumedPartitionSize);
@@ -63,18 +60,15 @@ public class SlotsAllocatorSuiteJ {
     disks1.put("/mnt/disk3", diskInfo3);
 
     Map<String, DiskInfo> disks2 = new HashMap<>();
-    DiskInfo diskInfo4 = new DiskInfo("/mnt/disk1",
-      random.nextInt() + 100 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
-    DiskInfo diskInfo5 = new DiskInfo("/mnt/disk2",
-      random.nextInt() + 95 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
-    DiskInfo diskInfo6 = new DiskInfo("/mnt/disk3",
-      random.nextInt() + 90 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
+    DiskInfo diskInfo4 =
+        new DiskInfo(
+            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+    DiskInfo diskInfo5 =
+        new DiskInfo(
+            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+    DiskInfo diskInfo6 =
+        new DiskInfo(
+            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
     diskInfo4.maxSlots_$eq(diskInfo4.actualUsableSpace() / assumedPartitionSize);
     diskInfo5.maxSlots_$eq(diskInfo5.actualUsableSpace() / assumedPartitionSize);
     diskInfo6.maxSlots_$eq(diskInfo6.actualUsableSpace() / assumedPartitionSize);
@@ -83,18 +77,15 @@ public class SlotsAllocatorSuiteJ {
     disks2.put("/mnt/disk3", diskInfo6);
 
     Map<String, DiskInfo> disks3 = new HashMap<>();
-    DiskInfo diskInfo7 = new DiskInfo("/mnt/disk1",
-      random.nextInt() + 100 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
-    DiskInfo diskInfo8 = new DiskInfo("/mnt/disk2",
-      random.nextInt() + 95 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
-    DiskInfo diskInfo9 = new DiskInfo("/mnt/disk3",
-      random.nextInt() + 90 * 1024 * 1024 * 1024L,
-      random.nextInt(1000),
-      0);
+    DiskInfo diskInfo7 =
+        new DiskInfo(
+            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+    DiskInfo diskInfo8 =
+        new DiskInfo(
+            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+    DiskInfo diskInfo9 =
+        new DiskInfo(
+            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
     diskInfo7.maxSlots_$eq(diskInfo7.actualUsableSpace() / assumedPartitionSize);
     diskInfo8.maxSlots_$eq(diskInfo8.actualUsableSpace() / assumedPartitionSize);
     diskInfo9.maxSlots_$eq(diskInfo9.actualUsableSpace() / assumedPartitionSize);
@@ -103,27 +94,9 @@ public class SlotsAllocatorSuiteJ {
     disks3.put("/mnt/disk3", diskInfo9);
 
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1",
-      9,
-      10,
-      110,
-      113,
-      disks1,
-      null));
-    workers.add(new WorkerInfo("host2",
-      9,
-      11,
-      111,
-      114,
-      disks2,
-      null));
-    workers.add(new WorkerInfo("host3",
-      9,
-      12,
-      112,
-      115,
-      disks3,
-      null));
+    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, disks1, null));
+    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, disks2, null));
+    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, disks3, null));
     return workers;
   }
 
@@ -206,14 +179,14 @@ public class SlotsAllocatorSuiteJ {
   }
 
   private void check(
-    List<WorkerInfo> workers,
-    List<Integer> partitionIds,
-    boolean shouldReplicate,
-    boolean expectSuccess) {
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      boolean expectSuccess) {
     String shuffleKey = "appId-1";
     RssConf rssConf = new RssConf();
-    rssConf.set("rss.disk.groups","2");
-    rssConf.set("rss.disk.group.gradient","1");
+    rssConf.set("rss.disk.groups", "2");
+    rssConf.set("rss.disk.group.gradient", "1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsLoadAware(
             workers,
@@ -224,23 +197,25 @@ public class SlotsAllocatorSuiteJ {
             RssConf.diskGroupGradient(rssConf));
     if (expectSuccess) {
       if (shouldReplicate) {
-        slots.forEach((k, v) -> {
-          Set<String> locationDuplicationSet = new HashSet<>();
-          v._1.forEach(i -> {
-            String uniqueId = i.getUniqueId();
-            assert !locationDuplicationSet.contains(uniqueId);
-            locationDuplicationSet.add(uniqueId);
-            for (PartitionLocation location : v._1) {
-              assert location.getHost().equals(k.host()) &&
-                         location.getRpcPort() == k.rpcPort() &&
-                         location.getPushPort() == k.pushPort() &&
-                         location.getFetchPort() == k.fetchPort();
-            }
-          });
-        });
+        slots.forEach(
+            (k, v) -> {
+              Set<String> locationDuplicationSet = new HashSet<>();
+              v._1.forEach(
+                  i -> {
+                    String uniqueId = i.getUniqueId();
+                    assert !locationDuplicationSet.contains(uniqueId);
+                    locationDuplicationSet.add(uniqueId);
+                    for (PartitionLocation location : v._1) {
+                      assert location.getHost().equals(k.host())
+                          && location.getRpcPort() == k.rpcPort()
+                          && location.getPushPort() == k.pushPort()
+                          && location.getFetchPort() == k.fetchPort();
+                    }
+                  });
+            });
       }
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
-        SlotsAllocator.slotsToDiskAllocations(slots);
+          SlotsAllocator.slotsToDiskAllocations(slots);
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
         WorkerInfo worker = entry.getKey();
         Map<String, Integer> allocationMap = entry.getValue();
@@ -256,8 +231,8 @@ public class SlotsAllocatorSuiteJ {
         Assert.assertEquals(partitionIds.size(), usedTotalSlots);
       }
     } else {
-      assert slots.isEmpty() :
-        "Expect to fail to offer slots, but return " + slots.size() + " slots.";
+      assert slots.isEmpty()
+          : "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }
   }
 }

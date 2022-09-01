@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.common.network;
 
+import static org.junit.Assert.*;
+
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -41,8 +43,6 @@ import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 
-import static org.junit.Assert.*;
-
 public class RpcIntegrationSuiteJ {
   static TransportConf conf;
   static TransportServer server;
@@ -55,56 +55,60 @@ public class RpcIntegrationSuiteJ {
   public static void setUp() throws Exception {
     conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
     testData = new StreamTestHelper();
-    handler = new BaseMessageHandler() {
-      @Override
-      public void receive(
-          TransportClient client,
-          RequestMessage message) {
-        if (message instanceof RpcRequest) {
-          String msg;
-          RpcRequest r = (RpcRequest) message;
-          RpcResponseCallback callback = new RpcResponseCallback() {
-            @Override
-            public void onSuccess(ByteBuffer response) {
-              client.getChannel().writeAndFlush(new RpcResponse(r.requestId,
-                new NioManagedBuffer(response)));
-            }
+    handler =
+        new BaseMessageHandler() {
+          @Override
+          public void receive(TransportClient client, RequestMessage message) {
+            if (message instanceof RpcRequest) {
+              String msg;
+              RpcRequest r = (RpcRequest) message;
+              RpcResponseCallback callback =
+                  new RpcResponseCallback() {
+                    @Override
+                    public void onSuccess(ByteBuffer response) {
+                      client
+                          .getChannel()
+                          .writeAndFlush(
+                              new RpcResponse(r.requestId, new NioManagedBuffer(response)));
+                    }
 
-            @Override
-            public void onFailure(Throwable e) {
-              client.getChannel().writeAndFlush(new RpcFailure(r.requestId,
-                Throwables.getStackTraceAsString(e)));
+                    @Override
+                    public void onFailure(Throwable e) {
+                      client
+                          .getChannel()
+                          .writeAndFlush(
+                              new RpcFailure(r.requestId, Throwables.getStackTraceAsString(e)));
+                    }
+                  };
+              try {
+                msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+              String[] parts = msg.split("/");
+              if (parts[0].equals("hello")) {
+                callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
+              } else if (parts[0].equals("return error")) {
+                callback.onFailure(new RuntimeException("Returned: " + parts[1]));
+              } else if (parts[0].equals("throw error")) {
+                callback.onFailure(new RuntimeException("Thrown: " + parts[1]));
+              }
+            } else if (message instanceof OneWayMessage) {
+              String msg;
+              try {
+                msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+              oneWayMsgs.add(msg);
             }
-          };
-          try {
-            msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
-          } catch (Exception e) {
-            throw new RuntimeException(e);
           }
-          String[] parts = msg.split("/");
-          if (parts[0].equals("hello")) {
-            callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
-          } else if (parts[0].equals("return error")) {
-            callback.onFailure(new RuntimeException("Returned: " + parts[1]));
-          } else if (parts[0].equals("throw error")) {
-            callback.onFailure(new RuntimeException("Thrown: " + parts[1]));
-          }
-        } else if (message instanceof OneWayMessage) {
-          String msg;
-          try {
-            msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-          oneWayMsgs.add(msg);
-        }
-      }
 
-      @Override
-      public boolean checkRegistered() {
-        return true;
-      }
-    };
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
     TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
@@ -123,7 +127,7 @@ public class RpcIntegrationSuiteJ {
     public Set<String> errorMessages;
   }
 
-  private RpcResult sendRPC(String ... commands) throws Exception {
+  private RpcResult sendRPC(String... commands) throws Exception {
     TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
     final Semaphore sem = new Semaphore(0);
 
@@ -131,20 +135,21 @@ public class RpcIntegrationSuiteJ {
     res.successMessages = Collections.synchronizedSet(new HashSet<String>());
     res.errorMessages = Collections.synchronizedSet(new HashSet<String>());
 
-    RpcResponseCallback callback = new RpcResponseCallback() {
-      @Override
-      public void onSuccess(ByteBuffer message) {
-        String response = JavaUtils.bytesToString(message);
-        res.successMessages.add(response);
-        sem.release();
-      }
+    RpcResponseCallback callback =
+        new RpcResponseCallback() {
+          @Override
+          public void onSuccess(ByteBuffer message) {
+            String response = JavaUtils.bytesToString(message);
+            res.successMessages.add(response);
+            sem.release();
+          }
 
-      @Override
-      public void onFailure(Throwable e) {
-        res.errorMessages.add(e.getMessage());
-        sem.release();
-      }
-    };
+          @Override
+          public void onFailure(Throwable e) {
+            res.errorMessages.add(e.getMessage());
+            sem.release();
+          }
+        };
 
     for (String command : commands) {
       client.sendRpc(JavaUtils.stringToBytes(command), callback);
@@ -245,11 +250,14 @@ public class RpcIntegrationSuiteJ {
   }
 
   private void assertErrorsContain(Set<String> errors, Set<String> contains) {
-    assertEquals("Expected " + contains.size() + " errors, got " + errors.size() + "errors: " +
-        errors, contains.size(), errors.size());
+    assertEquals(
+        "Expected " + contains.size() + " errors, got " + errors.size() + "errors: " + errors,
+        contains.size(),
+        errors.size());
 
     Pair<Set<String>, Set<String>> r = checkErrorsContain(errors, contains);
-    assertTrue("Could not find error containing " + r.getRight() + "; errors: " + errors,
+    assertTrue(
+        "Could not find error containing " + r.getRight() + "; errors: " + errors,
         r.getRight().isEmpty());
 
     assertTrue(r.getLeft().isEmpty());
@@ -258,17 +266,16 @@ public class RpcIntegrationSuiteJ {
   private void assertErrorAndClosed(RpcResult result, String expectedError) {
     assertTrue("unexpected success: " + result.successMessages, result.successMessages.isEmpty());
     Set<String> errors = result.errorMessages;
-    assertEquals("Expected 2 errors, got " + errors.size() + "errors: " +
-        errors, 2, errors.size());
+    assertEquals("Expected 2 errors, got " + errors.size() + "errors: " + errors, 2, errors.size());
 
     // We expect 1 additional error due to closed connection and here are possible keywords in the
     // error message.
-    Set<String> possibleClosedErrors = Sets.newHashSet(
-        "closed",
-        "Connection reset",
-        "java.nio.channels.ClosedChannelException",
-        "java.io.IOException: Broken pipe"
-    );
+    Set<String> possibleClosedErrors =
+        Sets.newHashSet(
+            "closed",
+            "Connection reset",
+            "java.nio.channels.ClosedChannelException",
+            "java.io.IOException: Broken pipe");
     Set<String> containsAndClosed = Sets.newHashSet(expectedError);
     containsAndClosed.addAll(possibleClosedErrors);
 
@@ -281,14 +288,13 @@ public class RpcIntegrationSuiteJ {
         "The size of " + errorsNotFound + " was not " + (possibleClosedErrors.size() - 1),
         possibleClosedErrors.size() - 1,
         errorsNotFound.size());
-    for (String err: errorsNotFound) {
+    for (String err : errorsNotFound) {
       assertTrue("Found a wrong error " + err, containsAndClosed.contains(err));
     }
   }
 
   private Pair<Set<String>, Set<String>> checkErrorsContain(
-      Set<String> errors,
-      Set<String> contains) {
+      Set<String> errors, Set<String> contains) {
     Set<String> remainingErrors = Sets.newHashSet(errors);
     Set<String> notFound = Sets.newHashSet();
     for (String contain : contains) {

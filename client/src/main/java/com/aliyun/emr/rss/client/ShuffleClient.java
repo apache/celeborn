@@ -26,10 +26,7 @@ import com.aliyun.emr.rss.client.read.RssInputStream;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 
-/**
- * ShuffleClient有可能是进程单例
- * 具体的PartitionLocation应该隐藏在实现里面
- */
+/** ShuffleClient有可能是进程单例 具体的PartitionLocation应该隐藏在实现里面 */
 public abstract class ShuffleClient implements Cloneable {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initFinished = false;
@@ -106,6 +103,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   /**
    * 往具体的一个reduce partition里写数据
+   *
    * @param applicationId
    * @param shuffleId
    * @param mapId taskContext.partitionId
@@ -125,12 +123,11 @@ public abstract class ShuffleClient implements Cloneable {
       int offset,
       int length,
       int numMappers,
-      int numPartitions) throws IOException;
+      int numPartitions)
+      throws IOException;
 
-  public abstract void prepareForMergeData(
-      int shuffleId,
-      int mapId,
-      int attemptId) throws IOException;
+  public abstract void prepareForMergeData(int shuffleId, int mapId, int attemptId)
+      throws IOException;
 
   public abstract int mergeData(
       String applicationId,
@@ -142,31 +139,27 @@ public abstract class ShuffleClient implements Cloneable {
       int offset,
       int length,
       int numMappers,
-      int numPartitions) throws IOException;
+      int numPartitions)
+      throws IOException;
 
-  public abstract void pushMergedData(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId
-  ) throws IOException;
+  public abstract void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
+      throws IOException;
 
   /**
    * report partitionlocations written by the completed map task
+   *
    * @param applicationId
    * @param shuffleId
    * @param mapId
    * @param attemptId
    */
   public abstract void mapperEnd(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numMappers) throws IOException;
+      String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
+      throws IOException;
 
   /**
    * cleanup states of the map task
+   *
    * @param applicationId
    * @param shuffleId
    * @param mapId
@@ -175,9 +168,8 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void cleanup(String applicationId, int shuffleId, int mapId, int attemptId);
 
   /**
-   * reduce端分区读取
-   * 按照 mapperId+mapperAttemptNum+batchId 去重
-   * batchId是隐藏在实现里的发送时序自增变量
+   * reduce端分区读取 按照 mapperId+mapperAttemptNum+batchId 去重 batchId是隐藏在实现里的发送时序自增变量
+   *
    * @param applicationId
    * @param shuffleId
    * @param partitionId
@@ -191,22 +183,20 @@ public abstract class ShuffleClient implements Cloneable {
       int partitionId,
       int attemptNumber,
       int startMapIndex,
-      int endMapIndex) throws IOException;
+      int endMapIndex)
+      throws IOException;
 
   public abstract RssInputStream readPartition(
-      String applicationId,
-      int shuffleId,
-      int partitionId,
-      int attemptNumber) throws IOException;
+      String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
   /**
    * 注销
+   *
    * @param applicationId
    * @param shuffleId
    * @return
    */
-  public abstract boolean unregisterShuffle(
-      String applicationId, int shuffleId, boolean isDriver);
+  public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
 }

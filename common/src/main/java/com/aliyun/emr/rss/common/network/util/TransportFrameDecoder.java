@@ -30,19 +30,18 @@ import com.aliyun.emr.rss.common.network.protocol.Message;
 
 /**
  * A customized frame decoder that allows intercepting raw data.
- * <p>
- * This behaves like Netty's frame decoder (with hard coded parameters that match this library's
- * needs), except it allows an interceptor to be installed to read data directly before it's
- * framed.
- * <p>
- * Unlike Netty's frame decoder, each frame is dispatched to child handlers as soon as it's
- * decoded, instead of building as many frames as the current buffer allows and dispatching
- * all of them. This allows a child handler to install an interceptor if needed.
- * <p>
- * If an interceptor is installed, framing stops, and data is instead fed directly to the
- * interceptor. When the interceptor indicates that it doesn't need to read any more data,
- * framing resumes. Interceptors should not hold references to the data buffers provided
- * to their handle() method.
+ *
+ * <p>This behaves like Netty's frame decoder (with hard coded parameters that match this library's
+ * needs), except it allows an interceptor to be installed to read data directly before it's framed.
+ *
+ * <p>Unlike Netty's frame decoder, each frame is dispatched to child handlers as soon as it's
+ * decoded, instead of building as many frames as the current buffer allows and dispatching all of
+ * them. This allows a child handler to install an interceptor if needed.
+ *
+ * <p>If an interceptor is installed, framing stops, and data is instead fed directly to the
+ * interceptor. When the interceptor indicates that it doesn't need to read any more data, framing
+ * resumes. Interceptors should not hold references to the data buffers provided to their handle()
+ * method.
  */
 public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implements FrameDecoder {
   private int msgSize = -1;
@@ -153,8 +152,8 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
   }
 
   /**
-   * Takes the first buffer in the internal list, and either adjust it to fit in the frame
-   * (by taking a slice out of it) or remove it from the internal list.
+   * Takes the first buffer in the internal list, and either adjust it to fit in the frame (by
+   * taking a slice out of it) or remove it from the internal list.
    */
   private ByteBuf nextBufferForFrame(int bytesToRead) {
     ByteBuf buf = buffers.getFirst();

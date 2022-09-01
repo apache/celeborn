@@ -42,7 +42,6 @@ class RPCSource(rssConf: RssConf)
   addCounter(RPCPushMergedDataSize)
   addCounter(RPCChunkFetchRequestNum)
 
-
   def updateMessageMetrics(message: Any, messageLen: Long): Unit = {
     message match {
       case _: ReserveSlots =>

@@ -33,9 +33,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.PlatformDependent;
 
-/**
- * Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO.
- */
+/** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
 public class NettyUtils {
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
@@ -103,27 +101,24 @@ public class NettyUtils {
   }
 
   /**
-   * Create a pooled ByteBuf allocator but disables the thread-local cache. Thread-local caches
-   * are disabled for TransportClients because the ByteBufs are allocated by the event loop thread,
-   * but released by the executor thread rather than the event loop thread. Those thread-local
-   * caches actually delay the recycling of buffers, leading to larger memory usage.
+   * Create a pooled ByteBuf allocator but disables the thread-local cache. Thread-local caches are
+   * disabled for TransportClients because the ByteBufs are allocated by the event loop thread, but
+   * released by the executor thread rather than the event loop thread. Those thread-local caches
+   * actually delay the recycling of buffers, leading to larger memory usage.
    */
   public static PooledByteBufAllocator createPooledByteBufAllocator(
-      boolean allowDirectBufs,
-      boolean allowCache,
-      int numCores) {
+      boolean allowDirectBufs, boolean allowCache, int numCores) {
     if (numCores == 0) {
       numCores = Runtime.getRuntime().availableProcessors();
     }
     return new PooledByteBufAllocator(
-      allowDirectBufs && PlatformDependent.directBufferPreferred(),
-      Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
-      Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
-      PooledByteBufAllocator.defaultPageSize(),
-      PooledByteBufAllocator.defaultMaxOrder(),
-      allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
-      allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
-      allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false
-    );
+        allowDirectBufs && PlatformDependent.directBufferPreferred(),
+        Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
+        Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
+        PooledByteBufAllocator.defaultPageSize(),
+        PooledByteBufAllocator.defaultMaxOrder(),
+        allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
+        allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
+        allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false);
   }
 }

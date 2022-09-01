@@ -35,10 +35,8 @@ class HttpServer(channelInitializer: ChannelInitializer[_], port: Int) extends L
     val boss = new NioEventLoopGroup(2)
     val work = new NioEventLoopGroup(2)
 
-    bootstrap.group(boss, work).
-      handler(new LoggingHandler(LogLevel.DEBUG)).
-      channel(classOf[NioServerSocketChannel]).
-      childHandler(channelInitializer)
+    bootstrap.group(boss, work).handler(new LoggingHandler(LogLevel.DEBUG)).channel(
+      classOf[NioServerSocketChannel]).childHandler(channelInitializer)
 
     val f = bootstrap.bind(new InetSocketAddress(port)).sync
     logInfo(s"HttpServer started on port $port.")

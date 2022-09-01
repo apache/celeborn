@@ -195,7 +195,7 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
           } catch {
             case t: Throwable => logError(s"clearer quit with $t")
           } finally {
-            Thread.sleep(600000 /* 10min */)
+            Thread.sleep(600000 /* 10min */ )
           }
         }
       }
@@ -315,9 +315,9 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
 
 class TimerSupplier(val slidingWindowSize: Int)
   extends MetricRegistry.MetricSupplier[Timer] {
-    override def newMetric(): Timer = {
-      new RssTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
-    }
+  override def newMetric(): Timer = {
+    new RssTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
+  }
 }
 
 class GaugeSupplier[T](f: Unit => T) extends MetricRegistry.MetricSupplier[Gauge[_]] {

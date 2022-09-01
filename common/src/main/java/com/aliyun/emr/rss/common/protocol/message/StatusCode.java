@@ -54,7 +54,7 @@ public enum StatusCode {
   private final byte value;
 
   StatusCode(int value) {
-    assert(value >= 0 && value < 256);
+    assert (value >= 0 && value < 256);
     this.value = (byte) value;
   }
 
@@ -80,8 +80,6 @@ public enum StatusCode {
 
   @Override
   public String toString() {
-    return "StatusCode{" +
-             "value=" + this.name() +
-             '}';
+    return "StatusCode{" + "value=" + this.name() + '}';
   }
 }

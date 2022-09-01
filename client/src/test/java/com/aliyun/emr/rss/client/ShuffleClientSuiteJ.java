@@ -17,6 +17,10 @@
 
 package com.aliyun.emr.rss.client;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -45,10 +49,6 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.protocol.message.StatusCode;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class ShuffleClientSuiteJ {
 
   private ShuffleClientImpl shuffleClient;
@@ -69,12 +69,26 @@ public class ShuffleClientSuiteJ {
   private static final int SLAVE_PUSH_PORT = 4322;
   private static final int SLAVE_FETCH_PORT = 4323;
   private static final int SLAVE_REPLICATE_PORT = 4324;
-  private static final PartitionLocation masterLocation = new PartitionLocation(
-    0, 1, "localhost", MASTER_RPC_PORT, MASTER_PUSH_PORT, MASTER_FETCH_PORT,
-    MASTER_REPLICATE_PORT, PartitionLocation.Mode.Master);
-  private static final PartitionLocation slaveLocation = new PartitionLocation(
-    0, 1, "localhost", SLAVE_RPC_PORT, SLAVE_PUSH_PORT, SLAVE_FETCH_PORT,
-    SLAVE_REPLICATE_PORT, PartitionLocation.Mode.Slave);
+  private static final PartitionLocation masterLocation =
+      new PartitionLocation(
+          0,
+          1,
+          "localhost",
+          MASTER_RPC_PORT,
+          MASTER_PUSH_PORT,
+          MASTER_FETCH_PORT,
+          MASTER_REPLICATE_PORT,
+          PartitionLocation.Mode.Master);
+  private static final PartitionLocation slaveLocation =
+      new PartitionLocation(
+          0,
+          1,
+          "localhost",
+          SLAVE_RPC_PORT,
+          SLAVE_PUSH_PORT,
+          SLAVE_FETCH_PORT,
+          SLAVE_REPLICATE_PORT,
+          PartitionLocation.Mode.Slave);
 
   private static byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
   private final int BATCH_HEADER_SIZE = 4 * 4;
@@ -84,9 +98,18 @@ public class ShuffleClientSuiteJ {
     for (CompressionCodec codec : CompressionCodec.values()) {
       RssConf conf = setupEnv(codec);
 
-      int pushDataLen = shuffleClient.pushData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
-              TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
-              TEST_BUF1.length, 1, 1);
+      int pushDataLen =
+          shuffleClient.pushData(
+              TEST_APPLICATION_ID,
+              TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCRE_ID,
+              TEST_BUF1,
+              0,
+              TEST_BUF1.length,
+              1,
+              1);
 
       Compressor compressor = Compressor.getCompressor(conf);
       compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
@@ -101,24 +124,50 @@ public class ShuffleClientSuiteJ {
     for (CompressionCodec codec : CompressionCodec.values()) {
       RssConf conf = setupEnv(codec);
 
-      int mergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
-              TEST_ATTEMPT_ID, TEST_REDUCRE_ID, TEST_BUF1, 0,
-              TEST_BUF1.length, 1, 1);
+      int mergeSize =
+          shuffleClient.mergeData(
+              TEST_APPLICATION_ID,
+              TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCRE_ID,
+              TEST_BUF1,
+              0,
+              TEST_BUF1.length,
+              1,
+              1);
 
       Compressor compressor = Compressor.getCompressor(conf);
       compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
       final int compressedTotalSize = compressor.getCompressedTotalSize();
 
-      shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, TEST_ATTEMPT_ID,
-              TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
-              TEST_BUF1, 0, TEST_BUF1.length, 1, 1);
+      shuffleClient.mergeData(
+          TEST_APPLICATION_ID,
+          TEST_SHUFFLE_ID,
+          TEST_ATTEMPT_ID,
+          TEST_ATTEMPT_ID,
+          TEST_REDUCRE_ID,
+          TEST_BUF1,
+          0,
+          TEST_BUF1.length,
+          1,
+          1);
 
       assert (mergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
 
       byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
-      int largeMergeSize = shuffleClient.mergeData(TEST_APPLICATION_ID, TEST_SHUFFLE_ID,
-              TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, TEST_REDUCRE_ID,
-              buf1k, 0, buf1k.length, 1, 1);
+      int largeMergeSize =
+          shuffleClient.mergeData(
+              TEST_APPLICATION_ID,
+              TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCRE_ID,
+              buf1k,
+              0,
+              buf1k.length,
+              1,
+              1);
 
       compressor = Compressor.getCompressor(conf);
       compressor.compress(buf1k, 0, buf1k.length);
@@ -148,149 +197,154 @@ public class ShuffleClientSuiteJ {
     shuffleClient = new ShuffleClientImpl(conf);
 
     masterLocation.setPeer(slaveLocation);
-    when(endpointRef.askSync(new ControlMessages.RegisterShuffle(TEST_APPLICATION_ID,
-        TEST_SHUFFLE_ID, 1, 1),
-      ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
-      .thenAnswer(t -> new ControlMessages.RegisterShuffleResponse(StatusCode.Success,
-        new ArrayList<PartitionLocation>() {{
-            add(masterLocation);
-          }}));
+    when(endpointRef.askSync(
+            new ControlMessages.RegisterShuffle(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
+            ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
+        .thenAnswer(
+            t ->
+                new ControlMessages.RegisterShuffleResponse(
+                    StatusCode.Success,
+                    new ArrayList<PartitionLocation>() {
+                      {
+                        add(masterLocation);
+                      }
+                    }));
 
     shuffleClient.setupMetaServiceRef(endpointRef);
 
-    ChannelFuture mockedFuture = new ChannelFuture() {
-      @Override
-      public Channel channel() {
-        return null;
-      }
+    ChannelFuture mockedFuture =
+        new ChannelFuture() {
+          @Override
+          public Channel channel() {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture addListener(
-        GenericFutureListener<? extends Future<? super Void>> listener) {
-        return null;
-      }
+          @Override
+          public ChannelFuture addListener(
+              GenericFutureListener<? extends Future<? super Void>> listener) {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture addListeners(
-        GenericFutureListener<? extends Future<? super Void>>... listeners) {
-        return null;
-      }
+          @Override
+          public ChannelFuture addListeners(
+              GenericFutureListener<? extends Future<? super Void>>... listeners) {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture removeListener(
-        GenericFutureListener<? extends Future<? super Void>> listener) {
-        return null;
-      }
+          @Override
+          public ChannelFuture removeListener(
+              GenericFutureListener<? extends Future<? super Void>> listener) {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture removeListeners(
-        GenericFutureListener<? extends Future<? super Void>>... listeners) {
-        return null;
-      }
+          @Override
+          public ChannelFuture removeListeners(
+              GenericFutureListener<? extends Future<? super Void>>... listeners) {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture sync() throws InterruptedException {
-        return null;
-      }
+          @Override
+          public ChannelFuture sync() throws InterruptedException {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture syncUninterruptibly() {
-        return null;
-      }
+          @Override
+          public ChannelFuture syncUninterruptibly() {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture await() throws InterruptedException {
-        return null;
-      }
+          @Override
+          public ChannelFuture await() throws InterruptedException {
+            return null;
+          }
 
-      @Override
-      public ChannelFuture awaitUninterruptibly() {
-        return null;
-      }
+          @Override
+          public ChannelFuture awaitUninterruptibly() {
+            return null;
+          }
 
-      @Override
-      public boolean isVoid() {
-        return false;
-      }
+          @Override
+          public boolean isVoid() {
+            return false;
+          }
 
-      @Override
-      public boolean isSuccess() {
-        return true;
-      }
+          @Override
+          public boolean isSuccess() {
+            return true;
+          }
 
-      @Override
-      public boolean isCancellable() {
-        return false;
-      }
+          @Override
+          public boolean isCancellable() {
+            return false;
+          }
 
-      @Override
-      public Throwable cause() {
-        return null;
-      }
+          @Override
+          public Throwable cause() {
+            return null;
+          }
 
-      @Override
-      public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-        return true;
-      }
+          @Override
+          public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+            return true;
+          }
 
-      @Override
-      public boolean await(long timeoutMillis) throws InterruptedException {
-        return true;
-      }
+          @Override
+          public boolean await(long timeoutMillis) throws InterruptedException {
+            return true;
+          }
 
-      @Override
-      public boolean awaitUninterruptibly(long timeout, TimeUnit unit) {
-        return true;
-      }
+          @Override
+          public boolean awaitUninterruptibly(long timeout, TimeUnit unit) {
+            return true;
+          }
 
-      @Override
-      public boolean awaitUninterruptibly(long timeoutMillis) {
-        return true;
-      }
+          @Override
+          public boolean awaitUninterruptibly(long timeoutMillis) {
+            return true;
+          }
 
-      @Override
-      public Void getNow() {
-        return null;
-      }
+          @Override
+          public Void getNow() {
+            return null;
+          }
 
-      @Override
-      public boolean cancel(boolean mayInterruptIfRunning) {
-        return false;
-      }
+          @Override
+          public boolean cancel(boolean mayInterruptIfRunning) {
+            return false;
+          }
 
-      @Override
-      public boolean isCancelled() {
-        return false;
-      }
+          @Override
+          public boolean isCancelled() {
+            return false;
+          }
 
-      @Override
-      public boolean isDone() {
-        return true;
-      }
+          @Override
+          public boolean isDone() {
+            return true;
+          }
 
-      @Override
-      public Void get() throws InterruptedException, ExecutionException {
-        return null;
-      }
+          @Override
+          public Void get() throws InterruptedException, ExecutionException {
+            return null;
+          }
 
-      @Override
-      public Void get(long timeout, TimeUnit unit)
-        throws InterruptedException, ExecutionException, TimeoutException {
-        return null;
-      }
-    };
+          @Override
+          public Void get(long timeout, TimeUnit unit)
+              throws InterruptedException, ExecutionException, TimeoutException {
+            return null;
+          }
+        };
 
     when(client.pushData(any(), any())).thenAnswer(t -> mockedFuture);
-    when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort(),
-      TEST_REDUCRE_ID)).thenAnswer(t ->
-      client);
+    when(clientFactory.createClient(
+            masterLocation.getHost(), masterLocation.getPushPort(), TEST_REDUCRE_ID))
+        .thenAnswer(t -> client);
 
     when(client.pushMergedData(any(), any())).thenAnswer(t -> mockedFuture);
     when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort()))
-      .thenAnswer(t -> client);
+        .thenAnswer(t -> client);
 
     shuffleClient.dataClientFactory = clientFactory;
     return conf;
   }
-
 }

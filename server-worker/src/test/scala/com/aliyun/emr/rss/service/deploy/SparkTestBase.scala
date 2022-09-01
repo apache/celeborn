@@ -36,7 +36,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     .map(v => (v.toUpper, Random.nextInt(12) + 1))
 
   var tuple: (
-    Master,
+      Master,
       RpcEnv,
       Worker,
       RpcEnv,
@@ -50,19 +50,19 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       ChannelFuture) = _
 
   def clearMiniCluster(
-    tuple: (
-      Master,
-        RpcEnv,
-        Worker,
-        RpcEnv,
-        Worker,
-        RpcEnv,
-        Worker,
-        Thread,
-        Thread,
-        Thread,
-        Thread,
-        ChannelFuture)): Unit = {
+      tuple: (
+          Master,
+          RpcEnv,
+          Worker,
+          RpcEnv,
+          Worker,
+          RpcEnv,
+          Worker,
+          Thread,
+          Thread,
+          Thread,
+          Thread,
+          ChannelFuture)): Unit = {
     tuple._3.stop()
     tuple._4.shutdown()
     tuple._5.stop()
@@ -77,7 +77,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
   }
 
   def setupRssMiniCluster(): (
-    Master,
+      Master,
       RpcEnv,
       Worker,
       RpcEnv,
@@ -88,8 +88,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       Thread,
       Thread,
       Thread,
-      ChannelFuture
-    ) = {
+      ChannelFuture) = {
     Thread.sleep(3000L)
 
     val (master, masterRpcEnv, masterMetric) = createMaster()
@@ -125,8 +124,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       workerThread1,
       workerThread2,
       workerThread3,
-      masterMetric
-    )
+      masterMetric)
   }
 
   def updateSparkConf(sparkConf: SparkConf, sort: Boolean): SparkConf = {
@@ -151,8 +149,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       .combineByKey(
         (k: Int) => (k, 1),
         (acc: (Int, Int), v: Int) => (acc._1 + v, acc._2 + 1),
-        (acc1: (Int, Int), acc2: (Int, Int)) => (acc1._1 + acc2._1, acc1._2 + acc2._2)
-      )
+        (acc1: (Int, Int), acc2: (Int, Int)) => (acc1._1 + acc2._1, acc1._2 + acc2._2))
       .collectAsMap()
     resultWithOutRss
   }

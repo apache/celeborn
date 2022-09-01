@@ -34,7 +34,7 @@ import com.aliyun.emr.rss.common.network.util.NettyUtils;
  * Handler that processes server responses, in response to requests issued from a
  * [[TransportClient]]. It works by tracking the list of outstanding requests (and their callbacks).
  *
- * Concurrency: thread safe and can be called from multiple threads.
+ * <p>Concurrency: thread safe and can be called from multiple threads.
  */
 public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private static final Logger logger = LoggerFactory.getLogger(TransportResponseHandler.class);
@@ -74,8 +74,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   }
 
   /**
-   * Fire the failure callback for all outstanding requests. This is called when we have an
-   * uncaught exception or pre-mature connection termination.
+   * Fire the failure callback for all outstanding requests. This is called when we have an uncaught
+   * exception or pre-mature connection termination.
    */
   private void failOutstandingRequests(Throwable cause) {
     for (Map.Entry<StreamChunkSlice, ChunkReceivedCallback> entry : outstandingFetches.entrySet()) {
@@ -99,15 +99,16 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   }
 
   @Override
-  public void channelActive() {
-  }
+  public void channelActive() {}
 
   @Override
   public void channelInactive() {
     if (numOutstandingRequests() > 0) {
       String remoteAddress = NettyUtils.getRemoteAddress(channel);
-      logger.error("Still have {} requests outstanding when connection from {} is closed",
-        numOutstandingRequests(), remoteAddress);
+      logger.error(
+          "Still have {} requests outstanding when connection from {} is closed",
+          numOutstandingRequests(),
+          remoteAddress);
       failOutstandingRequests(new IOException("Connection from " + remoteAddress + " closed"));
     }
   }
@@ -116,8 +117,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   public void exceptionCaught(Throwable cause) {
     if (numOutstandingRequests() > 0) {
       String remoteAddress = NettyUtils.getRemoteAddress(channel);
-      logger.error("Still have {} requests outstanding when connection from {} is closed",
-        numOutstandingRequests(), remoteAddress);
+      logger.error(
+          "Still have {} requests outstanding when connection from {} is closed",
+          numOutstandingRequests(),
+          remoteAddress);
       failOutstandingRequests(cause);
     }
   }
@@ -128,8 +131,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       ChunkFetchSuccess resp = (ChunkFetchSuccess) message;
       ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkSlice);
       if (listener == null) {
-        logger.warn("Ignoring response for block {} from {} since it is not outstanding",
-          resp.streamChunkSlice, NettyUtils.getRemoteAddress(channel));
+        logger.warn(
+            "Ignoring response for block {} from {} since it is not outstanding",
+            resp.streamChunkSlice,
+            NettyUtils.getRemoteAddress(channel));
         resp.body().release();
       } else {
         outstandingFetches.remove(resp.streamChunkSlice);
@@ -140,20 +145,28 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
       ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkSlice);
       if (listener == null) {
-        logger.warn("Ignoring response for block {} from {} ({}) since it is not outstanding",
-          resp.streamChunkSlice, NettyUtils.getRemoteAddress(channel), resp.errorString);
+        logger.warn(
+            "Ignoring response for block {} from {} ({}) since it is not outstanding",
+            resp.streamChunkSlice,
+            NettyUtils.getRemoteAddress(channel),
+            resp.errorString);
       } else {
         outstandingFetches.remove(resp.streamChunkSlice);
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
-        listener.onFailure(resp.streamChunkSlice.chunkIndex, new ChunkFetchFailureException(
-          "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
+        listener.onFailure(
+            resp.streamChunkSlice.chunkIndex,
+            new ChunkFetchFailureException(
+                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
       RpcResponseCallback listener = outstandingRpcs.get(resp.requestId);
       if (listener == null) {
-        logger.warn("Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
-          resp.requestId, NettyUtils.getRemoteAddress(channel), resp.body().size());
+        logger.warn(
+            "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
+            resp.requestId,
+            NettyUtils.getRemoteAddress(channel),
+            resp.body().size());
         resp.body().release();
       } else {
         outstandingRpcs.remove(resp.requestId);
@@ -167,8 +180,11 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       RpcFailure resp = (RpcFailure) message;
       RpcResponseCallback listener = outstandingRpcs.get(resp.requestId);
       if (listener == null) {
-        logger.warn("Ignoring response for RPC {} from {} ({}) since it is not outstanding",
-          resp.requestId, NettyUtils.getRemoteAddress(channel), resp.errorString);
+        logger.warn(
+            "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
+            resp.requestId,
+            NettyUtils.getRemoteAddress(channel),
+            resp.errorString);
       } else {
         outstandingRpcs.remove(resp.requestId);
         listener.onFailure(new RuntimeException(resp.errorString));
@@ -192,5 +208,4 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   public void updateTimeOfLastRequest() {
     timeOfLastRequestNs.set(System.nanoTime());
   }
-
 }

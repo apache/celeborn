@@ -56,13 +56,14 @@ public class DummyShuffleClient extends ShuffleClient {
       int offset,
       int length,
       int numMappers,
-      int numPartitions) throws IOException {
+      int numPartitions)
+      throws IOException {
     os.write(data, offset, length);
     return length;
   }
 
   @Override
-  public void prepareForMergeData(int shuffleId, int mapId, int attemptId) throws IOException { }
+  public void prepareForMergeData(int shuffleId, int mapId, int attemptId) throws IOException {}
 
   @Override
   public int mergeData(
@@ -75,34 +76,21 @@ public class DummyShuffleClient extends ShuffleClient {
       int offset,
       int length,
       int numMappers,
-      int numPartitions) throws IOException {
+      int numPartitions)
+      throws IOException {
     os.write(data, offset, length);
     return length;
   }
 
   @Override
-  public void pushMergedData(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId) {
-
-  }
+  public void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId) {}
 
   @Override
   public void mapperEnd(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numMappers) {
-
-  }
+      String applicationId, int shuffleId, int mapId, int attemptId, int numMappers) {}
 
   @Override
-  public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {
-
-  }
+  public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {}
 
   @Override
   public RssInputStream readPartition(
@@ -116,8 +104,8 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(String applicationId, int shuffleId,
-      int partitionId, int attemptNumber) {
+  public RssInputStream readPartition(
+      String applicationId, int shuffleId, int partitionId, int attemptNumber) {
     return null;
   }
 

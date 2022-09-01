@@ -27,14 +27,18 @@ public class MasterNotLeaderException extends IOException {
   public static final String LEADER_NOT_PRESENTED = "leader is not present";
 
   public MasterNotLeaderException(String currentPeer, String suggestedLeaderPeer) {
-    super("Master:" + currentPeer + " is not the leader. Suggested leader is" +
-        " Master:" + suggestedLeaderPeer + ".");
+    super(
+        "Master:"
+            + currentPeer
+            + " is not the leader. Suggested leader is"
+            + " Master:"
+            + suggestedLeaderPeer
+            + ".");
     this.currentPeer = currentPeer;
     this.leaderPeer = suggestedLeaderPeer;
   }
 
   public String getSuggestedLeaderAddress() {
-    return leaderPeer.contains(":") ?
-        leaderPeer.split(":")[0] : leaderPeer;
+    return leaderPeer.contains(":") ? leaderPeer.split(":")[0] : leaderPeer;
   }
 }

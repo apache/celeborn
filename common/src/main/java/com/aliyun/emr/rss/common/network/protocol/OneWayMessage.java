@@ -24,10 +24,7 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 
-/**
- * A RPC that does not expect a reply, which is handled by a remote
- * {@link BaseMessageHandler}.
- */
+/** A RPC that does not expect a reply, which is handled by a remote {@link BaseMessageHandler}. */
 public final class OneWayMessage extends RequestMessage {
 
   public OneWayMessage(ManagedBuffer body) {
@@ -35,7 +32,9 @@ public final class OneWayMessage extends RequestMessage {
   }
 
   @Override
-  public Type type() { return Type.OneWayMessage; }
+  public Type type() {
+    return Type.OneWayMessage;
+  }
 
   @Override
   public int encodedLength() {
@@ -81,8 +80,6 @@ public final class OneWayMessage extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-      .add("body", body())
-      .toString();
+    return Objects.toStringHelper(this).add("body", body()).toString();
   }
 }

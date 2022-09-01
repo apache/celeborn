@@ -35,18 +35,19 @@ public class HAHelper {
   public static boolean checkShouldProcess(
       RpcCallContext context, AbstractMetaManager masterStatusSystem) {
     if ((masterStatusSystem instanceof HAMasterMetaManager)) {
-      HARaftServer ratisServer =
-        ((HAMasterMetaManager) masterStatusSystem).getRatisServer();
+      HARaftServer ratisServer = ((HAMasterMetaManager) masterStatusSystem).getRatisServer();
       if (ratisServer.isLeader()) {
         return true;
       }
       if (context != null) {
         if (ratisServer.getCachedLeaderPeerAddress().isPresent()) {
-          context.sendFailure(new MasterNotLeaderException(ratisServer.getRaftAddress(),
-              ratisServer.getCachedLeaderPeerAddress().get()));
+          context.sendFailure(
+              new MasterNotLeaderException(
+                  ratisServer.getRaftAddress(), ratisServer.getCachedLeaderPeerAddress().get()));
         } else {
-          context.sendFailure(new MasterNotLeaderException(ratisServer.getRaftAddress(),
-              MasterNotLeaderException.LEADER_NOT_PRESENTED));
+          context.sendFailure(
+              new MasterNotLeaderException(
+                  ratisServer.getRaftAddress(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
         }
       }
       return false;
@@ -83,7 +84,7 @@ public class HAHelper {
       throw new IOException(
           "Cannot create temporary snapshot directory at " + tempDir.getAbsolutePath());
     }
-    return File.createTempFile("raft_snapshot_" + System.currentTimeMillis() + "_",
-        ".dat", tempDir);
+    return File.createTempFile(
+        "raft_snapshot_" + System.currentTimeMillis() + "_", ".dat", tempDir);
   }
 }

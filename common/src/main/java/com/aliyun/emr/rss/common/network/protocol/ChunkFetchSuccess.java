@@ -26,9 +26,9 @@ import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 /**
  * Response to {@link ChunkFetchRequest} when a chunk exists and has been successfully fetched.
  *
- * Note that the server-side encoding of this messages does NOT include the buffer itself, as this
- * may be written by Netty in a more efficient manner (i.e., zero-copy write).
- * Similarly, the client-side decoding will reuse the Netty ByteBuf as the buffer.
+ * <p>Note that the server-side encoding of this messages does NOT include the buffer itself, as
+ * this may be written by Netty in a more efficient manner (i.e., zero-copy write). Similarly, the
+ * client-side decoding will reuse the Netty ByteBuf as the buffer.
  */
 public final class ChunkFetchSuccess extends ResponseMessage {
   public final StreamChunkSlice streamChunkSlice;
@@ -39,7 +39,9 @@ public final class ChunkFetchSuccess extends ResponseMessage {
   }
 
   @Override
-  public Type type() { return Type.ChunkFetchSuccess; }
+  public Type type() {
+    return Type.ChunkFetchSuccess;
+  }
 
   @Override
   public int encodedLength() {
@@ -88,8 +90,8 @@ public final class ChunkFetchSuccess extends ResponseMessage {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkSlice)
-      .add("buffer", body())
-      .toString();
+        .add("streamChunkId", streamChunkSlice)
+        .add("buffer", body())
+        .toString();
   }
 }

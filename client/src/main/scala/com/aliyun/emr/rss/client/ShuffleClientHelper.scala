@@ -47,10 +47,11 @@ object ShuffleClientHelper extends Logging {
         splittingSet.remove(partitionId)
       case Failure(exception) =>
         splittingSet.remove(partitionId)
-        logWarning(s"Shuffle file split failed for map ${shuffleId} partitionId ${partitionId}," +
-          s" try again, detail : {}", exception);
+        logWarning(
+          s"Shuffle file split failed for map ${shuffleId} partitionId ${partitionId}," +
+            s" try again, detail : {}",
+          exception);
 
     }(concurrent.ExecutionContext.fromExecutorService(executors))
   }
 }
-

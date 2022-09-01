@@ -48,30 +48,27 @@ public class MetaHandler {
     HANodeDetails haNodeDetails = HANodeDetails.loadHAConfig(conf);
     metaSystem.setRatisServer(
         HARaftServer.newMasterRatisServer(
-            this, conf,
-            haNodeDetails.getLocalNodeDetails(),
-            haNodeDetails.getPeerNodeDetails()));
+            this, conf, haNodeDetails.getLocalNodeDetails(), haNodeDetails.getPeerNodeDetails()));
     metaSystem.getRatisServer().start();
   }
 
   /**
    * Get an initial MasterMetaResponse.Builder with proper request cmdType.
+   *
    * @param request MasterMetaRequest.
    * @return MasterMetaResponse builder.
    */
   public static ResourceResponse.Builder getMasterMetaResponseBuilder(
-    ResourceProtos.ResourceRequest request) {
+      ResourceProtos.ResourceRequest request) {
     return ResourceResponse.newBuilder()
         .setCmdType(request.getCmdType())
         .setStatus(ResourceProtos.Status.OK)
         .setSuccess(true);
   }
 
-  public ResourceResponse handleReadRequest(
-    ResourceProtos.ResourceRequest request) {
+  public ResourceResponse handleReadRequest(ResourceProtos.ResourceRequest request) {
     ResourceProtos.Type cmdType = request.getCmdType();
-    ResourceResponse.Builder responseBuilder =
-        getMasterMetaResponseBuilder(request);
+    ResourceResponse.Builder responseBuilder = getMasterMetaResponseBuilder(request);
     responseBuilder.setCmdType(cmdType);
     try {
       switch (cmdType) {
@@ -89,11 +86,9 @@ public class MetaHandler {
     return responseBuilder.build();
   }
 
-  public ResourceResponse handleWriteRequest(
-      ResourceProtos.ResourceRequest request) {
+  public ResourceResponse handleWriteRequest(ResourceProtos.ResourceRequest request) {
     ResourceProtos.Type cmdType = request.getCmdType();
-    ResourceResponse.Builder responseBuilder =
-        getMasterMetaResponseBuilder(request);
+    ResourceResponse.Builder responseBuilder = getMasterMetaResponseBuilder(request);
     responseBuilder.setCmdType(cmdType);
     try {
       String shuffleKey;
@@ -105,28 +100,32 @@ public class MetaHandler {
       int replicatePort;
       Map<String, DiskInfo> disks;
       List<Map<String, Integer>> slots = new ArrayList<>();
-      Map<String, Map<String, Integer>> workerAllocations= new HashMap<>();
+      Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
-          request.getRequestSlotsRequest().getWorkerAllocationsMap().forEach((k, v) -> {
-            workerAllocations.put(k, new HashMap<>(v.getSlotMap()));
-          });
+          request
+              .getRequestSlotsRequest()
+              .getWorkerAllocationsMap()
+              .forEach(
+                  (k, v) -> {
+                    workerAllocations.put(k, new HashMap<>(v.getSlotMap()));
+                  });
           LOG.debug("Handle request slots for {}", shuffleKey);
-          metaSystem.updateRequestSlotsMeta(shuffleKey,
-              request.getRequestSlotsRequest().getHostName(), workerAllocations);
+          metaSystem.updateRequestSlotsMeta(
+              shuffleKey, request.getRequestSlotsRequest().getHostName(), workerAllocations);
           break;
 
         case ReleaseSlots:
-          for (ResourceProtos.SlotInfo
-                   pbSlotInfo : request.getReleaseSlotsRequest().getSlotsList()) {
+          for (ResourceProtos.SlotInfo pbSlotInfo :
+              request.getReleaseSlotsRequest().getSlotsList()) {
             slots.add(pbSlotInfo.getSlotMap());
           }
 
           shuffleKey = request.getReleaseSlotsRequest().getShuffleKey();
           LOG.debug("Handle release slots for {}", shuffleKey);
-          metaSystem.updateReleaseSlotsMeta(shuffleKey,
-              request.getReleaseSlotsRequest().getWorkerIdsList(), slots);
+          metaSystem.updateReleaseSlotsMeta(
+              shuffleKey, request.getReleaseSlotsRequest().getWorkerIdsList(), slots);
           break;
 
         case UnRegisterShuffle:
@@ -177,11 +176,17 @@ public class MetaHandler {
           fetchPort = request.getWorkerHeartBeatRequest().getFetchPort();
           disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartBeatRequest().getDisksMap());
           replicatePort = request.getWorkerHeartBeatRequest().getReplicatePort();
-          LOG.debug("Handle worker heartbeat for {} {} {} {} {} {}",
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks);
+          LOG.debug(
+              "Handle worker heartbeat for {} {} {} {} {} {}",
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              disks);
           time = request.getWorkerHeartBeatRequest().getTime();
-          metaSystem.updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
-            disks, time);
+          metaSystem.updateWorkerHeartBeatMeta(
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
           break;
 
         case RegisterWorker:
@@ -191,17 +196,23 @@ public class MetaHandler {
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
-          LOG.debug("Handle worker register for {} {} {} {} {} {}",
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks);
-          metaSystem.updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
-            disks);
+          LOG.debug(
+              "Handle worker register for {} {} {} {} {} {}",
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              disks);
+          metaSystem.updateRegisterWorkerMeta(
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks);
           break;
 
         case ReportWorkerFailure:
-          List<ResourceProtos.WorkerAddress> failedAddress = request
-                  .getReportWorkerFailureRequest().getFailedWorkerList();
-          List<WorkerInfo> failedWorkers= failedAddress.stream()
-                  .map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          List<ResourceProtos.WorkerAddress> failedAddress =
+              request.getReportWorkerFailureRequest().getFailedWorkerList();
+          List<WorkerInfo> failedWorkers =
+              failedAddress.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           metaSystem.updateBlacklistByReportWorkerFailure(failedWorkers);
           break;
 

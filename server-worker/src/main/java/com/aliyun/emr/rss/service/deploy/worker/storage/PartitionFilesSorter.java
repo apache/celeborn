@@ -69,11 +69,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
-    cachedIndexMaps = new ConcurrentHashMap<>();
+      cachedIndexMaps = new ConcurrentHashMap<>();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
   protected final long sortTimeout;
   protected final long fetchChunkSize;
@@ -84,14 +84,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   protected final AbstractSource source;
 
-  private final ExecutorService fileSorterExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "worker-file-sorter-execute", Math.max(Runtime.getRuntime().availableProcessors(), 8), 120);
+  private final ExecutorService fileSorterExecutors =
+      ThreadUtils.newDaemonCachedThreadPool(
+          "worker-file-sorter-execute",
+          Math.max(Runtime.getRuntime().availableProcessors(), 8),
+          120);
   private final Thread fileSorterSchedulerThread;
 
   public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
     this.fetchChunkSize = RssConf.chunkSize(conf);
-    this.reserveMemoryForSingleSort =  RssConf.memoryReservedForSingleSort(conf);
+    this.reserveMemoryForSingleSort = RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
     this.gracefulShutdown = RssConf.workerGracefulShutdown(conf);
@@ -111,25 +114,28 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.sortedFilesDb = null;
     }
 
-    fileSorterSchedulerThread = new Thread(() -> {
-      try {
-        while (!shutdown) {
-          FileSorter task = shuffleSortTaskDeque.take();
-          memoryTracker.reserveSortMemory(reserveMemoryForSingleSort);
-          while (!memoryTracker.sortMemoryReady()) {
-            Thread.sleep(20);
-          }
-          fileSorterExecutors.submit(() -> {
-            source.startTimer(WorkerSource.SortTime(), task.fileId);
-            task.sort();
-            source.stopTimer(WorkerSource.SortTime(), task.fileId);
-            memoryTracker.releaseSortMemory(reserveMemoryForSingleSort);
-          });
-        }
-      } catch (InterruptedException e) {
-        logger.warn("Sort thread is shutting down, detail :", e);
-      }
-    });
+    fileSorterSchedulerThread =
+        new Thread(
+            () -> {
+              try {
+                while (!shutdown) {
+                  FileSorter task = shuffleSortTaskDeque.take();
+                  memoryTracker.reserveSortMemory(reserveMemoryForSingleSort);
+                  while (!memoryTracker.sortMemoryReady()) {
+                    Thread.sleep(20);
+                  }
+                  fileSorterExecutors.submit(
+                      () -> {
+                        source.startTimer(WorkerSource.SortTime(), task.fileId);
+                        task.sort();
+                        source.stopTimer(WorkerSource.SortTime(), task.fileId);
+                        memoryTracker.releaseSortMemory(reserveMemoryForSingleSort);
+                      });
+                }
+              } catch (InterruptedException e) {
+                logger.warn("Sort thread is shutting down, detail :", e);
+              }
+            });
     fileSorterSchedulerThread.start();
   }
 
@@ -137,25 +143,25 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return shuffleSortTaskDeque.size();
   }
 
-  public FileInfo openStream(String shuffleKey, String fileName, FileInfo fileInfo,
-    int startMapIndex, int endMapIndex) {
+  public FileInfo openStream(
+      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex) {
     if (endMapIndex == Integer.MAX_VALUE) {
       return fileInfo;
     } else {
       String fileId = shuffleKey + "-" + fileName;
 
       Set<String> sorted =
-        sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+          sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
       Set<String> sorting =
-        sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+          sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
       String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
       String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
 
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
-          return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath,
-              startMapIndex, endMapIndex);
+          return resolve(
+              shuffleKey, fileId, sortedFilePath, indexFilePath, startMapIndex, endMapIndex);
         }
         if (!sorting.contains(fileId)) {
           try {
@@ -191,8 +197,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
 
-      return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath,
-        startMapIndex, endMapIndex);
+      return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath, startMapIndex, endMapIndex);
     }
   }
 
@@ -262,7 +267,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   public void updateSortedShuffleFilesInDB() {
     for (String shuffleKey : sortedShuffleFiles.keySet()) {
       try {
-        sortedFilesDb.put(dbShuffleKey(shuffleKey),
+        sortedFilesDb.put(
+            dbShuffleKey(shuffleKey),
             PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
         logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
       } catch (Exception exception) {
@@ -291,9 +297,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedShuffleFiles.get(shuffleKey);
   }
 
-  protected void writeIndex(Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath,
-      boolean isHdfs)
-    throws IOException {
+  protected void writeIndex(
+      Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isHdfs)
+      throws IOException {
     FSDataOutputStream hdfsIndexOutput = null;
     FileChannel indexFileChannel = null;
     if (isHdfs) {
@@ -316,10 +322,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       List<ShuffleBlockInfo> list = entry.getValue();
       indexBuf.putInt(mapId);
       indexBuf.putInt(list.size());
-      list.forEach(info -> {
-        indexBuf.putLong(info.offset);
-        indexBuf.putLong(info.length);
-      });
+      list.forEach(
+          info -> {
+            indexBuf.putLong(info.offset);
+            indexBuf.putLong(info.length);
+          });
     }
 
     indexBuf.flip();
@@ -340,24 +347,35 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       throws IOException {
     while (buffer.hasRemaining()) {
       if (-1 == stream.read(buffer)) {
-        throw new IOException("Unexpected EOF, file name : " + path +
-          " position :" + stream.getPos() + " buffer size :" + buffer.limit());
+        throw new IOException(
+            "Unexpected EOF, file name : "
+                + path
+                + " position :"
+                + stream.getPos()
+                + " buffer size :"
+                + buffer.limit());
       }
     }
   }
 
   protected void readChannelFully(FileChannel channel, ByteBuffer buffer, String path)
-    throws IOException {
+      throws IOException {
     while (buffer.hasRemaining()) {
       if (-1 == channel.read(buffer)) {
-        throw new IOException("Unexpected EOF, file name : " + path +
-          " position :" + channel.position() + " buffer size :" + buffer.limit());
+        throw new IOException(
+            "Unexpected EOF, file name : "
+                + path
+                + " position :"
+                + channel.position()
+                + " buffer size :"
+                + buffer.limit());
       }
     }
   }
 
-  private long transferStreamFully(FSDataInputStream origin, FSDataOutputStream sorted,
-      long offset, long length) throws IOException {
+  private long transferStreamFully(
+      FSDataInputStream origin, FSDataOutputStream sorted, long offset, long length)
+      throws IOException {
     // Worker read a shuffle block whose size is 256K by default.
     // So there is no need to worry about integer overflow.
     ByteBuffer buffer = ByteBuffer.allocate(Math.toIntExact(length));
@@ -367,28 +385,35 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       transferredSize += read;
       if (-1 == read) {
         throw new IOException(
-          "Unexpected EOF, position :" + origin.getPos() + " buffer size :" + buffer.limit());
+            "Unexpected EOF, position :" + origin.getPos() + " buffer size :" + buffer.limit());
       }
     }
     sorted.write(buffer.array());
     return length;
   }
 
-  private long transferChannelFully(FileChannel originChannel, FileChannel targetChannel,
-    long offset, long length) throws IOException {
+  private long transferChannelFully(
+      FileChannel originChannel, FileChannel targetChannel, long offset, long length)
+      throws IOException {
     long transferredSize = 0;
     while (transferredSize != length) {
-      transferredSize += originChannel.transferTo(offset + transferredSize,
-        length - transferredSize, targetChannel);
+      transferredSize +=
+          originChannel.transferTo(
+              offset + transferredSize, length - transferredSize, targetChannel);
     }
     return transferredSize;
   }
 
-  public FileInfo resolve(String shuffleKey, String fileId, String sortedFilePath,
-    String indexFilePath, int startMapIndex, int endMapIndex) {
+  public FileInfo resolve(
+      String shuffleKey,
+      String fileId,
+      String sortedFilePath,
+      String indexFilePath,
+      int startMapIndex,
+      int endMapIndex) {
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
-    if (cachedIndexMaps.containsKey(shuffleKey) &&
-          cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
+    if (cachedIndexMaps.containsKey(shuffleKey)
+        && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
       indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
     } else {
       FileInputStream indexStream = null;
@@ -413,7 +438,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         indexBuf.rewind();
         indexMap = ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
         Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
-          cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
+            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
         logger.error("Read sorted shuffle file error, detail : ", e);
@@ -423,9 +448,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
-    return new FileInfo(sortedFilePath,
-      ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-        startMapIndex, endMapIndex, fetchChunkSize, indexMap));
+    return new FileInfo(
+        sortedFilePath,
+        ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+            startMapIndex, endMapIndex, fetchChunkSize, indexMap));
   }
 
   class FileSorter {
@@ -488,12 +514,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           headerBuf.rewind();
 
           int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
-          final int compressedSize = Platform.getInt(batchHeader,
-              Platform.BYTE_ARRAY_OFFSET + 12);
+          final int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
 
           List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
-              originShuffleBlockInfos.computeIfAbsent(mapId,
-                v -> new ArrayList<>());
+              originShuffleBlockInfos.computeIfAbsent(mapId, v -> new ArrayList<>());
           ShuffleBlockInfo blockInfo = new ShuffleBlockInfo();
           blockInfo.offset = blockStartIndex;
           blockInfo.length = compressedSize + 16;
@@ -507,8 +531,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
 
         long fileIndex = 0;
-        for (Map.Entry<Integer, List<ShuffleBlockInfo>>
-                 originBlockInfoEntry : originShuffleBlockInfos.entrySet()) {
+        for (Map.Entry<Integer, List<ShuffleBlockInfo>> originBlockInfoEntry :
+            originShuffleBlockInfos.entrySet()) {
           int mapId = originBlockInfoEntry.getKey();
           List<ShuffleBlockInfo> originShuffleBlocks = originBlockInfoEntry.getValue();
           List<ShuffleBlockInfo> sortedShuffleBlocks = new ArrayList<>();
@@ -568,11 +592,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private long transferBlock(long offset, long length) throws IOException {
       if (isHdfs) {
-        return transferStreamFully(hdfsOriginInput, hdfsSortedOutput,
-            offset, length);
+        return transferStreamFully(hdfsOriginInput, hdfsSortedOutput, offset, length);
       } else {
-        return transferChannelFully(originFileChannel, sortedFileChannel,
-            offset, length);
+        return transferChannelFully(originFileChannel, sortedFileChannel, offset, length);
       }
     }
 
@@ -584,10 +606,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         deleteSuccess = new File(originFilePath).delete();
       }
       if (!deleteSuccess) {
-        logger.warn("clean origin file failed, origin file is : {}",
-            originFilePath);
+        logger.warn("clean origin file failed, origin file is : {}", originFilePath);
       }
     }
-
   }
 }

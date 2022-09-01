@@ -40,11 +40,11 @@ import com.aliyun.emr.rss.common.network.util.*;
 /**
  * Factory for creating {@link TransportClient}s by using createClient.
  *
- * The factory maintains a connection pool to other hosts and should return the same
- * TransportClient for the same remote host. It also shares a single worker thread pool for
- * all TransportClients.
+ * <p>The factory maintains a connection pool to other hosts and should return the same
+ * TransportClient for the same remote host. It also shares a single worker thread pool for all
+ * TransportClients.
  *
- * TransportClients will be reused whenever possible.
+ * <p>TransportClients will be reused whenever possible.
  */
 public class TransportClientFactory implements Closeable {
 
@@ -70,14 +70,14 @@ public class TransportClientFactory implements Closeable {
 
   /** Random number generator for picking connections between peers. */
   private final Random rand;
+
   private final int numConnectionsPerPeer;
 
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
   private PooledByteBufAllocator pooledAllocator;
 
-  public TransportClientFactory(
-      TransportContext context) {
+  public TransportClientFactory(TransportContext context) {
     this.context = Preconditions.checkNotNull(context);
     this.conf = context.getConf();
     this.connectionPool = new ConcurrentHashMap<>();
@@ -87,35 +87,34 @@ public class TransportClientFactory implements Closeable {
     IOMode ioMode = IOMode.valueOf(conf.ioMode());
     this.socketChannelClass = NettyUtils.getClientChannelClass(ioMode);
     logger.info("mode " + ioMode + " threads " + conf.clientThreads());
-    this.workerGroup = NettyUtils.createEventLoop(
-        ioMode,
-        conf.clientThreads(),
-        conf.getModuleName() + "-client");
-    this.pooledAllocator = NettyUtils.createPooledByteBufAllocator(
-      conf.preferDirectBufs(), false /* allowCache */, conf.clientThreads());
+    this.workerGroup =
+        NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
+    this.pooledAllocator =
+        NettyUtils.createPooledByteBufAllocator(
+            conf.preferDirectBufs(), false /* allowCache */, conf.clientThreads());
   }
 
   /**
    * Create a {@link TransportClient} connecting to the given remote host / port.
    *
-   * We maintains an array of clients (size determined by spark.shuffle.io.numConnectionsPerPeer)
+   * <p>We maintains an array of clients (size determined by spark.shuffle.io.numConnectionsPerPeer)
    * and randomly picks one to use. If no client was previously created in the randomly selected
    * spot, this function creates a new client and places it there.
    *
-   * Prior to the creation of a new TransportClient, we will execute all
-   * {@link TransportClientBootstrap}s that are registered with this factory.
+   * <p>Prior to the creation of a new TransportClient, we will execute all {@link
+   * TransportClientBootstrap}s that are registered with this factory.
    *
-   * This blocks until a connection is successfully established and fully bootstrapped.
+   * <p>This blocks until a connection is successfully established and fully bootstrapped.
    *
-   * Concurrency: This method is safe to call from multiple threads.
+   * <p>Concurrency: This method is safe to call from multiple threads.
    */
   public TransportClient createClient(String remoteHost, int remotePort, int partitionId)
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
     // Get connection from the connection pool first.
     // If it is not found or not active, create a new one.
     // Use unresolved address here to avoid DNS resolution each time we creates a client.
     final InetSocketAddress unresolvedAddress =
-      InetSocketAddress.createUnresolved(remoteHost, remotePort);
+        InetSocketAddress.createUnresolved(remoteHost, remotePort);
 
     // Create the ClientPool if we don't have it yet.
     ClientPool clientPool = connectionPool.get(unresolvedAddress);
@@ -125,22 +124,22 @@ public class TransportClientFactory implements Closeable {
     }
 
     int clientIndex =
-      partitionId < 0 ? rand.nextInt(numConnectionsPerPeer) : partitionId % numConnectionsPerPeer;
+        partitionId < 0 ? rand.nextInt(numConnectionsPerPeer) : partitionId % numConnectionsPerPeer;
     TransportClient cachedClient = clientPool.clients[clientIndex];
 
     if (cachedClient != null && cachedClient.isActive()) {
       // Make sure that the channel will not timeout by updating the last use time of the
       // handler. Then check that the client is still alive, in case it timed out before
       // this code was able to update things.
-      TransportChannelHandler handler = cachedClient.getChannel().pipeline()
-        .get(TransportChannelHandler.class);
+      TransportChannelHandler handler =
+          cachedClient.getChannel().pipeline().get(TransportChannelHandler.class);
       synchronized (handler) {
         handler.getResponseHandler().updateTimeOfLastRequest();
       }
 
       if (cachedClient.isActive()) {
-        logger.trace("Returning cached connection to {}: {}",
-          cachedClient.getSocketAddress(), cachedClient);
+        logger.trace(
+            "Returning cached connection to {}: {}", cachedClient.getSocketAddress(), cachedClient);
         return cachedClient;
       }
     }
@@ -173,26 +172,27 @@ public class TransportClientFactory implements Closeable {
   }
 
   public TransportClient createClient(String remoteHost, int remotePort)
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
     return createClient(remoteHost, remotePort, -1);
   }
 
   /**
-   * Create a completely new {@link TransportClient} to the given remote host / port.
-   * This connection is not pooled.
+   * Create a completely new {@link TransportClient} to the given remote host / port. This
+   * connection is not pooled.
    *
-   * As with {@link #createClient(String, int)}, this method is blocking.
+   * <p>As with {@link #createClient(String, int)}, this method is blocking.
    */
   private TransportClient internalCreateClient(InetSocketAddress address)
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
     Bootstrap bootstrap = new Bootstrap();
-    bootstrap.group(workerGroup)
-      .channel(socketChannelClass)
-      // Disable Nagle's Algorithm since we don't want packets to wait
-      .option(ChannelOption.TCP_NODELAY, true)
-      .option(ChannelOption.SO_KEEPALIVE, true)
-      .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.connectTimeoutMs())
-      .option(ChannelOption.ALLOCATOR, pooledAllocator);
+    bootstrap
+        .group(workerGroup)
+        .channel(socketChannelClass)
+        // Disable Nagle's Algorithm since we don't want packets to wait
+        .option(ChannelOption.TCP_NODELAY, true)
+        .option(ChannelOption.SO_KEEPALIVE, true)
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.connectTimeoutMs())
+        .option(ChannelOption.ALLOCATOR, pooledAllocator);
 
     if (conf.receiveBuf() > 0) {
       bootstrap.option(ChannelOption.SO_RCVBUF, conf.receiveBuf());
@@ -205,20 +205,21 @@ public class TransportClientFactory implements Closeable {
     final AtomicReference<TransportClient> clientRef = new AtomicReference<>();
     final AtomicReference<Channel> channelRef = new AtomicReference<>();
 
-    bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-      @Override
-      public void initChannel(SocketChannel ch) {
-        TransportChannelHandler clientHandler = context.initializePipeline(ch);
-        clientRef.set(clientHandler.getClient());
-        channelRef.set(ch);
-      }
-    });
+    bootstrap.handler(
+        new ChannelInitializer<SocketChannel>() {
+          @Override
+          public void initChannel(SocketChannel ch) {
+            TransportChannelHandler clientHandler = context.initializePipeline(ch);
+            clientRef.set(clientHandler.getClient());
+            channelRef.set(ch);
+          }
+        });
 
     // Connect to the remote server
     ChannelFuture cf = bootstrap.connect(address);
     if (!cf.await(conf.connectTimeoutMs())) {
       throw new IOException(
-        String.format("Connecting to %s timed out (%s ms)", address, conf.connectTimeoutMs()));
+          String.format("Connecting to %s timed out (%s ms)", address, conf.connectTimeoutMs()));
     } else if (cf.cause() != null) {
       throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
     }

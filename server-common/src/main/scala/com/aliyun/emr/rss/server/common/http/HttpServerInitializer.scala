@@ -28,6 +28,6 @@ class HttpServerInitializer(
     val pipeline = channel.pipeline()
     pipeline.addLast(new HttpServerCodec())
       .addLast("httpAggregator", new HttpObjectAggregator(512 * 1024))
-        .addLast(handlers)
+      .addLast(handlers)
   }
 }

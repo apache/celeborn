@@ -26,13 +26,13 @@ import org.junit.Test;
 
 public class MasterRatisServerSuiteJ extends RatisBaseSuiteJ {
 
-  /**
-   * Start a Ratis Server and checks its state.
-   */
+  /** Start a Ratis Server and checks its state. */
   @Test
   public void testStartRatisServer() {
-    Assert.assertEquals("Ratis Server should be in running state",
-        LifeCycle.State.RUNNING, ratisServer.getServerState());
+    Assert.assertEquals(
+        "Ratis Server should be in running state",
+        LifeCycle.State.RUNNING,
+        ratisServer.getServerState());
   }
 
   @Test

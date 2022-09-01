@@ -35,9 +35,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.util.*;
 
-/**
- * Server for the efficient, low-level streaming service.
- */
+/** Server for the efficient, low-level streaming service. */
 public class TransportServer implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportServer.class);
 
@@ -48,10 +46,7 @@ public class TransportServer implements Closeable {
   private ChannelFuture channelFuture;
   private int port = -1;
 
-  public TransportServer(
-    TransportContext context,
-    String hostToBind,
-    int portToBind) {
+  public TransportServer(TransportContext context, String hostToBind, int portToBind) {
     this.context = context;
     this.conf = context.getConf();
 
@@ -76,22 +71,24 @@ public class TransportServer implements Closeable {
   private void init(String hostToBind, int portToBind) {
 
     IOMode ioMode = IOMode.valueOf(conf.ioMode());
-    EventLoopGroup bossGroup = NettyUtils.createEventLoop(ioMode, 1,
-        conf.getModuleName() + "-boss");
-    EventLoopGroup workerGroup =  NettyUtils.createEventLoop(ioMode, conf.serverThreads(),
-        conf.getModuleName() + "-server");
+    EventLoopGroup bossGroup =
+        NettyUtils.createEventLoop(ioMode, 1, conf.getModuleName() + "-boss");
+    EventLoopGroup workerGroup =
+        NettyUtils.createEventLoop(ioMode, conf.serverThreads(), conf.getModuleName() + "-server");
 
-    PooledByteBufAllocator allocator = NettyUtils.createPooledByteBufAllocator(
-      conf.preferDirectBufs(), true /* allowCache */, conf.serverThreads());
+    PooledByteBufAllocator allocator =
+        NettyUtils.createPooledByteBufAllocator(
+            conf.preferDirectBufs(), true /* allowCache */, conf.serverThreads());
 
-    bootstrap = new ServerBootstrap()
-      .group(bossGroup, workerGroup)
-      .channel(NettyUtils.getServerChannelClass(ioMode))
-      .option(ChannelOption.ALLOCATOR, allocator)
-      .option(ChannelOption.SO_REUSEADDR, !SystemUtils.IS_OS_WINDOWS)
-      .childOption(ChannelOption.TCP_NODELAY, true)
-      .childOption(ChannelOption.SO_KEEPALIVE, true)
-      .childOption(ChannelOption.ALLOCATOR, allocator);
+    bootstrap =
+        new ServerBootstrap()
+            .group(bossGroup, workerGroup)
+            .channel(NettyUtils.getServerChannelClass(ioMode))
+            .option(ChannelOption.ALLOCATOR, allocator)
+            .option(ChannelOption.SO_REUSEADDR, !SystemUtils.IS_OS_WINDOWS)
+            .childOption(ChannelOption.TCP_NODELAY, true)
+            .childOption(ChannelOption.SO_KEEPALIVE, true)
+            .childOption(ChannelOption.ALLOCATOR, allocator);
 
     if (conf.backLog() > 0) {
       bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());
@@ -107,8 +104,10 @@ public class TransportServer implements Closeable {
 
     initializeChannel(bootstrap);
 
-    InetSocketAddress address = hostToBind == null ?
-        new InetSocketAddress(portToBind): new InetSocketAddress(hostToBind, portToBind);
+    InetSocketAddress address =
+        hostToBind == null
+            ? new InetSocketAddress(portToBind)
+            : new InetSocketAddress(hostToBind, portToBind);
     channelFuture = bootstrap.bind(address);
     channelFuture.syncUninterruptibly();
 
@@ -117,12 +116,13 @@ public class TransportServer implements Closeable {
   }
 
   protected void initializeChannel(ServerBootstrap bootstrap) {
-    bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
-      @Override
-      protected void initChannel(SocketChannel ch) {
-        context.initializePipeline(ch);
-      }
-    });
+    bootstrap.childHandler(
+        new ChannelInitializer<SocketChannel>() {
+          @Override
+          protected void initChannel(SocketChannel ch) {
+            context.initializePipeline(ch);
+          }
+        });
   }
 
   @Override

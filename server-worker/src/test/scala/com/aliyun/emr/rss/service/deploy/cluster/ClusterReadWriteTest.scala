@@ -19,9 +19,11 @@ package com.aliyun.emr.rss.service.deploy.cluster
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
+
 import io.netty.channel.ChannelFuture
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.{Assert, BeforeClass, Test}
+
 import com.aliyun.emr.rss.client.ShuffleClientImpl
 import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
 import com.aliyun.emr.rss.client.write.LifecycleManager
@@ -33,7 +35,6 @@ class ClusterReadWriteTest extends MiniClusterFeature {
   @Test
   def testMiniCluster(): Unit = {
     CompressionCodec.values().foreach { codec =>
-
       val APP = "app-1"
 
       val clientConf = new RssConf()

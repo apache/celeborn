@@ -48,10 +48,8 @@ public class SlotsAllocator {
   private static double[] taskAllocationRatio = null;
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlotsRoundRobin(
-      List<WorkerInfo> workers,
-      List<Integer> partitionIds,
-      boolean shouldReplicate) {
+      offerSlotsRoundRobin(
+          List<WorkerInfo> workers, List<Integer> partitionIds, boolean shouldReplicate) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -62,12 +60,13 @@ public class SlotsAllocator {
         new HashMap<>();
     Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
     for (WorkerInfo worker : workers) {
-      List<UsableDiskInfo> usableDisks = restrictions.computeIfAbsent(worker,
-        v -> new ArrayList<>());
+      List<UsableDiskInfo> usableDisks =
+          restrictions.computeIfAbsent(worker, v -> new ArrayList<>());
       for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
         if (diskInfoEntry.getValue().status().equals(DiskStatus.Healthy)) {
-          usableDisks.add(new UsableDiskInfo(diskInfoEntry.getValue(),
-            diskInfoEntry.getValue().availableSlots()));
+          usableDisks.add(
+              new UsableDiskInfo(
+                  diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
         }
       }
     }
@@ -80,18 +79,17 @@ public class SlotsAllocator {
 
   /**
    * It assumes that all disks whose available space is greater than the minimum space are divided
-   * into multiple groups.
-   * A faster group will allocate more allocations than a slower group by diskGroupGradient.
-   *
+   * into multiple groups. A faster group will allocate more allocations than a slower group by
+   * diskGroupGradient.
    */
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlotsLoadAware(
-      List<WorkerInfo> workers,
-      List<Integer> partitionIds,
-      boolean shouldReplicate,
-      long minimumUsableSize,
-      int diskGroupCount,
-      double diskGroupGradient) {
+      offerSlotsLoadAware(
+          List<WorkerInfo> workers,
+          List<Integer> partitionIds,
+          boolean shouldReplicate,
+          long minimumUsableSize,
+          int diskGroupCount,
+          double diskGroupGradient) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -102,20 +100,25 @@ public class SlotsAllocator {
     List<DiskInfo> usableDisks = new ArrayList<>();
     Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
 
-    workers.forEach(i -> i.diskInfos().forEach((key, diskInfo) -> {
-      diskToWorkerMap.put(diskInfo, i);
-      if (diskInfo.actualUsableSpace() > minimumUsableSize
-        && diskInfo.status().equals(DiskStatus.Healthy)) {
-        usableDisks.add(diskInfo);
-      }
-    }));
+    workers.forEach(
+        i ->
+            i.diskInfos()
+                .forEach(
+                    (key, diskInfo) -> {
+                      diskToWorkerMap.put(diskInfo, i);
+                      if (diskInfo.actualUsableSpace() > minimumUsableSize
+                          && diskInfo.status().equals(DiskStatus.Healthy)) {
+                        usableDisks.add(diskInfo);
+                      }
+                    }));
 
     Set<WorkerInfo> usableWorkers = new HashSet<>();
     for (DiskInfo disk : usableDisks) {
       usableWorkers.add(diskToWorkerMap.get(disk));
     }
     if ((shouldReplicate && usableWorkers.size() <= 1) || usableDisks.isEmpty()) {
-      logger.warn("offer slots for {} fallback to roundrobin because there is no usable disks",
+      logger.warn(
+          "offer slots for {} fallback to roundrobin because there is no usable disks",
           StringUtils.join(partitionIds, ','));
       return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate);
     }
@@ -125,26 +128,32 @@ public class SlotsAllocator {
     }
 
     Map<WorkerInfo, List<UsableDiskInfo>> restriction =
-        getRestriction(placeDisksToGroups(usableDisks, diskGroupCount),
-            diskToWorkerMap, shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
+        getRestriction(
+            placeDisksToGroups(usableDisks, diskGroupCount),
+            diskToWorkerMap,
+            shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
-    List<Integer> remainPartitions = roundRobin(slots, partitionIds,
-        new ArrayList<>(restriction.keySet()), restriction, shouldReplicate);
+    List<Integer> remainPartitions =
+        roundRobin(
+            slots,
+            partitionIds,
+            new ArrayList<>(restriction.keySet()),
+            restriction,
+            shouldReplicate);
     if (!remainPartitions.isEmpty()) {
-      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null,
-          shouldReplicate);
+      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate);
     }
 
     return slots;
   }
 
   private static StorageInfo getStorageInfo(
-    List<WorkerInfo> workers,
-    int workerIndex,
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
-    Map<WorkerInfo, Integer> workerDiskIndex) {
+      List<WorkerInfo> workers,
+      int workerIndex,
+      Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
+      Map<WorkerInfo, Integer> workerDiskIndex) {
     WorkerInfo selectedWorker = workers.get(workerIndex);
     List<UsableDiskInfo> usableDiskInfos = restrictions.get(selectedWorker);
     int diskIndex = workerDiskIndex.computeIfAbsent(selectedWorker, v -> 0);
@@ -177,50 +186,48 @@ public class SlotsAllocator {
       StorageInfo storageInfo = new StorageInfo();
       if (restrictions != null) {
         while (restrictions.get(workers.get(nextMasterInd)).stream()
-                 .mapToLong(i -> i.usableSlots).sum() <= 0) {
+                .mapToLong(i -> i.usableSlots)
+                .sum()
+            <= 0) {
           nextMasterInd = (nextMasterInd + 1) % workers.size();
           if (nextMasterInd == masterIndex) {
             break outer;
           }
         }
-        storageInfo = getStorageInfo(
-          workers, nextMasterInd, restrictions, workerDiskIndexForMaster);
+        storageInfo =
+            getStorageInfo(workers, nextMasterInd, restrictions, workerDiskIndexForMaster);
       }
-      PartitionLocation masterPartition = createLocation(partitionId,
-          workers.get(nextMasterInd),
-          null,
-          storageInfo,
-          true);
+      PartitionLocation masterPartition =
+          createLocation(partitionId, workers.get(nextMasterInd), null, storageInfo, true);
 
       if (shouldReplicate) {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
           while (restrictions.get(workers.get(nextSlaveInd)).stream()
-                   .mapToLong(i -> i.usableSlots).sum() <= 0) {
+                  .mapToLong(i -> i.usableSlots)
+                  .sum()
+              <= 0) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
             }
           }
-          storageInfo = getStorageInfo(
-            workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
+          storageInfo =
+              getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
         }
-        PartitionLocation slavePartition = createLocation(
-            partitionId,
-            workers.get(nextSlaveInd),
-            masterPartition,
-            storageInfo,
-            false);
+        PartitionLocation slavePartition =
+            createLocation(
+                partitionId, workers.get(nextSlaveInd), masterPartition, storageInfo, false);
         masterPartition.setPeer(slavePartition);
         Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
-          slots.computeIfAbsent(workers.get(nextSlaveInd),
-            v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+            slots.computeIfAbsent(
+                workers.get(nextSlaveInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
         locations._2.add(slavePartition);
       }
 
       Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
-        slots.computeIfAbsent(workers.get(nextMasterInd),
-          v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+          slots.computeIfAbsent(
+              workers.get(nextMasterInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
       locations._1.add(masterPartition);
       masterIndex = (nextMasterInd + 1) % workers.size();
       iter.remove();
@@ -239,16 +246,16 @@ public class SlotsAllocator {
       taskAllocationRatio[i] =
           Math.pow(1 + diskGroupGradient, diskGroups - 1 - i) / totalAllocations;
     }
-    logger.info("load-aware offer slots algorithm init with taskAllocationRatio {}",
+    logger.info(
+        "load-aware offer slots algorithm init with taskAllocationRatio {}",
         StringUtils.join(taskAllocationRatio, ','));
     initialized = true;
   }
 
-  private static List<List<DiskInfo>> placeDisksToGroups(List<DiskInfo> usableDisks,
-      int diskGroupCount) {
+  private static List<List<DiskInfo>> placeDisksToGroups(
+      List<DiskInfo> usableDisks, int diskGroupCount) {
     List<List<DiskInfo>> diskGroups = new ArrayList<>();
-    usableDisks.sort((o1, o2) ->
-                         Math.toIntExact(o1.avgFlushTime() - o2.avgFlushTime()));
+    usableDisks.sort((o1, o2) -> Math.toIntExact(o1.avgFlushTime() - o2.avgFlushTime()));
     int diskCount = usableDisks.size();
     int startIndex = 0;
     int groupSizeSize = (int) Math.ceil(usableDisks.size() / (double) diskGroupCount);
@@ -269,8 +276,8 @@ public class SlotsAllocator {
     return diskGroups;
   }
 
-  private static Map<WorkerInfo, List<UsableDiskInfo>> getRestriction(List<List<DiskInfo>> groups,
-    Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
+  private static Map<WorkerInfo, List<UsableDiskInfo>> getRestriction(
+      List<List<DiskInfo>> groups, Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
     int groupSize = groups.size();
     long[] groupAllocations = new long[groupSize];
     Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
@@ -298,8 +305,7 @@ public class SlotsAllocator {
       if (left <= 0) {
         break;
       }
-      long estimateAllocation = (int) Math.ceil(
-          partitionCnt * currentAllocation[i]);
+      long estimateAllocation = (int) Math.ceil(partitionCnt * currentAllocation[i]);
       if (estimateAllocation > left) {
         estimateAllocation = left;
       }
@@ -322,8 +328,8 @@ public class SlotsAllocator {
         }
         List<UsableDiskInfo> diskAllocation =
             restrictions.computeIfAbsent(diskWorkerMap.get(disk), v -> new ArrayList<>());
-        long allocated = (int) Math.ceil((groupAllocations[i] + groupLeft)
-                                             / (double) disksInsideGroup);
+        long allocated =
+            (int) Math.ceil((groupAllocations[i] + groupLeft) / (double) disksInsideGroup);
         if (allocated > disk.availableSlots()) {
           allocated = disk.availableSlots();
         }
@@ -351,14 +357,22 @@ public class SlotsAllocator {
               }
             }
           }
-          sb.append(workerHost).append("-").append(diskInfo.mountPoint()).append(" flushtime:")
-            .append(diskInfo.avgFlushTime()).append(" allocation: ")
-            .append(allocation).append(" ");
+          sb.append(workerHost)
+              .append("-")
+              .append(diskInfo.mountPoint())
+              .append(" flushtime:")
+              .append(diskInfo.avgFlushTime())
+              .append(" allocation: ")
+              .append(allocation)
+              .append(" ");
         }
         sb.append(" | ");
       }
-      logger.debug("total {} allocate with group {} with allocations {}", partitionCnt,
-          StringUtils.join(groupAllocations, ','), sb);
+      logger.debug(
+          "total {} allocate with group {} with allocations {}",
+          partitionCnt,
+          StringUtils.join(groupAllocations, ','),
+          sb);
     }
     return restrictions;
   }
@@ -379,18 +393,17 @@ public class SlotsAllocator {
         workerInfo.replicatePort(),
         isMaster ? PartitionLocation.Mode.Master : PartitionLocation.Mode.Slave,
         peer,
-        storageInfo
-    );
+        storageInfo);
   }
 
   public static Map<WorkerInfo, Map<String, Integer>> slotsToDiskAllocations(
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
     Iterator<WorkerInfo> workers = slots.keySet().iterator();
     Map<WorkerInfo, Map<String, Integer>> workerToSlots = new HashMap<>();
     while (workers.hasNext()) {
       WorkerInfo worker = workers.next();
       Map<String, Integer> slotsPerDisk =
-        workerToSlots.computeIfAbsent(worker, v-> new HashMap<>());
+          workerToSlots.computeIfAbsent(worker, v -> new HashMap<>());
       List<PartitionLocation> jointLocations = new ArrayList<>();
       jointLocations.addAll(slots.get(worker)._1);
       jointLocations.addAll(slots.get(worker)._2);
