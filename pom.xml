@@ -63,7 +63,6 @@
     <hadoop.version>3.3.1</hadoop.version>
 
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
-    <maven.plugin.git.version>4.9.10</maven.plugin.git.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
@@ -536,29 +535,6 @@
               </goals>
             </execution>
           </executions>
-        </plugin>
-        <plugin>
-          <groupId>pl.project13.maven</groupId>
-          <artifactId>git-commit-id-plugin</artifactId>
-          <version>${maven.plugin.git.version}</version>
-          <executions>
-            <execution>
-              <id>get-the-git-infos</id>
-              <goals>
-                <goal>revision</goal>
-              </goals>
-              <phase>initialize</phase>
-            </execution>
-          </executions>
-          <configuration>
-            <generateGitPropertiesFile>true</generateGitPropertiesFile>
-            <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-            <includeOnlyProperties>
-              <includeOnlyProperty>^git.build.version$</includeOnlyProperty>
-              <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
-            </includeOnlyProperties>
-            <commitIdGenerationMode>full</commitIdGenerationMode>
-          </configuration>
         </plugin>
 
         <plugin>
