@@ -17,10 +17,10 @@
 
 package com.aliyun.emr.rss.service.deploy
 
+import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 
 import io.netty.channel.ChannelFuture
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
@@ -31,30 +31,30 @@ import com.aliyun.emr.rss.service.deploy.master.{Master, MasterArguments, Master
 import com.aliyun.emr.rss.service.deploy.worker.{Worker, WorkerArguments, WorkerSource}
 
 trait MiniClusterFeature extends Logging {
-  val workerPromethusPort = new AtomicInteger(12378)
+  val workerPrometheusPort = new AtomicInteger(12378)
   val masterPort = new AtomicInteger(22378)
 
   protected def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
     override def run(): Unit = {
       try code
       catch {
-        case e: Exception => logWarning(s"ignore thread exception  ${e.getMessage}")
+        case e: Exception => logWarning(s"Ignore thread exception: ${e.getMessage}")
       }
     }
-  }) {}
+  })
 
-  protected def getTmpDir(): String = {
-    val tmpDir = com.google.common.io.Files.createTempDir()
-    logInfo(s"temp dir : ${tmpDir}")
-    tmpDir.deleteOnExit()
-    tmpDir.getAbsolutePath
+  protected def createTmpDir(): String = {
+    val tmpDir = Files.createTempDirectory("rss-")
+    logInfo(s"created temp dir: $tmpDir")
+    tmpDir.toFile.deleteOnExit()
+    tmpDir.toAbsolutePath.toString
   }
 
   protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv, ChannelFuture) = {
     val conf = new RssConf()
     conf.set("rss.metrics.system.enabled", "false")
-    val prometheusPort = workerPromethusPort.getAndIncrement()
-    conf.set("rss.master.prometheus.metric.port", s"${prometheusPort}")
+    val prometheusPort = workerPrometheusPort.getAndIncrement()
+    conf.set("rss.master.prometheus.metric.port", s"$prometheusPort")
     logInfo(s"set prometheus.metric.port to $prometheusPort")
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
@@ -86,7 +86,10 @@ trait MiniClusterFeature extends Logging {
       }
 
     val httpServer =
-      new HttpServer(new HttpServerInitializer(handlers), RssConf.masterPrometheusMetricPort(conf))
+      new HttpServer(
+        RssConf.workerPrometheusMetricHost(conf),
+        RssConf.masterPrometheusMetricPort(conf),
+        new HttpServerInitializer(handlers))
     val channelfuture = httpServer.start()
 
     Thread.sleep(5000L)
@@ -96,10 +99,10 @@ trait MiniClusterFeature extends Logging {
   protected def createWorker(map: Map[String, String] = null): (Worker, RpcEnv) = {
     logInfo("start create worker for mini cluster")
     val conf = new RssConf()
-    conf.set("rss.worker.base.dirs", getTmpDir())
+    conf.set("rss.worker.base.dirs", createTmpDir())
     conf.set("rss.device.monitor.enabled", "false")
     conf.set("rss.push.data.buffer.size", "256K")
-    conf.set("rss.worker.prometheus.metric.port", s"${workerPromethusPort.incrementAndGet()}")
+    conf.set("rss.worker.prometheus.metric.port", s"${workerPrometheusPort.incrementAndGet()}")
     conf.set("rss.fetch.io.threads", "4")
     conf.set("rss.push.io.threads", "4")
     if (map != null) {

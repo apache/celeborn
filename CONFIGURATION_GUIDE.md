@@ -90,11 +90,13 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bu
 
 ### Metrics
 
-|              Item                 | Default   | Description  |
-|:---------------------------------:|:---------:|:------------:|
-|    rss.metrics.system.enabled     |   true    |              |
-| rss.master.prometheus.metric.port |   9098    |              |
-| rss.worker.prometheus.metric.port |   9096    |              |
+|               Item                | Default | Description  |
+|:---------------------------------:|:-------:|:------------:|
+|    rss.metrics.system.enabled     |  true   |              |
+| rss.master.prometheus.metric.host | 0.0.0.0 |              |
+| rss.master.prometheus.metric.port |  9098   |              |
+| rss.worker.prometheus.metric.host | 0.0.0.0 |              |
+| rss.worker.prometheus.metric.port |  9096   |              |
 
 #### metrics.properties
 

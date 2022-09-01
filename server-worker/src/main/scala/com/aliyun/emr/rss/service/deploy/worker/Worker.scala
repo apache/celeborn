@@ -45,8 +45,8 @@ import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[deploy] class Worker(
-    val conf: RssConf,
-    val workerArgs: WorkerArguments) extends Logging {
+  val conf: RssConf,
+  val workerArgs: WorkerArguments) extends Logging {
 
   val rpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -250,7 +250,7 @@ private[deploy] class Worker(
         override def run(): Unit = Utils.tryLogNonFatalError {
           unavailablePeers.entrySet().asScala.foreach(entry => {
             if (System.currentTimeMillis() - entry.getValue >
-                REPLICATE_FAST_FAIL_DURATION) {
+              REPLICATE_FAST_FAIL_DURATION) {
               unavailablePeers.remove(entry.getKey)
             }
           })
@@ -264,14 +264,15 @@ private[deploy] class Worker(
       logInfo(s"Metrics system enabled!")
       metricsSystem.start()
 
+      val host = RssConf.workerPrometheusMetricHost(conf)
       var port = RssConf.workerPrometheusMetricPort(conf)
       var initialized = false
       while (!initialized) {
         try {
           val httpServer = new HttpServer(
+            "worker", host, port,
             new HttpServerInitializer(
-              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)),
-            port)
+              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)))
           httpServer.start()
           initialized = true
         } catch {

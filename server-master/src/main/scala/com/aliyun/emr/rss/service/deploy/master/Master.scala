@@ -44,9 +44,9 @@ import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMast
 import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
 
 private[deploy] class Master(
-    override val rpcEnv: RpcEnv,
-    val conf: RssConf,
-    val metricsSystem: MetricsSystem)
+  override val rpcEnv: RpcEnv,
+  val conf: RssConf,
+  val metricsSystem: MetricsSystem)
   extends RpcEndpoint with Logging {
 
   private val statusSystem =
@@ -88,7 +88,9 @@ private[deploy] class Master(
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
   private def minimumUsableSize = RssConf.diskMinimumReserveSize(conf)
+
   private def diskGroups = RssConf.diskGroups(conf)
+
   private def diskGroupGradient = RssConf.diskGroupGradient(conf)
 
   private val partitionSizeUpdateInitialDelay = RssConf.partitionSizeUpdaterInitialDelay(conf)
@@ -204,7 +206,7 @@ private[deploy] class Master(
           disks,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
+    case requestSlots@RequestSlots(_, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -229,14 +231,14 @@ private[deploy] class Master(
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(
-          host,
-          rpcPort,
-          pushPort,
-          fetchPort,
-          replicatePort,
-          disks,
-          shuffleKeys,
-          requestId) =>
+    host,
+    rpcPort,
+    pushPort,
+    fetchPort,
+    replicatePort,
+    disks,
+    shuffleKeys,
+    requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
       executeWithLeaderChecker(
@@ -302,15 +304,15 @@ private[deploy] class Master(
   }
 
   private def handleHeartBeatFromWorker(
-      context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: util.Map[String, DiskInfo],
-      shuffleKeys: util.HashSet[String],
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int,
+    disks: util.Map[String, DiskInfo],
+    shuffleKeys: util.HashSet[String],
+    requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
@@ -339,13 +341,13 @@ private[deploy] class Master(
   }
 
   private def handleWorkerLost(
-      context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int,
+    requestId: String): Unit = {
     val targetWorker = new WorkerInfo(
       host,
       rpcPort,
@@ -372,14 +374,14 @@ private[deploy] class Master(
   }
 
   def handleRegisterWorker(
-      context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: util.Map[String, DiskInfo],
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    host: String,
+    rpcPort: Int,
+    pushPort: Int,
+    fetchPort: Int,
+    replicatePort: Int,
+    disks: util.Map[String, DiskInfo],
+    requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
     if (workersSnapShot.contains(workerToRegister)) {
@@ -466,8 +468,8 @@ private[deploy] class Master(
       requestSlots.hostname,
       Utils.getSlotsPerDisk(slots.asInstanceOf[WorkerResource])
         .asScala.map { case (worker, slots) =>
-          worker.toUniqueId() -> slots
-        }.asJava,
+        worker.toUniqueId() -> slots
+      }.asJava,
       requestSlots.requestId)
 
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
@@ -490,12 +492,12 @@ private[deploy] class Master(
   }
 
   def handleReleaseSlots(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      workerIds: util.List[String],
-      slots: util.List[util.Map[String, Integer]],
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    applicationId: String,
+    shuffleId: Int,
+    workerIds: util.List[String],
+    slots: util.List[util.Map[String, Integer]],
+    requestId: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
     logInfo(s"[handleReleaseSlots] Release all slots of $shuffleKey")
@@ -503,10 +505,10 @@ private[deploy] class Master(
   }
 
   def handleUnregisterShuffle(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    applicationId: String,
+    shuffleId: Int,
+    requestId: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
@@ -527,9 +529,9 @@ private[deploy] class Master(
   }
 
   private def handleReportNodeFailure(
-      context: RpcCallContext,
-      failedWorkers: util.List[WorkerInfo],
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    failedWorkers: util.List[WorkerInfo],
+    requestId: String): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
       s"${statusSystem.blacklist}")
     statusSystem.handleReportWorkerFailure(failedWorkers, requestId)
@@ -547,11 +549,11 @@ private[deploy] class Master(
   }
 
   private def handleHeartBeatFromApplication(
-      context: RpcCallContext,
-      appId: String,
-      totalWritten: Long,
-      fileCount: Long,
-      requestId: String): Unit = {
+    context: RpcCallContext,
+    appId: String,
+    totalWritten: Long,
+    fileCount: Long,
+    requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -566,7 +568,7 @@ private[deploy] class Master(
   }
 
   private def workersNotBlacklisted(
-      tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
+    tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
       !statusSystem.blacklist.contains(w) && !tmpBlacklist.contains(w)
     }.asJava
@@ -698,8 +700,11 @@ private[deploy] object Master extends Logging {
         new HttpRequestHandler(master, null)
       }
 
-    val httpServer =
-      new HttpServer(new HttpServerInitializer(handlers), RssConf.masterPrometheusMetricPort(conf))
+    val httpServer = new HttpServer(
+      "master",
+      RssConf.masterPrometheusMetricHost(conf),
+      RssConf.masterPrometheusMetricPort(conf),
+      new HttpServerInitializer(handlers))
     httpServer.start()
 
     rpcEnv.awaitTermination()
