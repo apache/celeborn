@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
@@ -333,7 +334,11 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  def shuffleKeySet(): util.Set[String] = fileInfos.keySet()
+  def shuffleKeySet(): util.HashSet[String] = {
+    val hashSet = new util.HashSet[String]()
+    hashSet.addAll(fileInfos.keySet())
+    hashSet
+  }
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
@@ -342,7 +347,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
         diskInfo.dirs.foreach { case dir =>
-          val file = new File(dir, s"$appId/$shuffleId")
+          val file = new File(dir, s"$appId")
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
       }
@@ -443,8 +448,11 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       }
     }
     if (null != diskOperators) {
+      cleanupExpiredShuffleKey(shuffleKeySet())
+      Thread.currentThread().join(RssConf.waitCleanTaskSubmitBeforeCloseTimeoutMs(conf))
+      val timeout = RssConf.workerDiskFlusherShutdownTimeoutMs(conf)
       diskOperators.asScala.foreach(entry => {
-        entry._2.shutdownNow()
+        ThreadUtils.shutdown(entry._2, timeout.milliseconds)
       })
     }
     storageScheduler.shutdownNow()

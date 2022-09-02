@@ -923,6 +923,14 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
+  def waitCleanTaskSubmitBeforeCloseTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.waitCleanTaskSubmitTimeoutMs", "500ms")
+  }
+
+  def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.diskFlusherShutdownTimeoutMs", "3000ms")
+  }
+
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
@@ -943,7 +951,7 @@ object RssConf extends Logging {
 
   def hdfsDir(conf: RssConf): String = {
     val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
-    if (hdfsDir.nonEmpty && Utils.isHdfsPath(hdfsDir)) {
+    if (hdfsDir.nonEmpty && !Utils.isHdfsPath(hdfsDir)) {
       log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
       ""
     } else {
