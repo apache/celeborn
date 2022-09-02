@@ -22,6 +22,10 @@ import java.net.BindException
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.util.Random
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf.haEnabled
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
