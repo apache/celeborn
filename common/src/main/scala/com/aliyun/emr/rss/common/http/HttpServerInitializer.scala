@@ -17,8 +17,8 @@
 
 package com.aliyun.emr.rss.common.http
 
-import io.netty.channel.socket.SocketChannel
 import io.netty.channel.{ChannelInitializer, SimpleChannelInboundHandler}
+import io.netty.channel.socket.SocketChannel
 import io.netty.handler.codec.http.{HttpObjectAggregator, HttpServerCodec}
 
 class HttpServerInitializer(

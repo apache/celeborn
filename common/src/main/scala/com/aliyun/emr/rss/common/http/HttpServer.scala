@@ -19,12 +19,13 @@ package com.aliyun.emr.rss.common.http
 
 import java.net.InetSocketAddress
 
+import io.netty.bootstrap.ServerBootstrap
+import io.netty.channel.{ChannelFuture, ChannelInitializer}
+import io.netty.channel.socket.nio.NioServerSocketChannel
+import io.netty.handler.logging.{LoggingHandler, LogLevel}
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.network.util.{IOMode, NettyUtils}
-import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.channel.{ChannelFuture, ChannelInitializer}
-import io.netty.handler.logging.{LogLevel, LoggingHandler}
 
 class HttpServer(
     role: String,
