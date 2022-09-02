@@ -43,7 +43,7 @@ public class SendBufferPool {
     buffers = new LinkedList<>();
   }
 
-  public synchronized byte[][] aquireBuffer(int numPartitions) {
+  public synchronized byte[][] acquireBuffer(int numPartitions) {
     for (int i = 0; i < buffers.size(); i++) {
       if (buffers.get(i).length == numPartitions) {
         return buffers.remove(i);

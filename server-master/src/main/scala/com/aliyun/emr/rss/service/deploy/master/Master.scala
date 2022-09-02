@@ -467,9 +467,7 @@ private[deploy] class Master(
       shuffleKey,
       requestSlots.hostname,
       Utils.getSlotsPerDisk(slots.asInstanceOf[WorkerResource])
-        .asScala.map { case (worker, slots) =>
-          worker.toUniqueId() -> slots
-        }.asJava,
+        .asScala.map { case (worker, slots) => worker.toUniqueId() -> slots }.asJava,
       requestSlots.requestId)
 
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +

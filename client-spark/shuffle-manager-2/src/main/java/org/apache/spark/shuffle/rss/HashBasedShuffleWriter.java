@@ -17,7 +17,6 @@
 
 package org.apache.spark.shuffle.rss;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -76,18 +75,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @Nullable private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
-  /** Subclass of ByteArrayOutputStream that exposes `buf` directly. */
-  private static final class MyByteArrayOutputStream extends ByteArrayOutputStream {
-    MyByteArrayOutputStream(int size) {
-      super(size);
-    }
-
-    public byte[] getBuf() {
-      return buf;
-    }
-  }
-
-  private final MyByteArrayOutputStream serBuffer;
+  private final OpenByteArrayOutputStream serBuffer;
   private final SerializationStream serOutputStream;
 
   private byte[][] sendBuffers;
@@ -131,7 +119,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     this.rssShuffleClient = client;
 
-    serBuffer = new MyByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
+    serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
 
     mapStatusLengths = new LongAdder[numPartitions];

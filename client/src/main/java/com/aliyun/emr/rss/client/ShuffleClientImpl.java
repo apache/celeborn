@@ -566,17 +566,12 @@ public class ShuffleClientImpl extends ShuffleClient {
                   null, new IOException("Revived PushData failed!", e));
               pushState.removeFuture(nextBatchId);
               logger.error(
-                  "Push data to "
-                      + loc.getHost()
-                      + ":"
-                      + loc.getPushPort()
-                      + " failed for map "
-                      + mapId
-                      + " attempt "
-                      + attemptId
-                      + " batch "
-                      + nextBatchId
-                      + ".",
+                  "Push data to {}:{} failed for map {} attempt {} batch {}.",
+                  loc.getHost(),
+                  loc.getPushPort(),
+                  mapId,
+                  attemptId,
+                  nextBatchId,
                   e);
             }
           };
@@ -629,17 +624,12 @@ public class ShuffleClientImpl extends ShuffleClient {
                 return;
               }
               logger.error(
-                  "Push data to "
-                      + loc.getHost()
-                      + ":"
-                      + loc.getPushPort()
-                      + " failed for map "
-                      + mapId
-                      + " attempt "
-                      + attemptId
-                      + " batch "
-                      + nextBatchId
-                      + ".",
+                  "Push data to {}:{} failed for map {} attempt {} batch {}.",
+                  loc.getHost(),
+                  loc.getPushPort(),
+                  mapId,
+                  attemptId,
+                  nextBatchId,
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
@@ -659,8 +649,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 pushState.inFlightBatches.remove(nextBatchId);
                 logger.info(
-                    "Mapper shuffleId:{} mapId:{} attempt:{} already ended,"
-                        + " remove batchId:{} .",
+                    "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
                     shuffleId,
                     mapId,
                     attemptId,
