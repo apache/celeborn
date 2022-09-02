@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.common.network;
 
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,8 +35,6 @@ import com.aliyun.emr.rss.common.network.util.ConfigProvider;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-
-import static org.junit.Assert.*;
 
 public class TransportClientFactorySuiteJ {
   private TransportContext context;
@@ -57,13 +57,13 @@ public class TransportClientFactorySuiteJ {
   }
 
   /**
-   * Request a bunch of clients to a single server to test
-   * we create up to maxConnections of clients.
+   * Request a bunch of clients to a single server to test we create up to maxConnections of
+   * clients.
    *
-   * If concurrent is true, create multiple threads to create clients in parallel.
+   * <p>If concurrent is true, create multiple threads to create clients in parallel.
    */
   private void testClientReuse(int maxConnections, boolean concurrent)
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
 
     Map<String, String> configMap = new HashMap<>();
     configMap.put("rss.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
@@ -72,26 +72,27 @@ public class TransportClientFactorySuiteJ {
     BaseMessageHandler handler = new BaseMessageHandler();
     TransportContext context = new TransportContext(conf, handler);
     TransportClientFactory factory = context.createClientFactory();
-    Set<TransportClient> clients = Collections.synchronizedSet(
-      new HashSet<TransportClient>());
+    Set<TransportClient> clients = Collections.synchronizedSet(new HashSet<TransportClient>());
 
     AtomicInteger failed = new AtomicInteger();
     Thread[] attempts = new Thread[maxConnections * 10];
 
     // Launch a bunch of threads to create new clients.
     for (int i = 0; i < attempts.length; i++) {
-      attempts[i] = new Thread(() -> {
-        try {
-          TransportClient client =
-            factory.createClient(TestUtils.getLocalHost(), server1.getPort());
-          assertTrue(client.isActive());
-          clients.add(client);
-        } catch (IOException e) {
-          failed.incrementAndGet();
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
-      });
+      attempts[i] =
+          new Thread(
+              () -> {
+                try {
+                  TransportClient client =
+                      factory.createClient(TestUtils.getLocalHost(), server1.getPort());
+                  assertTrue(client.isActive());
+                  clients.add(client);
+                } catch (IOException e) {
+                  failed.incrementAndGet();
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
+              });
 
       if (concurrent) {
         attempts[i].start();
@@ -174,26 +175,30 @@ public class TransportClientFactorySuiteJ {
 
   @Test
   public void closeIdleConnectionForRequestTimeOut() throws IOException, InterruptedException {
-    TransportConf conf = new TransportConf("shuffle", new ConfigProvider() {
+    TransportConf conf =
+        new TransportConf(
+            "shuffle",
+            new ConfigProvider() {
 
-      @Override
-      public String get(String name) {
-        if ("rss.shuffle.io.connectionTimeout".equals(name)) {
-          // We should make sure there is enough time for us to observe the channel is active
-          return "1s";
-        }
-        String value = System.getProperty(name);
-        if (value == null) {
-          throw new NoSuchElementException(name);
-        }
-        return value;
-      }
+              @Override
+              public String get(String name) {
+                if ("rss.shuffle.io.connectionTimeout".equals(name)) {
+                  // We should make sure there is enough time for us to observe the channel is
+                  // active
+                  return "1s";
+                }
+                String value = System.getProperty(name);
+                if (value == null) {
+                  throw new NoSuchElementException(name);
+                }
+                return value;
+              }
 
-      @Override
-      public Iterable<Map.Entry<String, String>> getAll() {
-        throw new UnsupportedOperationException();
-      }
-    });
+              @Override
+              public Iterable<Map.Entry<String, String>> getAll() {
+                throw new UnsupportedOperationException();
+              }
+            });
     TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
     try (TransportClientFactory factory = context.createClientFactory()) {
       TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());

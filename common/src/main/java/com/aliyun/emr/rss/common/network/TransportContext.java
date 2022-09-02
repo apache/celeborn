@@ -34,15 +34,14 @@ import com.aliyun.emr.rss.common.network.util.TransportConf;
 
 /**
  * Contains the context to create a {@link TransportServer}, {@link TransportClientFactory}, and to
- * setup Netty Channel pipelines with a
- * {@link TransportChannelHandler}.
+ * setup Netty Channel pipelines with a {@link TransportChannelHandler}.
  *
- * There are two communication protocols that the TransportClient provides, control-plane RPCs and
- * data-plane "chunk fetching". The handling of the RPCs is performed outside of the scope of the
- * TransportContext (i.e., by a user-provided handler), and it is responsible for setting up streams
- * which can be streamed through the data plane in chunks using zero-copy IO.
+ * <p>There are two communication protocols that the TransportClient provides, control-plane RPCs
+ * and data-plane "chunk fetching". The handling of the RPCs is performed outside of the scope of
+ * the TransportContext (i.e., by a user-provided handler), and it is responsible for setting up
+ * streams which can be streamed through the data plane in chunks using zero-copy IO.
  *
- * The TransportServer and TransportClientFactory both create a TransportChannelHandler for each
+ * <p>The TransportServer and TransportClientFactory both create a TransportChannelHandler for each
  * channel. As each TransportChannelHandler contains a TransportClient, this enables server
  * processes to send messages back to the client on an existing channel.
  */
@@ -68,9 +67,7 @@ public class TransportContext {
   }
 
   public TransportContext(
-      TransportConf conf,
-      BaseMessageHandler msgHandler,
-      boolean closeIdleConnections) {
+      TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
     this(conf, msgHandler, closeIdleConnections, null);
   }
 
@@ -99,15 +96,16 @@ public class TransportContext {
   public TransportChannelHandler initializePipeline(SocketChannel channel) {
     try {
       if (channelsLimiter != null) {
-        channel.pipeline()
-          .addLast("limiter", channelsLimiter);
+        channel.pipeline().addLast("limiter", channelsLimiter);
       }
       TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
-      channel.pipeline()
-        .addLast("encoder", ENCODER)
-        .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
-        .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
-        .addLast("handler", channelHandler);
+      channel
+          .pipeline()
+          .addLast("encoder", ENCODER)
+          .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
+          .addLast(
+              "idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
+          .addLast("handler", channelHandler);
       return channelHandler;
     } catch (RuntimeException e) {
       logger.error("Error while initializing Netty pipeline", e);
@@ -119,11 +117,13 @@ public class TransportContext {
       Channel channel, BaseMessageHandler msgHandler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
-    TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
-      msgHandler);
-    return new TransportChannelHandler(client, responseHandler, requestHandler,
-      conf.connectionTimeoutMs(), closeIdleConnections);
+    TransportRequestHandler requestHandler =
+        new TransportRequestHandler(channel, client, msgHandler);
+    return new TransportChannelHandler(
+        client, responseHandler, requestHandler, conf.connectionTimeoutMs(), closeIdleConnections);
   }
 
-  public TransportConf getConf() { return conf; }
+  public TransportConf getConf() {
+    return conf;
+  }
 }

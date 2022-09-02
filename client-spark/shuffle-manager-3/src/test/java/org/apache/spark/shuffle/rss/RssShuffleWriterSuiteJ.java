@@ -17,6 +17,11 @@
 
 package org.apache.spark.shuffle.rss;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -70,11 +75,6 @@ import com.aliyun.emr.rss.client.ShuffleClient;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.util.Utils;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class RssShuffleWriterSuiteJ {
 
@@ -183,34 +183,38 @@ public class RssShuffleWriterSuiteJ {
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
     final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "128");
-    check(2<<30, conf, serializer);
+    check(2 << 30, conf, serializer);
   }
 
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
     final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "128");
-    check(2<<30, conf, serializer);
+    check(2 << 30, conf, serializer);
   }
 
-  private void check(
-      final int approximateSize,
-      final RssConf conf,
-      final Serializer serializer) throws Exception {
+  private void check(final int approximateSize, final RssConf conf, final Serializer serializer)
+      throws Exception {
     final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;
 
     final Partitioner partitioner =
-      useUnsafe ? new PartitionIdPassthrough(numPartitions) : new HashPartitioner(numPartitions);
+        useUnsafe ? new PartitionIdPassthrough(numPartitions) : new HashPartitioner(numPartitions);
     Mockito.doReturn(partitioner).when(dependency).partitioner();
     Mockito.doReturn(serializer).when(dependency).serializer();
 
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
-    final RssShuffleHandle<Integer, String, String> handle = new RssShuffleHandle<>(
-        appId, host, port, shuffleId, numMaps, dependency);
+    final RssShuffleHandle<Integer, String, String> handle =
+        new RssShuffleHandle<>(appId, host, port, shuffleId, numMaps, dependency);
     final ShuffleClient client = new DummyShuffleClient(tempFile);
 
-    final HashBasedShuffleWriter<Integer, String, String> writer = new HashBasedShuffleWriter<>(
-      handle, taskContext, conf, client, metrics.shuffleWriteMetrics(), SendBufferPool.get(1));
+    final HashBasedShuffleWriter<Integer, String, String> writer =
+        new HashBasedShuffleWriter<>(
+            handle,
+            taskContext,
+            conf,
+            client,
+            metrics.shuffleWriteMetrics(),
+            SendBufferPool.get(1));
     assertEquals(useUnsafe, writer.canUseFastWrite());
 
     AtomicInteger total = new AtomicInteger(0);
@@ -264,8 +268,9 @@ public class RssShuffleWriterSuiteJ {
         checksum ^= key;
         total.decrementAndGet();
 
-        assertTrue("value should equals to normal record or giant record with key.",
-          value.equals(key + ": " + NORMAL_RECORD) || value.equals(key + ": " + GIANT_RECORD));
+        assertTrue(
+            "value should equals to normal record or giant record with key.",
+            value.equals(key + ": " + NORMAL_RECORD) || value.equals(key + ": " + GIANT_RECORD));
       }
       assertEquals(0, total.intValue());
       assertEquals(expectChecksum, checksum);

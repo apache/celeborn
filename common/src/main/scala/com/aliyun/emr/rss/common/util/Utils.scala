@@ -23,8 +23,8 @@ import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import java.util.{Locale, Properties, UUID}
 import java.util
+import java.util.{Locale, Properties, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -186,8 +186,9 @@ object Utils extends Logging {
     }
   }
 
-  def tryWithSafeFinallyAndFailureCallbacks[T](block: => T)
-    (catchBlock: => Unit = (), finallyBlock: => Unit = ()): T = {
+  def tryWithSafeFinallyAndFailureCallbacks[T](block: => T)(
+      catchBlock: => Unit = (),
+      finallyBlock: => Unit = ()): T = {
     var originalThrowable: Throwable = null
     try {
       block
@@ -221,23 +222,25 @@ object Utils extends Logging {
   }
 
   def startServiceOnPort[T](
-                             startPort: Int,
-                             startService: Int => (T, Int),
-                             conf: RssConf,
-                             serviceName: String = ""): (T, Int) = {
+      startPort: Int,
+      startService: Int => (T, Int),
+      conf: RssConf,
+      serviceName: String = ""): (T, Int) = {
 
-    require(startPort == 0 || (1024 <= startPort && startPort < 65536),
+    require(
+      startPort == 0 || (1024 <= startPort && startPort < 65536),
       "startPort should be between 1024 and 65535 (inclusive), or 0 for a random free port.")
 
     val serviceString = if (serviceName.isEmpty) "" else s" '$serviceName'"
     val maxRetries = RssConf.masterPortMaxRetry(conf)
     for (offset <- 0 to maxRetries) {
       // Do not increment port if startPort is 0, which is treated as a special port
-      val tryPort = if (startPort == 0) {
-        startPort
-      } else {
-        userPort(startPort, offset)
-      }
+      val tryPort =
+        if (startPort == 0) {
+          startPort
+        } else {
+          userPort(startPort, offset)
+        }
       try {
         val (service, port) = startService(tryPort)
         logInfo(s"Successfully started service$serviceString on port $port.")
@@ -245,18 +248,19 @@ object Utils extends Logging {
       } catch {
         case e: Exception if isBindCollision(e) =>
           if (offset >= maxRetries) {
-            val exceptionMessage = if (startPort == 0) {
-              s"${e.getMessage}: Service$serviceString failed after " +
-                s"$maxRetries retries (on a random free port)! " +
-                s"Consider explicitly setting the appropriate binding address for " +
-                s"the service$serviceString (for example spark.driver.bindAddress " +
-                s"for SparkDriver) to the correct binding address."
-            } else {
-              s"${e.getMessage}: Service$serviceString failed after " +
-                s"$maxRetries retries (starting from $startPort)! Consider explicitly setting " +
-                s"the appropriate port for the service$serviceString (for example spark.ui.port " +
-                s"for SparkUI) to an available port or increasing spark.port.maxRetries."
-            }
+            val exceptionMessage =
+              if (startPort == 0) {
+                s"${e.getMessage}: Service$serviceString failed after " +
+                  s"$maxRetries retries (on a random free port)! " +
+                  s"Consider explicitly setting the appropriate binding address for " +
+                  s"the service$serviceString (for example spark.driver.bindAddress " +
+                  s"for SparkDriver) to the correct binding address."
+              } else {
+                s"${e.getMessage}: Service$serviceString failed after " +
+                  s"$maxRetries retries (starting from $startPort)! Consider explicitly setting " +
+                  s"the appropriate port for the service$serviceString (for example spark.ui.port " +
+                  s"for SparkUI) to an available port or increasing spark.port.maxRetries."
+              }
             val exception = new BindException(exceptionMessage)
             // restore original stack trace
             exception.setStackTrace(e.getStackTrace)
@@ -383,15 +387,17 @@ object Utils extends Logging {
     conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
 
-    new TransportConf(module, new ConfigProvider {
-      override def get(name: String): String = conf.get(name)
+    new TransportConf(
+      module,
+      new ConfigProvider {
+        override def get(name: String): String = conf.get(name)
 
-      override def get(name: String, defaultValue: String): String = conf.get(name, defaultValue)
+        override def get(name: String, defaultValue: String): String = conf.get(name, defaultValue)
 
-      override def getAll(): java.lang.Iterable[java.util.Map.Entry[String, String]] = {
-        conf.getAll.toMap.asJava.entrySet()
-      }
-    })
+        override def getAll(): java.lang.Iterable[java.util.Map.Entry[String, String]] = {
+          conf.getAll.toMap.asJava.entrySet()
+        }
+      })
   }
 
   private def defaultNumThreads(numUsableCores: Int): Int = {
@@ -601,12 +607,11 @@ object Utils extends Logging {
   }
 
   /**
-   *
    * @param slots
    * @return return a worker related slots usage by disk
    */
   def getSlotsPerDisk(
-    slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
+      slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
     val workerSlotsDistribution = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
     slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
       val diskSlotsMap = new util.HashMap[String, Integer]()
@@ -630,8 +635,8 @@ object Utils extends Logging {
   }
 
   def getSlotsPerDisk(
-    masterLocations: util.List[PartitionLocation],
-    workerLocations: util.List[PartitionLocation]): util.Map[String, Integer] = {
+      masterLocations: util.List[PartitionLocation],
+      workerLocations: util.List[PartitionLocation]): util.Map[String, Integer] = {
     val slotDistributions = new util.HashMap[String, Integer]()
     (masterLocations.asScala ++ workerLocations.asScala)
       .foreach {
@@ -659,8 +664,9 @@ object Utils extends Logging {
    * @tparam T result type
    * @return result
    */
-  def tryWithTimeoutAndCallback[T](block: => T)(callback: => T)
-    (threadPool: ThreadPoolExecutor, timeoutInSeconds: Long = 10,
+  def tryWithTimeoutAndCallback[T](block: => T)(callback: => T)(
+      threadPool: ThreadPoolExecutor,
+      timeoutInSeconds: Long = 10,
       errorMessage: String = "none"): T = {
     val futureTask = new Callable[T] {
       override def call(): T = {
@@ -686,13 +692,13 @@ object Utils extends Logging {
     }
   }
 
-  def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]):
-  WorkerResource = {
+  def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource])
+      : WorkerResource = {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach(item => {
       val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = item._1.split(":")
-      val workerInfo = new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt,
-        replicatePort.toInt)
+      val workerInfo =
+        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
       val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
         .getMasterPartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
       val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
@@ -702,8 +708,8 @@ object Utils extends Logging {
     slots
   }
 
-  def convertWorkerResourceToPbWorkerResource(workerResource: WorkerResource):
-  util.Map[String, PbWorkerResource] = {
+  def convertWorkerResourceToPbWorkerResource(workerResource: WorkerResource)
+      : util.Map[String, PbWorkerResource] = {
     workerResource.asScala.map(item => {
       val uniqueId = item._1.toUniqueId()
       val masterPartitions = item._2._1.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
@@ -789,7 +795,8 @@ object Utils extends Logging {
     mode match {
       case 0 => PartitionSplitMode.soft
       case 1 => PartitionSplitMode.hard
-      case _ => logWarning(s"invalid shuffle mode $mode, fallback to soft")
+      case _ =>
+        logWarning(s"invalid shuffle mode $mode, fallback to soft")
         PartitionSplitMode.soft
     }
   }
@@ -821,5 +828,25 @@ object Utils extends Logging {
     } else {
       path.substring(0, path.length - 1) + "0"
     }
+  }
+
+  val SORTED_SUFFIX = ".sorted"
+  val INDEX_SUFFIX = ".index"
+  val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
+
+  def isHdfsPath(path: String): Boolean = {
+    path.startsWith("hdfs://")
+  }
+
+  def getSortedFilePath(path: String): String = {
+    path + SORTED_SUFFIX
+  }
+
+  def getIndexFilePath(path: String): String = {
+    path + INDEX_SUFFIX
+  }
+
+  def getWriteSuccessFilePath(path: String): String = {
+    path + SUFFIX_HDFS_WRITE_SUCCESS
   }
 }

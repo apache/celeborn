@@ -31,7 +31,9 @@ public final class RpcFailure extends ResponseMessage {
   }
 
   @Override
-  public Type type() { return Type.RpcFailure; }
+  public Type type() {
+    return Type.RpcFailure;
+  }
 
   @Override
   public int encodedLength() {
@@ -65,10 +67,10 @@ public final class RpcFailure extends ResponseMessage {
   }
 
   @Override
-   public String toString() {
+  public String toString() {
     return Objects.toStringHelper(this)
-      .add("requestId", requestId)
-      .add("errorString", errorString)
-      .toString();
+        .add("requestId", requestId)
+        .add("errorString", errorString)
+        .toString();
   }
 }

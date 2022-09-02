@@ -46,26 +46,24 @@ import com.aliyun.emr.rss.common.network.util.NettyUtils;
  * efficient transfer of a large amount of data, broken up into chunks with size ranging from
  * hundreds of KB to a few MB.
  *
- * Note that while this client deals with the fetching of chunks from a stream (i.e., data plane),
- * the actual setup of the streams is done outside the scope of the transport layer. The convenience
- * method "sendRPC" is provided to enable control plane communication between the client and server
- * to perform this setup.
+ * <p>Note that while this client deals with the fetching of chunks from a stream (i.e., data
+ * plane), the actual setup of the streams is done outside the scope of the transport layer. The
+ * convenience method "sendRPC" is provided to enable control plane communication between the client
+ * and server to perform this setup.
  *
- * For example, a typical workflow might be:
- * client.sendRPC(new OpenFile("/foo")) --&gt; returns StreamId = 100
- * client.fetchChunk(streamId = 100, chunkIndex = 0, callback)
- * client.fetchChunk(streamId = 100, chunkIndex = 1, callback)
- * ...
- * client.sendRPC(new CloseStream(100))
+ * <p>For example, a typical workflow might be: client.sendRPC(new OpenFile("/foo")) --&gt; returns
+ * StreamId = 100 client.fetchChunk(streamId = 100, chunkIndex = 0, callback)
+ * client.fetchChunk(streamId = 100, chunkIndex = 1, callback) ... client.sendRPC(new
+ * CloseStream(100))
  *
- * Construct an instance of TransportClient using {@link TransportClientFactory}. A single
+ * <p>Construct an instance of TransportClient using {@link TransportClientFactory}. A single
  * TransportClient may be used for multiple streams, but any given stream must be restricted to a
  * single client, in order to avoid out-of-order responses.
  *
- * NB: This class is used to make requests to the server, while {@link TransportResponseHandler} is
- * responsible for handling responses from the server.
+ * <p>NB: This class is used to make requests to the server, while {@link TransportResponseHandler}
+ * is responsible for handling responses from the server.
  *
- * Concurrency: thread safe and can be called from multiple threads.
+ * <p>Concurrency: thread safe and can be called from multiple threads.
  */
 public class TransportClient implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportClient.class);
@@ -92,57 +90,53 @@ public class TransportClient implements Closeable {
     return channel.remoteAddress();
   }
 
-  public void fetchChunk(
-    long streamId,
-    int chunkIndex,
-    ChunkReceivedCallback callback) {
+  public void fetchChunk(long streamId, int chunkIndex, ChunkReceivedCallback callback) {
     fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, callback);
   }
 
   /**
    * Requests a single chunk from the remote side, from the pre-negotiated streamId.
    *
-   * Chunk indices go from 0 onwards. It is valid to request the same chunk multiple times, though
-   * some streams may not support this.
+   * <p>Chunk indices go from 0 onwards. It is valid to request the same chunk multiple times,
+   * though some streams may not support this.
    *
-   * Multiple fetchChunk requests may be outstanding simultaneously, and the chunks are guaranteed
-   * to be returned in the same order that they were requested, assuming only a single
+   * <p>Multiple fetchChunk requests may be outstanding simultaneously, and the chunks are
+   * guaranteed to be returned in the same order that they were requested, assuming only a single
    * TransportClient is used to fetch the chunks.
    *
-   * @param streamId Identifier that refers to a stream in the remote StreamManager. This should
-   *                 be agreed upon by client and server beforehand.
+   * @param streamId Identifier that refers to a stream in the remote StreamManager. This should be
+   *     agreed upon by client and server beforehand.
    * @param chunkIndex 0-based index of the chunk to fetch
    * @param offset offset from the beginning of the chunk to fetch
    * @param len size to fetch
    * @param callback Callback invoked upon successful receipt of chunk, or upon any failure.
    */
   public void fetchChunk(
-      long streamId,
-      int chunkIndex,
-      int offset,
-      int len,
-      ChunkReceivedCallback callback) {
+      long streamId, int chunkIndex, int offset, int len, ChunkReceivedCallback callback) {
     if (logger.isDebugEnabled()) {
-      logger.debug("Sending fetch chunk request {} to {}.",
-        chunkIndex, NettyUtils.getRemoteAddress(channel));
+      logger.debug(
+          "Sending fetch chunk request {} to {}.",
+          chunkIndex,
+          NettyUtils.getRemoteAddress(channel));
     }
 
     StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
-    StdChannelListener listener = new StdChannelListener(streamChunkSlice) {
-      @Override
-      protected void handleFailure(String errorMsg, Throwable cause) {
-        handler.removeFetchRequest(streamChunkSlice);
-        callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
-      }
-    };
+    StdChannelListener listener =
+        new StdChannelListener(streamChunkSlice) {
+          @Override
+          protected void handleFailure(String errorMsg, Throwable cause) {
+            handler.removeFetchRequest(streamChunkSlice);
+            callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
+          }
+        };
     handler.addFetchRequest(streamChunkSlice, callback);
 
     channel.writeAndFlush(new ChunkFetchRequest(streamChunkSlice)).addListener(listener);
   }
 
   /**
-   * Sends an opaque message to the RpcHandler on the server-side. The callback will be invoked
-   * with the server's response or upon any failure.
+   * Sends an opaque message to the RpcHandler on the server-side. The callback will be invoked with
+   * the server's response or upon any failure.
    *
    * @param message The message to send.
    * @param callback Callback to handle the RPC's reply.
@@ -157,8 +151,9 @@ public class TransportClient implements Closeable {
     handler.addRpcRequest(requestId, callback);
 
     RpcChannelListener listener = new RpcChannelListener(requestId, callback);
-    channel.writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)))
-      .addListener(listener);
+    channel
+        .writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)))
+        .addListener(listener);
 
     return requestId;
   }
@@ -192,27 +187,29 @@ public class TransportClient implements Closeable {
   }
 
   /**
-   * Synchronously sends an opaque message to the RpcHandler on the server-side, waiting for up to
-   * a specified timeout for a response.
+   * Synchronously sends an opaque message to the RpcHandler on the server-side, waiting for up to a
+   * specified timeout for a response.
    */
   public ByteBuffer sendRpcSync(ByteBuffer message, long timeoutMs) {
     final SettableFuture<ByteBuffer> result = SettableFuture.create();
 
-    sendRpc(message, new RpcResponseCallback() {
-      @Override
-      public void onSuccess(ByteBuffer response) {
-        ByteBuffer copy = ByteBuffer.allocate(response.remaining());
-        copy.put(response);
-        // flip "copy" to make it readable
-        copy.flip();
-        result.set(copy);
-      }
+    sendRpc(
+        message,
+        new RpcResponseCallback() {
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            ByteBuffer copy = ByteBuffer.allocate(response.remaining());
+            copy.put(response);
+            // flip "copy" to make it readable
+            copy.flip();
+            result.set(copy);
+          }
 
-      @Override
-      public void onFailure(Throwable e) {
-        result.setException(e);
-      }
-    });
+          @Override
+          public void onFailure(Throwable e) {
+            result.setException(e);
+          }
+        });
 
     try {
       return result.get(timeoutMs, TimeUnit.MILLISECONDS);
@@ -261,18 +258,18 @@ public class TransportClient implements Closeable {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("remoteAdress", channel.remoteAddress())
-      .add("isActive", isActive())
-      .toString();
+        .add("remoteAdress", channel.remoteAddress())
+        .add("isActive", isActive())
+        .toString();
   }
 
   private static final AtomicLong counter = new AtomicLong();
+
   public static long requestId() {
     return counter.getAndIncrement();
   }
 
-  public class StdChannelListener
-      implements GenericFutureListener<Future<? super Void>> {
+  public class StdChannelListener implements GenericFutureListener<Future<? super Void>> {
     final long startTime;
     final Object requestId;
 
@@ -286,12 +283,17 @@ public class TransportClient implements Closeable {
       if (future.isSuccess()) {
         if (logger.isTraceEnabled()) {
           long timeTaken = System.currentTimeMillis() - startTime;
-          logger.trace("Sending request {} to {} took {} ms", requestId,
-              NettyUtils.getRemoteAddress(channel), timeTaken);
+          logger.trace(
+              "Sending request {} to {} took {} ms",
+              requestId,
+              NettyUtils.getRemoteAddress(channel),
+              timeTaken);
         }
       } else {
-        String errorMsg = String.format("Failed to send RPC %s to %s: %s, channel will be closed",
-          requestId, NettyUtils.getRemoteAddress(channel), future.cause());
+        String errorMsg =
+            String.format(
+                "Failed to send RPC %s to %s: %s, channel will be closed",
+                requestId, NettyUtils.getRemoteAddress(channel), future.cause());
         logger.warn(errorMsg);
         channel.close();
         try {

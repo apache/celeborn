@@ -23,18 +23,18 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import com.aliyun.emr.rss.service.deploy.SparkTestBase
 
-class HugeDataTest extends SparkTestBase{
+class HugeDataTest extends SparkTestBase {
   @Test
   def test(): Unit = {
-      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-      val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
-      ss.sparkContext.parallelize(1 to 10000, 2)
-        .map { i => (i, Range(1, 10000).mkString(",")) }.groupByKey(16).collect()
-      ss.stop()
-    }
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
+    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
+    ss.sparkContext.parallelize(1 to 10000, 2)
+      .map { i => (i, Range(1, 10000).mkString(",")) }.groupByKey(16).collect()
+    ss.stop()
+  }
 }
 
-object HugeDataTest extends SparkTestBase{
+object HugeDataTest extends SparkTestBase {
   @BeforeClass
   def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")

@@ -63,7 +63,8 @@ public class DataPusher {
       RssConf conf,
       ShuffleClient client,
       Consumer<Integer> afterPush,
-      LongAdder[] mapStatusLengths) throws IOException {
+      LongAdder[] mapStatusLengths)
+      throws IOException {
     final int capacity = RssConf.pushDataQueueCapacity(conf);
     final int bufferSize = RssConf.pushDataBufferSize(conf);
 
@@ -168,18 +169,18 @@ public class DataPusher {
   }
 
   private void pushData(PushTask task) throws IOException {
-    int bytesWritten = client.pushData(
-        appId,
-        shuffleId,
-        mapId,
-        attemptId,
-        task.getPartitionId(),
-        task.getBuffer(),
-        0,
-        task.getSize(),
-        numMappers,
-        numPartitions
-    );
+    int bytesWritten =
+        client.pushData(
+            appId,
+            shuffleId,
+            mapId,
+            attemptId,
+            task.getPartitionId(),
+            task.getBuffer(),
+            0,
+            task.getSize(),
+            numMappers,
+            numPartitions);
     afterPush.accept(bytesWritten);
     mapStatusLengths[task.getPartitionId()].add(bytesWritten);
   }

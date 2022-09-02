@@ -1,11 +1,29 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.aliyun.emr.rss.service.deploy.integration
 
-import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
-
 import scala.util.Random
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.junit.{AfterClass, BeforeClass, Test}
+
+import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
 import com.aliyun.emr.rss.common.util.Utils
 import com.aliyun.emr.rss.service.deploy.SparkTestBase
 
@@ -21,7 +39,6 @@ class SkewJoinTest extends SparkTestBase {
   @Test
   def test(): Unit = {
     CompressionCodec.values().foreach { codec =>
-
       val sparkConf = new SparkConf().setAppName("rss-demo")
         .setMaster("local[4]")
         .set("spark.sql.adaptive.enabled", "true")
@@ -54,8 +71,7 @@ class SkewJoinTest extends SparkTestBase {
             val fd = Range(fds, fds + 100).mkString(",")
 
             (key, fa, fb, fc, fd)
-          }
-          )
+          })
           .toDF("fa", "f1", "f2", "f3", "f4")
         df.createOrReplaceTempView("view1")
         val df2 = sparkSession.sparkContext.parallelize(1 to 8, 8)
@@ -72,8 +88,7 @@ class SkewJoinTest extends SparkTestBase {
             val fds = random.nextInt(1200000)
             val fd = Range(fds, fds + 100).mkString(",")
             (key, fa, fb, fc, fd)
-          }
-          )
+          })
           .toDF("fb", "f6", "f7", "f8", "f9")
         df2.createOrReplaceTempView("view2")
         sparkSession.sql("drop table if exists fres")

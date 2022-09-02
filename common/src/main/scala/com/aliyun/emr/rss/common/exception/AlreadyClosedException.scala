@@ -22,5 +22,5 @@ import java.io.IOException
 class AlreadyClosedException(message: String, cause: Throwable)
   extends IOException(message, cause) {
 
-    def this(message: String) = this(message, null)
-  }
+  def this(message: String) = this(message, null)
+}

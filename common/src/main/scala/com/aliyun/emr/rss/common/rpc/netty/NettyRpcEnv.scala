@@ -33,6 +33,7 @@ import com.google.common.base.Throwables
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.metrics.source.RPCSource
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.buffer.NioManagedBuffer
 import com.aliyun.emr.rss.common.network.client._
@@ -58,9 +59,10 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
+  var source: Option[RPCSource] = None
 
-  private val transportContext = new TransportContext(transportConf,
-    new NettyRpcHandler(dispatcher, this))
+  private val transportContext =
+    new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
   val clientFactory = transportContext.createClientFactory()
 
@@ -96,7 +98,8 @@ class NettyRpcEnv(
   def startServer(bindAddress: String, port: Int): Unit = {
     server = transportContext.createServer(bindAddress, port)
     dispatcher.registerRpcEndpoint(
-      RpcEndpointVerifier.NAME, new RpcEndpointVerifier(this, dispatcher))
+      RpcEndpointVerifier.NAME,
+      new RpcEndpointVerifier(this, dispatcher))
   }
 
   @Nullable
@@ -104,10 +107,14 @@ class NettyRpcEnv(
     if (server != null) RpcAddress(host, server.getPort()) else null
   }
 
-  override def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef = {
+  override def setupEndpoint(
+      name: String,
+      endpoint: RpcEndpoint,
+      abstractSource: Option[RPCSource] = None): RpcEndpointRef = {
     if (name == RpcNameConstants.WORKER_EP) {
       worker = endpoint
     }
+    source = abstractSource
     dispatcher.registerRpcEndpoint(name, endpoint)
   }
 
@@ -123,7 +130,9 @@ class NettyRpcEnv(
     val addr = RpcEndpointAddress(uri)
     val endpointRef = new NettyRpcEndpointRef(conf, addr, this)
     val verifier = new NettyRpcEndpointRef(
-      conf, RpcEndpointAddress(addr.rpcAddress, RpcEndpointVerifier.NAME), this)
+      conf,
+      RpcEndpointAddress(addr.rpcAddress, RpcEndpointVerifier.NAME),
+      this)
     verifier.ask[Boolean](RpcEndpointVerifier.CheckExistence(endpointRef.name)).flatMap { find =>
       if (find) {
         Future.successful(endpointRef)
@@ -142,7 +151,8 @@ class NettyRpcEnv(
     if (receiver.client != null && receiver.client.isActive) {
       message.sendWith(receiver.client)
     } else {
-      require(receiver.address != null,
+      require(
+        receiver.address != null,
         "Cannot send message to client endpoint with no listen address.")
       val targetOutbox = {
         val outbox = outboxes.get(receiver.address)
@@ -194,7 +204,7 @@ class NettyRpcEnv(
     def onFailure(e: Throwable): Unit = {
       if (!promise.tryFailure(e)) {
         e match {
-          case e : RpcEnvStoppedException => logDebug (s"Ignored failure: $e")
+          case e: RpcEnvStoppedException => logDebug(s"Ignored failure: $e")
           case _ => logWarning(s"Ignored failure: $e")
         }
       }
@@ -217,7 +227,8 @@ class NettyRpcEnv(
         }(ThreadUtils.sameThread)
         dispatcher.postLocalMessage(message, p)
       } else {
-        val rpcMessage = RpcOutboxMessage(message.serialize(this),
+        val rpcMessage = RpcOutboxMessage(
+          message.serialize(this),
           onFailure,
           (client, response) => onSuccess(deserialize[Any](client, response)))
         postToOutbox(message.receiver, rpcMessage)
@@ -227,12 +238,15 @@ class NettyRpcEnv(
         }(ThreadUtils.sameThread)
       }
 
-      val timeoutCancelable = timeoutScheduler.schedule(new Runnable {
-        override def run(): Unit = {
-          onFailure(new TimeoutException(s"Cannot receive any reply from ${remoteAddr} " +
-            s"in ${timeout.duration}"))
-        }
-      }, timeout.duration.toNanos, TimeUnit.NANOSECONDS)
+      val timeoutCancelable = timeoutScheduler.schedule(
+        new Runnable {
+          override def run(): Unit = {
+            onFailure(new TimeoutException(s"Cannot receive any reply from ${remoteAddr} " +
+              s"in ${timeout.duration}"))
+          }
+        },
+        timeout.duration.toNanos,
+        TimeUnit.NANOSECONDS)
       promise.future.onComplete { v =>
         timeoutCancelable.cancel(true)
       }(ThreadUtils.sameThread)
@@ -310,6 +324,7 @@ class NettyRpcEnv(
 }
 
 private[rss] object NettyRpcEnv extends Logging {
+
   /**
    * When deserializing the [[NettyRpcEndpointRef]], it needs a reference to [[NettyRpcEnv]].
    * Use `currentEnv` to wrap the deserialization codes. E.g.,
@@ -339,7 +354,10 @@ private[rss] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
     val javaSerializerInstance =
       new JavaSerializer(rssConf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv =
-      new NettyRpcEnv(rssConf, javaSerializerInstance, config.advertiseAddress,
+      new NettyRpcEnv(
+        rssConf,
+        javaSerializerInstance,
+        config.advertiseAddress,
         config.numUsableCores)
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
       nettyEnv.startServer(config.bindAddress, actualPort)
@@ -377,9 +395,9 @@ private[rss] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
  * @param nettyEnv The RpcEnv associated with this ref.
  */
 class NettyRpcEndpointRef(
-                           @transient private val conf: RssConf,
-                           private val endpointAddress: RpcEndpointAddress,
-                           @transient @volatile private var nettyEnv: NettyRpcEnv)
+    @transient private val conf: RssConf,
+    private val endpointAddress: RpcEndpointAddress,
+    @transient @volatile private var nettyEnv: NettyRpcEnv)
   extends RpcEndpointRef(conf) {
 
   @transient @volatile var client: TransportClient = _
@@ -533,12 +551,14 @@ private[rss] class NettyRpcHandler(
   private def processRpc(client: TransportClient, r: RpcRequest): Unit = {
     val callback = new RpcResponseCallback {
       override def onSuccess(response: ByteBuffer): Unit = {
-        client.getChannel.writeAndFlush(new RpcResponse(r.requestId,
+        client.getChannel.writeAndFlush(new RpcResponse(
+          r.requestId,
           new NioManagedBuffer(response)))
       }
 
       override def onFailure(e: Throwable): Unit = {
-        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
+        client.getChannel.writeAndFlush(new NRpcFailure(
+          r.requestId,
           Throwables.getStackTraceAsString(e)))
       }
     }
@@ -549,7 +569,8 @@ private[rss] class NettyRpcHandler(
     } catch {
       case e: Exception =>
         logError("Error while invoking RpcHandler#receive() on RPC id " + r.requestId, e)
-        client.getChannel.writeAndFlush(new NRpcFailure(r.requestId,
+        client.getChannel.writeAndFlush(new NRpcFailure(
+          r.requestId,
           Throwables.getStackTraceAsString(e)))
     } finally {
       r.body().release()
@@ -572,8 +593,10 @@ private[rss] class NettyRpcHandler(
   private def internalReceive(client: TransportClient, message: ByteBuffer): RequestMessage = {
     val addr = client.getChannel().remoteAddress().asInstanceOf[InetSocketAddress]
     assert(addr != null)
+    val messageLen = message.remaining()
     val clientAddr = RpcAddress(addr.getHostString, addr.getPort)
     val requestMessage = RequestMessage(nettyEnv, client, message)
+    nettyEnv.source.foreach(_.updateMessageMetrics(requestMessage.content, messageLen))
     if (requestMessage.senderAddress == null) {
       // Create a new message with the socket address of the client as the sender.
       new RequestMessage(clientAddr, requestMessage.receiver, requestMessage.content)

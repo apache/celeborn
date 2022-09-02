@@ -25,39 +25,48 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 
 public interface IMetadataHandler {
   void handleRequestSlots(
-    String shuffleKey,
-    String hostName,
-    Map<String, Map<String, Integer>> workerToAllocatedSlots,
-    String requestId);
+      String shuffleKey,
+      String hostName,
+      Map<String, Map<String, Integer>> workerToAllocatedSlots,
+      String requestId);
 
   void handleReleaseSlots(
-    String shuffleKey,
-    List<String> workerIds,
-    List<Map<String, Integer>> slotStrings,
-    String requestId);
+      String shuffleKey,
+      List<String> workerIds,
+      List<Map<String, Integer>> slotStrings,
+      String requestId);
 
   void handleUnRegisterShuffle(String shuffleKey, String requestId);
 
   void handleAppHeartbeat(
-    String appId,
-    long totalWritten,
-    long fileCount,
-    long time,
-    String requestId);
+      String appId, long totalWritten, long fileCount, long time, String requestId);
 
   void handleAppLost(String appId, String requestId);
 
-  void handleWorkerLost(String host, int rpcPort, int pushPort, int fetchPort, int replicatePort,
-    String requestId);
+  void handleWorkerLost(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 
-  void handleWorkerRemove(String host, int rpcPort, int pushPort, int fetchPort, int replicatePort,
-    String requestId);
+  void handleWorkerRemove(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 
-  void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, Map<String, DiskInfo> disks, long time, String requestId);
+  void handleWorkerHeartBeat(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      long time,
+      String requestId);
 
-  void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, Map<String,DiskInfo> disks, String requestId);
+  void handleRegisterWorker(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      String requestId);
 
   void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);
 

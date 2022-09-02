@@ -40,7 +40,9 @@ class RssShuffleReader[K, C](
 
   private val dep = handle.dependency
   private val rssShuffleClient = ShuffleClient.get(
-    handle.rssMetaServiceHost, handle.rssMetaServicePort, conf)
+    handle.rssMetaServiceHost,
+    handle.rssMetaServicePort,
+    conf)
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -60,8 +62,13 @@ class RssShuffleReader[K, C](
     val recordIter = (startPartition until endPartition).map(partitionId => {
       if (handle.numMappers > 0) {
         val start = System.currentTimeMillis()
-        val inputStream = rssShuffleClient.readPartition(handle.newAppId, handle.shuffleId,
-          partitionId, context.attemptNumber(), startMapIndex, endMapIndex)
+        val inputStream = rssShuffleClient.readPartition(
+          handle.newAppId,
+          handle.shuffleId,
+          partitionId,
+          context.attemptNumber(),
+          startMapIndex,
+          endMapIndex)
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
         inputStream
@@ -69,8 +76,7 @@ class RssShuffleReader[K, C](
         RssInputStream.empty()
       }
     }).toIterator.flatMap(
-      serializerInstance.deserializeStream(_).asKeyValueIterator
-    )
+      serializerInstance.deserializeStream(_).asKeyValueIterator)
 
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
       recordIter.map { record =>
@@ -82,21 +88,22 @@ class RssShuffleReader[K, C](
     // An interruptible iterator must be used here in order to support task cancellation
     val interruptibleIter = new InterruptibleIterator[(Any, Any)](context, metricIter)
 
-    val aggregatedIter: Iterator[Product2[K, C]] = if (dep.aggregator.isDefined) {
-      if (dep.mapSideCombine) {
-        // We are reading values that are already combined
-        val combinedKeyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, C)]]
-        dep.aggregator.get.combineCombinersByKey(combinedKeyValuesIterator, context)
+    val aggregatedIter: Iterator[Product2[K, C]] =
+      if (dep.aggregator.isDefined) {
+        if (dep.mapSideCombine) {
+          // We are reading values that are already combined
+          val combinedKeyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, C)]]
+          dep.aggregator.get.combineCombinersByKey(combinedKeyValuesIterator, context)
+        } else {
+          // We don't know the value type, but also don't care -- the dependency *should*
+          // have made sure its compatible w/ this aggregator, which will convert the value
+          // type to the combined type C
+          val keyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, Nothing)]]
+          dep.aggregator.get.combineValuesByKey(keyValuesIterator, context)
+        }
       } else {
-        // We don't know the value type, but also don't care -- the dependency *should*
-        // have made sure its compatible w/ this aggregator, which will convert the value
-        // type to the combined type C
-        val keyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, Nothing)]]
-        dep.aggregator.get.combineValuesByKey(keyValuesIterator, context)
+        interruptibleIter.asInstanceOf[Iterator[Product2[K, C]]]
       }
-    } else {
-      interruptibleIter.asInstanceOf[Iterator[Product2[K, C]]]
-    }
 
     // Sort the output if there is a sort ordering defined.
     val resultIter = dep.keyOrdering match {

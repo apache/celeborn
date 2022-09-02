@@ -26,7 +26,9 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 private[rss] class JavaSerializationStream(
-    out: OutputStream, counterReset: Int, extraDebugInfo: Boolean)
+    out: OutputStream,
+    counterReset: Int,
+    extraDebugInfo: Boolean)
   extends SerializationStream {
   private val objOut = new ObjectOutputStream(out)
   private var counter = 0
@@ -85,12 +87,13 @@ private object JavaDeserializationStream {
     "long" -> classOf[Long],
     "float" -> classOf[Float],
     "double" -> classOf[Double],
-    "void" -> classOf[Void]
-  )
+    "void" -> classOf[Void])
 }
 
 private[rss] class JavaSerializerInstance(
-    counterReset: Int, extraDebugInfo: Boolean, defaultClassLoader: ClassLoader)
+    counterReset: Int,
+    extraDebugInfo: Boolean,
+    defaultClassLoader: ClassLoader)
   extends SerializerInstance {
 
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
@@ -138,7 +141,7 @@ class JavaSerializer(conf: RssConf) extends Serializer with Externalizable {
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)
   private var extraDebugInfo = conf.getBoolean("spark.serializer.extraDebugInfo", true)
 
-  protected def this() = this(new RssConf())  // For deserialization only
+  protected def this() = this(new RssConf()) // For deserialization only
 
   override def newInstance(): SerializerInstance = {
     val classLoader = defaultClassLoader.getOrElse(Thread.currentThread.getContextClassLoader)

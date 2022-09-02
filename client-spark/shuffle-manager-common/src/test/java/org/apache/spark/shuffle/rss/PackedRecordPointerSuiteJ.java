@@ -17,15 +17,15 @@
 
 package org.apache.spark.shuffle.rss;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
 import java.io.IOException;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.memory.*;
 import org.apache.spark.unsafe.memory.MemoryBlock;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 public class PackedRecordPointerSuiteJ {
 
@@ -35,13 +35,12 @@ public class PackedRecordPointerSuiteJ {
   @Test
   public void heap() throws IOException {
     final SparkConf conf = new SparkConf().set("spark.memory.offHeap.enabled", "false");
-    final TaskMemoryManager memoryManager =
-      new TaskMemoryManager(new TestMemoryManager(conf), 0);
+    final TaskMemoryManager memoryManager = new TaskMemoryManager(new TestMemoryManager(conf), 0);
     final MemoryConsumer c = new TestMemoryConsumer(memoryManager, MemoryMode.ON_HEAP);
     final MemoryBlock page0 = memoryManager.allocatePage(128, c);
     final MemoryBlock page1 = memoryManager.allocatePage(128, c);
-    final long addressInPage1 = memoryManager.encodePageNumberAndOffset(page1,
-      page1.getBaseOffset() + 42);
+    final long addressInPage1 =
+        memoryManager.encodePageNumberAndOffset(page1, page1.getBaseOffset() + 42);
     PackedRecordPointer packedPointer = new PackedRecordPointer();
     packedPointer.set(PackedRecordPointer.packPointer(addressInPage1, 360));
     assertEquals(360, packedPointer.getPartitionId());
@@ -54,16 +53,16 @@ public class PackedRecordPointerSuiteJ {
 
   @Test
   public void offHeap() throws IOException {
-    final SparkConf conf = new SparkConf()
-      .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "10000");
-    final TaskMemoryManager memoryManager =
-      new TaskMemoryManager(new TestMemoryManager(conf), 0);
+    final SparkConf conf =
+        new SparkConf()
+            .set("spark.memory.offHeap.enabled", "true")
+            .set("spark.memory.offHeap.size", "10000");
+    final TaskMemoryManager memoryManager = new TaskMemoryManager(new TestMemoryManager(conf), 0);
     final MemoryConsumer c = new TestMemoryConsumer(memoryManager, MemoryMode.OFF_HEAP);
     final MemoryBlock page0 = memoryManager.allocatePage(128, c);
     final MemoryBlock page1 = memoryManager.allocatePage(128, c);
-    final long addressInPage1 = memoryManager.encodePageNumberAndOffset(page1,
-      page1.getBaseOffset() + 42);
+    final long addressInPage1 =
+        memoryManager.encodePageNumberAndOffset(page1, page1.getBaseOffset() + 42);
     PackedRecordPointer packedPointer = new PackedRecordPointer();
     packedPointer.set(PackedRecordPointer.packPointer(addressInPage1, 360));
     assertEquals(360, packedPointer.getPartitionId());
@@ -87,8 +86,8 @@ public class PackedRecordPointerSuiteJ {
     try {
       // Pointers greater than the maximum partition ID will overflow or trigger an assertion error
       packedPointer.set(PackedRecordPointer.packPointer(0, MAXIMUM_PARTITION_ID + 1));
-      assertFalse(MAXIMUM_PARTITION_ID  + 1 == packedPointer.getPartitionId());
-    } catch (AssertionError e ) {
+      assertFalse(MAXIMUM_PARTITION_ID + 1 == packedPointer.getPartitionId());
+    } catch (AssertionError e) {
       // pass
     }
   }

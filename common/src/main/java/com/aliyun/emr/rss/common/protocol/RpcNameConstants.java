@@ -33,5 +33,4 @@ public class RpcNameConstants {
   // For Driver(RssShuffleManager)
   public static String RSS_METASERVICE_EP = "RssMetaServiceEndpoint";
   public static String RSS_METASERVICE_SYS = "RssMetaSys";
-
 }

@@ -23,9 +23,7 @@ import com.aliyun.emr.rss.service.deploy.worker.storage.FileWriter;
 public class WorkingPartition extends PartitionLocation {
   private final transient FileWriter fileWriter;
 
-  public WorkingPartition(
-      PartitionLocation partitionLocation,
-      FileWriter fileWriter) {
+  public WorkingPartition(PartitionLocation partitionLocation, FileWriter fileWriter) {
     super(partitionLocation);
     this.fileWriter = fileWriter;
   }

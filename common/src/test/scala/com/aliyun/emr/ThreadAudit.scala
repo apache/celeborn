@@ -96,8 +96,7 @@ trait ThreadAudit extends Logging {
      * A thread started by JRE to support safe parallel execution of waitFor() and exitStatus()
      * methods to forked subprocesses.
      */
-    "process reaper"
-  )
+    "process reaper")
   private var threadNamesSnapshot: Set[String] = Set.empty
 
   protected def doThreadPreAudit(): Unit = {

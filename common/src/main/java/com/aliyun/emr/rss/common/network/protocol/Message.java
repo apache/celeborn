@@ -90,28 +90,49 @@ public abstract class Message implements Encodable {
       this.id = (byte) id;
     }
 
-    public byte id() { return id; }
+    public byte id() {
+      return id;
+    }
 
-    @Override public int encodedLength() { return 1; }
+    @Override
+    public int encodedLength() {
+      return 1;
+    }
 
-    @Override public void encode(ByteBuf buf) { buf.writeByte(id); }
+    @Override
+    public void encode(ByteBuf buf) {
+      buf.writeByte(id);
+    }
 
     public static Type decode(ByteBuf buf) {
       byte id = buf.readByte();
       switch (id) {
-        case 0: return ChunkFetchRequest;
-        case 1: return ChunkFetchSuccess;
-        case 2: return ChunkFetchFailure;
-        case 3: return RpcRequest;
-        case 4: return RpcResponse;
-        case 5: return RpcFailure;
-        case 6: return OpenStream;
-        case 7: return StreamHandle;
-        case 9: return OneWayMessage;
-        case 11: return PushData;
-        case 12: return PushMergedData;
-        case -1: throw new IllegalArgumentException("User type messages cannot be decoded.");
-        default: throw new IllegalArgumentException("Unknown message type: " + id);
+        case 0:
+          return ChunkFetchRequest;
+        case 1:
+          return ChunkFetchSuccess;
+        case 2:
+          return ChunkFetchFailure;
+        case 3:
+          return RpcRequest;
+        case 4:
+          return RpcResponse;
+        case 5:
+          return RpcFailure;
+        case 6:
+          return OpenStream;
+        case 7:
+          return StreamHandle;
+        case 9:
+          return OneWayMessage;
+        case 11:
+          return PushData;
+        case 12:
+          return PushMergedData;
+        case -1:
+          throw new IllegalArgumentException("User type messages cannot be decoded.");
+        default:
+          throw new IllegalArgumentException("Unknown message type: " + id);
       }
     }
   }
@@ -119,7 +140,6 @@ public abstract class Message implements Encodable {
   public static Message decode(Type msgType, ByteBuf in) {
     return decode(msgType, in, true);
   }
-
 
   public static Message decode(Type msgType, ByteBuf in, boolean decodeBody) {
     switch (msgType) {

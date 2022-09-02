@@ -132,8 +132,9 @@ private[rss] object SerializationDebugger extends Logging {
      * the only way to capture all the objects it will serialize is by using a
      * dummy ObjectOutput that collects all the relevant objects for further testing.
      */
-    private def visitExternalizable(o: java.io.Externalizable, stack: List[String]): List[String] =
-    {
+    private def visitExternalizable(
+        o: java.io.Externalizable,
+        stack: List[String]): List[String] = {
       val fieldList = new ListObjectOutput
       o.writeExternal(fieldList)
       val childObjects = fieldList.outputArray
@@ -223,7 +224,8 @@ private[rss] object SerializationDebugger extends Logging {
      * This is similar to how externalizable objects are visited.
      */
     private def visitSerializableWithWriteObjectMethod(
-        o: Object, stack: List[String]): List[String] = {
+        o: Object,
+        stack: List[String]): List[String] = {
       val innerObjectsCatcher = new ListObjectOutputStream
       var notSerializableFound = false
       try {
@@ -303,7 +305,7 @@ private[rss] object SerializationDebugger extends Logging {
 
   /** An output stream that emulates /dev/null */
   private class NullOutputStream extends OutputStream {
-    override def write(b: Int) { }
+    override def write(b: Int) {}
   }
 
   /**
@@ -359,15 +361,17 @@ private[rss] object SerializationDebugger extends Logging {
    * Object to hold all the reflection objects. If we run on a JVM that we cannot understand,
    * this field will be null and this the debug helper should be disabled.
    */
-  private val reflect: ObjectStreamClassReflection = try {
-    new ObjectStreamClassReflection
-  } catch {
-    case e: Exception =>
-      logWarning("Cannot find private methods using reflection", e)
-      null
-  }
+  private val reflect: ObjectStreamClassReflection =
+    try {
+      new ObjectStreamClassReflection
+    } catch {
+      case e: Exception =>
+        logWarning("Cannot find private methods using reflection", e)
+        null
+    }
 
   private class ObjectStreamClassReflection {
+
     /** ObjectStreamClass.getClassDataLayout */
     val GetClassDataLayout: Method = {
       val f = classOf[ObjectStreamClass].getDeclaredMethod("getClassDataLayout")
@@ -406,7 +410,9 @@ private[rss] object SerializationDebugger extends Logging {
     /** ObjectStreamClass.getObjFieldValues */
     val GetObjFieldValues: Method = {
       val f = classOf[ObjectStreamClass].getDeclaredMethod(
-        "getObjFieldValues", classOf[Object], classOf[Array[Object]])
+        "getObjFieldValues",
+        classOf[Object],
+        classOf[Array[Object]])
       f.setAccessible(true)
       f
     }

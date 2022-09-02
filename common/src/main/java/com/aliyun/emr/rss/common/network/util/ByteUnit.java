@@ -40,8 +40,12 @@ public enum ByteUnit {
     if (multiplier > u.multiplier) {
       long ratio = multiplier / u.multiplier;
       if (Long.MAX_VALUE / ratio < d) {
-        throw new IllegalArgumentException("Conversion of " + d + " exceeds Long.MAX_VALUE in "
-          + name() + ". Try a larger unit (e.g. MiB instead of KiB)");
+        throw new IllegalArgumentException(
+            "Conversion of "
+                + d
+                + " exceeds Long.MAX_VALUE in "
+                + name()
+                + ". Try a larger unit (e.g. MiB instead of KiB)");
       }
       return d * ratio;
     } else {
@@ -58,11 +62,25 @@ public enum ByteUnit {
     return d * multiplier;
   }
 
-  public long toKiB(long d) { return convertTo(d, KiB); }
-  public long toMiB(long d) { return convertTo(d, MiB); }
-  public long toGiB(long d) { return convertTo(d, GiB); }
-  public long toTiB(long d) { return convertTo(d, TiB); }
-  public long toPiB(long d) { return convertTo(d, PiB); }
+  public long toKiB(long d) {
+    return convertTo(d, KiB);
+  }
+
+  public long toMiB(long d) {
+    return convertTo(d, MiB);
+  }
+
+  public long toGiB(long d) {
+    return convertTo(d, GiB);
+  }
+
+  public long toTiB(long d) {
+    return convertTo(d, TiB);
+  }
+
+  public long toPiB(long d) {
+    return convertTo(d, PiB);
+  }
 
   private final long multiplier;
 }

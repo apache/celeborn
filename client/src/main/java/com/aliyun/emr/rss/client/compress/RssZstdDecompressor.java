@@ -50,11 +50,13 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
         System.arraycopy(src, HEADER_LENGTH, dst, dstOff, originalLen);
         break;
       case COMPRESSION_METHOD_ZSTD:
-        int originalLen2 = (int) Zstd.decompressByteArray(dst, dstOff,
-                originalLen, src, HEADER_LENGTH, compressedLen);
+        int originalLen2 =
+            (int)
+                Zstd.decompressByteArray(
+                    dst, dstOff, originalLen, src, HEADER_LENGTH, compressedLen);
         if (originalLen != originalLen2) {
-          logger.error("Original length corrupted! expected: {}, actual: {}.",
-                  originalLen, originalLen2);
+          logger.error(
+              "Original length corrupted! expected: {}, actual: {}.", originalLen, originalLen2);
           return -1;
         }
     }

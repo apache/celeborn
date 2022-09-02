@@ -17,6 +17,10 @@
 
 package com.aliyun.emr.rss.service.deploy.worker.storage;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -52,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.FileInfo;
+import com.aliyun.emr.rss.common.metrics.source.RPCSource;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
@@ -73,10 +78,6 @@ import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.FetchHandler;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.fail;
-
 public class FileWriterSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
@@ -84,7 +85,7 @@ public class FileWriterSuiteJ {
   private static final RssConf RSS_CONF = new RssConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
-  public static final PartitionType partitionType= PartitionType.REDUCE_PARTITION;
+  public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
 
   private static File tempDir = null;
   private static LocalFlusher localFlusher = null;
@@ -96,59 +97,54 @@ public class FileWriterSuiteJ {
   private static int numChunks;
 
   private static final TransportConf transConf =
-    new TransportConf("shuffle", MapConfigProvider.EMPTY);
+      new TransportConf("shuffle", MapConfigProvider.EMPTY);
 
   @BeforeClass
   public static void beforeAll() {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
-    RSS_CONF.set("rss.worker.fetch.chunk.size","1k");
+    RSS_CONF.set("rss.worker.fetch.chunk.size", "1k");
 
     source = Mockito.mock(WorkerSource.class);
-    Mockito.doAnswer(invocationOnMock -> {
-      Function0<?> function = (Function0<?>) invocationOnMock.getArguments()[2];
-      return function.apply();
-    }).when(source)
-      .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
+    Mockito.doAnswer(
+            invocationOnMock -> {
+              Function0<?> function = (Function0<?>) invocationOnMock.getArguments()[2];
+              return function.apply();
+            })
+        .when(source)
+        .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
 
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(tempDir);
-    localFlusher = new LocalFlusher(
-      source,
-      DeviceMonitor$.MODULE$.EmptyMonitor(),
-      1,
-      "disk1",
-      20,
-      1,
-      StorageInfo.Type.HDD);
-    MemoryTracker.initialize(0.8,
-      0.9,
-      0.5,
-      0.6,
-      10,
-      10);
+    localFlusher =
+        new LocalFlusher(
+            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
+    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
-    FetchHandler handler = new FetchHandler(transConf) {
-      @Override
-      public FileInfo openStream(
-        String shuffleKey,
-        String fileName,
-        int startMapIndex,
-        int endMapIndex) {
-        return info;
-      }
+    FetchHandler handler =
+        new FetchHandler(transConf) {
+          @Override
+          public FileInfo openStream(
+              String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
+            return info;
+          }
 
-      @Override
-      public WorkerSource source() {
-        return source;
-      }
+          @Override
+          public WorkerSource workerSource() {
+            return source;
+          }
 
-      @Override
-      public boolean checkRegistered() {
-        return true;
-      }
-    };
+          @Override
+          public RPCSource rpcSource() {
+            return new RPCSource(RSS_CONF);
+          }
+
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
     TransportContext context = new TransportContext(transConf, handler);
     server = context.createServer();
 
@@ -188,8 +184,7 @@ public class FileWriterSuiteJ {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
 
-    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes,
-      0, Integer.MAX_VALUE);
+    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
 
     return openBlocks.toByteBuffer();
   }
@@ -201,8 +196,8 @@ public class FileWriterSuiteJ {
     numChunks = streamHandle.numChunks;
   }
 
-  private FetchResult fetchChunks(TransportClient client,
-    List<Integer> chunkIndices) throws Exception {
+  private FetchResult fetchChunks(TransportClient client, List<Integer> chunkIndices)
+      throws Exception {
     final Semaphore sem = new Semaphore(0);
 
     final FetchResult res = new FetchResult();
@@ -210,21 +205,22 @@ public class FileWriterSuiteJ {
     res.failedChunks = Collections.synchronizedSet(new HashSet<Integer>());
     res.buffers = Collections.synchronizedList(new LinkedList<ManagedBuffer>());
 
-    ChunkReceivedCallback callback = new ChunkReceivedCallback() {
-      @Override
-      public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-        buffer.retain();
-        res.successChunks.add(chunkIndex);
-        res.buffers.add(buffer);
-        sem.release();
-      }
+    ChunkReceivedCallback callback =
+        new ChunkReceivedCallback() {
+          @Override
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+            buffer.retain();
+            res.successChunks.add(chunkIndex);
+            res.buffers.add(buffer);
+            sem.release();
+          }
 
-      @Override
-      public void onFailure(int chunkIndex, Throwable e) {
-        res.failedChunks.add(chunkIndex);
-        sem.release();
-      }
-    };
+          @Override
+          public void onFailure(int chunkIndex, Throwable e) {
+            res.failedChunks.add(chunkIndex);
+            sem.release();
+          }
+        };
 
     for (int chunkIndex : chunkIndices) {
       client.fetchChunk(streamId, chunkIndex, callback);
@@ -241,24 +237,34 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher,source, RSS_CONF,
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
+    FileWriter fileWriter =
+        new FileWriter(
+            new FileInfo(file),
+            localFlusher,
+            source,
+            RSS_CONF,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
     AtomicLong length = new AtomicLong(0);
 
     for (int i = 0; i < threadsNum; ++i) {
-      futures.add(es.submit(() -> {
-        byte[] bytes = generateData();
-        length.addAndGet(bytes.length);
-        ByteBuf buf = Unpooled.wrappedBuffer(bytes);
-        try {
-          fileWriter.write(buf);
-        } catch (IOException e) {
-          LOG.error("Failed to write buffer.", e);
-        }
-      }));
+      futures.add(
+          es.submit(
+              () -> {
+                byte[] bytes = generateData();
+                length.addAndGet(bytes.length);
+                ByteBuf buf = Unpooled.wrappedBuffer(bytes);
+                try {
+                  fileWriter.write(buf);
+                } catch (IOException e) {
+                  LOG.error("Failed to write buffer.", e);
+                }
+              }));
     }
     for (Future<?> future : futures) {
       future.get();
@@ -272,28 +278,38 @@ public class FileWriterSuiteJ {
 
   @Test
   public void testAfterStressfulWriteWillReadCorrect()
-    throws IOException, ExecutionException, InterruptedException {
+      throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
-    FileWriter fileWriter = new FileWriter(new FileInfo(file), localFlusher, source, RSS_CONF,
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
+    FileWriter fileWriter =
+        new FileWriter(
+            new FileInfo(file),
+            localFlusher,
+            source,
+            RSS_CONF,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
     AtomicLong length = new AtomicLong(0);
     for (int i = 0; i < threadsNum; ++i) {
-      futures.add(es.submit(() -> {
-        for (int j = 0; j < 100; ++j) {
-          byte[] bytes = generateData();
-          length.addAndGet(bytes.length);
-          ByteBuf buf = Unpooled.wrappedBuffer(bytes);
-          try {
-            fileWriter.write(buf);
-          } catch (IOException e) {
-            LOG.error("Failed to write buffer.", e);
-          }
-        }
-      }));
+      futures.add(
+          es.submit(
+              () -> {
+                for (int j = 0; j < 100; ++j) {
+                  byte[] bytes = generateData();
+                  length.addAndGet(bytes.length);
+                  ByteBuf buf = Unpooled.wrappedBuffer(bytes);
+                  try {
+                    fileWriter.write(buf);
+                  } catch (IOException e) {
+                    LOG.error("Failed to write buffer.", e);
+                  }
+                }
+              }));
     }
     for (Future<?> future : futures) {
       future.get();
@@ -308,14 +324,9 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(file);
-    localFlusher = new LocalFlusher(
-        source,
-        DeviceMonitor$.MODULE$.EmptyMonitor(),
-        1,
-        "disk2",
-        20,
-        1,
-        StorageInfo.Type.HDD);
+    localFlusher =
+        new LocalFlusher(
+            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk2", 20, 1, StorageInfo.Type.HDD);
   }
 
   @Test
@@ -323,27 +334,37 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file);
-    FileWriter fileWriter = new FileWriter(fileInfo, localFlusher, source, RSS_CONF,
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, partitionType);
+    FileWriter fileWriter =
+        new FileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            RSS_CONF,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            partitionType);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
     AtomicLong length = new AtomicLong(0);
-    futures.add(es.submit(() -> {
-      for (int j = 0; j < 1000; ++j) {
-        byte[] bytes = generateData();
-        length.addAndGet(bytes.length);
-        ByteBuf buf = Unpooled.wrappedBuffer(bytes);
-        buf.retain();
-        try {
-          fileWriter.incrementPendingWrites();
-          fileWriter.write(buf);
-        } catch (IOException e) {
-          LOG.error("Failed to write buffer.", e);
-        }
-        buf.release();
-      }
-    }));
+    futures.add(
+        es.submit(
+            () -> {
+              for (int j = 0; j < 1000; ++j) {
+                byte[] bytes = generateData();
+                length.addAndGet(bytes.length);
+                ByteBuf buf = Unpooled.wrappedBuffer(bytes);
+                buf.retain();
+                try {
+                  fileWriter.incrementPendingWrites();
+                  fileWriter.write(buf);
+                } catch (IOException e) {
+                  LOG.error("Failed to write buffer.", e);
+                }
+                buf.release();
+              }
+            }));
     for (Future<?> future : futures) {
       future.get();
     }
@@ -353,8 +374,8 @@ public class FileWriterSuiteJ {
 
     setupChunkServer(fileInfo);
 
-    TransportClient client = clientFactory.createClient(InetAddress
-      .getLocalHost().getHostAddress(), server.getPort());
+    TransportClient client =
+        clientFactory.createClient(InetAddress.getLocalHost().getHostAddress(), server.getPort());
 
     setUpConn(client);
 
@@ -387,30 +408,30 @@ public class FileWriterSuiteJ {
 
     buf5.retain();
     CompositeByteBuf compositeByteBuf = Unpooled.compositeBuffer();
-    compositeByteBuf.addComponent(true,buf);
-    compositeByteBuf.addComponent(true,buf2);
-    compositeByteBuf.addComponent(true,buf3);
-    compositeByteBuf.addComponent(true,buf4);
-    compositeByteBuf.addComponent(true,buf5);
+    compositeByteBuf.addComponent(true, buf);
+    compositeByteBuf.addComponent(true, buf2);
+    compositeByteBuf.addComponent(true, buf3);
+    compositeByteBuf.addComponent(true, buf4);
+    compositeByteBuf.addComponent(true, buf5);
 
-    assertEquals(1,buf.refCnt());
-    assertEquals(1,buf2.refCnt());
-    assertEquals(1,buf3.refCnt());
-    assertEquals(2,buf4.refCnt());
-    assertEquals(2,buf5.refCnt());
-    assertNotEquals(0,compositeByteBuf.readableBytes());
+    assertEquals(1, buf.refCnt());
+    assertEquals(1, buf2.refCnt());
+    assertEquals(1, buf3.refCnt());
+    assertEquals(2, buf4.refCnt());
+    assertEquals(2, buf5.refCnt());
+    assertNotEquals(0, compositeByteBuf.readableBytes());
 
     compositeByteBuf.removeComponents(0, compositeByteBuf.numComponents());
     compositeByteBuf.clear();
 
-    assertEquals(0,compositeByteBuf.readableBytes());
+    assertEquals(0, compositeByteBuf.readableBytes());
 
-    assertEquals(0,buf.refCnt());
-    assertEquals(0,buf2.refCnt());
-    assertEquals(0,buf3.refCnt());
-    assertEquals(0,buf4.refCnt());
-    assertEquals(0,buf5.refCnt());
-    assertEquals(0,compositeByteBuf.numComponents());
+    assertEquals(0, buf.refCnt());
+    assertEquals(0, buf2.refCnt());
+    assertEquals(0, buf3.refCnt());
+    assertEquals(0, buf4.refCnt());
+    assertEquals(0, buf5.refCnt());
+    assertEquals(0, compositeByteBuf.numComponents());
   }
 
   private File getTemporaryFile() throws IOException {

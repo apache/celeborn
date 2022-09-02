@@ -66,7 +66,7 @@ abstract class RpcEndpointRef(conf: RssConf)
    *
    * Note: this is a blocking action which may cost a lot of time,  so don't call it in a message
    * loop of [[RpcEndpoint]].
-
+   *
    * @param message the message to send
    * @tparam T type of the reply message
    * @return the reply message from the corresponding [[RpcEndpoint]]

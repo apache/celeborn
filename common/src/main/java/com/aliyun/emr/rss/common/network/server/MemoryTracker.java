@@ -47,15 +47,24 @@ public class MemoryTracker {
   private final long maxSortMemory;
   private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
-  private final ScheduledExecutorService checkService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-check-thread").setDaemon(true).build());
-  private final ScheduledExecutorService reportService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-report-thread").setDaemon(true).build());
-  private final ExecutorService actionService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-action-thread").setDaemon(true).build());
+  private final ScheduledExecutorService checkService =
+      Executors.newSingleThreadScheduledExecutor(
+          new ThreadFactoryBuilder()
+              .setNameFormat("MemoryTracker-check-thread")
+              .setDaemon(true)
+              .build());
+  private final ScheduledExecutorService reportService =
+      Executors.newSingleThreadScheduledExecutor(
+          new ThreadFactoryBuilder()
+              .setNameFormat("MemoryTracker-report-thread")
+              .setDaemon(true)
+              .build());
+  private final ExecutorService actionService =
+      Executors.newSingleThreadScheduledExecutor(
+          new ThreadFactoryBuilder()
+              .setNameFormat("MemoryTracker-action-thread")
+              .setDaemon(true)
+              .build());
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -67,20 +76,21 @@ public class MemoryTracker {
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   public static MemoryTracker initialize(
-    double pausePushDataRatio,
-    double pauseReplicateRatio,
-    double resumeRatio,
-    double maxSortRatio,
-    int checkInterval,
-    int reportInterval) {
+      double pausePushDataRatio,
+      double pauseReplicateRatio,
+      double resumeRatio,
+      double maxSortRatio,
+      int checkInterval,
+      int reportInterval) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryTracker(
-        pausePushDataRatio,
-        pauseReplicateRatio,
-        resumeRatio,
-        maxSortRatio,
-        checkInterval,
-        reportInterval);
+      _INSTANCE =
+          new MemoryTracker(
+              pausePushDataRatio,
+              pauseReplicateRatio,
+              resumeRatio,
+              maxSortRatio,
+              checkInterval,
+              reportInterval);
     }
     return _INSTANCE;
   }
@@ -96,12 +106,12 @@ public class MemoryTracker {
   }
 
   private MemoryTracker(
-    double pausePushDataRatio,
-    double pauseReplicateRatio,
-    double resumeRatio,
-    double maxSortMemRatio,
-    int checkInterval,
-    int reportInterval) {
+      double pausePushDataRatio,
+      double pauseReplicateRatio,
+      double resumeRatio,
+      double maxSortMemRatio,
+      int checkInterval,
+      int reportInterval) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
@@ -109,69 +119,92 @@ public class MemoryTracker {
 
     initDirectMemoryIndicator();
 
-    checkService.scheduleWithFixedDelay(() -> {
-      try {
-        MemoryTrackerStat lastAction = memoryTrackerStat;
-        memoryTrackerStat = currentMemoryAction();
-        if (lastAction != memoryTrackerStat) {
-          if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndResumeReplicate) {
-            pausePushDataCounter.increment();
-            actionService.submit(() -> {
-              logger.info("Trigger pausePushDataAndResumeReplicate action");
-              memoryTrackerListeners.forEach(memoryTrackerListener ->
-                memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
-              memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
-              memoryTrackerListeners.forEach(memoryTrackerListener ->
-                memoryTrackerListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
-            });
-          } else if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndReplicate) {
-            pausePushDataAndReplicateCounter.increment();
-            actionService.submit(() -> {
-              logger.info("Trigger pausePushDataAndReplicate action");
-              memoryTrackerListeners.forEach(memoryTrackerListener ->
-                memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
-              memoryTrackerListeners.forEach(memoryTrackerListener ->
-                memoryTrackerListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
-              memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
-            });
-          } else {
-            actionService.submit(() -> {
-              logger.info("Trigger resume action");
-              memoryTrackerListeners.forEach(memoryTrackerListener ->
-                memoryTrackerListener.onResume("all"));
-            });
-          }
-        } else {
-          if (memoryTrackerStat != MemoryTrackerStat.resumeAll) {
-            if (!trimInProcess.get()) {
-              trimInProcess.set(true);
-              actionService.submit(() -> {
-                try {
-                  logger.info("Trigger trim action");
-                  memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
-                } finally {
-                  trimInProcess.set(false);
+    checkService.scheduleWithFixedDelay(
+        () -> {
+          try {
+            MemoryTrackerStat lastAction = memoryTrackerStat;
+            memoryTrackerStat = currentMemoryAction();
+            if (lastAction != memoryTrackerStat) {
+              if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndResumeReplicate) {
+                pausePushDataCounter.increment();
+                actionService.submit(
+                    () -> {
+                      logger.info("Trigger pausePushDataAndResumeReplicate action");
+                      memoryTrackerListeners.forEach(
+                          memoryTrackerListener ->
+                              memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                      memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                      memoryTrackerListeners.forEach(
+                          memoryTrackerListener ->
+                              memoryTrackerListener.onResume(
+                                  TransportModuleConstants.REPLICATE_MODULE));
+                    });
+              } else if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndReplicate) {
+                pausePushDataAndReplicateCounter.increment();
+                actionService.submit(
+                    () -> {
+                      logger.info("Trigger pausePushDataAndReplicate action");
+                      memoryTrackerListeners.forEach(
+                          memoryTrackerListener ->
+                              memoryTrackerListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                      memoryTrackerListeners.forEach(
+                          memoryTrackerListener ->
+                              memoryTrackerListener.onPause(
+                                  TransportModuleConstants.REPLICATE_MODULE));
+                      memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                    });
+              } else {
+                actionService.submit(
+                    () -> {
+                      logger.info("Trigger resume action");
+                      memoryTrackerListeners.forEach(
+                          memoryTrackerListener -> memoryTrackerListener.onResume("all"));
+                    });
+              }
+            } else {
+              if (memoryTrackerStat != MemoryTrackerStat.resumeAll) {
+                if (!trimInProcess.get()) {
+                  trimInProcess.set(true);
+                  actionService.submit(
+                      () -> {
+                        try {
+                          logger.info("Trigger trim action");
+                          memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
+                        } finally {
+                          trimInProcess.set(false);
+                        }
+                      });
                 }
-              });
+              }
             }
+          } catch (Exception e) {
+            logger.error("Memory tracker check error", e);
           }
-        }
-      } catch (Exception e) {
-        logger.error("Memory tracker check error", e);
-      }
-    }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
+        },
+        checkInterval,
+        checkInterval,
+        TimeUnit.MILLISECONDS);
 
-    reportService.scheduleWithFixedDelay(() -> logger.info(
-            "Direct memory usage: {}/{}MB, disk buffer size: {}MB, sort memory size: {}MB",
-        toMb(nettyMemoryCounter.get()), toMb(maxDirectorMemory),
-        toMb(diskBufferCounter.get()), toMb(sortMemoryCounter.get())),
-      reportInterval, reportInterval, TimeUnit.SECONDS);
+    reportService.scheduleWithFixedDelay(
+        () ->
+            logger.info(
+                "Direct memory usage: {}/{}MB, disk buffer size: {}MB, sort memory size: {}MB",
+                toMb(nettyMemoryCounter.get()),
+                toMb(maxDirectorMemory),
+                toMb(diskBufferCounter.get()),
+                toMb(sortMemoryCounter.get())),
+        reportInterval,
+        reportInterval,
+        TimeUnit.SECONDS);
 
-    logger.info("Memory tracker initialized with: " +
-                "max direct memory: {}MB, pause pushdata memory: {}MB, " +
-                "pause replication memory: {}MB, resume memory: {}MB",
-            toMb(maxDirectorMemory), toMb(pausePushDataThreshold),
-            toMb(pauseReplicateThreshold), toMb(resumeThreshold));
+    logger.info(
+        "Memory tracker initialized with: "
+            + "max direct memory: {}MB, pause pushdata memory: {}MB, "
+            + "pause replication memory: {}MB, resume memory: {}MB",
+        toMb(maxDirectorMemory),
+        toMb(pausePushDataThreshold),
+        toMb(pauseReplicateThreshold),
+        toMb(resumeThreshold));
   }
 
   private long toMb(long bytes) {
@@ -196,7 +229,7 @@ public class MemoryTracker {
   }
 
   public MemoryTrackerStat currentMemoryAction() {
-    long memoryUsage =  nettyMemoryCounter.get() + sortMemoryCounter.get();
+    long memoryUsage = nettyMemoryCounter.get() + sortMemoryCounter.get();
     boolean pausePushData = memoryUsage > pausePushDataThreshold;
     boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
     if (pausePushData) {
@@ -234,8 +267,8 @@ public class MemoryTracker {
   }
 
   public boolean sortMemoryReady() {
-    return (currentMemoryAction().equals(MemoryTrackerStat.resumeAll)) &&
-             sortMemoryCounter.get() < maxSortMemory;
+    return (currentMemoryAction().equals(MemoryTrackerStat.resumeAll))
+        && sortMemoryCounter.get() < maxSortMemory;
   }
 
   public void releaseSortMemory(long size) {
@@ -272,11 +305,13 @@ public class MemoryTracker {
     return pausePushDataCounter.sum();
   }
 
-  public long getPausePushDataAndReplicateCounter(){
+  public long getPausePushDataAndReplicateCounter() {
     return pausePushDataAndReplicateCounter.sum();
   }
 
   enum MemoryTrackerStat {
-    resumeAll, pausePushDataAndReplicate, pausePushDataAndResumeReplicate
+    resumeAll,
+    pausePushDataAndReplicate,
+    pausePushDataAndResumeReplicate
   }
 }

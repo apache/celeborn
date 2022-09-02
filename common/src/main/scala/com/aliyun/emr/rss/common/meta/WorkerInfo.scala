@@ -46,18 +46,16 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      null
-    )
+      null)
   }
 
   def this(
-    host: String,
-    rpcPort: Int,
-    pushPort: Int,
-    fetchPort: Int,
-    replicatePort: Int,
-    endpoint: RpcEndpointRef
-  ) {
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      endpoint: RpcEndpointRef) {
     this(
       host,
       rpcPort,
@@ -65,8 +63,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      endpoint
-    )
+      endpoint)
   }
 
   val allocationBuckets = new Array[Int](61)
@@ -148,10 +145,10 @@ class WorkerInfo(
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
     rpcPort == other.rpcPort &&
-      pushPort == other.pushPort &&
-      host == other.host &&
-      fetchPort == other.fetchPort &&
-      replicatePort == other.replicatePort
+    pushPort == other.pushPort &&
+    host == other.host &&
+    fetchPort == other.fetchPort &&
+    replicatePort == other.replicatePort
   }
 
   def setupEndpoint(endpointRef: RpcEndpointRef): Unit = {
@@ -187,8 +184,9 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.availableSlots()).sum
   }
 
-  def updateDiskInfos(newDiskInfos: java.util.Map[String, DiskInfo],
-    estimatedPartitionSize: Long): Unit = this.synchronized {
+  def updateDiskInfos(
+      newDiskInfos: java.util.Map[String, DiskInfo],
+      estimatedPartitionSize: Long): Unit = this.synchronized {
     import scala.collection.JavaConverters._
     for (newDisk <- newDiskInfos.values().asScala) {
       val mountPoint: String = newDisk.mountPoint
@@ -232,10 +230,10 @@ class WorkerInfo(
   override def equals(obj: Any): Boolean = {
     val other = obj.asInstanceOf[WorkerInfo]
     host == other.host &&
-      rpcPort == other.rpcPort &&
-      pushPort == other.pushPort &&
-      fetchPort == other.fetchPort &&
-      replicatePort == other.replicatePort
+    rpcPort == other.rpcPort &&
+    pushPort == other.pushPort &&
+    fetchPort == other.fetchPort &&
+    replicatePort == other.replicatePort
   }
 
   override def hashCode(): Int = {
@@ -251,19 +249,18 @@ object WorkerInfo {
   }
 
   def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
-    val disks = if (pbWorker.getDisksCount > 0) {
-      pbWorker.getDisksMap.asScala
-        .map(item =>
-          item._1 -> new DiskInfo(
-            item._1,
-            item._2.getUsableSpace,
-            item._2.getAvgFlushTime,
-            item._2.getUsedSlots
-          )
-        ).asJava
-    } else {
-      new util.HashMap[String, DiskInfo]()
-    }
+    val disks =
+      if (pbWorker.getDisksCount > 0) {
+        pbWorker.getDisksMap.asScala
+          .map(item =>
+            item._1 -> new DiskInfo(
+              item._1,
+              item._2.getUsableSpace,
+              item._2.getAvgFlushTime,
+              item._2.getUsedSlots)).asJava
+      } else {
+        new util.HashMap[String, DiskInfo]()
+      }
 
     new WorkerInfo(
       pbWorker.getHost,
@@ -272,8 +269,7 @@ object WorkerInfo {
       pbWorker.getFetchPort,
       pbWorker.getReplicatePort,
       disks,
-      null
-    )
+      null)
   }
 
   def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
@@ -285,8 +281,7 @@ object WorkerInfo {
             .setUsableSpace(item._2.actualUsableSpace)
             .setAvgFlushTime(item._2.avgFlushTime)
             .setUsedSlots(item._2.activeSlots)
-            .build()
-      )
+            .build())
       .asJava
     PbWorkerInfo
       .newBuilder()

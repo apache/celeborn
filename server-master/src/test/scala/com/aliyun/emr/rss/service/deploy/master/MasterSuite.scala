@@ -23,8 +23,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.rpc.RpcEnv
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants
+import com.aliyun.emr.rss.common.rpc.RpcEnv
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
 
@@ -45,6 +45,7 @@ class MasterSuite extends AnyFunSuite
     conf.set("rss.ha.storage.dir", getTmpDir())
     conf.set("rss.worker.base.dirs", getTmpDir())
     conf.set("rss.metrics.system.enabled", "true")
+    conf.set("rss.master.prometheus.metric.host", "127.0.0.1")
     conf.set("rss.master.prometheus.metric.port", "11112")
 
     val args = Array("-h", "localhost", "-p", "9097")
@@ -63,16 +64,20 @@ class MasterSuite extends AnyFunSuite
     val master = new Master(rpcEnv, conf, metricsSystem)
     rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, master)
 
-    val handlers = if (RssConf.metricsSystemEnable(conf)) {
-      logInfo(s"Metrics system enabled.")
-      metricsSystem.start()
-      new HttpRequestHandler(master, metricsSystem.getPrometheusHandler)
-    } else {
-      new HttpRequestHandler(master, null)
-    }
+    val handlers =
+      if (RssConf.metricsSystemEnable(conf)) {
+        logInfo(s"Metrics system enabled.")
+        metricsSystem.start()
+        new HttpRequestHandler(master, metricsSystem.getPrometheusHandler)
+      } else {
+        new HttpRequestHandler(master, null)
+      }
 
-    val httpServer = new HttpServer(new HttpServerInitializer(handlers),
-      RssConf.masterPrometheusMetricPort(conf))
+    val httpServer = new HttpServer(
+      "test-master",
+      RssConf.masterPrometheusMetricHost(conf),
+      RssConf.masterPrometheusMetricPort(conf),
+      new HttpServerInitializer(handlers))
     httpServer.start()
 
     Thread.sleep(5000L)

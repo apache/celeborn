@@ -17,6 +17,8 @@
 
 package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
+import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +38,6 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.util.Utils;
-
-import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -61,18 +61,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalFileCount = new LongAdder();
 
   public void updateRequestSlotsMeta(
-      String shuffleKey, String hostName,
-      Map<String, Map<String, Integer>> workerWithAllocations) {
+      String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
     registeredShuffle.add(shuffleKey);
 
     String appId = Utils.splitShuffleKey(shuffleKey)._1;
-    appHeartbeatTime.compute(appId, (applicationId, oldTimestamp) -> {
-      long oldTime = System.currentTimeMillis();
-      if (oldTimestamp != null) {
-        oldTime = oldTimestamp;
-      }
-      return Math.max(System.currentTimeMillis(), oldTime);
-    });
+    appHeartbeatTime.compute(
+        appId,
+        (applicationId, oldTimestamp) -> {
+          long oldTime = System.currentTimeMillis();
+          if (oldTimestamp != null) {
+            oldTime = oldTimestamp;
+          }
+          return Math.max(System.currentTimeMillis(), oldTime);
+        });
 
     if (hostName != null) {
       hostnameSet.add(hostName);
@@ -93,8 +94,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     updateReleaseSlotsMeta(shuffleKey, null, null);
   }
 
-  public void updateReleaseSlotsMeta(String shuffleKey, List<String> workerIds,
-      List<Map<String, Integer>> slots) {
+  public void updateReleaseSlotsMeta(
+      String shuffleKey, List<String> workerIds, List<Map<String, Integer>> slots) {
     if (workerIds != null && !workerIds.isEmpty()) {
       for (int i = 0; i < workerIds.size(); i++) {
         String workerId = workerIds.get(i);
@@ -131,10 +132,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     appHeartbeatTime.remove(appId);
   }
 
-  public void updateWorkerLostMeta(String host,int rpcPort, int pushPort,int fetchPort,
-    int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
-            fetchPort, replicatePort, null);
+  public void updateWorkerLostMeta(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null);
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
@@ -145,10 +145,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.remove(worker);
   }
 
-  public void updateWorkerRemoveMeta(String host,int rpcPort, int pushPort,int fetchPort,
-    int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort,
-        fetchPort, replicatePort, null);
+  public void updateWorkerRemoveMeta(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null);
     // remove worker from workers
     synchronized (workers) {
       workers.remove(worker);
@@ -157,19 +156,26 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     blacklist.remove(worker);
   }
 
-  public void updateWorkerHeartBeatMeta(String host, int rpcPort, int pushPort, int fetchPort,
-      int replicatePort, Map<String, DiskInfo> disks, long time) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks,
-        null);
+  public void updateWorkerHeartBeatMeta(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      long time) {
+    WorkerInfo worker =
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heart beat {}", host, rpcPort, disks);
     synchronized (workers) {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
-      workerInfo.ifPresent(info -> {
-        info.updateDiskInfos(disks, estimatedPartitionSize);
-        availableSlots.set(info.totalAvailableSlots());
-        info.lastHeartbeat_$eq(time);
-      });
+      workerInfo.ifPresent(
+          info -> {
+            info.updateDiskInfos(disks, estimatedPartitionSize);
+            availableSlots.set(info.totalAvailableSlots());
+            info.lastHeartbeat_$eq(time);
+          });
     }
     if (!blacklist.contains(worker) && disks.isEmpty()) {
       LOG.debug("Worker: {} num total slots is 0, add to blacklist", worker);
@@ -186,9 +192,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-    Map<String, DiskInfo> disks) {
-    WorkerInfo workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
-      disks, null);
+      Map<String, DiskInfo> disks) {
+    WorkerInfo workerInfo =
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
 
     try {
@@ -206,12 +212,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   /**
    * Used for ratis state machine to take snapshot
+   *
    * @param file
    * @throws IOException
    */
   public void writeMetaInfoToFile(File file) throws IOException, RuntimeException {
-    ObjectOutputStream out = new ObjectOutputStream(
-        new BufferedOutputStream(new FileOutputStream(file)));
+    ObjectOutputStream out =
+        new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
 
     out.writeLong(estimatedPartitionSize);
     // write registeredShuffle
@@ -228,48 +235,51 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
     // write application heartbeat time
     out.writeInt(appHeartbeatTime.size());
-    appHeartbeatTime.forEach((app, time) -> {
-      try {
-        out.writeObject(app);
-        out.writeLong(time);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    });
+    appHeartbeatTime.forEach(
+        (app, time) -> {
+          try {
+            out.writeObject(app);
+            out.writeLong(time);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
 
     // write workerInfo
     out.writeInt(workers.size());
-    workers.forEach(workerInfo -> {
-      try {
-        out.writeObject(workerInfo);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    });
+    workers.forEach(
+        workerInfo -> {
+          try {
+            out.writeObject(workerInfo);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
 
     out.flush();
   }
 
-  private <T> void writeSetMetaToFile(
-      Set<T> metas, ObjectOutputStream out) throws IOException {
+  private <T> void writeSetMetaToFile(Set<T> metas, ObjectOutputStream out) throws IOException {
     out.writeInt(metas.size());
-    metas.forEach(meta -> {
-      try {
-        out.writeObject(meta);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    });
+    metas.forEach(
+        meta -> {
+          try {
+            out.writeObject(meta);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   /**
    * Used for ratis state machine to load snapshot
+   *
    * @param file
    * @throws IOException
    */
   public void restoreMetaFromFile(File file) throws IOException {
-    try (ObjectInputStream in = new ObjectInputStream(
-      new BufferedInputStream(new FileInputStream(file)))) {
+    try (ObjectInputStream in =
+        new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
       estimatedPartitionSize = in.readLong();
       // read registeredShuffle
       readSetMetaFromFile(registeredShuffle, in.readInt(), in);
@@ -285,35 +295,37 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
       // read application heartbeat time
       int size = in.readInt();
-      for (int i = 0 ; i < size ; ++i) {
+      for (int i = 0; i < size; ++i) {
         appHeartbeatTime.put((String) in.readObject(), in.readLong());
       }
-      registeredShuffle.forEach(shuffleKey -> {
-        String appId = shuffleKey.split("-")[0];
-        if (!appHeartbeatTime.containsKey(appId)) {
-          appHeartbeatTime.put(appId, System.currentTimeMillis());
-        }
-      });
+      registeredShuffle.forEach(
+          shuffleKey -> {
+            String appId = shuffleKey.split("-")[0];
+            if (!appHeartbeatTime.containsKey(appId)) {
+              appHeartbeatTime.put(appId, System.currentTimeMillis());
+            }
+          });
 
       // read workerInfo
       int workersSize = in.readInt();
-      for (int i = 0 ; i < workersSize ; ++i) {
+      for (int i = 0; i < workersSize; ++i) {
         workers.add((WorkerInfo) in.readObject());
       }
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
     }
     LOG.info("Successfully restore meta info from snapshot " + file.getAbsolutePath());
-    LOG.info("Worker size: {}, Registered shuffle size: {}, Worker blacklist size: {}.",
-        workers.size(), registeredShuffle.size(), blacklist.size());
+    LOG.info(
+        "Worker size: {}, Registered shuffle size: {}, Worker blacklist size: {}.",
+        workers.size(),
+        registeredShuffle.size(),
+        blacklist.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle " + shuffle));
   }
 
-  private <T> void readSetMetaFromFile(
-      Set<T> metas,
-      int size,
-      ObjectInputStream in) throws ClassNotFoundException, IOException {
+  private <T> void readSetMetaFromFile(Set<T> metas, int size, ObjectInputStream in)
+      throws ClassNotFoundException, IOException {
     for (int i = 0; i < size; ++i) {
       metas.add((T) in.readObject());
     }
@@ -336,9 +348,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } else {
       estimatedPartitionSize = defaultPartitionSize;
     }
-    LOG.warn("Rss cluster estimated partition size changed from {} to {}",
-      oldEstimatedPartitionSize, estimatedPartitionSize);
-    workers.stream().filter(worker -> !blacklist.contains(worker)).forEach(
-      workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
+    LOG.warn(
+        "Rss cluster estimated partition size changed from {} to {}",
+        oldEstimatedPartitionSize,
+        estimatedPartitionSize);
+    workers.stream()
+        .filter(worker -> !blacklist.contains(worker))
+        .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 }

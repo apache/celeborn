@@ -34,7 +34,9 @@ public final class StreamHandle extends RequestMessage {
   }
 
   @Override
-  public Type type() { return Type.StreamHandle; }
+  public Type type() {
+    return Type.StreamHandle;
+  }
 
   @Override
   public int encodedLength() {
@@ -68,8 +70,8 @@ public final class StreamHandle extends RequestMessage {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamId", streamId)
-      .add("numChunks", numChunks)
-      .toString();
+        .add("streamId", streamId)
+        .add("numChunks", numChunks)
+        .toString();
   }
 }

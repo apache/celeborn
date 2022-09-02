@@ -25,47 +25,56 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.util.Utils;
 
 public class MetaUtil {
-  private MetaUtil() {
-  }
+  private MetaUtil() {}
 
   public static WorkerInfo addrToInfo(ResourceProtos.WorkerAddress address) {
-    return new WorkerInfo(address.getHost(), address.getRpcPort(), address.getPushPort(),
-      address.getFetchPort(), address.getReplicatePort());
+    return new WorkerInfo(
+        address.getHost(),
+        address.getRpcPort(),
+        address.getPushPort(),
+        address.getFetchPort(),
+        address.getReplicatePort());
   }
 
   public static ResourceProtos.WorkerAddress infoToAddr(WorkerInfo info) {
     return ResourceProtos.WorkerAddress.newBuilder()
-      .setHost(info.host())
-      .setRpcPort(info.rpcPort())
-      .setPushPort(info.pushPort())
-      .setFetchPort(info.fetchPort())
-      .setReplicatePort(info.replicatePort())
-      .build();
+        .setHost(info.host())
+        .setRpcPort(info.rpcPort())
+        .setPushPort(info.pushPort())
+        .setFetchPort(info.fetchPort())
+        .setReplicatePort(info.replicatePort())
+        .build();
   }
 
   public static Map<String, DiskInfo> fromPbDiskInfos(
       Map<String, ResourceProtos.DiskInfo> diskInfos) {
     Map<String, DiskInfo> map = new HashMap<>();
 
-    diskInfos.forEach((k, v) -> {
-      DiskInfo diskInfo = new DiskInfo(v.getMountPoint(), v.getUsableSpace(),
-        v.getAvgFlushTime(), v.getUsedSlots());
-      diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
-      map.put(k, diskInfo);
-    });
+    diskInfos.forEach(
+        (k, v) -> {
+          DiskInfo diskInfo =
+              new DiskInfo(
+                  v.getMountPoint(), v.getUsableSpace(), v.getAvgFlushTime(), v.getUsedSlots());
+          diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
+          map.put(k, diskInfo);
+        });
     return map;
   }
 
   public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(
       Map<String, DiskInfo> diskInfos) {
     Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
-    diskInfos.forEach((k, v) -> map.put(k,
-        ResourceProtos.DiskInfo.newBuilder().setMountPoint(v.mountPoint())
-          .setUsableSpace(v.actualUsableSpace())
-          .setAvgFlushTime(v.avgFlushTime())
-          .setUsedSlots(v.activeSlots())
-          .setStatus(v.status().getValue())
-          .build()));
+    diskInfos.forEach(
+        (k, v) ->
+            map.put(
+                k,
+                ResourceProtos.DiskInfo.newBuilder()
+                    .setMountPoint(v.mountPoint())
+                    .setUsableSpace(v.actualUsableSpace())
+                    .setAvgFlushTime(v.avgFlushTime())
+                    .setUsedSlots(v.activeSlots())
+                    .setStatus(v.status().getValue())
+                    .build()));
     return map;
   }
 }

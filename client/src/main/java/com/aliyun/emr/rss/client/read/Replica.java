@@ -37,8 +37,8 @@ class Replica {
 
   private StreamHandle streamHandle;
   private TransportClient client;
-  private int startMapIndex;
-  private int endMapIndex;
+  private final int startMapIndex;
+  private final int endMapIndex;
 
   Replica(
       long timeoutMs,
@@ -59,8 +59,8 @@ class Replica {
     if (client == null || !client.isActive()) {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
 
-      OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
-          startMapIndex, endMapIndex);
+      OpenStream openBlocks =
+          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
       ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
       streamHandle = (StreamHandle) Message.decode(response);
     }
@@ -77,7 +77,13 @@ class Replica {
 
   @Override
   public String toString() {
-    return location.getHost() + ":" + location.getFetchPort();
+    String shufflePartition =
+        String.format("%s:%d %s", location.getHost(), location.getFetchPort(), shuffleKey);
+    if (startMapIndex == 0 && endMapIndex == Integer.MAX_VALUE) {
+      return shufflePartition;
+    } else {
+      return String.format("%s[%d,%d)", shufflePartition, startMapIndex, endMapIndex);
+    }
   }
 
   @VisibleForTesting

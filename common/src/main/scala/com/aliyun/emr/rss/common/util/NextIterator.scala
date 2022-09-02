@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.common.util
 
 /** Provides a basic/boilerplate Iterator implementation. */
-private[rss] abstract class NextIterator[U] extends Iterator[U] {
+abstract private[rss] class NextIterator[U] extends Iterator[U] {
 
   private var gotNext = false
   private var nextValue: U = _

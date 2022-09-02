@@ -34,8 +34,7 @@ public final class PushData extends RequestMessage {
   public final String shuffleKey;
   public final String partitionUniqueId;
 
-  public PushData(
-      byte mode, String shuffleKey, String partitionUniqueId, ManagedBuffer body) {
+  public PushData(byte mode, String shuffleKey, String partitionUniqueId, ManagedBuffer body) {
     this(0L, 0, mode, shuffleKey, partitionUniqueId, body);
   }
 
@@ -61,8 +60,11 @@ public final class PushData extends RequestMessage {
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 1 + Encoders.Strings.encodedLength(shuffleKey) +
-        Encoders.Strings.encodedLength(partitionUniqueId);
+    return 8
+        + 4
+        + 1
+        + Encoders.Strings.encodedLength(shuffleKey)
+        + Encoders.Strings.encodedLength(partitionUniqueId);
   }
 
   @Override
@@ -86,10 +88,10 @@ public final class PushData extends RequestMessage {
     String partitionUniqueId = Encoders.Strings.decode(buf);
     if (decodeBody) {
       return new PushData(
-        requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
+          requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
     } else {
       return new PushData(
-        requestId, epoch, mode, shuffleKey, partitionUniqueId, NettyManagedBuffer.EmptyBuffer);
+          requestId, epoch, mode, shuffleKey, partitionUniqueId, NettyManagedBuffer.EmptyBuffer);
     }
   }
 

@@ -37,7 +37,8 @@ private[rss] case class RpcEndpointAddress(rpcAddress: RpcAddress, name: String)
     this(RpcAddress(host, port), name)
   }
 
-  override val toString = if (rpcAddress != null) {
+  override val toString =
+    if (rpcAddress != null) {
       s"rss://$name@${rpcAddress.host}:${rpcAddress.port}"
     } else {
       s"rss-client://$name"
@@ -57,12 +58,12 @@ private[rss] object RpcEndpointAddress {
       val port = uri.getPort
       val name = uri.getUserInfo
       if (uri.getScheme != "rss" ||
-          host == null ||
-          port < 0 ||
-          name == null ||
-          (uri.getPath != null && !uri.getPath.isEmpty) || // uri.getPath returns "" instead of null
-          uri.getFragment != null ||
-          uri.getQuery != null) {
+        host == null ||
+        port < 0 ||
+        name == null ||
+        (uri.getPath != null && !uri.getPath.isEmpty) || // uri.getPath returns "" instead of null
+        uri.getFragment != null ||
+        uri.getQuery != null) {
         throw new RssException("Invalid RSS URL: " + essUrl)
       }
       new RpcEndpointAddress(host, port, name)

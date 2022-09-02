@@ -19,5 +19,4 @@ package com.aliyun.emr.rss.common.metrics
 
 import com.codahale.metrics.{Reservoir, Timer}
 
-class RssTimer(val reservoir: Reservoir) extends Timer(reservoir) {
-}
+class RssTimer(val reservoir: Reservoir) extends Timer(reservoir) {}

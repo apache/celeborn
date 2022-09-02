@@ -26,9 +26,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 
-/**
- * A {@link ManagedBuffer} backed by a Netty {@link ByteBuf}.
- */
+/** A {@link ManagedBuffer} backed by a Netty {@link ByteBuf}. */
 public class NettyManagedBuffer extends ManagedBuffer {
   public static NettyManagedBuffer EmptyBuffer = new NettyManagedBuffer(Unpooled.buffer(0, 0));
   private final ByteBuf buf;
@@ -75,8 +73,6 @@ public class NettyManagedBuffer extends ManagedBuffer {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-      .add("buf", buf)
-      .toString();
+    return Objects.toStringHelper(this).add("buf", buf).toString();
   }
 }

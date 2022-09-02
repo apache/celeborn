@@ -73,11 +73,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .putAllWorkerAllocations(workerAllocations)
             .build();
 
-    ResourceRequest request = ResourceRequest.newBuilder()
-      .setRequestSlotsRequest(requestSlots)
-      .setCmdType(Type.RequestSlots)
-      .setRequestId(UUID.randomUUID().toString())
-      .build();
+    ResourceRequest request =
+        ResourceRequest.newBuilder()
+            .setRequestSlotsRequest(requestSlots)
+            .setCmdType(Type.RequestSlots)
+            .setRequestId(UUID.randomUUID().toString())
+            .build();
 
     ResourceResponse response = stateMachine.runCommand(request, -1);
     Assert.assertEquals(response.getSuccess(), true);
@@ -86,43 +87,44 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
   @Test
   public void testSnapshotCleanup() throws IOException {
     StateMachine stateMachine = ratisServer.getMasterStateMachine();
-    SnapshotRetentionPolicy snapshotRetentionPolicy = new SnapshotRetentionPolicy() {
-      @Override
-      public int getNumSnapshotsRetained() {
-        return 3;
-      }
-    };
+    SnapshotRetentionPolicy snapshotRetentionPolicy =
+        new SnapshotRetentionPolicy() {
+          @Override
+          public int getNumSnapshotsRetained() {
+            return 3;
+          }
+        };
 
     File storageDir = Utils.createTempDir("./", "snapshot");
 
     final RaftStorage storage = new RaftStorageImpl(storageDir, null, 100);
     SimpleStateMachineStorage simpleStateMachineStorage =
-      (SimpleStateMachineStorage)stateMachine.getStateMachineStorage();
+        (SimpleStateMachineStorage) stateMachine.getStateMachineStorage();
     simpleStateMachineStorage.init(storage);
 
     List<Long> indices = new ArrayList<>();
 
-    //Create 5 snapshot files in storage dir.
+    // Create 5 snapshot files in storage dir.
     for (int i = 0; i < 5; i++) {
       final long term = ThreadLocalRandom.current().nextLong(3L, 10L);
       final long index = ThreadLocalRandom.current().nextLong(100L, 1000L);
       indices.add(index);
       File snapshotFile = simpleStateMachineStorage.getSnapshotFile(term, index);
       snapshotFile.createNewFile();
-      File md5File = new File(snapshotFile.getAbsolutePath()+".md5");
+      File md5File = new File(snapshotFile.getAbsolutePath() + ".md5");
       md5File.createNewFile();
     }
 
     // following 2 md5 files will be deleted
     File snapshotFile1 = simpleStateMachineStorage.getSnapshotFile(1, 1);
-    File md5File1 = new File(snapshotFile1.getAbsolutePath()+".md5");
+    File md5File1 = new File(snapshotFile1.getAbsolutePath() + ".md5");
     md5File1.createNewFile();
     File snapshotFile2 = simpleStateMachineStorage.getSnapshotFile(5, 2);
-    File md5File2 = new File(snapshotFile2.getAbsolutePath()+".md5");
+    File md5File2 = new File(snapshotFile2.getAbsolutePath() + ".md5");
     md5File2.createNewFile();
     // this md5 file will not be deleted
     File snapshotFile3 = simpleStateMachineStorage.getSnapshotFile(11, 1001);
-    File md5File3 = new File(snapshotFile3.getAbsolutePath()+".md5");
+    File md5File3 = new File(snapshotFile3.getAbsolutePath() + ".md5");
     md5File3.createNewFile();
 
     File stateMachineDir = simpleStateMachineStorage.getSmDir();
@@ -149,20 +151,19 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     remainingFiles = stateMachineDir.listFiles();
     Assert.assertTrue(remainingFiles.length == 7);
 
-    //Test with Retention disabled.
-    //Create 2 snapshot files in storage dir.
+    // Test with Retention disabled.
+    // Create 2 snapshot files in storage dir.
     for (int i = 0; i < 2; i++) {
       final long term = ThreadLocalRandom.current().nextLong(10L);
       final long index = ThreadLocalRandom.current().nextLong(1000L);
       indices.add(index);
-      File snapshotFile= simpleStateMachineStorage.getSnapshotFile(term, index);
+      File snapshotFile = simpleStateMachineStorage.getSnapshotFile(term, index);
       snapshotFile.createNewFile();
-      File md5File = new File(snapshotFile.getAbsolutePath()+".md5");
+      File md5File = new File(snapshotFile.getAbsolutePath() + ".md5");
       md5File.createNewFile();
     }
 
-    simpleStateMachineStorage.cleanupOldSnapshots(new SnapshotRetentionPolicy() {
-    });
+    simpleStateMachineStorage.cleanupOldSnapshots(new SnapshotRetentionPolicy() {});
 
     Assert.assertTrue(stateMachineDir.listFiles().length == 11);
   }

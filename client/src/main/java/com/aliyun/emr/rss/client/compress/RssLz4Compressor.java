@@ -54,8 +54,8 @@ public class RssLz4Compressor extends RssLz4Trait implements Compressor {
     if (compressedBuffer.length - HEADER_LENGTH < maxDestLength) {
       initCompressBuffer(maxDestLength);
     }
-    int compressedLength = compressor.compress(
-        data, offset, length, compressedBuffer, HEADER_LENGTH);
+    int compressedLength =
+        compressor.compress(data, offset, length, compressedBuffer, HEADER_LENGTH);
     final int compressMethod;
     if (compressedLength >= length) {
       compressMethod = COMPRESSION_METHOD_RAW;

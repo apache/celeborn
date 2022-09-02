@@ -33,7 +33,9 @@ public final class RpcResponse extends ResponseMessage {
   }
 
   @Override
-  public Type type() { return Type.RpcResponse; }
+  public Type type() {
+    return Type.RpcResponse;
+  }
 
   @Override
   public int encodedLength() {
@@ -86,9 +88,6 @@ public final class RpcResponse extends ResponseMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-      .add("requestId", requestId)
-      .add("body", body())
-      .toString();
+    return Objects.toStringHelper(this).add("requestId", requestId).add("body", body()).toString();
   }
 }

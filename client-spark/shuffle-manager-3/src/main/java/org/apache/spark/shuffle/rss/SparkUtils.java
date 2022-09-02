@@ -43,6 +43,7 @@ import com.aliyun.emr.rss.common.util.Utils;
 
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long mapTaskId) {
     return MapStatus$.MODULE$.apply(loc, uncompressedSizes, mapTaskId);
@@ -68,9 +69,7 @@ public class SparkUtils {
     return res;
   }
 
-  /**
-   * make rss conf from spark conf
-   */
+  /** make rss conf from spark conf */
   public static RssConf fromSparkConf(SparkConf conf) {
     RssConf tmpRssConf = new RssConf();
     for (Tuple2<String, String> kv : conf.getAll()) {
@@ -82,15 +81,17 @@ public class SparkUtils {
   }
 
   public static String genNewAppId(SparkContext context) {
-    return context.applicationAttemptId()
-            .map(id -> context.applicationId() + "_" + id)
-            .getOrElse(context::applicationId);
+    return context
+        .applicationAttemptId()
+        .map(id -> context.applicationId() + "_" + id)
+        .getOrElse(context::applicationId);
   }
 
   // Create an instance of the class with the given name, possibly initializing it with our conf
   // Copied from SparkEnv
   public static <T> T instantiateClass(String className, SparkConf conf, Boolean isDriver) {
-    @SuppressWarnings("unchecked") Class<T> cls = (Class<T>) Utils.classForName(className);
+    @SuppressWarnings("unchecked")
+    Class<T> cls = (Class<T>) Utils.classForName(className);
     // Look for a constructor taking a SparkConf and a boolean isDriver, then one taking just
     // SparkConf, then one taking no arguments
     try {
@@ -113,19 +114,28 @@ public class SparkUtils {
   public static <K, C> ShuffleReader<K, C> invokeGetReaderMethod(
       String className,
       String methodName,
-      SortShuffleManager sortShuffleManager ,
+      SortShuffleManager sortShuffleManager,
       ShuffleHandle handle,
       Integer startMapIndex,
       Integer endMapIndex,
-      Integer   startPartition,
-      Integer    endPartition,
+      Integer startPartition,
+      Integer endPartition,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
     Class<?> cls = Utils.classForName(className);
     try {
-      Method method = cls.getMethod(methodName, ShuffleHandle.class, Integer.TYPE, Integer.TYPE,
-              Integer.TYPE, Integer.TYPE, TaskContext.class, ShuffleReadMetricsReporter.class);
-      return (ShuffleReader<K, C>) method.invoke(
+      Method method =
+          cls.getMethod(
+              methodName,
+              ShuffleHandle.class,
+              Integer.TYPE,
+              Integer.TYPE,
+              Integer.TYPE,
+              Integer.TYPE,
+              TaskContext.class,
+              ShuffleReadMetricsReporter.class);
+      return (ShuffleReader<K, C>)
+          method.invoke(
               sortShuffleManager,
               handle,
               startMapIndex,
@@ -134,18 +144,20 @@ public class SparkUtils {
               endPartition,
               context,
               metrics);
-    } catch(ReflectiveOperationException roe1) {
+    } catch (ReflectiveOperationException roe1) {
       try {
-        Method method = cls.getMethod(methodName, ShuffleHandle.class, Integer.TYPE, Integer.TYPE,
-                TaskContext.class, ShuffleReadMetricsReporter.class);
-        return (ShuffleReader<K, C>) method.invoke(
-                sortShuffleManager,
-                handle,
-                startPartition,
-                endPartition,
-                context,
-                metrics);
-      } catch(ReflectiveOperationException roe2) {
+        Method method =
+            cls.getMethod(
+                methodName,
+                ShuffleHandle.class,
+                Integer.TYPE,
+                Integer.TYPE,
+                TaskContext.class,
+                ShuffleReadMetricsReporter.class);
+        return (ShuffleReader<K, C>)
+            method.invoke(
+                sortShuffleManager, handle, startPartition, endPartition, context, metrics);
+      } catch (ReflectiveOperationException roe2) {
         throw new RuntimeException("Get getReader method failed.", roe2);
       }
     }

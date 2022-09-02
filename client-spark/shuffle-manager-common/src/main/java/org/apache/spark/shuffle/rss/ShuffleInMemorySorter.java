@@ -27,23 +27,18 @@ public class ShuffleInMemorySorter {
   private final MemoryConsumer consumer;
 
   /**
-   * An array of record pointers and partition ids that have been encoded by
-   * {@link PackedRecordPointer}. The sort operates on this array instead of directly manipulating
-   * records.
+   * An array of record pointers and partition ids that have been encoded by {@link
+   * PackedRecordPointer}. The sort operates on this array instead of directly manipulating records.
    *
-   * Only part of the array will be used to store the pointers, the rest part is preserved as
+   * <p>Only part of the array will be used to store the pointers, the rest part is preserved as
    * temporary buffer for sorting.
    */
   private LongArray array;
 
-  /**
-   * The position in the pointer array where new records can be inserted.
-   */
+  /** The position in the pointer array where new records can be inserted. */
   private int pos = 0;
 
-  /**
-   * How many records could be inserted, because part of the array should be left for sorting.
-   */
+  /** How many records could be inserted, because part of the array should be left for sorting. */
   private int usableCapacity = 0;
 
   private final int initialSize;
@@ -88,14 +83,13 @@ public class ShuffleInMemorySorter {
   }
 
   public void expandPointerArray(LongArray newArray) {
-    assert(newArray.size() > array.size());
+    assert (newArray.size() > array.size());
     Platform.copyMemory(
-      array.getBaseObject(),
-      array.getBaseOffset(),
-      newArray.getBaseObject(),
-      newArray.getBaseOffset(),
-      pos * 8L
-    );
+        array.getBaseObject(),
+        array.getBaseOffset(),
+        newArray.getBaseObject(),
+        newArray.getBaseOffset(),
+        pos * 8L);
     consumer.freeArray(array);
     array = newArray;
     usableCapacity = getUsableCapacity();
@@ -117,11 +111,11 @@ public class ShuffleInMemorySorter {
    * Inserts a record to be sorted.
    *
    * @param recordPointer a pointer to the record, encoded by the task memory manager. Due to
-   *                      certain pointer compression techniques used by the sorter, the sort can
-   *                      only operate on pointers that point to locations in the first
-   *                      {@link PackedRecordPointer#MAXIMUM_PAGE_SIZE_BYTES} bytes of a data page.
-   * @param partitionId the partition id, which must be less than or equal to
-   *                    {@link PackedRecordPointer#MAXIMUM_PARTITION_ID}.
+   *     certain pointer compression techniques used by the sorter, the sort can only operate on
+   *     pointers that point to locations in the first {@link
+   *     PackedRecordPointer#MAXIMUM_PAGE_SIZE_BYTES} bytes of a data page.
+   * @param partitionId the partition id, which must be less than or equal to {@link
+   *     PackedRecordPointer#MAXIMUM_PARTITION_ID}.
    */
   public void insertRecord(long recordPointer, int partitionId) {
     if (!hasSpaceForAnotherRecord()) {
@@ -157,15 +151,17 @@ public class ShuffleInMemorySorter {
     }
   }
 
-  /**
-   * Return an iterator over record pointers in sorted order.
-   */
+  /** Return an iterator over record pointers in sorted order. */
   public ShuffleSorterIterator getSortedIterator() {
     int offset = 0;
-    offset = RadixSort.sort(
-      array, pos,
-      PackedRecordPointer.PARTITION_ID_START_BYTE_INDEX,
-      PackedRecordPointer.PARTITION_ID_END_BYTE_INDEX, false, false);
+    offset =
+        RadixSort.sort(
+            array,
+            pos,
+            PackedRecordPointer.PARTITION_ID_START_BYTE_INDEX,
+            PackedRecordPointer.PARTITION_ID_END_BYTE_INDEX,
+            false,
+            false);
     return new ShuffleSorterIterator(pos, array, offset);
   }
 }

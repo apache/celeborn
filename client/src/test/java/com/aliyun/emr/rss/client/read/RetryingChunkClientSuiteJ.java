@@ -17,6 +17,21 @@
 
 package com.aliyun.emr.rss.client.read;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyObject;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -46,21 +61,6 @@ import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyObject;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 public class RetryingChunkClientSuiteJ {
 
   private static final int MASTER_RPC_PORT = 1234;
@@ -71,12 +71,26 @@ public class RetryingChunkClientSuiteJ {
   private static final int SLAVE_PUSH_PORT = 4322;
   private static final int SLAVE_FETCH_PORT = 4323;
   private static final int SLAVE_REPLICATE_PORT = 4324;
-  private static final PartitionLocation masterLocation = new PartitionLocation(
-    0, 1, "localhost", MASTER_RPC_PORT, MASTER_PUSH_PORT, MASTER_FETCH_PORT,
-    MASTER_REPLICATE_PORT, PartitionLocation.Mode.Master);
-  private static final PartitionLocation slaveLocation = new PartitionLocation(
-    0, 1, "localhost", SLAVE_RPC_PORT, SLAVE_PUSH_PORT, SLAVE_FETCH_PORT,
-    SLAVE_REPLICATE_PORT, PartitionLocation.Mode.Slave);
+  private static final PartitionLocation masterLocation =
+      new PartitionLocation(
+          0,
+          1,
+          "localhost",
+          MASTER_RPC_PORT,
+          MASTER_PUSH_PORT,
+          MASTER_FETCH_PORT,
+          MASTER_REPLICATE_PORT,
+          PartitionLocation.Mode.Master);
+  private static final PartitionLocation slaveLocation =
+      new PartitionLocation(
+          0,
+          1,
+          "localhost",
+          SLAVE_RPC_PORT,
+          SLAVE_PUSH_PORT,
+          SLAVE_FETCH_PORT,
+          SLAVE_REPLICATE_PORT,
+          PartitionLocation.Mode.Slave);
 
   static {
     masterLocation.setPeer(slaveLocation);
@@ -90,11 +104,12 @@ public class RetryingChunkClientSuiteJ {
   @Test
   public void testNoFailures() throws IOException, InterruptedException {
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-        .put(0, Arrays.asList(chunk0))
-        .put(1, Arrays.asList(chunk1))
-        .put(2, Arrays.asList(chunk2))
-        .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(chunk0))
+            .put(1, Arrays.asList(chunk1))
+            .put(2, Arrays.asList(chunk2))
+            .build();
 
     RetryingChunkClient client = performInteractions(interactions, callback);
 
@@ -110,11 +125,12 @@ public class RetryingChunkClientSuiteJ {
   @Test
   public void testUnrecoverableFailure() throws IOException, InterruptedException {
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-        .put(0, Arrays.asList(new RuntimeException("Ouch!")))
-        .put(1, Arrays.asList(chunk1))
-        .put(2, Arrays.asList(chunk2))
-        .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(new RuntimeException("Ouch!")))
+            .put(1, Arrays.asList(chunk1))
+            .put(2, Arrays.asList(chunk2))
+            .build();
     RetryingChunkClient client = performInteractions(interactions, callback);
 
     verify(callback, timeout(5000)).onFailure(eq(0), any());
@@ -130,9 +146,8 @@ public class RetryingChunkClientSuiteJ {
   public void testDuplicateSuccess() throws IOException, InterruptedException {
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
 
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-        .put(0, Arrays.asList(chunk0, chunk1))
-        .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder().put(0, Arrays.asList(chunk0, chunk1)).build();
     RetryingChunkClient client = performInteractions(interactions, callback);
     verify(callback, timeout(5000)).onSuccess(eq(0), eq(chunk0));
     verifyNoMoreInteractions(callback);
@@ -148,27 +163,29 @@ public class RetryingChunkClientSuiteJ {
     Semaphore signal = new Semaphore(3);
     signal.acquire(3);
 
-    Answer<Void> answer = invocation -> {
-      synchronized (signal) {
-        int chunkIndex = (Integer) invocation.getArguments()[0];
-        assertFalse(result.containsKey(chunkIndex));
-        Object value = invocation.getArguments()[1];
-        result.put(chunkIndex, value);
-        signal.release();
-      }
-      return null;
-    };
+    Answer<Void> answer =
+        invocation -> {
+          synchronized (signal) {
+            int chunkIndex = (Integer) invocation.getArguments()[0];
+            assertFalse(result.containsKey(chunkIndex));
+            Object value = invocation.getArguments()[1];
+            result.put(chunkIndex, value);
+            signal.release();
+          }
+          return null;
+        };
     doAnswer(answer).when(callback).onSuccess(anyInt(), anyObject());
     doAnswer(answer).when(callback).onFailure(anyInt(), anyObject());
 
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-      .put(0, Arrays.asList(new IOException(), chunk0))
-      .put(1, Arrays.asList(chunk1))
-      .put(2, Arrays.asList(chunk2))
-      .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(new IOException(), chunk0))
+            .put(1, Arrays.asList(chunk1))
+            .put(2, Arrays.asList(chunk2))
+            .build();
     RetryingChunkClient client = performInteractions(interactions, callback);
 
-    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS));
+    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS)) ;
     assertEquals(1, client.getNumTries());
     assertEquals(slaveLocation, client.getCurrentReplica().getLocation());
     assertEquals(chunk0, result.get(0));
@@ -183,27 +200,29 @@ public class RetryingChunkClientSuiteJ {
     Semaphore signal = new Semaphore(3);
     signal.acquire(3);
 
-    Answer<Void> answer = invocation -> {
-      synchronized (signal) {
-        int chunkIndex = (Integer) invocation.getArguments()[0];
-        assertFalse(result.containsKey(chunkIndex));
-        Object value = invocation.getArguments()[1];
-        result.put(chunkIndex, value);
-        signal.release();
-      }
-      return null;
-    };
+    Answer<Void> answer =
+        invocation -> {
+          synchronized (signal) {
+            int chunkIndex = (Integer) invocation.getArguments()[0];
+            assertFalse(result.containsKey(chunkIndex));
+            Object value = invocation.getArguments()[1];
+            result.put(chunkIndex, value);
+            signal.release();
+          }
+          return null;
+        };
     doAnswer(answer).when(callback).onSuccess(anyInt(), anyObject());
     doAnswer(answer).when(callback).onFailure(anyInt(), anyObject());
 
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-      .put(0, Arrays.asList(new IOException("first ioexception"), chunk0))
-      .put(1, Arrays.asList(new IOException("second ioexception"), chunk1))
-      .put(2, Arrays.asList(chunk2))
-      .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(new IOException("first ioexception"), chunk0))
+            .put(1, Arrays.asList(new IOException("second ioexception"), chunk1))
+            .put(2, Arrays.asList(chunk2))
+            .build();
     RetryingChunkClient client = performInteractions(interactions, callback);
 
-    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS));
+    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS)) ;
     assertEquals(1, client.getNumTries());
     assertEquals(slaveLocation, client.getCurrentReplica().getLocation());
     assertEquals(chunk0, result.get(0));
@@ -218,27 +237,29 @@ public class RetryingChunkClientSuiteJ {
     Semaphore signal = new Semaphore(3);
     signal.acquire(3);
 
-    Answer<Void> answer = invocation -> {
-      synchronized (signal) {
-        int chunkIndex = (Integer) invocation.getArguments()[0];
-        assertFalse(result.containsKey(chunkIndex));
-        Object value = invocation.getArguments()[1];
-        result.put(chunkIndex, value);
-        signal.release();
-      }
-      return null;
-    };
+    Answer<Void> answer =
+        invocation -> {
+          synchronized (signal) {
+            int chunkIndex = (Integer) invocation.getArguments()[0];
+            assertFalse(result.containsKey(chunkIndex));
+            Object value = invocation.getArguments()[1];
+            result.put(chunkIndex, value);
+            signal.release();
+          }
+          return null;
+        };
     doAnswer(answer).when(callback).onSuccess(anyInt(), anyObject());
     doAnswer(answer).when(callback).onFailure(anyInt(), anyObject());
 
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-      .put(0, Arrays.asList(new IOException("first ioexception"), chunk0))
-      .put(1, Arrays.asList(new IOException("second ioexception"), chunk1))
-      .put(2, Arrays.asList(new IOException("third ioexception"), chunk2))
-      .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(new IOException("first ioexception"), chunk0))
+            .put(1, Arrays.asList(new IOException("second ioexception"), chunk1))
+            .put(2, Arrays.asList(new IOException("third ioexception"), chunk2))
+            .build();
 
     RetryingChunkClient client = performInteractions(interactions, callback);
-    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS));
+    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS)) ;
     assertEquals(1, client.getNumTries());
     assertEquals(slaveLocation, client.getCurrentReplica().getLocation());
     assertEquals(chunk0, result.get(0));
@@ -253,28 +274,30 @@ public class RetryingChunkClientSuiteJ {
     Semaphore signal = new Semaphore(3);
     signal.acquire(3);
 
-    Answer<Void> answer = invocation -> {
-      synchronized (signal) {
-        int chunkIndex = (Integer) invocation.getArguments()[0];
-        assertFalse(result.containsKey(chunkIndex));
-        Object value = invocation.getArguments()[1];
-        result.put(chunkIndex, value);
-        signal.release();
-      }
-      return null;
-    };
+    Answer<Void> answer =
+        invocation -> {
+          synchronized (signal) {
+            int chunkIndex = (Integer) invocation.getArguments()[0];
+            assertFalse(result.containsKey(chunkIndex));
+            Object value = invocation.getArguments()[1];
+            result.put(chunkIndex, value);
+            signal.release();
+          }
+          return null;
+        };
     doAnswer(answer).when(callback).onSuccess(anyInt(), anyObject());
     doAnswer(answer).when(callback).onFailure(anyInt(), anyObject());
 
     IOException ioe = new IOException("failed exception");
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-      .put(0, Arrays.asList(ioe, ioe, ioe, ioe, ioe, chunk0))
-      .put(1, Arrays.asList(ioe, ioe, ioe, ioe, ioe, chunk1))
-      .put(2, Arrays.asList(ioe, ioe, ioe, ioe, ioe, chunk2))
-      .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(ioe, ioe, ioe, ioe, ioe, chunk0))
+            .put(1, Arrays.asList(ioe, ioe, ioe, ioe, ioe, chunk1))
+            .put(2, Arrays.asList(ioe, ioe, ioe, ioe, ioe, chunk2))
+            .build();
 
     RetryingChunkClient client = performInteractions(interactions, callback);
-    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS));
+    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS)) ;
     // Note: this may exceeds the max retries we want, but it doesn't master.
     assertEquals(4, client.getNumTries());
     assertEquals(masterLocation, client.getCurrentReplica().getLocation());
@@ -290,36 +313,38 @@ public class RetryingChunkClientSuiteJ {
     Semaphore signal = new Semaphore(3);
     signal.acquire(3);
 
-    Answer<Void> answer = invocation -> {
-      synchronized (signal) {
-        int chunkIndex = (Integer) invocation.getArguments()[0];
-        assertFalse(result.containsKey(chunkIndex));
-        Object value = invocation.getArguments()[1];
-        result.put(chunkIndex, value);
-        signal.release();
-      }
-      return null;
-    };
+    Answer<Void> answer =
+        invocation -> {
+          synchronized (signal) {
+            int chunkIndex = (Integer) invocation.getArguments()[0];
+            assertFalse(result.containsKey(chunkIndex));
+            Object value = invocation.getArguments()[1];
+            result.put(chunkIndex, value);
+            signal.release();
+          }
+          return null;
+        };
     doAnswer(answer).when(callback).onSuccess(anyInt(), anyObject());
     doAnswer(answer).when(callback).onFailure(anyInt(), anyObject());
 
     Exception re = new RuntimeException("failed exception");
-    Map<Integer, List<Object>> interactions = ImmutableMap.<Integer, List<Object>>builder()
-      .put(0, Arrays.asList(new IOException("first ioexception"), re, chunk0))
-      .put(1, Arrays.asList(chunk1))
-      .put(2, Arrays.asList(new IOException("second ioexception"), chunk2))
-      .build();
+    Map<Integer, List<Object>> interactions =
+        ImmutableMap.<Integer, List<Object>>builder()
+            .put(0, Arrays.asList(new IOException("first ioexception"), re, chunk0))
+            .put(1, Arrays.asList(chunk1))
+            .put(2, Arrays.asList(new IOException("second ioexception"), chunk2))
+            .build();
 
     performInteractions(interactions, callback);
-    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS));
+    while (!signal.tryAcquire(3, 500, TimeUnit.MILLISECONDS)) ;
     assertEquals(re, result.get(0));
     assertEquals(chunk1, result.get(1));
     assertEquals(chunk2, result.get(2));
   }
 
   private static RetryingChunkClient performInteractions(
-      Map<Integer, List<Object>> interactions,
-      ChunkReceivedCallback callback) throws IOException, InterruptedException {
+      Map<Integer, List<Object>> interactions, ChunkReceivedCallback callback)
+      throws IOException, InterruptedException {
     RssConf conf = new RssConf();
     conf.set("rss.data.io.maxRetries", "1");
     conf.set("rss.data.io.retryWait", "0");
@@ -331,8 +356,8 @@ public class RetryingChunkClientSuiteJ {
     final TransportClientFactory clientFactory = mock(TransportClientFactory.class);
     doAnswer(invocation -> client).when(clientFactory).createClient(anyString(), anyInt());
 
-    RetryingChunkClient retryingChunkClient = new RetryingChunkClient(
-        conf, "test", masterLocation, callback, clientFactory);
+    RetryingChunkClient retryingChunkClient =
+        new RetryingChunkClient(conf, "test", masterLocation, callback, clientFactory);
     chunkIds.stream().sorted().forEach(retryingChunkClient::fetchChunk);
     return retryingChunkClient;
   }
@@ -348,7 +373,7 @@ public class RetryingChunkClientSuiteJ {
     private final Map<Integer, Integer> chunkIdToInterActionIndex;
 
     private final ScheduledExecutorService schedule =
-      ThreadUtils.newDaemonThreadPoolScheduledExecutor("test-fetch-chunk", 3);
+        ThreadUtils.newDaemonThreadPoolScheduledExecutor("test-fetch-chunk", 3);
 
     DummyTransportClient(int numChunks, Map<Integer, List<Object>> interactions) {
       super(channel, handler);
@@ -360,24 +385,27 @@ public class RetryingChunkClientSuiteJ {
 
     @Override
     public void fetchChunk(long streamId, int chunkId, ChunkReceivedCallback callback) {
-      schedule.schedule(() -> {
-        Object action;
-        List<Object> interaction = interactions.get(chunkId);
-        synchronized (chunkIdToInterActionIndex) {
-          int index = chunkIdToInterActionIndex.get(chunkId);
-          assertTrue(index < interaction.size());
-          action = interaction.get(index);
-          chunkIdToInterActionIndex.put(chunkId, index + 1);
-        }
+      schedule.schedule(
+          () -> {
+            Object action;
+            List<Object> interaction = interactions.get(chunkId);
+            synchronized (chunkIdToInterActionIndex) {
+              int index = chunkIdToInterActionIndex.get(chunkId);
+              assertTrue(index < interaction.size());
+              action = interaction.get(index);
+              chunkIdToInterActionIndex.put(chunkId, index + 1);
+            }
 
-        if (action instanceof ManagedBuffer) {
-          callback.onSuccess(chunkId, (ManagedBuffer) action);
-        } else if (action instanceof Exception) {
-          callback.onFailure(chunkId, (Exception) action);
-        } else {
-          fail("Can only handle ManagedBuffers and Exceptions, got " + action);
-        }
-      }, 500, TimeUnit.MILLISECONDS);
+            if (action instanceof ManagedBuffer) {
+              callback.onSuccess(chunkId, (ManagedBuffer) action);
+            } else if (action instanceof Exception) {
+              callback.onFailure(chunkId, (Exception) action);
+            } else {
+              fail("Can only handle ManagedBuffers and Exceptions, got " + action);
+            }
+          },
+          500,
+          TimeUnit.MILLISECONDS);
     }
 
     @Override

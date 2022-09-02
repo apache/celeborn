@@ -50,12 +50,20 @@ public abstract class RssInputStream extends InputStream {
       int[] attempts,
       int attemptNumber,
       int startMapIndex,
-      int endMapIndex) throws IOException {
+      int endMapIndex)
+      throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
     } else {
-      return new RssInputStreamImpl(conf, clientFactory, shuffleKey, locations, attempts,
-        attemptNumber, startMapIndex, endMapIndex);
+      return new RssInputStreamImpl(
+          conf,
+          clientFactory,
+          shuffleKey,
+          locations,
+          attempts,
+          attemptNumber,
+          startMapIndex,
+          endMapIndex);
     }
   }
 
@@ -65,21 +73,21 @@ public abstract class RssInputStream extends InputStream {
 
   public abstract void setCallback(MetricsCallback callback);
 
-  private static final RssInputStream emptyInputStream = new RssInputStream() {
-    @Override
-    public int read() throws IOException {
-      return -1;
-    }
+  private static final RssInputStream emptyInputStream =
+      new RssInputStream() {
+        @Override
+        public int read() throws IOException {
+          return -1;
+        }
 
-    @Override
-    public int read(byte[] b, int off, int len) throws IOException {
-      return -1;
-    }
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+          return -1;
+        }
 
-    @Override
-    public void setCallback(MetricsCallback callback) {
-    }
-  };
+        @Override
+        public void setCallback(MetricsCallback callback) {}
+      };
 
   private static final class RssInputStreamImpl extends RssInputStream {
     private final RssConf conf;
@@ -117,15 +125,18 @@ public abstract class RssInputStream extends InputStream {
         int[] attempts,
         int attemptNumber,
         int startMapIndex,
-        int endMapIndex) throws IOException {
+        int endMapIndex)
+        throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
 
       List<PartitionLocation> shuffledLocations =
-        new ArrayList() {{
-          addAll(Arrays.asList(locations));
-        }};
+          new ArrayList() {
+            {
+              addAll(Arrays.asList(locations));
+            }
+          };
       Collections.shuffle(shuffledLocations);
       this.locations = shuffledLocations.toArray(new PartitionLocation[locations.length]);
 
@@ -152,15 +163,25 @@ public abstract class RssInputStream extends InputStream {
       int locationCount = locations.length;
       PartitionLocation currentLocation = locations[fileIndex];
       currentReader = createReader(currentLocation);
-      logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
-          currentLocation, startMapIndex, endMapIndex, fileIndex, locationCount);
+      logger.debug(
+          "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
+          currentLocation,
+          startMapIndex,
+          endMapIndex,
+          fileIndex,
+          locationCount);
       while (!currentReader.hasNext() && fileIndex < locationCount - 1) {
         fileIndex++;
         currentLocation = locations[fileIndex];
         currentReader.close();
         currentReader = createReader(currentLocation);
-        logger.debug("Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
-            currentLocation, startMapIndex, endMapIndex, fileIndex, locationCount);
+        logger.debug(
+            "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
+            currentLocation,
+            startMapIndex,
+            endMapIndex,
+            fileIndex,
+            locationCount);
       }
       if (currentReader.hasNext()) {
         currentChunk = currentReader.next();
@@ -182,17 +203,17 @@ public abstract class RssInputStream extends InputStream {
 
       StorageInfo storageInfo = location.getStorageInfo();
       if (storageInfo.getType() == StorageInfo.Type.HDD
-              || storageInfo.getType() == StorageInfo.Type.SSD) {
-        return new WorkerPartitionReader(conf, shuffleKey, location,
-            clientFactory, startMapIndex, endMapIndex);
+          || storageInfo.getType() == StorageInfo.Type.SSD) {
+        return new WorkerPartitionReader(
+            conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       }
       if (storageInfo.getType() == StorageInfo.Type.HDFS) {
-        // create hdfs partition reader here
-        // return new DfsPartitionReader(conf, location, clientFactory, startMapIndex, endMapIndex);
+        return new DfsPartitionReader(
+            conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       }
 
-      throw new IOException("Unknown storage info " + storageInfo
-                                + " to read location " + location);
+      throw new IOException(
+          "Unknown storage info " + storageInfo + " to read location " + location);
     }
 
     public void setCallback(MetricsCallback callback) {
@@ -320,8 +341,11 @@ public abstract class RssInputStream extends InputStream {
             hasData = true;
             break;
           } else {
-            logger.debug("Skip duplicated batch: mapId {}, attemptId {}," +
-                " batchId {}.", mapId, attemptId, batchId);
+            logger.debug(
+                "Skip duplicated batch: mapId {}, attemptId {}," + " batchId {}.",
+                mapId,
+                attemptId,
+                batchId);
           }
         }
       }
@@ -331,6 +355,5 @@ public abstract class RssInputStream extends InputStream {
       }
       return hasData;
     }
-
   }
 }

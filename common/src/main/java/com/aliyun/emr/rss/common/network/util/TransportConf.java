@@ -21,9 +21,7 @@ import java.util.Locale;
 
 import com.google.common.primitives.Ints;
 
-/**
- * A central location that tracks all the settings we expose to users.
- */
+/** A central location that tracks all the settings we expose to users. */
 public class TransportConf {
 
   private final String RSS_NETWORK_IO_MODE_KEY;
@@ -56,7 +54,7 @@ public class TransportConf {
     RSS_NETWORK_IO_CONNECTTIMEOUT_KEY = getConfKey("io.connectTimeout");
     RSS_NETWORK_IO_CONNECTIONTIMEOUT_KEY = getConfKey("io.connectionTimeout");
     RSS_NETWORK_IO_BACKLOG_KEY = getConfKey("io.backLog");
-    RSS_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY =  getConfKey("io.numConnectionsPerPeer");
+    RSS_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY = getConfKey("io.numConnectionsPerPeer");
     RSS_NETWORK_IO_SERVERTHREADS_KEY = getConfKey("io.serverThreads");
     RSS_NETWORK_IO_CLIENTTHREADS_KEY = getConfKey("io.clientThreads");
     RSS_NETWORK_IO_RECEIVEBUFFER_KEY = getConfKey("io.receiveBuffer");
@@ -97,19 +95,23 @@ public class TransportConf {
 
   /** Connect timeout in milliseconds. Default 10 secs. */
   public int connectTimeoutMs() {
-    long defaultConnectTimeoutS = JavaUtils.timeStringAsSec(
-        conf.get("rss.network.connect.timeout", "10s"));
-    long defaultTimeoutMs = JavaUtils.timeStringAsSec(
-        conf.get(RSS_NETWORK_IO_CONNECTTIMEOUT_KEY, defaultConnectTimeoutS + "s")) * 1000;
+    long defaultConnectTimeoutS =
+        JavaUtils.timeStringAsSec(conf.get("rss.network.connect.timeout", "10s"));
+    long defaultTimeoutMs =
+        JavaUtils.timeStringAsSec(
+                conf.get(RSS_NETWORK_IO_CONNECTTIMEOUT_KEY, defaultConnectTimeoutS + "s"))
+            * 1000;
     return (int) defaultTimeoutMs;
   }
 
   /** Connection active timeout in milliseconds. Default 240 secs. */
   public int connectionTimeoutMs() {
-    long defaultNetworkTimeoutS = JavaUtils.timeStringAsSec(
-      conf.get("rss.network.timeout", "240s"));
-    long defaultTimeoutMs = JavaUtils.timeStringAsSec(
-      conf.get(RSS_NETWORK_IO_CONNECTIONTIMEOUT_KEY, defaultNetworkTimeoutS + "s")) * 1000;
+    long defaultNetworkTimeoutS =
+        JavaUtils.timeStringAsSec(conf.get("rss.network.timeout", "240s"));
+    long defaultTimeoutMs =
+        JavaUtils.timeStringAsSec(
+                conf.get(RSS_NETWORK_IO_CONNECTIONTIMEOUT_KEY, defaultNetworkTimeoutS + "s"))
+            * 1000;
     return (int) defaultTimeoutMs;
   }
 
@@ -119,41 +121,54 @@ public class TransportConf {
   }
 
   /** Requested maximum length of the queue of incoming connections. Default -1 for no backlog. */
-  public int backLog() { return conf.getInt(RSS_NETWORK_IO_BACKLOG_KEY, -1); }
+  public int backLog() {
+    return conf.getInt(RSS_NETWORK_IO_BACKLOG_KEY, -1);
+  }
 
   /** Number of threads used in the server thread pool. Default to 0, which is 2x#cores. */
-  public int serverThreads() { return conf.getInt(RSS_NETWORK_IO_SERVERTHREADS_KEY, 0); }
+  public int serverThreads() {
+    return conf.getInt(RSS_NETWORK_IO_SERVERTHREADS_KEY, 0);
+  }
 
   /** Number of threads used in the client thread pool. Default to 0, which is 2x#cores. */
-  public int clientThreads() { return conf.getInt(RSS_NETWORK_IO_CLIENTTHREADS_KEY, 0); }
-
-  /**
-   * Receive buffer size (SO_RCVBUF).
-   * Note: the optimal size for receive buffer and send buffer should be
-   *  latency * network_bandwidth.
-   * Assuming latency = 1ms, network_bandwidth = 10Gbps
-   *  buffer size should be ~ 1.25MB
-   */
-  public int receiveBuf() { return conf.getInt(RSS_NETWORK_IO_RECEIVEBUFFER_KEY, -1); }
-
-  /** Send buffer size (SO_SNDBUF). */
-  public int sendBuf() { return conf.getInt(RSS_NETWORK_IO_SENDBUFFER_KEY, -1); }
-
-  /** Timeout for a single round trip of auth message exchange, in milliseconds. */
-  public int authRTTimeoutMs() {
-    return (int) JavaUtils.timeStringAsSec(conf.get("rss.network.auth.rpcTimeout",
-      conf.get(RSS_NETWORK_SASL_TIMEOUT_KEY, "30s"))) * 1000;
+  public int clientThreads() {
+    return conf.getInt(RSS_NETWORK_IO_CLIENTTHREADS_KEY, 0);
   }
 
   /**
-   * Max number of times we will try IO exceptions (such as connection timeouts) per request.
-   * If set to 0, we will not do any retries.
+   * Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer
+   * should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps
+   * buffer size should be ~ 1.25MB
    */
-  public int maxIORetries() { return conf.getInt(RSS_NETWORK_IO_MAXRETRIES_KEY, 3); }
+  public int receiveBuf() {
+    return conf.getInt(RSS_NETWORK_IO_RECEIVEBUFFER_KEY, -1);
+  }
+
+  /** Send buffer size (SO_SNDBUF). */
+  public int sendBuf() {
+    return conf.getInt(RSS_NETWORK_IO_SENDBUFFER_KEY, -1);
+  }
+
+  /** Timeout for a single round trip of auth message exchange, in milliseconds. */
+  public int authRTTimeoutMs() {
+    return (int)
+            JavaUtils.timeStringAsSec(
+                conf.get(
+                    "rss.network.auth.rpcTimeout", conf.get(RSS_NETWORK_SASL_TIMEOUT_KEY, "30s")))
+        * 1000;
+  }
 
   /**
-   * Time (in milliseconds) that we will wait in order to perform a retry after an IOException.
-   * Only relevant if maxIORetries &gt; 0.
+   * Max number of times we will try IO exceptions (such as connection timeouts) per request. If set
+   * to 0, we will not do any retries.
+   */
+  public int maxIORetries() {
+    return conf.getInt(RSS_NETWORK_IO_MAXRETRIES_KEY, 3);
+  }
+
+  /**
+   * Time (in milliseconds) that we will wait in order to perform a retry after an IOException. Only
+   * relevant if maxIORetries &gt; 0.
    */
   public int ioRetryWaitTimeMs() {
     return (int) JavaUtils.timeStringAsSec(conf.get(RSS_NETWORK_IO_RETRYWAIT_KEY, "5s")) * 1000;
@@ -165,13 +180,13 @@ public class TransportConf {
    * memory mapping has high overhead for blocks close to or below the page size of the OS.
    */
   public int memoryMapBytes() {
-    return Ints.checkedCast(JavaUtils.byteStringAsBytes(
-      conf.get("rss.storage.memoryMapThreshold", "2m")));
+    return Ints.checkedCast(
+        JavaUtils.byteStringAsBytes(conf.get("rss.storage.memoryMapThreshold", "2m")));
   }
 
   /**
-   * Whether to initialize FileDescriptor lazily or not. If true, file descriptors are
-   * created only when data is going to be transferred. This can reduce the number of open files.
+   * Whether to initialize FileDescriptor lazily or not. If true, file descriptors are created only
+   * when data is going to be transferred. This can reduce the number of open files.
    */
   public boolean lazyFileDescriptor() {
     return conf.getBoolean(RSS_NETWORK_IO_LAZYFD_KEY, true);
@@ -186,11 +201,10 @@ public class TransportConf {
   }
 
   /**
-   * The max number of chunks allowed to be transferred at the same time on shuffle service.
-   * Note that new incoming connections will be closed when the max number is hit. The client will
-   * retry according to the shuffle retry configs (see `rss.shuffle.io.maxRetries` and
-   * `rss.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch
-   * failure.
+   * The max number of chunks allowed to be transferred at the same time on shuffle service. Note
+   * that new incoming connections will be closed when the max number is hit. The client will retry
+   * according to the shuffle retry configs (see `rss.shuffle.io.maxRetries` and
+   * `rss.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure.
    */
   public long maxChunksBeingTransferred() {
     return conf.getLong("rss.shuffle.maxChunksBeingTransferred", Long.MAX_VALUE);

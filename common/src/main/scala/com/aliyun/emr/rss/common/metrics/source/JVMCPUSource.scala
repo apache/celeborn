@@ -32,19 +32,21 @@ class JVMCPUSource(rssConf: RssConf, role: String)
 
   import JVMCPUSource._
 
-  addGauge(JVMCPUTime, new Gauge[Long] {
-    val mBean: MBeanServer = ManagementFactory.getPlatformMBeanServer
-    val name = new ObjectName("java.lang", "type", "OperatingSystem")
+  addGauge(
+    JVMCPUTime,
+    new Gauge[Long] {
+      val mBean: MBeanServer = ManagementFactory.getPlatformMBeanServer
+      val name = new ObjectName("java.lang", "type", "OperatingSystem")
 
-    override def getValue: Long = {
-      try {
-        // return JVM process CPU time if the ProcessCpuTime method is available
-        mBean.getAttribute(name, "ProcessCpuTime").asInstanceOf[Long]
-      } catch {
-        case NonFatal(_) => -1L
+      override def getValue: Long = {
+        try {
+          // return JVM process CPU time if the ProcessCpuTime method is available
+          mBean.getAttribute(name, "ProcessCpuTime").asInstanceOf[Long]
+        } catch {
+          case NonFatal(_) => -1L
+        }
       }
-    }
-  })
+    })
   // start cleaner
   startCleaner()
 }

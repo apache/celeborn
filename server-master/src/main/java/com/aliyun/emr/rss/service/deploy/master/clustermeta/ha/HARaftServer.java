@@ -102,6 +102,7 @@ public class HARaftServer {
 
   /**
    * Returns an Master Ratis server.
+   *
    * @param conf configuration
    * @param raftGroupIdStr raft group id string
    * @param localRaftPeerId raft peer id of this Ratis server
@@ -115,7 +116,8 @@ public class HARaftServer {
       String raftGroupIdStr,
       RaftPeerId localRaftPeerId,
       InetSocketAddress addr,
-      List<RaftPeer> raftPeers) throws IOException {
+      List<RaftPeer> raftPeers)
+      throws IOException {
     this.metaHandler = metaHandler;
     this.masterRatisAddress = addr;
     this.port = addr.getPort();
@@ -132,75 +134,76 @@ public class HARaftServer {
 
     this.masterStateMachine = getStateMachine();
 
-    this.server = RaftServer.newBuilder()
-        .setServerId(this.raftPeerId)
-        .setGroup(this.raftGroup)
-        .setProperties(serverProperties)
-        .setStateMachine(masterStateMachine)
-        .build();
+    this.server =
+        RaftServer.newBuilder()
+            .setServerId(this.raftPeerId)
+            .setGroup(this.raftGroup)
+            .setProperties(serverProperties)
+            .setStateMachine(masterStateMachine)
+            .build();
 
-    LOG.info("Ratis server started with GroupID: {} and " +
-        "Raft Peers: {}.", raftGroupIdStr, raftPeersStr.substring(2));
+    LOG.info(
+        "Ratis server started with GroupID: {} and " + "Raft Peers: {}.",
+        raftGroupIdStr,
+        raftPeersStr.substring(2));
 
     // Run a scheduler to check and update the server role on the leader
     // periodically
     this.scheduledRoleChecker = Executors.newSingleThreadScheduledExecutor();
-    this.scheduledRoleChecker.scheduleWithFixedDelay(() -> {
-      // Run this check only on the leader OM
-      if (cachedPeerRole.isPresent() &&
-          cachedPeerRole.get() == RaftProtos.RaftPeerRole.LEADER) {
-        updateServerRole();
-      }
-    }, roleCheckIntervalMs, roleCheckIntervalMs, TimeUnit.MILLISECONDS);
+    this.scheduledRoleChecker.scheduleWithFixedDelay(
+        () -> {
+          // Run this check only on the leader OM
+          if (cachedPeerRole.isPresent()
+              && cachedPeerRole.get() == RaftProtos.RaftPeerRole.LEADER) {
+            updateServerRole();
+          }
+        },
+        roleCheckIntervalMs,
+        roleCheckIntervalMs,
+        TimeUnit.MILLISECONDS);
   }
 
   public static HARaftServer newMasterRatisServer(
-      MetaHandler metaHandler,
-      RssConf conf,
-      NodeDetails nodeDetails,
-      List<NodeDetails> peerNodes) throws IOException {
+      MetaHandler metaHandler, RssConf conf, NodeDetails nodeDetails, List<NodeDetails> peerNodes)
+      throws IOException {
     // Raft group is serviceId
     String serviceId = nodeDetails.getServiceId();
 
     String nodeId = nodeDetails.getNodeId();
     RaftPeerId localRaftPeerId = RaftPeerId.getRaftPeerId(nodeId);
 
-    InetSocketAddress ratisAddr = new InetSocketAddress(
-        nodeDetails.getInetAddress(), nodeDetails.getRatisPort());
-    RaftPeer localRaftPeer = RaftPeer.newBuilder()
-        .setId(localRaftPeerId)
-        .setAddress(ratisAddr)
-        .build();
+    InetSocketAddress ratisAddr =
+        new InetSocketAddress(nodeDetails.getInetAddress(), nodeDetails.getRatisPort());
+    RaftPeer localRaftPeer =
+        RaftPeer.newBuilder().setId(localRaftPeerId).setAddress(ratisAddr).build();
     List<RaftPeer> raftPeers = new ArrayList<>();
     // Add this Ratis server to the Ratis ring
     raftPeers.add(localRaftPeer);
-    peerNodes.forEach(peer -> {
-      String peerNodeId = peer.getNodeId();
-      RaftPeerId raftPeerId = RaftPeerId.valueOf(peerNodeId);
-      RaftPeer raftPeer;
-      if (peer.isHostUnresolved()) {
-        raftPeer = RaftPeer.newBuilder()
-            .setId(raftPeerId)
-            .setAddress(peer.getRatisHostPortStr())
-            .build();
-      } else {
-        InetSocketAddress peerRatisAddr = new InetSocketAddress(
-            peer.getInetAddress(), peer.getRatisPort());
-        raftPeer = RaftPeer.newBuilder()
-            .setId(raftPeerId)
-            .setAddress(peerRatisAddr)
-            .build();
-      }
+    peerNodes.forEach(
+        peer -> {
+          String peerNodeId = peer.getNodeId();
+          RaftPeerId raftPeerId = RaftPeerId.valueOf(peerNodeId);
+          RaftPeer raftPeer;
+          if (peer.isHostUnresolved()) {
+            raftPeer =
+                RaftPeer.newBuilder()
+                    .setId(raftPeerId)
+                    .setAddress(peer.getRatisHostPortStr())
+                    .build();
+          } else {
+            InetSocketAddress peerRatisAddr =
+                new InetSocketAddress(peer.getInetAddress(), peer.getRatisPort());
+            raftPeer = RaftPeer.newBuilder().setId(raftPeerId).setAddress(peerRatisAddr).build();
+          }
 
-      // Add other nodes belonging to the same service to the Ratis ring
-      raftPeers.add(raftPeer);
-    });
-    return new HARaftServer(
-        metaHandler, conf, serviceId, localRaftPeerId, ratisAddr, raftPeers);
+          // Add other nodes belonging to the same service to the Ratis ring
+          raftPeers.add(raftPeer);
+        });
+    return new HARaftServer(metaHandler, conf, serviceId, localRaftPeerId, ratisAddr, raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
-    throws ServiceException {
+      throws ServiceException {
     String requestId = request.getRequestId();
     Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
     if (decoded == null) {
@@ -208,14 +211,15 @@ public class HARaftServer {
     }
     ClientId clientId = ClientId.valueOf(UUID.fromString(decoded._1));
     long callId = decoded._2;
-    RaftClientRequest raftClientRequest = new RaftClientRequest.Builder()
-        .setClientId(clientId)
-        .setServerId(server.getId())
-        .setGroupId(raftGroupId)
-        .setCallId(callId)
-        .setType(RaftClientRequest.writeRequestType())
-        .setMessage(Message.valueOf(HAHelper.convertRequestToByteString(request)))
-        .build();
+    RaftClientRequest raftClientRequest =
+        new RaftClientRequest.Builder()
+            .setClientId(clientId)
+            .setServerId(server.getId())
+            .setGroupId(raftGroupId)
+            .setCallId(callId)
+            .setType(RaftClientRequest.writeRequestType())
+            .setMessage(Message.valueOf(HAHelper.convertRequestToByteString(request)))
+            .build();
 
     RaftClientReply raftClientReply;
     try {
@@ -236,12 +240,10 @@ public class HARaftServer {
         throw new ServiceException("Not leader!");
       }
 
-      StateMachineException stateMachineException =
-          raftClientReply.getStateMachineException();
+      StateMachineException stateMachineException = raftClientReply.getStateMachineException();
       if (stateMachineException != null) {
-        ResourceResponse.Builder response = ResourceResponse.newBuilder()
-            .setCmdType(request.getCmdType())
-            .setSuccess(false);
+        ResourceResponse.Builder response =
+            ResourceResponse.newBuilder().setCmdType(request.getCmdType()).setSuccess(false);
         if (stateMachineException.getCause() != null) {
           response.setMessage(stateMachineException.getCause().getMessage());
           response.setStatus(ResourceProtos.Status.INTERNAL_ERROR);
@@ -273,6 +275,7 @@ public class HARaftServer {
 
   /**
    * Start the Ratis server.
+   *
    * @throws IOException
    */
   public void start() throws IOException {
@@ -291,8 +294,7 @@ public class HARaftServer {
   private RaftProperties newRaftProperties(RssConf conf) {
     final RaftProperties properties = new RaftProperties();
     // Set RPC type
-    final String rpcType = conf.get(
-        RssConf.HA_RPC_TYPE_KEY(), RssConf.HA_RPC_TYPE_DEFAULT());
+    final String rpcType = conf.get(RssConf.HA_RPC_TYPE_KEY(), RssConf.HA_RPC_TYPE_DEFAULT());
     final RpcType rpc = SupportedRpcType.valueOfIgnoreCase(rpcType);
     RaftConfigKeys.Rpc.setType(properties, rpc);
 
@@ -305,103 +307,111 @@ public class HARaftServer {
 
     // Set Ratis storage directory
     String storageDir = RssConf.haStorageDir(conf);
-    RaftServerConfigKeys.setStorageDir(properties,
-        Collections.singletonList(new File(storageDir)));
+    RaftServerConfigKeys.setStorageDir(properties, Collections.singletonList(new File(storageDir)));
 
     // Set RAFT segment size
-    final int raftSegmentSize = (int) conf.getSizeAsBytes(RssConf.HA_RATIS_SEGMENT_SIZE_KEY(),
-        RssConf.HA_RATIS_SEGMENT_SIZE_DEFAULT());
-    RaftServerConfigKeys.Log.setSegmentSizeMax(properties,
-        SizeInBytes.valueOf(raftSegmentSize));
+    final int raftSegmentSize =
+        (int)
+            conf.getSizeAsBytes(
+                RssConf.HA_RATIS_SEGMENT_SIZE_KEY(), RssConf.HA_RATIS_SEGMENT_SIZE_DEFAULT());
+    RaftServerConfigKeys.Log.setSegmentSizeMax(properties, SizeInBytes.valueOf(raftSegmentSize));
     RaftServerConfigKeys.Log.setPurgeUptoSnapshotIndex(properties, true);
 
     // Set RAFT segment pre-allocated size
-    final int raftSegmentPreallocatedSize = (int) conf.getSizeAsBytes(
-        RssConf.HA_RATIS_SEGMENT_PREALLOCATED_SIZE_KEY(),
-        RssConf.HA_RATIS_SEGMENT_PREALLOCATED_SIZE_DEFAULT());
-    int logAppenderQueueNumElements = conf.getInt(
-        RssConf.HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS(),
-        RssConf.HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS_DEFAULT());
-    final int logAppenderQueueByteLimit = (int) conf.getSizeAsBytes(
-        RssConf.HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT(),
-        RssConf.HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT_DEFAULT());
-    RaftServerConfigKeys.Log.Appender.setBufferElementLimit(properties,
-        logAppenderQueueNumElements);
-    RaftServerConfigKeys.Log.Appender.setBufferByteLimit(properties,
-        SizeInBytes.valueOf(logAppenderQueueByteLimit));
-    RaftServerConfigKeys.Log.setPreallocatedSize(properties,
-        SizeInBytes.valueOf(raftSegmentPreallocatedSize));
+    final int raftSegmentPreallocatedSize =
+        (int)
+            conf.getSizeAsBytes(
+                RssConf.HA_RATIS_SEGMENT_PREALLOCATED_SIZE_KEY(),
+                RssConf.HA_RATIS_SEGMENT_PREALLOCATED_SIZE_DEFAULT());
+    int logAppenderQueueNumElements =
+        conf.getInt(
+            RssConf.HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS(),
+            RssConf.HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS_DEFAULT());
+    final int logAppenderQueueByteLimit =
+        (int)
+            conf.getSizeAsBytes(
+                RssConf.HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT(),
+                RssConf.HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT_DEFAULT());
+    RaftServerConfigKeys.Log.Appender.setBufferElementLimit(
+        properties, logAppenderQueueNumElements);
+    RaftServerConfigKeys.Log.Appender.setBufferByteLimit(
+        properties, SizeInBytes.valueOf(logAppenderQueueByteLimit));
+    RaftServerConfigKeys.Log.setPreallocatedSize(
+        properties, SizeInBytes.valueOf(raftSegmentPreallocatedSize));
     RaftServerConfigKeys.Log.Appender.setInstallSnapshotEnabled(properties, false);
-    final int logPurgeGap = conf.getInt(
-        RssConf.HA_RATIS_LOG_PURGE_GAP(),
-        RssConf.HA_RATIS_LOG_PURGE_GAP_DEFAULT());
+    final int logPurgeGap =
+        conf.getInt(RssConf.HA_RATIS_LOG_PURGE_GAP(), RssConf.HA_RATIS_LOG_PURGE_GAP_DEFAULT());
     RaftServerConfigKeys.Log.setPurgeGap(properties, logPurgeGap);
 
     // For grpc set the maximum message size
-    GrpcConfigKeys.setMessageSizeMax(properties,
-        SizeInBytes.valueOf(logAppenderQueueByteLimit));
+    GrpcConfigKeys.setMessageSizeMax(properties, SizeInBytes.valueOf(logAppenderQueueByteLimit));
 
     // Set the server request timeout
-    long serverRequestTimeoutDuration = conf.getTimeAsSeconds(
-        RssConf.HA_RATIS_SERVER_REQUEST_TIMEOUT_KEY(),
-        RssConf.HA_RATIS_SERVER_REQUEST_TIMEOUT_DEFAULT());
-    final TimeDuration serverRequestTimeout = TimeDuration.valueOf(
-        serverRequestTimeoutDuration, TimeUnit.SECONDS);
-    RaftServerConfigKeys.Rpc.setRequestTimeout(properties,
-        serverRequestTimeout);
+    long serverRequestTimeoutDuration =
+        conf.getTimeAsSeconds(
+            RssConf.HA_RATIS_SERVER_REQUEST_TIMEOUT_KEY(),
+            RssConf.HA_RATIS_SERVER_REQUEST_TIMEOUT_DEFAULT());
+    final TimeDuration serverRequestTimeout =
+        TimeDuration.valueOf(serverRequestTimeoutDuration, TimeUnit.SECONDS);
+    RaftServerConfigKeys.Rpc.setRequestTimeout(properties, serverRequestTimeout);
 
     // Set timeout for server retry cache entry
-    long retryCacheTimeoutDuration = conf.getTimeAsSeconds(
-        RssConf.HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_KEY(),
-        RssConf.HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_DEFAULT());
-    final TimeDuration retryCacheTimeout = TimeDuration.valueOf(
-        retryCacheTimeoutDuration, TimeUnit.SECONDS);
+    long retryCacheTimeoutDuration =
+        conf.getTimeAsSeconds(
+            RssConf.HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_KEY(),
+            RssConf.HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_DEFAULT());
+    final TimeDuration retryCacheTimeout =
+        TimeDuration.valueOf(retryCacheTimeoutDuration, TimeUnit.SECONDS);
     RaftServerConfigKeys.RetryCache.setExpiryTime(properties, retryCacheTimeout);
 
     // Set the server min and max timeout
-    long serverMinTimeoutDuration = conf.getTimeAsSeconds(
-        RssConf.HA_RATIS_MINIMUM_TIMEOUT_KEY(),
-        RssConf.HA_RATIS_MINIMUM_TIMEOUT_DEFAULT());
-    final TimeDuration serverMinTimeout = TimeDuration.valueOf(
-        serverMinTimeoutDuration, TimeUnit.SECONDS);
+    long serverMinTimeoutDuration =
+        conf.getTimeAsSeconds(
+            RssConf.HA_RATIS_MINIMUM_TIMEOUT_KEY(), RssConf.HA_RATIS_MINIMUM_TIMEOUT_DEFAULT());
+    final TimeDuration serverMinTimeout =
+        TimeDuration.valueOf(serverMinTimeoutDuration, TimeUnit.SECONDS);
     long serverMaxTimeoutDuration = serverMinTimeout.toLong(TimeUnit.SECONDS) + 2;
-    final TimeDuration serverMaxTimeout = TimeDuration.valueOf(
-        serverMaxTimeoutDuration, TimeUnit.SECONDS);
+    final TimeDuration serverMaxTimeout =
+        TimeDuration.valueOf(serverMaxTimeoutDuration, TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setTimeoutMin(properties, serverMinTimeout);
     RaftServerConfigKeys.Rpc.setTimeoutMax(properties, serverMaxTimeout);
 
     // Set the number of maximum cached segments
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
 
-    long nodeFailureTimeoutDuration = conf.getTimeAsSeconds(
-        RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_KEY(),
-        RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_DEFAULT());
-    final TimeDuration nodeFailureTimeout = TimeDuration.valueOf(
-        nodeFailureTimeoutDuration, TimeUnit.SECONDS);
+    long nodeFailureTimeoutDuration =
+        conf.getTimeAsSeconds(
+            RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_KEY(),
+            RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_DEFAULT());
+    final TimeDuration nodeFailureTimeout =
+        TimeDuration.valueOf(nodeFailureTimeoutDuration, TimeUnit.SECONDS);
     RaftServerConfigKeys.Notification.setNoLeaderTimeout(properties, nodeFailureTimeout);
     RaftServerConfigKeys.Rpc.setSlownessTimeout(properties, nodeFailureTimeout);
 
     // Set role checker time
-    this.roleCheckIntervalMs = conf.getTimeAsMs(
-        RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY(),
-        RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT());
+    this.roleCheckIntervalMs =
+        conf.getTimeAsMs(
+            RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY(),
+            RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT());
 
     // snapshot retention
-    int numSnapshotFilesRetained = conf.getInt(
-        RssConf.HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_KEY(),
-        RssConf.HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_DEFAULT());
+    int numSnapshotFilesRetained =
+        conf.getInt(
+            RssConf.HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_KEY(),
+            RssConf.HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_DEFAULT());
     RaftServerConfigKeys.Snapshot.setRetentionFileNum(properties, numSnapshotFilesRetained);
 
     // snapshot interval
     RaftServerConfigKeys.Snapshot.setAutoTriggerEnabled(
-        properties, conf.getBoolean(
+        properties,
+        conf.getBoolean(
             RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY(),
             RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT()));
-    long snapshotAutoTriggerThreshold = conf.getLong(
-        RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY(),
-        RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT());
-    RaftServerConfigKeys.Snapshot.setAutoTriggerThreshold(
-        properties, snapshotAutoTriggerThreshold);
+    long snapshotAutoTriggerThreshold =
+        conf.getLong(
+            RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY(),
+            RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT());
+    RaftServerConfigKeys.Snapshot.setAutoTriggerThreshold(properties, snapshotAutoTriggerThreshold);
 
     return properties;
   }
@@ -435,13 +445,13 @@ public class HARaftServer {
 
   /**
    * Check the cached leader status.
+   *
    * @return true if cached role is Leader, false otherwise.
    */
   private boolean checkCachedPeerRoleIsLeader() {
     this.roleCheckLock.readLock().lock();
     try {
-      return cachedPeerRole.isPresent() &&
-          cachedPeerRole.get() == RaftProtos.RaftPeerRole.LEADER;
+      return cachedPeerRole.isPresent() && cachedPeerRole.get() == RaftProtos.RaftPeerRole.LEADER;
     } finally {
       this.roleCheckLock.readLock().unlock();
     }
@@ -449,6 +459,7 @@ public class HARaftServer {
 
   /**
    * Check if the current node is the leader node.
+   *
    * @return true if Leader, false otherwise.
    */
   public boolean isLeader() {
@@ -465,6 +476,7 @@ public class HARaftServer {
 
   /**
    * Get the suggested leader peer id.
+   *
    * @return RaftPeerId of the suggested leader node.
    */
   public Optional<String> getCachedLeaderPeerAddress() {
@@ -477,8 +489,7 @@ public class HARaftServer {
   }
 
   /**
-   * Get the gorup info (peer role and leader peer id) from Ratis server and
-   * update the server role.
+   * Get the gorup info (peer role and leader peer id) from Ratis server and update the server role.
    */
   public void updateServerRole() {
     try {
@@ -490,35 +501,32 @@ public class HARaftServer {
         setServerRole(thisNodeRole, masterRatisAddress.getAddress().getHostAddress());
 
       } else if (thisNodeRole.equals(RaftProtos.RaftPeerRole.FOLLOWER)) {
-        ByteString leaderNodeId = roleInfoProto.getFollowerInfo()
-            .getLeaderInfo().getId().getId();
+        ByteString leaderNodeId = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getId();
         // There may be a chance, here we get leaderNodeId as null. For
         // example, in 3 node Ratis, if 2 nodes are down, there will
         // be no leader.
         String leaderPeerAddress = null;
         if (leaderNodeId != null && !leaderNodeId.isEmpty()) {
-          leaderPeerAddress = roleInfoProto.getFollowerInfo()
-              .getLeaderInfo().getId().getAddress();
+          leaderPeerAddress = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAddress();
         }
 
         setServerRole(thisNodeRole, leaderPeerAddress);
 
       } else {
         setServerRole(thisNodeRole, null);
-
       }
     } catch (IOException e) {
-      LOG.error("Failed to retrieve RaftPeerRole. Setting cached role to " +
-          "{} and resetting leader info.", RaftProtos.RaftPeerRole.UNRECOGNIZED, e);
+      LOG.error(
+          "Failed to retrieve RaftPeerRole. Setting cached role to "
+              + "{} and resetting leader info.",
+          RaftProtos.RaftPeerRole.UNRECOGNIZED,
+          e);
       setServerRole(null, null);
     }
   }
 
-  /**
-   * Set the current server role and the leader peer address.
-   */
-  private void setServerRole(RaftProtos.RaftPeerRole currentRole,
-                             String leaderPeerAddress) {
+  /** Set the current server role and the leader peer address. */
+  private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerAddress) {
     this.roleCheckLock.writeLock().lock();
     try {
       this.cachedPeerRole = Optional.ofNullable(currentRole);
@@ -529,8 +537,8 @@ public class HARaftServer {
   }
 
   private GroupInfoReply getGroupInfo() throws IOException {
-    GroupInfoRequest groupInfoRequest = new GroupInfoRequest(clientId,
-        raftPeerId, raftGroupId, nextCallId());
+    GroupInfoRequest groupInfoRequest =
+        new GroupInfoRequest(clientId, raftPeerId, raftGroupId, nextCallId());
     GroupInfoReply groupInfo = server.getGroupInfo(groupInfoRequest);
     return groupInfo;
   }

@@ -30,7 +30,7 @@ import com.aliyun.emr.rss.common.protocol.TransportMessages._
 import com.aliyun.emr.rss.common.protocol.TransportMessages.MessageType._
 import com.aliyun.emr.rss.common.util.Utils
 
-sealed trait Message extends Serializable{
+sealed trait Message extends Serializable {
   import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
   def toTransportMessage(): TransportMessage = {
     this match {
@@ -51,8 +51,7 @@ sealed trait Message extends Serializable{
               .setUsableSpace(item._2.actualUsableSpace)
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
-              .build()
-          ).toMap.asJava
+              .build()).toMap.asJava
         val payload = TransportMessages.PbRegisterWorker.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
@@ -64,17 +63,24 @@ sealed trait Message extends Serializable{
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_WORKER, payload)
 
-      case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks,
-      shuffleKeys, requestId) =>
+      case HeartbeatFromWorker(
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            disks,
+            shuffleKeys,
+            requestId) =>
         val pbDisks = disks.asScala
-          .map(item => item._1 -> PbDiskInfo
+          .map(item =>
+            item._1 -> PbDiskInfo
               .newBuilder()
               .setUsableSpace(item._2.actualUsableSpace)
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .setStatus(item._2.status.getValue)
-              .build()
-          ).toMap.asJava
+              .build()).toMap.asJava
         val payload = TransportMessages.PbHeartbeatFromWorker.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
@@ -113,8 +119,13 @@ sealed trait Message extends Serializable{
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
 
-      case RequestSlots(applicationId, shuffleId, partitionIdList, hostname,
-      shouldReplicate, requestId) =>
+      case RequestSlots(
+            applicationId,
+            shuffleId,
+            partitionIdList,
+            hostname,
+            shouldReplicate,
+            requestId) =>
         val payload = TransportMessages.PbRequestSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -152,8 +163,15 @@ sealed trait Message extends Serializable{
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REQUEST_SLOTS_RESPONSE, payload)
 
-      case Revive(applicationId, shuffleId, mapId, attemptId, partitionId, epoch,
-      oldPartition, cause) =>
+      case Revive(
+            applicationId,
+            shuffleId,
+            mapId,
+            attemptId,
+            partitionId,
+            epoch,
+            oldPartition,
+            cause) =>
         val builder = TransportMessages.PbRevive.newBuilder()
         builder.setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -204,11 +222,12 @@ sealed trait Message extends Serializable{
           .newBuilder()
           .setStatus(status.getValue)
         builder.addAllFileGroup(
-          fileGroup.map { arr => PbFileGroup.newBuilder().addAllLocations(arr
-            .map(PartitionLocation.toPbPartitionLocation).toIterable.asJava).build()}
+          fileGroup.map { arr =>
+            PbFileGroup.newBuilder().addAllLocations(arr
+              .map(PartitionLocation.toPbPartitionLocation).toIterable.asJava).build()
+          }
             .toIterable
-            .asJava
-        )
+            .asJava)
         builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
@@ -292,15 +311,15 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
 
       case CheckAlive =>
-        new TransportMessage(TransportMessages.MessageType.CHECK_ALIVE,
+        new TransportMessage(
+          TransportMessages.MessageType.CHECK_ALIVE,
           PbCheckAlive.newBuilder().build().toByteArray)
 
       case CheckAliveResponse(isAlive) =>
         val payload = TransportMessages.PbCheckAliveResponse.newBuilder()
           .setIsAlive(isAlive)
           .build().toByteArray
-        new TransportMessage(TransportMessages.MessageType.CHECK_ALIVE_RESPONSE,
-          payload)
+        new TransportMessage(TransportMessages.MessageType.CHECK_ALIVE_RESPONSE, payload)
 
       case ReportWorkerFailure(failed, requestId) =>
         val payload = TransportMessages.PbReportWorkerFailure.newBuilder()
@@ -321,8 +340,14 @@ sealed trait Message extends Serializable{
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.REREGISTER_WORKER_RESPONSE, payload)
 
-      case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations,
-      splitThreshold, splitMode, partType) =>
+      case ReserveSlots(
+            applicationId,
+            shuffleId,
+            masterLocations,
+            slaveLocations,
+            splitThreshold,
+            splitMode,
+            partType) =>
         val payload = TransportMessages.PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -353,15 +378,15 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES, payload)
 
       case CommitFilesResponse(
-        status,
-        committedMasterIds,
-        committedSlaveIds,
-        failedMasterIds,
-        failedSlaveIds,
-        committedMasterStorageInfos,
-        committedSlaveStorageInfos,
-        totalWritten,
-        fileCount) =>
+            status,
+            committedMasterIds,
+            committedSlaveIds,
+            failedMasterIds,
+            failedSlaveIds,
+            committedMasterStorageInfos,
+            committedSlaveStorageInfos,
+            totalWritten,
+            fileCount) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
         builder.addAllCommittedMasterIds(committedMasterIds)
@@ -403,7 +428,7 @@ sealed trait Message extends Serializable{
       case GetWorkerInfos =>
         new TransportMessage(TransportMessages.MessageType.GET_WORKER_INFO, null)
 
-      case GetWorkerInfosResponse(status, workerInfos@_*) =>
+      case GetWorkerInfosResponse(status, workerInfos @ _*) =>
         val payload = TransportMessages.PbGetWorkerInfosResponse.newBuilder()
           .setStatus(status.getValue)
           .addAllWorkerInfos(workerInfos.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
@@ -441,13 +466,15 @@ sealed abstract class MasterRequestMessage extends MasterMessage {
 sealed trait WorkerMessage extends Message
 sealed trait ClientMessage extends Message
 
-object ControlMessages extends Logging{
+object ControlMessages extends Logging {
   val ZERO_UUID = new UUID(0L, 0L).toString
 
-  type WorkerResource = java.util.HashMap[WorkerInfo,
+  type WorkerResource = java.util.HashMap[
+    WorkerInfo,
     (java.util.List[PartitionLocation], java.util.List[PartitionLocation])]
 
-  /** ==========================================
+  /**
+   * ==========================================
    *         handled by master
    *  ==========================================
    */
@@ -479,10 +506,10 @@ object ControlMessages extends Logging{
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
-      replicatePort : Int,
+      replicatePort: Int,
       disks: util.Map[String, DiskInfo],
       shuffleKeys: util.HashSet[String],
-    override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatResponse(
       expiredShuffleKeys: util.HashSet[String],
@@ -496,33 +523,33 @@ object ControlMessages extends Logging{
     extends MasterMessage
 
   case class RegisterShuffleResponse(
-    status: StatusCode,
-    partitionLocations: util.List[PartitionLocation])
+      status: StatusCode,
+      partitionLocations: util.List[PartitionLocation])
     extends MasterMessage
 
   case class RequestSlots(
-    applicationId: String,
-    shuffleId: Int,
-    partitionIdList: util.ArrayList[Integer],
-    hostname: String,
-    shouldReplicate: Boolean,
-    override var requestId: String = ZERO_UUID)
+      applicationId: String,
+      shuffleId: Int,
+      partitionIdList: util.ArrayList[Integer],
+      hostname: String,
+      shouldReplicate: Boolean,
+      override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
   case class ReleaseSlots(
-    applicationId: String,
-    shuffleId: Int,
-    workerIds: util.List[String],
-    slots: util.List[util.Map[String, Integer]],
-    override var requestId: String = ZERO_UUID)
+      applicationId: String,
+      shuffleId: Int,
+      workerIds: util.List[String],
+      slots: util.List[util.Map[String, Integer]],
+      override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
   case class ReleaseSlotsResponse(status: StatusCode)
     extends MasterMessage
 
   case class RequestSlotsResponse(
-    status: StatusCode,
-    workerResource: WorkerResource)
+      status: StatusCode,
+      workerResource: WorkerResource)
     extends MasterMessage
 
   trait ChangeLocationRequest
@@ -539,7 +566,7 @@ object ControlMessages extends Logging{
     extends MasterMessage with ChangeLocationRequest
 
   case class PartitionSplit(
-      applicationId : String,
+      applicationId: String,
       shuffleId: Int,
       partitionId: Int,
       epoch: Int,
@@ -571,8 +598,13 @@ object ControlMessages extends Logging{
       attempts: Array[Int])
     extends MasterMessage
 
-  case class WorkerLost(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int,
-    replicatePort: Int, override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+  case class WorkerLost(
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class WorkerLostResponse(success: Boolean) extends MasterMessage
 
@@ -589,20 +621,23 @@ object ControlMessages extends Logging{
   case class UnregisterShuffleResponse(status: StatusCode) extends MasterMessage
 
   case class ApplicationLost(
-      appId: String, override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      appId: String,
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class ApplicationLostResponse(status: StatusCode) extends MasterMessage
 
   case class HeartBeatFromApplication(
-    appId: String,
-    totalWritten: Long,
-    fileCount: Long,
-    override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      appId: String,
+      totalWritten: Long,
+      fileCount: Long,
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
 
-  case class GetBlacklistResponse(statusCode: StatusCode,
-      blacklist: util.List[WorkerInfo], unknownWorkers: util.List[WorkerInfo]) extends Message
+  case class GetBlacklistResponse(
+      statusCode: StatusCode,
+      blacklist: util.List[WorkerInfo],
+      unknownWorkers: util.List[WorkerInfo]) extends Message
 
   case object CheckAlive extends Message
 
@@ -612,7 +647,8 @@ object ControlMessages extends Logging{
       failed: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
-  /** ==========================================
+  /**
+   * ==========================================
    *         handled by worker
    *  ==========================================
    */
@@ -631,29 +667,29 @@ object ControlMessages extends Logging{
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
-      status: StatusCode, reason: String = "") extends WorkerMessage
+      status: StatusCode,
+      reason: String = "") extends WorkerMessage
 
   case class CommitFiles(
-    applicationId: String,
-    shuffleId: Int,
-    masterIds: util.List[String],
-    slaveIds: util.List[String],
-    mapAttempts: Array[Int])
+      applicationId: String,
+      shuffleId: Int,
+      masterIds: util.List[String],
+      slaveIds: util.List[String],
+      mapAttempts: Array[Int])
     extends WorkerMessage
 
   case class CommitFilesResponse(
-    status: StatusCode,
-    committedMasterIds: util.List[String],
-    committedSlaveIds: util.List[String],
-    failedMasterIds: util.List[String],
-    failedSlaveIds: util.List[String],
-    committedMasterStorageInfos: util.Map[String, StorageInfo] =
-      Map.empty[String, StorageInfo].asJava,
-    committedSlaveStorageInfos: util.Map[String, StorageInfo] =
-      Map.empty[String, StorageInfo].asJava,
-    totalWritten: Long = 0,
-    fileCount: Int = 0
-  ) extends WorkerMessage
+      status: StatusCode,
+      committedMasterIds: util.List[String],
+      committedSlaveIds: util.List[String],
+      failedMasterIds: util.List[String],
+      failedSlaveIds: util.List[String],
+      committedMasterStorageInfos: util.Map[String, StorageInfo] =
+        Map.empty[String, StorageInfo].asJava,
+      committedSlaveStorageInfos: util.Map[String, StorageInfo] =
+        Map.empty[String, StorageInfo].asJava,
+      totalWritten: Long = 0,
+      fileCount: Int = 0) extends WorkerMessage
 
   case class Destroy(
       shuffleKey: String,
@@ -667,7 +703,8 @@ object ControlMessages extends Logging{
       failedSlaves: util.List[String])
     extends WorkerMessage
 
-  /** ==========================================
+  /**
+   * ==========================================
    *              common
    *  ==========================================
    */
@@ -691,35 +728,45 @@ object ControlMessages extends Logging{
       case REGISTER_WORKER =>
         val pbRegisterWorker = PbRegisterWorker.parseFrom(message.getPayload)
         val disks = pbRegisterWorker.getDisksMap.asScala.map(item =>
-            item._1 -> new DiskInfo(
-                item._1,
-                item._2.getUsableSpace,
-                item._2.getAvgFlushTime,
-                item._2.getUsedSlots)).asJava
-        RegisterWorker(pbRegisterWorker.getHost, pbRegisterWorker.getRpcPort,
-          pbRegisterWorker.getPushPort, pbRegisterWorker.getFetchPort,
-          pbRegisterWorker.getReplicatePort, disks, pbRegisterWorker.getRequestId)
+          item._1 -> new DiskInfo(
+            item._1,
+            item._2.getUsableSpace,
+            item._2.getAvgFlushTime,
+            item._2.getUsedSlots)).asJava
+        RegisterWorker(
+          pbRegisterWorker.getHost,
+          pbRegisterWorker.getRpcPort,
+          pbRegisterWorker.getPushPort,
+          pbRegisterWorker.getFetchPort,
+          pbRegisterWorker.getReplicatePort,
+          disks,
+          pbRegisterWorker.getRequestId)
 
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
         val shuffleKeys = new util.HashSet[String]()
         val disks = pbHeartbeatFromWorker.getDisksMap.asScala
-          .map(item => item._1 -> {
-            val diskInfo = new DiskInfo(
-              item._1,
-              item._2.getUsableSpace,
-              item._2.getAvgFlushTime,
-              item._2.getUsedSlots
-            )
-            diskInfo.setStatus(Utils.toDiskStatus(item._2.getStatus()))
-            diskInfo
-          }).asJava
+          .map(item =>
+            item._1 -> {
+              val diskInfo = new DiskInfo(
+                item._1,
+                item._2.getUsableSpace,
+                item._2.getAvgFlushTime,
+                item._2.getUsedSlots)
+              diskInfo.setStatus(Utils.toDiskStatus(item._2.getStatus()))
+              diskInfo
+            }).asJava
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
           shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
         }
-        HeartbeatFromWorker(pbHeartbeatFromWorker.getHost, pbHeartbeatFromWorker.getRpcPort,
-          pbHeartbeatFromWorker.getPushPort, pbHeartbeatFromWorker.getFetchPort,
-          pbHeartbeatFromWorker.getReplicatePort, disks, shuffleKeys,
+        HeartbeatFromWorker(
+          pbHeartbeatFromWorker.getHost,
+          pbHeartbeatFromWorker.getRpcPort,
+          pbHeartbeatFromWorker.getPushPort,
+          pbHeartbeatFromWorker.getFetchPort,
+          pbHeartbeatFromWorker.getReplicatePort,
+          disks,
+          shuffleKeys,
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
@@ -745,14 +792,18 @@ object ControlMessages extends Logging{
           partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
             .asScala.map(PartitionLocation.fromPbPartitionLocation).toList.asJava)
         }
-        RegisterShuffleResponse(Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
+        RegisterShuffleResponse(
+          Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
           partitionLocations)
 
       case REQUEST_SLOTS =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
-        RequestSlots(pbRequestSlots.getApplicationId, pbRequestSlots.getShuffleId,
+        RequestSlots(
+          pbRequestSlots.getApplicationId,
+          pbRequestSlots.getShuffleId,
           new util.ArrayList[Integer](pbRequestSlots.getPartitionIdListList),
-          pbRequestSlots.getHostname, pbRequestSlots.getShouldReplicate,
+          pbRequestSlots.getHostname,
+          pbRequestSlots.getShouldReplicate,
           pbRequestSlots.getRequestId)
 
       case RELEASE_SLOTS =>
@@ -764,8 +815,7 @@ object ControlMessages extends Logging{
           pbRequestSlots.getShuffleId,
           new util.ArrayList[String](pbRequestSlots.getWorkerIdsList),
           new util.ArrayList[util.Map[String, Integer]](slotsList),
-          pbRequestSlots.getRequestId
-        )
+          pbRequestSlots.getRequestId)
 
       case RELEASE_SLOTS_RESPONSE =>
         val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
@@ -773,32 +823,45 @@ object ControlMessages extends Logging{
 
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
-        RequestSlotsResponse(Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
+        RequestSlotsResponse(
+          Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
           Utils.convertPbWorkerResourceToWorkerResource(
             pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
-        val oldPartition = if (pbRevive.hasOldPartition) {
-          PartitionLocation.fromPbPartitionLocation(pbRevive.getOldPartition)
-        } else {
-          null
-        }
-        Revive(pbRevive.getApplicationId, pbRevive.getShuffleId, pbRevive.getMapId,
-          pbRevive.getAttemptId, pbRevive.getPartitionId, pbRevive.getEpoch,
-          oldPartition, Utils.toStatusCode(pbRevive.getStatus))
+        val oldPartition =
+          if (pbRevive.hasOldPartition) {
+            PartitionLocation.fromPbPartitionLocation(pbRevive.getOldPartition)
+          } else {
+            null
+          }
+        Revive(
+          pbRevive.getApplicationId,
+          pbRevive.getShuffleId,
+          pbRevive.getMapId,
+          pbRevive.getAttemptId,
+          pbRevive.getPartitionId,
+          pbRevive.getEpoch,
+          oldPartition,
+          Utils.toStatusCode(pbRevive.getStatus))
 
       case CHANGE_LOCATION_RESPONSE =>
         val pbReviveResponse = PbChangeLocationResponse.parseFrom(message.getPayload)
-        val loc = if (pbReviveResponse.hasLocation) {
-          PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getLocation)
-        } else null
+        val loc =
+          if (pbReviveResponse.hasLocation) {
+            PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getLocation)
+          } else null
         ChangeLocationResponse(Utils.toStatusCode(pbReviveResponse.getStatus), loc)
 
       case MAPPER_END =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
-        MapperEnd(pbMapperEnd.getApplicationId, pbMapperEnd.getShuffleId, pbMapperEnd.getMapId,
-          pbMapperEnd.getAttemptId, pbMapperEnd.getNumMappers)
+        MapperEnd(
+          pbMapperEnd.getApplicationId,
+          pbMapperEnd.getShuffleId,
+          pbMapperEnd.getMapId,
+          pbMapperEnd.getAttemptId,
+          pbMapperEnd.getNumMappers)
 
       case MAPPER_END_RESPONSE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
@@ -806,22 +869,27 @@ object ControlMessages extends Logging{
 
       case GET_REDUCER_FILE_GROUP =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
-        GetReducerFileGroup(pbGetReducerFileGroup.getApplicationId,
+        GetReducerFileGroup(
+          pbGetReducerFileGroup.getApplicationId,
           pbGetReducerFileGroup.getShuffleId)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
         val fileGroup = pbGetReducerFileGroupResponse.getFileGroupList.asScala.map { fg =>
-            fg.getLocationsList.asScala.map(PartitionLocation.fromPbPartitionLocation).toArray
-          }.toArray
+          fg.getLocationsList.asScala.map(PartitionLocation.fromPbPartitionLocation).toArray
+        }.toArray
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
-        GetReducerFileGroupResponse(Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
-          fileGroup, attempts)
+        GetReducerFileGroupResponse(
+          Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
+          fileGroup,
+          attempts)
 
       case UNREGISTER_SHUFFLE =>
         val pbUnregisterShuffle = PbUnregisterShuffle.parseFrom(message.getPayload)
-        UnregisterShuffle(pbUnregisterShuffle.getAppId, pbUnregisterShuffle.getShuffleId,
+        UnregisterShuffle(
+          pbUnregisterShuffle.getAppId,
+          pbUnregisterShuffle.getShuffleId,
           pbUnregisterShuffle.getRequestId)
 
       case UNREGISTER_SHUFFLE_RESPONSE =>
@@ -842,8 +910,7 @@ object ControlMessages extends Logging{
           pbHeartBeatFromApplication.getAppId,
           pbHeartBeatFromApplication.getTotalWritten,
           pbHeartBeatFromApplication.getFileCount,
-          pbHeartBeatFromApplication.getRequestId
-        )
+          pbHeartBeatFromApplication.getRequestId)
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
@@ -852,7 +919,8 @@ object ControlMessages extends Logging{
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
-        GetBlacklistResponse(Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
+        GetBlacklistResponse(
+          Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
           pbGetBlacklistResponse.getBlacklistList.asScala
             .map(WorkerInfo.fromPbWorkerInfo).toList.asJava,
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
@@ -868,13 +936,15 @@ object ControlMessages extends Logging{
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
-        ReportWorkerFailure(new util.ArrayList[WorkerInfo](pbReportWorkerFailure.getFailedList
-          .asScala.map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava),
+        ReportWorkerFailure(
+          new util.ArrayList[WorkerInfo](pbReportWorkerFailure.getFailedList
+            .asScala.map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava),
           pbReportWorkerFailure.getRequestId)
 
       case REGISTER_WORKER_RESPONSE =>
         val pbRegisterWorkerResponse = PbRegisterWorkerResponse.parseFrom(message.getPayload)
-        RegisterWorkerResponse(pbRegisterWorkerResponse.getSuccess,
+        RegisterWorkerResponse(
+          pbRegisterWorkerResponse.getSuccess,
           pbRegisterWorkerResponse.getMessage)
 
       case REREGISTER_WORKER_RESPONSE =>
@@ -883,7 +953,8 @@ object ControlMessages extends Logging{
 
       case RESERVE_SLOTS =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
-        ReserveSlots(pbReserveSlots.getApplicationId,
+        ReserveSlots(
+          pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
           new util.ArrayList[PartitionLocation](pbReserveSlots.getMasterLocationsList.asScala
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
@@ -895,13 +966,17 @@ object ControlMessages extends Logging{
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
-        ReserveSlotsResponse(Utils.toStatusCode(pbReserveSlotsResponse.getStatus),
+        ReserveSlotsResponse(
+          Utils.toStatusCode(pbReserveSlotsResponse.getStatus),
           pbReserveSlotsResponse.getReason)
 
       case COMMIT_FILES =>
         val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
-        CommitFiles(pbCommitFiles.getApplicationId, pbCommitFiles.getShuffleId,
-          pbCommitFiles.getMasterIdsList, pbCommitFiles.getSlaveIdsList,
+        CommitFiles(
+          pbCommitFiles.getApplicationId,
+          pbCommitFiles.getShuffleId,
+          pbCommitFiles.getMasterIdsList,
+          pbCommitFiles.getSlaveIdsList,
           pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray)
 
       case COMMIT_FILES_RESPONSE =>
@@ -925,17 +1000,22 @@ object ControlMessages extends Logging{
 
       case DESTROY =>
         val pbDestroy = PbDestroy.parseFrom(message.getPayload)
-        Destroy(pbDestroy.getShuffleKey, pbDestroy.getMasterLocationsList,
+        Destroy(
+          pbDestroy.getShuffleKey,
+          pbDestroy.getMasterLocationsList,
           pbDestroy.getSlaveLocationList)
 
       case DESTROY_RESPONSE =>
         val pbDestroyResponse = PbDestroyResponse.parseFrom(message.getPayload)
-        DestroyResponse(Utils.toStatusCode(pbDestroyResponse.getStatus),
-          pbDestroyResponse.getFailedMastersList, pbDestroyResponse.getFailedSlavesList)
+        DestroyResponse(
+          Utils.toStatusCode(pbDestroyResponse.getStatus),
+          pbDestroyResponse.getFailedMastersList,
+          pbDestroyResponse.getFailedSlavesList)
 
       case SLAVE_LOST_RESPONSE =>
         val pbSlaveLostResponse = PbSlaveLostResponse.parseFrom(message.getPayload)
-        SlaveLostResponse(Utils.toStatusCode(pbSlaveLostResponse.getStatus),
+        SlaveLostResponse(
+          Utils.toStatusCode(pbSlaveLostResponse.getStatus),
           PartitionLocation.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
 
       case GET_WORKER_INFO =>
@@ -943,9 +1023,10 @@ object ControlMessages extends Logging{
 
       case GET_WORKER_INFO_RESPONSE =>
         val pbGetWorkerInfoResponse = PbGetWorkerInfosResponse.parseFrom(message.getPayload)
-        GetWorkerInfosResponse(Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
+        GetWorkerInfosResponse(
+          Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
           pbGetWorkerInfoResponse.getWorkerInfosList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList: _* )
+            .map(WorkerInfo.fromPbWorkerInfo(_)).toList: _*)
 
       case THREAD_DUMP =>
         ThreadDump
@@ -968,8 +1049,13 @@ object ControlMessages extends Logging{
 
       case WORKER_LOST =>
         val pbWorkerLost = PbWorkerLost.parseFrom(message.getPayload)
-        WorkerLost(pbWorkerLost.getHost, pbWorkerLost.getRpcPort, pbWorkerLost.getPushPort,
-          pbWorkerLost.getFetchPort, pbWorkerLost.getReplicatePort, pbWorkerLost.getRequestId)
+        WorkerLost(
+          pbWorkerLost.getHost,
+          pbWorkerLost.getRpcPort,
+          pbWorkerLost.getPushPort,
+          pbWorkerLost.getFetchPort,
+          pbWorkerLost.getReplicatePort,
+          pbWorkerLost.getRequestId)
 
       case WORKER_LOST_RESPONSE =>
         val pbWorkerLostResponse = PbWorkerLostResponse.parseFrom(message.getPayload)
@@ -981,13 +1067,18 @@ object ControlMessages extends Logging{
 
       case PARTITION_SPLIT =>
         val pbShuffleSplitRequest = PbPartitionSplit.parseFrom(message.getPayload)
-        val partition = if (pbShuffleSplitRequest.hasOldPartition) {
-          PartitionLocation.fromPbPartitionLocation(pbShuffleSplitRequest.getOldPartition)
-        } else {
-          null
-        }
-        PartitionSplit(pbShuffleSplitRequest.getApplicationId, pbShuffleSplitRequest.getShuffleId,
-          pbShuffleSplitRequest.getPartitionId, pbShuffleSplitRequest.getEpoch, partition)
+        val partition =
+          if (pbShuffleSplitRequest.hasOldPartition) {
+            PartitionLocation.fromPbPartitionLocation(pbShuffleSplitRequest.getOldPartition)
+          } else {
+            null
+          }
+        PartitionSplit(
+          pbShuffleSplitRequest.getApplicationId,
+          pbShuffleSplitRequest.getShuffleId,
+          pbShuffleSplitRequest.getPartitionId,
+          pbShuffleSplitRequest.getEpoch,
+          partition)
 
       case STAGE_END_RESPONSE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)

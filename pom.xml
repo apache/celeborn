@@ -37,7 +37,6 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
 
-    <checkstyle.version>8.23</checkstyle.version>
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.10</commons-lang3.version>
     <commons-io.version>2.8.0</commons-io.version>
@@ -63,16 +62,15 @@
     <!--  default hadoop version  -->
     <hadoop.version>3.3.1</hadoop.version>
 
-    <maven.plugin.checkstyle.version>3.0.0</maven.plugin.checkstyle.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
-    <maven.plugin.git.version>4.9.10</maven.plugin.git.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
+    <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
     <maven.plugin.scala.version>3.3.2</maven.plugin.scala.version>
-    <maven.plugin.scalastyle.version>1.0.0</maven.plugin.scalastyle.version>
     <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>2.4.3</maven.plugin.shade.version>
+    <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
@@ -83,8 +81,6 @@
   <modules>
     <module>common</module>
     <module>client</module>
-    <module>./client-spark/shuffle-manager-common</module>
-    <module>./client-spark/${rss.shuffle.manager}</module>
     <module>server-common</module>
     <module>server-master</module>
     <module>server-worker</module>
@@ -540,29 +536,6 @@
             </execution>
           </executions>
         </plugin>
-        <plugin>
-          <groupId>pl.project13.maven</groupId>
-          <artifactId>git-commit-id-plugin</artifactId>
-          <version>${maven.plugin.git.version}</version>
-          <executions>
-            <execution>
-              <id>get-the-git-infos</id>
-              <goals>
-                <goal>revision</goal>
-              </goals>
-              <phase>initialize</phase>
-            </execution>
-          </executions>
-          <configuration>
-            <generateGitPropertiesFile>true</generateGitPropertiesFile>
-            <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-            <includeOnlyProperties>
-              <includeOnlyProperty>^git.build.version$</includeOnlyProperty>
-              <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
-            </includeOnlyProperties>
-            <commitIdGenerationMode>full</commitIdGenerationMode>
-          </configuration>
-        </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -582,68 +555,77 @@
             </execution>
           </executions>
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.rat</groupId>
+          <artifactId>apache-rat-plugin</artifactId>
+          <version>${maven.plugin.rat.version}</version>
+          <inherited>true</inherited>
+          <executions>
+            <execution>
+              <phase>verify</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+          <configuration>
+            <excludeSubProjects>false</excludeSubProjects>
+            <numUnapprovedLicenses>0</numUnapprovedLicenses>
+            <licenseFamilies>
+              <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
+                <familyName>Apache License 2.0</familyName>
+              </licenseFamily>
+            </licenseFamilies>
+            <excludesFile>.rat-excludes</excludesFile>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${maven.plugin.spotless.version}</version>
+          <configuration>
+            <upToDateChecking>
+              <enabled>true</enabled>
+            </upToDateChecking>
+            <java>
+              <includes>
+                <include>src/main/java/**/*.java</include>
+                <include>src/test/java/**/*.java</include>
+              </includes>
+              <googleJavaFormat>
+                <version>1.7</version>
+                <style>GOOGLE</style>
+              </googleJavaFormat>
+              <removeUnusedImports />
+              <importOrder>
+                <order>java,javax,scala,,com.aliyun.emr.rss</order>
+              </importOrder>
+            </java>
+            <scala>
+              <includes>
+                <include>src/main/scala/**/*.scala</include>
+                <include>src/test/scala/**/*.scala</include>
+              </includes>
+              <scalafmt>
+                <version>3.1.1</version>
+                <file>${maven.multiModuleProjectDirectory}/.scalafmt.conf</file>
+              </scalafmt>
+            </scala>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
 
     <plugins>
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>${maven.plugin.scalastyle.version}</version>
-        <configuration>
-          <verbose>false</verbose>
-          <failOnViolation>true</failOnViolation>
-          <includeTestSourceDirectory>false</includeTestSourceDirectory>
-          <failOnWarning>false</failOnWarning>
-          <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-          <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-          <configLocation>./dev/scalastyle-config.xml</configLocation>
-          <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
-          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
-          <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>${maven.plugin.checkstyle.version}</version>
-        <configuration>
-          <failOnViolation>true</failOnViolation>
-          <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <sourceDirectories>
-            <directory>${basedir}/src/main/java</directory>
-            <directory>${basedir}/src/main/scala</directory>
-          </sourceDirectories>
-          <testSourceDirectories>
-            <directory>${basedir}/src/test/java</directory>
-          </testSourceDirectories>
-          <configLocation>dev/checkstyle.xml</configLocation>
-          <outputFile>${basedir}/target/checkstyle-output.xml</outputFile>
-          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
-          <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
-        </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>${checkstyle.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -663,6 +645,11 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
     </plugins>
   </build>
 
@@ -675,8 +662,11 @@
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.5</spark.version>
-        <rss.shuffle.manager>shuffle-manager-2</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-2</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -699,8 +689,11 @@
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.1</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -723,8 +716,11 @@
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.1.3</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -747,8 +743,11 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.2</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -771,8 +770,11 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.0</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
       </properties>
+      <modules>
+        <module>client-spark/shuffle-manager-common</module>
+        <module>client-spark/shuffle-manager-3</module>
+      </modules>
       <dependencies>
         <dependency>
           <groupId>com.fasterxml.jackson.core</groupId>

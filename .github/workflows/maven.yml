@@ -11,7 +11,7 @@ on:
 
 jobs:
   build_rss_on_spark:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -32,11 +32,5 @@ jobs:
         java-version: ${{ matrix.java }}
         cache: maven
         check-latest: false
-    - name: Build with Maven
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 install -DskipTests
-    - name: Check Java Code Style
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 checkstyle:check
-    - name: Check Scale Code Style
-      run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 scalastyle:check
-    - name: Unit Test
+    - name: Test with Maven
       run: build/mvn -Pspark-${{ matrix.spark }} -Plog4j-1 test

@@ -17,6 +17,9 @@
 
 package com.aliyun.emr.rss.common.network;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.*;
+
 import java.nio.ByteBuffer;
 
 import io.netty.channel.local.LocalChannel;
@@ -27,9 +30,6 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
 import com.aliyun.emr.rss.common.network.protocol.*;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
 
 public class TransportResponseHandlerSuiteJ {
   @Test

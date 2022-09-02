@@ -50,8 +50,16 @@ public class RssZstdCompressor extends RssZstdTrait implements Compressor {
     if (compressedBuffer.length - HEADER_LENGTH < maxDestLength) {
       initCompressBuffer(maxDestLength);
     }
-    int compressedLength = (int) Zstd.compressByteArray(compressedBuffer, HEADER_LENGTH,
-            maxDestLength - HEADER_LENGTH, data, offset, length, compressionLevel);
+    int compressedLength =
+        (int)
+            Zstd.compressByteArray(
+                compressedBuffer,
+                HEADER_LENGTH,
+                maxDestLength - HEADER_LENGTH,
+                data,
+                offset,
+                length,
+                compressionLevel);
     final int compressMethod;
     if (compressedLength >= length) {
       compressMethod = COMPRESSION_METHOD_RAW;

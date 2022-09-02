@@ -34,7 +34,7 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource
 
-private[worker] abstract class Flusher(
+abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
     val flushAvgTimeWindowSize: Int,
@@ -206,7 +206,7 @@ private[worker] class LocalFlusher(
 
   override def equals(obj: Any): Boolean = {
     obj.isInstanceOf[LocalFlusher] &&
-      obj.asInstanceOf[LocalFlusher].mountPoint.equals(mountPoint)
+    obj.asInstanceOf[LocalFlusher].mountPoint.equals(mountPoint)
   }
 
   override def toString(): String = {
@@ -214,7 +214,7 @@ private[worker] class LocalFlusher(
   }
 }
 
-private[worker] final class HdfsFlusher(
+final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
     threadCount: Int,
     flushAvgTimeWindowSize: Int,

@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long[] uncompressedRecords) throws IOException {
 
@@ -39,7 +40,7 @@ public class SparkUtils {
     Class<?> clz = status.getClass();
     Method applyMethod = null;
 
-    for (Method method: clz.getDeclaredMethods()) {
+    for (Method method : clz.getDeclaredMethods()) {
       if ("apply".equals(method.getName())) {
         applyMethod = method;
         break;
@@ -57,11 +58,11 @@ public class SparkUtils {
           return (MapStatus) applyMethod.invoke(status, loc, uncompressedSizes);
         case 3:
           // spark 2 with adaptive execution
-          return (MapStatus) applyMethod.invoke(
-            status, loc, uncompressedSizes, uncompressedRecords);
+          return (MapStatus)
+              applyMethod.invoke(status, loc, uncompressedSizes, uncompressedRecords);
         default:
           throw new IllegalStateException(
-            "Could not find apply method with correct parameter number in MapStatus object.");
+              "Could not find apply method with correct parameter number in MapStatus object.");
       }
     } catch (Exception e) {
       throw new IOException(e);

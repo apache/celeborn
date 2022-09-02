@@ -52,7 +52,7 @@ abstract class RssFunSuite
 
   protected val enableAutoThreadAudit = true
 
-  protected override def beforeAll(): Unit = {
+  override protected def beforeAll(): Unit = {
     System.setProperty("rss.testing", "true")
     if (enableAutoThreadAudit) {
       doThreadPreAudit()
@@ -60,7 +60,7 @@ abstract class RssFunSuite
     super.beforeAll()
   }
 
-  protected override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     super.afterAll()
     if (enableAutoThreadAudit) {
       doThreadPostAudit()
@@ -68,15 +68,15 @@ abstract class RssFunSuite
   }
 
   // helper function
-  protected final def getTestResourceFile(file: String): File = {
+  final protected def getTestResourceFile(file: String): File = {
     new File(getClass.getClassLoader.getResource(file).getFile)
   }
 
-  protected final def getTestResourcePath(file: String): String = {
+  final protected def getTestResourcePath(file: String): String = {
     getTestResourceFile(file).getCanonicalPath
   }
 
-  protected final def copyAndGetResourceFile(fileName: String, suffix: String): File = {
+  final protected def copyAndGetResourceFile(fileName: String, suffix: String): File = {
     val url = Thread.currentThread().getContextClassLoader.getResource(fileName)
     // To avoid illegal accesses to a resource file inside jar
     // (URISyntaxException might be thrown when accessing it),
@@ -90,7 +90,7 @@ abstract class RssFunSuite
   /**
    * Get a Path relative to the root project. It is assumed that a spark home is set.
    */
-  protected final def getWorkspaceFilePath(first: String, more: String*): Path = {
+  final protected def getWorkspaceFilePath(first: String, more: String*): Path = {
     if (!(sys.props.contains("rss.test.home") || sys.env.contains("RSS_HOME"))) {
       fail("spark.test.home or SPARK_HOME is not set.")
     }
@@ -123,19 +123,19 @@ abstract class RssFunSuite
     retry0(n, n)(body)
   }
 
-  @tailrec private final def retry0[T](n: Int, n0: Int)(body: => T): T = {
+  @tailrec final private def retry0[T](n: Int, n0: Int)(body: => T): T = {
     try body
-    catch { case e: Throwable =>
-      if (n > 0) {
-        logWarning(e.getMessage, e)
-        logInfo(s"\n\n===== RETRY #${n0 - n + 1} =====\n")
-        // Reset state before re-attempting in order so that tests which use patterns like
-        // LocalSparkContext to clean up state can work correctly when retried.
-        afterEach()
-        beforeEach()
-        retry0(n-1, n0)(body)
-      }
-      else throw e
+    catch {
+      case e: Throwable =>
+        if (n > 0) {
+          logWarning(e.getMessage, e)
+          logInfo(s"\n\n===== RETRY #${n0 - n + 1} =====\n")
+          // Reset state before re-attempting in order so that tests which use patterns like
+          // LocalSparkContext to clean up state can work correctly when retried.
+          afterEach()
+          beforeEach()
+          retry0(n - 1, n0)(body)
+        } else throw e
     }
   }
 
@@ -148,7 +148,7 @@ abstract class RssFunSuite
    * custom code before and after each test, they should mix in the
    * {{org.scalatest.BeforeAndAfter}} trait instead.
    */
-  final protected override def withFixture(test: NoArgTest): Outcome = {
+  final override protected def withFixture(test: NoArgTest): Outcome = {
     val testName = test.text
     val suiteName = this.getClass.getName
     val shortSuiteName = suiteName.replaceAll("com.aliyun.emr", "c.a.e")
@@ -182,7 +182,8 @@ abstract class RssFunSuite
     if (level.isDefined) {
       logger.setLevel(level.get)
     }
-    try f finally {
+    try f
+    finally {
       logger.removeAppender(appender)
       if (level.isDefined) {
         logger.setLevel(restoreLevel)
