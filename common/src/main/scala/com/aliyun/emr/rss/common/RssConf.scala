@@ -999,7 +999,7 @@ object RssConf extends Logging {
 
   // Ratis snapshot configurations
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.auto.trigger.enabled"
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = false
+  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = true
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY = "rss.ha.ratis.snapshot.auto.trigger.threshold"
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT = 200000
   val HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_KEY = "rss.ratis.snapshot.retention.file.num"
