@@ -29,6 +29,7 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
+import com.aliyun.emr.rss.common.http._
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
@@ -40,7 +41,6 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.utils.ShutdownHookManager
-import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
