@@ -82,7 +82,12 @@ private[worker] final class DiskFlusher(
               if (!task.notifier.hasException) {
                 try {
                   lastBeginFlushTime = System.nanoTime()
-                  task.fileChannel.write(task.buffer.nioBuffers())
+                  val buffers = task.buffer.nioBuffers()
+                  for (buffer <- buffers) {
+                    while (buffer.hasRemaining) {
+                      task.fileChannel.write(buffer)
+                    }
+                  }
                 } catch {
                   case _: ClosedByInterruptException =>
                   case e: IOException =>
@@ -240,9 +245,11 @@ private[worker] final class LocalStorageManager(
         workingDirs.remove(dir)
       }
 
-      val operator = dirOperators.remove(dir)
-      if (operator != null) {
-        operator.shutdown()
+      if (deviceErrorType == DeviceErrorType.IoHang) {
+        val operator = dirOperators.remove(dir)
+        if (operator != null) {
+          operator.shutdown()
+        }
       }
       diskFlushers.remove(dir)
 
@@ -406,7 +413,7 @@ private[worker] final class LocalStorageManager(
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     val workingDirs = workingDirsSnapshot()
     workingDirs.addAll(isolatedWorkingDirs.asScala.filterNot(entry => {
-      DeviceErrorType.criticalError(entry._2)
+      DeviceErrorType.ReadOrWriteFailure == entry._2
     }).keySet.asJava)
 
     expiredShuffleKeys.asScala.foreach { shuffleKey =>

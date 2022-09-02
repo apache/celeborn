@@ -112,12 +112,12 @@ public class PartitionFilesSorter {
       String sortedFileName = fileWriter.getFile().getAbsolutePath() + SORTED_SUFFIX;
       String indexFileName = fileWriter.getFile().getAbsolutePath() + INDEX_SUFFIX;
 
-      if (sorted.contains(fileId)) {
-        return resolve(shuffleKey, fileId, sortedFileName, indexFileName,
-          startMapIndex, endMapIndex);
-      }
-
       synchronized (sorting) {
+        if (sorted.contains(fileId)) {
+          return resolve(shuffleKey, fileId, sortedFileName, indexFileName,
+              startMapIndex, endMapIndex);
+        }
+
         if (!sorting.contains(fileId)) {
           FileSorter fileSorter = new FileSorter(fileWriter.getFile(), fileWriter.getFileLength(),
             fileId, shuffleKey);
@@ -381,7 +381,10 @@ public class PartitionFilesSorter {
       } catch (Exception e) {
         logger.error("sort shuffle file {} error", originFile.getName(), e);
       } finally {
-        sortingShuffleFiles.get(shuffleKey).remove(fileId);
+        Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
+        synchronized (sorting) {
+          sorting.remove(fileId);
+        }
       }
     }
   }
