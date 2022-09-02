@@ -38,7 +38,7 @@ public class DataPusher {
   private final ReentrantLock idleLock = new ReentrantLock();
   private final Condition idleFull = idleLock.newCondition();
 
-  private final AtomicReference<IOException> exception = new AtomicReference<>();
+  private final AtomicReference<IOException> exceptionRef = new AtomicReference<>();
 
   private final String appId;
   private final int shuffleId;
@@ -50,7 +50,7 @@ public class DataPusher {
   private final Consumer<Integer> afterPush;
 
   private volatile boolean terminated;
-  private LongAdder[] mapStatusLengths;
+  private final LongAdder[] mapStatusLengths;
 
   public DataPusher(
       String appId,
@@ -100,7 +100,7 @@ public class DataPusher {
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          exception.set(new IOException(e));
+          exceptionRef.set(new IOException(e));
         } finally {
           idleLock.unlock();
         }
@@ -108,7 +108,7 @@ public class DataPusher {
 
       @Override
       public void run() {
-        while (!terminated && exception.get() == null) {
+        while (!terminated && exceptionRef.get() == null) {
           try {
             PushTask task = workingQueue.poll(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
             if (task == null) {
@@ -117,9 +117,9 @@ public class DataPusher {
             pushData(task);
             reclaimTask(task);
           } catch (InterruptedException e) {
-            exception.set(new IOException(e));
+            exceptionRef.set(new IOException(e));
           } catch (IOException e) {
-            exception.set(e);
+            exceptionRef.set(e);
           }
         }
       }
@@ -142,7 +142,7 @@ public class DataPusher {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       IOException ioe = new IOException(e);
-      exception.set(ioe);
+      exceptionRef.set(ioe);
       throw ioe;
     }
   }
@@ -153,7 +153,7 @@ public class DataPusher {
       waitIdleQueueFullWithLock();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      exception.set(new IOException(e));
+      exceptionRef.set(new IOException(e));
     }
 
     terminated = true;
@@ -163,8 +163,8 @@ public class DataPusher {
   }
 
   private void checkException() throws IOException {
-    if (exception.get() != null) {
-      throw exception.get();
+    if (exceptionRef.get() != null) {
+      throw exceptionRef.get();
     }
   }
 
@@ -187,12 +187,12 @@ public class DataPusher {
 
   private void waitIdleQueueFullWithLock() {
     try {
-      while (idleQueue.remainingCapacity() > 0 && exception.get() == null) {
+      while (idleQueue.remainingCapacity() > 0 && exceptionRef.get() == null) {
         idleFull.await(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      exception.set(new IOException(e));
+      exceptionRef.set(new IOException(e));
     } finally {
       idleLock.unlock();
     }
