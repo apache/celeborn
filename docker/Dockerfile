@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 ARG java_image_tag=8-jdk-focal
 FROM eclipse-temurin:${java_image_tag}
 
@@ -24,9 +25,9 @@ USER root
 RUN set -ex && \
     apt-get update && \
     ln -s /lib /lib64 && \
-    apt install -y bash tini sshpass openssh-client vim bind9-utils telnet net-tools procps && \
+    apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user && \
     rm /bin/sh && \
-    ln -sv /bin/bash /bin/sh && \
+    ln -snf /bin/bash /bin/sh && \
     echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
     chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
     rm -rf /var/cache/apt/* && \
