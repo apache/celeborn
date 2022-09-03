@@ -347,7 +347,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
         diskInfo.dirs.foreach { case dir =>
-          val file = new File(dir, s"$appId")
+          val file = new File(dir, s"$appId/$shuffleId")
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
       }
@@ -449,11 +449,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
     if (null != diskOperators) {
       cleanupExpiredShuffleKey(shuffleKeySet())
-      Thread.currentThread().join(RssConf.waitCleanTaskSubmitBeforeCloseTimeoutMs(conf))
-      val timeout = RssConf.workerDiskFlusherShutdownTimeoutMs(conf)
-      diskOperators.asScala.foreach(entry => {
-        ThreadUtils.shutdown(entry._2, timeout.milliseconds)
-      })
+      ThreadUtils.parmap(diskOperators.asScala.toMap, "ShutdownDiskOperators", diskOperators.size()) { entry =>
+        ThreadUtils.shutdown(entry._2, RssConf.workerDiskFlusherShutdownTimeoutMs(conf).milliseconds)
+      }
     }
     storageScheduler.shutdownNow()
     if (null != deviceMonitor) {

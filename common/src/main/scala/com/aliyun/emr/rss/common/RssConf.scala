@@ -923,10 +923,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
-  def waitCleanTaskSubmitBeforeCloseTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.waitCleanTaskSubmitTimeoutMs", "500ms")
-  }
-
   def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.worker.diskFlusherShutdownTimeoutMs", "3000ms")
   }
