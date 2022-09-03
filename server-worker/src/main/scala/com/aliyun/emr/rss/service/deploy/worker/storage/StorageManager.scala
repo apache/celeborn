@@ -449,8 +449,13 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
     if (null != diskOperators) {
       cleanupExpiredShuffleKey(shuffleKeySet())
-      ThreadUtils.parmap(diskOperators.asScala.toMap, "ShutdownDiskOperators", diskOperators.size()) { entry =>
-        ThreadUtils.shutdown(entry._2, RssConf.workerDiskFlusherShutdownTimeoutMs(conf).milliseconds)
+      ThreadUtils.parmap(
+        diskOperators.asScala.toMap,
+        "ShutdownDiskOperators",
+        diskOperators.size()) { entry =>
+        ThreadUtils.shutdown(
+          entry._2,
+          RssConf.workerDiskFlusherShutdownTimeoutMs(conf).milliseconds)
       }
     }
     storageScheduler.shutdownNow()
