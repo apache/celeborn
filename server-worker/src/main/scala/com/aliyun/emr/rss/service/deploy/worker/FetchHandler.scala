@@ -160,6 +160,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               streamManager.chunkSent(req.streamChunkSlice.streamId)
               workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
             }
+          })
       } catch {
         case e: Exception =>
           logError(
