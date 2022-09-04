@@ -64,8 +64,8 @@ import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
 
-  private LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
-  private String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
+  private static final LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
+  private static final String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
   private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
@@ -133,7 +133,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                       });
                 }
               } catch (InterruptedException e) {
-                logger.warn("Sort thread is shutting down, detail :", e);
+                logger.warn("Sort thread is shutting down, detail: ", e);
               }
             });
     fileSorterSchedulerThread.start();
@@ -210,7 +210,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   public void close() {
-    logger.info("Start close " + this.getClass().getSimpleName());
+    logger.info("Closing {}", this.getClass().getSimpleName());
     shutdown = true;
     if (gracefulShutdown) {
       long start = System.currentTimeMillis();
@@ -252,11 +252,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           String shuffleKey = parseDbShuffleKey(key);
           try {
             Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
-            logger.debug("Reload DB: " + shuffleKey + " -> " + sortedFiles);
+            logger.debug("Reload DB: {} -> {}", shuffleKey, sortedFiles);
             sortedShuffleFiles.put(shuffleKey, sortedFiles);
             sortedFilesDb.delete(entry.getKey());
           } catch (Exception exception) {
-            logger.error("Reload DB: " + shuffleKey + " failed.", exception);
+            logger.error("Reload DB: {} failed.", shuffleKey, exception);
           }
         }
       }
@@ -270,9 +270,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         sortedFilesDb.put(
             dbShuffleKey(shuffleKey),
             PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
-        logger.debug("Update DB: " + shuffleKey + " -> " + sortedShuffleFiles.get(shuffleKey));
+        logger.debug("Update DB: {} -> {}", shuffleKey, sortedShuffleFiles.get(shuffleKey));
       } catch (Exception exception) {
-        logger.error("Update DB: " + shuffleKey + " failed.", exception);
+        logger.error("Update DB: {} failed.", shuffleKey, exception);
       }
     }
   }

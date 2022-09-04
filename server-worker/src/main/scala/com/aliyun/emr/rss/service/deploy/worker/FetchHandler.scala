@@ -65,11 +65,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     // find FileWriter responsible for the data
     val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
-      logWarning(s"File $fileName for $shuffleKey was not found!")
-      null
-    } else {
-      partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
+      val errMsg = s"Could not find file $fileName for $shuffleKey."
+      logWarning(errMsg)
+      throw new FileNotFoundException(errMsg)
     }
+    partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
@@ -79,6 +79,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
         handleOpenStream(client, r)
+      case unknown: RequestMessage =>
+        throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
@@ -91,9 +93,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val endMapIndex = openBlocks.endMapIndex
     // metrics start
     workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
-    val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
-
-    if (fileInfo != null) {
+    try {
+      val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
       logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
@@ -118,17 +119,19 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         case e: IOException =>
           client.getChannel.writeAndFlush(new RpcFailure(
             request.requestId,
-            Throwables.getStackTraceAsString(new RssException("Chunk offsets meta exception ", e))))
+            Throwables.getStackTraceAsString(
+              new RssException("Chunk offsets meta exception", e))))
       } finally {
         // metrics end
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
         request.body().release()
       }
-    } else {
-      workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
-      client.getChannel.writeAndFlush(new RpcFailure(
-        request.requestId,
-        Throwables.getStackTraceAsString(new FileNotFoundException)))
+    } catch {
+      case fnf: FileNotFoundException =>
+        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        client.getChannel.writeAndFlush(new RpcFailure(
+          request.requestId,
+          Throwables.getStackTraceAsString(fnf)))
     }
   }
 
@@ -140,8 +143,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val chunksBeingTransferred = streamManager.chunksBeingTransferred
     if (chunksBeingTransferred >= conf.maxChunksBeingTransferred) {
       logError(s"The number of chunks being transferred $chunksBeingTransferred" +
-        s"is above ${conf.maxChunksBeingTransferred()}.")
+        s"is above ${conf.maxChunksBeingTransferred}.")
       workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+      // TODO will it cause a hang?
     } else {
       try {
         val buf = streamManager.getChunk(
@@ -151,12 +155,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           req.streamChunkSlice.len)
         streamManager.chunkBeingSent(req.streamChunkSlice.streamId)
         client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
-          .addListener(new GenericFutureListener[Future[_ >: Void]] {
-            override def operationComplete(future: Future[_ >: Void]): Unit = {
-              streamManager.chunkSent(req.streamChunkSlice.streamId)
-              workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
-            }
-          })
+          .addListener { _ =>
+            streamManager.chunkSent(req.streamChunkSlice.streamId)
+            workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+          }
       } catch {
         case e: Exception =>
           logError(
@@ -174,10 +176,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def checkRegistered: Boolean = registered.get
 
   override def channelInactive(client: TransportClient): Unit = {
-    logDebug("channel Inactive " + client.getSocketAddress)
+    streamManager.connectionTerminated(client.getChannel)
+    logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 
   override def exceptionCaught(cause: Throwable, client: TransportClient): Unit = {
-    logDebug("exception caught " + cause + " " + client.getSocketAddress)
+    logWarning(s"exception caught ${client.getSocketAddress}", cause)
   }
 }
