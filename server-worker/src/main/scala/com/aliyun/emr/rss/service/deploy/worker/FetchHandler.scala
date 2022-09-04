@@ -155,10 +155,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           req.streamChunkSlice.len)
         streamManager.chunkBeingSent(req.streamChunkSlice.streamId)
         client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
-          .addListener { _ =>
-            streamManager.chunkSent(req.streamChunkSlice.streamId)
-            workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
-          }
+          .addListener(new GenericFutureListener[Future[_ >: Void]] {
+            override def operationComplete(future: Future[_ >: Void]): Unit = {
+              streamManager.chunkSent(req.streamChunkSlice.streamId)
+              workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+            }
       } catch {
         case e: Exception =>
           logError(
