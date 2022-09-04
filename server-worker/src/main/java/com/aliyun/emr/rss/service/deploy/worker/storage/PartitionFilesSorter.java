@@ -64,7 +64,8 @@ import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
 
-  private static final LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
+  private static final LevelDBProvider.StoreVersion CURRENT_VERSION =
+      new LevelDBProvider.StoreVersion(1, 0);
   private static final String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
   private File recoverFile;
   private volatile boolean shutdown = false;
