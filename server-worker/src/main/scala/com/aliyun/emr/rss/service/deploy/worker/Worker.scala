@@ -46,7 +46,8 @@ import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, S
 
 private[deploy] class Worker(
     val conf: RssConf,
-    val workerArgs: WorkerArguments) extends Service with Logging {
+    val workerArgs: WorkerArguments)
+  extends Service(conf) with Logging {
 
   override def serviceName: String = Service.WORKER
 

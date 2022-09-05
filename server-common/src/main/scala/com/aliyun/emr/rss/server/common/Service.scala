@@ -24,9 +24,8 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer, HttpServiceInterface}
 
-abstract class Service extends Logging with HttpServiceInterface {
+abstract class Service(conf: RssConf) extends Logging with HttpServiceInterface {
   def serviceName: String
-  def conf: RssConf
   def metricsSystem: MetricsSystem
 
   def initial(): Unit

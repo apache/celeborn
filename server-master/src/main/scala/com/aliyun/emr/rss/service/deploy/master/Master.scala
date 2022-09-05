@@ -44,7 +44,7 @@ import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMast
 private[deploy] class Master(
     val conf: RssConf,
     val masterArgs: MasterArguments)
-  extends Service with RpcEndpoint with Logging {
+  extends Service(conf) with RpcEndpoint with Logging {
 
   override def serviceName: String = Service.MASTER
 
