@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
+import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
 
 import com.aliyun.emr.rss.common.RssConf
@@ -147,7 +148,7 @@ private[deploy] class Worker(
   val workerInfo =
     new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, diskInfos, controller.self)
 
-  // whether this Worker registered to Master succesfully
+  // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
 
   val shuffleMapperAttempts = new ConcurrentHashMap[String, Array[Int]]()
@@ -192,7 +193,7 @@ private[deploy] class Worker(
     WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
-  def heartBeatToMaster(): Unit = {
+  private def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
@@ -216,14 +217,14 @@ private[deploy] class Worker(
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
-      // Clean all shuffle related metadata and data
+      // Clean expired shuffle.
       cleanup(response.expiredShuffleKeys)
       try {
         registerWithMaster()
       } catch {
         case e: Throwable =>
           logError("Re-register worker failed after worker lost.", e)
-          // Register failed then stop server
+          // Register to master failed then stop server
           System.exit(-1)
       }
     }
@@ -248,12 +249,11 @@ private[deploy] class Worker(
     checkFastfailTask = forwardMessageScheduler.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          unavailablePeers.entrySet().asScala.foreach(entry => {
-            if (System.currentTimeMillis() - entry.getValue >
-                REPLICATE_FAST_FAIL_DURATION) {
+          unavailablePeers.entrySet().asScala.foreach { entry =>
+            if (System.currentTimeMillis() - entry.getValue > REPLICATE_FAST_FAIL_DURATION) {
               unavailablePeers.remove(entry.getKey)
             }
-          })
+          }
         }
       },
       0,
@@ -327,7 +327,6 @@ private[deploy] class Worker(
     replicateThreadPool.shutdownNow()
     commitThreadPool.shutdownNow()
     asyncReplyPool.shutdownNow()
-    // TODO: make sure when after call close, file status should be consistent
     partitionsSorter.close()
 
     if (null != storageManager) {
@@ -392,6 +391,7 @@ private[deploy] class Worker(
     storageManager.shuffleKeySet().asScala.mkString("\n")
   }
 
+  @VisibleForTesting
   def isRegistered(): Boolean = {
     registered.get()
   }
