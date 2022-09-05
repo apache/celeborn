@@ -310,7 +310,7 @@ sealed trait Message extends Serializable {
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.GET_BLACKLIST_RESPONSE, payload)
 
-      case _: CheckAlive =>
+      case CheckAlive =>
         new TransportMessage(
           TransportMessages.MessageType.CHECK_ALIVE,
           PbCheckAlive.newBuilder().build().toByteArray)
@@ -639,7 +639,7 @@ object ControlMessages extends Logging {
       blacklist: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo]) extends Message
 
-  case class CheckAlive() extends Message
+  case object CheckAlive extends Message
 
   case class CheckAliveResponse(alive: Boolean) extends Message
 
@@ -927,7 +927,7 @@ object ControlMessages extends Logging {
             .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
       case CHECK_ALIVE =>
-        CheckAlive()
+        CheckAlive
 
       case CHECK_ALIVE_RESPONSE =>
         val pbCheckAliveResponse = PbCheckAliveResponse
