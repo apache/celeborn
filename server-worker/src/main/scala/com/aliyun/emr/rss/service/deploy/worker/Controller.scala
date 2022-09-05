@@ -46,7 +46,6 @@ private[deploy] class Controller(
 
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
-  var registered: AtomicBoolean = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: PartitionLocationInfo = _
@@ -59,7 +58,6 @@ private[deploy] class Controller(
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
     storageManager = worker.storageManager
-    registered = worker.registered
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     workerInfo = worker.workerInfo
     partitionLocationInfo = worker.partitionLocationInfo
@@ -496,9 +494,5 @@ private[deploy] class Controller(
   private def handleThreadDump(context: RpcCallContext): Unit = {
     val threadDump = Utils.getThreadDump()
     context.reply(ThreadDumpResponse(threadDump))
-  }
-
-  def isRegistered(): Boolean = {
-    registered.get()
   }
 }
