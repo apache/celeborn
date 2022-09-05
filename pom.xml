@@ -692,8 +692,6 @@
     <profile>
       <id>spark-2.4</id>
       <properties>
-        <jackson.version>2.6.7</jackson.version>
-        <jackson.databind.version>2.6.7.3</jackson.databind.version>
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.5</spark.version>
@@ -703,25 +701,11 @@
         <module>client-spark/shuffle-manager-common</module>
         <module>client-spark/${rss.shuffle.manager}</module>
       </modules>
-      <dependencies>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-          <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>${jackson.databind.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
 
     <profile>
       <id>spark-3.0</id>
       <properties>
-        <jackson.version>2.10.0</jackson.version>
-        <jackson.databind.version>2.10.0</jackson.databind.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.1</spark.version>
@@ -731,25 +715,11 @@
         <module>client-spark/shuffle-manager-common</module>
         <module>client-spark/${rss.shuffle.manager}</module>
       </modules>
-      <dependencies>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-          <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>${jackson.databind.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
 
     <profile>
       <id>spark-3.1</id>
       <properties>
-        <jackson.version>2.10.0</jackson.version>
-        <jackson.databind.version>2.10.0</jackson.databind.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.1.3</spark.version>
@@ -759,25 +729,11 @@
         <module>client-spark/shuffle-manager-common</module>
         <module>client-spark/${rss.shuffle.manager}</module>
       </modules>
-      <dependencies>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-          <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>${jackson.databind.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
 
     <profile>
       <id>spark-3.2</id>
       <properties>
-        <jackson.version>2.12.3</jackson.version>
-        <jackson.databind.version>2.12.3</jackson.databind.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.2</spark.version>
@@ -787,25 +743,11 @@
         <module>client-spark/shuffle-manager-common</module>
         <module>client-spark/${rss.shuffle.manager}</module>
       </modules>
-      <dependencies>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-          <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>${jackson.databind.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
 
     <profile>
       <id>spark-3.3</id>
       <properties>
-        <jackson.version>2.13.3</jackson.version>
-        <jackson.databind.version>2.13.3</jackson.databind.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.0</spark.version>
@@ -815,18 +757,6 @@
         <module>client-spark/shuffle-manager-common</module>
         <module>client-spark/${rss.shuffle.manager}</module>
       </modules>
-      <dependencies>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-          <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>${jackson.databind.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
   </profiles>
 </project>
