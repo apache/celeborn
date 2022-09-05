@@ -170,15 +170,26 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   private var fileInfosDb: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  if (RssConf.workerGracefulShutdown(conf)) {
-    try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
-      this.fileInfosDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
-      reloadAndCleanFileInfos(this.fileInfosDb)
-    } catch {
-      case e: Exception =>
-        logError("Init level DB failed:", e)
-        this.fileInfosDb = null
+
+  {
+    if (RssConf.workerGracefulShutdown(conf)) {
+      try {
+        val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
+        this.fileInfosDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
+        reloadAndCleanFileInfos(this.fileInfosDb)
+      } catch {
+        case e: Exception =>
+          logError("Init level DB failed:", e)
+          this.fileInfosDb = null
+      }
+    }
+    cleanupExpiredAppDirs(System.currentTimeMillis())
+    if(!checkIfWorkingDirCleaned) {
+      logWarning("Worker still has residual files in the working directory before registering with Master, " +
+        "please refer to the configuration document to increase rss.worker.checkIfFileCleanedRetryCount or " +
+        "rss.worker.checkIfFileCleanedTimeoutMs .")
+    } else {
+      logInfo("Successfully remove all files under working directory.")
     }
   }
 
@@ -435,6 +446,38 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         logWarning(s"Failed to delete expired shuffle file $file.")
       }
     }
+  }
+
+  private def checkIfWorkingDirCleaned: Boolean = {
+    var retryCount = 0
+    var isLocalFsCleaned = true
+    var isHdfsCleaned = true
+    val awaitInterval = RssConf.checkIfFileCleanedTimeoutMs(conf)
+    while (retryCount < RssConf.checkIfFileCleanedRetryCount(conf)) {
+      disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
+        diskInfo.dirs.foreach { case workingDir =>
+          isLocalFsCleaned = isLocalFsCleaned && workingDir.listFiles().isEmpty
+        }
+      }
+
+      if (hdfsFs != null) {
+        isHdfsCleaned = !hdfsFs.listFiles(new Path(hdfsDir, RssConf.workingDirName(conf)), false).hasNext &&
+          isHdfsCleaned
+      }
+
+      if (isLocalFsCleaned && isHdfsCleaned) {
+        return true
+      }
+      retryCount += 1
+      isLocalFsCleaned = true
+      isHdfsCleaned = true
+      if (retryCount < RssConf.checkIfFileCleanedRetryCount(conf)) {
+        logInfo(s"Working directory's files have not been cleaned up completely, " +
+          s"will start ${retryCount + 1}th attempt after ${awaitInterval} milliseconds.")
+      }
+      Thread.sleep(awaitInterval)
+    }
+    false
   }
 
   def close(): Unit = {
