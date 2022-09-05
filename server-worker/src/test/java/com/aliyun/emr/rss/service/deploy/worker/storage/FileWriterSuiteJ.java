@@ -41,7 +41,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.aliyun.emr.rss.common.metrics.MetricsSystem;
 import scala.Function0;
 import scala.collection.mutable.ListBuffer;
 
@@ -57,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.FileInfo;
+import com.aliyun.emr.rss.common.metrics.MetricsSystem;
 import com.aliyun.emr.rss.common.metrics.source.RPCSource;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
