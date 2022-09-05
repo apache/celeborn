@@ -111,7 +111,9 @@ private[deploy] class Master(
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
   private val masterSource = new MasterSource(conf)
-  masterSource.addGauge(MasterSource.RegisteredShuffleCount, _ => statusSystem.registeredShuffle.size())
+  masterSource.addGauge(
+    MasterSource.RegisteredShuffleCount,
+    _ => statusSystem.registeredShuffle.size())
   // blacklist worker count
   masterSource.addGauge(MasterSource.BlacklistedWorkerCount, _ => statusSystem.blacklist.size())
   // worker count
