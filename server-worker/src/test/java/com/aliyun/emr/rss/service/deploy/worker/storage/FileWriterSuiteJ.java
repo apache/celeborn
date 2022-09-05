@@ -41,6 +41,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.aliyun.emr.rss.common.metrics.MetricsSystem;
 import scala.Function0;
 import scala.collection.mutable.ListBuffer;
 
@@ -137,7 +138,7 @@ public class FileWriterSuiteJ {
 
           @Override
           public RPCSource rpcSource() {
-            return new RPCSource(RSS_CONF);
+            return new RPCSource(RSS_CONF, MetricsSystem.ROLE_WORKER());
           }
 
           @Override
