@@ -99,7 +99,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     conf)
   rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
 
-  logInfo(s"Start LifecycleManager on ${rpcEnv.address}")
+  logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   private val totalWritten = new LongAdder
@@ -118,7 +118,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
             val tmpTotalWritten = totalWritten.sumThenReset()
             val tmpFileCount = fileCount.sumThenReset()
-            logDebug(s"Send app heart beat with $tmpTotalWritten $tmpFileCount")
+            logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
             val appHeartbeat =
               HeartBeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
             rssHARetryClient.send(appHeartbeat)
@@ -696,9 +696,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     ThreadUtils.parmap(
       allocatedWorkers.asScala.to,
       "CommitFiles",
-      parallelism) { w2p =>
-      val worker = w2p._1
-      val partitionLocationInfo = w2p._2
+      parallelism) { case (worker, partitionLocationInfo) =>
       if (partitionLocationInfo.containsShuffle(shuffleId.toString)) {
         val masterParts = partitionLocationInfo.getAllMasterLocations(shuffleId.toString)
         val slaveParts = partitionLocationInfo.getAllSlaveLocations(shuffleId.toString)
@@ -762,7 +760,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       rssHARetryClient,
       ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
 
-    def hasCommonFailedIds(): Boolean = {
+    def hasCommitFailedIds: Boolean = {
       if (!ShouldReplicate && failedMasterIds.size() != 0) {
         return true
       }
@@ -775,7 +773,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       false
     }
 
-    val dataLost = hasCommonFailedIds()
+    val dataLost = hasCommitFailedIds
 
     if (!dataLost) {
       val committedPartitions = new util.HashMap[String, PartitionLocation]
@@ -1237,7 +1235,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val res = requestGetBlacklist(rssHARetryClient, msg)
     if (res.statusCode == StatusCode.Success) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
-        s"unkown workers: ${res.unknownWorkers}")
+        s"unknown workers: ${res.unknownWorkers}")
       val initFailedWorker = ConcurrentHashMap.newKeySet[WorkerInfo]()
       initFailedWorker.addAll(blacklist.asScala.filter(_.endpoint == null).asJava)
       blacklist.clear()

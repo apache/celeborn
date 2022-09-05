@@ -100,8 +100,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       for (int i = 0; i < workerIds.size(); i++) {
         String workerId = workerIds.get(i);
         WorkerInfo worker = WorkerInfo.fromUniqueId(workerId);
-        for (int j = 0; j < workers.size(); j++) {
-          WorkerInfo w = workers.get(j);
+        for (WorkerInfo w : workers) {
           if (w.equals(worker)) {
             Map<String, Integer> slotToRelease = slots.get(i);
             LOG.info("release slots for worker " + w + ", to release: " + slotToRelease);

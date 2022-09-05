@@ -17,7 +17,6 @@
 
 package org.apache.spark.shuffle.rss;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -76,18 +75,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @Nullable private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
-  /** Subclass of ByteArrayOutputStream that exposes `buf` directly. */
-  private static final class MyByteArrayOutputStream extends ByteArrayOutputStream {
-    MyByteArrayOutputStream(int size) {
-      super(size);
-    }
-
-    public byte[] getBuf() {
-      return buf;
-    }
-  }
-
-  private final MyByteArrayOutputStream serBuffer;
+  private final OpenByteArrayOutputStream serBuffer;
   private final SerializationStream serOutputStream;
 
   private byte[][] sendBuffers;
@@ -96,7 +84,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
-  private SendBufferPool sendBufferPool;
+  private final SendBufferPool sendBufferPool;
 
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true and
@@ -129,7 +117,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
 
-    serBuffer = new MyByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
+    serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
 
     mapStatusLengths = new LongAdder[numPartitions];
@@ -142,9 +130,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     SEND_BUFFER_SIZE = RssConf.pushDataBufferSize(conf);
 
     this.sendBufferPool = sendBufferPool;
-    sendBuffers = sendBufferPool.aquireBuffer(numPartitions);
+    sendBuffers = sendBufferPool.acquireBuffer(numPartitions);
     if (sendBuffers == null) {
-      logger.info("Aquire failed");
+      logger.info("Acquire failed");
       sendBuffers = new byte[numPartitions][];
     }
     sendOffsets = new int[numPartitions];
@@ -377,7 +365,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       taskContext.taskMetrics().incPeakExecutionMemory(peakMemoryUsedBytes);
 
       if (stopping) {
-        return Option.apply(null);
+        return Option.empty();
       } else {
         stopping = true;
         if (success) {
@@ -386,7 +374,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
           return Option.apply(mapStatus);
         } else {
-          return Option.apply(null);
+          return Option.empty();
         }
       }
     } finally {

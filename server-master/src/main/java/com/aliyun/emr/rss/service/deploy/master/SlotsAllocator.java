@@ -172,7 +172,7 @@ public class SlotsAllocator {
       List<WorkerInfo> workers,
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
       boolean shouldReplicate) {
-    // wokerInfo -> (diskIndexForMaster, diskIndexForSlave)
+    // workerInfo -> (diskIndexForMaster, diskIndexForSlave)
     Map<WorkerInfo, Integer> workerDiskIndexForMaster = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForSlave = new HashMap<>();
     List<Integer> partitionIdList = new ArrayList<>(partitionIds);

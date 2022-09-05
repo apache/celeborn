@@ -310,9 +310,11 @@ object Utils extends Logging {
     new URI("file", null, "localhost", -1, "/" + fileName, null, null).getRawPath.substring(1)
   }
 
-  val isWindows = SystemUtils.IS_OS_WINDOWS
+  val isWindows: Boolean = SystemUtils.IS_OS_WINDOWS
 
-  val isMac = SystemUtils.IS_OS_MAC_OSX
+  val isMac: Boolean = SystemUtils.IS_OS_MAC_OSX
+
+  val isMacOnAppleSilicon = SystemUtils.IS_OS_MAC_OSX && SystemUtils.OS_ARCH.equals("aarch64")
 
   private lazy val localIpAddress: InetAddress = findLocalInetAddress()
 

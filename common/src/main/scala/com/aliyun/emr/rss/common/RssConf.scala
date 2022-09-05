@@ -923,6 +923,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
+  def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.diskFlusherShutdownTimeoutMs", "3000ms")
+  }
+
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
@@ -943,7 +947,7 @@ object RssConf extends Logging {
 
   def hdfsDir(conf: RssConf): String = {
     val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
-    if (hdfsDir.nonEmpty && Utils.isHdfsPath(hdfsDir)) {
+    if (hdfsDir.nonEmpty && !Utils.isHdfsPath(hdfsDir)) {
       log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
       ""
     } else {
@@ -999,7 +1003,7 @@ object RssConf extends Logging {
 
   // Ratis snapshot configurations
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.auto.trigger.enabled"
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = false
+  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = true
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY = "rss.ha.ratis.snapshot.auto.trigger.threshold"
   val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT = 200000
   val HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_KEY = "rss.ratis.snapshot.retention.file.num"

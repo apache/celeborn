@@ -70,12 +70,12 @@ private[deploy] class Worker(
     "If enable graceful shutdown, the worker should use stable server port.")
 
   val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
-  val rpcSource = new RPCSource(conf)
+  val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_WORKER)
   val workerSource = new WorkerSource(conf)
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(rpcSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WOKRER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WOKRER))
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
@@ -381,6 +381,7 @@ private[deploy] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
+      workerInfo.releaseSlots(shuffleKey)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
     partitionsSorter.cleanup(expiredShuffleKeys)

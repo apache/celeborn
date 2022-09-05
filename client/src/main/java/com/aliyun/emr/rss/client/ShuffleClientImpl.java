@@ -256,9 +256,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         RegisterShuffleResponse response =
-            driverRssMetaService.<RegisterShuffleResponse>askSync(
+            driverRssMetaService.askSync(
                 new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
-                ClassTag$.MODULE$.<RegisterShuffleResponse>apply(RegisterShuffleResponse.class));
+                ClassTag$.MODULE$.apply(RegisterShuffleResponse.class));
 
         if (response.status().equals(StatusCode.Success)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
@@ -269,18 +269,18 @@ public class ShuffleClientImpl extends ShuffleClient {
           return result;
         } else if (response.status().equals(StatusCode.SlotNotAvailable)) {
           logger.warn(
-              "LifecycleManager request slots return {}, retry again," + " remain retry times {}",
-              StatusCode.SlotNotAvailable.toString(),
+              "LifecycleManager request slots return {}, retry again, remain retry times {}",
+              StatusCode.SlotNotAvailable,
               numRetries - 1);
         } else {
           logger.error(
-              "LifecycleManager request slots return {}, retry again," + " remain retry times {}",
-              StatusCode.Failed.toString(),
+              "LifecycleManager request slots return {}, retry again, remain retry times {}",
+              StatusCode.Failed,
               numRetries - 1);
         }
       } catch (Exception e) {
         logger.error(
-            "Exception raised while registering shuffle {} with {} mapper and" + " {} partitions.",
+            "Exception raised while registering shuffle {} with {} mapper and {} partitions.",
             shuffleId,
             numMappers,
             numPartitions,
@@ -566,17 +566,12 @@ public class ShuffleClientImpl extends ShuffleClient {
                   null, new IOException("Revived PushData failed!", e));
               pushState.removeFuture(nextBatchId);
               logger.error(
-                  "Push data to "
-                      + loc.getHost()
-                      + ":"
-                      + loc.getPushPort()
-                      + " failed for map "
-                      + mapId
-                      + " attempt "
-                      + attemptId
-                      + " batch "
-                      + nextBatchId
-                      + ".",
+                  "Push data to {}:{} failed for map {} attempt {} batch {}.",
+                  loc.getHost(),
+                  loc.getPushPort(),
+                  mapId,
+                  attemptId,
+                  nextBatchId,
                   e);
             }
           };
@@ -629,17 +624,12 @@ public class ShuffleClientImpl extends ShuffleClient {
                 return;
               }
               logger.error(
-                  "Push data to "
-                      + loc.getHost()
-                      + ":"
-                      + loc.getPushPort()
-                      + " failed for map "
-                      + mapId
-                      + " attempt "
-                      + attemptId
-                      + " batch "
-                      + nextBatchId
-                      + ".",
+                  "Push data to {}:{} failed for map {} attempt {} batch {}.",
+                  loc.getHost(),
+                  loc.getPushPort(),
+                  mapId,
+                  attemptId,
+                  nextBatchId,
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
@@ -659,8 +649,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 pushState.inFlightBatches.remove(nextBatchId);
                 logger.info(
-                    "Mapper shuffleId:{} mapId:{} attempt:{} already ended,"
-                        + " remove batchId:{} .",
+                    "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
                     shuffleId,
                     mapId,
                     attemptId,

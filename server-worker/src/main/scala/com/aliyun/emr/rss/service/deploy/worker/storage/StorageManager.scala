@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
@@ -333,7 +334,11 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  def shuffleKeySet(): util.Set[String] = fileInfos.keySet()
+  def shuffleKeySet(): util.HashSet[String] = {
+    val hashSet = new util.HashSet[String]()
+    hashSet.addAll(fileInfos.keySet())
+    hashSet
+  }
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
@@ -443,9 +448,15 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       }
     }
     if (null != diskOperators) {
-      diskOperators.asScala.foreach(entry => {
-        entry._2.shutdownNow()
-      })
+      cleanupExpiredShuffleKey(shuffleKeySet())
+      ThreadUtils.parmap(
+        diskOperators.asScala.toMap,
+        "ShutdownDiskOperators",
+        diskOperators.size()) { entry =>
+        ThreadUtils.shutdown(
+          entry._2,
+          RssConf.workerDiskFlusherShutdownTimeoutMs(conf).milliseconds)
+      }
     }
     storageScheduler.shutdownNow()
     if (null != deviceMonitor) {
