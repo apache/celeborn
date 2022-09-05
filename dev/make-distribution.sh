@@ -151,7 +151,7 @@ cp "$RSS_HOME"/server-master/target/master-$VERSION.jar "$DISTDIR/master-jars/"
 cp "$RSS_HOME"/server-master/target/scala-$SCALA_VERSION/jars/*.jar "$DISTDIR/master-jars/"
 cp "$RSS_HOME"/server-worker/target/worker-$VERSION.jar "$DISTDIR/worker-jars/"
 cp "$RSS_HOME"/server-worker/target/scala-$SCALA_VERSION/jars/*.jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/client-spark/shuffle-manager-$SPARK_MAJOR_VERSION/target/rss-shuffle-manager-$SPARK_MAJOR_VERSION-$VERSION-shaded.jar "$DISTDIR/spark/"
+cp "$RSS_HOME"/client-spark/shuffle-manager-$SPARK_MAJOR_VERSION/target/shuffle-manager-$SPARK_MAJOR_VERSION-$VERSION-shaded.jar "$DISTDIR/spark/"
 
 # Copy other things
 mkdir "$DISTDIR/conf"
