@@ -136,7 +136,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
     val chunksBeingTransferred = streamManager.chunksBeingTransferred
     if (chunksBeingTransferred > conf.maxChunksBeingTransferred) {
-      val message = s"Worker too busy. The number of chunks being transferred " +
+      val message = "Worker is too busy. The number of chunks being transferred " +
         s"$chunksBeingTransferred exceeds rss.shuffle.maxChunksBeingTransferred " +
         s"${conf.maxChunksBeingTransferred}."
       logError(message)
