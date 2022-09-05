@@ -57,8 +57,6 @@ import com.aliyun.emr.rss.common.util.ShuffleBlockInfoUtils;
 import com.aliyun.emr.rss.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
-import com.aliyun.emr.rss.common.util.ThreadUtils;
-import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.common.utils.PBSerDeUtils;
 import com.aliyun.emr.rss.common.utils.ShuffleBlockInfoUtils;
 import com.aliyun.emr.rss.common.utils.ShuffleBlockInfoUtils.ShuffleBlockInfo;
