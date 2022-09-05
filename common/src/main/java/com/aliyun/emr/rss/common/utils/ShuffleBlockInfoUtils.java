@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.util;
+package com.aliyun.emr.rss.common.utils;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
