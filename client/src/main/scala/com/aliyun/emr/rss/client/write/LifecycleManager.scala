@@ -637,14 +637,14 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     while (!stageEndShuffleSet.contains(shuffleId)) {
       Thread.sleep(delta)
       if (timeout <= 0) {
-        logError(s"StageEnd Timeout! $shuffleId.")
+        logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
         context.reply(
           GetReducerFileGroupResponse(StatusCode.StageEndTimeOut, Array.empty, Array.empty))
         return
       }
       timeout = timeout - delta
     }
-    logInfo("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
+    logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
       s" ${stageEndTimeout - timeout}ms")
 
     if (dataLostShuffleSet.contains(shuffleId)) {

@@ -106,10 +106,12 @@ SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
-SHUFFLE_MANAGER_DIR=$("$MVN" help:evaluate -Dexpression=rss.shuffle.manager $@ 2>/dev/null\
+SPARK_VERSION=$("$MVN" help:evaluate -Dexpression=spark.version $@ 2>/dev/null\
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
+
+SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
 
 echo "RSS version is $VERSION"
 
@@ -127,7 +129,7 @@ export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
 # Store the command as an array because $MVN variable might have spaces in it.
 # Normal quoting tricks don't work.
 # See: http://mywiki.wooledge.org/BashFAQ/050
-BUILD_COMMAND=("$MVN" -T 1C clean package -DskipTests $@)
+BUILD_COMMAND=("$MVN" clean package -DskipTests $@)
 
 # Actually build the jar
 echo -e "\nBuilding with..."
@@ -145,11 +147,11 @@ echo "RSS $VERSION$GITREVSTRING" > "$DISTDIR/RELEASE"
 echo "Build flags: $@" >> "$DISTDIR/RELEASE"
 
 # Copy jars
-cp "$RSS_HOME"/server-master/target/master-"$VERSION".jar "$DISTDIR/master-jars/"
-cp "$RSS_HOME"/server-master/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/master-jars/"
-cp "$RSS_HOME"/server-worker/target/worker-"$VERSION".jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/server-worker/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/client-spark/${SHUFFLE_MANAGER_DIR}/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/spark/"
+cp "$RSS_HOME"/server-master/target/master-$VERSION.jar "$DISTDIR/master-jars/"
+cp "$RSS_HOME"/server-master/target/scala-$SCALA_VERSION/jars/*.jar "$DISTDIR/master-jars/"
+cp "$RSS_HOME"/server-worker/target/worker-$VERSION.jar "$DISTDIR/worker-jars/"
+cp "$RSS_HOME"/server-worker/target/scala-$SCALA_VERSION/jars/*.jar "$DISTDIR/worker-jars/"
+cp "$RSS_HOME"/client-spark/shuffle-manager-$SPARK_MAJOR_VERSION/target/shuffle-manager-$SPARK_MAJOR_VERSION-$VERSION-shaded.jar "$DISTDIR/spark/"
 
 # Copy other things
 mkdir "$DISTDIR/conf"
