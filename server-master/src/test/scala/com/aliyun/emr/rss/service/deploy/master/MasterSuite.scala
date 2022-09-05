@@ -26,7 +26,6 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants
 import com.aliyun.emr.rss.common.rpc.RpcEnv
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
-import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll

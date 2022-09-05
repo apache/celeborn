@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.service.deploy.master.http
+package com.aliyun.emr.rss.server.common.http
 
 import io.netty.buffer.Unpooled
 import io.netty.channel.{ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler}
 import io.netty.channel.ChannelHandler.Sharable
-import io.netty.handler.codec.http.{DefaultFullHttpResponse, FullHttpRequest, HttpHeaderNames, HttpResponseStatus, HttpVersion}
+import io.netty.handler.codec.http._
 import io.netty.util.CharsetUtil
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.sink.PrometheusHttpRequestHandler
-import com.aliyun.emr.rss.service.deploy.master.Master
+import com.aliyun.emr.rss.server.common.Service
 
 @Sharable
 class HttpRequestHandler(
-    val master: Master,
+    val service: Service,
     prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
   extends SimpleChannelInboundHandler[FullHttpRequest] with Logging {
 
@@ -63,15 +63,15 @@ class HttpRequestHandler(
   def handleRequest(uri: String): String = {
     uri match {
       case "/workerInfo" =>
-        master.getWorkerInfos
+        service.getWorkerInfo
       case "/threadDump" =>
-        master.getThreadDump
-      case "/hostnames" =>
-        master.getHostnameList
-      case "/applications" =>
-        master.getApplicationList
+        service.getThreadDump
+      case "/hostnames" if service.serviceName == Service.MASTER =>
+        service.getHostnameList
+      case "/applications" if service.serviceName == Service.MASTER =>
+        service.getApplicationList
       case "/shuffles" =>
-        master.getShuffleList
+        service.getShuffleList
       case _ => INVALID
     }
   }
