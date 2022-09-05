@@ -93,7 +93,7 @@
         </dependency>
         <dependency>
             <groupId>com.aliyun.emr</groupId>
-            <artifactId>rss-shuffle-manager</artifactId>
+            <artifactId>${rss.shuffle.manager}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
