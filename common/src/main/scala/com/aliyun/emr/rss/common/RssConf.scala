@@ -778,12 +778,12 @@ object RssConf extends Logging {
     conf.getTimeAsSeconds("rss.worker.status.check.timeout", "30s")
   }
 
-  def checkIfFileCleanedRetryCount(conf: RssConf): Int = {
-    conf.getInt("rss.worker.checkIfFileCleanedRetryCount", 3)
+  def checkFileCleanRetryTimes(conf: RssConf): Int = {
+    conf.getInt("rss.worker.checkFileCleanRetryTimes", 3)
   }
 
-  def checkIfFileCleanedTimeoutMs(conf: RssConf): Long = {
-    conf.getLong("rss.worker.checkIfFileCleanedTimeoutMs", 1000)
+  def checkFileCleanTimeoutMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
   }
 
   /**

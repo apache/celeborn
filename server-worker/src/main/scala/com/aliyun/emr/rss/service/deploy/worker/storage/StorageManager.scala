@@ -184,10 +184,11 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       }
     }
     cleanupExpiredAppDirs(System.currentTimeMillis())
-    if(!checkIfWorkingDirCleaned) {
-      logWarning("Worker still has residual files in the working directory before registering with Master, " +
-        "please refer to the configuration document to increase rss.worker.checkIfFileCleanedRetryCount or " +
-        "rss.worker.checkIfFileCleanedTimeoutMs .")
+    if (!checkIfWorkingDirCleaned) {
+      logWarning(
+        "Worker still has residual files in the working directory before registering with Master, " +
+          "please refer to the configuration document to increase rss.worker.checkFileCleanRetryTimes or " +
+          "rss.worker.checkFileCleanTimeoutMs .")
     } else {
       logInfo("Successfully remove all files under working directory.")
     }
@@ -449,33 +450,35 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   private def checkIfWorkingDirCleaned: Boolean = {
-    var retryCount = 0
-    var isLocalFsCleaned = true
-    var isHdfsCleaned = true
-    val awaitInterval = RssConf.checkIfFileCleanedTimeoutMs(conf)
-    while (retryCount < RssConf.checkIfFileCleanedRetryCount(conf)) {
-      disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
-        diskInfo.dirs.foreach { case workingDir =>
-          isLocalFsCleaned = isLocalFsCleaned && workingDir.listFiles().isEmpty
+    var retryTimes = 0
+    var localCleaned = true
+    var hdfsCleaned = true
+    val awaitTimeout = RssConf.checkFileCleanTimeoutMs(conf)
+    while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+      val isEmpty = !disksSnapshot().filter(_.status != DiskStatus.IoHang).exists { case diskInfo =>
+        diskInfo.dirs.exists { case workingDir =>
+          workingDir.listFiles().nonEmpty
         }
       }
+      localCleaned = isEmpty && localCleaned
 
       if (hdfsFs != null) {
-        isHdfsCleaned = !hdfsFs.listFiles(new Path(hdfsDir, RssConf.workingDirName(conf)), false).hasNext &&
-          isHdfsCleaned
+        hdfsCleaned =
+          !hdfsFs.listFiles(new Path(hdfsDir, RssConf.workingDirName(conf)), false).hasNext &&
+            hdfsCleaned
       }
 
-      if (isLocalFsCleaned && isHdfsCleaned) {
+      if (localCleaned && hdfsCleaned) {
         return true
       }
-      retryCount += 1
-      isLocalFsCleaned = true
-      isHdfsCleaned = true
-      if (retryCount < RssConf.checkIfFileCleanedRetryCount(conf)) {
+      retryTimes += 1
+      localCleaned = true
+      hdfsCleaned = true
+      if (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
         logInfo(s"Working directory's files have not been cleaned up completely, " +
-          s"will start ${retryCount + 1}th attempt after ${awaitInterval} milliseconds.")
+          s"will start ${retryTimes + 1}th attempt after ${awaitTimeout} milliseconds.")
       }
-      Thread.sleep(awaitInterval)
+      Thread.sleep(awaitTimeout)
     }
     false
   }
