@@ -1359,7 +1359,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   def checkAlive(): Boolean = {
     try {
-      rssHARetryClient.askSync[CheckAliveResponse](CheckAlive, classOf[CheckAliveResponse]).alive
+      rssHARetryClient.askSync[CheckAliveResponse](CheckAlive(), classOf[CheckAliveResponse]).alive
     } catch {
       case e: Exception =>
         logError(s"AskSync Cluster Load Status failed.", e)
