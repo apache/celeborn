@@ -23,8 +23,7 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{CommitFiles, Destroy, ReserveSlots}
 
-class RPCSource(rssConf: RssConf)
-  extends AbstractSource(rssConf, MetricsSystem.ROLE_WOKRER) with Logging {
+class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
   override val sourceName = "rpc"
 
   import RPCSource._

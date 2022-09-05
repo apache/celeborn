@@ -26,8 +26,7 @@ import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet,
 
 import com.aliyun.emr.rss.common.RssConf
 
-class JVMSource(rssConf: RssConf, role: String)
-  extends AbstractSource(rssConf: RssConf, role: String) {
+class JVMSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
   override val sourceName = "JVM"
 
   // all of metrics of GCMetricSet and BufferPoolMetricSet are Gauge
