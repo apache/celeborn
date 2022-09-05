@@ -15,7 +15,7 @@
 
 syntax = "proto3";
 option java_package = "com.aliyun.emr.rss.common.protocol";
-option java_outer_classname = "TransportMessages";
+option java_multiple_files = true;
 
 enum MessageType {
   UNKNOWN_MESSAGE = 0;
