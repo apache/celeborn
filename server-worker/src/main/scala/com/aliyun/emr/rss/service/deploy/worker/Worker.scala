@@ -260,31 +260,21 @@ private[deploy] class Worker(
       REPLICATE_FAST_FAIL_DURATION,
       TimeUnit.MILLISECONDS)
 
-    if (RssConf.metricsSystemEnable(conf)) {
-      logInfo(s"Metrics system enabled!")
-      metricsSystem.start()
-
-      val host = RssConf.workerPrometheusMetricHost(conf)
-      var port = RssConf.workerPrometheusMetricPort(conf)
-      var initialized = false
-      while (!initialized) {
-        try {
-          val httpServer = new HttpServer(
-            "worker",
-            host,
-            port,
-            new HttpServerInitializer(
-              new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)))
-          httpServer.start()
-          initialized = true
-        } catch {
-          case e: Exception =>
-            logWarning(s"HttpServer pushPort $port may already exist, try pushPort ${port + 1}.", e)
-            port += 1
-            Thread.sleep(1000)
-        }
+    val handlers =
+      if (RssConf.metricsSystemEnable(conf)) {
+        logInfo(s"Metrics system enabled.")
+        metricsSystem.start()
+        new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
+      } else {
+        new HttpRequestHandler(this, null)
       }
-    }
+    val httpServer = new HttpServer(
+      "worker",
+      RssConf.workerPrometheusMetricHost(conf),
+      RssConf.workerPrometheusMetricPort(conf),
+      new HttpServerInitializer(handlers))
+
+    httpServer.start()
 
     cleaner = new Thread("Cleaner") {
       override def run(): Unit = {
