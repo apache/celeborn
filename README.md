@@ -48,7 +48,7 @@ RSS supports Spark 2.4/3.0/3.1/3.2/3.3 and only tested under Java 8.
 
 Build for Spark
 ```
-./dev/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/Spark-3.3 -Plog4j-1/-Plog4j-2
+./dev/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/Spark-3.3
 ```
 
 package rss-${project.version}-bin-release.tgz will be generated.
