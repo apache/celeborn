@@ -25,7 +25,7 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>rss-shuffle-manager</artifactId>
+    <artifactId>rss-shuffle-manager-3</artifactId>
     <packaging>jar</packaging>
     <name>Aliyun E-MapReduce Shuffle Service Shuffle Manager for Spark 3</name>
 

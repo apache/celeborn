@@ -106,10 +106,12 @@ SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
-SHUFFLE_MANAGER_DIR=$("$MVN" help:evaluate -Dexpression=rss.shuffle.manager $@ 2>/dev/null\
+SPARK_VERSION=$("$MVN" help:evaluate -Dexpression=spark.version $@ 2>/dev/null\
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
+
+SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
 
 echo "RSS version is $VERSION"
 
@@ -145,11 +147,11 @@ echo "RSS $VERSION$GITREVSTRING" > "$DISTDIR/RELEASE"
 echo "Build flags: $@" >> "$DISTDIR/RELEASE"
 
 # Copy jars
-cp "$RSS_HOME"/server-master/target/master-"$VERSION".jar "$DISTDIR/master-jars/"
-cp "$RSS_HOME"/server-master/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/master-jars/"
-cp "$RSS_HOME"/server-worker/target/worker-"$VERSION".jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/server-worker/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/client-spark/${SHUFFLE_MANAGER_DIR}/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/spark/"
+cp "$RSS_HOME"/server-master/target/master-$VERSION.jar "$DISTDIR/master-jars/"
+cp "$RSS_HOME"/server-master/target/scala-$SCALA_VERSION/jars/*.jar "$DISTDIR/master-jars/"
+cp "$RSS_HOME"/server-worker/target/worker-$VERSION.jar "$DISTDIR/worker-jars/"
+cp "$RSS_HOME"/server-worker/target/scala-$SCALA_VERSION/jars/*.jar "$DISTDIR/worker-jars/"
+cp "$RSS_HOME"/client-spark/shuffle-manager-$SPARK_MAJOR_VERSION/target/rss-shuffle-manager-$SPARK_MAJOR_VERSION-$VERSION-shaded.jar "$DISTDIR/spark/"
 
 # Copy other things
 mkdir "$DISTDIR/conf"
