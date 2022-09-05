@@ -110,5 +110,4 @@ private class MetricsConfig(conf: RssConf) extends Logging {
       }
     }
   }
-
 }

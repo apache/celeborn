@@ -152,7 +152,7 @@ object MetricsSystem {
   val SINK_REGEX: Regex = "^sink\\.(.+)\\.(.+)".r
   val SOURCE_REGEX: Regex = "^com.aliyun.emr.rss.common.metrics.source\\.(.+)\\.(.+)".r
 
-  val ROLE_WOKRER = "Worker"
+  val ROLE_WORKER = "Worker"
   val ROLE_MASTER = "Master"
 
   private[this] val MINIMAL_POLL_UNIT = TimeUnit.SECONDS

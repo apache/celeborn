@@ -26,8 +26,7 @@ import com.codahale.metrics.Gauge
 
 import com.aliyun.emr.rss.common.RssConf
 
-class JVMCPUSource(rssConf: RssConf, role: String)
-  extends AbstractSource(rssConf: RssConf, role: String) {
+class JVMCPUSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
   override val sourceName = "CPU"
 
   import JVMCPUSource._
