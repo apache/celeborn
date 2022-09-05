@@ -51,7 +51,7 @@ private[deploy] class Worker(
   override def serviceName: String = Service.WORKER
 
   override val metricsSystem =
-    MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.ServletPath)
 
   val rpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -233,7 +233,7 @@ private[deploy] class Worker(
     }
   }
 
-  override def start(): Unit = {
+  override def initial(): Unit = {
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
@@ -291,7 +291,7 @@ private[deploy] class Worker(
     System.exit(0)
   }
 
-  def stop(): Unit = {
+  override def close(): Unit = {
     logInfo("Stopping RSS Worker.")
 
     if (sendHeartbeatTask != null) {
@@ -402,7 +402,7 @@ private[deploy] class Worker(
               s"unreleased PartitionLocation: \n$partitionLocationInfo")
           }
         }
-        stop()
+        close()
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)
@@ -421,6 +421,6 @@ private[deploy] object Worker extends Logging {
     }
 
     val worker = new Worker(conf, workerArgs)
-    worker.start()
+    worker.initial()
   }
 }

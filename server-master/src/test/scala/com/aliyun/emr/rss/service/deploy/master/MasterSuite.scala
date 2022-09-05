@@ -50,38 +50,10 @@ class MasterSuite extends AnyFunSuite
     val args = Array("-h", "localhost", "-p", "9097")
 
     val masterArgs = new MasterArguments(args, conf)
-
-    val rpcEnv = RpcEnv.create(
-      RpcNameConstants.MASTER_SYS,
-      masterArgs.host,
-      masterArgs.host,
-      masterArgs.port.getOrElse(0),
-      conf,
-      4)
-
-    val metricsSystem = MetricsSystem.createMetricsSystem("master", conf, MasterSource.ServletPath)
-    val master = new Master(rpcEnv, conf, metricsSystem)
-    rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, master)
-
-    val handlers =
-      if (RssConf.metricsSystemEnable(conf)) {
-        logInfo(s"Metrics system enabled.")
-        metricsSystem.start()
-        new HttpRequestHandler(master, metricsSystem.getPrometheusHandler)
-      } else {
-        new HttpRequestHandler(master, null)
-      }
-
-    val httpServer = new HttpServer(
-      "test-master",
-      RssConf.masterPrometheusMetricHost(conf),
-      RssConf.masterPrometheusMetricPort(conf),
-      new HttpServerInitializer(handlers))
-    httpServer.start()
-
+    val master = new Master(conf, masterArgs)
+    master.initial()
     Thread.sleep(5000L)
-
-    master.stop()
-    rpcEnv.shutdown()
+    master.close()
+    master.rpcEnv.shutdown()
   }
 }

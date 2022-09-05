@@ -29,7 +29,9 @@ abstract class Service extends Logging with HttpServiceInterface {
   def conf: RssConf
   def metricsSystem: MetricsSystem
 
-  def start(): Unit
+  def initial(): Unit
+
+  def close(): Unit
 
   def startHttpServer(): ChannelFuture = {
     val handlers =

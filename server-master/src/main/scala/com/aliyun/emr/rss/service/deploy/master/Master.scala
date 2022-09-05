@@ -49,7 +49,7 @@ private[deploy] class Master(
   override def serviceName: String = Service.MASTER
 
   override val metricsSystem =
-    MetricsSystem.createMetricsSystem("master", conf, MasterSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, MasterSource.ServletPath)
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
@@ -683,9 +683,14 @@ private[deploy] class Master(
     isActive
   }
 
-  override def start(): Unit = {
+  override def initial(): Unit = {
     startHttpServer()
     rpcEnv.awaitTermination()
+  }
+
+  override def close(): Unit = {
+    // RPCEnv.stop()
+    stop()
   }
 }
 
@@ -694,6 +699,6 @@ private[deploy] object Master extends Logging {
     val conf = new RssConf()
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    master.start()
+    master.initial()
   }
 }

@@ -125,23 +125,23 @@ trait MiniClusterFeature extends Logging {
     Thread.sleep(5000L)
 
     val (worker1, workerRpcEnv1) = createWorker(workerConfs)
-    val workerThread1 = runnerWrap(worker1.start())
+    val workerThread1 = runnerWrap(worker1.initial())
     workerThread1.start()
 
     val (worker2, workerRpcEnv2) = createWorker(workerConfs)
-    val workerThread2 = runnerWrap(worker2.start())
+    val workerThread2 = runnerWrap(worker2.initial())
     workerThread2.start()
 
     val (worker3, workerRpcEnv3) = createWorker(workerConfs)
-    val workerThread3 = runnerWrap(worker3.start())
+    val workerThread3 = runnerWrap(worker3.initial())
     workerThread3.start()
 
     val (worker4, workerRpcEnv4) = createWorker(workerConfs)
-    val workerThread4 = runnerWrap(worker4.start())
+    val workerThread4 = runnerWrap(worker4.initial())
     workerThread4.start()
 
     val (worker5, workerRpcEnv5) = createWorker(workerConfs)
-    val workerThread5 = runnerWrap(worker5.start())
+    val workerThread5 = runnerWrap(worker5.initial())
     workerThread5.start()
 
     Thread.sleep(5000L)

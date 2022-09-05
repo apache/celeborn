@@ -96,9 +96,9 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     val (worker2, workerRpcEnv2) = createWorker()
     val (worker3, workerRpcEnv) = createWorker()
     val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
-    val workerThread1 = runnerWrap(worker1.start())
-    val workerThread2 = runnerWrap(worker2.start())
-    val workerThread3 = runnerWrap(worker3.start())
+    val workerThread1 = runnerWrap(worker1.initial())
+    val workerThread2 = runnerWrap(worker2.initial())
+    val workerThread3 = runnerWrap(worker3.initial())
 
     masterThread.start()
     Thread.sleep(5000L)
