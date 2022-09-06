@@ -25,7 +25,6 @@ import scala.collection.JavaConverters._
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
@@ -41,13 +40,13 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.util.ShutdownHookManager
-import com.aliyun.emr.rss.server.common.Service
+import com.aliyun.emr.rss.server.common.{HttpService, Service}
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[deploy] class Worker(
     override val conf: RssConf,
     val workerArgs: WorkerArguments)
-  extends Service with Logging {
+  extends HttpService with Logging {
 
   override def serviceName: String = Service.WORKER
 

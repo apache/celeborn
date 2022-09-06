@@ -20,9 +20,8 @@ package com.aliyun.emr.rss.server.common
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.server.common.http.HttpServiceInterface
 
-abstract class Service extends Logging with HttpServiceInterface {
+abstract class Service extends Logging {
   def serviceName: String
 
   def conf: RssConf

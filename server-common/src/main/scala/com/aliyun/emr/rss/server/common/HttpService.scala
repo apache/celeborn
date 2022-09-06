@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.server.common.http
+package com.aliyun.emr.rss.server.common
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.server.common.Service
+import com.aliyun.emr.rss.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
 import io.netty.channel.ChannelFuture
 
-trait HttpServiceInterface extends Logging {
+abstract class HttpService extends Service with Logging {
 
   def getWorkerInfo: String = ""
 
