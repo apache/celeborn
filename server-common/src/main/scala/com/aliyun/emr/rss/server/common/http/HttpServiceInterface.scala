@@ -17,7 +17,12 @@
 
 package com.aliyun.emr.rss.server.common.http
 
-trait HttpServiceInterface {
+import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.server.common.Service
+import io.netty.channel.ChannelFuture
+
+trait HttpServiceInterface extends Logging {
 
   def getWorkerInfo: String = ""
 
@@ -28,4 +33,22 @@ trait HttpServiceInterface {
   def getApplicationList: String = ""
 
   def getShuffleList: String = ""
+
+  def startHttpServer(service: Service): ChannelFuture = {
+    val handlers =
+      if (RssConf.metricsSystemEnable(service.conf)) {
+        logInfo(s"Metrics system enabled.")
+        service.metricsSystem.start()
+        new HttpRequestHandler(service, service.metricsSystem.getPrometheusHandler)
+      } else {
+        new HttpRequestHandler(service, null)
+      }
+
+    val httpServer = new HttpServer(
+      "master",
+      RssConf.masterPrometheusMetricHost(service.conf),
+      RssConf.masterPrometheusMetricPort(service.conf),
+      new HttpServerInitializer(handlers))
+    httpServer.start()
+  }
 }

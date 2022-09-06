@@ -51,7 +51,7 @@ class MasterSuite extends AnyFunSuite
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    master.initial()
+    master.initialize()
     Thread.sleep(5000L)
     master.close()
     master.rpcEnv.shutdown()

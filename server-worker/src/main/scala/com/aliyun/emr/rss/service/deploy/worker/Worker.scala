@@ -45,9 +45,9 @@ import com.aliyun.emr.rss.server.common.Service
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[deploy] class Worker(
-    val conf: RssConf,
+    override val conf: RssConf,
     val workerArgs: WorkerArguments)
-  extends Service(conf) with Logging {
+  extends Service with Logging {
 
   override def serviceName: String = Service.WORKER
 
@@ -234,7 +234,7 @@ private[deploy] class Worker(
     }
   }
 
-  override def initial(): Unit = {
+  override def initialize(): Unit = {
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
@@ -422,6 +422,6 @@ private[deploy] object Worker extends Logging {
     }
 
     val worker = new Worker(conf, workerArgs)
-    worker.initial()
+    worker.initialize()
   }
 }

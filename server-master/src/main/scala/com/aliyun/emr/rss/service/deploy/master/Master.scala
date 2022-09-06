@@ -42,9 +42,9 @@ import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaMana
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 
 private[deploy] class Master(
-    val conf: RssConf,
+    override val conf: RssConf,
     val masterArgs: MasterArguments)
-  extends Service(conf) with RpcEndpoint with Logging {
+  extends Service with RpcEndpoint with Logging {
 
   override def serviceName: String = Service.MASTER
 
@@ -683,7 +683,7 @@ private[deploy] class Master(
     isActive
   }
 
-  override def initial(): Unit = {
+  override def initialize(): Unit = {
     startHttpServer()
     rpcEnv.awaitTermination()
   }
@@ -699,6 +699,6 @@ private[deploy] object Master extends Logging {
     val conf = new RssConf()
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    master.initial()
+    master.initialize()
   }
 }
