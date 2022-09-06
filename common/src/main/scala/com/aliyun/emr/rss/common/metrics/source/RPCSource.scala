@@ -18,18 +18,15 @@
 package com.aliyun.emr.rss.common.metrics.source
 
 import com.aliyun.emr.rss.common.RssConf
-import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{CommitFiles, Destroy, ReserveSlots}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 
-class RPCSource(rssConf: RssConf)
-  extends AbstractSource(rssConf, MetricsSystem.ROLE_WOKRER) with Logging {
+class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
   override val sourceName = "rpc"
 
   import RPCSource._
 
-  // RPC
+  // Worker RPC
   addCounter(RPCReserveSlotsNum)
   addCounter(RPCReserveSlotsSize)
   addCounter(RPCCommitFilesNum)
@@ -41,6 +38,19 @@ class RPCSource(rssConf: RssConf)
   addCounter(RPCPushMergedDataNum)
   addCounter(RPCPushMergedDataSize)
   addCounter(RPCChunkFetchRequestNum)
+
+  // Master RPC
+  addCounter(RPCHeartBeatFromApplicationNum)
+  addCounter(RPCHeartbeatFromWorkerNum)
+  addCounter(RPCRegisterWorkerNum)
+  addCounter(RPCRequestSlotsNum)
+  addCounter(RPCReleaseSlotsNum)
+  addCounter(RPCReleaseSlotsSize)
+  addCounter(RPCUnregisterShuffleNum)
+  addCounter(RPCGetBlacklistNum)
+  addCounter(RPCReportWorkerFailureNum)
+  addCounter(RPCReportWorkerFailureSize)
+  addCounter(RPCCheckAliveNum)
 
   def updateMessageMetrics(message: Any, messageLen: Long): Unit = {
     message match {
@@ -61,13 +71,33 @@ class RPCSource(rssConf: RssConf)
         incCounter(RPCPushMergedDataSize, messageLen)
       case _: ChunkFetchRequest =>
         incCounter(RPCChunkFetchRequestNum)
+      case _: HeartBeatFromApplication =>
+        incCounter(RPCHeartBeatFromApplicationNum)
+      case _: HeartbeatFromWorker =>
+        incCounter(RPCHeartbeatFromWorkerNum)
+      case _: RegisterWorker =>
+        incCounter(RPCRegisterWorkerNum)
+      case _: RequestSlots =>
+        incCounter(RPCRequestSlotsNum)
+      case _: ReleaseSlots =>
+        incCounter(RPCReleaseSlotsNum)
+        incCounter(RPCReleaseSlotsSize, messageLen)
+      case _: UnregisterShuffle =>
+        incCounter(RPCUnregisterShuffleNum)
+      case _: GetBlacklist =>
+        incCounter(RPCGetBlacklistNum)
+      case _: ReportWorkerFailure =>
+        incCounter(RPCReportWorkerFailureNum)
+        incCounter(RPCReportWorkerFailureSize, messageLen)
+      case CheckAlive =>
+        incCounter(RPCCheckAliveNum)
       case _ => // Do nothing
     }
   }
 }
 
 object RPCSource {
-  // RPC
+  // Worker RPC
   val RPCReserveSlotsNum = "RPCReserveSlotsNum"
   val RPCReserveSlotsSize = "RPCReserveSlotsSize"
   val RPCCommitFilesNum = "RPCCommitFilesNum"
@@ -79,4 +109,17 @@ object RPCSource {
   val RPCPushMergedDataNum = "RPCPushMergedDataNum"
   val RPCPushMergedDataSize = "RPCPushMergedDataSize"
   val RPCChunkFetchRequestNum = "RPCChunkFetchRequestNum"
+
+  // Master RPC
+  val RPCHeartBeatFromApplicationNum = "RPCHeartBeatFromApplicationNum"
+  val RPCHeartbeatFromWorkerNum = "RPCHeartbeatFromWorkerNum"
+  val RPCRegisterWorkerNum = "RPCRegisterWorkerNum"
+  val RPCRequestSlotsNum = "RPCRequestSlotsNum"
+  val RPCReleaseSlotsNum = "RPCReleaseSlotsNum"
+  val RPCReleaseSlotsSize = "RPCReleaseSlotsSize"
+  val RPCUnregisterShuffleNum = "RPCUnregisterShuffleNum"
+  val RPCGetBlacklistNum = "RPCGetBlacklistNum"
+  val RPCReportWorkerFailureNum = "RPCReportWorkerFailureNum"
+  val RPCReportWorkerFailureSize = "RPCReportWorkerFailureSize"
+  val RPCCheckAliveNum = "RPCCheckAliveNum"
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.utils;
+package com.aliyun.emr.rss.common.util;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -25,29 +25,26 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.aliyun.emr.rss.common.meta.FileInfo;
-import com.aliyun.emr.rss.common.protocol.TransportMessages;
+import com.aliyun.emr.rss.common.protocol.*;
 
 public class PBSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)
       throws InvalidProtocolBufferException {
-    TransportMessages.PbSortedShuffleFileSet pbSortedShuffleFileSet =
-        TransportMessages.PbSortedShuffleFileSet.parseFrom(data);
+    PbSortedShuffleFileSet pbSortedShuffleFileSet = PbSortedShuffleFileSet.parseFrom(data);
     Set<String> files = ConcurrentHashMap.newKeySet();
     files.addAll(pbSortedShuffleFileSet.getFilesList());
     return files;
   }
 
   public static byte[] toPbSortedShuffleFileSet(Set<String> files) {
-    TransportMessages.PbSortedShuffleFileSet.Builder builder =
-        TransportMessages.PbSortedShuffleFileSet.newBuilder();
+    PbSortedShuffleFileSet.Builder builder = PbSortedShuffleFileSet.newBuilder();
     builder.addAllFiles(files);
     return builder.build().toByteArray();
   }
 
   public static ArrayList<Integer> fromPbStoreVersion(byte[] data)
       throws InvalidProtocolBufferException {
-    TransportMessages.PbStoreVersion pbStoreVersion =
-        TransportMessages.PbStoreVersion.parseFrom(data);
+    PbStoreVersion pbStoreVersion = PbStoreVersion.parseFrom(data);
     ArrayList<Integer> versions = new ArrayList<>();
     versions.add(pbStoreVersion.getMajor());
     versions.add(pbStoreVersion.getMinor());
@@ -55,40 +52,37 @@ public class PBSerDeUtils {
   }
 
   public static byte[] toPbStoreVersion(int major, int minor) {
-    TransportMessages.PbStoreVersion.Builder builder =
-        TransportMessages.PbStoreVersion.newBuilder();
+    PbStoreVersion.Builder builder = PbStoreVersion.newBuilder();
     builder.setMajor(major);
     builder.setMinor(minor);
     return builder.build().toByteArray();
   }
 
-  public static FileInfo fromPbFileInfo(TransportMessages.PbFileInfo pbFileInfo)
+  public static FileInfo fromPbFileInfo(PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
     return new FileInfo(
         pbFileInfo.getFilePath(), new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
   }
 
-  public static TransportMessages.PbFileInfo toPbFileInfo(FileInfo fileInfo) {
-    TransportMessages.PbFileInfo.Builder builder = TransportMessages.PbFileInfo.newBuilder();
+  public static PbFileInfo toPbFileInfo(FileInfo fileInfo) {
+    PbFileInfo.Builder builder = PbFileInfo.newBuilder();
     builder.setFilePath(fileInfo.getFilePath()).addAllChunkOffsets(fileInfo.getChunkOffsets());
     return builder.build();
   }
 
   public static ConcurrentHashMap<String, FileInfo> fromPbFileInfoMap(byte[] data)
       throws InvalidProtocolBufferException {
-    TransportMessages.PBFileInfoMap pbFileInfoMap = TransportMessages.PBFileInfoMap.parseFrom(data);
+    PBFileInfoMap pbFileInfoMap = PBFileInfoMap.parseFrom(data);
     ConcurrentHashMap<String, FileInfo> fileInfoMap = new ConcurrentHashMap<>();
-    for (Map.Entry<String, TransportMessages.PbFileInfo> entry :
-        pbFileInfoMap.getValuesMap().entrySet()) {
+    for (Map.Entry<String, PbFileInfo> entry : pbFileInfoMap.getValuesMap().entrySet()) {
       fileInfoMap.put(entry.getKey(), fromPbFileInfo(entry.getValue()));
     }
     return fileInfoMap;
   }
 
   public static byte[] toPbFileInfoMap(ConcurrentHashMap<String, FileInfo> fileInfoMap) {
-    TransportMessages.PBFileInfoMap.Builder builder = TransportMessages.PBFileInfoMap.newBuilder();
-    ConcurrentHashMap<String, TransportMessages.PbFileInfo> pbFileInfoMap =
-        new ConcurrentHashMap<>();
+    PBFileInfoMap.Builder builder = PBFileInfoMap.newBuilder();
+    ConcurrentHashMap<String, PbFileInfo> pbFileInfoMap = new ConcurrentHashMap<>();
     for (Map.Entry<String, FileInfo> entry : fileInfoMap.entrySet()) {
       pbFileInfoMap.put(entry.getKey(), toPbFileInfo(entry.getValue()));
     }

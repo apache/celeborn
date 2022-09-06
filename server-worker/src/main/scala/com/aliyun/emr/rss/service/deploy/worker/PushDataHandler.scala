@@ -269,6 +269,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (shuffleMapperAttempts.containsKey(shuffleKey)) {
             shuffleMapperAttempts.get(shuffleKey)(mapId)
           } else -1
+        // TODO just info log for ended attempt
         logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
           s" $attemptId), caused by ${e.getMessage}")
       case e: Exception =>
@@ -431,6 +432,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             if (shuffleMapperAttempts.containsKey(shuffleKey)) {
               shuffleMapperAttempts.get(shuffleKey)(mapId)
             } else -1
+          // TODO just info log for ended attempt
           logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
             s" $attemptId), caused by ${e.getMessage}")
         case e: Exception =>

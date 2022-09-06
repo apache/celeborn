@@ -43,7 +43,7 @@ import com.aliyun.emr.rss.common.meta.{DiskStatus, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.protocol.TransportMessages.PbWorkerResource
+import com.aliyun.emr.rss.common.protocol.PbWorkerResource
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
 
@@ -726,7 +726,7 @@ object Utils extends Logging {
   def toTransportMessage(message: Any): Any = {
     message match {
       case transportMessage: Message =>
-        transportMessage.toTransportMessage()
+        transportMessage.toTransportMessage
       case _ =>
         message
     }

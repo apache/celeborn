@@ -20,7 +20,6 @@ package com.aliyun.emr.rss.common.protocol;
 import java.io.Serializable;
 
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
-import com.aliyun.emr.rss.common.protocol.TransportMessages.PbPartitionLocation;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -330,7 +329,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public static PbPartitionLocation toPbPartitionLocation(PartitionLocation location) {
-    PbPartitionLocation.Builder builder = TransportMessages.PbPartitionLocation.newBuilder();
+    PbPartitionLocation.Builder builder = PbPartitionLocation.newBuilder();
     if (location.mode == Mode.Master) {
       builder.setMode(PbPartitionLocation.Mode.Master);
     } else {
@@ -346,7 +345,7 @@ public class PartitionLocation implements Serializable {
     builder.setStorageInfo(StorageInfo.toPb(location.storageInfo));
 
     if (location.getPeer() != null) {
-      PbPartitionLocation.Builder peerBuilder = TransportMessages.PbPartitionLocation.newBuilder();
+      PbPartitionLocation.Builder peerBuilder = PbPartitionLocation.newBuilder();
       if (location.getPeer().mode == Mode.Master) {
         peerBuilder.setMode(PbPartitionLocation.Mode.Master);
       } else {

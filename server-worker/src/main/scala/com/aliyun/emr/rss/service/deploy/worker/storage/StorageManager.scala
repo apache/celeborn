@@ -42,7 +42,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.utils.PBSerDeUtils
+import com.aliyun.emr.rss.common.util.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 

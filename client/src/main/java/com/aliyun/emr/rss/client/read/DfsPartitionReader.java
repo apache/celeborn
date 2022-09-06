@@ -40,8 +40,8 @@ import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.Message;
 import com.aliyun.emr.rss.common.network.protocol.OpenStream;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
+import com.aliyun.emr.rss.common.util.ShuffleBlockInfoUtils;
 import com.aliyun.emr.rss.common.util.Utils;
-import com.aliyun.emr.rss.common.utils.ShuffleBlockInfoUtils;
 
 public class DfsPartitionReader implements PartitionReader {
   private final int chunkSize;
