@@ -17,37 +17,38 @@
 
 package com.aliyun.emr.rss.server.common
 
+import io.netty.channel.ChannelFuture
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
-import io.netty.channel.ChannelFuture
 
 abstract class HttpService extends Service with Logging {
 
-  def getWorkerInfo: String = ""
+  def getWorkerInfo: String
 
-  def getThreadDump: String = ""
+  def getThreadDump: String
 
-  def getHostnameList: String = ""
+  def getHostnameList: String
 
-  def getApplicationList: String = ""
+  def getApplicationList: String
 
-  def getShuffleList: String = ""
+  def getShuffleList: String
 
-  def startHttpServer(service: Service): ChannelFuture = {
+  def startHttpServer(): ChannelFuture = {
     val handlers =
-      if (RssConf.metricsSystemEnable(service.conf)) {
+      if (RssConf.metricsSystemEnable(conf)) {
         logInfo(s"Metrics system enabled.")
-        service.metricsSystem.start()
-        new HttpRequestHandler(service, service.metricsSystem.getPrometheusHandler)
+        metricsSystem.start()
+        new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
       } else {
-        new HttpRequestHandler(service, null)
+        new HttpRequestHandler(this, null)
       }
 
     val httpServer = new HttpServer(
       "master",
-      RssConf.masterPrometheusMetricHost(service.conf),
-      RssConf.masterPrometheusMetricPort(service.conf),
+      RssConf.masterPrometheusMetricHost(conf),
+      RssConf.masterPrometheusMetricPort(conf),
       new HttpServerInitializer(handlers))
     httpServer.start()
   }

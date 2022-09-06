@@ -25,11 +25,11 @@ import io.netty.util.CharsetUtil
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.sink.PrometheusHttpRequestHandler
-import com.aliyun.emr.rss.server.common.Service
+import com.aliyun.emr.rss.server.common.{HttpService, Service}
 
 @Sharable
 class HttpRequestHandler(
-    val service: Service,
+    val service: HttpService,
     prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
   extends SimpleChannelInboundHandler[FullHttpRequest] with Logging {
 

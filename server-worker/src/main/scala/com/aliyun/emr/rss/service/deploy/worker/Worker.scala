@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.RssConf._
 import com.aliyun.emr.rss.common.exception.RssException
@@ -369,6 +370,10 @@ private[deploy] class Worker(
   override def getWorkerInfo: String = workerInfo.toString()
 
   override def getThreadDump: String = Utils.getThreadDump()
+
+  override def getHostnameList: String = throw new UnsupportedOperationException()
+
+  override def getApplicationList: String = throw new UnsupportedOperationException()
 
   override def getShuffleList: String = {
     storageManager.shuffleKeySet().asScala.mkString("\n")
