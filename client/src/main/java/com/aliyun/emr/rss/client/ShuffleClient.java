@@ -26,7 +26,10 @@ import com.aliyun.emr.rss.client.read.RssInputStream;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 
-/** ShuffleClient有可能是进程单例 具体的PartitionLocation应该隐藏在实现里面 */
+/**
+ * ShuffleClient may be a process singleton, the specific PartitionLocation should be hidden in the
+ * implementation
+ */
 public abstract class ShuffleClient implements Cloneable {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initFinished = false;
