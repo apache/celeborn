@@ -21,8 +21,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.aliyun.emr.rss.common.protocol.TransportMessages.PbStorageInfo;
-
 public class StorageInfo implements Serializable {
   public static String UNKNOWN_DISK = "UNKNOWN_DISK";
 
