@@ -59,8 +59,6 @@ private[deploy] class Master(
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
-  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
-
   private val statusSystem =
     if (haEnabled(conf)) {
       val sys = new HAMasterMetaManager(rpcEnv, conf)
@@ -139,6 +137,8 @@ private[deploy] class Master(
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
+
+  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this, Some(rpcSource))
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
