@@ -464,7 +464,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       val localCleaned = !disksSnapshot().filter(_.status != DiskStatus.IoHang).exists {
         case diskInfo => diskInfo.dirs.exists {
             case workingDir if workingDir.exists() =>
-              // Don't check appDirs that store information in fileInfos
+              // Don't check appDirs that store information in the fileInfos
               workingDir.listFiles().exists(appDir => !appIds.contains(appDir.getName))
             case _ =>
               false
