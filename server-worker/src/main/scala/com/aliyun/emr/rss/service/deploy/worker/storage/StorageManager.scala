@@ -463,20 +463,20 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
       val localCleaned = !disksSnapshot().filter(_.status != DiskStatus.IoHang).exists {
         case diskInfo => diskInfo.dirs.exists {
-          case workingDir if workingDir.exists() =>
-            // Don't check appDirs that store information in fileInfos
-            workingDir.listFiles().exists(appDir => !appIds.contains(appDir.getName))
-          case _ =>
-            false
-        }
+            case workingDir if workingDir.exists() =>
+              // Don't check appDirs that store information in fileInfos
+              workingDir.listFiles().exists(appDir => !appIds.contains(appDir.getName))
+            case _ =>
+              false
+          }
       }
 
       val hdfsCleaned = hdfsFs match {
-        case FileSystem =>
+        case hdfs: FileSystem =>
           val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
           // hdfs path not exist when first time initialize
-          if (hdfsFs.exists(hdfsWorkPath)) {
-            !hdfsFs.listFiles(hdfsWorkPath, false).hasNext
+          if (hdfs.exists(hdfsWorkPath)) {
+            !hdfs.listFiles(hdfsWorkPath, false).hasNext
           } else {
             true
           }
