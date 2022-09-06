@@ -19,19 +19,19 @@ package com.aliyun.emr.rss.common.network.protocol;
 
 import java.io.Serializable;
 
-import com.aliyun.emr.rss.common.protocol.TransportMessages;
+import com.aliyun.emr.rss.common.protocol.MessageType;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
-  private final TransportMessages.MessageType type;
+  private final MessageType type;
   private final byte[] payload;
 
-  public TransportMessage(TransportMessages.MessageType type, byte[] payload) {
+  public TransportMessage(MessageType type, byte[] payload) {
     this.type = type;
     this.payload = payload;
   }
 
-  public TransportMessages.MessageType getType() {
+  public MessageType getType() {
     return type;
   }
 

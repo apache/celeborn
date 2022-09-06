@@ -31,7 +31,7 @@ import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource}
+import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
@@ -122,24 +122,23 @@ private[deploy] class Master(
   private val offerSlotsAlgorithm = RssConf.offerSlotsAlgorithm(conf)
 
   // init and register master metrics
-  private val masterSource = {
-    val source = new MasterSource(conf)
-    source.addGauge(MasterSource.RegisteredShuffleCount, _ => statusSystem.registeredShuffle.size())
-    // blacklist worker count
-    source.addGauge(MasterSource.BlacklistedWorkerCount, _ => statusSystem.blacklist.size())
+  val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
+  private val masterSource = new MasterSource(conf)
+  masterSource.addGauge(
+    MasterSource.RegisteredShuffleCount,
+    _ => statusSystem.registeredShuffle.size())
+  // blacklist worker count
+  masterSource.addGauge(MasterSource.BlacklistedWorkerCount, _ => statusSystem.blacklist.size())
+  // worker count
+  masterSource.addGauge(MasterSource.WorkerCount, _ => statusSystem.workers.size())
+  masterSource.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
+  // is master active under HA mode
+  masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
 
-    // worker count
-    source.addGauge(MasterSource.WorkerCount, _ => statusSystem.workers.size())
-
-    source.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
-    // is master active under HA mode
-    source.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
-
-    metricsSystem.registerSource(source)
-    metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
-    metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
-    source
-  }
+  metricsSystem.registerSource(rpcSource)
+  metricsSystem.registerSource(masterSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
