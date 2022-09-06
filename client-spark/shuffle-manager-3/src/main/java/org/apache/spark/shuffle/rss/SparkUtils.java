@@ -17,12 +17,14 @@
 
 package org.apache.spark.shuffle.rss;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
 
+import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
@@ -34,6 +36,7 @@ import org.apache.spark.shuffle.ShuffleReader;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,6 +163,17 @@ public class SparkUtils {
       } catch (ReflectiveOperationException roe2) {
         throw new RuntimeException("Get getReader method failed.", roe2);
       }
+    }
+  }
+
+  public static StructType getShuffleDependencySchema(ShuffleDependency<?, ?, ?> dep)
+      throws IOException {
+    try {
+      Field field = dep.getClass().getDeclaredField("schema");
+      field.setAccessible(true);
+      return (StructType) field.get(dep);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new IOException("Failed to get Schema, columnar shuffle won`t work properly.");
     }
   }
 }
