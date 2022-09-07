@@ -82,6 +82,7 @@ trait MiniClusterFeature extends Logging {
       map.foreach(m => conf.set(m._1, m._2))
     }
     logInfo("rss conf created")
+
     val workerArguments = new WorkerArguments(Array(), conf)
     logInfo("worker argument created")
     try {

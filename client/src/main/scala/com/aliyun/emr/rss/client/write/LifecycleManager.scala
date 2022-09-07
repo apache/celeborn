@@ -58,11 +58,28 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
-  private val shuffleAllocatedWorkers =
+  private val shuffleAllocatedWorkers = {
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
+  }
+  // shuffle id -> (partitionId -> newest PartitionLocation)
+  private val latestPartitionLocation =
+    new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
 
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
+
+  val newMapFunc =
+    new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
+      override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
+        new ConcurrentHashMap[Int, PartitionLocation]()
+      }
+    }
+  private def updateLatestPartitionLocations(
+      shuffleId: Int,
+      locations: util.List[PartitionLocation]) = {
+    val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
+    locations.asScala.foreach { case location => map.put(location.getId, location) }
+  }
 
   // revive request waiting for response
   // shuffleKey -> (partitionId -> set)
@@ -120,7 +137,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             val tmpFileCount = fileCount.sumThenReset()
             logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
             val appHeartbeat =
-              HeartBeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
+              HeartbeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
             rssHARetryClient.send(appHeartbeat)
             logDebug("Successfully send app heartbeat.")
           } catch {
@@ -369,6 +386,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
         val partitionLocationInfo = new PartitionLocationInfo()
         partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+        updateLatestPartitionLocations(shuffleId, masterLocations)
         partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
@@ -519,6 +537,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     newlyAllocatedLocation.asScala.foreach { case (workInfo, (masterLocations, slaveLocations)) =>
       workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
         partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+        updateLatestPartitionLocations(shuffleId, masterLocations)
         partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
       }
     }
@@ -539,12 +558,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       shuffleId: Int,
       partitionId: Int,
       epoch: Int): PartitionLocation = {
-    val locs = workerSnapshots(shuffleId).values().asScala
-      .flatMap(_.getLocationWithMaxEpoch(shuffleId.toString, partitionId))
-    if (locs.nonEmpty) {
-      val latestLoc = locs.maxBy(_.getEpoch)
-      if (latestLoc.getEpoch > epoch) {
-        return latestLoc
+    val map = latestPartitionLocation.get(shuffleId)
+    if (map != null) {
+      val loc = map.get(partitionId)
+      if (loc != null && loc.getEpoch > epoch) {
+        return loc
       }
     }
     null

@@ -15,17 +15,18 @@
 # limitations under the License.
 #
 
-FROM centos:7.6.1810
+ARG java_image_tag=8-jdk-focal
+FROM eclipse-temurin:${java_image_tag}
 
 ARG rss_version=0.1.1
 
-RUN yum install -y java-1.8.0-openjdk-devel sshpass openssh-clients vim epel-release bind-utils \
-    supervisor telnet net-tools procps && \
-    yum clean all && rm -rf /var/cache/yum
+USER root
 
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
-RUN chmod +x /usr/bin/tini
+RUN set -ex && \
+    apt-get update && \
+    apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user dnsutils && \
+    ln -snf /bin/bash /bin/sh && \
+    rm -rf /var/cache/apt/* && \
+    mkdir -p /opt/
 
-RUN mkdir -p /opt/
 ADD rss-${rss_version}-bin-release.tar.gz /opt/

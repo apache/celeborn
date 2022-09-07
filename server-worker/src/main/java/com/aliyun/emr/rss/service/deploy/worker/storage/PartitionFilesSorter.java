@@ -338,7 +338,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       hdfsIndexOutput.write(tmpBuf);
       hdfsIndexOutput.close();
     } else {
-      indexFileChannel.write(indexBuf);
+      while (indexBuf.hasRemaining()) {
+        indexFileChannel.write(indexBuf);
+      }
       indexFileChannel.close();
     }
     ((DirectBuffer) indexBuf).cleaner().clean();

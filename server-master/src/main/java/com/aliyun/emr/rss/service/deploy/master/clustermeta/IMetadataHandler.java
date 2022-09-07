@@ -49,7 +49,7 @@ public interface IMetadataHandler {
   void handleWorkerRemove(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 
-  void handleWorkerHeartBeat(
+  void handleWorkerHeartbeat(
       String host,
       int rpcPort,
       int pushPort,

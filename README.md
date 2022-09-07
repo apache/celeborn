@@ -143,7 +143,7 @@ FetchPort: 35689
 TotalSlots: 4096
 SlotsUsed: 0
 SlotsAvailable: 4096
-LastHeartBeat: 0
+LastHeartbeat: 0
 WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.100:40115)
 .
 21/12/21 20:06:23,785 INFO [netty-rpc-connection-1] TransportClientFactory: Successfully created connection to /172.16.159.98:39151 after 1 ms (0 ms spent in bootstraps)
@@ -155,7 +155,7 @@ FetchPort: 37455
 TotalSlots: 4096
 SlotsUsed: 0
 SlotsAvailable: 4096
-LastHeartBeat: 0
+LastHeartbeat: 0
 WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.98:39151)
 .
 21/12/21 20:06:25,948 INFO [netty-rpc-connection-2] TransportClientFactory: Successfully created connection to /172.16.159.99:41955 after 1 ms (0 ms spent in bootstraps)
@@ -167,7 +167,7 @@ FetchPort: 46865
 TotalSlots: 4096
 SlotsUsed: 0
 SlotsAvailable: 4096
-LastHeartBeat: 0
+LastHeartbeat: 0
 WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.99:41955)
 ```
 

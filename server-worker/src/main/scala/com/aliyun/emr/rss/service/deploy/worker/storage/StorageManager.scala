@@ -181,6 +181,15 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         this.fileInfosDb = null
     }
   }
+  cleanupExpiredAppDirs(System.currentTimeMillis(), RssConf.workerGracefulShutdown(conf))
+  if (!checkIfWorkingDirCleaned) {
+    logWarning(
+      "Worker still has residual files in the working directory before registering with Master, " +
+        "please refer to the configuration document to increase rss.worker.checkFileCleanRetryTimes or " +
+        "rss.worker.checkFileCleanTimeoutMs .")
+  } else {
+    logInfo("Successfully remove all files under working directory.")
+  }
 
   private def reloadAndCleanFileInfos(db: DB): Unit = {
     if (db != null) {
@@ -380,25 +389,35 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     30,
     TimeUnit.MINUTES)
 
-  private def cleanupExpiredAppDirs(expireTime: Long): Unit = {
+  private def cleanupExpiredAppDirs(expireTime: Long, isGracefulShutdown: Boolean = false): Unit = {
+    val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
     disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
-      diskInfo.dirs.foreach { case workingDir =>
-        workingDir.listFiles().foreach { case appDir =>
-          if (appDir.lastModified() < expireTime) {
-            val threadPool = diskOperators.get(diskInfo.mountPoint)
-            deleteDirectory(appDir, threadPool)
-            logInfo(s"Delete expired app dir $appDir.")
+      diskInfo.dirs.foreach {
+        case workingDir if workingDir.exists() =>
+          workingDir.listFiles().foreach { case appDir =>
+            // Don't delete shuffleKey's data recovered from levelDB when restart with graceful shutdown
+            if (!(isGracefulShutdown && appIds.contains(appDir.getName))) {
+              if (appDir.lastModified() < expireTime) {
+                val threadPool = diskOperators.get(diskInfo.mountPoint)
+                deleteDirectory(appDir, threadPool)
+                logInfo(s"Delete expired app dir $appDir.")
+              }
+            }
           }
-        }
+        // workingDir not exist when initializing worker on new disk
+        case _ => // do nothing
       }
     }
 
     if (hdfsFs != null) {
-      val iter = hdfsFs.listFiles(new Path(hdfsDir, RssConf.workingDirName(conf)), false)
-      while (iter.hasNext) {
-        val fileStatus = iter.next()
-        if (fileStatus.getModificationTime < expireTime) {
-          StorageManager.hdfsFs.delete(fileStatus.getPath, true)
+      val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
+      if (hdfsFs.exists(hdfsWorkPath)) {
+        val iter = hdfsFs.listFiles(hdfsWorkPath, false)
+        while (iter.hasNext) {
+          val fileStatus = iter.next()
+          if (fileStatus.getModificationTime < expireTime) {
+            hdfsFs.delete(fileStatus.getPath, true)
+          }
         }
       }
     }
@@ -435,6 +454,47 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         logWarning(s"Failed to delete expired shuffle file $file.")
       }
     }
+  }
+
+  private def checkIfWorkingDirCleaned: Boolean = {
+    var retryTimes = 0
+    val awaitTimeout = RssConf.checkFileCleanTimeoutMs(conf)
+    val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
+    while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+      val localCleaned = !disksSnapshot().filter(_.status != DiskStatus.IoHang).exists {
+        case diskInfo => diskInfo.dirs.exists {
+            case workingDir if workingDir.exists() =>
+              // Don't check appDirs that store information in the fileInfos
+              workingDir.listFiles().exists(appDir => !appIds.contains(appDir.getName))
+            case _ =>
+              false
+          }
+      }
+
+      val hdfsCleaned = hdfsFs match {
+        case hdfs: FileSystem =>
+          val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
+          // hdfs path not exist when first time initialize
+          if (hdfs.exists(hdfsWorkPath)) {
+            !hdfs.listFiles(hdfsWorkPath, false).hasNext
+          } else {
+            true
+          }
+        case _ =>
+          true
+      }
+
+      if (localCleaned && hdfsCleaned) {
+        return true
+      }
+      retryTimes += 1
+      if (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+        logInfo(s"Working directory's files have not been cleaned up completely, " +
+          s"will start ${retryTimes + 1}th attempt after ${awaitTimeout} milliseconds.")
+      }
+      Thread.sleep(awaitTimeout)
+    }
+    false
   }
 
   def close(): Unit = {

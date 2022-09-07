@@ -285,8 +285,8 @@ sealed trait Message extends Serializable {
           .setStatus(status.getValue).build().toByteArray
         new TransportMessage(MessageType.APPLICATION_LOST_RESPONSE, payload)
 
-      case HeartBeatFromApplication(appId, totalWritten, fileCount, requestId) =>
-        val payload = PbHeartBeatFromApplication.newBuilder()
+      case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+        val payload = PbHeartbeatFromApplication.newBuilder()
           .setAppId(appId)
           .setRequestId(requestId)
           .setTotalWritten(totalWritten)
@@ -626,7 +626,7 @@ object ControlMessages extends Logging {
 
   case class ApplicationLostResponse(status: StatusCode) extends MasterMessage
 
-  case class HeartBeatFromApplication(
+  case class HeartbeatFromApplication(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
@@ -770,12 +770,12 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
-        val pbHeartBeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
+        val pbHeartbeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
         val expiredShuffleKeys = new util.HashSet[String]()
-        if (pbHeartBeatResponse.getExpiredShuffleKeysCount > 0) {
-          expiredShuffleKeys.addAll(pbHeartBeatResponse.getExpiredShuffleKeysList)
+        if (pbHeartbeatResponse.getExpiredShuffleKeysCount > 0) {
+          expiredShuffleKeys.addAll(pbHeartbeatResponse.getExpiredShuffleKeysList)
         }
-        HeartbeatResponse(expiredShuffleKeys, pbHeartBeatResponse.getRegistered)
+        HeartbeatResponse(expiredShuffleKeys, pbHeartbeatResponse.getRegistered)
 
       case REGISTER_SHUFFLE =>
         val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)
@@ -905,12 +905,12 @@ object ControlMessages extends Logging {
         ApplicationLostResponse(Utils.toStatusCode(pbApplicationLostResponse.getStatus))
 
       case HEARTBEAT_FROM_APPLICATION =>
-        val pbHeartBeatFromApplication = PbHeartBeatFromApplication.parseFrom(message.getPayload)
-        HeartBeatFromApplication(
-          pbHeartBeatFromApplication.getAppId,
-          pbHeartBeatFromApplication.getTotalWritten,
-          pbHeartBeatFromApplication.getFileCount,
-          pbHeartBeatFromApplication.getRequestId)
+        val pbHeartbeatFromApplication = PbHeartbeatFromApplication.parseFrom(message.getPayload)
+        HeartbeatFromApplication(
+          pbHeartbeatFromApplication.getAppId,
+          pbHeartbeatFromApplication.getTotalWritten,
+          pbHeartbeatFromApplication.getFileCount,
+          pbHeartbeatFromApplication.getRequestId)
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
