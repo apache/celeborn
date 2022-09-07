@@ -193,7 +193,9 @@ public class PartitionFilesSorter {
     }
 
     indexBuf.flip();
-    indexFileChannel.write(indexBuf);
+    while (indexBuf.hasRemaining()) {
+      indexFileChannel.write(indexBuf);
+    }
     indexFileChannel.close();
     ((DirectBuffer) indexBuf).cleaner().clean();
   }

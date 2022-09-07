@@ -78,9 +78,15 @@ public class PartitionFilesSorterSuiteJ {
       Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 4, currentAttemptId);
       Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 8, batchId);
       Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12, dataSize);
-      channel.write(ByteBuffer.wrap(batchHeader));
+      ByteBuffer buf1 = ByteBuffer.wrap(batchHeader);
+      while (buf1.hasRemaining()) {
+        channel.write(buf1);
+      }
       random.nextBytes(mockedData);
-      channel.write(ByteBuffer.wrap(mockedData));
+      ByteBuffer buf2 = ByteBuffer.wrap(mockedData);
+      while (buf2.hasRemaining()) {
+        channel.write(buf2);
+      }
     }
     originFileLen = channel.size();
     System.out.println(shuffleFile.getAbsolutePath() +
