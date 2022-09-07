@@ -62,7 +62,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
   }
   // shuffle id -> (partitionId -> newest PartitionLocation)
-  private val newestPartitionLocation =
+  private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
 
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
@@ -74,10 +74,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         new ConcurrentHashMap[Int, PartitionLocation]()
       }
     }
-  private def updateNewestPartitionLocations(
+  private def updateLatestPartitionLocations(
       shuffleId: Int,
       locations: util.List[PartitionLocation]) = {
-    val map = newestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
+    val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
     locations.asScala.foreach { case location => map.put(location.getId, location) }
   }
 
@@ -386,7 +386,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
         val partitionLocationInfo = new PartitionLocationInfo()
         partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
-        updateNewestPartitionLocations(shuffleId, masterLocations)
+        updateLatestPartitionLocations(shuffleId, masterLocations)
         partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
@@ -537,7 +537,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     newlyAllocatedLocation.asScala.foreach { case (workInfo, (masterLocations, slaveLocations)) =>
       workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
         partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
-        updateNewestPartitionLocations(shuffleId, masterLocations)
+        updateLatestPartitionLocations(shuffleId, masterLocations)
         partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
       }
     }
@@ -558,7 +558,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       shuffleId: Int,
       partitionId: Int,
       epoch: Int): PartitionLocation = {
-    val map = newestPartitionLocation.get(shuffleId)
+    val map = latestPartitionLocation.get(shuffleId)
     if (map != null) {
       val loc = map.get(partitionId)
       if (loc != null && loc.getEpoch > epoch) {
