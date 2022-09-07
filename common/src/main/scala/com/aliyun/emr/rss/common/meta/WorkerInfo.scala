@@ -221,7 +221,7 @@ class WorkerInfo(
        |FetchPort: $fetchPort
        |ReplicatePort: $replicatePort
        |SlotsUsed: $usedSlots()
-       |LastHeartBeat: $lastHeartbeat
+       |LastHeartbeat: $lastHeartbeat
        |Disks: $diskInfos
        |WorkerRef: $endpoint
        |""".stripMargin

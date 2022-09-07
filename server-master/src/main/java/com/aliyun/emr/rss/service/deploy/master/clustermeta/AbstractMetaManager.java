@@ -117,7 +117,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredShuffle.remove(shuffleKey);
   }
 
-  public void updateAppHeartBeatMeta(String appId, long time, long totalWritten, long fileCount) {
+  public void updateAppHeartbeatMeta(String appId, long time, long totalWritten, long fileCount) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);
     partitionTotalFileCount.add(fileCount);
@@ -155,7 +155,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     blacklist.remove(worker);
   }
 
-  public void updateWorkerHeartBeatMeta(
+  public void updateWorkerHeartbeatMeta(
       String host,
       int rpcPort,
       int pushPort,

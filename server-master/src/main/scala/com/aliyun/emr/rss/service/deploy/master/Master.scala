@@ -183,11 +183,11 @@ private[deploy] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartBeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
-        handleHeartBeatFromApplication(context, appId, totalWritten, fileCount, requestId))
+        handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
 
     case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
@@ -241,7 +241,7 @@ private[deploy] class Master(
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
       executeWithLeaderChecker(
         context,
-        handleHeartBeatFromWorker(
+        handleHeartbeatFromWorker(
           context,
           host,
           rpcPort,
@@ -301,7 +301,7 @@ private[deploy] class Master(
     }
   }
 
-  private def handleHeartBeatFromWorker(
+  private def handleHeartbeatFromWorker(
       context: RpcCallContext,
       host: String,
       rpcPort: Int,
@@ -317,7 +317,7 @@ private[deploy] class Master(
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
     } else {
-      statusSystem.handleWorkerHeartBeat(
+      statusSystem.handleWorkerHeartbeat(
         host,
         rpcPort,
         pushPort,
@@ -544,7 +544,7 @@ private[deploy] class Master(
     })
   }
 
-  private def handleHeartBeatFromApplication(
+  private def handleHeartbeatFromApplication(
       context: RpcCallContext,
       appId: String,
       totalWritten: Long,
