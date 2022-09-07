@@ -38,7 +38,7 @@ abstract class HttpService extends Service with Logging {
   def startHttpServer(): ChannelFuture = {
     val handlers = new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
     val httpServer = new HttpServer(
-      "master",
+      serviceName,
       RssConf.masterPrometheusMetricHost(conf),
       RssConf.masterPrometheusMetricPort(conf),
       new HttpServerInitializer(handlers))
