@@ -29,7 +29,7 @@ import com.aliyun.emr.rss.server.common.{HttpService, Service}
 
 @Sharable
 class HttpRequestHandler(
-    val service: HttpService,
+    service: HttpService,
     prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
   extends SimpleChannelInboundHandler[FullHttpRequest] with Logging {
 
