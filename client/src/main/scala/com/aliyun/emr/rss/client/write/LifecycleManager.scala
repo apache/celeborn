@@ -60,6 +60,24 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val stageEndShuffleSet = new ConcurrentSet[Int]()
   private val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
+
+  // shuffle id -> (partitionId -> newest PartitionLocation)
+  private val latestPartitionLocation =
+    new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+
+  val newMapFunc =
+    new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
+      override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
+        new ConcurrentHashMap[Int, PartitionLocation]()
+      }
+    }
+  private def updateLatestPartitionLocations(
+      shuffleId: Int,
+      locations: util.List[PartitionLocation]) = {
+    val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
+    locations.asScala.foreach { case location => map.put(location.getReduceId, location) }
+  }
+
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
@@ -329,6 +347,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       val slaveLocations = entry._2._2
       val partitionLocationInfo = new PartitionLocationInfo()
       partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+      updateLatestPartitionLocations(shuffleId, masterLocations)
       partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
       allocatedWorkers.put(workerInfo, partitionLocationInfo)
     })
@@ -458,6 +477,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     slots.asScala.foreach(entry => {
       val partitionLocationInfo = workerSnapshots(shuffleId).get(entry._1)
       partitionLocationInfo.addMasterPartitions(shuffleId.toString, entry._2._1)
+      updateLatestPartitionLocations(shuffleId, entry._2._1)
       partitionLocationInfo.addSlavePartitions(shuffleId.toString, entry._2._2)
     })
     val (masters, slaves) = slots.asScala.head._2
@@ -474,12 +494,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def getLatestPartition(shuffleId: Int, reduceId: Int, epoch: Int): PartitionLocation = {
-    val locs = workerSnapshots(shuffleId).values().asScala
-      .flatMap(_.getLocationWithMaxEpoch(shuffleId.toString, reduceId))
-    if (!locs.isEmpty) {
-      val latestLoc = locs.maxBy(_.getEpoch)
-      if (latestLoc.getEpoch > epoch) {
-        return latestLoc
+    val map = latestPartitionLocation.get(shuffleId)
+    if (map != null) {
+      val loc = map.get(reduceId)
+      if (loc != null && loc.getEpoch > epoch) {
+        return loc
       }
     }
     null
