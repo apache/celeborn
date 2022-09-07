@@ -63,10 +63,6 @@ trait MiniClusterFeature extends Logging {
 
     val masterArguments = new MasterArguments(Array(), conf)
     val master = new Master(conf, masterArguments)
-    if (RssConf.metricsSystemEnable(conf)) {
-      logInfo(s"Metrics system enabled.")
-      master.metricsSystem.start()
-    }
     val channelFuture = master.startHttpServer()
 
     Thread.sleep(5000L)
@@ -86,29 +82,12 @@ trait MiniClusterFeature extends Logging {
       map.foreach(m => conf.set(m._1, m._2))
     }
     logInfo("rss conf created")
-
-    val metricsSystem = MetricsSystem.createMetricsSystem("worker", conf, WorkerSource.ServletPath)
-
-    logInfo("metrics system created")
-
     val workerArguments = new WorkerArguments(Array(), conf)
-
     logInfo("worker argument created")
-
-    val rpcEnv = RpcEnv.create(
-      RpcNameConstants.WORKER_SYS,
-      workerArguments.host,
-      workerArguments.host,
-      workerArguments.port.getOrElse(0),
-      conf,
-      4)
-
-    logInfo("worker rpc env created")
-
     try {
       val worker = new Worker(conf, workerArguments)
       logInfo("worker created for mini cluster")
-      (worker, rpcEnv)
+      (worker, worker.rpcEnv)
     } catch {
       case e: Exception =>
         logError("create worker failed, detail:", e)

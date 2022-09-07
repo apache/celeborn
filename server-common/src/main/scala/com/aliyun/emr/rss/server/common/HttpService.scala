@@ -43,10 +43,28 @@ abstract class HttpService extends Service with Logging {
     }
     val httpServer = new HttpServer(
       serviceName,
-      RssConf.masterPrometheusMetricHost(conf),
-      RssConf.masterPrometheusMetricPort(conf),
+      prometheusHost(),
+      prometheusPort(),
       new HttpServerInitializer(handlers))
     httpServer.start()
+  }
+
+  private def prometheusHost(): String = {
+    serviceName match {
+      case Service.MASTER =>
+        RssConf.masterPrometheusMetricHost(conf)
+      case Service.WORKER=>
+        RssConf.workerPrometheusMetricHost(conf)
+    }
+  }
+
+  private def prometheusPort(): Int = {
+    serviceName match {
+      case Service.MASTER =>
+        RssConf.masterPrometheusMetricPort(conf)
+      case Service.WORKER =>
+        RssConf.workerPrometheusMetricPort(conf)
+    }
   }
 
   override def initialize(): Unit = {
