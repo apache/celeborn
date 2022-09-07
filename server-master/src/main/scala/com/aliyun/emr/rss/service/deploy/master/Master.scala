@@ -688,7 +688,7 @@ private[deploy] class Master(
   }
 
   override def close(): Unit = {
-    // RPCEnv.stop()
+    // RpcEndpoint.stop()
     stop()
   }
 }
