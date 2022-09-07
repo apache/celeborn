@@ -298,7 +298,7 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
-  public void testHandleWorkerHeartBeat() {
+  public void testHandleWorkerHeartbeat() {
     statusSystem.handleRegisterWorker(
         HOSTNAME1,
         RPCPORT1,
@@ -324,7 +324,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         getNewReqeustId());
 
-    statusSystem.handleWorkerHeartBeat(
+    statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
         RPCPORT1,
         PUSHPORT1,
@@ -336,7 +336,7 @@ public class DefaultMetaSystemSuiteJ {
 
     Assert.assertEquals(statusSystem.blacklist.size(), 1);
 
-    statusSystem.handleWorkerHeartBeat(
+    statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
         RPCPORT2,
         PUSHPORT2,
@@ -348,7 +348,7 @@ public class DefaultMetaSystemSuiteJ {
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
 
-    statusSystem.handleWorkerHeartBeat(
+    statusSystem.handleWorkerHeartbeat(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT3, disks1, 1, getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);

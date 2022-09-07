@@ -24,10 +24,10 @@ enum Type {
   UnRegisterShuffle = 12;
   RequestSlots = 13;
   ReleaseSlots = 14;
-  AppHeartBeat = 15;
+  AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
-  WorkerHeartBeat = 18;
+  WorkerHeartbeat = 18;
   RegisterWorker = 19;
   ReportWorkerFailure = 20;
   UpdatePartitionSize = 21;
@@ -45,7 +45,7 @@ message ResourceRequest {
   optional AppHeartbeatRequest appHeartbeatRequest = 13;
   optional AppLostRequest appLostRequest = 14;
   optional WorkerLostRequest workerLostRequest = 15;
-  optional WorkerHeartBeatRequest workerHeartBeatRequest = 16;
+  optional WorkerHeartbeatRequest workerHeartbeatRequest = 16;
   optional RegisterWorkerRequest registerWorkerRequest = 17;
   optional ReportWorkerFailureRequest reportWorkerFailureRequest = 18;
   optional WorkerRemoveRequest workerRemoveRequest = 19;
@@ -106,7 +106,7 @@ message WorkerRemoveRequest {
   required int32 replicatePort = 5;
 }
 
-message WorkerHeartBeatRequest {
+message WorkerHeartbeatRequest {
   required string host = 1;
   required int32 rpcPort = 2;
   required int32 pushPort = 3;

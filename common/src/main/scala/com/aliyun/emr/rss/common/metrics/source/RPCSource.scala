@@ -40,7 +40,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
   addCounter(RPCChunkFetchRequestNum)
 
   // Master RPC
-  addCounter(RPCHeartBeatFromApplicationNum)
+  addCounter(RPCHeartbeatFromApplicationNum)
   addCounter(RPCHeartbeatFromWorkerNum)
   addCounter(RPCRegisterWorkerNum)
   addCounter(RPCRequestSlotsNum)
@@ -71,8 +71,8 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
         incCounter(RPCPushMergedDataSize, messageLen)
       case _: ChunkFetchRequest =>
         incCounter(RPCChunkFetchRequestNum)
-      case _: HeartBeatFromApplication =>
-        incCounter(RPCHeartBeatFromApplicationNum)
+      case _: HeartbeatFromApplication =>
+        incCounter(RPCHeartbeatFromApplicationNum)
       case _: HeartbeatFromWorker =>
         incCounter(RPCHeartbeatFromWorkerNum)
       case _: RegisterWorker =>
@@ -111,7 +111,7 @@ object RPCSource {
   val RPCChunkFetchRequestNum = "RPCChunkFetchRequestNum"
 
   // Master RPC
-  val RPCHeartBeatFromApplicationNum = "RPCHeartBeatFromApplicationNum"
+  val RPCHeartbeatFromApplicationNum = "RPCHeartbeatFromApplicationNum"
   val RPCHeartbeatFromWorkerNum = "RPCHeartbeatFromWorkerNum"
   val RPCRegisterWorkerNum = "RPCRegisterWorkerNum"
   val RPCRequestSlotsNum = "RPCRequestSlotsNum"

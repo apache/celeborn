@@ -134,13 +134,13 @@ public class MetaHandler {
           metaSystem.updateUnregisterShuffleMeta(shuffleKey);
           break;
 
-        case AppHeartBeat:
+        case AppHeartbeat:
           appId = request.getAppHeartbeatRequest().getAppId();
           LOG.debug("Handle app heartbeat for {}", appId);
           long time = request.getAppHeartbeatRequest().getTime();
           long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
           long fileCount = request.getAppHeartbeatRequest().getFileCount();
-          metaSystem.updateAppHeartBeatMeta(appId, time, totalWritten, fileCount);
+          metaSystem.updateAppHeartbeatMeta(appId, time, totalWritten, fileCount);
           break;
 
         case AppLost:
@@ -169,13 +169,13 @@ public class MetaHandler {
           metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
-        case WorkerHeartBeat:
-          host = request.getWorkerHeartBeatRequest().getHost();
-          rpcPort = request.getWorkerHeartBeatRequest().getRpcPort();
-          pushPort = request.getWorkerHeartBeatRequest().getPushPort();
-          fetchPort = request.getWorkerHeartBeatRequest().getFetchPort();
-          disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartBeatRequest().getDisksMap());
-          replicatePort = request.getWorkerHeartBeatRequest().getReplicatePort();
+        case WorkerHeartbeat:
+          host = request.getWorkerHeartbeatRequest().getHost();
+          rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
+          pushPort = request.getWorkerHeartbeatRequest().getPushPort();
+          fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
+          disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
+          replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {}",
               host,
@@ -184,8 +184,8 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               disks);
-          time = request.getWorkerHeartBeatRequest().getTime();
-          metaSystem.updateWorkerHeartBeatMeta(
+          time = request.getWorkerHeartbeatRequest().getTime();
+          metaSystem.updateWorkerHeartbeatMeta(
               host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
           break;
 

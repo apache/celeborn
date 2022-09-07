@@ -253,7 +253,7 @@ message PbApplicationLostResponse {
   int32 status = 1;
 }
 
-message PbHeartBeatFromApplication {
+message PbHeartbeatFromApplication {
   string appId = 1;
   int64 totalWritten = 2;
   int64 fileCount = 3 ;
