@@ -22,10 +22,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.RpcNameConstants
-import com.aliyun.emr.rss.common.rpc.RpcEnv
-import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -51,9 +47,12 @@ class MasterSuite extends AnyFunSuite
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    master.initialize()
+    new Thread() {
+      override def run(): Unit = {
+        master.initialize()
+      }
+    }.start()
     Thread.sleep(5000L)
     master.close()
-    master.rpcEnv.shutdown()
   }
 }
