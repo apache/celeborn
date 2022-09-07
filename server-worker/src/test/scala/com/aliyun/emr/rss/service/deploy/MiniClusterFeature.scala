@@ -63,7 +63,6 @@ trait MiniClusterFeature extends Logging {
 
     val masterArguments = new MasterArguments(Array(), conf)
     val master = new Master(conf, masterArguments)
-    master.rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, master)
     if (RssConf.metricsSystemEnable(conf)) {
       logInfo(s"Metrics system enabled.")
       master.metricsSystem.start()

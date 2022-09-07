@@ -690,10 +690,6 @@ private[deploy] class Master(
   override def close(): Unit = {
     // RPCEnv.stop()
     stop()
-    if (rpcEnv != null) {
-      rpcEnv.shutdown()
-      rpcEnv.awaitTermination()
-    }
   }
 }
 
