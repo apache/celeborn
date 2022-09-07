@@ -288,7 +288,6 @@ private[deploy] class Worker(
     cleaner.start()
 
     rpcEnv.awaitTermination()
-    System.exit(0)
   }
 
   override def close(): Unit = {
