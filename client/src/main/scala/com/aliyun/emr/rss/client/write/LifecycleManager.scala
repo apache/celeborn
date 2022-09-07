@@ -137,7 +137,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             val tmpFileCount = fileCount.sumThenReset()
             logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
             val appHeartbeat =
-              HeartBeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
+              HeartbeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
             rssHARetryClient.send(appHeartbeat)
             logDebug("Successfully send app heartbeat.")
           } catch {

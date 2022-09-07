@@ -136,7 +136,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
-              .setCmdType(Type.AppHeartBeat)
+              .setCmdType(Type.AppHeartbeat)
               .setRequestId(requestId)
               .setAppHeartbeatRequest(
                   ResourceProtos.AppHeartbeatRequest.newBuilder()
@@ -210,7 +210,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerHeartBeat(
+  public void handleWorkerHeartbeat(
       String host,
       int rpcPort,
       int pushPort,
@@ -222,10 +222,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
-              .setCmdType(Type.WorkerHeartBeat)
+              .setCmdType(Type.WorkerHeartbeat)
               .setRequestId(requestId)
-              .setWorkerHeartBeatRequest(
-                  ResourceProtos.WorkerHeartBeatRequest.newBuilder()
+              .setWorkerHeartbeatRequest(
+                  ResourceProtos.WorkerHeartbeatRequest.newBuilder()
                       .setHost(host)
                       .setRpcPort(rpcPort)
                       .setPushPort(pushPort)

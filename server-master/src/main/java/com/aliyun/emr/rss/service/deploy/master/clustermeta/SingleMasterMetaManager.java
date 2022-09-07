@@ -64,7 +64,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleAppHeartbeat(
       String appId, long totalWritten, long fileCount, long time, String requestId) {
-    updateAppHeartBeatMeta(appId, time, totalWritten, fileCount);
+    updateAppHeartbeatMeta(appId, time, totalWritten, fileCount);
   }
 
   @Override
@@ -85,7 +85,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerHeartBeat(
+  public void handleWorkerHeartbeat(
       String host,
       int rpcPort,
       int pushPort,
@@ -94,7 +94,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<String, DiskInfo> disks,
       long time,
       String requestId) {
-    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
+    updateWorkerHeartbeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
   }
 
   @Override

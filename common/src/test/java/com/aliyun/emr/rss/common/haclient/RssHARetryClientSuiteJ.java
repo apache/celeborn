@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.exception.RssException;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartBeatFromApplication;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartbeatFromApplication;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartbeatFromWorker;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.HeartbeatResponse;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.OneWayMessageResponse$;
@@ -81,7 +81,7 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
+    HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
       client.send(message);
@@ -108,7 +108,7 @@ public class RssHARetryClientSuiteJ {
     prepareForRpcEnvWithoutHA();
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
+    HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
       client.send(message);
@@ -134,7 +134,7 @@ public class RssHARetryClientSuiteJ {
         });
 
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
-    HeartBeatFromApplication message = Mockito.mock(HeartBeatFromApplication.class);
+    HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
       client.send(message);

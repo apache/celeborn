@@ -500,7 +500,7 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testHandleWorkerHeartBeat() throws InterruptedException {
+  public void testHandleWorkerHeartbeat() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
@@ -511,7 +511,7 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRegisterWorker(
         HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
 
-    statusSystem.handleWorkerHeartBeat(
+    statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
         RPCPORT1,
         PUSHPORT1,
@@ -526,7 +526,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
     Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
 
-    statusSystem.handleWorkerHeartBeat(
+    statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
         RPCPORT2,
         PUSHPORT2,
@@ -542,7 +542,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM2.blacklist.size());
     Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
 
-    statusSystem.handleWorkerHeartBeat(
+    statusSystem.handleWorkerHeartbeat(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, 1, getNewReqeustId());
     Thread.sleep(3000L);
 
