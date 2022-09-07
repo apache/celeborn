@@ -683,7 +683,7 @@ private[deploy] class Master(
   }
 
   override def initialize(): Unit = {
-    startHttpServer()
+    super.initialize()
     rpcEnv.awaitTermination()
   }
 

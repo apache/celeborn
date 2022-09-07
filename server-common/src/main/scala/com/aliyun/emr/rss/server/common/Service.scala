@@ -28,7 +28,12 @@ abstract class Service extends Logging {
 
   def metricsSystem: MetricsSystem
 
-  def initialize(): Unit
+  def initialize(): Unit = {
+    if (RssConf.metricsSystemEnable(conf)) {
+      logInfo(s"Metrics system enabled.")
+      metricsSystem.start()
+    }
+  }
 
   def close(): Unit
 }

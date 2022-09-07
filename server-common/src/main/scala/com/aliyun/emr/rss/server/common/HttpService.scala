@@ -36,20 +36,17 @@ abstract class HttpService extends Service with Logging {
   def getShuffleList: String
 
   def startHttpServer(): ChannelFuture = {
-    val handlers =
-      if (RssConf.metricsSystemEnable(conf)) {
-        logInfo(s"Metrics system enabled.")
-        metricsSystem.start()
-        new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
-      } else {
-        new HttpRequestHandler(this, null)
-      }
-
+    val handlers = new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
     val httpServer = new HttpServer(
       "master",
       RssConf.masterPrometheusMetricHost(conf),
       RssConf.masterPrometheusMetricPort(conf),
       new HttpServerInitializer(handlers))
     httpServer.start()
+  }
+
+  override def initialize(): Unit = {
+    super.initialize()
+    startHttpServer()
   }
 }

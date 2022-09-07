@@ -235,6 +235,7 @@ private[deploy] class Worker(
   }
 
   override def initialize(): Unit = {
+    super.initialize()
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
@@ -277,8 +278,6 @@ private[deploy] class Worker(
         }
       }
     }
-
-    startHttpServer()
 
     pushDataHandler.init(this)
     replicateHandler.init(this)
