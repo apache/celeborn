@@ -37,16 +37,27 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
+import com.aliyun.emr.rss.server.common.{HttpService, Service}
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
-import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
 
 private[deploy] class Master(
-    override val rpcEnv: RpcEnv,
-    val conf: RssConf,
-    val metricsSystem: MetricsSystem)
-  extends RpcEndpoint with Logging {
+    override val conf: RssConf,
+    val masterArgs: MasterArguments)
+  extends HttpService with RpcEndpoint with Logging {
+
+  override def serviceName: String = Service.MASTER
+
+  override val metricsSystem =
+    MetricsSystem.createMetricsSystem(serviceName, conf, MasterSource.ServletPath)
+
+  override val rpcEnv: RpcEnv = RpcEnv.create(
+    RpcNameConstants.MASTER_SYS,
+    masterArgs.host,
+    masterArgs.host,
+    masterArgs.port.getOrElse(0),
+    conf,
+    Math.max(64, Runtime.getRuntime.availableProcessors()))
 
   private val statusSystem =
     if (haEnabled(conf)) {
@@ -126,6 +137,8 @@ private[deploy] class Master(
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
+
+  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this, Some(rpcSource))
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -570,7 +583,7 @@ private[deploy] class Master(
     }.asJava
   }
 
-  def getWorkerInfos: String = {
+  override def getWorkerInfo: String = {
     val sb = new StringBuilder
     workersSnapShot.asScala.foreach { w =>
       sb.append("==========WorkerInfos in Master==========\n")
@@ -593,7 +606,7 @@ private[deploy] class Master(
     sb.toString()
   }
 
-  def getThreadDump: String = {
+  override def getThreadDump: String = {
     val sb = new StringBuilder
     val threadDump = Utils.getThreadDump()
     sb.append("==========Master ThreadDump==========\n")
@@ -613,15 +626,15 @@ private[deploy] class Master(
     sb.toString()
   }
 
-  def getHostnameList: String = {
+  override def getHostnameList: String = {
     statusSystem.hostnameSet.asScala.mkString("\n")
   }
 
-  def getApplicationList: String = {
+  override def getApplicationList: String = {
     statusSystem.appHeartbeatTime.keys().asScala.mkString("\n")
   }
 
-  def getShuffleList: String = {
+  override def getShuffleList: String = {
     statusSystem.registeredShuffle.asScala.mkString("\n")
   }
 
@@ -668,41 +681,23 @@ private[deploy] class Master(
       }
     isActive
   }
+
+  override def initialize(): Unit = {
+    super.initialize()
+    rpcEnv.awaitTermination()
+  }
+
+  override def close(): Unit = {
+    // RpcEndpoint.stop()
+    stop()
+  }
 }
 
 private[deploy] object Master extends Logging {
   def main(args: Array[String]): Unit = {
     val conf = new RssConf()
-
-    val metricsSystem = MetricsSystem.createMetricsSystem("master", conf, MasterSource.ServletPath)
-
     val masterArgs = new MasterArguments(args, conf)
-    val rpcEnv = RpcEnv.create(
-      RpcNameConstants.MASTER_SYS,
-      masterArgs.host,
-      masterArgs.host,
-      masterArgs.port.getOrElse(0),
-      conf,
-      Math.max(64, Runtime.getRuntime.availableProcessors()))
-    val master = new Master(rpcEnv, conf, metricsSystem)
-    rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, master, Some(master.rpcSource))
-
-    val handlers =
-      if (RssConf.metricsSystemEnable(conf)) {
-        logInfo(s"Metrics system enabled.")
-        metricsSystem.start()
-        new HttpRequestHandler(master, metricsSystem.getPrometheusHandler)
-      } else {
-        new HttpRequestHandler(master, null)
-      }
-
-    val httpServer = new HttpServer(
-      "master",
-      RssConf.masterPrometheusMetricHost(conf),
-      RssConf.masterPrometheusMetricPort(conf),
-      new HttpServerInitializer(handlers))
-    httpServer.start()
-
-    rpcEnv.awaitTermination()
+    val master = new Master(conf, masterArgs)
+    master.initialize()
   }
 }

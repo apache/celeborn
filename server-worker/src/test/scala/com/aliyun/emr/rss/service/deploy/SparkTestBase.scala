@@ -63,11 +63,11 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
           Thread,
           Thread,
           ChannelFuture)): Unit = {
-    tuple._3.stop()
+    tuple._3.close()
     tuple._4.shutdown()
-    tuple._5.stop()
+    tuple._5.close()
     tuple._6.shutdown()
-    tuple._7.stop()
+    tuple._7.close()
     tuple._1.stop()
     tuple._2.shutdown()
     Thread.sleep(5000L)
@@ -96,9 +96,9 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     val (worker2, workerRpcEnv2) = createWorker()
     val (worker3, workerRpcEnv) = createWorker()
     val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
-    val workerThread1 = runnerWrap(worker1.init())
-    val workerThread2 = runnerWrap(worker2.init())
-    val workerThread3 = runnerWrap(worker3.init())
+    val workerThread1 = runnerWrap(worker1.initialize())
+    val workerThread2 = runnerWrap(worker2.initialize())
+    val workerThread3 = runnerWrap(worker3.initialize())
 
     masterThread.start()
     Thread.sleep(5000L)

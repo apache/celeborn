@@ -22,11 +22,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.metrics.MetricsSystem
-import com.aliyun.emr.rss.common.protocol.RpcNameConstants
-import com.aliyun.emr.rss.common.rpc.RpcEnv
-import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
-import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -51,38 +46,14 @@ class MasterSuite extends AnyFunSuite
     val args = Array("-h", "localhost", "-p", "9097")
 
     val masterArgs = new MasterArguments(args, conf)
-
-    val rpcEnv = RpcEnv.create(
-      RpcNameConstants.MASTER_SYS,
-      masterArgs.host,
-      masterArgs.host,
-      masterArgs.port.getOrElse(0),
-      conf,
-      4)
-
-    val metricsSystem = MetricsSystem.createMetricsSystem("master", conf, MasterSource.ServletPath)
-    val master = new Master(rpcEnv, conf, metricsSystem)
-    rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, master)
-
-    val handlers =
-      if (RssConf.metricsSystemEnable(conf)) {
-        logInfo(s"Metrics system enabled.")
-        metricsSystem.start()
-        new HttpRequestHandler(master, metricsSystem.getPrometheusHandler)
-      } else {
-        new HttpRequestHandler(master, null)
+    val master = new Master(conf, masterArgs)
+    new Thread() {
+      override def run(): Unit = {
+        master.initialize()
       }
-
-    val httpServer = new HttpServer(
-      "test-master",
-      RssConf.masterPrometheusMetricHost(conf),
-      RssConf.masterPrometheusMetricPort(conf),
-      new HttpServerInitializer(handlers))
-    httpServer.start()
-
+    }.start()
     Thread.sleep(5000L)
-
-    master.stop()
-    rpcEnv.shutdown()
+    master.close()
+    master.rpcEnv.shutdown()
   }
 }
