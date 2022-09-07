@@ -24,7 +24,6 @@ USER root
 
 RUN set -ex && \
     apt-get update && \
-    ln -s /lib /lib64 && \
     apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user dnsutils && \
     ln -snf /bin/bash /bin/sh && \
     rm -rf /var/cache/apt/* && \
