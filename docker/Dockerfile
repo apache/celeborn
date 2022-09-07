@@ -25,11 +25,8 @@ USER root
 RUN set -ex && \
     apt-get update && \
     ln -s /lib /lib64 && \
-    apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user && \
-    rm /bin/sh && \
+    apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user dnsutils && \
     ln -snf /bin/bash /bin/sh && \
-    echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
-    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
     rm -rf /var/cache/apt/* && \
     mkdir -p /opt/
 
