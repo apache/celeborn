@@ -606,10 +606,6 @@ object RssConf extends Logging {
     Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
   }
 
-  def minimumPartitionSizeForEstimation(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.minimum.estimate.partition.size", "8m"))
-  }
-
   def partitionSizeUpdaterInitialDelay(conf: RssConf): Long = {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.initial.delay", "5m"))
   }

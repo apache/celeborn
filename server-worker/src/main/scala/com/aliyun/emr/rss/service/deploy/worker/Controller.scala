@@ -52,7 +52,6 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
-  val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimation(conf)
   var shutdown: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
@@ -237,9 +236,7 @@ private[deploy] class Controller(
                   if (fileWriter.getStorageInfo != null) {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
                   }
-                  if (bytes >= minimumPartitionSizeForEstimation) {
-                    partitionSizeList.add(bytes)
-                  }
+                  partitionSizeList.add(bytes)
                   committedIds.add(uniqueId)
                 }
               } catch {
