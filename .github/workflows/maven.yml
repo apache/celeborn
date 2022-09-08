@@ -9,6 +9,8 @@ on:
   pull_request:
     branches: [ main ]
 
+runs-on: self-hosted
+
 jobs:
   build_rss_on_spark:
     runs-on: ubuntu-22.04
