@@ -61,7 +61,10 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
         }
         break;
       default:
-        logger.error("Unknown compression method which is {} and the token is {}.", compressionMethod, token);
+        logger.error(
+            "Unknown compression method which is {} and the token is {}.",
+            compressionMethod,
+            token);
         return -1;
     }
 
