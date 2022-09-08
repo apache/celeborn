@@ -59,6 +59,10 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
               "Original length corrupted! expected: {}, actual: {}.", originalLen, originalLen2);
           return -1;
         }
+        break;
+      default:
+        logger.error("Unknown compression method which is {} and the token is {}.", compressionMethod, token);
+        return -1;
     }
 
     checksum.reset();

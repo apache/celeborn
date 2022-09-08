@@ -69,6 +69,8 @@ public class RssZstdCompressor extends RssZstdTrait implements Compressor {
       compressMethod = COMPRESSION_METHOD_ZSTD;
     }
 
+    int level = compressionLevel < 0 ? (Math.abs(compressionLevel) + 22) : compressionLevel;
+    assert (0 <= level && level <= 27);
     compressedBuffer[MAGIC_LENGTH] = (byte) (compressMethod | compressionLevel);
     writeIntLE(compressedLength, compressedBuffer, MAGIC_LENGTH + 1);
     writeIntLE(length, compressedBuffer, MAGIC_LENGTH + 5);
