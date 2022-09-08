@@ -23,3 +23,5 @@ Overview
 Aliyun Remote Shuffle Service(RSS) is dedicated to improving the efficiency and elasticity of
 different map-reduce engines. RSS provides an elastic and high efficient management service
 for shuffle data.
+
+The current stable version is {{ stable_version }}
