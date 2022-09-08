@@ -1243,6 +1243,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         splitting.remove(key)
         unregisterShuffleTime.remove(key)
         shuffleAllocatedWorkers.remove(key)
+        latestPartitionLocation.remove(key)
 
         requestUnregisterShuffle(rssHARetryClient, UnregisterShuffle(appId, key))
       }
