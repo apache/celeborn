@@ -97,7 +97,7 @@ public class PartitionFilesSorterSuiteJ {
       random.nextBytes(mockedData);
       ByteBuffer buf2 = ByteBuffer.wrap(mockedData);
       while (buf2.hasRemaining()) {
-        channel.write(ByteBuffer.wrap(mockedData));
+        channel.write(buf2);
       }
     }
     originFileLen = channel.size();
