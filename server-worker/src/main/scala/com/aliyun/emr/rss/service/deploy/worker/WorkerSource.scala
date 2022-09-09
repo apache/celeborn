@@ -76,6 +76,8 @@ object WorkerSource {
   val SortTime = "SortTime"
   val SortMemory = "SortMemory"
   val SortingFiles = "SortingFiles"
+  val SortedFiles = "SortedFiles"
+  val SortedFileSize = "SortedFileSize"
   val DiskBuffer = "DiskBuffer"
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
