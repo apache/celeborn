@@ -35,6 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.IOUtils;
@@ -76,6 +78,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
       cachedIndexMaps = new ConcurrentHashMap<>();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
+
+  private final AtomicInteger sortedFileCount = new AtomicInteger();
+  private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long fetchChunkSize;
   protected final long reserveMemoryForSingleSort;
@@ -142,6 +147,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public int getSortingCount() {
     return shuffleSortTaskDeque.size();
+  }
+
+  public int getSortedCount() {
+    return sortedFileCount.get();
+  }
+
+  public int getSortedSize() {
+    return (int) sortedFilesSize.get();
   }
 
   public FileInfo openStream(
@@ -284,8 +297,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   @VisibleForTesting
-  public void updateSortedShuffleFiles(String shuffleKey, String fileId) {
+  public void updateSortedShuffleFiles(String shuffleKey, String fileId, long fileLength) {
     sortedShuffleFiles.get(shuffleKey).add(fileId);
+    sortedFileCount.incrementAndGet();
+    sortedFilesSize.addAndGet(fileLength);
   }
 
   @VisibleForTesting
@@ -554,7 +569,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         ((DirectBuffer) paddingBuf).cleaner().clean();
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
-        updateSortedShuffleFiles(shuffleKey, fileId);
+        updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         deleteOriginFiles();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
