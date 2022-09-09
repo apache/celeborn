@@ -323,7 +323,10 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           return fileWriter
         } catch {
           case t: Throwable =>
-            logError("Create Writer failed, report to DeviceMonitor", t)
+            logError(
+              s"Create FileWriter in path $file of mount $mountPoint failed, " +
+                s"report to DeviceMonitor",
+              t)
             exception = new IOException(t)
             deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.ReadOrWriteFailure)
         }
