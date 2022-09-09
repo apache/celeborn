@@ -52,7 +52,7 @@ private[deploy] class Worker(
   override def serviceName: String = Service.WORKER
 
   override val metricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.SERVLET_PATH)
 
   val rpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -185,16 +185,22 @@ private[deploy] class Worker(
   var cleaner: Thread = _
 
   workerSource.addGauge(
-    WorkerSource.RegisteredShuffleCount,
+    WorkerSource.REGISTERED_SHUFFLE_TOTAL,
     _ => workerInfo.getShuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.SlotsAllocated, _ => workerInfo.allocationsInLastHour())
-  workerSource.addGauge(WorkerSource.SortMemory, _ => memoryTracker.getSortMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
-  workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryTracker.getDiskBufferCounter.get())
-  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryTracker.getNettyMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryTracker.getPausePushDataCounter)
+  workerSource.addGauge(WorkerSource.ALLOCATED_SLOTS_TOTAL, _ => workerInfo.allocationsInLastHour())
+  workerSource.addGauge(WorkerSource.SORTER_MEMORY, _ => memoryTracker.getSortMemoryCounter.get())
+  workerSource.addGauge(WorkerSource.SORTING_FILES, _ => partitionsSorter.getSortingCount)
   workerSource.addGauge(
-    WorkerSource.PausePushDataAndReplicateCount,
+    WorkerSource.DISK_BUFFER_USAGE,
+    _ => memoryTracker.getDiskBufferCounter.get())
+  workerSource.addGauge(
+    WorkerSource.NETTY_MEMORY_USAGE,
+    _ => memoryTracker.getNettyMemoryCounter.get())
+  workerSource.addGauge(
+    WorkerSource.PAUSE_PUSHDATA_TOTAL,
+    _ => memoryTracker.getPausePushDataCounter)
+  workerSource.addGauge(
+    WorkerSource.PAUSE_PUSHDATA_AND_REPLICATE_TOTAL,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   private def heartBeatToMaster(): Unit = {

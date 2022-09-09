@@ -32,7 +32,7 @@ class JVMCPUSource(rssConf: RssConf, role: String) extends AbstractSource(rssCon
   import JVMCPUSource._
 
   addGauge(
-    JVMCPUTime,
+    JVM_CPU_TIME,
     new Gauge[Long] {
       val mBean: MBeanServer = ManagementFactory.getPlatformMBeanServer
       val name = new ObjectName("java.lang", "type", "OperatingSystem")
@@ -51,5 +51,5 @@ class JVMCPUSource(rssConf: RssConf, role: String) extends AbstractSource(rssCon
 }
 
 object JVMCPUSource {
-  val JVMCPUTime = "JVMCPUTime"
+  val JVM_CPU_TIME = "server_jvm_cpu_milliseconds_total"
 }

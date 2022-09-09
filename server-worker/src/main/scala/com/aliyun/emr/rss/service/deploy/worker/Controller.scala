@@ -77,7 +77,7 @@ private[deploy] class Controller(
           splitMode,
           partitionType) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
+      workerSource.sample(WorkerSource.RESERVE_SLOTS_DURATION, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
@@ -95,7 +95,7 @@ private[deploy] class Controller(
 
     case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
+      workerSource.sample(WorkerSource.COMMIT_FILES_DURATION, shuffleKey) {
         logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
           s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
         val commitFilesTimeMs = Utils.timeIt({

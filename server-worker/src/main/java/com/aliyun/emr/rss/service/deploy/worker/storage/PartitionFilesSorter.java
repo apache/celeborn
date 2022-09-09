@@ -127,9 +127,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                   }
                   fileSorterExecutors.submit(
                       () -> {
-                        source.startTimer(WorkerSource.SortTime(), task.fileId);
+                        source.startTimer(WorkerSource.SORT_DURATION(), task.fileId);
                         task.sort();
-                        source.stopTimer(WorkerSource.SortTime(), task.fileId);
+                        source.stopTimer(WorkerSource.SORT_DURATION(), task.fileId);
                         memoryTracker.releaseSortMemory(reserveMemoryForSingleSort);
                       });
                 }

@@ -27,56 +27,57 @@ class WorkerSource(rssConf: RssConf) extends AbstractSource(rssConf, MetricsSyst
 
   import WorkerSource._
   // add counters
-  addCounter(PushDataFailCount)
+  addCounter(PUSHDATA_FAIL_TOTAL)
 
   // add Timers
-  addTimer(CommitFilesTime)
-  addTimer(ReserveSlotsTime)
-  addTimer(FlushDataTime)
-  addTimer(MasterPushDataTime)
-  addTimer(SlavePushDataTime)
+  addTimer(COMMIT_FILES_DURATION)
+  addTimer(RESERVE_SLOTS_DURATION)
+  addTimer(FLUSH_DATA_DURATION)
+  addTimer(MASTER_PUSHDATA_DURATION)
+  addTimer(SLAVE_PUSHDATA_DURATION)
 
-  addTimer(FetchChunkTime)
-  addTimer(OpenStreamTime)
-  addTimer(TakeBufferTime)
-  addTimer(SortTime)
+  addTimer(FETCH_CHUNK_DURATION)
+  addTimer(OPEN_STREAM_DURATION)
+  addTimer(TAKE_BUFFER_DURATION)
+  addTimer(SORT_DURATION)
 
   // start cleaner thread
   startCleaner()
 }
 
 object WorkerSource {
-  val ServletPath = "/metrics/prometheus"
-
-  val CommitFilesTime = "CommitFilesTime"
-
-  val ReserveSlotsTime = "ReserveSlotsTime"
-
-  val FlushDataTime = "FlushDataTime"
-
-  val OpenStreamTime = "OpenStreamTime"
-
-  val FetchChunkTime = "FetchChunkTime"
-
-  // push data
-  val MasterPushDataTime = "MasterPushDataTime"
-  val SlavePushDataTime = "SlavePushDataTime"
-  val PushDataFailCount = "PushDataFailCount"
-
-  // flush
-  val TakeBufferTime = "TakeBufferTime"
-
-  val RegisteredShuffleCount = "RegisteredShuffleCount"
+  val SERVLET_PATH = "/metrics/prometheus"
 
   // slots
-  val SlotsAllocated = "SlotsAllocated"
+  val RESERVE_SLOTS_DURATION = "worker_reserve_slots_duration_milliseconds"
+  val REGISTERED_SHUFFLE_TOTAL = "worker_registered_shuffle_total"
+  val ALLOCATED_SLOTS_TOTAL = "worker_allocated_slots_total"
+
+  // push data
+  val MASTER_PUSHDATA_DURATION = "worker_master_pushdata_duration_milliseconds"
+  val SLAVE_PUSHDATA_DURATION = "worker_slave_pushdata_duration_milliseconds"
+  val PUSHDATA_FAIL_TOTAL = "worker_pushdata_fail_total"
+
+  // flush data
+  val TAKE_BUFFER_DURATION = "worker_take_buffer_duration_milliseconds"
+  val FLUSH_DATA_DURATION = "worker_flush_data_duration_milliseconds"
+
+  // commit data
+  val COMMIT_FILES_DURATION = "worker_commit_files_duration_milliseconds"
+
+  // fetch data
+  val OPEN_STREAM_DURATION = "worker_open_stream_duration_milliseconds"
+
+  // sort data
+  val SORT_DURATION = "worker_sort_duration_milliseconds"
+  val SORTING_FILES = "worker_sorting_files_total"
+
+  val FETCH_CHUNK_DURATION = "worker_fetch_chunk_duration_milliseconds"
 
   // memory
-  val NettyMemory = "NettyMemory"
-  val SortTime = "SortTime"
-  val SortMemory = "SortMemory"
-  val SortingFiles = "SortingFiles"
-  val DiskBuffer = "DiskBuffer"
-  val PausePushDataCount = "PausePushData"
-  val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
+  val NETTY_MEMORY_USAGE = "worker_netty_memory_usage_bytes"
+  val DISK_BUFFER_USAGE = "worker_disk_buffer_memory_usage_bytes"
+  val SORTER_MEMORY = "worker_sorter_memory_usage_bytes"
+  val PAUSE_PUSHDATA_TOTAL = "worker_pause_pushdata_total"
+  val PAUSE_PUSHDATA_AND_REPLICATE_TOTAL = "worker_pause_pushdata_and_replicate_total"
 }

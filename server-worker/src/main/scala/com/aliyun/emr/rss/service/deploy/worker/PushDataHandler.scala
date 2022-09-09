@@ -140,9 +140,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val key = s"${pushData.requestId}"
     if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
+      workerSource.startTimer(WorkerSource.MASTER_PUSHDATA_DURATION, key)
     } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
+      workerSource.startTimer(WorkerSource.SLAVE_PUSHDATA_DURATION, key)
     }
 
     // find FileWriter responsible for the data
@@ -156,7 +156,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
+          workerSource.stopTimer(WorkerSource.MASTER_PUSHDATA_DURATION, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
@@ -166,14 +166,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             callback.onSuccess(response)
           }
         } else {
-          workerSource.stopTimer(WorkerSource.SlavePushDataTime, key)
+          workerSource.stopTimer(WorkerSource.SLAVE_PUSHDATA_DURATION, key)
           callback.onSuccess(response)
         }
       }
 
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location")
-        workerSource.incCounter(WorkerSource.PushDataFailCount)
+        workerSource.incCounter(WorkerSource.PUSHDATA_FAIL_TOTAL)
         callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage(), e))
       }
     }
@@ -288,15 +288,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val key = s"${pushMergedData.requestId}"
     if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
+      workerSource.startTimer(WorkerSource.MASTER_PUSHDATA_DURATION, key)
     } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
+      workerSource.startTimer(WorkerSource.SLAVE_PUSHDATA_DURATION, key)
     }
 
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
+          workerSource.stopTimer(WorkerSource.MASTER_PUSHDATA_DURATION, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
@@ -306,13 +306,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             callback.onSuccess(response)
           }
         } else {
-          workerSource.stopTimer(WorkerSource.SlavePushDataTime, key)
+          workerSource.stopTimer(WorkerSource.SLAVE_PUSHDATA_DURATION, key)
           callback.onSuccess(response)
         }
       }
 
       override def onFailure(e: Throwable): Unit = {
-        workerSource.incCounter(WorkerSource.PushDataFailCount)
+        workerSource.incCounter(WorkerSource.PUSHDATA_FAIL_TOTAL)
         callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage, e))
       }
     }

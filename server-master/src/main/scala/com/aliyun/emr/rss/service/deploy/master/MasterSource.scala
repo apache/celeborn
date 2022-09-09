@@ -21,29 +21,29 @@ import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
-import com.aliyun.emr.rss.service.deploy.master.MasterSource.OfferSlotsTime
+import com.aliyun.emr.rss.service.deploy.master.MasterSource.OFFER_SLOTS_DURATION
 
 class MasterSource(rssConf: RssConf)
   extends AbstractSource(rssConf, MetricsSystem.ROLE_MASTER) with Logging {
   override val sourceName = s"master"
 
-  addTimer(OfferSlotsTime)
+  addTimer(OFFER_SLOTS_DURATION)
   // start cleaner
   startCleaner()
 }
 
 object MasterSource {
-  val ServletPath = "/metrics/prometheus"
+  val SERVLET_PATH = "/metrics/prometheus"
 
-  val WorkerCount = "WorkerCount"
+  val WORKER_TOTAL = "master_worker_total"
 
-  val BlacklistedWorkerCount = "BlacklistedWorkerCount"
+  val BLACKLISTED_WORKER_TOTAL = "master_blacklisted_worker_total"
 
-  val RegisteredShuffleCount = "RegisteredShuffleCount"
+  val REGISTERED_SHUFFLE_TOTAL = "master_registered_shuffle_total"
 
-  val IsActiveMaster = "IsActiveMaster"
+  val IS_ACTIVE_MASTER = "master_is_active"
 
-  val PartitionSize = "PartitionSize"
+  val PARTITION_SIZE = "master_partition_size_total"
 
-  val OfferSlotsTime = "OfferSlotsTime"
+  val OFFER_SLOTS_DURATION = "master_offer_slots_duration_milliseconds"
 }
