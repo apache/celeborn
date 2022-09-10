@@ -81,12 +81,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     locations.asScala.foreach { case location => map.put(location.getId, location) }
   }
 
-  // revive request waiting for response
-  // shuffleKey -> (partitionId -> set)
-  private val reviving =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]()
-
-  private val splitting =
+  // shuffleId -> (partitionId -> set)
+  private val changePartitionRequests =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]()
 
   // register shuffle request waiting for response
@@ -250,7 +246,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     case PartitionSplit(applicationId, shuffleId, partitionId, epoch, oldPartition) =>
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
-      handlePartitionSplitRequest(
+      handleChangePartitionLocation(
         context,
         applicationId,
         shuffleId,
@@ -457,13 +453,41 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       return
     }
 
+    logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
+      s"oldPartition: $oldPartition, cause: $cause")
+
+    handleChangePartitionLocation(
+      context,
+      applicationId,
+      shuffleId,
+      partitionId,
+      oldEpoch,
+      oldPartition,
+      Some(cause))
+  }
+
+  private val rpcContextRegisterFunc =
+    new util.function.Function[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]() {
+      override def apply(s: Int): ConcurrentHashMap[Integer, util.Set[RpcCallContext]] =
+        new ConcurrentHashMap()
+    }
+
+  private def handleChangePartitionLocation(
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      partitionId: Int,
+      oldEpoch: Int,
+      oldPartition: PartitionLocation,
+      cause: Option[StatusCode] = None): Unit = {
+
     // check if there exists request for the partition, if do just register
-    val shuffleReviving = reviving.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
-    shuffleReviving.synchronized {
-      if (shuffleReviving.containsKey(partitionId)) {
-        shuffleReviving.get(partitionId).add(context)
-        logTrace(s"For $shuffleId, same partition $partitionId-$oldEpoch is reviving," +
-          s"register context.")
+    val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+    requests.synchronized {
+      if (requests.containsKey(partitionId)) {
+        requests.get(partitionId).add(context)
+        logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
+          s"$partitionId-$oldEpoch exists, register context.")
         return
       } else {
         // If new slot for the partition has been allocated, reply and return.
@@ -477,39 +501,17 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         }
         val set = new util.HashSet[RpcCallContext]()
         set.add(context)
-        shuffleReviving.put(partitionId, set)
+        requests.put(partitionId, set)
       }
     }
 
-    logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
-      s"oldPartition: $oldPartition, cause: $cause")
-    blacklistPartition(shuffleId, oldPartition, cause)
-    handleChangePartitionLocation(
-      shuffleReviving,
-      applicationId,
-      shuffleId,
-      partitionId,
-      oldEpoch,
-      oldPartition)
-  }
-
-  private val rpcContextRegisterFunc =
-    new util.function.Function[Int, ConcurrentHashMap[Integer, util.Set[RpcCallContext]]]() {
-      override def apply(s: Int): ConcurrentHashMap[Integer, util.Set[RpcCallContext]] =
-        new ConcurrentHashMap()
+    if (cause.isDefined) {
+      blacklistPartition(shuffleId, oldPartition, cause.get)
     }
 
-  private def handleChangePartitionLocation(
-      contexts: ConcurrentHashMap[Integer, util.Set[RpcCallContext]],
-      applicationId: String,
-      shuffleId: Int,
-      partitionId: Int,
-      oldEpochId: Int,
-      oldPartition: PartitionLocation): Unit = {
-
     def reply(response: ChangeLocationResponse): Unit = {
-      contexts.synchronized {
-        contexts.remove(partitionId)
+      requests.synchronized {
+        requests.remove(partitionId)
       }.asScala.foreach(_.reply(response))
     }
 
@@ -524,7 +526,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       if (oldPartition != null) {
         reallocateSlotsFromCandidates(List(oldPartition), candidates)
       } else {
-        reallocateForNonExistPartitionLocationFromCandidates(partitionId, oldEpochId, candidates)
+        reallocateForNonExistPartitionLocationFromCandidates(partitionId, oldEpoch, candidates)
       }
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocation)) {
@@ -566,42 +568,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
     null
-  }
-
-  private def handlePartitionSplitRequest(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      partitionId: Int,
-      oldEpoch: Int,
-      oldPartition: PartitionLocation): Unit = {
-    val shuffleSplitting = splitting.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
-    shuffleSplitting.synchronized {
-      if (shuffleSplitting.containsKey(partitionId)) {
-        shuffleSplitting.get(partitionId).add(context)
-        return
-      } else {
-        val latestLoc = getLatestPartition(shuffleId, partitionId, oldEpoch)
-        if (latestLoc != null) {
-          context.reply(ChangeLocationResponse(StatusCode.Success, latestLoc))
-          return
-        }
-        val set = new util.HashSet[RpcCallContext]()
-        set.add(context)
-        shuffleSplitting.put(partitionId, set)
-      }
-    }
-
-    logDebug(s"Relocate partition for shuffle split " +
-      s"${Utils.makeShuffleKey(applicationId, shuffleId)}, oldPartition: $oldPartition")
-
-    handleChangePartitionLocation(
-      shuffleSplitting,
-      applicationId,
-      shuffleId,
-      partitionId,
-      oldEpoch,
-      oldPartition)
   }
 
   private def handleMapperEnd(
@@ -1239,8 +1205,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         dataLostShuffleSet.remove(key)
         shuffleMapperAttempts.remove(key)
         stageEndShuffleSet.remove(key)
-        reviving.remove(key)
-        splitting.remove(key)
+        changePartitionRequests.remove(key)
         unregisterShuffleTime.remove(key)
         shuffleAllocatedWorkers.remove(key)
         latestPartitionLocation.remove(key)
