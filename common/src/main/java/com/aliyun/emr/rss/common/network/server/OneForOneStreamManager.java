@@ -17,7 +17,6 @@
 
 package com.aliyun.emr.rss.common.network.server;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.TransportClient;
 
 /**
  * StreamManager which allows registration of an Iterator&lt;ManagedBuffer&gt;, which are
@@ -46,8 +44,7 @@ public class OneForOneStreamManager extends StreamManager {
 
   /** State of a single stream. */
   protected static class StreamState {
-    final String appId;
-    final Iterator<ManagedBuffer> buffers;
+    final FileManagedBuffers buffers;
 
     // The channel associated to the stream
     final Channel associatedChannel;
@@ -59,8 +56,7 @@ public class OneForOneStreamManager extends StreamManager {
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String appId, Iterator<ManagedBuffer> buffers, Channel channel) {
-      this.appId = appId;
+    StreamState(FileManagedBuffers buffers, Channel channel) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.associatedChannel = channel;
     }
@@ -74,24 +70,24 @@ public class OneForOneStreamManager extends StreamManager {
   }
 
   @Override
-  public ManagedBuffer getChunk(long streamId, int chunkIndex) {
+  public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
     StreamState state = streams.get(streamId);
     if (state == null) {
       throw new IllegalStateException(String.format(
         "Stream %s for chunk %s is not registered(Maybe removed).", streamId, chunkIndex));
-    } else if (!state.buffers.hasNext()) {
+    } else if (chunkIndex >= state.buffers.numChunks()) {
       throw new IllegalStateException(String.format(
         "Requested chunk index beyond end %s", chunkIndex));
     }
 
-    ManagedBufferIterator iterator = (ManagedBufferIterator) state.buffers;
-    if (iterator.hasAlreadyRead(chunkIndex)) {
+    FileManagedBuffers buffers = state.buffers;
+    if (buffers.hasAlreadyRead(chunkIndex)) {
       throw new IllegalStateException(String.format(
           "Chunk %s for stream %s has already been read.", chunkIndex, streamId));
     }
-    ManagedBuffer nextChunk = iterator.chunk(chunkIndex);
+    ManagedBuffer nextChunk = buffers.chunk(chunkIndex, offset, len);
 
-    if (!state.buffers.hasNext()) {
+    if (state.buffers.isFullyRead()) {
       // Normally, when all chunks are returned to the client, the stream should be removed here.
       // But if there is a switch on the client side, it will not go here at this time, so we need
       // to remove the stream when the connection is terminated, and release the unused buffer.
@@ -100,13 +96,6 @@ public class OneForOneStreamManager extends StreamManager {
     }
 
     return nextChunk;
-  }
-
-  @Override
-  public ManagedBuffer openStream(String streamChunkId) {
-    Pair<Long, Integer> streamChunkIdPair = parseStreamChunkId(streamChunkId);
-    logger.debug("StreamManager open stream {}", streamChunkId);
-    return getChunk(streamChunkIdPair.getLeft(), streamChunkIdPair.getRight());
   }
 
   public static String genStreamChunkId(long streamId, int chunkId) {
@@ -126,49 +115,11 @@ public class OneForOneStreamManager extends StreamManager {
 
   @Override
   public void connectionTerminated(Channel channel) {
-    // SPARK-30246
-    RuntimeException failedToReleaseBufferException = null;
-
     // Close all streams which have been associated with the channel.
     for (Map.Entry<Long, StreamState> entry: streams.entrySet()) {
       StreamState state = entry.getValue();
       if (state.associatedChannel == channel) {
         streams.remove(entry.getKey());
-
-        try {
-          // Release all remaining buffers.
-          while (state.buffers.hasNext()) {
-            ManagedBuffer buffer = state.buffers.next();
-            if (buffer != null) {
-              buffer.release();
-            }
-          }
-        } catch (RuntimeException e) {
-          if (failedToReleaseBufferException == null) {
-            failedToReleaseBufferException = e;
-          } else {
-            logger.error("Exception trying to release remaining StreamState buffers", e);
-          }
-        }
-      }
-    }
-
-    if (failedToReleaseBufferException != null) {
-      throw failedToReleaseBufferException;
-    }
-  }
-
-  @Override
-  public void checkAuthorization(TransportClient client, long streamId) {
-    if (client.getClientId() != null) {
-      StreamState state = streams.get(streamId);
-      Preconditions.checkArgument(state != null, "Unknown stream ID.");
-      if (!client.getClientId().equals(state.appId)) {
-        throw new SecurityException(String.format(
-          "Client %s not authorized to read stream %d (app %s).",
-          client.getClientId(),
-          streamId,
-          state.appId));
       }
     }
   }
@@ -179,7 +130,6 @@ public class OneForOneStreamManager extends StreamManager {
     if (streamState != null) {
       streamState.chunksBeingTransferred++;
     }
-
   }
 
   @Override
@@ -222,9 +172,9 @@ public class OneForOneStreamManager extends StreamManager {
    * to be the only reader of the stream. Once the connection is closed, the stream will never
    * be used again, enabling cleanup by `connectionTerminated`.
    */
-  public long registerStream(String appId, Iterator<ManagedBuffer> buffers, Channel channel) {
+  public long registerStream(FileManagedBuffers buffers, Channel channel) {
     long myStreamId = nextStreamId.getAndIncrement();
-    streams.put(myStreamId, new StreamState(appId, buffers, channel));
+    streams.put(myStreamId, new StreamState(buffers, channel));
     return myStreamId;
   }
 

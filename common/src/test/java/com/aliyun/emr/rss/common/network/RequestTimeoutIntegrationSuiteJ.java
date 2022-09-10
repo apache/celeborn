@@ -37,7 +37,8 @@ import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.protocol.*;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
@@ -69,7 +70,7 @@ public class RequestTimeoutIntegrationSuiteJ {
 
     defaultManager = new StreamManager() {
       @Override
-      public ManagedBuffer getChunk(long streamId, int chunkIndex) {
+      public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
         throw new UnsupportedOperationException();
       }
     };
@@ -90,27 +91,28 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutInactiveRequests() throws Exception {
     final Semaphore semaphore = new Semaphore(1);
     final int responseSize = 16;
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
       public void receive(
           TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
+          RequestMessage message) {
         try {
           semaphore.acquire();
-          callback.onSuccess(ByteBuffer.allocate(responseSize));
+          client.getChannel().writeAndFlush(new RpcResponse(
+            ((RpcRequest) message).requestId,
+            new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
         } catch (InterruptedException e) {
           // do nothing
         }
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return defaultManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
-    TransportContext context = new TransportContext(conf, handler);
+    TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
@@ -137,27 +139,28 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void timeoutCleanlyClosesClient() throws Exception {
     final Semaphore semaphore = new Semaphore(0);
     final int responseSize = 16;
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
       public void receive(
-          TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
+        TransportClient client,
+        RequestMessage message) {
         try {
           semaphore.acquire();
-          callback.onSuccess(ByteBuffer.allocate(responseSize));
+          client.getChannel().writeAndFlush(new RpcResponse(
+            ((RpcRequest) message).requestId,
+            new NioManagedBuffer(ByteBuffer.allocate(responseSize))));
         } catch (InterruptedException e) {
           // do nothing
         }
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return defaultManager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
-    TransportContext context = new TransportContext(conf, handler);
+    TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
     clientFactory = context.createClientFactory();
 
@@ -188,27 +191,29 @@ public class RequestTimeoutIntegrationSuiteJ {
     final byte[] response = new byte[16];
     final StreamManager manager = new StreamManager() {
       @Override
-      public ManagedBuffer getChunk(long streamId, int chunkIndex) {
+      public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
         Uninterruptibles.sleepUninterruptibly(FOREVER, TimeUnit.MILLISECONDS);
         return new NioManagedBuffer(ByteBuffer.wrap(response));
       }
     };
-    RpcHandler handler = new RpcHandler() {
+    BaseMessageHandler handler = new BaseMessageHandler() {
       @Override
       public void receive(
-          TransportClient client,
-          ByteBuffer message,
-          RpcResponseCallback callback) {
-        throw new UnsupportedOperationException();
+        TransportClient client,
+        RequestMessage msg) {
+        StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+        ManagedBuffer buf = manager.getChunk(slice.streamId, slice.chunkIndex,
+          slice.offset, slice.len);
+        client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
       }
 
       @Override
-      public StreamManager getStreamManager() {
-        return manager;
+      public boolean checkRegistered() {
+        return true;
       }
     };
 
-    TransportContext context = new TransportContext(conf, handler);
+    TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
@@ -226,7 +231,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     // not complete yet, but should complete soon
     assertEquals(-1, callback0.successLength);
     assertNull(callback0.failure);
-    callback0.latch.await(60, TimeUnit.SECONDS);
+    callback0.latch.await(10, TimeUnit.SECONDS);
     assertTrue(callback0.failure instanceof IOException);
 
     // make sure callback1 is called.

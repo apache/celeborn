@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
@@ -73,7 +72,6 @@ public class TransportClient implements Closeable {
 
   private final Channel channel;
   private final TransportResponseHandler handler;
-  @Nullable private String clientId;
   private volatile boolean timedOut;
 
   public TransportClient(Channel channel, TransportResponseHandler handler) {
@@ -94,23 +92,11 @@ public class TransportClient implements Closeable {
     return channel.remoteAddress();
   }
 
-  /**
-   * Returns the ID used by the client to authenticate itself when authentication is enabled.
-   *
-   * @return The client ID, or null if authentication is disabled.
-   */
-  public String getClientId() {
-    return clientId;
-  }
-
-  /**
-   * Sets the authenticated client ID. This is meant to be used by the authentication layer.
-   *
-   * Trying to set a different client ID after it's been set will result in an exception.
-   */
-  public void setClientId(String id) {
-    Preconditions.checkState(clientId == null, "Client ID has already been set.");
-    this.clientId = id;
+  public void fetchChunk(
+    long streamId,
+    int chunkIndex,
+    ChunkReceivedCallback callback) {
+    fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, callback);
   }
 
   /**
@@ -126,28 +112,32 @@ public class TransportClient implements Closeable {
    * @param streamId Identifier that refers to a stream in the remote StreamManager. This should
    *                 be agreed upon by client and server beforehand.
    * @param chunkIndex 0-based index of the chunk to fetch
+   * @param offset offset from the beginning of the chunk to fetch
+   * @param len size to fetch
    * @param callback Callback invoked upon successful receipt of chunk, or upon any failure.
    */
   public void fetchChunk(
       long streamId,
       int chunkIndex,
+      int offset,
+      int len,
       ChunkReceivedCallback callback) {
     if (logger.isDebugEnabled()) {
       logger.debug("Sending fetch chunk request {} to {}.",
         chunkIndex, NettyUtils.getRemoteAddress(channel));
     }
 
-    StreamChunkId streamChunkId = new StreamChunkId(streamId, chunkIndex);
-    StdChannelListener listener = new StdChannelListener(streamChunkId) {
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
+    StdChannelListener listener = new StdChannelListener(streamChunkSlice) {
       @Override
       protected void handleFailure(String errorMsg, Throwable cause) {
-        handler.removeFetchRequest(streamChunkId);
+        handler.removeFetchRequest(streamChunkSlice);
         callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
       }
     };
-    handler.addFetchRequest(streamChunkId, callback);
+    handler.addFetchRequest(streamChunkSlice, callback);
 
-    channel.writeAndFlush(new ChunkFetchRequest(streamChunkId)).addListener(listener);
+    channel.writeAndFlush(new ChunkFetchRequest(streamChunkSlice)).addListener(listener);
   }
 
   /**
@@ -272,7 +262,6 @@ public class TransportClient implements Closeable {
   public String toString() {
     return Objects.toStringHelper(this)
       .add("remoteAdress", channel.remoteAddress())
-      .add("clientId", clientId)
       .add("isActive", isActive())
       .toString();
   }
@@ -290,11 +279,6 @@ public class TransportClient implements Closeable {
     public StdChannelListener(Object requestId) {
       this.startTime = System.currentTimeMillis();
       this.requestId = requestId;
-    }
-
-    public StdChannelListener() {
-      this.startTime = System.currentTimeMillis();
-      this.requestId = null;
     }
 
     @Override

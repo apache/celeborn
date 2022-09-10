@@ -20,7 +20,6 @@ package com.aliyun.emr.rss.common.network.server;
 import io.netty.channel.Channel;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
-import com.aliyun.emr.rss.common.network.client.TransportClient;
 
 /**
  * The StreamManager is used to fetch individual chunks from a stream. This is used in
@@ -44,14 +43,14 @@ public abstract class StreamManager {
    * @param streamId id of a stream that has been previously registered with the StreamManager.
    * @param chunkIndex 0-indexed chunk of the stream that's requested
    */
-  public abstract ManagedBuffer getChunk(long streamId, int chunkIndex);
+  public abstract ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len);
 
   /**
    * Called in response to a stream() request. The returned data is streamed to the client
    * through a single TCP connection.
    *
    * Note the <code>streamId</code> argument is not related to the similarly named argument in the
-   * {@link #getChunk(long, int)} method.
+   * {@link #getChunk(long, int, int, int)} method.
    *
    * @param streamId id of a stream that has been previously registered with the StreamManager.
    * @return A managed buffer for the stream, or null if the stream was not found.
@@ -65,13 +64,6 @@ public abstract class StreamManager {
    * to read from the associated streams again, so any state can be cleaned up.
    */
   public void connectionTerminated(Channel channel) { }
-
-  /**
-   * Verify that the client is authorized to read from the given stream.
-   *
-   * @throws SecurityException If client is not authorized.
-   */
-  public void checkAuthorization(TransportClient client, long streamId) { }
 
   /**
    * Return the number of chunks being transferred and not finished yet in this StreamManager.

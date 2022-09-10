@@ -42,12 +42,14 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
 import com.aliyun.emr.rss.common.RssConf;
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
+import com.aliyun.emr.rss.common.network.protocol.Message;
+import com.aliyun.emr.rss.common.network.protocol.OpenStream;
+import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.server.FileInfo;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
@@ -70,7 +72,7 @@ public class FileWriterSuiteJ {
 
   private static File tempDir = null;
   private static DiskFlusher flusher = null;
-  private static AbstractSource source = null;
+  private static WorkerSource source = null;
 
   private static TransportServer server;
   private static TransportClientFactory clientFactory;
@@ -84,7 +86,7 @@ public class FileWriterSuiteJ {
   public static void beforeAll() {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
 
-    source = Mockito.mock(AbstractSource.class);
+    source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(invocationOnMock -> {
       Function0<?> function = (Function0<?>) invocationOnMock.getArguments()[2];
       return function.apply();
@@ -96,8 +98,26 @@ public class FileWriterSuiteJ {
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
-    ChunkFetchRpcHandler handler = new ChunkFetchRpcHandler(transConf, source,
-      new OpenStreamer(info));
+    FetchHandler handler = new FetchHandler(transConf) {
+      @Override
+      public FileInfo openStream(
+        String shuffleKey,
+        String fileName,
+        int startMapIndex,
+        int endMapIndex) {
+        return info;
+      }
+
+      @Override
+      public WorkerSource source() {
+        return source;
+      }
+
+      @Override
+      public boolean checkRegistered() {
+        return true;
+      }
+    };
     TransportContext context = new TransportContext(transConf, handler);
     server = context.createServer();
 
@@ -133,45 +153,21 @@ public class FileWriterSuiteJ {
     }
   }
 
-  static class OpenStreamer implements OpenStreamHandler, Registerable {
-
-    private FileInfo fileInfo = null;
-
-    OpenStreamer(FileInfo info) {
-      this.fileInfo = info;
-    }
-
-    @Override
-    public boolean isRegistered() {
-      return true;
-    }
-
-    @Override
-    public FileInfo handleOpenStream(String shuffleKey, String partitionId, int startMapIndex,
-      int endMapIndex) {
-      return fileInfo;
-    }
-  }
-
   public ByteBuffer createOpenMessage() {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
-    ByteBuffer openMessage = ByteBuffer.allocate(
-      4 + shuffleKeyBytes.length + 4 + fileNameBytes.length + 8 + 8);
-    openMessage.putInt(shuffleKeyBytes.length);
-    openMessage.put(shuffleKeyBytes);
-    openMessage.putInt(fileNameBytes.length);
-    openMessage.put(fileNameBytes);
-    openMessage.putInt(0);
-    openMessage.putInt(Integer.MAX_VALUE);
-    openMessage.flip();
-    return openMessage;
+
+    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes,
+      0, Integer.MAX_VALUE);
+
+    return openBlocks.toByteBuffer();
   }
 
   private void setUpConn(TransportClient client) {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    streamId = resp.getLong();
-    numChunks = resp.getInt();
+    StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
+    streamId = streamHandle.streamId;
+    numChunks = streamHandle.numChunks;
   }
 
   private FetchResult fetchChunks(TransportClient client,

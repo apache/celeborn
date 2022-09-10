@@ -21,47 +21,46 @@ import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
 /**
- * Response to {@link ChunkFetchRequest} when there is an error fetching the chunk.
+ * Identifier for a fixed number of chunks to read from a stream created by an "open blocks"
+ * message.
  */
-public final class ChunkFetchFailure extends ResponseMessage {
-  public final StreamChunkSlice streamChunkSlice;
-  public final String errorString;
+public final class StreamHandle extends RequestMessage {
+  public final long streamId;
+  public final int numChunks;
 
-  public ChunkFetchFailure(StreamChunkSlice streamChunkSlice, String errorString) {
-    this.streamChunkSlice = streamChunkSlice;
-    this.errorString = errorString;
+  public StreamHandle(long streamId, int numChunks) {
+    this.streamId = streamId;
+    this.numChunks = numChunks;
   }
 
   @Override
-  public Type type() { return Type.ChunkFetchFailure; }
+  public Type type() { return Type.StreamHandle; }
 
   @Override
   public int encodedLength() {
-    return streamChunkSlice.encodedLength() + Encoders.Strings.encodedLength(errorString);
+    return 8 + 4;
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    streamChunkSlice.encode(buf);
-    Encoders.Strings.encode(buf, errorString);
+    buf.writeLong(streamId);
+    buf.writeInt(numChunks);
   }
 
-  public static ChunkFetchFailure decode(ByteBuf buf) {
-    StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
-    String errorString = Encoders.Strings.decode(buf);
-    return new ChunkFetchFailure(streamChunkSlice, errorString);
+  public static StreamHandle decode(ByteBuf buf) {
+    return new StreamHandle(buf.readLong(), buf.readInt());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamChunkSlice, errorString);
+    return Objects.hashCode(streamId, numChunks);
   }
 
   @Override
   public boolean equals(Object other) {
-    if (other instanceof ChunkFetchFailure) {
-      ChunkFetchFailure o = (ChunkFetchFailure) other;
-      return streamChunkSlice.equals(o.streamChunkSlice) && errorString.equals(o.errorString);
+    if (other instanceof StreamHandle) {
+      StreamHandle o = (StreamHandle) other;
+      return streamId == o.streamId && numChunks == o.numChunks;
     }
     return false;
   }
@@ -69,8 +68,8 @@ public final class ChunkFetchFailure extends ResponseMessage {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-      .add("streamChunkId", streamChunkSlice)
-      .add("errorString", errorString)
+      .add("streamId", streamId)
+      .add("numChunks", numChunks)
       .toString();
   }
 }

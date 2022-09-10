@@ -28,8 +28,7 @@ import static org.junit.Assert.*;
 
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.server.NoOpRpcHandler;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.ConfigProvider;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
@@ -44,8 +43,8 @@ public class TransportClientFactorySuiteJ {
   @Before
   public void setUp() {
     TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
-    RpcHandler rpcHandler = new NoOpRpcHandler();
-    context = new TransportContext(conf, rpcHandler);
+    BaseMessageHandler handler = new BaseMessageHandler();
+    context = new TransportContext(conf, handler);
     server1 = context.createServer();
     server2 = context.createServer();
   }
@@ -69,8 +68,8 @@ public class TransportClientFactorySuiteJ {
     configMap.put("rss.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
     TransportConf conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
 
-    RpcHandler rpcHandler = new NoOpRpcHandler();
-    TransportContext context = new TransportContext(conf, rpcHandler);
+    BaseMessageHandler handler = new BaseMessageHandler();
+    TransportContext context = new TransportContext(conf, handler);
     TransportClientFactory factory = context.createClientFactory();
     Set<TransportClient> clients = Collections.synchronizedSet(
       new HashSet<TransportClient>());
@@ -194,7 +193,7 @@ public class TransportClientFactorySuiteJ {
         throw new UnsupportedOperationException();
       }
     });
-    TransportContext context = new TransportContext(conf, new NoOpRpcHandler(), true);
+    TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
     try (TransportClientFactory factory = context.createClientFactory()) {
       TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
       assertTrue(c1.isActive());

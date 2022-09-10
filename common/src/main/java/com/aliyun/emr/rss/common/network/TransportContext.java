@@ -17,27 +17,20 @@
 
 package com.aliyun.emr.rss.common.network;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.client.TransportResponseHandler;
-import com.aliyun.emr.rss.common.network.protocol.MessageDecoder;
 import com.aliyun.emr.rss.common.network.protocol.MessageEncoder;
 import com.aliyun.emr.rss.common.network.server.*;
+import com.aliyun.emr.rss.common.network.util.FrameDecoder;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-import com.aliyun.emr.rss.common.network.util.TransportFrameDecoder;
 
 /**
  * Contains the context to create a {@link TransportServer}, {@link TransportClientFactory}, and to
@@ -57,119 +50,63 @@ public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
   private final TransportConf conf;
-  private final RpcHandler rpcHandler;
+  private final BaseMessageHandler msgHandler;
+  private ChannelsLimiter channelsLimiter;
   private final boolean closeIdleConnections;
 
-  /**
-   * Force to create MessageEncoder and MessageDecoder so that we can make sure they will be created
-   * before switching the current context class loader to ExecutorClassLoader.
-   *
-   * Netty's MessageToMessageEncoder uses Javassist to generate a matcher class and the
-   * implementation calls "Class.forName" to check if this calls is already generated. If the
-   * following two objects are created in "ExecutorClassLoader.findClass", it will cause
-   * "ClassCircularityError". This is because loading this Netty generated class will call
-   * "ExecutorClassLoader.findClass" to search this class, and "ExecutorClassLoader" will try to use
-   * RPC to load it and cause to load the non-exist matcher class again. JVM will report
-   * `ClassCircularityError` to prevent such infinite recursion. (See SPARK-17714)
-   */
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
-  private static final MessageDecoder DECODER = MessageDecoder.INSTANCE;
-
-  private AbstractSource source;
-  private ChannelHandler channelHandler;
 
   public TransportContext(
       TransportConf conf,
-      RpcHandler rpcHandler,
+      BaseMessageHandler msgHandler,
       boolean closeIdleConnections,
-      AbstractSource source,
-      ChannelHandler channelHandler) {
+      ChannelsLimiter channelsLimiter) {
     this.conf = conf;
-    this.rpcHandler = rpcHandler;
+    this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;
-    this.source = source;
-    this.channelHandler = channelHandler;
+    this.channelsLimiter = channelsLimiter;
   }
 
   public TransportContext(
       TransportConf conf,
-      RpcHandler rpcHandler,
-      boolean closeIdleConnections,
-      AbstractSource source) {
-    this(conf, rpcHandler, closeIdleConnections, source, null);
-  }
-
-  public TransportContext(TransportConf conf, RpcHandler rpcHandler) {
-    this(conf, rpcHandler, false, null, null);
-  }
-
-  public TransportContext(
-      TransportConf conf,
-      RpcHandler rpcHandler,
+      BaseMessageHandler msgHandler,
       boolean closeIdleConnections) {
-    this(conf, rpcHandler, closeIdleConnections, null, null);
+    this(conf, msgHandler, closeIdleConnections, null);
   }
 
-  /**
-   * Initializes a ClientFactory which runs the given TransportClientBootstraps prior to returning
-   * a new Client. Bootstraps will be executed synchronously, and must run successfully in order
-   * to create a Client.
-   */
-  public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {
-    return new TransportClientFactory(this, bootstraps);
+  public TransportContext(TransportConf conf, BaseMessageHandler msgHandler) {
+    this(conf, msgHandler, false);
   }
 
   public TransportClientFactory createClientFactory() {
-    return createClientFactory(new ArrayList<>());
-  }
-
-  /** Create a server which will attempt to bind to a specific port. */
-  public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, null, port, rpcHandler, bootstraps, source);
+    return new TransportClientFactory(this);
   }
 
   /** Create a server which will attempt to bind to a specific host and port. */
-  public TransportServer createServer(
-      String host, int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, host, port, rpcHandler, bootstraps);
+  public TransportServer createServer(String host, int port) {
+    return new TransportServer(this, host, port);
   }
 
+  public TransportServer createServer(int port) {
+    return createServer(null, port);
+  }
+
+  /** For Suite only */
   public TransportServer createServer() {
-    return createServer(0, new ArrayList<>());
+    return createServer(null, 0);
   }
 
   public TransportChannelHandler initializePipeline(SocketChannel channel) {
-    return initializePipeline(channel, rpcHandler);
-  }
-
-  /**
-   * Initializes a client or server Netty Channel Pipeline which encodes/decodes messages and
-   * has a {@link TransportChannelHandler} to handle request or
-   * response messages.
-   *
-   * @param channel The channel to initialize.
-   * @param channelRpcHandler The RPC handler to use for the channel.
-   *
-   * @return Returns the created TransportChannelHandler, which includes a TransportClient that can
-   * be used to communicate on this channel. The TransportClient is directly associated with a
-   * ChannelHandler to ensure all users of the same channel get the same TransportClient object.
-   */
-  public TransportChannelHandler initializePipeline(
-      SocketChannel channel,
-      RpcHandler channelRpcHandler) {
     try {
-      if (channelHandler != null) {
+      if (channelsLimiter != null) {
         channel.pipeline()
-          .addLast("limiter", channelHandler);
+          .addLast("limiter", channelsLimiter);
       }
-      TransportChannelHandler channelHandler = createChannelHandler(channel, channelRpcHandler);
+      TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
       channel.pipeline()
         .addLast("encoder", ENCODER)
-        .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
-        .addLast("decoder", DECODER)
+        .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
         .addLast("idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
-        // NOTE: Chunks are currently guaranteed to be returned in the order of request, but this
-        // would require more logic to guarantee if this were not part of the same event loop.
         .addLast("handler", channelHandler);
       return channelHandler;
     } catch (RuntimeException e) {
@@ -178,16 +115,12 @@ public class TransportContext {
     }
   }
 
-  /**
-   * Creates the server- and client-side handler which is used to handle both RequestMessages and
-   * ResponseMessages. The channel is expected to have been successfully created, though certain
-   * properties (such as the remoteAddress()) may not be available yet.
-   */
-  private TransportChannelHandler createChannelHandler(Channel channel, RpcHandler rpcHandler) {
+  private TransportChannelHandler createChannelHandler(
+      Channel channel, BaseMessageHandler msgHandler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
-      rpcHandler, conf.maxChunksBeingTransferred(), source);
+      msgHandler);
     return new TransportChannelHandler(client, responseHandler, requestHandler,
       conf.connectionTimeoutMs(), closeIdleConnections);
   }

@@ -26,6 +26,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import com.aliyun.emr.rss.common.network.protocol.Message;
+
 /**
  * A customized frame decoder that allows intercepting raw data.
  * <p>
@@ -42,53 +44,48 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * framing resumes. Interceptors should not hold references to the data buffers provided
  * to their handle() method.
  */
-public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
-
-  public static final String HANDLER_NAME = "frameDecoder";
-  private static final int LENGTH_SIZE = 8;
+public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implements FrameDecoder {
+  private int msgSize = -1;
+  private int bodySize = -1;
+  private Message.Type curType = Message.Type.UnkownType;
+  private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
   private static final int UNKNOWN_FRAME_SIZE = -1;
 
   private final LinkedList<ByteBuf> buffers = new LinkedList<>();
-  private final ByteBuf frameLenBuf = Unpooled.buffer(LENGTH_SIZE, LENGTH_SIZE);
 
   private long totalSize = 0;
   private long nextFrameSize = UNKNOWN_FRAME_SIZE;
-  private volatile Interceptor interceptor;
 
   @Override
-  public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
+  public void channelRead(ChannelHandlerContext ctx, Object data) {
     ByteBuf in = (ByteBuf) data;
     buffers.add(in);
     totalSize += in.readableBytes();
 
     while (!buffers.isEmpty()) {
-      // First, feed the interceptor, and if it's still, active, try again.
-      if (interceptor != null) {
-        ByteBuf first = buffers.getFirst();
-        int available = first.readableBytes();
-        if (feedInterceptor(first)) {
-          assert !first.isReadable() : "Interceptor still active but buffer has data.";
-        }
-
-        int read = available - first.readableBytes();
-        if (read == available) {
-          buffers.removeFirst().release();
-        }
-        totalSize -= read;
-      } else {
-        // Interceptor is not active, so try to decode one frame.
-        ByteBuf frame = decodeNext();
-        if (frame == null) {
-          break;
-        }
-        ctx.fireChannelRead(frame);
+      ByteBuf frame = decodeNext();
+      if (frame == null) {
+        break;
       }
+      Message msg = Message.decode(curType, frame);
+      if (msg.body() == null) {
+        frame.release();
+      }
+      ctx.fireChannelRead(msg);
+      clear();
     }
   }
 
+  private void clear() {
+    curType = Message.Type.UnkownType;
+    msgSize = -1;
+    bodySize = -1;
+    headerBuf.clear();
+  }
+
   private long decodeFrameSize() {
-    if (nextFrameSize != UNKNOWN_FRAME_SIZE || totalSize < LENGTH_SIZE) {
+    if (nextFrameSize != UNKNOWN_FRAME_SIZE || totalSize < HEADER_SIZE) {
       return nextFrameSize;
     }
 
@@ -97,27 +94,32 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     // the frame size. Normally, it should be rare to need more than one buffer to read the frame
     // size.
     ByteBuf first = buffers.getFirst();
-    if (first.readableBytes() >= LENGTH_SIZE) {
-      nextFrameSize = first.readLong() - LENGTH_SIZE;
-      totalSize -= LENGTH_SIZE;
+    if (first.readableBytes() >= HEADER_SIZE) {
+      msgSize = first.readInt();
+      curType = Message.Type.decode(first);
+      bodySize = first.readInt();
+      nextFrameSize = msgSize + bodySize;
+      totalSize -= HEADER_SIZE;
       if (!first.isReadable()) {
         buffers.removeFirst().release();
       }
       return nextFrameSize;
     }
 
-    while (frameLenBuf.readableBytes() < LENGTH_SIZE) {
+    while (headerBuf.readableBytes() < HEADER_SIZE) {
       ByteBuf next = buffers.getFirst();
-      int toRead = Math.min(next.readableBytes(), LENGTH_SIZE - frameLenBuf.readableBytes());
-      frameLenBuf.writeBytes(next, toRead);
+      int toRead = Math.min(next.readableBytes(), HEADER_SIZE - headerBuf.readableBytes());
+      headerBuf.writeBytes(next, toRead);
       if (!next.isReadable()) {
         buffers.removeFirst().release();
       }
     }
 
-    nextFrameSize = frameLenBuf.readLong() - LENGTH_SIZE;
-    totalSize -= LENGTH_SIZE;
-    frameLenBuf.clear();
+    msgSize = headerBuf.readInt();
+    curType = Message.Type.decode(headerBuf);
+    bodySize = headerBuf.readInt();
+    nextFrameSize = msgSize + bodySize;
+    totalSize -= HEADER_SIZE;
     return nextFrameSize;
   }
 
@@ -172,9 +174,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    if (interceptor != null) {
-      interceptor.channelInactive();
-    }
     super.channelInactive(ctx);
   }
 
@@ -188,49 +187,12 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
       b.release();
     }
     buffers.clear();
-    frameLenBuf.release();
+    headerBuf.release();
     super.handlerRemoved(ctx);
   }
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    if (interceptor != null) {
-      interceptor.exceptionCaught(cause);
-    }
     super.exceptionCaught(ctx, cause);
   }
-
-  public void setInterceptor(Interceptor interceptor) {
-    Preconditions.checkState(this.interceptor == null, "Already have an interceptor.");
-    this.interceptor = interceptor;
-  }
-
-  /**
-   * @return Whether the interceptor is still active after processing the data.
-   */
-  private boolean feedInterceptor(ByteBuf buf) throws Exception {
-    if (interceptor != null && !interceptor.handle(buf)) {
-      interceptor = null;
-    }
-    return interceptor != null;
-  }
-
-  public interface Interceptor {
-
-    /**
-     * Handles data received from the remote end.
-     *
-     * @param data Buffer containing data.
-     * @return "true" if the interceptor expects more data, "false" to uninstall the interceptor.
-     */
-    boolean handle(ByteBuf data) throws Exception;
-
-    /** Called if an exception is thrown in the channel pipeline. */
-    void exceptionCaught(Throwable cause) throws Exception;
-
-    /** Called if the channel is closed and the interceptor is still installed. */
-    void channelInactive() throws Exception;
-
-  }
-
 }

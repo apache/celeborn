@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
-import com.google.common.collect.Lists;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -46,11 +45,10 @@ import com.aliyun.emr.rss.common.network.TransportContext;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.RpcResponseCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.client.TransportClientBootstrap;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.network.protocol.PushData;
 import com.aliyun.emr.rss.common.network.protocol.PushMergedData;
-import com.aliyun.emr.rss.common.network.server.NoOpRpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants;
@@ -140,9 +138,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         TransportModuleConstants.DATA_MODULE,
         conf.getInt("rss.data.io.threads", 8));
     TransportContext context =
-        new TransportContext(dataTransportConf, new NoOpRpcHandler(), true);
-    List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
-    dataClientFactory = context.createClientFactory(bootstraps);
+        new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
+    dataClientFactory = context.createClientFactory();
 
     int retryThreadNum = RssConf.pushDataRetryThreadNum(conf);
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);

@@ -17,7 +17,15 @@
 
 package com.aliyun.emr.rss.common.network.protocol;
 
+import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
+
 /** Messages from the client to the server. */
-public interface RequestMessage extends Message {
-  // token interface
+public abstract class RequestMessage extends Message {
+  public RequestMessage() {
+    super();
+  }
+
+  public RequestMessage(ManagedBuffer buffer) {
+    super(buffer);
+  }
 }

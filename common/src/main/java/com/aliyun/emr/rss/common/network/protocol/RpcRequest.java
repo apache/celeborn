@@ -22,19 +22,19 @@ import io.netty.buffer.ByteBuf;
 
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
-import com.aliyun.emr.rss.common.network.server.RpcHandler;
+import com.aliyun.emr.rss.common.network.server.BaseMessageHandler;
 
 /**
- * A generic RPC which is handled by a remote {@link RpcHandler}.
+ * A generic RPC which is handled by a remote {@link BaseMessageHandler}.
  * This will correspond to a single
  * {@link ResponseMessage} (either success or failure).
  */
-public final class RpcRequest extends AbstractMessage implements RequestMessage {
+public final class RpcRequest extends RequestMessage {
   /** Used to link an RPC request with its response. */
   public final long requestId;
 
   public RpcRequest(long requestId, ManagedBuffer message) {
-    super(message, true);
+    super(message);
     this.requestId = requestId;
   }
 
@@ -57,10 +57,18 @@ public final class RpcRequest extends AbstractMessage implements RequestMessage 
   }
 
   public static RpcRequest decode(ByteBuf buf) {
+    return decode(buf, true);
+  }
+
+  public static RpcRequest decode(ByteBuf buf, boolean decodeBody) {
     long requestId = buf.readLong();
     // See comment in encodedLength().
     buf.readInt();
-    return new RpcRequest(requestId, new NettyManagedBuffer(buf.retain()));
+    if (decodeBody) {
+      return new RpcRequest(requestId, new NettyManagedBuffer(buf));
+    } else {
+      return new RpcRequest(requestId, NettyManagedBuffer.EmptyBuffer);
+    }
   }
 
   @Override
