@@ -46,7 +46,7 @@ public class CodecSuite {
 
   @Test
   public void testZstdCodec() {
-    for (int level = 0; level <= 22; level++) {
+    for (int level = -5; level <= 22; level++) {
       System.out.println("level is " + level);
       int blockSize = RssConf.pushDataBufferSize(new RssConf());
       RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(blockSize, level);
