@@ -486,8 +486,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     requests.synchronized {
       if (requests.containsKey(partitionId)) {
         requests.get(partitionId).add(context)
-        logTrace(s"For $shuffleId, same partition $partitionId-$oldEpoch is reviving," +
-          s"register context.")
+        logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
+          s"$partitionId-$oldEpoch exists, register context.")
         return
       } else {
         // If new slot for the partition has been allocated, reply and return.
