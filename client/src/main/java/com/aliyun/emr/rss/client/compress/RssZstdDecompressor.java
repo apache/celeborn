@@ -39,10 +39,9 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
 
   @Override
   public int decompress(byte[] src, byte[] dst, int dstOff) {
-    int token = src[MAGIC_LENGTH] & 0xFF;
-    int compressionMethod = token & 0xF0;
+    int compressionMethod = src[MAGIC_LENGTH] & 0xFF;
     int compressedLen = readIntLE(src, MAGIC_LENGTH + 1);
-    int originalLen = getOriginalLen(src);
+    int originalLen = readIntLE(src, MAGIC_LENGTH + 5);
     int check = readIntLE(src, MAGIC_LENGTH + 9);
 
     switch (compressionMethod) {
@@ -59,6 +58,10 @@ public class RssZstdDecompressor extends RssZstdTrait implements Decompressor {
               "Original length corrupted! expected: {}, actual: {}.", originalLen, originalLen2);
           return -1;
         }
+        break;
+      default:
+        logger.error("Unknown compression method whose decimal number is {} .", compressionMethod);
+        return -1;
     }
 
     checksum.reset();
