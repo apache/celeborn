@@ -270,7 +270,10 @@ public abstract class RssInputStream extends InputStream {
         moveToNextReader();
         return currentReader != null;
       }
-      currentReader = null;
+      if (currentReader != null) {
+        currentReader.close();
+        currentReader = null;
+      }
       return false;
     }
 

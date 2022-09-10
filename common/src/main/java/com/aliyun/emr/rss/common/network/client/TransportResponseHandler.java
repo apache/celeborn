@@ -57,6 +57,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   public void addFetchRequest(StreamChunkSlice streamChunkSlice, ChunkReceivedCallback callback) {
     updateTimeOfLastRequest();
+    if (outstandingFetches.containsKey(streamChunkSlice)) {
+      logger.warn("[addFetchRequest] streamChunkSlice {} already exists!", streamChunkSlice);
+    }
     outstandingFetches.put(streamChunkSlice, callback);
   }
 
@@ -66,6 +69,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   public void addRpcRequest(long requestId, RpcResponseCallback callback) {
     updateTimeOfLastRequest();
+    if (outstandingRpcs.containsKey(requestId)) {
+      logger.warn("[addRpcRequest] requestId {} already exists!", requestId);
+    }
     outstandingRpcs.put(requestId, callback);
   }
 
