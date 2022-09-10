@@ -42,6 +42,7 @@ public class CodecSuite {
 
     Assert.assertNotEquals(-1, decompressLength);
     Assert.assertEquals(oriLength, decompressLength);
+    Assert.assertArrayEquals(data, dst);
   }
 
   @Test
@@ -61,6 +62,7 @@ public class CodecSuite {
 
       Assert.assertNotEquals(-1, decompressLength);
       Assert.assertEquals(oriLength, decompressLength);
+      Assert.assertArrayEquals(data, dst);
     }
   }
 }
