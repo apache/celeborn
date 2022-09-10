@@ -42,9 +42,7 @@ public class RssLz4Decompressor extends RssLz4Trait implements Decompressor {
 
   @Override
   public int decompress(byte[] src, byte[] dst, int dstOff) {
-    int token = src[MAGIC_LENGTH] & 0xFF;
-    int compressionMethod = token & 0xF0;
-    int compressionLevel = COMPRESSION_LEVEL_BASE + (token & 0x0F);
+    int compressionMethod = src[MAGIC_LENGTH] & 0xFF;
     int compressedLen = readIntLE(src, MAGIC_LENGTH + 1);
     int originalLen = readIntLE(src, MAGIC_LENGTH + 5);
     int check = readIntLE(src, MAGIC_LENGTH + 9);

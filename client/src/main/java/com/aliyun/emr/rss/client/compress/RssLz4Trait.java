@@ -23,10 +23,10 @@ public abstract class RssLz4Trait {
 
   public static final int HEADER_LENGTH =
       MAGIC_LENGTH // magic bytes
-          + 1          // token
-          + 4          // compressed length
-          + 4          // decompressed length
-          + 4;         // checksum
+          + 1 // compress method
+          + 4 // compressed length
+          + 4 // decompressed length
+          + 4; // checksum
 
   protected static final int COMPRESSION_LEVEL_BASE = 10;
 

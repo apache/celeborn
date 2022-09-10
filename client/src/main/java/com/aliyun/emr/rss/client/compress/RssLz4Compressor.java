@@ -24,7 +24,6 @@ import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.xxhash.XXHashFactory;
 
 public class RssLz4Compressor extends RssLz4Trait implements Compressor {
-  private final int compressionLevel;
   private final LZ4Compressor compressor;
   private final Checksum checksum;
   private byte[] compressedBuffer;
@@ -35,8 +34,6 @@ public class RssLz4Compressor extends RssLz4Trait implements Compressor {
   }
 
   public RssLz4Compressor(int blockSize) {
-    int level = 32 - Integer.numberOfLeadingZeros(blockSize - 1) - COMPRESSION_LEVEL_BASE;
-    this.compressionLevel = Math.max(0, level);
     this.compressor = LZ4Factory.fastestInstance().fastCompressor();
     checksum = XXHashFactory.fastestInstance().newStreamingHash32(DEFAULT_SEED).asChecksum();
     initCompressBuffer(blockSize);
@@ -69,7 +66,7 @@ public class RssLz4Compressor extends RssLz4Trait implements Compressor {
       compressMethod = COMPRESSION_METHOD_LZ4;
     }
 
-    compressedBuffer[MAGIC_LENGTH] = (byte) (compressMethod | compressionLevel);
+    compressedBuffer[MAGIC_LENGTH] = (byte) compressMethod;
     writeIntLE(compressedLength, compressedBuffer, MAGIC_LENGTH + 1);
     writeIntLE(length, compressedBuffer, MAGIC_LENGTH + 5);
     writeIntLE(check, compressedBuffer, MAGIC_LENGTH + 9);
