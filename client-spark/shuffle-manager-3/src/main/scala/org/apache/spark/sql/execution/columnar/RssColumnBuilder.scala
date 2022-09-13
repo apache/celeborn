@@ -131,7 +131,6 @@ class RssDecimalColumnBuilder(dataType: DecimalType)
   extends RssComplexColumnBuilder(new RssDecimalColumnStats(dataType), RSS_LARGE_DECIMAL(dataType))
 
 object RssColumnBuilder {
-  val DEFAULT_INITIAL_BUFFER_SIZE: Int = 128 * 1024
   val MAX_BATCH_SIZE_IN_BYTE: Long = 4 * 1024 * 1024L
 
   def ensureFreeSpace(orig: ByteBuffer, size: Int): ByteBuffer = {
