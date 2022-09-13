@@ -29,4 +29,4 @@ RUN set -ex && \
     rm -rf /var/cache/apt/* && \
     mkdir -p /opt/
 
-ADD rss-${rss_version}-bin-release.tar.gz /opt/
+ADD rss-${rss_version}-bin-release.tgz /opt/
