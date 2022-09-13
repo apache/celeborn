@@ -18,10 +18,10 @@
 package com.aliyun.emr.rss.common.meta;
 
 public enum DiskStatus {
-  Healthy(0),
-  ReadOrWriteFailure(1),
-  IoHang(2),
-  HighDiskUsage(3);
+  HEALTHY(0),
+  READ_OR_WRITE_FAILURE(1),
+  IO_HANG(2),
+  HIGH_DISK_USAGE(3);
 
   private final byte value;
 

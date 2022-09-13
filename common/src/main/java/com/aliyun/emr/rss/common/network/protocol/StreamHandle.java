@@ -35,7 +35,7 @@ public final class StreamHandle extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.StreamHandle;
+    return Type.STREAM_HANDLE;
   }
 
   @Override

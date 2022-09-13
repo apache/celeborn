@@ -19,37 +19,37 @@ package com.aliyun.emr.rss.common.protocol.message;
 
 public enum StatusCode {
   // 1/0 Status
-  Success(0),
-  PartialSuccess(1),
-  Failed(2),
+  SUCCESS(0),
+  PARTIAL_SUCCESS(1),
+  FAILED(2),
 
   // Specific Status
-  ShuffleAlreadyRegistered(3),
-  ShuffleNotRegistered(4),
-  ReserveSlotFailed(5),
-  SlotNotAvailable(6),
-  WorkerNotFound(7),
-  PartitionNotFound(8),
-  SlavePartitionNotFound(9),
-  DeleteFilesFailed(10),
-  PartitionExists(11),
-  ReviveFailed(12),
-  PushDataFailed(13),
-  NumMapperZero(14),
-  MapEnded(15),
-  StageEnded(16),
+  SHUFFLE_ALREADY_REGISTERED(3),
+  SHUFFLE_NOT_REGISTERED(4),
+  RESERVE_SLOTS_FAILED(5),
+  SLOT_NOT_AVAILABLE(6),
+  WORKER_NOT_FOUND(7),
+  PARTITION_NOT_FOUND(8),
+  SLAVE_PARTITION_NOT_FOUND(9),
+  DELETE_FILES_FAILED(10),
+  PARTITION_EXISTS(11),
+  REVIVE_FAILED(12),
+  PUSH_DATA_FAILED(13),
+  NUM_MAPPER_ZERO(14),
+  MAP_ENDED(15),
+  STAGE_ENDED(16),
 
   // push data fail causes
-  PushDataFailNonCriticalCause(17),
-  PushDataFailSlave(18),
-  PushDataFailMain(19),
-  PushDataFailPartitionNotFound(20),
+  PUSH_DATA_FAIL_NON_CRITICAL_CAUSE(17),
+  PUSH_DATA_FAIL_SLAVE(18),
+  PUSH_DATA_FAIL_MAIN(19),
+  PUSH_DATA_FAIL_PARTITION_NOT_FOUND(20),
 
-  HardSplit(21),
-  SoftSplit(22),
+  HARD_SPLIT(21),
+  SOFT_SPLIT(22),
 
-  StageEndTimeOut(23),
-  ShuffleDataLost(24);
+  STAGE_END_TIME_OUT(23),
+  SHUFFLE_DATA_LOST(24);
 
   private final byte value;
 
@@ -64,15 +64,15 @@ public enum StatusCode {
 
   public String getMessage() {
     String msg = "";
-    if (value == PushDataFailMain.getValue()) {
+    if (value == PUSH_DATA_FAIL_MAIN.getValue()) {
       msg = "PushDataFailMain";
-    } else if (value == PushDataFailSlave.getValue()) {
+    } else if (value == PUSH_DATA_FAIL_SLAVE.getValue()) {
       msg = "PushDataFailSlave";
-    } else if (value == PushDataFailNonCriticalCause.getValue()) {
+    } else if (value == PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.getValue()) {
       msg = "PushDataFailNonCriticalCause";
-    } else if (value == PushDataFailPartitionNotFound.getValue()) {
+    } else if (value == PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getValue()) {
       msg = "PushDataFailPartitionNotFound";
-    } else if (value == HardSplit.getValue()) {
+    } else if (value == HARD_SPLIT.getValue()) {
       msg = "PartitionFileSplit";
     }
     return msg;
