@@ -73,7 +73,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   def healthyWorkingDirs(): List[File] =
-    disksSnapshot().filter(_.status == DiskStatus.Healthy).flatMap(_.dirs)
+    disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = new ConcurrentHashMap[String, ThreadPoolExecutor]()
@@ -136,7 +136,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
-    if (diskStatus == DiskStatus.IoHang) {
+    if (diskStatus == DiskStatus.IO_HANG) {
       logInfo("IoHang, remove disk operator")
       val operator = diskOperators.remove(mountPoint)
       if (operator != null) {
@@ -258,7 +258,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
-        if (diskInfo != null && diskInfo.status.equals(DiskStatus.Healthy)) {
+        if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
           diskInfo.dirs
         } else {
           logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
@@ -328,7 +328,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
                 s"report to DeviceMonitor",
               t)
             exception = new IOException(t)
-            deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.ReadOrWriteFailure)
+            deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)
         }
       }
       retryCount += 1
@@ -357,7 +357,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-      disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
+      disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { case diskInfo =>
         diskInfo.dirs.foreach { case dir =>
           val file = new File(dir, s"$appId/$shuffleId")
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
@@ -394,7 +394,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   private def cleanupExpiredAppDirs(expireTime: Long, isGracefulShutdown: Boolean = false): Unit = {
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
-    disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
+    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { case diskInfo =>
       diskInfo.dirs.foreach {
         case workingDir if workingDir.exists() =>
           workingDir.listFiles().foreach { case appDir =>
@@ -464,7 +464,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     val awaitTimeout = RssConf.checkFileCleanTimeoutMs(conf)
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
     while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
-      val localCleaned = !disksSnapshot().filter(_.status != DiskStatus.IoHang).exists {
+      val localCleaned = !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists {
         case diskInfo => diskInfo.dirs.exists {
             case workingDir if workingDir.exists() =>
               // Don't check appDirs that store information in the fileInfos
@@ -552,7 +552,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
-    disksSnapshot().filter(_.status != DiskStatus.IoHang).foreach { case diskInfo =>
+    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { case diskInfo =>
       val totalUsage = diskInfo.dirs.map { dir =>
         val writers = workingDirWriters.get(dir)
         if (writers != null) {

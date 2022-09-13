@@ -303,7 +303,7 @@ private[deploy] class Master(
         val requestId = RssHARetryClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
         var retry = 1
-        while (res.status != StatusCode.Success && retry <= 3) {
+        while (res.status != StatusCode.SUCCESS && retry <= 3) {
           res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
           retry += 1
         }
@@ -469,7 +469,7 @@ private[deploy] class Master(
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
-      context.reply(RequestSlotsResponse(StatusCode.SlotNotAvailable, new WorkerResource()))
+      context.reply(RequestSlotsResponse(StatusCode.SLOT_NOT_AVAILABLE, new WorkerResource()))
       return
     }
 
@@ -497,7 +497,7 @@ private[deploy] class Master(
       logInfo(s"Offered extra $extraSlotsSize slots for $shuffleKey")
     }
 
-    context.reply(RequestSlotsResponse(StatusCode.Success, slots.asInstanceOf[WorkerResource]))
+    context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }
 
   def handleReleaseSlots(
@@ -510,7 +510,7 @@ private[deploy] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
     logInfo(s"[handleReleaseSlots] Release all slots of $shuffleKey")
-    context.reply(ReleaseSlotsResponse(StatusCode.Success))
+    context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
   }
 
   def handleUnregisterShuffle(
@@ -521,20 +521,20 @@ private[deploy] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
-    context.reply(UnregisterShuffleResponse(StatusCode.Success))
+    context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
   def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
     msg.localBlacklist.removeAll(workersSnapShot)
     context.reply(
       GetBlacklistResponse(
-        StatusCode.Success,
+        StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.blacklist),
         msg.localBlacklist))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, workersSnapShot.asScala: _*))
+    context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, workersSnapShot.asScala: _*))
   }
 
   private def handleReportNodeFailure(
@@ -552,7 +552,7 @@ private[deploy] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
-        context.reply(ApplicationLostResponse(StatusCode.Success))
+        context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
   }
@@ -653,7 +653,7 @@ private[deploy] class Master(
           -1,
           new util.HashMap[String, DiskInfo](),
           null))
-        GetWorkerInfosResponse(StatusCode.Failed, result.asScala: _*)
+        GetWorkerInfosResponse(StatusCode.FAILED, result.asScala: _*)
     }
   }
 

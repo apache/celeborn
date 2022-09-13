@@ -81,7 +81,7 @@ abstract private[worker] class Flusher(
                   case _: ClosedByInterruptException =>
                   case e: IOException =>
                     task.notifier.setException(e)
-                    processIOException(e, DiskStatus.ReadOrWriteFailure)
+                    processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
                 }
                 lastBeginFlushTime.set(index, -1)
               }

@@ -95,7 +95,7 @@ class LocalDeviceMonitor(
       }
 
     def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
-      diskInfos.get(mountPoint).setStatus(DiskStatus.Healthy)
+      diskInfos.get(mountPoint).setStatus(DiskStatus.HEALTHY)
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
         ob.notifyHealthy(mountPoint)
@@ -103,7 +103,7 @@ class LocalDeviceMonitor(
     }
 
     def notifyObserversOnHighDiskUsage(mountPoint: String): Unit = this.synchronized {
-      diskInfos.get(mountPoint).setStatus(DiskStatus.HighDiskUsage)
+      diskInfos.get(mountPoint).setStatus(DiskStatus.HIGH_DISK_USAGE)
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
       tmpObservers.asScala.foreach(ob => {
         ob.notifyHighDiskUsage(mountPoint)
@@ -216,7 +216,7 @@ class LocalDeviceMonitor(
               if (checkIoHang && device.ioHang()) {
                 logger.error(s"Encounter device io hang error!" +
                   s"${device.deviceInfo.name}, notify observers")
-                device.notifyObserversOnError(mountPoints, DiskStatus.IoHang)
+                device.notifyObserversOnError(mountPoints, DiskStatus.IO_HANG)
               } else {
                 device.diskInfos.values().asScala.foreach { case diskInfo =>
                   if (checkDiskUsage && DeviceMonitor.highDiskUsage(rssConf, diskInfo.mountPoint)) {
@@ -229,7 +229,7 @@ class LocalDeviceMonitor(
                     // dirs in this device have the problem
                     device.notifyObserversOnError(
                       List(diskInfo.mountPoint),
-                      DiskStatus.ReadOrWriteFailure)
+                      DiskStatus.READ_OR_WRITE_FAILURE)
                   } else {
                     device.notifyObserversOnHealthy(diskInfo.mountPoint)
                   }

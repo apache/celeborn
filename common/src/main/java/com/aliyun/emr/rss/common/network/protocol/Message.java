@@ -70,18 +70,18 @@ public abstract class Message implements Encodable {
 
   /** Preceding every serialized Message is its type, which allows us to deserialize it. */
   public enum Type implements Encodable {
-    UnkownType(-1),
-    ChunkFetchRequest(0),
-    ChunkFetchSuccess(1),
-    ChunkFetchFailure(2),
-    RpcRequest(3),
-    RpcResponse(4),
-    RpcFailure(5),
-    OpenStream(6),
-    StreamHandle(7),
-    OneWayMessage(9),
-    PushData(11),
-    PushMergedData(12);
+    UNKNOWN_TYPE(-1),
+    CHUNK_FETCH_REQUEST(0),
+    CHUNK_FETCH_SUCCESS(1),
+    CHUNK_FETCH_FAILURE(2),
+    RPC_REQUEST(3),
+    RPC_RESPONSE(4),
+    RPC_FAILURE(5),
+    OPEN_STREAM(6),
+    STREAM_HANDLE(7),
+    ONE_WAY_MESSAGE(9),
+    PUSH_DATA(11),
+    PUSH_MERGED_DATA(12);
 
     private final byte id;
 
@@ -108,27 +108,27 @@ public abstract class Message implements Encodable {
       byte id = buf.readByte();
       switch (id) {
         case 0:
-          return ChunkFetchRequest;
+          return CHUNK_FETCH_REQUEST;
         case 1:
-          return ChunkFetchSuccess;
+          return CHUNK_FETCH_SUCCESS;
         case 2:
-          return ChunkFetchFailure;
+          return CHUNK_FETCH_FAILURE;
         case 3:
-          return RpcRequest;
+          return RPC_REQUEST;
         case 4:
-          return RpcResponse;
+          return RPC_RESPONSE;
         case 5:
-          return RpcFailure;
+          return RPC_FAILURE;
         case 6:
-          return OpenStream;
+          return OPEN_STREAM;
         case 7:
-          return StreamHandle;
+          return STREAM_HANDLE;
         case 9:
-          return OneWayMessage;
+          return ONE_WAY_MESSAGE;
         case 11:
-          return PushData;
+          return PUSH_DATA;
         case 12:
-          return PushMergedData;
+          return PUSH_MERGED_DATA;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -143,37 +143,37 @@ public abstract class Message implements Encodable {
 
   public static Message decode(Type msgType, ByteBuf in, boolean decodeBody) {
     switch (msgType) {
-      case ChunkFetchRequest:
+      case CHUNK_FETCH_REQUEST:
         return ChunkFetchRequest.decode(in);
 
-      case ChunkFetchSuccess:
+      case CHUNK_FETCH_SUCCESS:
         return ChunkFetchSuccess.decode(in, decodeBody);
 
-      case ChunkFetchFailure:
+      case CHUNK_FETCH_FAILURE:
         return ChunkFetchFailure.decode(in);
 
-      case RpcRequest:
+      case RPC_REQUEST:
         return RpcRequest.decode(in, decodeBody);
 
-      case RpcResponse:
+      case RPC_RESPONSE:
         return RpcResponse.decode(in, decodeBody);
 
-      case RpcFailure:
+      case RPC_FAILURE:
         return RpcFailure.decode(in);
 
-      case OpenStream:
+      case OPEN_STREAM:
         return OpenStream.decode(in);
 
-      case StreamHandle:
+      case STREAM_HANDLE:
         return StreamHandle.decode(in);
 
-      case OneWayMessage:
+      case ONE_WAY_MESSAGE:
         return OneWayMessage.decode(in, decodeBody);
 
-      case PushData:
+      case PUSH_DATA:
         return PushData.decode(in, decodeBody);
 
-      case PushMergedData:
+      case PUSH_MERGED_DATA:
         return PushMergedData.decode(in, decodeBody);
 
       default:

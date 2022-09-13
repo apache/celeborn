@@ -33,7 +33,7 @@ public final class OneWayMessage extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.OneWayMessage;
+    return Type.ONE_WAY_MESSAGE;
   }
 
   @Override

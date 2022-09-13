@@ -34,7 +34,7 @@ public final class RpcResponse extends ResponseMessage {
 
   @Override
   public Type type() {
-    return Type.RpcResponse;
+    return Type.RPC_RESPONSE;
   }
 
   @Override

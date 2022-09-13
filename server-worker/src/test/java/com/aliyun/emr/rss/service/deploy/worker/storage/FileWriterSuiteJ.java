@@ -85,7 +85,7 @@ public class FileWriterSuiteJ {
 
   private static final RssConf RSS_CONF = new RssConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
-  public static final PartitionSplitMode splitMode = PartitionSplitMode.hard;
+  public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
 
   private static File tempDir = null;

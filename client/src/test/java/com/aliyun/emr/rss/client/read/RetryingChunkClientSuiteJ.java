@@ -80,7 +80,7 @@ public class RetryingChunkClientSuiteJ {
           MASTER_PUSH_PORT,
           MASTER_FETCH_PORT,
           MASTER_REPLICATE_PORT,
-          PartitionLocation.Mode.Master);
+          PartitionLocation.Mode.MASTER);
   private static final PartitionLocation slaveLocation =
       new PartitionLocation(
           0,
@@ -90,7 +90,7 @@ public class RetryingChunkClientSuiteJ {
           SLAVE_PUSH_PORT,
           SLAVE_FETCH_PORT,
           SLAVE_REPLICATE_PORT,
-          PartitionLocation.Mode.Slave);
+          PartitionLocation.Mode.SLAVE);
 
   static {
     masterLocation.setPeer(slaveLocation);

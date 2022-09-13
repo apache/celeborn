@@ -136,7 +136,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val shuffleKey = pushData.shuffleKey
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
-    val isMaster = mode == PartitionLocation.Mode.Master
+    val isMaster = mode == PartitionLocation.Mode.MASTER
 
     val key = s"${pushData.requestId}"
     if (isMaster) {
@@ -174,7 +174,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location")
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage(), e))
+        callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage(), e))
       }
     }
 
@@ -185,12 +185,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         // partition data has already been committed
         logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
           s" attempt $attemptId), but this mapper has already been ended.")
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.StageEnded.getValue)))
+        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
       } else {
         val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
           s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
         logWarning(s"[handlePushData] $msg")
-        callback.onFailure(new Exception(StatusCode.PushDataFailPartitionNotFound.getMessage()))
+        callback.onFailure(
+          new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
       }
       return
     }
@@ -200,9 +201,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
       val message =
         if (isMaster) {
-          StatusCode.PushDataFailMain.getMessage()
+          StatusCode.PUSH_DATA_FAIL_MAIN.getMessage()
         } else {
-          StatusCode.PushDataFailSlave.getMessage()
+          StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
       callback.onFailure(new Exception(message, exception))
       return
@@ -212,10 +213,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       .actualUsableSpace < diskMinimumReserveSize
     if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
       (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
-      if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
+      if (fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
       } else {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         return
       }
     }
@@ -242,7 +243,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             val client =
               pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
-              PartitionLocation.Mode.Slave.mode(),
+              PartitionLocation.Mode.SLAVE.mode(),
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
@@ -284,7 +285,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushMergedData.mode)
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
-    val isMaster = mode == PartitionLocation.Mode.Master
+    val isMaster = mode == PartitionLocation.Mode.MASTER
 
     val key = s"${pushMergedData.requestId}"
     if (isMaster) {
@@ -313,7 +314,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PushDataFailSlave.getMessage, e))
+        callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage, e))
       }
     }
 
@@ -332,7 +333,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           val msg = s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId), but this mapper has already been ended."
           logInfo(msg)
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.StageEnded.getValue)))
+          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
         } else {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId, uniqueId $id)."
@@ -352,9 +353,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         s" has Exception $exception")
       val message =
         if (isMaster) {
-          StatusCode.PushDataFailMain.getMessage()
+          StatusCode.PUSH_DATA_FAIL_MAIN.getMessage()
         } else {
-          StatusCode.PushDataFailSlave.getMessage()
+          StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
       callback.onFailure(new Exception(message, exception))
       return
@@ -385,7 +386,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               peer.getReplicatePort,
               location.getId)
             val newPushMergedData = new PushMergedData(
-              PartitionLocation.Mode.Slave.mode(),
+              PartitionLocation.Mode.SLAVE.mode(),
               shuffleKey,
               pushMergedData.partitionUniqueIds,
               batchOffsets,

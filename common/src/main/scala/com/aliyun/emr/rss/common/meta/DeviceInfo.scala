@@ -47,7 +47,7 @@ class DiskInfo(
     this(mountPoint, 0, 0, 0, dirs, deviceInfo)
   }
 
-  var status: DiskStatus = DiskStatus.Healthy
+  var status: DiskStatus = DiskStatus.HEALTHY
   var threadCount = 1
   var configuredUsableSpace = 0L
   var storageType: StorageInfo.Type = _

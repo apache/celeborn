@@ -33,7 +33,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private final Function<Integer, Supplier<ByteBuf>> bufferSuppliers;
   private int msgSize = -1;
   private int bodySize = -1;
-  private Message.Type curType = Message.Type.UnkownType;
+  private Message.Type curType = Message.Type.UNKNOWN_TYPE;
   private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
   private CompositeByteBuf bodyBuf = null;
   private ByteBuf externalBuf = null;
@@ -160,7 +160,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private void clear() {
     externalBuf = null;
     curMsg = null;
-    curType = Message.Type.UnkownType;
+    curType = Message.Type.UNKNOWN_TYPE;
     headerBuf.clear();
     bodyBuf = null;
     bodySize = -1;

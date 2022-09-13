@@ -47,7 +47,7 @@ public final class OpenStream extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.OpenStream;
+    return Type.OPEN_STREAM;
   }
 
   @Override

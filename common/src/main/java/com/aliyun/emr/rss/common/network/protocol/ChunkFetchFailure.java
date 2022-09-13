@@ -32,7 +32,7 @@ public final class ChunkFetchFailure extends ResponseMessage {
 
   @Override
   public Type type() {
-    return Type.ChunkFetchFailure;
+    return Type.CHUNK_FETCH_FAILURE;
   }
 
   @Override

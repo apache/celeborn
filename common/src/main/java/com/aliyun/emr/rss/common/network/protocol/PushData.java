@@ -55,7 +55,7 @@ public final class PushData extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.PushData;
+    return Type.PUSH_DATA;
   }
 
   @Override

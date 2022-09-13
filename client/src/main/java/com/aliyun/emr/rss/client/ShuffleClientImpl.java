@@ -65,7 +65,7 @@ import com.aliyun.emr.rss.common.util.Utils;
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
-  private static final byte MASTER_MODE = PartitionLocation.Mode.Master.mode();
+  private static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
 
   private static final Random rand = new Random();
 
@@ -260,22 +260,22 @@ public class ShuffleClientImpl extends ShuffleClient {
                 new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
                 ClassTag$.MODULE$.apply(RegisterShuffleResponse.class));
 
-        if (response.status().equals(StatusCode.Success)) {
+        if (response.status().equals(StatusCode.SUCCESS)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
           for (int i = 0; i < response.partitionLocations().size(); i++) {
             PartitionLocation partitionLoc = response.partitionLocations().get(i);
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
-        } else if (response.status().equals(StatusCode.SlotNotAvailable)) {
+        } else if (response.status().equals(StatusCode.SLOT_NOT_AVAILABLE)) {
           logger.warn(
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
-              StatusCode.SlotNotAvailable,
+              StatusCode.SLOT_NOT_AVAILABLE,
               numRetries - 1);
         } else {
           logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
-              StatusCode.Failed,
+              StatusCode.FAILED,
               numRetries - 1);
         }
       } catch (Exception e) {
@@ -404,10 +404,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                   cause),
               ClassTag$.MODULE$.apply(ChangeLocationResponse.class));
       // per partitionKey only serve single PartitionLocation in Client Cache.
-      if (response.status().equals(StatusCode.Success)) {
+      if (response.status().equals(StatusCode.SUCCESS)) {
         map.put(partitionId, response.partition());
         return true;
-      } else if (response.status().equals(StatusCode.MapEnded)) {
+      } else if (response.status().equals(StatusCode.MAP_ENDED)) {
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapKey);
         return true;
       } else {
@@ -473,7 +473,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             partitionId,
             0,
             null,
-            StatusCode.PushDataFailNonCriticalCause)) {
+            StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
       throw new IOException(
           "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
     }
@@ -545,7 +545,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onSuccess(ByteBuffer response) {
               pushState.inFlightBatches.remove(nextBatchId);
-              if (response.remaining() > 0 && response.get() == StatusCode.StageEnded.getValue()) {
+              if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
                     .add(mapKey);
@@ -582,7 +582,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             public void onSuccess(ByteBuffer response) {
               if (response.remaining() > 0) {
                 byte reason = response.get();
-                if (reason == StatusCode.SoftSplit.getValue()) {
+                if (reason == StatusCode.SOFT_SPLIT.getValue()) {
                   logger.debug(
                       "Push data split required for map {} attempt {} batch {}",
                       mapId,
@@ -590,7 +590,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, applicationId, loc);
                   callback.onSuccess(response);
-                } else if (reason == StatusCode.HardSplit.getValue()) {
+                } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
                       "Push data split for map {} attempt {} batch {}.",
                       mapId,
@@ -608,7 +608,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                               loc,
                               this,
                               pushState,
-                              StatusCode.HardSplit));
+                              StatusCode.HARD_SPLIT));
                 } else {
                   response.rewind();
                   callback.onSuccess(response);
@@ -848,7 +848,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 attemptId,
                 groupedBatchId);
             pushState.inFlightBatches.remove(groupedBatchId);
-            if (response.remaining() > 0 && response.get() == StatusCode.StageEnded.getValue()) {
+            if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               mapperEndMap
                   .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
                   .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
@@ -951,7 +951,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           driverRssMetaService.<MapperEndResponse>askSync(
               new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers),
               ClassTag$.MODULE$.<MapperEndResponse>apply(MapperEndResponse.class));
-      if (response.status() != StatusCode.Success) {
+      if (response.status() != StatusCode.SUCCESS) {
         throw new IOException("MapperEnd failed! StatusCode: " + response.status());
       }
     } finally {
@@ -1028,19 +1028,19 @@ public class ShuffleClientImpl extends ShuffleClient {
                     driverRssMetaService.<GetReducerFileGroupResponse>askSync(
                         getReducerFileGroup, classTag);
 
-                if (response.status() == StatusCode.Success) {
+                if (response.status() == StatusCode.SUCCESS) {
                   return new ReduceFileGroups(response.fileGroup(), response.attempts());
-                } else if (response.status() == StatusCode.StageEndTimeOut) {
+                } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
                   logger.warn(
                       "Request {} return {} for {}",
                       getReducerFileGroup,
-                      StatusCode.StageEndTimeOut.toString(),
+                      StatusCode.STAGE_END_TIME_OUT.toString(),
                       shuffleKey);
-                } else if (response.status() == StatusCode.ShuffleDataLost) {
+                } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
                   logger.warn(
                       "Request {} return {} for {}",
                       getReducerFileGroup,
-                      StatusCode.ShuffleDataLost.toString(),
+                      StatusCode.SHUFFLE_DATA_LOST.toString(),
                       shuffleKey);
                 }
               } catch (Exception e) {
@@ -1121,12 +1121,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   private StatusCode getPushDataFailCause(String message) {
     logger.info("[getPushDataFailCause] message: " + message);
     StatusCode cause;
-    if (StatusCode.PushDataFailSlave.getMessage().equals(message)) {
-      cause = StatusCode.PushDataFailSlave;
-    } else if (StatusCode.PushDataFailMain.getMessage().equals(message) || connectFail(message)) {
-      cause = StatusCode.PushDataFailMain;
+    if (StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage().equals(message)) {
+      cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
+    } else if (StatusCode.PUSH_DATA_FAIL_MAIN.getMessage().equals(message)
+        || connectFail(message)) {
+      cause = StatusCode.PUSH_DATA_FAIL_MAIN;
     } else {
-      cause = StatusCode.PushDataFailNonCriticalCause;
+      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }
     return cause;
   }
