@@ -58,7 +58,12 @@ class RssColumnarBatchBuilder(
     var i = -1
     columnBuilders = schema.map { attribute =>
       i += 1
-      RssColumnBuilder(attribute.dataType, batchSize, attribute.name, useCompression, encodersArr(i))
+      RssColumnBuilder(
+        attribute.dataType,
+        batchSize,
+        attribute.name,
+        useCompression,
+        encodersArr(i))
     }.toArray
   }
 
