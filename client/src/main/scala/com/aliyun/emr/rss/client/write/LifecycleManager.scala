@@ -503,7 +503,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     requests.synchronized {
       requests.remove(reduceId)
     }.asScala.foreach(_.reply(ChangeLocationResponse(StatusCode.Success, location)))
-    logDebug(s"Renew $shuffleId $reduceId partition success.")
+    logDebug(s"Renew $shuffleId $reduceId $oldEpoch->${location.getEpoch} partition success.")
   }
 
   private def getLatestPartition(shuffleId: Int, reduceId: Int, epoch: Int): PartitionLocation = {
