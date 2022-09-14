@@ -119,7 +119,7 @@ public class FileWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
+    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 0, 10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {

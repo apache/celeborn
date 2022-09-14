@@ -110,10 +110,11 @@ public final class FileWriter implements DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
-    if (!fileInfo.isHdfs()) {
-      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
-    } else {
+    if (fileInfo.isHdfs()) {
       stream = StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true);
+    }
+    if (fileInfo.isLocal()) {
+      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
@@ -141,13 +142,16 @@ public final class FileWriter implements DeviceObserver {
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
     FlushTask task = null;
-    if (channel != null) {
+    if (fileInfo.isLocal()) {
       task = new LocalFlushTask(flushBuffer, channel, notifier);
-    } else if (stream != null) {
+    }
+    if (fileInfo.isHdfs()) {
       task = new HdfsFlushTask(flushBuffer, stream, notifier);
     }
-    addTask(task);
-    flushBuffer = null;
+    if (fileInfo.isLocal() || fileInfo.isHdfs()) {
+      addTask(task);
+      flushBuffer = null;
+    }
     bytesFlushed += numBytes;
     maybeSetChunkOffsets(finalFlush);
   }
@@ -240,27 +244,14 @@ public final class FileWriter implements DeviceObserver {
     } finally {
       returnBuffer();
       try {
-        if (channel != null) {
+        if (fileInfo.isLocal()) {
           channel.close();
         }
-        if (stream != null) {
-          stream.close();
-          if (StorageManager.hdfsFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-            StorageManager.hdfsFs().delete(fileInfo.getHdfsPath(), false);
-            deleted = true;
-          } else {
-            StorageManager.hdfsFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
-            FSDataOutputStream indexOutputStream =
-                StorageManager.hdfsFs().create(fileInfo.getHdfsIndexPath());
-            indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
-            for (Long offset : fileInfo.getChunkOffsets()) {
-              indexOutputStream.writeLong(offset);
-            }
-            indexOutputStream.close();
-          }
+        if (fileInfo.isHdfs()) {
+          closeHdfs();
         }
       } catch (IOException e) {
-        logger.warn("close file writer" + this + "failed", e);
+        logger.warn("close file writer " + this + " failed", e);
       }
 
       // unregister from DeviceMonitor
@@ -269,17 +260,39 @@ public final class FileWriter implements DeviceObserver {
     return bytesFlushed;
   }
 
+  private void closeHdfs() throws IOException {
+    if (stream != null) {
+      stream.close();
+      if (StorageManager.hdfsFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
+        StorageManager.hdfsFs().delete(fileInfo.getHdfsPath(), false);
+        deleted = true;
+      } else {
+        StorageManager.hdfsFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+        FSDataOutputStream indexOutputStream =
+            StorageManager.hdfsFs().create(fileInfo.getHdfsIndexPath());
+        indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
+        for (Long offset : fileInfo.getChunkOffsets()) {
+          indexOutputStream.writeLong(offset);
+        }
+        indexOutputStream.close();
+      }
+    }
+  }
+
   public void destroy() {
     if (!closed) {
       closed = true;
       notifier.setException(new IOException("destroyed"));
       returnBuffer();
       try {
-        if (channel != null) {
-          channel.close();
+        if (fileInfo.isLocal()) {
+          destroyLocal();
         }
-        if (stream != null) {
-          stream.close();
+        if (fileInfo.isHdfs()) {
+          destroyHdfs();
+        }
+        if (fileInfo.isMemory()) {
+          destroyMemory();
         }
       } catch (IOException e) {
         logger.warn(
@@ -298,6 +311,23 @@ public final class FileWriter implements DeviceObserver {
     // unregister from DeviceMonitor
     deviceMonitor.unregisterFileWriter(this);
     destroyHook.run();
+  }
+
+  private void destroyLocal() throws IOException {
+    if (channel != null) {
+      channel.close();
+    }
+  }
+
+  private void destroyHdfs() throws IOException {
+    if (stream != null) {
+      stream.close();
+    }
+  }
+
+  private void destroyMemory() {
+    this.flushBuffer.removeComponent(0);
+    returnBuffer();
   }
 
   public void registerDestroyHook(List<FileWriter> fileWriters) {
@@ -416,4 +446,8 @@ public final class FileWriter implements DeviceObserver {
 
   @Override
   public void notifyHighDiskUsage(String mountPoint) {}
+
+  public long getBytesFlushed() {
+    return bytesFlushed;
+  }
 }

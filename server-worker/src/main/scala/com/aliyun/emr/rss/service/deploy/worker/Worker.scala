@@ -82,15 +82,16 @@ private[deploy] class Worker(
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
 
-  val storageManager = new StorageManager(conf, workerSource)
-
   val memoryTracker = MemoryTracker.initialize(
     workerPausePushDataRatio(conf),
     workerPauseRepcaliteRatio(conf),
     workerResumeRatio(conf),
     partitionSortMaxMemoryRatio(conf),
+    memoryStorageRatio(conf),
     workerDirectMemoryPressureCheckIntervalMs(conf),
     workerDirectMemoryReportIntervalSecond(conf))
+
+  val storageManager = new StorageManager(conf, workerSource, memoryTracker)
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
@@ -198,6 +199,7 @@ private[deploy] class Worker(
   workerSource.addGauge(
     WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
+  workerSource.addGauge(WorkerSource.StorageMemory, _ => memoryTracker.getMemoryStorageCounter)
 
   private def heartBeatToMaster(): Unit = {
     val shuffleKeys = new jHashSet[String]

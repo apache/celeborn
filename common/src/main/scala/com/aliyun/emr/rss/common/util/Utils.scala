@@ -851,4 +851,8 @@ object Utils extends Logging {
   def getWriteSuccessFilePath(path: String): String = {
     path + SUFFIX_HDFS_WRITE_SUCCESS
   }
+
+  def isMemoryPath(path: String): Boolean = {
+    path.startsWith("memory")
+  }
 }

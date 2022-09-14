@@ -44,6 +44,7 @@ public class MemoryTracker {
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
   private final long resumeThreshold;
+  private final long memoryStorageThreshold;
   private final long maxSortMemory;
   private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
@@ -71,6 +72,7 @@ public class MemoryTracker {
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
+  private final AtomicLong memoryStorageCounter = new AtomicLong(0);
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
   private boolean underPressure;
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
@@ -80,6 +82,7 @@ public class MemoryTracker {
       double pauseReplicateRatio,
       double resumeRatio,
       double maxSortRatio,
+      double memoryStorageRatio,
       int checkInterval,
       int reportInterval) {
     if (_INSTANCE == null) {
@@ -89,6 +92,7 @@ public class MemoryTracker {
               pauseReplicateRatio,
               resumeRatio,
               maxSortRatio,
+              memoryStorageRatio,
               checkInterval,
               reportInterval);
     }
@@ -110,12 +114,14 @@ public class MemoryTracker {
       double pauseReplicateRatio,
       double resumeRatio,
       double maxSortMemRatio,
+      double memoryStorageRatio,
       int checkInterval,
       int reportInterval) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
     resumeThreshold = (long) (maxDirectorMemory * resumeRatio);
+    memoryStorageThreshold = (long) (maxDirectorMemory * memoryStorageRatio);
 
     initDirectMemoryIndicator();
 
@@ -188,11 +194,13 @@ public class MemoryTracker {
     reportService.scheduleWithFixedDelay(
         () ->
             logger.info(
-                "Direct memory usage: {}/{}MB, disk buffer size: {}MB, sort memory size: {}MB",
+                "Direct memory usage: {}/{}MB, disk buffer size: {}MB,"
+                    + " sort memory size: {}MB, memory storage size: {}MB",
                 toMb(nettyMemoryCounter.get()),
                 toMb(maxDirectorMemory),
                 toMb(diskBufferCounter.get()),
-                toMb(sortMemoryCounter.get())),
+                toMb(sortMemoryCounter.get()),
+                toMb(memoryStorageCounter.get())),
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
@@ -200,11 +208,13 @@ public class MemoryTracker {
     logger.info(
         "Memory tracker initialized with: "
             + "max direct memory: {}MB, pause pushdata memory: {}MB, "
-            + "pause replication memory: {}MB, resume memory: {}MB",
+            + "pause replication memory: {}MB, resume memory: {}MB"
+            + "storage memory threshold: {}MB",
         toMb(maxDirectorMemory),
         toMb(pausePushDataThreshold),
         toMb(pauseReplicateThreshold),
-        toMb(resumeThreshold));
+        toMb(resumeThreshold),
+        toMb(memoryStorageThreshold));
   }
 
   private long toMb(long bytes) {
@@ -307,6 +317,26 @@ public class MemoryTracker {
 
   public long getPausePushDataAndReplicateCounter() {
     return pausePushDataAndReplicateCounter.sum();
+  }
+
+  public long getMemoryStorageCounter() {
+    return memoryStorageCounter.get();
+  }
+
+  public boolean memoryStorageAvailable() {
+    return memoryStorageCounter.get() < memoryStorageThreshold;
+  }
+
+  public boolean memoryStorageAvailable(long size) {
+    return memoryStorageCounter.addAndGet(size) < memoryStorageThreshold;
+  }
+
+  public long recordMemoryShuffle(long size) {
+    return memoryStorageCounter.addAndGet(size);
+  }
+
+  public long freeMemoryShuffle(long size) {
+    return memoryStorageCounter.addAndGet(-1 * size);
   }
 
   enum MemoryTrackerStat {

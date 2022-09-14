@@ -21,6 +21,7 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util
+import java.util.{Comparator, UUID}
 import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
@@ -32,6 +33,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
+import org.apache.hadoop.mapreduce.task.reduce.InMemoryWriter
 import org.iq80.leveldb.DB
 
 import com.aliyun.emr.rss.common.RssConf
@@ -39,6 +41,7 @@ import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
+import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -46,7 +49,10 @@ import com.aliyun.emr.rss.common.util.PBSerDeUtils
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 
-final private[worker] class StorageManager(conf: RssConf, workerSource: AbstractSource)
+final private[worker] class StorageManager(
+    conf: RssConf,
+    workerSource: AbstractSource,
+    memoryTracker: MemoryTracker)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
@@ -133,6 +139,24 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         RssConf.flushAvgTimeMinimumCount(conf)))
     } else {
       None
+    }
+
+  val memoryStorageRatio = RssConf.memoryStorageRatio(conf)
+  // keep larger memory shuffle writers to front part of the list
+  val memoryShuffleWriters = new util.PriorityQueue[FileWriter](new Comparator[FileWriter] {
+    override def compare(o1: FileWriter, o2: FileWriter): Int = {
+      if (o2.getBytesFlushed > o1.getBytesFlushed) {
+        -1
+      } else {
+        0
+      }
+    }
+  })
+  val memoryShuffleEnabled =
+    if (memoryStorageRatio > 0.0d) {
+      true
+    } else {
+      false
     }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -256,6 +280,20 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
+      if (memoryFlusher.isDefined && memoryTracker.memoryStorageAvailable()) {
+        val memoryFileInfo = new FileInfo("memory://" + UUID.randomUUID())
+        val memoryWriter = new FileWriter(
+          memoryFileInfo,
+          memoryFlusher.get,
+          workerSource,
+          conf,
+          deviceMonitor,
+          splitThreshold,
+          splitMode,
+          partitionType)
+        memoryShuffleWriters.add(memoryWriter)
+        return memoryWriter
+      }
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.Healthy)) {

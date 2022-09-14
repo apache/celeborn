@@ -124,6 +124,14 @@ public class FileInfo {
     return Utils.isHdfsPath(filePath);
   }
 
+  public boolean isMemory() {
+    return Utils.isMemoryPath(filePath);
+  }
+
+  public boolean isLocal() {
+    return !isHdfs() && !isMemory();
+  }
+
   public synchronized List<Long> getChunkOffsets() {
     return chunkOffsets;
   }

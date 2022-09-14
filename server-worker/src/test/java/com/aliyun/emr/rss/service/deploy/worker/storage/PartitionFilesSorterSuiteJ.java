@@ -108,7 +108,7 @@ public class PartitionFilesSorterSuiteJ {
             + (double) originFileLen / 1024 / 1024.0
             + "MB");
 
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
+    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 0, 10, 10);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
