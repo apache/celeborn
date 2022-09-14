@@ -46,7 +46,12 @@ class RssColumnarBatchBuilder(
     if (nativeColumnType == null) {
       null
     } else {
-      RssPassThrough.encoder(nativeColumnType)
+      if (useCompression && RssDictionaryEncoding.supports(nativeColumnType)) {
+        RssDictionaryEncoding.MAX_DICT_SIZE = Math.min(Short.MaxValue, batchSize * 0.3).toShort
+        RssDictionaryEncoding.encoder(nativeColumnType)
+      } else {
+        RssPassThrough.encoder(nativeColumnType)
+      }
     }
   }.toArray
 
@@ -58,6 +63,10 @@ class RssColumnarBatchBuilder(
     var i = -1
     columnBuilders = schema.map { attribute =>
       i += 1
+      encodersArr(i) match {
+        case encoder: RssDictionaryEncoding.RssEncoder[_] if !encoder.overflow =>
+          encoder.cleanBatch
+      }
       RssColumnBuilder(
         attribute.dataType,
         batchSize,
