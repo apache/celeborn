@@ -545,15 +545,16 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
     val (masterLocations, slavePartitions) = newlyAllocatedLocation.asScala.head._2
     // reply the master location of this partition.
-    val revivedMasterLocation =
+    val newMasterLocation =
       if (masterLocations != null && masterLocations.size() > 0) {
         masterLocations.asScala.head
       } else {
         slavePartitions.asScala.head.getPeer
       }
 
-    reply(ChangeLocationResponse(StatusCode.SUCCESS, revivedMasterLocation))
-    logDebug(s"Renew $shuffleId $partitionId partition success.")
+    reply(ChangeLocationResponse(StatusCode.SUCCESS, newMasterLocation))
+    logDebug(s"Renew $shuffleId $partitionId" +
+      "$oldEpoch->${newMasterLocation.getEpoch} partition success.")
   }
 
   private def getLatestPartition(
