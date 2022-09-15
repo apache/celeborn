@@ -192,14 +192,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract RssInputStream readPartition(
       String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException;
-
-  /**
-   * unregisteration
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @return
-   */
+  
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
