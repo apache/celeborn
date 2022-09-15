@@ -105,7 +105,7 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);
 
   /**
-   * 往具体的一个reduce partition里写数据
+   * write data to a specific reduce partition
    *
    * @param applicationId
    * @param shuffleId
@@ -171,7 +171,8 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void cleanup(String applicationId, int shuffleId, int mapId, int attemptId);
 
   /**
-   * reduce端分区读取 按照 mapperId+mapperAttemptNum+batchId 去重 batchId是隐藏在实现里的发送时序自增变量
+   * reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
+   * is a self-incrementing variable hidden in the implementation when sending data.
    *
    * @param applicationId
    * @param shuffleId
@@ -193,7 +194,7 @@ public abstract class ShuffleClient implements Cloneable {
       String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
   /**
-   * 注销
+   * unregisteration
    *
    * @param applicationId
    * @param shuffleId
