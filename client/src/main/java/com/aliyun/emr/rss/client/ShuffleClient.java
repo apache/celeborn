@@ -105,7 +105,7 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);
 
   /**
-   * write data to a specific reduce partition
+   * Write data to a specific reduce partition
    *
    * @param applicationId
    * @param shuffleId
@@ -149,7 +149,7 @@ public abstract class ShuffleClient implements Cloneable {
       throws IOException;
 
   /**
-   * report partitionlocations written by the completed map task
+   * Report partition locations written by the completed map task
    *
    * @param applicationId
    * @param shuffleId
@@ -161,7 +161,7 @@ public abstract class ShuffleClient implements Cloneable {
       throws IOException;
 
   /**
-   * cleanup states of the map task
+   * Cleanup states of the map task
    *
    * @param applicationId
    * @param shuffleId
@@ -171,7 +171,7 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void cleanup(String applicationId, int shuffleId, int mapId, int attemptId);
 
   /**
-   * reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
+   * Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
    * is a self-incrementing variable hidden in the implementation when sending data.
    *
    * @param applicationId
