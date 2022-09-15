@@ -17,10 +17,14 @@
 
 package com.aliyun.emr.rss.common.protocol.message
 
+import java.nio.ByteBuffer
 import java.util
 import java.util.UUID
 
 import scala.collection.JavaConverters._
+
+import com.google.protobuf.ByteString
+import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
@@ -385,6 +389,7 @@ sealed trait Message extends Serializable {
             failedSlaveIds,
             committedMasterStorageInfos,
             committedSlaveStorageInfos,
+            committedMapIdBitMap,
             totalWritten,
             fileCount) =>
         val builder = PbCommitFilesResponse.newBuilder()
@@ -397,6 +402,17 @@ sealed trait Message extends Serializable {
           builder.putCommittedMasterStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
         committedSlaveStorageInfos.asScala.foreach(entry =>
           builder.putCommittedSlaveStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
+        if (!committedMapIdBitMap.isEmpty) {
+          committedMapIdBitMap.asScala.foreach(entry => {
+            if (!entry._2.isEmpty) {
+              val bitMapBuf = ByteBuffer.allocate(entry._2.serializedSizeInBytes())
+              entry._2.serialize(bitMapBuf)
+              builder.putMapIdBitmap(entry._1, ByteString.copyFrom(bitMapBuf))
+            } else {
+              builder.putMapIdBitmap(entry._1, ByteString.EMPTY)
+            }
+          })
+        }
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -688,6 +704,8 @@ object ControlMessages extends Logging {
         Map.empty[String, StorageInfo].asJava,
       committedSlaveStorageInfos: util.Map[String, StorageInfo] =
         Map.empty[String, StorageInfo].asJava,
+      committedMapIdBitMap: util.Map[String, RoaringBitmap] =
+        Map.empty[String, RoaringBitmap].asJava,
       totalWritten: Long = 0,
       fileCount: Int = 0) extends WorkerMessage
 
@@ -983,10 +1001,18 @@ object ControlMessages extends Logging {
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
         val committedMasterStorageInfos = new util.HashMap[String, StorageInfo]()
         val committedSlaveStorageInfos = new util.HashMap[String, StorageInfo]()
+        val committedBitMap = new util.HashMap[String, RoaringBitmap]()
         pbCommitFilesResponse.getCommittedMasterStorageInfosMap.asScala.foreach(entry =>
           committedMasterStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
         pbCommitFilesResponse.getCommittedSlaveStorageInfosMap.asScala.foreach(entry =>
           committedSlaveStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
+        pbCommitFilesResponse.getMapIdBitmapMap.asScala.foreach { entry =>
+          val bitmap = new RoaringBitmap()
+          if (!entry._2.isEmpty) {
+            bitmap.deserialize(ByteBuffer.wrap(entry._2.toByteArray))
+          }
+          committedBitMap.put(entry._1, bitmap)
+        }
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedMasterIdsList,
@@ -995,6 +1021,7 @@ object ControlMessages extends Logging {
           pbCommitFilesResponse.getFailedSlaveIdsList,
           committedMasterStorageInfos,
           committedSlaveStorageInfos,
+          committedBitMap,
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount)
 

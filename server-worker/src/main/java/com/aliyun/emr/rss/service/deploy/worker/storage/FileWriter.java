@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,7 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
+import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
@@ -77,6 +79,7 @@ public final class FileWriter implements DeviceObserver {
 
   private Runnable destroyHook;
   private boolean deleted = false;
+  private RoaringBitmap mapIdBitMap = new RoaringBitmap();
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
@@ -187,6 +190,11 @@ public final class FileWriter implements DeviceObserver {
       return;
     }
 
+    byte[] headerBuf = new byte[16];
+    data.getBytes(0, headerBuf);
+    int mapId = Platform.getInt(headerBuf, Platform.BYTE_ARRAY_OFFSET);
+    mapIdBitMap.add(mapId);
+
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
@@ -201,6 +209,11 @@ public final class FileWriter implements DeviceObserver {
 
       numPendingWrites.decrementAndGet();
     }
+  }
+
+  public RoaringBitmap getMapIdBitMap() {
+    mapIdBitMap.runOptimize();
+    return mapIdBitMap;
   }
 
   public StorageInfo getStorageInfo() {

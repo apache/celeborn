@@ -155,13 +155,45 @@ public abstract class RssInputStream extends InputStream {
       moveToNextReader();
     }
 
+    private boolean locationHasMapIdToRead(
+        int startMapIndex, int endMapIndex, PartitionLocation location) {
+      boolean hasMapId = false;
+      if (endMapIndex == Integer.MAX_VALUE) {
+        return true;
+      }
+      for (int i = startMapIndex; i < endMapIndex; i++) {
+        hasMapId = hasMapId | location.getMapIdBitMap().contains(i);
+      }
+      return hasMapId;
+    }
+
+    private PartitionLocation nextReadableLocation() {
+      int locationCount = locations.length;
+      PartitionLocation currentLocation = locations[fileIndex];
+      while (!locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)
+          && fileIndex < locationCount - 1) {
+        fileIndex++;
+        currentLocation = locations[fileIndex];
+      }
+      if (fileIndex == locationCount - 1
+          && locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) {
+        return currentLocation;
+      } else {
+        return null;
+      }
+    }
+
     private void moveToNextReader() throws IOException {
       if (currentReader != null) {
         currentReader.close();
       }
 
       int locationCount = locations.length;
-      PartitionLocation currentLocation = locations[fileIndex];
+      PartitionLocation currentLocation = nextReadableLocation();
+      if (currentLocation == null) {
+        currentReader = null;
+        return;
+      }
       currentReader = createReader(currentLocation);
       logger.debug(
           "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
@@ -172,8 +204,12 @@ public abstract class RssInputStream extends InputStream {
           locationCount);
       while (!currentReader.hasNext() && fileIndex < locationCount - 1) {
         fileIndex++;
-        currentLocation = locations[fileIndex];
         currentReader.close();
+        currentLocation = nextReadableLocation();
+        if (currentLocation == null) {
+          currentReader = null;
+          return;
+        }
         currentReader = createReader(currentLocation);
         logger.debug(
             "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
