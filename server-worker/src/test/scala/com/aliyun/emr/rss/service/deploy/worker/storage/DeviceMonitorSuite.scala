@@ -38,7 +38,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
   val dfCmd = "df -h"
   val dfOut =
     """
-      |文件系统        容量  已用  可用 已用% 挂载点
+      |Filesystem      Size  Used Avail  Use% Mounted on
       |devtmpfs         32G     0   32G    0% /dev
       |tmpfs            32G  108K   32G    1% /dev/shm
       |tmpfs            32G  672K   32G    1% /run
