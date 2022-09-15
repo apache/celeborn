@@ -104,18 +104,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);
 
-  /**
-   * Write data to a specific reduce partition
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param mapId taskContext.partitionId
-   * @param attemptId taskContext.attemptNumber()
-   * @param partitionId
-   * @param data
-   * @param offset
-   * @param length
-   */
+  // Write data to a specific reduce partition
   public abstract int pushData(
       String applicationId,
       int shuffleId,
@@ -148,39 +137,16 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
       throws IOException;
 
-  /**
-   * Report partition locations written by the completed map task
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param mapId
-   * @param attemptId
-   */
+  // Report partition locations written by the completed map task
   public abstract void mapperEnd(
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException;
 
-  /**
-   * Cleanup states of the map task
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param mapId
-   * @param attemptId
-   */
+  // Cleanup states of the map task
   public abstract void cleanup(String applicationId, int shuffleId, int mapId, int attemptId);
 
-  /**
-   * Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
-   * is a self-incrementing variable hidden in the implementation when sending data.
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param partitionId
-   * @param startMapIndex
-   * @param endMapIndex
-   * @return
-   */
+  // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
+  // is a self-incrementing variable hidden in the implementation when sending data.
   public abstract RssInputStream readPartition(
       String applicationId,
       int shuffleId,
@@ -192,7 +158,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract RssInputStream readPartition(
       String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException;
-  
+
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
