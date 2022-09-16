@@ -83,10 +83,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long fetchChunkSize;
-  protected final long reserveMemoryForSingleSort;
-  private boolean gracefulShutdown = false;
+  protected final long initialReserveMemoryForSingleSort;
+  private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
+  private MemoryTracker memoryTracker;
 
   protected final AbstractSource source;
 
@@ -100,9 +101,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
     this.fetchChunkSize = RssConf.chunkSize(conf);
-    this.reserveMemoryForSingleSort = RssConf.memoryReservedForSingleSort(conf);
+    this.initialReserveMemoryForSingleSort = RssConf.memoryReservedForSingleSort(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
+    this.memoryTracker = memoryTracker;
     this.gracefulShutdown = RssConf.workerGracefulShutdown(conf);
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
@@ -126,16 +128,16 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               try {
                 while (!shutdown) {
                   FileSorter task = shuffleSortTaskDeque.take();
-                  memoryTracker.reserveSortMemory(reserveMemoryForSingleSort);
+                  this.memoryTracker.reserveSortMemory(initialReserveMemoryForSingleSort);
                   while (!memoryTracker.sortMemoryReady()) {
                     Thread.sleep(20);
                   }
                   fileSorterExecutors.submit(
                       () -> {
                         source.startTimer(WorkerSource.SortTime(), task.fileId);
-                        task.sort();
+                        int actualReserveMemory = task.sort();
                         source.stopTimer(WorkerSource.SortTime(), task.fileId);
-                        memoryTracker.releaseSortMemory(reserveMemoryForSingleSort);
+                        this.memoryTracker.releaseSortMemory(actualReserveMemory);
                       });
                 }
               } catch (InterruptedException e) {
@@ -513,7 +515,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    public void sort() {
+    public int sort() {
+      int reserveMemory = (int) initialReserveMemoryForSingleSort;
       try {
         initializeFiles();
 
@@ -522,7 +525,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         int batchHeaderLen = 16;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
-        ByteBuffer paddingBuf = ByteBuffer.allocateDirect((int) reserveMemoryForSingleSort);
+        ByteBuffer paddingBuf = ByteBuffer.allocateDirect(reserveMemory);
 
         long index = 0;
         while (index != originFileLen) {
@@ -543,6 +546,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
+          if (compressedSize > reserveMemory) {
+            paddingBuf = expandBufferAndUpdateMemoryTracker(reserveMemory, compressedSize);
+            reserveMemory = compressedSize;
+          }
           paddingBuf.limit(compressedSize);
           // TODO: compare skip or read performance differential
           readBufferFully(paddingBuf);
@@ -581,6 +588,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
         closeFiles();
       }
+      return reserveMemory;
     }
 
     private void initializeFiles() throws IOException {
@@ -626,6 +634,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       if (!deleteSuccess) {
         logger.warn("clean origin file failed, origin file is : {}", originFilePath);
       }
+    }
+
+    private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity) {
+      memoryTracker.releaseSortMemory(oldCapacity);
+      memoryTracker.reserveSortMemory(newCapacity);
+      return ByteBuffer.allocateDirect(newCapacity);
     }
   }
 }
