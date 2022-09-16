@@ -33,6 +33,7 @@ import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
 import com.aliyun.emr.rss.common.network.server.{BaseMessageHandler, OneForOneStreamManager}
 import com.aliyun.emr.rss.common.network.util.{NettyUtils, TransportConf}
+import com.aliyun.emr.rss.service.deploy.worker.exception._
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
@@ -121,7 +122,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         request.body().release()
       }
     } catch {
-      case fnf: FileNotFoundException =>
+      case fnf: Exception =>
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
         client.getChannel.writeAndFlush(new RpcFailure(
           request.requestId,
