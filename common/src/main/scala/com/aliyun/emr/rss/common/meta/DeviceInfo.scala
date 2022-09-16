@@ -151,7 +151,7 @@ object DeviceInfo {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
-    val dfResult = runCommand("df -h").trim
+    val dfResult = runCommand("df -ah").trim
     logger.info(s"df result $dfResult")
     // (/dev/vdb, /mnt/disk1)
     val fsMounts = dfResult
