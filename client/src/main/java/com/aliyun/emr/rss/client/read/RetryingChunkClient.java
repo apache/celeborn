@@ -219,7 +219,7 @@ public class RetryingChunkClient {
             || (e.getCause() != null && e.getCause() instanceof IOException);
     boolean isSortException =
         e instanceof RuntimeException
-        && e.getMessage().startsWith("com.aliyun.emr.rss.service.deploy.worker.exception");
+            && e.getMessage().startsWith("com.aliyun.emr.rss.service.deploy.worker.exception");
     return (isIOException || isSortException) && hasRemainingRetries();
   }
 
