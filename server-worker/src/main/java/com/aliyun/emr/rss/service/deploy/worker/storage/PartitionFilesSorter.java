@@ -128,15 +128,19 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               try {
                 while (!shutdown) {
                   FileSorter task = shuffleSortTaskDeque.take();
+                  memoryTracker.reserveSortMemory(initialReserveSingleSortMemory);
+                  while (!memoryTracker.sortMemoryReady()) {
+                    Thread.sleep(20);
+                  }
                   fileSorterExecutors.submit(
-                    () -> {
-                      try {
-                        task.sort();
-                      } catch (InterruptedException e) {
-                        logger.info("File sorter thread was interrupted while waiting for sort memory to be ready.");
-                      }
-                    }
-                  );
+                      () -> {
+                        try {
+                          task.sort();
+                        } catch (InterruptedException e) {
+                          logger.info(
+                              "File sorter thread was interrupted while waiting for sort memory to be ready.");
+                        }
+                      });
                 }
               } catch (InterruptedException e) {
                 logger.warn("Sort thread is shutting down, detail: ", e);
@@ -514,11 +518,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     public void sort() throws InterruptedException {
-      int reserveMemory = (int) initialReserveSingleSortMemory;
-      memoryTracker.reserveSortMemory(reserveMemory);
-      while (!memoryTracker.sortMemoryReady()) {
-        Thread.sleep(20);
-      }
       source.startTimer(WorkerSource.SortTime(), fileId);
 
       try {
@@ -528,6 +527,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
         int batchHeaderLen = 16;
+        int reserveMemory = (int) initialReserveSingleSortMemory;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
         ByteBuffer paddingBuf = ByteBuffer.allocateDirect(reserveMemory);
 
