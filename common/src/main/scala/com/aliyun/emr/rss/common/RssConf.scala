@@ -825,6 +825,14 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.partition.split.minimum.size", "1m")
   }
 
+  def partitionSplitNumThreads(conf: RssConf): Int = {
+    conf.getInt("rss.partition.split.numThreads", 8)
+  }
+
+  def handleChangePartitionRequestBatchInterval(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.change.partition.batchInterval", "1s")
+  }
+
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
