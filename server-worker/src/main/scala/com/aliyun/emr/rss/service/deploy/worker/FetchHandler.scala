@@ -121,11 +121,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         request.body().release()
       }
     } catch {
-      case fnf: IOException =>
+      case ioe: IOException =>
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
         client.getChannel.writeAndFlush(new RpcFailure(
           request.requestId,
-          Throwables.getStackTraceAsString(fnf)))
+          Throwables.getStackTraceAsString(ioe)))
     }
   }
 

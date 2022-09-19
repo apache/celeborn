@@ -216,7 +216,9 @@ public class RetryingChunkClient {
         e instanceof IOException
             || e instanceof TimeoutException
             || (e.getCause() != null && e.getCause() instanceof TimeoutException)
-            || (e.getCause() != null && e.getCause() instanceof IOException);
+            || (e.getCause() != null && e.getCause() instanceof IOException)
+            || (e instanceof RuntimeException
+                && e.getMessage().startsWith(IOException.class.getName()));
     return isIOException && hasRemainingRetries();
   }
 
