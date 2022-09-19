@@ -184,9 +184,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             sorting.add(fileId);
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
-            logger.info("Scheduler thread is interrupted means worker is shutting down.");
+            logger.info("Sorter scheduler thread is interrupted means worker is shutting down.");
             throw new IOException(
-                "Scheduler thread is interrupted means worker is shutting down.", e);
+                "Sort scheduler thread is interrupted means worker is shutting down.", e);
           } catch (IOException e) {
             logger.error("File sorter access hdfs failed.", e);
             throw new IOException("File sorter access hdfs failed.", e);
@@ -205,13 +205,16 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                   "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
             }
           } catch (InterruptedException e) {
-            logger.error("sort scheduler thread is interrupted means worker is shutting down.", e);
-            throw new IOException("", e);
+            logger.error(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
+            throw new IOException(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
           }
         } else {
           logger.debug(
-              "Sorting shuffle file for {} {} failed,", shuffleKey, fileInfo.getFilePath());
-          throw new IOException("");
+              "Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
+          throw new IOException(
+              "Sorting shuffle file for " + shuffleKey + " " + fileInfo.getFilePath() + " failed.");
         }
       }
 
