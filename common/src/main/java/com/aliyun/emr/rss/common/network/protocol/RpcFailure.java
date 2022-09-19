@@ -32,7 +32,7 @@ public final class RpcFailure extends ResponseMessage {
 
   @Override
   public Type type() {
-    return Type.RpcFailure;
+    return Type.RPC_FAILURE;
   }
 
   @Override

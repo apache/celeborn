@@ -35,10 +35,10 @@ import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils
 
 class DeviceMonitorSuite extends AnyFunSuite {
-  val dfCmd = "df -h"
+  val dfCmd = "df -ah"
   val dfOut =
     """
-      |文件系统        容量  已用  可用 已用% 挂载点
+      |Filesystem      Size  Used Avail  Use% Mounted on
       |devtmpfs         32G     0   32G    0% /dev
       |tmpfs            32G  108K   32G    1% /dev/shm
       |tmpfs            32G  672K   32G    1% /run
@@ -213,29 +213,29 @@ class DeviceMonitorSuite extends AnyFunSuite {
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      when(fw2.notifyError("vda", DiskStatus.IoHang))
+      when(fw2.notifyError("vda", DiskStatus.IO_HANG))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      when(fw4.notifyError("vdb", DiskStatus.IoHang))
+      when(fw4.notifyError("vdb", DiskStatus.IO_HANG))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      when(df2.notifyError("vda", DiskStatus.IoHang))
+      when(df2.notifyError("vda", DiskStatus.IO_HANG))
         .thenAnswer((a: String, b: List[File]) => {
           df2.stopFlag.set(true)
         })
-      when(df4.notifyError("vdb", DiskStatus.IoHang))
+      when(df4.notifyError("vdb", DiskStatus.IO_HANG))
         .thenAnswer((a: String, b: List[File]) => {
           df4.stopFlag.set(true)
         })
 
       deviceMonitor.observedDevices
         .get(vdaDeviceInfo)
-        .notifyObserversOnError(List("/mnt/disk1"), DiskStatus.IoHang)
+        .notifyObserversOnError(List("/mnt/disk1"), DiskStatus.IO_HANG)
       deviceMonitor.observedDevices
         .get(vdbDeviceInfo)
-        .notifyObserversOnError(List("/mnt/disk2"), DiskStatus.IoHang)
+        .notifyObserversOnError(List("/mnt/disk2"), DiskStatus.IO_HANG)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
@@ -261,7 +261,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.IoHang)
+      deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.IO_HANG)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
@@ -275,7 +275,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.IoHang)
+      deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.IO_HANG)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))

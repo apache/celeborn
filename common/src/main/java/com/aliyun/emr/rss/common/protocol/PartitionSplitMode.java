@@ -20,9 +20,9 @@ package com.aliyun.emr.rss.common.protocol;
 public enum PartitionSplitMode {
   // soft means shuffle file reach split threshold and will receive data until shuffle split
   // request complete.
-  soft(0),
+  SOFT(0),
   // hard means shuffle file reach split threshold and will stop receive data
-  hard(1);
+  HARD(1);
 
   private final byte value;
 

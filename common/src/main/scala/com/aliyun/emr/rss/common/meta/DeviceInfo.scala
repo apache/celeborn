@@ -47,7 +47,7 @@ class DiskInfo(
     this(mountPoint, 0, 0, 0, dirs, deviceInfo)
   }
 
-  var status: DiskStatus = DiskStatus.Healthy
+  var status: DiskStatus = DiskStatus.HEALTHY
   var threadCount = 1
   var configuredUsableSpace = 0L
   var storageType: StorageInfo.Type = _
@@ -151,7 +151,7 @@ object DeviceInfo {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
-    val dfResult = runCommand("df -h").trim
+    val dfResult = runCommand("df -ah").trim
     logger.info(s"df result $dfResult")
     // (/dev/vdb, /mnt/disk1)
     val fsMounts = dfResult

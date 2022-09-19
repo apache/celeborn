@@ -63,7 +63,7 @@ public class SlotsAllocator {
       List<UsableDiskInfo> usableDisks =
           restrictions.computeIfAbsent(worker, v -> new ArrayList<>());
       for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
-        if (diskInfoEntry.getValue().status().equals(DiskStatus.Healthy)) {
+        if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
           usableDisks.add(
               new UsableDiskInfo(
                   diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
@@ -107,7 +107,7 @@ public class SlotsAllocator {
                     (key, diskInfo) -> {
                       diskToWorkerMap.put(diskInfo, i);
                       if (diskInfo.actualUsableSpace() > minimumUsableSize
-                          && diskInfo.status().equals(DiskStatus.Healthy)) {
+                          && diskInfo.status().equals(DiskStatus.HEALTHY)) {
                         usableDisks.add(diskInfo);
                       }
                     }));
@@ -391,7 +391,7 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
-        isMaster ? PartitionLocation.Mode.Master : PartitionLocation.Mode.Slave,
+        isMaster ? PartitionLocation.Mode.MASTER : PartitionLocation.Mode.SLAVE,
         peer,
         storageInfo);
   }

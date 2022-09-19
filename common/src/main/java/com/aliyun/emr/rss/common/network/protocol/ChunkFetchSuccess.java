@@ -40,7 +40,7 @@ public final class ChunkFetchSuccess extends ResponseMessage {
 
   @Override
   public Type type() {
-    return Type.ChunkFetchSuccess;
+    return Type.CHUNK_FETCH_SUCCESS;
   }
 
   @Override

@@ -46,7 +46,7 @@ import com.aliyun.emr.rss.common.network.protocol.Message;
 public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implements FrameDecoder {
   private int msgSize = -1;
   private int bodySize = -1;
-  private Message.Type curType = Message.Type.UnkownType;
+  private Message.Type curType = Message.Type.UNKNOWN_TYPE;
   private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
   private static final int UNKNOWN_FRAME_SIZE = -1;
@@ -77,7 +77,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
   }
 
   private void clear() {
-    curType = Message.Type.UnkownType;
+    curType = Message.Type.UNKNOWN_TYPE;
     msgSize = -1;
     bodySize = -1;
     headerBuf.clear();

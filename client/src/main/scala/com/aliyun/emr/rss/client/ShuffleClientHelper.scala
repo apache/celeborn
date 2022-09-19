@@ -38,7 +38,7 @@ object ShuffleClientHelper extends Logging {
       shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
     endpointRef.ask[ChangeLocationResponse](message).onComplete {
       case Success(value) =>
-        if (value.status == StatusCode.Success) {
+        if (value.status == StatusCode.SUCCESS) {
           shuffleLocs.put(partitionId, value.partition)
         } else {
           logInfo(s"split failed for ${value.status.toString()}, " +

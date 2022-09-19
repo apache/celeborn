@@ -39,7 +39,7 @@ public final class RpcRequest extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.RpcRequest;
+    return Type.RPC_REQUEST;
   }
 
   @Override

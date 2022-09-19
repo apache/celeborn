@@ -67,11 +67,11 @@ class PartitionLocationInfo extends Logging {
   }
 
   def getMasterLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
-    getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.Master)
+    getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.MASTER)
   }
 
   def getSlaveLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
-    getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.Slave)
+    getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.SLAVE)
   }
 
   def getAllMasterLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
@@ -256,7 +256,7 @@ class PartitionLocationInfo extends Logging {
     val partitionId = tokens(0).toInt
     val epoch = tokens(1).toInt
     val partitionInfo =
-      if (mode == PartitionLocation.Mode.Master) {
+      if (mode == PartitionLocation.Mode.MASTER) {
         masterPartitionLocations
       } else {
         slavePartitionLocations

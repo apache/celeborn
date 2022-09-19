@@ -828,11 +828,11 @@ object RssConf extends Logging {
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
-      case "soft" => PartitionSplitMode.soft
-      case "hard" => PartitionSplitMode.hard
+      case "soft" => PartitionSplitMode.SOFT
+      case "hard" => PartitionSplitMode.HARD
       case _ =>
         logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
-        PartitionSplitMode.soft
+        PartitionSplitMode.SOFT
     }
   }
 

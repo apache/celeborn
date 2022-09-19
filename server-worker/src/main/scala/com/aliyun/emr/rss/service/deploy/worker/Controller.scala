@@ -128,14 +128,14 @@ private[deploy] class Controller(
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
       logError(s"[handleReserveSlots] $msg")
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
     if (storageManager.healthyWorkingDirs().size <= 0) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
     val masterPartitions = new jArrayList[PartitionLocation]()
@@ -159,7 +159,7 @@ private[deploy] class Controller(
       val msg = s"Not all master partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
       masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
@@ -185,7 +185,7 @@ private[deploy] class Controller(
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
       masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
       slavePartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
-      context.reply(ReserveSlotsResponse(StatusCode.ReserveSlotFailed, msg))
+      context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
@@ -200,7 +200,7 @@ private[deploy] class Controller(
     if (log.isDebugEnabled()) {
       logDebug(s"master: $masterPartitions\nslave: $slavePartitions.")
     }
-    context.reply(ReserveSlotsResponse(StatusCode.Success))
+    context.reply(ReserveSlotsResponse(StatusCode.SUCCESS))
   }
 
   private def commitFiles(
@@ -273,7 +273,7 @@ private[deploy] class Controller(
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
-          StatusCode.ShuffleNotRegistered,
+          StatusCode.SHUFFLE_NOT_REGISTERED,
           List.empty.asJava,
           List.empty.asJava,
           masterIds,
@@ -349,7 +349,7 @@ private[deploy] class Controller(
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
         context.reply(
           CommitFilesResponse(
-            StatusCode.Success,
+            StatusCode.SUCCESS,
             committedMasterIdList,
             committedSlaveIdList,
             List.empty.asJava,
@@ -363,7 +363,7 @@ private[deploy] class Controller(
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
         context.reply(
           CommitFilesResponse(
-            StatusCode.PartialSuccess,
+            StatusCode.PARTIAL_SUCCESS,
             committedMasterIdList,
             committedSlaveIdList,
             failedMasterIdList,
@@ -433,7 +433,7 @@ private[deploy] class Controller(
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
       context.reply(DestroyResponse(
-        StatusCode.ShuffleNotRegistered,
+        StatusCode.SHUFFLE_NOT_REGISTERED,
         masterLocations,
         slaveLocations))
       return
@@ -476,19 +476,19 @@ private[deploy] class Controller(
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.Success, List.empty.asJava, List.empty.asJava))
+      context.reply(DestroyResponse(StatusCode.SUCCESS, List.empty.asJava, List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
         s" $shuffleKey PartialSuccess.")
-      context.reply(DestroyResponse(StatusCode.PartialSuccess, failedMasters, failedSlaves))
+      context.reply(DestroyResponse(StatusCode.PARTIAL_SUCCESS, failedMasters, failedSlaves))
     }
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
     val list = new jArrayList[WorkerInfo]()
     list.add(workerInfo)
-    context.reply(GetWorkerInfosResponse(StatusCode.Success, list.asScala.toList: _*))
+    context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, list.asScala.toList: _*))
   }
 
   private def handleThreadDump(context: RpcCallContext): Unit = {

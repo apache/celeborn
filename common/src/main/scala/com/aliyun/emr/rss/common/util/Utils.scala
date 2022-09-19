@@ -743,51 +743,51 @@ object Utils extends Logging {
   def toStatusCode(status: Int): StatusCode = {
     status match {
       case 0 =>
-        StatusCode.Success
+        StatusCode.SUCCESS
       case 1 =>
-        StatusCode.PartialSuccess
+        StatusCode.PARTIAL_SUCCESS
       case 2 =>
-        StatusCode.Failed
+        StatusCode.FAILED
       case 3 =>
-        StatusCode.ShuffleAlreadyRegistered
+        StatusCode.SHUFFLE_ALREADY_REGISTERED
       case 4 =>
-        StatusCode.ShuffleNotRegistered
+        StatusCode.SHUFFLE_NOT_REGISTERED
       case 5 =>
-        StatusCode.ReserveSlotFailed
+        StatusCode.RESERVE_SLOTS_FAILED
       case 6 =>
-        StatusCode.SlotNotAvailable
+        StatusCode.SLOT_NOT_AVAILABLE
       case 7 =>
-        StatusCode.WorkerNotFound
+        StatusCode.WORKER_NOT_FOUND
       case 8 =>
-        StatusCode.PartitionNotFound
+        StatusCode.PARTITION_NOT_FOUND
       case 9 =>
-        StatusCode.SlavePartitionNotFound
+        StatusCode.SLAVE_PARTITION_NOT_FOUND
       case 10 =>
-        StatusCode.DeleteFilesFailed
+        StatusCode.DELETE_FILES_FAILED
       case 11 =>
-        StatusCode.PartitionExists
+        StatusCode.PARTITION_EXISTS
       case 12 =>
-        StatusCode.ReviveFailed
+        StatusCode.REVIVE_FAILED
       case 13 =>
-        StatusCode.PushDataFailed
+        StatusCode.PUSH_DATA_FAILED
       case 14 =>
-        StatusCode.NumMapperZero
+        StatusCode.NUM_MAPPER_ZERO
       case 15 =>
-        StatusCode.MapEnded
+        StatusCode.MAP_ENDED
       case 16 =>
-        StatusCode.StageEnded
+        StatusCode.STAGE_ENDED
       case 17 =>
-        StatusCode.PushDataFailNonCriticalCause
+        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
       case 18 =>
-        StatusCode.PushDataFailSlave
+        StatusCode.PUSH_DATA_FAIL_SLAVE
       case 19 =>
-        StatusCode.PushDataFailMain
+        StatusCode.PUSH_DATA_FAIL_MAIN
       case 20 =>
-        StatusCode.PushDataFailPartitionNotFound
+        StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
       case 21 =>
-        StatusCode.HardSplit
+        StatusCode.HARD_SPLIT
       case 22 =>
-        StatusCode.SoftSplit
+        StatusCode.SOFT_SPLIT
       case _ =>
         null
     }
@@ -795,11 +795,11 @@ object Utils extends Logging {
 
   def toShuffleSplitMode(mode: Int): PartitionSplitMode = {
     mode match {
-      case 0 => PartitionSplitMode.soft
-      case 1 => PartitionSplitMode.hard
+      case 0 => PartitionSplitMode.SOFT
+      case 1 => PartitionSplitMode.HARD
       case _ =>
         logWarning(s"invalid shuffle mode $mode, fallback to soft")
-        PartitionSplitMode.soft
+        PartitionSplitMode.SOFT
     }
   }
 
@@ -816,10 +816,10 @@ object Utils extends Logging {
 
   def toDiskStatus(value: Int): DiskStatus = {
     value match {
-      case 0 => DiskStatus.Healthy
-      case 1 => DiskStatus.ReadOrWriteFailure
-      case 2 => DiskStatus.IoHang
-      case 3 => DiskStatus.HighDiskUsage
+      case 0 => DiskStatus.HEALTHY
+      case 1 => DiskStatus.READ_OR_WRITE_FAILURE
+      case 2 => DiskStatus.IO_HANG
+      case 3 => DiskStatus.HIGH_DISK_USAGE
       case _ => null
     }
   }

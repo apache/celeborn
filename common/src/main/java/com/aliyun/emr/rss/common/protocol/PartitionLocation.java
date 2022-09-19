@@ -23,8 +23,8 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
-    Master(0),
-    Slave(1);
+    MASTER(0),
+    SLAVE(1);
 
     private final byte mode;
 
@@ -40,9 +40,9 @@ public class PartitionLocation implements Serializable {
 
   public static PartitionLocation.Mode getMode(byte mode) {
     if (mode == 0) {
-      return Mode.Master;
+      return Mode.MASTER;
     } else {
-      return Mode.Slave;
+      return Mode.SLAVE;
     }
   }
 
@@ -287,9 +287,9 @@ public class PartitionLocation implements Serializable {
   }
 
   public static PartitionLocation fromPbPartitionLocation(PbPartitionLocation pbLoc) {
-    Mode mode = Mode.Master;
+    Mode mode = Mode.MASTER;
     if (pbLoc.getMode() == PbPartitionLocation.Mode.Slave) {
-      mode = Mode.Slave;
+      mode = Mode.SLAVE;
     }
 
     PartitionLocation partitionLocation =
@@ -306,9 +306,9 @@ public class PartitionLocation implements Serializable {
             StorageInfo.fromPb(pbLoc.getStorageInfo()));
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
-      Mode peerMode = Mode.Master;
+      Mode peerMode = Mode.MASTER;
       if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
-        peerMode = Mode.Slave;
+        peerMode = Mode.SLAVE;
       }
       PartitionLocation peerLocation =
           new PartitionLocation(
@@ -330,7 +330,7 @@ public class PartitionLocation implements Serializable {
 
   public static PbPartitionLocation toPbPartitionLocation(PartitionLocation location) {
     PbPartitionLocation.Builder builder = PbPartitionLocation.newBuilder();
-    if (location.mode == Mode.Master) {
+    if (location.mode == Mode.MASTER) {
       builder.setMode(PbPartitionLocation.Mode.Master);
     } else {
       builder.setMode(PbPartitionLocation.Mode.Slave);
@@ -346,7 +346,7 @@ public class PartitionLocation implements Serializable {
 
     if (location.getPeer() != null) {
       PbPartitionLocation.Builder peerBuilder = PbPartitionLocation.newBuilder();
-      if (location.getPeer().mode == Mode.Master) {
+      if (location.getPeer().mode == Mode.MASTER) {
         peerBuilder.setMode(PbPartitionLocation.Mode.Master);
       } else {
         peerBuilder.setMode(PbPartitionLocation.Mode.Slave);

@@ -33,7 +33,7 @@ public final class ChunkFetchRequest extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.ChunkFetchRequest;
+    return Type.CHUNK_FETCH_REQUEST;
   }
 
   @Override

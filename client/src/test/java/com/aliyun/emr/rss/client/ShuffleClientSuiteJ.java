@@ -78,7 +78,7 @@ public class ShuffleClientSuiteJ {
           MASTER_PUSH_PORT,
           MASTER_FETCH_PORT,
           MASTER_REPLICATE_PORT,
-          PartitionLocation.Mode.Master);
+          PartitionLocation.Mode.MASTER);
   private static final PartitionLocation slaveLocation =
       new PartitionLocation(
           0,
@@ -88,7 +88,7 @@ public class ShuffleClientSuiteJ {
           SLAVE_PUSH_PORT,
           SLAVE_FETCH_PORT,
           SLAVE_REPLICATE_PORT,
-          PartitionLocation.Mode.Slave);
+          PartitionLocation.Mode.SLAVE);
 
   private static byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
   private final int BATCH_HEADER_SIZE = 4 * 4;
@@ -203,7 +203,7 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t ->
                 new ControlMessages.RegisterShuffleResponse(
-                    StatusCode.Success,
+                    StatusCode.SUCCESS,
                     new ArrayList<PartitionLocation>() {
                       {
                         add(masterLocation);

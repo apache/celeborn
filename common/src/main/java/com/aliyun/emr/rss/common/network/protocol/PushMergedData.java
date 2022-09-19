@@ -57,7 +57,7 @@ public final class PushMergedData extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.PushMergedData;
+    return Type.PUSH_MERGED_DATA;
   }
 
   @Override
