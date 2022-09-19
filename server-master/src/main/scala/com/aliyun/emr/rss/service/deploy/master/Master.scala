@@ -509,7 +509,7 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
-    logInfo(s"[handleReleaseSlots] Release all slots of $shuffleKey")
+    logInfo(s"Release all slots of $shuffleKey")
     context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
   }
 
