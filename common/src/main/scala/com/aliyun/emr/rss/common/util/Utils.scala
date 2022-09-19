@@ -36,6 +36,7 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.common.net.InetAddresses
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
