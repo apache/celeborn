@@ -66,11 +66,11 @@ class PartitionLocationInfo extends Logging {
     addPartitions(shuffleKey, locations, slavePartitionLocations)
   }
 
-  def getMasterLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
+  def getMasterLocation(shuffleKey: String, uniqueId: String): Option[PartitionLocation] = {
     getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.MASTER)
   }
 
-  def getSlaveLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
+  def getSlaveLocation(shuffleKey: String, uniqueId: String): Option[PartitionLocation] = {
     getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.SLAVE)
   }
 
@@ -251,7 +251,7 @@ class PartitionLocationInfo extends Logging {
   private def getLocation(
       shuffleKey: String,
       uniqueId: String,
-      mode: PartitionLocation.Mode): PartitionLocation = {
+      mode: PartitionLocation.Mode): Option[PartitionLocation] = {
     val tokens = uniqueId.split("-", 2)
     val partitionId = tokens(0).toInt
     val epoch = tokens(1).toInt
@@ -265,13 +265,13 @@ class PartitionLocationInfo extends Logging {
     this.synchronized {
       if (!partitionInfo.containsKey(shuffleKey)
         || !partitionInfo.get(shuffleKey).containsKey(partitionId)) {
-        return null
+        None
+      } else {
+        partitionInfo.get(shuffleKey)
+          .get(partitionId)
+          .asScala
+          .find(loc => loc.getEpoch == epoch)
       }
-      partitionInfo.get(shuffleKey)
-        .get(partitionId)
-        .asScala
-        .find(loc => loc.getEpoch == epoch)
-        .orNull
     }
   }
 

@@ -226,30 +226,29 @@ private[deploy] class Controller(
                     partitionLocationInfo.getSlaveLocation(shuffleKey, uniqueId)
                   }
 
-                if (location == null) {
+              location match {
+                case Some(workingPartition: WorkingPartition) =>
+                  val fileWriter = workingPartition.getFileWriter
+                  val bytes = fileWriter.close()
+                  if (bytes > 0L) {
+                    if (fileWriter.getStorageInfo != null) {
+                      committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
+                    }
+                    if (bytes >= minimumPartitionSizeForEstimation) {
+                      partitionSizeList.add(bytes)
+                    }
+                    committedIds.add(uniqueId)
+                  }
+                case None =>
                   logWarning(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist.")
-                  return
-                }
-
-                val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-                val bytes = fileWriter.close()
-                if (bytes > 0L) {
-                  if (fileWriter.getStorageInfo != null) {
-                    committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
-                  }
-                  if (bytes >= minimumPartitionSizeForEstimation) {
-                    partitionSizeList.add(bytes)
-                  }
-                  committedIds.add(uniqueId)
-                }
-              } catch {
-                case e: IOException =>
-                  logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
-                  failedIds.add(uniqueId)
               }
+            } catch {
+              case e: IOException =>
+                logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
+                failedIds.add(uniqueId)
             }
-          },
-          commitThreadPool)
+          }
+        }, commitThreadPool)
 
         if (future == null) {
           future = task
@@ -446,10 +445,11 @@ private[deploy] class Controller(
     if (masterLocations != null && !masterLocations.isEmpty) {
       masterLocations.asScala.foreach { loc =>
         val allocatedLoc = partitionLocationInfo.getMasterLocation(shuffleKey, loc)
-        if (allocatedLoc == null) {
-          failedMasters.add(loc)
-        } else {
-          allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter.destroy()
+        allocatedLoc match {
+          case Some(workingPartition: WorkingPartition) =>
+            workingPartition.getFileWriter.destroy()
+          case None =>
+            failedMasters.add(loc)
         }
       }
       // remove master locations from WorkerInfo
@@ -461,10 +461,11 @@ private[deploy] class Controller(
     if (slaveLocations != null && !slaveLocations.isEmpty) {
       slaveLocations.asScala.foreach { loc =>
         val allocatedLoc = partitionLocationInfo.getSlaveLocation(shuffleKey, loc)
-        if (allocatedLoc == null) {
-          failedSlaves.add(loc)
-        } else {
-          allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter.destroy()
+        allocatedLoc match {
+          case Some(workingPartition: WorkingPartition) =>
+            workingPartition.getFileWriter.destroy()
+          case None =>
+            failedSlaves.add(loc)
         }
       }
       // remove slave locations from worker info
