@@ -137,13 +137,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                         try {
                           task.sort();
                         } catch (InterruptedException e) {
-                          logger.info(
-                              "File sorter thread was interrupted while waiting for sort memory to be ready.");
+                          logger.warn(
+                              "File sorter thread was interrupted when expanding padding buffer.");
                         }
                       });
                 }
               } catch (InterruptedException e) {
-                logger.warn("Sort thread is shutting down, detail: ", e);
+                logger.warn("Sort scheduler thread is shutting down, detail: ", e);
               }
             });
     fileSorterSchedulerThread.start();
@@ -642,9 +642,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity) {
+    private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity)
+        throws InterruptedException {
       memoryTracker.releaseSortMemory(oldCapacity);
       memoryTracker.reserveSortMemory(newCapacity);
+      while (!memoryTracker.sortMemoryReady()) {
+        Thread.sleep(20);
+      }
       return ByteBuffer.allocateDirect(newCapacity);
     }
   }
