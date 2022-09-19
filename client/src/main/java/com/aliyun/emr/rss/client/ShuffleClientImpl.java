@@ -196,8 +196,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       ArrayList<DataBatches.DataBatch> batches,
-      boolean revived,
-      StatusCode cause) {
+      StatusCode cause,
+      Integer oldGroupedBatchId) {
     HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
     for (DataBatches.DataBatch batch : batches) {
       int reduceId = batch.loc.getReduceId();
@@ -223,8 +223,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       DataBatches newDataBatches = entry.getValue();
       String[] tokens = addressPair.split("-");
       doPushMergedData(tokens[0], applicationId, shuffleId, mapId, attemptId,
-          newDataBatches.requireBatches(), pushState, revived);
+          newDataBatches.requireBatches(), pushState, true);
     }
+    pushState.inFlightBatches.remove(oldGroupedBatchId);
   }
 
   private String genAddressPair(PartitionLocation loc) {
@@ -740,11 +741,10 @@ public class ShuffleClientImpl extends ShuffleClient {
         logger.error((revived ? "Revived push" : "Push") + " merged data to " +
             host + ":" + port + " failed for map " + mapId + " attempt " + attemptId +
             " batches " + Arrays.toString(batchIds) + ".", e);
-        pushState.inFlightBatches.remove(groupedBatchId);
         if (!mapperEnded(shuffleId, mapId, attemptId)) {
           pushDataRetryPool.submit(() ->
               submitRetryPushMergedData(pushState, applicationId, shuffleId, mapId,
-                attemptId, batches, true, getPushDataFailCause(e.getMessage())));
+                attemptId, batches, getPushDataFailCause(e.getMessage()), groupedBatchId));
         }
       }
     };
