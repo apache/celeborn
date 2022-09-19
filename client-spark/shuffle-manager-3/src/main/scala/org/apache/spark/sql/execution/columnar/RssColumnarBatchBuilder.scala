@@ -24,6 +24,7 @@ import org.apache.spark.sql.types._
 class RssColumnarBatchBuilder(
     schema: StructType,
     batchSize: Int = 0,
+    maxDictFactor: Double,
     useCompression: Boolean = false) {
   var rowCnt = 0
 
@@ -48,7 +49,7 @@ class RssColumnarBatchBuilder(
     } else {
       if (useCompression && RssDictionaryEncoding.supports(nativeColumnType)) {
         RssDictionaryEncoding.MAX_DICT_SIZE =
-          Math.min(Short.MaxValue, batchSize * RssDictionaryEncoding.MAX_DICT_FACTOR).toShort
+          Math.min(Short.MaxValue, batchSize * maxDictFactor).toShort
         RssDictionaryEncoding.encoder(nativeColumnType)
       } else {
         RssPassThrough.encoder(nativeColumnType)

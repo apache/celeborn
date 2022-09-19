@@ -246,9 +246,6 @@ case object RssDictionaryEncoding extends RssCompressionScheme {
   // 32K unique values allowed
   var MAX_DICT_SIZE = Short.MaxValue
 
-  // Factor for the maximum number of a dictionary in a batch
-  var MAX_DICT_FACTOR = 0.3
-
   override def decoder[T <: AtomicType](
       buffer: ByteBuffer,
       columnType: NativeRssColumnType[T]): Decoder[T] = {
@@ -332,7 +329,7 @@ case object RssDictionaryEncoding extends RssCompressionScheme {
 
     override def uncompressedSize: Int = _uncompressedSize
 
-    // 2 is the data size after dictionary encoding
+    // 2 is the data size after(short type) dictionary encoding
     override def compressedSize: Int = if (overflow) Int.MaxValue else dictionarySize + count * 2
   }
 
