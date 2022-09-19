@@ -402,17 +402,9 @@ sealed trait Message extends Serializable {
           builder.putCommittedMasterStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
         committedSlaveStorageInfos.asScala.foreach(entry =>
           builder.putCommittedSlaveStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
-        if (!committedMapIdBitMap.isEmpty) {
-          committedMapIdBitMap.asScala.foreach(entry => {
-            if (!entry._2.isEmpty) {
-              val bitMapBuf = ByteBuffer.allocate(entry._2.serializedSizeInBytes())
-              entry._2.serialize(bitMapBuf)
-              builder.putMapIdBitmap(entry._1, ByteString.copyFrom(bitMapBuf))
-            } else {
-              builder.putMapIdBitmap(entry._1, ByteString.EMPTY)
-            }
-          })
-        }
+        committedMapIdBitMap.asScala.foreach(entry => {
+          builder.putMapIdBitmap(entry._1, Utils.roaringBitmapToByteString(entry._2))
+        })
         builder.setTotalWritten(totalWritten)
         builder.setFileCount(fileCount)
         val payload = builder.build().toByteArray
@@ -1007,11 +999,7 @@ object ControlMessages extends Logging {
         pbCommitFilesResponse.getCommittedSlaveStorageInfosMap.asScala.foreach(entry =>
           committedSlaveStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
         pbCommitFilesResponse.getMapIdBitmapMap.asScala.foreach { entry =>
-          val bitmap = new RoaringBitmap()
-          if (!entry._2.isEmpty) {
-            bitmap.deserialize(ByteBuffer.wrap(entry._2.toByteArray))
-          }
-          committedBitMap.put(entry._1, bitmap)
+          committedBitMap.put(entry._1, Utils.byteStringToRoaringBitmap(entry._2))
         }
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),

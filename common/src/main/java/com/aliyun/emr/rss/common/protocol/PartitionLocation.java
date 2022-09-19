@@ -17,14 +17,12 @@
 
 package com.aliyun.emr.rss.common.protocol;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 
-import com.google.protobuf.ByteString;
 import org.roaringbitmap.RoaringBitmap;
 
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.util.Utils;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -304,26 +302,7 @@ public class PartitionLocation implements Serializable {
     this.mapIdBitMap = mapIdBitMap;
   }
 
-  private static ByteString roaringBitmapToPb(RoaringBitmap roaringBitmap) {
-    if (!roaringBitmap.isEmpty()) {
-      int serializedSize = roaringBitmap.serializedSizeInBytes();
-      ByteBuffer buffer = ByteBuffer.allocate(serializedSize);
-      roaringBitmap.serialize(buffer);
-      return ByteString.copyFrom(buffer);
-    }
-    return ByteString.EMPTY;
-  }
-
-  private static RoaringBitmap fromPbToRoaringBitmap(ByteString bytes) throws IOException {
-    RoaringBitmap roaringBitmap = new RoaringBitmap();
-    if (!bytes.isEmpty()) {
-      roaringBitmap.deserialize(ByteBuffer.wrap(bytes.toByteArray()));
-    }
-    return roaringBitmap;
-  }
-
-  public static PartitionLocation fromPbPartitionLocation(PbPartitionLocation pbLoc)
-      throws IOException {
+  public static PartitionLocation fromPbPartitionLocation(PbPartitionLocation pbLoc) {
     Mode mode = Mode.MASTER;
     if (pbLoc.getMode() == PbPartitionLocation.Mode.Slave) {
       mode = Mode.SLAVE;
@@ -341,7 +320,7 @@ public class PartitionLocation implements Serializable {
             mode,
             null,
             StorageInfo.fromPb(pbLoc.getStorageInfo()),
-            fromPbToRoaringBitmap(pbLoc.getMapIdBitmap()));
+            Utils.byteStringToRoaringBitmap(pbLoc.getMapIdBitmap()));
     if (pbLoc.hasPeer()) {
       PbPartitionLocation peerPb = pbLoc.getPeer();
       Mode peerMode = Mode.MASTER;
@@ -360,7 +339,7 @@ public class PartitionLocation implements Serializable {
               peerMode,
               partitionLocation,
               StorageInfo.fromPb(peerPb.getStorageInfo()),
-              fromPbToRoaringBitmap(peerPb.getMapIdBitmap()));
+              Utils.byteStringToRoaringBitmap(peerPb.getMapIdBitmap()));
       partitionLocation.setPeer(peerLocation);
     }
 
@@ -382,7 +361,7 @@ public class PartitionLocation implements Serializable {
     builder.setFetchPort(location.getFetchPort());
     builder.setReplicatePort(location.getReplicatePort());
     builder.setStorageInfo(StorageInfo.toPb(location.storageInfo));
-    builder.setMapIdBitmap(roaringBitmapToPb(location.getMapIdBitMap()));
+    builder.setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap()));
 
     if (location.getPeer() != null) {
       PbPartitionLocation.Builder peerBuilder = PbPartitionLocation.newBuilder();
@@ -399,7 +378,7 @@ public class PartitionLocation implements Serializable {
       peerBuilder.setFetchPort(location.getPeer().getFetchPort());
       peerBuilder.setReplicatePort(location.getPeer().getReplicatePort());
       peerBuilder.setStorageInfo(StorageInfo.toPb(location.getPeer().getStorageInfo()));
-      peerBuilder.setMapIdBitmap(roaringBitmapToPb(location.getMapIdBitMap()));
+      peerBuilder.setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap()));
       builder.setPeer(peerBuilder.build());
     }
 

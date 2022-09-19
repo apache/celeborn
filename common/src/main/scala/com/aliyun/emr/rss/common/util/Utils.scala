@@ -21,6 +21,7 @@ import java.io.{File, FileInputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
@@ -33,8 +34,10 @@ import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
+import com.google.protobuf.ByteString
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
@@ -851,4 +854,26 @@ object Utils extends Logging {
   def getWriteSuccessFilePath(path: String): String = {
     path + SUFFIX_HDFS_WRITE_SUCCESS
   }
+
+  def roaringBitmapToByteString(roaringBitMap: RoaringBitmap): ByteString = {
+    if (!roaringBitMap.isEmpty) {
+      val buf = ByteBuffer.allocate(roaringBitMap.serializedSizeInBytes())
+      roaringBitMap.serialize(buf)
+      buf.rewind()
+      ByteString.copyFrom(buf)
+    } else {
+      ByteString.EMPTY
+    }
+  }
+
+  def byteStringToRoaringBitmap(bytes: ByteString): RoaringBitmap = {
+    val roaringBitmap = new RoaringBitmap()
+    if (!bytes.isEmpty) {
+      val buf = bytes.asReadOnlyByteBuffer()
+      buf.rewind()
+      roaringBitmap.deserialize(buf)
+    }
+    roaringBitmap
+  }
+
 }

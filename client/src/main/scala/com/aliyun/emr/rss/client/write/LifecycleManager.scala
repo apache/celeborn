@@ -733,6 +733,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         failedMasterIds.addAll(res.failedMasterIds)
         failedSlaveIds.addAll(res.failedSlaveIds)
 
+        if (!res.committedMapIdBitMap.isEmpty) {
+          committedMapIdBitmap.putAll(res.committedMapIdBitMap)
+        }
+
         totalWritten.add(res.totalWritten)
         fileCount.add(res.fileCount)
       }
