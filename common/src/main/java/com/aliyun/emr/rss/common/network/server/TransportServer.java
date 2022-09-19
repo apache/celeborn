@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -45,6 +46,7 @@ public class TransportServer implements Closeable {
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
   private int port = -1;
+  private TransportChannelHandler channelHandler;
 
   public TransportServer(TransportContext context, String hostToBind, int portToBind) {
     this.context = context;
@@ -120,9 +122,14 @@ public class TransportServer implements Closeable {
         new ChannelInitializer<SocketChannel>() {
           @Override
           protected void initChannel(SocketChannel ch) {
-            context.initializePipeline(ch);
+            channelHandler = context.initializePipeline(ch);
           }
         });
+  }
+
+  @VisibleForTesting
+  public TransportChannelHandler getChannelHandler() {
+    return channelHandler;
   }
 
   @Override

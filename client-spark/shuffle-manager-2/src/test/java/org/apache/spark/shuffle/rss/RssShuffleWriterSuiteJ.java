@@ -206,16 +206,16 @@ public class RssShuffleWriterSuiteJ {
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
     final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "128");
-    check(2 << 30, conf, serializer, true);
-    check(2 << 30, conf, serializer, false);
+    check(1 << 30, conf, serializer, true);
+    check(1 << 30, conf, serializer, false);
   }
 
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
     final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "128");
-    check(2 << 30, conf, serializer, true);
-    check(2 << 30, conf, serializer, false);
+    check(1 << 30, conf, serializer, true);
+    check(1 << 30, conf, serializer, false);
   }
 
   private void check(
