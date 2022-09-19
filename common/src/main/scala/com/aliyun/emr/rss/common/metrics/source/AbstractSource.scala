@@ -189,10 +189,11 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
   }
 
   protected def startCleaner(): Unit = {
-    val cleanTask: Runnable = () =>
-      Utils.tryLogNonFatalError {
+    val cleanTask: Runnable = new Runnable {
+      override def run(): Unit = Utils.tryLogNonFatalError {
         namedTimers.values.asScala.toArray.map(_._2).foreach(clearOldValues)
       }
+    }
     metricsCleaner.scheduleWithFixedDelay(cleanTask, 10, 10, TimeUnit.MINUTES)
   }
 
