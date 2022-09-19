@@ -158,7 +158,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   public FileInfo openStream(
-      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex) {
+      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
+      throws IOException {
     if (endMapIndex == Integer.MAX_VALUE) {
       return fileInfo;
     } else {
@@ -183,11 +184,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             sorting.add(fileId);
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
-            logger.info("Scheduler thread is interrupted means worker is shutting down.");
-            return null;
+            logger.info("Sorter scheduler thread is interrupted means worker is shutting down.");
+            throw new IOException(
+                "Sort scheduler thread is interrupted means worker is shutting down.", e);
           } catch (IOException e) {
-            logger.error("FileSorter access hdfs failed.", e);
-            return null;
+            logger.error("File sorter access hdfs failed.", e);
+            throw new IOException("File sorter access hdfs failed.", e);
           }
         }
       }
@@ -199,16 +201,20 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             Thread.sleep(50);
             if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
               logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
-              return null;
+              throw new IOException(
+                  "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
             }
           } catch (InterruptedException e) {
-            logger.error("Sort scheduler thread is interrupted means worker is shutting down.", e);
-            return null;
+            logger.error(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
+            throw new IOException(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
           }
         } else {
           logger.debug(
-              "Sorting shuffle file for {} {} failed,", shuffleKey, fileInfo.getFilePath());
-          return null;
+              "Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
+          throw new IOException(
+              "Sorting shuffle file for " + shuffleKey + " " + fileInfo.getFilePath() + " failed.");
         }
       }
 
@@ -429,7 +435,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String sortedFilePath,
       String indexFilePath,
       int startMapIndex,
-      int endMapIndex) {
+      int endMapIndex)
+      throws IOException {
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
     if (cachedIndexMaps.containsKey(shuffleKey)
         && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
@@ -461,7 +468,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
         logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
-        return null;
+        throw new IOException("Read sorted shuffle file index failed.", e);
       } finally {
         IOUtils.closeQuietly(indexStream, null);
         IOUtils.closeQuietly(hdfsIndexStream, null);
