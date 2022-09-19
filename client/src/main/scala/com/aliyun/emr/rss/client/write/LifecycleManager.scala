@@ -117,7 +117,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val partitionSplitExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "lifecycle-manager-partition-split",
     RssConf.partitionSplitNumThreads(conf))
-  private val handleChangePartitionRequestBatchInterval = RssConf.handleChangePartitionRequestBatchInterval(conf)
+  private val handleChangePartitionRequestBatchInterval =
+    RssConf.handleChangePartitionRequestBatchInterval(conf)
   private val partitionSplitSchedulerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-split-scheduler")
 
@@ -198,7 +199,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
               throw e
           }
         }
-      }, 0, handleChangePartitionRequestBatchInterval, TimeUnit.MILLISECONDS)
+      },
+      0,
+      handleChangePartitionRequestBatchInterval,
+      TimeUnit.MILLISECONDS)
   }
 
   override def onStart(): Unit = {
