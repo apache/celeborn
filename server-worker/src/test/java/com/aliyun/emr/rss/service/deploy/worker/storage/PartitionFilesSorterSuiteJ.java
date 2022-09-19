@@ -41,7 +41,6 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
-import com.aliyun.emr.rss.service.deploy.worker.exception.*;
 
 public class PartitionFilesSorterSuiteJ {
 
@@ -120,9 +119,7 @@ public class PartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void testSmallFile()
-      throws InterruptedException, IOException, SortFailedException, SorterAccessHDFSException,
-          ReadIndexFileException, SorterSchedulerInterruptException, SortTimeoutException {
+  public void testSmallFile() throws InterruptedException, IOException {
     prepare(false);
     RssConf conf = new RssConf();
     PartitionFilesSorter partitionFilesSorter =
@@ -138,9 +135,7 @@ public class PartitionFilesSorterSuiteJ {
 
   @Test
   @Ignore
-  public void testLargeFile()
-      throws InterruptedException, IOException, SortFailedException, SorterAccessHDFSException,
-          ReadIndexFileException, SorterSchedulerInterruptException, SortTimeoutException {
+  public void testLargeFile() throws InterruptedException, IOException {
     prepare(true);
     RssConf conf = new RssConf();
     PartitionFilesSorter partitionFilesSorter =

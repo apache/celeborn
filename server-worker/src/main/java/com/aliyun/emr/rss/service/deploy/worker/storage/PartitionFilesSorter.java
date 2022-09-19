@@ -62,7 +62,6 @@ import com.aliyun.emr.rss.common.util.Utils;
 import com.aliyun.emr.rss.service.deploy.worker.LevelDBProvider;
 import com.aliyun.emr.rss.service.deploy.worker.ShuffleRecoverHelper;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
-import com.aliyun.emr.rss.service.deploy.worker.exception.*;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
@@ -160,8 +159,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public FileInfo openStream(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
-      throws SortFailedException, SorterSchedulerInterruptException, ReadIndexFileException,
-          SorterAccessHDFSException, SortTimeoutException {
+      throws IOException {
     if (endMapIndex == Integer.MAX_VALUE) {
       return fileInfo;
     } else {
@@ -187,11 +185,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
             logger.info("Scheduler thread is interrupted means worker is shutting down.");
-            throw new SorterSchedulerInterruptException(
+            throw new IOException(
                 "Scheduler thread is interrupted means worker is shutting down.", e);
           } catch (IOException e) {
             logger.error("File sorter access hdfs failed.", e);
-            throw new SorterAccessHDFSException("File sorter access hdfs failed.", e);
+            throw new IOException("File sorter access hdfs failed.", e);
           }
         }
       }
@@ -203,17 +201,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             Thread.sleep(50);
             if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
               logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
-              throw new SortTimeoutException(
+              throw new IOException(
                   "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
             }
           } catch (InterruptedException e) {
             logger.error("sort scheduler thread is interrupted means worker is shutting down.", e);
-            throw new SorterSchedulerInterruptException("", e);
+            throw new IOException("", e);
           }
         } else {
           logger.debug(
               "Sorting shuffle file for {} {} failed,", shuffleKey, fileInfo.getFilePath());
-          throw new SortFailedException("");
+          throw new IOException("");
         }
       }
 
@@ -435,7 +433,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String indexFilePath,
       int startMapIndex,
       int endMapIndex)
-      throws ReadIndexFileException {
+      throws IOException {
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
     if (cachedIndexMaps.containsKey(shuffleKey)
         && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
@@ -467,7 +465,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
         logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
-        throw new ReadIndexFileException("Read sorted shuffle file index failed.", e);
+        throw new IOException("Read sorted shuffle file index failed.", e);
       } finally {
         IOUtils.closeQuietly(indexStream, null);
         IOUtils.closeQuietly(hdfsIndexStream, null);

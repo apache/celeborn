@@ -33,7 +33,6 @@ import com.aliyun.emr.rss.common.network.client.TransportClient
 import com.aliyun.emr.rss.common.network.protocol._
 import com.aliyun.emr.rss.common.network.server.{BaseMessageHandler, OneForOneStreamManager}
 import com.aliyun.emr.rss.common.network.util.{NettyUtils, TransportConf}
-import com.aliyun.emr.rss.service.deploy.worker.exception._
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
