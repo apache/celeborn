@@ -186,7 +186,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             sorting.add(fileId);
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
-            logger.info("scheduler thread is interrupted means worker is shutting down.");
+            logger.info("Scheduler thread is interrupted means worker is shutting down.");
             throw new SorterSchedulerInterruptException(
                 "Scheduler thread is interrupted means worker is shutting down.", e);
           } catch (IOException e) {
@@ -202,7 +202,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           try {
             Thread.sleep(50);
             if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-              logger.error("sort file {} timeout", fileId);
+              logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
               throw new SortTimeoutException(
                   "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
             }
@@ -211,7 +211,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             throw new SorterSchedulerInterruptException("", e);
           }
         } else {
-          logger.error("file {} sort failed", fileId);
+          logger.debug(
+              "Sorting shuffle file for {} {} failed,", shuffleKey, fileInfo.getFilePath());
           throw new SortFailedException("");
         }
       }
@@ -465,7 +466,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
-        logger.error("Read sorted shuffle file error, detail : ", e);
+        logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
         throw new ReadIndexFileException("Read sorted shuffle file index failed.", e);
       } finally {
         IOUtils.closeQuietly(indexStream, null);
@@ -579,7 +580,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         deleteOriginFiles();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
-        logger.error("sort shuffle file {} error", originFilePath, e);
+        logger.error(
+            "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
       } finally {
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
         synchronized (sorting) {
@@ -630,7 +632,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         deleteSuccess = new File(originFilePath).delete();
       }
       if (!deleteSuccess) {
-        logger.warn("clean origin file failed, origin file is : {}", originFilePath);
+        logger.warn("Clean origin file failed, origin file is : {}", originFilePath);
       }
     }
   }

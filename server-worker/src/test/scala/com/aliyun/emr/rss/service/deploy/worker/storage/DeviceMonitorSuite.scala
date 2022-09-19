@@ -35,7 +35,7 @@ import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.common.util.Utils
 
 class DeviceMonitorSuite extends AnyFunSuite {
-  val dfCmd = "df -h"
+  val dfCmd = "df -ah"
   val dfOut =
     """
       |Filesystem      Size  Used Avail  Use% Mounted on
