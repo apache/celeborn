@@ -47,7 +47,8 @@ class RssColumnarBatchBuilder(
       null
     } else {
       if (useCompression && RssDictionaryEncoding.supports(nativeColumnType)) {
-        RssDictionaryEncoding.MAX_DICT_SIZE = Math.min(Short.MaxValue, batchSize * RssDictionaryEncoding.MAX_DICT_FACTOR).toShort
+        RssDictionaryEncoding.MAX_DICT_SIZE =
+          Math.min(Short.MaxValue, batchSize * RssDictionaryEncoding.MAX_DICT_FACTOR).toShort
         RssDictionaryEncoding.encoder(nativeColumnType)
       } else {
         RssPassThrough.encoder(nativeColumnType)
