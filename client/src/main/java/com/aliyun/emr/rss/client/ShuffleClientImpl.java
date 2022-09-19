@@ -194,8 +194,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       ArrayList<DataBatches.DataBatch> batches,
-      boolean revived,
-      StatusCode cause) {
+      StatusCode cause,
+      Integer oldGroupedBatchId) {
     HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
     for (DataBatches.DataBatch batch : batches) {
       int partitionId = batch.loc.getId();
@@ -236,8 +236,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptId,
           newDataBatches.requireBatches(),
           pushState,
-          revived);
+          true);
     }
+    pushState.inFlightBatches.remove(oldGroupedBatchId);
   }
 
   private String genAddressPair(PartitionLocation loc) {
@@ -910,7 +911,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + Arrays.toString(batchIds)
                     + ".",
                 e);
-            pushState.inFlightBatches.remove(groupedBatchId);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               pushDataRetryPool.submit(
                   () ->
@@ -921,8 +921,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                           mapId,
                           attemptId,
                           batches,
-                          true,
-                          getPushDataFailCause(e.getMessage())));
+                          getPushDataFailCause(e.getMessage()),
+                          groupedBatchId));
             }
           }
         };
