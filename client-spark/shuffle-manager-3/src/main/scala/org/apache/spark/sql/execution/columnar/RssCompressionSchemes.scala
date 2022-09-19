@@ -246,6 +246,9 @@ case object RssDictionaryEncoding extends RssCompressionScheme {
   // 32K unique values allowed
   var MAX_DICT_SIZE = Short.MaxValue
 
+  // Factor for the maximum number of a dictionary in a batch
+  var MAX_DICT_FACTOR = 0.3
+
   override def decoder[T <: AtomicType](
       buffer: ByteBuffer,
       columnType: NativeRssColumnType[T]): Decoder[T] = {
@@ -279,7 +282,7 @@ case object RssDictionaryEncoding extends RssCompressionScheme {
     }
 
     // The reverse mapping of _dictionary, i.e. mapping encoded integer to the value itself.
-    private var values = new mutable.ArrayBuffer[T#InternalType](1024)
+    private val values = new mutable.ArrayBuffer[T#InternalType](1024)
 
     // The dictionary that maps a value to the encoded short integer.
     private val dictionary = new java.util.HashMap[Any, Short](1024)
@@ -329,6 +332,7 @@ case object RssDictionaryEncoding extends RssCompressionScheme {
 
     override def uncompressedSize: Int = _uncompressedSize
 
+    // 2 is the data size after dictionary encoding
     override def compressedSize: Int = if (overflow) Int.MaxValue else dictionarySize + count * 2
   }
 
