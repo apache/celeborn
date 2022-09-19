@@ -884,8 +884,8 @@ object RssConf extends Logging {
     conf.getDouble("rss.resume.memory.ratio", 0.5)
   }
 
-  def memoryReservedForSingleSort(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.reserveForSingleSort.memory", "1mb")
+  def initialReserveSingleSortMemory(conf: RssConf): Long = {
+    conf.getSizeAsBytes("rss.worker.initialReserveSingleSortMemory", "1mb")
   }
 
   def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
