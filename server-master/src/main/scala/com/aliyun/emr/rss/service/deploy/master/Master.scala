@@ -111,7 +111,7 @@ private[deploy] class Master(
     new Runnable {
       override def run(): Unit = {
         statusSystem.handleUpdatePartitionSize()
-        logInfo(s"Cluster estimate partition size ${statusSystem.estimatedPartitionSize}")
+        logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
       }
     },
     partitionSizeUpdateInitialDelay,

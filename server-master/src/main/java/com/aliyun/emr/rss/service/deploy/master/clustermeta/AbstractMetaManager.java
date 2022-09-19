@@ -103,7 +103,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         for (WorkerInfo w : workers) {
           if (w.equals(worker)) {
             Map<String, Integer> slotToRelease = slots.get(i);
-            LOG.info("release slots for worker " + w + ", to release: " + slotToRelease);
+            LOG.info("release slots for worker {}, to release: {}", w, slotToRelease);
             w.releaseSlots(shuffleKey, slotToRelease);
           }
         }
@@ -313,14 +313,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
     }
-    LOG.info("Successfully restore meta info from snapshot " + file.getAbsolutePath());
+    LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
     LOG.info(
         "Worker size: {}, Registered shuffle size: {}, Worker blacklist size: {}.",
         workers.size(),
         registeredShuffle.size(),
         blacklist.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
-    registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle " + shuffle));
+    registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
   }
 
   private <T> void readSetMetaFromFile(Set<T> metas, int size, ObjectInputStream in)
@@ -341,7 +341,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long oldEstimatedPartitionSize = estimatedPartitionSize;
     long tmpTotalWritten = partitionTotalWritten.sumThenReset();
     long tmpFileCount = partitionTotalFileCount.sumThenReset();
-    LOG.debug("update partition size total written {} file count{}", tmpTotalWritten, tmpFileCount);
+    LOG.debug(
+        "update partition size total written {}, file count {}",
+        Utils.bytesToString(tmpTotalWritten),
+        tmpFileCount);
     if (tmpFileCount != 0) {
       estimatedPartitionSize = tmpTotalWritten / tmpFileCount;
     } else {
@@ -349,8 +352,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     LOG.warn(
         "Rss cluster estimated partition size changed from {} to {}",
-        oldEstimatedPartitionSize,
-        estimatedPartitionSize);
+        Utils.bytesToString(oldEstimatedPartitionSize),
+        Utils.bytesToString(estimatedPartitionSize));
     workers.stream()
         .filter(worker -> !blacklist.contains(worker))
         .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
