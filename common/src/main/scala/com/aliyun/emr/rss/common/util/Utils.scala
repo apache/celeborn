@@ -319,7 +319,7 @@ object Utils extends Logging {
   private lazy val localIpAddress: InetAddress = findLocalInetAddress()
 
   private def findLocalInetAddress(): InetAddress = {
-    val defaultIpOverride = System.getenv("JSS_LOCAL_IP")
+    val defaultIpOverride = System.getenv("RSS_LOCAL_IP")
     if (defaultIpOverride != null) {
       InetAddress.getByName(defaultIpOverride)
     } else {
@@ -344,14 +344,14 @@ object Utils extends Logging {
             logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
               " a loopback address: " + address.getHostAddress + "; using " +
               strippedAddress.getHostAddress + " instead (on interface " + ni.getName + ")")
-            logWarning("Set JSS_LOCAL_IP if you need to bind to another address")
+            logWarning("Set RSS_LOCAL_IP if you need to bind to another address")
             return strippedAddress
           }
         }
         logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
           " a loopback address: " + address.getHostAddress + ", but we couldn't find any" +
           " external IP address!")
-        logWarning("Set JSS_LOCAL_IP if you need to bind to another address")
+        logWarning("Set RSS_LOCAL_IP if you need to bind to another address")
       }
       address
     }
