@@ -217,10 +217,7 @@ public class RetryingChunkClient {
             || e instanceof TimeoutException
             || (e.getCause() != null && e.getCause() instanceof TimeoutException)
             || (e.getCause() != null && e.getCause() instanceof IOException);
-    boolean isSortException =
-        e instanceof RuntimeException
-            && e.getMessage().startsWith("com.aliyun.emr.rss.service.deploy.worker.exception");
-    return (isIOException || isSortException) && hasRemainingRetries();
+    return isIOException && hasRemainingRetries();
   }
 
   @SuppressWarnings("UnstableApiUsage")

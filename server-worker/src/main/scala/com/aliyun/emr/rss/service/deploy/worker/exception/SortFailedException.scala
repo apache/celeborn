@@ -17,8 +17,10 @@
 
 package com.aliyun.emr.rss.service.deploy.worker.exception
 
+import java.io.IOException
+
 class SortFailedException(message: String, cause: Throwable)
-  extends Exception(message, cause) {
+  extends IOException(message, cause) {
 
   def this(message: String) = this(message, null)
 }
