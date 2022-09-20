@@ -171,13 +171,13 @@ public abstract class RssInputStream extends InputStream {
       int locationCount = locations.length;
       PartitionLocation currentLocation = locations[fileIndex];
       while (!locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)
-                 && fileIndex < locationCount - 1) {
+          && fileIndex < locationCount - 1) {
         fileIndex++;
         currentLocation = locations[fileIndex];
       }
       if (((fileIndex == (locationCount - 1))
-               && locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) ||
-              locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) {
+              && locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation))
+          || locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) {
         return currentLocation;
       } else {
         return null;
@@ -189,10 +189,8 @@ public abstract class RssInputStream extends InputStream {
         currentReader.close();
         currentReader = null;
       }
-
       PartitionLocation currentLocation = nextReadableLocation();
       if (currentLocation == null) {
-        currentReader = null;
         return;
       }
       currentReader = createReader(currentLocation);
