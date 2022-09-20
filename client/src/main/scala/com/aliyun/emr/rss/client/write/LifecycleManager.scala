@@ -601,7 +601,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
     // remove together to reduce lock time
-    def replyAll(response: ChangeLocationResponse): Unit = {
+    def replyFailure(response: ChangeLocationResponse): Unit = {
       requests.synchronized {
         changePartitions.flatMap { changePartition =>
           requests.remove(changePartition.partitionId).asScala.toList
@@ -612,7 +612,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val candidates = workersNotBlacklisted(shuffleId)
     if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      replyAll(ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, null))
+      replyFailure(ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, null))
       return
     }
 
@@ -622,7 +622,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      replyAll(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, null))
+      replyFailure(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, null))
       return
     }
 
