@@ -118,7 +118,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     RssConf.changePartitionNumThreads(conf))
   private val handleChangePartitionRequestBatchInterval =
     RssConf.handleChangePartitionRequestBatchInterval(conf)
-  private val partitionSplitSchedulerThread =
+  private val changePartitionSchedulerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-split-scheduler")
 
   // init driver rss meta rpc service
@@ -167,19 +167,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       heartbeatIntervalMs,
       TimeUnit.MILLISECONDS)
 
-    partitionSplitSchedulerThread.scheduleAtFixedRate(
+    changePartitionSchedulerThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = {
           try {
             while (true) {
               changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
                 requests.synchronized {
-                  val batch = changePartitionRequests.remove(shuffleId)
                   changePartitionExecutors.submit {
                     new Runnable {
                       override def run(): Unit = {
                         // For each partition only need handle one request
-                        val distinctPartitions = batch.asScala.map { case (_, request) =>
+                        val distinctPartitions = requests.asScala.map { case (_, request) =>
                           request.asScala.toArray.head
                         }.toArray
                         batchHandleChangePartitions(
@@ -189,6 +188,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                       }
                     }
                   }
+                  requests.clear()
                 }
               }
             }
