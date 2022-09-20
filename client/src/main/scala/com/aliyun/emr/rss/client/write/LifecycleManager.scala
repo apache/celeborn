@@ -1145,7 +1145,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             // and put the new allocated slots to the total slots, the re-allocated slots won't be
             // duplicated with existing partition locations.
             requestSlots = reallocateSlotsFromCandidates(
-              failedPartitionLocations.values.map(location => (location.getId, location.getEpoch)).toArray,
+              failedPartitionLocations.values.map { location =>
+                (location.getId, location.getEpoch)
+              }.toArray,
               retryCandidates.asScala.toList)
             requestSlots.asScala.foreach { case (workerInfo, (retryMasterLocs, retrySlaveLocs)) =>
               val (masterPartitionLocations, slavePartitionLocations) =
