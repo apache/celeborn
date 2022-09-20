@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.client.write
 
 import java.util
 import java.util.{List => JList}
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
 import scala.collection.JavaConverters._
@@ -570,20 +570,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
   }
 
-  private def getLatestPartition(
-      shuffleId: Int,
-      partitionId: Int,
-      epoch: Int): PartitionLocation = {
-    val map = latestPartitionLocation.get(shuffleId)
-    if (map != null) {
-      val loc = map.get(partitionId)
-      if (loc != null && loc.getEpoch > epoch) {
-        return loc
-      }
-    }
-    null
-  }
-
   def batchHandleChangePartitions(
       applicationId: String,
       shuffleId: Int,
@@ -620,7 +606,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         split.partitionId -> split.epoch
       }
     }
-    val newlyAllocatedLocations = reallocateAllSlotsFromCandidates(partitionIdToEpochs, candidates)
+    val newlyAllocatedLocations = reallocateSlotsFromCandidates(partitionIdToEpochs, candidates)
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
@@ -649,6 +635,20 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       logDebug(s"Renew $shuffleId ${newMasterLocation.getId}" +
         "$oldEpoch->${newMasterLocation.getEpoch} partition success.")
     }
+  }
+
+  private def getLatestPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      epoch: Int): PartitionLocation = {
+    val map = latestPartitionLocation.get(shuffleId)
+    if (map != null) {
+      val loc = map.get(partitionId)
+      if (loc != null && loc.getEpoch > epoch) {
+        return loc
+      }
+    }
+    null
   }
 
   private def handleMapperEnd(
@@ -1145,7 +1145,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             // and put the new allocated slots to the total slots, the re-allocated slots won't be
             // duplicated with existing partition locations.
             requestSlots = reallocateSlotsFromCandidates(
-              failedPartitionLocations.values.toList,
+              failedPartitionLocations.values.map(location => (location.getId, location.getEpoch)).toArray,
               retryCandidates.asScala.toList)
             requestSlots.asScala.foreach { case (workerInfo, (retryMasterLocs, retrySlaveLocs)) =>
               val (masterPartitionLocations, slavePartitionLocations) =
@@ -1224,31 +1224,19 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     masterAndSlavePairs._1.add(masterLocation)
   }
 
-  private def reallocateForNonExistPartitionLocationFromCandidates(
-      partitionId: Int,
-      oldEpochId: Int,
-      candidates: List[WorkerInfo]): WorkerResource = {
-    val slots = new WorkerResource()
-    allocateFromCandidates(partitionId, oldEpochId, candidates, slots)
-    slots
-  }
-
-  private def reallocateAllSlotsFromCandidates(
+  /**
+   * Reallocate slots from available workers.
+   *
+   * @param partitionIdToEpochs The list of origin partition's id and epoch number.
+   * @param candidates Available worker.
+   * @return Reallocated PartitionLocations.
+   */
+  private def reallocateSlotsFromCandidates(
       partitionIdToEpochs: Array[(Int, Int)],
       candidates: List[WorkerInfo]): WorkerResource = {
     val slots = new WorkerResource()
     partitionIdToEpochs.foreach { case (partitionId, epoch) =>
       allocateFromCandidates(partitionId, epoch, candidates, slots)
-    }
-    slots
-  }
-
-  private def reallocateSlotsFromCandidates(
-      oldPartitions: List[PartitionLocation],
-      candidates: List[WorkerInfo]): WorkerResource = {
-    val slots = new WorkerResource()
-    oldPartitions.foreach { partition =>
-      allocateFromCandidates(partition.getId, partition.getEpoch, candidates, slots)
     }
     slots
   }
