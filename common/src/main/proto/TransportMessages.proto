@@ -390,3 +390,8 @@ message PbFileInfo {
 message PBFileInfoMap {
   map<string, PbFileInfo> values = 1;
 }
+
+message PbUserIdentifier {
+  string group = 1;
+  string name = 2;
+}

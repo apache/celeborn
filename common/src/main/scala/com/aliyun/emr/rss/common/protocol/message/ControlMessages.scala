@@ -718,6 +718,8 @@ object ControlMessages extends Logging {
 
   case class ThreadDumpResponse(threadDump: String) extends Message
 
+  case class UserIdentifier(group: String, name: String) extends Message
+
   def fromTransportMessage(message: TransportMessage): Message = {
     message.getType match {
       case UNKNOWN_MESSAGE | UNRECOGNIZED =>
