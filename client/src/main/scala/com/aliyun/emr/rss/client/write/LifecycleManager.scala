@@ -114,12 +114,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
 
   private val changePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "lifecycle-manager-change-partition",
+    "rss-lifecycle-manager-change-partition-executor",
     RssConf.changePartitionNumThreads(conf))
   private val handleChangePartitionRequestBatchInterval =
     RssConf.handleChangePartitionRequestBatchInterval(conf)
   private val changePartitionSchedulerThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-split-scheduler")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+      "rss-lifecycle-maager-change-partition-scheduler")
 
   // init driver rss meta rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
