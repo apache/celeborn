@@ -171,12 +171,13 @@ public abstract class RssInputStream extends InputStream {
       int locationCount = locations.length;
       PartitionLocation currentLocation = locations[fileIndex];
       while (!locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)
-          && fileIndex < locationCount - 1) {
+                 && fileIndex < locationCount - 1) {
         fileIndex++;
         currentLocation = locations[fileIndex];
       }
-      if (fileIndex == locationCount - 1
-          && locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) {
+      if (((fileIndex == (locationCount - 1))
+               && locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) ||
+              locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) {
         return currentLocation;
       } else {
         return null;
@@ -186,46 +187,17 @@ public abstract class RssInputStream extends InputStream {
     private void moveToNextReader() throws IOException {
       if (currentReader != null) {
         currentReader.close();
+        currentReader = null;
       }
 
-      int locationCount = locations.length;
       PartitionLocation currentLocation = nextReadableLocation();
       if (currentLocation == null) {
         currentReader = null;
         return;
       }
       currentReader = createReader(currentLocation);
-      logger.debug(
-          "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
-          currentLocation,
-          startMapIndex,
-          endMapIndex,
-          fileIndex,
-          locationCount);
-      while (!currentReader.hasNext() && fileIndex < locationCount - 1) {
-        fileIndex++;
-        currentReader.close();
-        currentLocation = nextReadableLocation();
-        if (currentLocation == null) {
-          currentReader = null;
-          return;
-        }
-        currentReader = createReader(currentLocation);
-        logger.debug(
-            "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
-            currentLocation,
-            startMapIndex,
-            endMapIndex,
-            fileIndex,
-            locationCount);
-      }
-      if (currentReader.hasNext()) {
-        currentChunk = currentReader.next();
-        fileIndex++;
-      } else {
-        currentReader.close();
-        currentReader = null;
-      }
+      currentChunk = currentReader.next();
+      fileIndex++;
     }
 
     private PartitionReader createReader(PartitionLocation location) throws IOException {

@@ -17,13 +17,11 @@
 
 package com.aliyun.emr.rss.common.protocol.message
 
-import java.nio.ByteBuffer
 import java.util
 import java.util.UUID
 
 import scala.collection.JavaConverters._
 
-import com.google.protobuf.ByteString
 import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.internal.Logging
