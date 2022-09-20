@@ -600,7 +600,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     def reply(partitionId: Int, response: ChangeLocationResponse): Unit = {
       requests.synchronized {
         requests.remove(partitionId)
-      }.asScala.foreach(_.reply(response))
+      }.asScala.foreach(_.context.reply(response))
     }
 
     val candidates = workersNotBlacklisted(shuffleId)
