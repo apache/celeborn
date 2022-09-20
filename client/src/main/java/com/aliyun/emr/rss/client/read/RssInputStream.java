@@ -155,33 +155,30 @@ public abstract class RssInputStream extends InputStream {
       moveToNextReader();
     }
 
-    private boolean locationHasMapIdToRead(
+    private boolean skipLocation(
         int startMapIndex, int endMapIndex, PartitionLocation location) {
-      boolean hasMapId = false;
       if (endMapIndex == Integer.MAX_VALUE) {
-        return true;
+        return false;
       }
       for (int i = startMapIndex; i < endMapIndex; i++) {
-        hasMapId = hasMapId | location.getMapIdBitMap().contains(i);
+        if (location.getMapIdBitMap().contains(i)) {
+          return false;
+        }
       }
-      return hasMapId;
+      return true;
     }
 
     private PartitionLocation nextReadableLocation() {
       int locationCount = locations.length;
       PartitionLocation currentLocation = locations[fileIndex];
-      while (!locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)
-          && fileIndex < locationCount - 1) {
+      while (skipLocation(startMapIndex, endMapIndex, currentLocation)) {
         fileIndex++;
+        if (fileIndex == locationCount) {
+          return null;
+        }
         currentLocation = locations[fileIndex];
       }
-      if (((fileIndex == (locationCount - 1))
-              && locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation))
-          || locationHasMapIdToRead(startMapIndex, endMapIndex, currentLocation)) {
-        return currentLocation;
-      } else {
-        return null;
-      }
+      return currentLocation;
     }
 
     private void moveToNextReader() throws IOException {
