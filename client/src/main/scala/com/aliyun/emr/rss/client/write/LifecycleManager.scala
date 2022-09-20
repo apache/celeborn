@@ -583,12 +583,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
     }
 
-    def reply(partitionId: Int, response: ChangeLocationResponse): Unit = {
-      requests.synchronized {
-        requests.remove(partitionId)
-      }.asScala.foreach(_.context.reply(response))
-    }
-
     // remove together to reduce lock time
     def replySuccess(locations: Array[PartitionLocation]): Unit = {
       requests.synchronized {
