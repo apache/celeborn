@@ -34,7 +34,7 @@ import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, Rpc
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
-import com.aliyun.emr.rss.common.rpc.{RpcCallContext, _}
+import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -81,7 +81,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     locations.asScala.foreach { case location => map.put(location.getId, location) }
   }
 
-  // ShuffleID -> PartitionSplit requests
   case class ChangePartitionRequest(
       context: RpcCallContext,
       applicationId: String,
@@ -91,7 +90,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       oldPartition: PartitionLocation,
       causes: Option[StatusCode])
 
-  // shuffleId -> (partitionId -> set)
+  // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]]]()
 
@@ -114,9 +113,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val responseCheckerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
 
-  private val partitionSplitExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "lifecycle-manager-partition-split",
-    RssConf.partitionSplitNumThreads(conf))
+  private val changePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
+    "lifecycle-manager-change-partition",
+    RssConf.changePartitionNumThreads(conf))
   private val handleChangePartitionRequestBatchInterval =
     RssConf.handleChangePartitionRequestBatchInterval(conf)
   private val partitionSplitSchedulerThread =
@@ -176,7 +175,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
               changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
                 requests.synchronized {
                   val batch = changePartitionRequests.remove(shuffleId)
-                  partitionSplitExecutors.submit {
+                  changePartitionExecutors.submit {
                     new Runnable {
                       override def run(): Unit = {
                         // For each partition only need handle one request
