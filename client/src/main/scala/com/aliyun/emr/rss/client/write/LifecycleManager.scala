@@ -188,6 +188,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                       }
                     }
                   }
+                  // After put request into executor, clean current requests.
                   requests.clear()
                 }
               }
