@@ -589,12 +589,29 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }.asScala.foreach(_.context.reply(response))
     }
 
+    def replySuccess(locations: Array[PartitionLocation]): Unit = {
+      requests.synchronized {
+        locations.map { location =>
+          location -> requests.remove(location.getId).asScala.toList
+        }
+      }.foreach { case (newLocation, requests) =>
+        requests.foreach(_.context.reply(ChangeLocationResponse(StatusCode.SUCCESS, newLocation)))
+      }
+    }
+
+    // remove together to reduce lock time
+    def replyAll(response: ChangeLocationResponse): Unit = {
+      requests.synchronized {
+        changePartitions.flatMap { changePartition =>
+          requests.remove(changePartition.partitionId).asScala.toList
+        }
+      }.foreach(_.context.reply(response))
+    }
+
     val candidates = workersNotBlacklisted(shuffleId)
     if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      changePartitions.foreach { split =>
-        reply(split.partitionId, ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, null))
-      }
+      replyAll(ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, null))
       return
     }
 
@@ -604,31 +621,31 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      changePartitions.foreach { split =>
-        reply(split.partitionId, ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, null))
-      }
+      replyAll(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, null))
       return
     }
 
-    newlyAllocatedLocations.asScala.foreach { case (workInfo, (masterLocations, slaveLocations)) =>
-      // Add all re-allocated slots to worker snapshots.
-      workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
-        partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
-        updateLatestPartitionLocations(shuffleId, masterLocations)
-        partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
-      }
-
-      // reply the master location of this partition.
-      val newMasterLocation =
-        if (masterLocations != null && masterLocations.size() > 0) {
-          masterLocations.asScala.head
-        } else {
-          slaveLocations.asScala.head.getPeer
+    val newMasterLocations =
+      newlyAllocatedLocations.asScala.map { case (workInfo, (masterLocations, slaveLocations)) =>
+        // Add all re-allocated slots to worker snapshots.
+        workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
+          partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+          updateLatestPartitionLocations(shuffleId, masterLocations)
+          partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
         }
-      reply(newMasterLocation.getId, ChangeLocationResponse(StatusCode.SUCCESS, newMasterLocation))
-      logDebug(s"Renew $shuffleId ${newMasterLocation.getId}" +
-        s"${newMasterLocation.getEpoch - 1} -> ${newMasterLocation.getEpoch} partition success.")
-    }
+
+        // reply the master location of this partition.
+        val newMasterLocation =
+          if (masterLocations != null && masterLocations.size() > 0) {
+            masterLocations.asScala.head
+          } else {
+            slaveLocations.asScala.head.getPeer
+          }
+        logDebug(s"Renew $shuffleId ${newMasterLocation.getId} " +
+          s"${newMasterLocation.getEpoch - 1} -> ${newMasterLocation.getEpoch} partition success.")
+        newMasterLocation
+      }
+    replySuccess(newMasterLocations.toArray)
   }
 
   private def getLatestPartition(
@@ -1219,8 +1236,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(
-    oldPartitions: List[ChangePartitionRequest],
-    candidates: List[WorkerInfo]): WorkerResource = {
+      oldPartitions: List[ChangePartitionRequest],
+      candidates: List[WorkerInfo]): WorkerResource = {
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
       allocateFromCandidates(partition.partitionId, partition.epoch, candidates, slots)
@@ -1237,7 +1254,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
     slots
   }
-
 
   /**
    * For the slots that need to be destroyed, LifecycleManager will ask the corresponding worker
