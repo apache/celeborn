@@ -23,11 +23,11 @@ import java.nio.charset.StandardCharsets
 import io.netty.channel.ChannelFuture
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.{Assert, BeforeClass, Test}
-
 import com.aliyun.emr.rss.client.ShuffleClientImpl
 import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 import com.aliyun.emr.rss.common.rpc.RpcEnv
 import com.aliyun.emr.rss.service.deploy.MiniClusterFeature
 
@@ -42,7 +42,7 @@ class ClusterReadWriteTest extends MiniClusterFeature {
       clientConf.set("rss.push.data.replicate", "true")
       clientConf.set("rss.push.data.buffer.size", "256K")
       val metaSystem = new LifecycleManager(APP, clientConf)
-      val shuffleClient = new ShuffleClientImpl(clientConf)
+      val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"))
       shuffleClient.setupMetaServiceRef(metaSystem.self)
 
       val STR1 = RandomStringUtils.random(1024)

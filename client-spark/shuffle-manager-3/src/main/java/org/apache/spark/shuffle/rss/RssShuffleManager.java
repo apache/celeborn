@@ -82,7 +82,9 @@ public class RssShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appId, rssConf);
-          rssShuffleClient = ShuffleClient.get(lifecycleManager.self(), rssConf);
+          rssShuffleClient =
+              ShuffleClient.get(
+                  lifecycleManager.self(), rssConf, lifecycleManager.getUserIdentifier());
         }
       }
     }
@@ -114,6 +116,7 @@ public class RssShuffleManager implements ShuffleManager {
           newAppId,
           metaServiceHost,
           metaServicePort,
+          lifecycleManager.getUserIdentifier(),
           shuffleId,
           dependency.rdd().getNumPartitions(),
           dependency);
@@ -160,7 +163,8 @@ public class RssShuffleManager implements ShuffleManager {
         @SuppressWarnings("unchecked")
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
-            ShuffleClient.get(h.rssMetaServiceHost(), h.rssMetaServicePort(), rssConf);
+            ShuffleClient.get(
+                h.rssMetaServiceHost(), h.rssMetaServicePort(), rssConf, h.userIdentifier());
         if ("sort".equals(RssConf.shuffleWriterMode(rssConf))) {
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMappers(), context, rssConf, client, metrics);

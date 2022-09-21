@@ -30,6 +30,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import scala.None$;
 import scala.Option;
 import scala.Product2;
@@ -88,6 +89,10 @@ public class RssShuffleWriterSuiteJ {
   private final String host = "host";
   private final int port = 0;
   private final int shuffleId = 0;
+
+  private final ControlMessages.UserIdentifier userIdentifier =
+      new ControlMessages.UserIdentifier("mock", "mock");
+
   private final int numMaps = 10;
   private final int numPartitions = 10;
   private final SparkConf sparkConf = new SparkConf(false);
@@ -204,7 +209,7 @@ public class RssShuffleWriterSuiteJ {
 
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     final RssShuffleHandle<Integer, String, String> handle =
-        new RssShuffleHandle<>(appId, host, port, shuffleId, numMaps, dependency);
+        new RssShuffleHandle<>(appId, host, port, userIdentifier, shuffleId, numMaps, dependency);
     final ShuffleClient client = new DummyShuffleClient(tempFile);
 
     final HashBasedShuffleWriter<Integer, String, String> writer =
