@@ -197,7 +197,7 @@ public class RssShuffleManager implements ShuffleManager {
       return new RssShuffleReader<>(
           h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf);
     }
-    return  _sortShuffleManager.getReader(handle, startPartition, endPartition, context)
+    return  _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
   }
 
   // Marked as final in SPARK-32055, reserved for Spark 3.0
