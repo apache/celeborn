@@ -58,7 +58,7 @@ public class RssShuffleManager implements ShuffleManager {
   }
 
   private boolean isDriver() {
-    return SparkContext.DRIVER_IDENTIFIER().equals(SparkEnv.get().executorId());
+    return "driver".equals(SparkEnv.get().executorId());
   }
 
   private SortShuffleManager sortShuffleManager() {
