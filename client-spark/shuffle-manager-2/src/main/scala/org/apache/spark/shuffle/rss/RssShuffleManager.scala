@@ -65,9 +65,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
           rssShuffleClient = Some(ShuffleClient.get(
             metaSystem.self,
             rssConf,
-            lifecycleManager.map(_.getUserIdentifier()).getOrElse(UserIdentifier(
-              "default",
-              "default"))))
+            lifecycleManager.map(_.getUserIdentifier()).get))
         }
       }
     }
@@ -95,7 +93,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
         // If not driver, return dummy rss meta service host and port.
         lifecycleManager.map(_.getRssMetaServiceHost).getOrElse(""),
         lifecycleManager.map(_.getRssMetaServicePort).getOrElse(0),
-        lifecycleManager.map(_.getUserIdentifier()).getOrElse(UserIdentifier("default", "default")),
+        lifecycleManager.map(_.getUserIdentifier()).get,
         shuffleId,
         numMaps,
         dependency)

@@ -35,9 +35,6 @@ object IdentityProvider extends Logging {
       className,
       true,
       Thread.currentThread().getContextClassLoader).asInstanceOf[Class[IdentityProvider]]
-    // First try the constructor with arguments (jobId: String, outputPath: String,
-    // dynamicPartitionOverwrite: Boolean).
-    // If that doesn't exist, try the one with (jobId: string, outputPath: String).
     try {
       val ctor = clazz.getDeclaredConstructor()
       logDebug("Using (String, String, Boolean) constructor")
