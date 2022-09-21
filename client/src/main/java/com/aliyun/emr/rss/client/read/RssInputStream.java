@@ -155,8 +155,7 @@ public abstract class RssInputStream extends InputStream {
       moveToNextReader();
     }
 
-    private boolean skipLocation(
-        int startMapIndex, int endMapIndex, PartitionLocation location) {
+    private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
       if (endMapIndex == Integer.MAX_VALUE) {
         return false;
       }
@@ -191,8 +190,18 @@ public abstract class RssInputStream extends InputStream {
         return;
       }
       currentReader = createReader(currentLocation);
-      currentChunk = currentReader.next();
       fileIndex++;
+      while (!currentReader.hasNext()) {
+        currentReader.close();
+        currentReader = null;
+        currentLocation = nextReadableLocation();
+        if (currentLocation == null) {
+          return;
+        }
+        currentReader = createReader(currentLocation);
+        fileIndex++;
+      }
+      currentChunk = currentReader.next();
     }
 
     private PartitionReader createReader(PartitionLocation location) throws IOException {
