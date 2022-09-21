@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.rss
+package com.aliyun.emr.rss.common.identity
 
-import org.apache.spark.ShuffleDependency
-import org.apache.spark.shuffle.BaseShuffleHandle
+import org.apache.hadoop.security.UserGroupInformation
 
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
-class RssShuffleHandle[K, V, C](
-    val newAppId: String,
-    val rssMetaServiceHost: String,
-    val rssMetaServicePort: Int,
-    val userIdentifier: UserIdentifier,
-    shuffleId: Int,
-    val numMappers: Int,
-    dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, dependency)
+class DefaultIdentityProvider extends IdentityProvider {
+  override def provide(): ControlMessages.UserIdentifier = {
+    UserIdentifier(
+      IdentityProvider.DEFAULT_TENANT_ID,
+      UserGroupInformation.getCurrentUser.getShortUserName)
+  }
+}

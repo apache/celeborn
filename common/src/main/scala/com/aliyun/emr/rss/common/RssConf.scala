@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
+import com.aliyun.emr.rss.common.identity.DefaultIdentityProvider
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
@@ -815,6 +816,10 @@ object RssConf extends Logging {
 
   def clusterSlotsUsageLimitPercent(conf: RssConf): Double = {
     conf.getDouble("rss.slots.usage.overload.percent", 0.95)
+  }
+
+  def identityProviderClass(conf: RssConf): String = {
+    conf.get("rss.identity.provider", classOf[DefaultIdentityProvider].getName)
   }
 
   def partitionSplitThreshold(conf: RssConf): Long = {

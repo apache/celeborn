@@ -70,6 +70,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   private static final Random rand = new Random();
 
   private final RssConf conf;
+
+  private final UserIdentifier userIdentifier;
+
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWait;
   private final int maxInFlight;
@@ -117,9 +120,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
-  public ShuffleClientImpl(RssConf conf) {
+  public ShuffleClientImpl(RssConf conf, UserIdentifier userIdentifier) {
     super();
     this.conf = conf;
+    this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = RssConf.registerShuffleMaxRetry(conf);
     registerShuffleRetryWait = RssConf.registerShuffleRetryWait(conf);
     maxInFlight = RssConf.pushDataMaxReqsInFlight(conf);
