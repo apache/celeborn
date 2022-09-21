@@ -125,6 +125,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
     }
 
+    val softSplit = new AtomicBoolean(false)
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
@@ -134,6 +135,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             resp.put(response)
             resp.flip()
             callback.onSuccess(resp)
+          } else if (softSplit.get()) {
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
           } else {
             callback.onSuccess(response)
           }
@@ -181,7 +184,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (isMaster && fileWriter.getFileLength > fileWriter.getSplitThreshold()) {
       fileWriter.setSplitFlag()
       if (fileWriter.getSplitMode == PartitionSplitMode.soft) {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SoftSplit.getValue)))
+        softSplit.set(true)
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HardSplit.getValue)))
         return
