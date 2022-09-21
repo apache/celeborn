@@ -19,14 +19,7 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -38,6 +31,7 @@ import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
 import com.aliyun.emr.rss.common.unsafe.Platform;
+import com.aliyun.emr.rss.common.util.Utils;
 
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
@@ -90,6 +84,8 @@ public abstract class RssInputStream extends InputStream {
       };
 
   private static final class RssInputStreamImpl extends RssInputStream {
+    private static final Random RAND = new Random();
+
     private final RssConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
@@ -130,16 +126,7 @@ public abstract class RssInputStream extends InputStream {
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
-
-      List<PartitionLocation> shuffledLocations =
-          new ArrayList() {
-            {
-              addAll(Arrays.asList(locations));
-            }
-          };
-      Collections.shuffle(shuffledLocations);
-      this.locations = shuffledLocations.toArray(new PartitionLocation[locations.length]);
-
+      this.locations = (PartitionLocation[]) Utils.randomizeInPlace(locations, RAND);
       this.attempts = attempts;
       this.attemptNumber = attemptNumber;
       this.startMapIndex = startMapIndex;
@@ -284,7 +271,7 @@ public abstract class RssInputStream extends InputStream {
     @Override
     public void close() {
       if (currentChunk != null) {
-        logger.debug("Release chunk {}!", currentChunk);
+        logger.debug("Release chunk {}", currentChunk);
         currentChunk.release();
         currentChunk = null;
       }
@@ -357,7 +344,7 @@ public abstract class RssInputStream extends InputStream {
             break;
           } else {
             logger.debug(
-                "Skip duplicated batch: mapId {}, attemptId {}," + " batchId {}.",
+                "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
                 mapId,
                 attemptId,
                 batchId);

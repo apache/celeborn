@@ -25,11 +25,12 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
-import java.util.{Locale, Properties, UUID}
+import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
+import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
@@ -313,6 +314,29 @@ object Utils extends Logging {
     new URI("file", null, "localhost", -1, "/" + fileName, null, null).getRawPath.substring(1)
   }
 
+  /**
+   * Shuffle the elements of a collection into a random order, returning the
+   * result in a new collection. Unlike scala.util.Random.shuffle, this method
+   * uses a local random number generator, avoiding inter-thread contention.
+   */
+  def randomize[T: ClassTag](seq: TraversableOnce[T]): Seq[T] = {
+    randomizeInPlace(seq.toArray)
+  }
+
+  /**
+   * Shuffle the elements of an array into a random order, modifying the
+   * original array. Returns the original array.
+   */
+  def randomizeInPlace[T](arr: Array[T], rand: Random = new Random): Array[T] = {
+    for (i <- (arr.length - 1) to 1 by -1) {
+      val j = rand.nextInt(i + 1)
+      val tmp = arr(j)
+      arr(j) = arr(i)
+      arr(i) = tmp
+    }
+    arr
+  }
+
   val isWindows: Boolean = SystemUtils.IS_OS_WINDOWS
 
   val isMac: Boolean = SystemUtils.IS_OS_MAC_OSX
@@ -322,7 +346,7 @@ object Utils extends Logging {
   private lazy val localIpAddress: InetAddress = findLocalInetAddress()
 
   private def findLocalInetAddress(): InetAddress = {
-    val defaultIpOverride = System.getenv("JSS_LOCAL_IP")
+    val defaultIpOverride = System.getenv("RSS_LOCAL_IP")
     if (defaultIpOverride != null) {
       InetAddress.getByName(defaultIpOverride)
     } else {
@@ -347,14 +371,14 @@ object Utils extends Logging {
             logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
               " a loopback address: " + address.getHostAddress + "; using " +
               strippedAddress.getHostAddress + " instead (on interface " + ni.getName + ")")
-            logWarning("Set JSS_LOCAL_IP if you need to bind to another address")
+            logWarning("Set RSS_LOCAL_IP if you need to bind to another address")
             return strippedAddress
           }
         }
         logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
           " a loopback address: " + address.getHostAddress + ", but we couldn't find any" +
           " external IP address!")
-        logWarning("Set JSS_LOCAL_IP if you need to bind to another address")
+        logWarning("Set RSS_LOCAL_IP if you need to bind to another address")
       }
       address
     }

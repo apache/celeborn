@@ -76,6 +76,7 @@ import com.aliyun.emr.rss.client.DummyShuffleClient;
 import com.aliyun.emr.rss.client.ShuffleClient;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.util.Utils;
 
 public class RssShuffleWriterSuiteJ {
@@ -89,6 +90,10 @@ public class RssShuffleWriterSuiteJ {
   private final String appId = "appId";
   private final String host = "host";
   private final int port = 0;
+
+  private final ControlMessages.UserIdentifier userIdentifier =
+      new ControlMessages.UserIdentifier("mock", "mock");
+
   private final int shuffleId = 0;
   private final int numMaps = 10;
   private final int numPartitions = 10;
@@ -228,7 +233,7 @@ public class RssShuffleWriterSuiteJ {
 
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     final RssShuffleHandle<Integer, String, String> handle =
-        new RssShuffleHandle<>(appId, host, port, shuffleId, numMaps, dependency);
+        new RssShuffleHandle<>(appId, host, port, userIdentifier, shuffleId, numMaps, dependency);
     final ShuffleClient client = new DummyShuffleClient(tempFile);
 
     if (hashWriter) {

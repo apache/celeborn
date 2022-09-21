@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.FileSystem;
 
 import com.aliyun.emr.rss.client.read.RssInputStream;
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 
 /**
@@ -37,7 +38,8 @@ public abstract class ShuffleClient implements Cloneable {
 
   protected ShuffleClient() {}
 
-  public static ShuffleClient get(RpcEndpointRef driverRef, RssConf rssConf) {
+  public static ShuffleClient get(
+      RpcEndpointRef driverRef, RssConf rssConf, UserIdentifier userIdentifier) {
     if (null == _instance || !initFinished) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -46,12 +48,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(rssConf);
+          _instance = new ShuffleClientImpl(rssConf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(rssConf);
+          _instance = new ShuffleClientImpl(rssConf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         }
@@ -60,7 +62,8 @@ public abstract class ShuffleClient implements Cloneable {
     return _instance;
   }
 
-  public static ShuffleClient get(String driverHost, int port, RssConf conf) {
+  public static ShuffleClient get(
+      String driverHost, int port, RssConf conf, UserIdentifier userIdentifier) {
     if (null == _instance || !initFinished) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -69,12 +72,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf);
+          _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(conf);
+          _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         }
@@ -104,18 +107,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);
 
-  /**
-   * 往具体的一个reduce partition里写数据
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param mapId taskContext.partitionId
-   * @param attemptId taskContext.attemptNumber()
-   * @param partitionId
-   * @param data
-   * @param offset
-   * @param length
-   */
+  // Write data to a specific reduce partition
   public abstract int pushData(
       String applicationId,
       int shuffleId,
@@ -148,38 +140,16 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
       throws IOException;
 
-  /**
-   * report partitionlocations written by the completed map task
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param mapId
-   * @param attemptId
-   */
+  // Report partition locations written by the completed map task
   public abstract void mapperEnd(
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException;
 
-  /**
-   * cleanup states of the map task
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param mapId
-   * @param attemptId
-   */
+  // Cleanup states of the map task
   public abstract void cleanup(String applicationId, int shuffleId, int mapId, int attemptId);
 
-  /**
-   * reduce端分区读取 按照 mapperId+mapperAttemptNum+batchId 去重 batchId是隐藏在实现里的发送时序自增变量
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @param partitionId
-   * @param startMapIndex
-   * @param endMapIndex
-   * @return
-   */
+  // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
+  // is a self-incrementing variable hidden in the implementation when sending data.
   public abstract RssInputStream readPartition(
       String applicationId,
       int shuffleId,
@@ -192,13 +162,6 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract RssInputStream readPartition(
       String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
-  /**
-   * 注销
-   *
-   * @param applicationId
-   * @param shuffleId
-   * @return
-   */
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();

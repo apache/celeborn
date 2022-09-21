@@ -726,6 +726,14 @@ object ControlMessages extends Logging {
 
   case class ThreadDumpResponse(threadDump: String) extends Message
 
+  case class UserIdentifier(tenantId: String, name: String) extends Message
+
+  case class ResourceConsumption(
+      diskBytesWritten: Long,
+      diskFileCount: Long,
+      hdfsBytesWritten: Long,
+      hdfsFileCount: Long)
+
   def fromTransportMessage(message: TransportMessage): Message = {
     message.getType match {
       case UNKNOWN_MESSAGE | UNRECOGNIZED =>

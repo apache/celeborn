@@ -30,6 +30,7 @@ import com.aliyun.emr.rss.client.ShuffleClient
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
 class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
@@ -59,9 +60,12 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     if (isDriver && lifecycleManager.isEmpty) {
       lifecycleManager.synchronized {
         if (lifecycleManager.isEmpty) {
-          val metaSystem = new LifecycleManager(appId, rssConf)
-          lifecycleManager = Some(metaSystem)
-          rssShuffleClient = Some(ShuffleClient.get(metaSystem.self, rssConf))
+          val manager = new LifecycleManager(appId, rssConf)
+          lifecycleManager = Some(manager)
+          rssShuffleClient = Some(ShuffleClient.get(
+            manager.self,
+            rssConf,
+            lifecycleManager.map(_.getUserIdentifier()).get))
         }
       }
     }
@@ -89,6 +93,7 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
         // If not driver, return dummy rss meta service host and port.
         lifecycleManager.map(_.getRssMetaServiceHost).getOrElse(""),
         lifecycleManager.map(_.getRssMetaServicePort).getOrElse(0),
+        lifecycleManager.map(_.getUserIdentifier()).get,
         shuffleId,
         numMaps,
         dependency)
@@ -101,7 +106,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       context: TaskContext): ShuffleWriter[K, V] = {
     handle match {
       case h: RssShuffleHandle[K @unchecked, V @unchecked, _] =>
-        val client = ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf)
+        val client =
+          ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf, h.userIdentifier)
         if (RssConf.shuffleWriterMode(rssConf) == "sort") {
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMaps, context, rssConf, client)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {
@@ -254,6 +260,7 @@ class RssShuffleHandle[K, V, C](
     val newAppId: String,
     val rssMetaServiceHost: String,
     val rssMetaServicePort: Int,
+    val userIdentifier: UserIdentifier,
     shuffleId: Int,
     numMaps: Int,
     dependency: ShuffleDependency[K, V, C])

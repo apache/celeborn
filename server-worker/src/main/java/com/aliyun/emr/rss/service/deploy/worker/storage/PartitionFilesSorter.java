@@ -83,10 +83,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long fetchChunkSize;
-  protected final long reserveMemoryForSingleSort;
-  private boolean gracefulShutdown = false;
+  protected final long initialReserveSingleSortMemory;
+  private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
+  private MemoryTracker memoryTracker;
 
   protected final AbstractSource source;
 
@@ -100,9 +101,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
     this.fetchChunkSize = RssConf.chunkSize(conf);
-    this.reserveMemoryForSingleSort = RssConf.memoryReservedForSingleSort(conf);
+    this.initialReserveSingleSortMemory = RssConf.initialReserveSingleSortMemory(conf);
     this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
+    this.memoryTracker = memoryTracker;
     this.gracefulShutdown = RssConf.workerGracefulShutdown(conf);
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
@@ -126,20 +128,22 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               try {
                 while (!shutdown) {
                   FileSorter task = shuffleSortTaskDeque.take();
-                  memoryTracker.reserveSortMemory(reserveMemoryForSingleSort);
+                  memoryTracker.reserveSortMemory(initialReserveSingleSortMemory);
                   while (!memoryTracker.sortMemoryReady()) {
                     Thread.sleep(20);
                   }
                   fileSorterExecutors.submit(
                       () -> {
-                        source.startTimer(WorkerSource.SortTime(), task.fileId);
-                        task.sort();
-                        source.stopTimer(WorkerSource.SortTime(), task.fileId);
-                        memoryTracker.releaseSortMemory(reserveMemoryForSingleSort);
+                        try {
+                          task.sort();
+                        } catch (InterruptedException e) {
+                          logger.warn(
+                              "File sorter thread was interrupted when expanding padding buffer.");
+                        }
                       });
                 }
               } catch (InterruptedException e) {
-                logger.warn("Sort thread is shutting down, detail: ", e);
+                logger.warn("Sort scheduler thread is shutting down, detail: ", e);
               }
             });
     fileSorterSchedulerThread.start();
@@ -158,7 +162,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   public FileInfo openStream(
-      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex) {
+      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
+      throws IOException {
     if (endMapIndex == Integer.MAX_VALUE) {
       return fileInfo;
     } else {
@@ -183,11 +188,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             sorting.add(fileId);
             shuffleSortTaskDeque.put(fileSorter);
           } catch (InterruptedException e) {
-            logger.info("scheduler thread is interrupted means worker is shutting down.");
-            return null;
+            logger.info("Sorter scheduler thread is interrupted means worker is shutting down.");
+            throw new IOException(
+                "Sort scheduler thread is interrupted means worker is shutting down.", e);
           } catch (IOException e) {
             logger.error("File sorter access hdfs failed.", e);
-            return null;
+            throw new IOException("File sorter access hdfs failed.", e);
           }
         }
       }
@@ -198,16 +204,21 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           try {
             Thread.sleep(50);
             if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-              logger.error("sort file {} timeout", fileId);
-              return null;
+              logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
+              throw new IOException(
+                  "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
             }
           } catch (InterruptedException e) {
-            logger.error("sort scheduler thread is interrupted means worker is shutting down.", e);
-            return null;
+            logger.error(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
+            throw new IOException(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
           }
         } else {
-          logger.error("file {} sort failed", fileId);
-          return null;
+          logger.debug(
+              "Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
+          throw new IOException(
+              "Sorting shuffle file for " + shuffleKey + " " + fileInfo.getFilePath() + " failed.");
         }
       }
 
@@ -428,7 +439,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String sortedFilePath,
       String indexFilePath,
       int startMapIndex,
-      int endMapIndex) {
+      int endMapIndex)
+      throws IOException {
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
     if (cachedIndexMaps.containsKey(shuffleKey)
         && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
@@ -459,8 +471,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
-        logger.error("Read sorted shuffle file error, detail : ", e);
-        return null;
+        logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
+        throw new IOException("Read sorted shuffle file index failed.", e);
       } finally {
         IOUtils.closeQuietly(indexStream, null);
         IOUtils.closeQuietly(hdfsIndexStream, null);
@@ -513,7 +525,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    public void sort() {
+    public void sort() throws InterruptedException {
+      source.startTimer(WorkerSource.SortTime(), fileId);
+
       try {
         initializeFiles();
 
@@ -521,8 +535,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
         int batchHeaderLen = 16;
+        int reserveMemory = (int) initialReserveSingleSortMemory;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
-        ByteBuffer paddingBuf = ByteBuffer.allocateDirect((int) reserveMemoryForSingleSort);
+        ByteBuffer paddingBuf = ByteBuffer.allocateDirect(reserveMemory);
 
         long index = 0;
         while (index != originFileLen) {
@@ -543,6 +558,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
+          if (compressedSize > reserveMemory) {
+            ((DirectBuffer) paddingBuf).cleaner().clean();
+            paddingBuf = expandBufferAndUpdateMemoryTracker(reserveMemory, compressedSize);
+            reserveMemory = compressedSize;
+          }
           paddingBuf.limit(compressedSize);
           // TODO: compare skip or read performance differential
           readBufferFully(paddingBuf);
@@ -567,13 +587,15 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
 
         ((DirectBuffer) paddingBuf).cleaner().clean();
+        memoryTracker.releaseSortMemory(reserveMemory);
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         deleteOriginFiles();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
-        logger.error("sort shuffle file {} error", originFilePath, e);
+        logger.error(
+            "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
       } finally {
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
         synchronized (sorting) {
@@ -581,6 +603,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
         closeFiles();
       }
+      source.stopTimer(WorkerSource.SortTime(), fileId);
     }
 
     private void initializeFiles() throws IOException {
@@ -624,8 +647,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         deleteSuccess = new File(originFilePath).delete();
       }
       if (!deleteSuccess) {
-        logger.warn("clean origin file failed, origin file is : {}", originFilePath);
+        logger.warn("Clean origin file failed, origin file is : {}", originFilePath);
       }
+    }
+
+    private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity)
+        throws InterruptedException {
+      memoryTracker.releaseSortMemory(oldCapacity);
+      memoryTracker.reserveSortMemory(newCapacity);
+      while (!memoryTracker.sortMemoryReady()) {
+        Thread.sleep(20);
+      }
+      return ByteBuffer.allocateDirect(newCapacity);
     }
   }
 }

@@ -20,9 +20,12 @@ package org.apache.spark.sql.execution.columnar
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
+import scala.collection.mutable
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
 
 case object RssPassThrough extends RssCompressionScheme {
   override val typeId = 0
@@ -232,6 +235,193 @@ case object RssPassThrough extends RssCompressionScheme {
           decompressString(columnVector, rowCnt, putByteArray)
         case d: DecimalType =>
           decompressDecimal(columnVector, rowCnt, d.precision)
+      }
+    }
+  }
+}
+
+case object RssDictionaryEncoding extends RssCompressionScheme {
+  override val typeId = 2
+
+  // 32K unique values allowed
+  var MAX_DICT_SIZE = Short.MaxValue
+
+  override def decoder[T <: AtomicType](
+      buffer: ByteBuffer,
+      columnType: NativeRssColumnType[T]): Decoder[T] = {
+    new this.RssDecoder(buffer, columnType)
+  }
+
+  override def encoder[T <: AtomicType](columnType: NativeRssColumnType[T]): Encoder[T] = {
+    new this.RssEncoder[T](columnType)
+  }
+
+  override def supports(columnType: RssColumnType[_]): Boolean = columnType match {
+    case RSS_INT | RSS_LONG | RSS_STRING => true
+    case _ => false
+  }
+
+  class RssEncoder[T <: AtomicType](columnType: NativeRssColumnType[T]) extends Encoder[T] {
+    // Size of the input, uncompressed, in bytes. Note that we only count until the dictionary
+    // overflows.
+    private var _uncompressedSize = 0
+
+    // If the number of distinct elements is too large, we discard the use of dictionary encoding
+    // and set the overflow flag to true.
+    var overflow = false
+
+    // Total number of elements.
+    private var count = 0
+
+    def cleanBatch: Unit = {
+      count = 0
+      _uncompressedSize = 0
+    }
+
+    // The reverse mapping of _dictionary, i.e. mapping encoded integer to the value itself.
+    private val values = new mutable.ArrayBuffer[T#InternalType](1024)
+
+    // The dictionary that maps a value to the encoded short integer.
+    private val dictionary = new java.util.HashMap[Any, Short](1024)
+
+    // Size of the serialized dictionary in bytes. Initialized to 4 since we need at least an `Int`
+    // to store dictionary element count.
+    private var dictionarySize = 4
+
+    override def gatherCompressibilityStats(row: InternalRow, ordinal: Int): Unit = {
+      if (!overflow) {
+        val value = columnType.getField(row, ordinal)
+        val actualSize = columnType.actualSize(row, ordinal)
+        count += 1
+        _uncompressedSize += actualSize
+        if (!dictionary.containsKey(value)) {
+          if (dictionary.size < MAX_DICT_SIZE) {
+            val clone = columnType.clone(value)
+            values += clone
+            dictionarySize += actualSize
+            dictionary.put(clone, dictionary.size.toShort)
+          } else {
+            overflow = true
+            values.clear()
+            dictionary.clear()
+          }
+        }
+      }
+    }
+
+    override def compress(from: ByteBuffer, to: ByteBuffer): ByteBuffer = {
+      to.putInt(RssDictionaryEncoding.typeId)
+        .putInt(dictionary.size)
+
+      var i = 0
+      while (i < values.length) {
+        columnType.append(values(i), to)
+        i += 1
+      }
+
+      while (from.hasRemaining) {
+        to.putShort(dictionary.get(columnType.extract(from)))
+      }
+
+      to.rewind()
+      to
+    }
+
+    override def uncompressedSize: Int = _uncompressedSize
+
+    // 2 is the data size after(short type) dictionary encoding
+    override def compressedSize: Int = if (overflow) Int.MaxValue else dictionarySize + count * 2
+  }
+
+  class RssDecoder[T <: AtomicType](buffer: ByteBuffer, columnType: NativeRssColumnType[T])
+    extends Decoder[T] {
+    val elementNum = ByteBufferHelper.getInt(buffer)
+    private val dictionary: Array[Any] = new Array[Any](elementNum)
+    private var intDictionary: Array[Int] = null
+    private var longDictionary: Array[Long] = null
+    private var stringDictionary: Array[String] = null
+
+    columnType.dataType match {
+      case _: IntegerType =>
+        intDictionary = new Array[Int](elementNum)
+        for (i <- 0 until elementNum) {
+          val v = columnType.extract(buffer).asInstanceOf[Int]
+          intDictionary(i) = v
+          dictionary(i) = v
+        }
+      case _: LongType =>
+        longDictionary = new Array[Long](elementNum)
+        for (i <- 0 until elementNum) {
+          val v = columnType.extract(buffer).asInstanceOf[Long]
+          longDictionary(i) = v
+          dictionary(i) = v
+        }
+      case _: StringType =>
+        stringDictionary = new Array[String](elementNum)
+        for (i <- 0 until elementNum) {
+          val v = columnType.extract(buffer).asInstanceOf[UTF8String]
+          stringDictionary(i) = v.toString
+          dictionary(i) = v
+        }
+    }
+
+    override def next(row: InternalRow, ordinal: Int): Unit = {
+      columnType.setField(row, ordinal, dictionary(buffer.getShort()).asInstanceOf[T#InternalType])
+    }
+
+    override def hasNext: Boolean = buffer.hasRemaining
+
+    override def decompress(columnVector: WritableColumnVector, capacity: Int): Unit = {
+      val nullsBuffer = buffer.duplicate().order(ByteOrder.nativeOrder())
+      nullsBuffer.rewind()
+      val nullCount = ByteBufferHelper.getInt(nullsBuffer)
+      var nextNullIndex = if (nullCount > 0) ByteBufferHelper.getInt(nullsBuffer) else -1
+      var pos = 0
+      var seenNulls = 0
+      columnType.dataType match {
+        case _: IntegerType =>
+          val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
+          columnVector.setDictionary(new RssColumnDictionary(intDictionary))
+          while (pos < capacity) {
+            if (pos != nextNullIndex) {
+              dictionaryIds.putInt(pos, buffer.getShort())
+            } else {
+              seenNulls += 1
+              if (seenNulls < nullCount) nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
+              columnVector.putNull(pos)
+            }
+            pos += 1
+          }
+        case _: LongType =>
+          val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
+          columnVector.setDictionary(new RssColumnDictionary(longDictionary))
+          while (pos < capacity) {
+            if (pos != nextNullIndex) {
+              dictionaryIds.putInt(pos, buffer.getShort())
+            } else {
+              seenNulls += 1
+              if (seenNulls < nullCount) {
+                nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
+              }
+              columnVector.putNull(pos)
+            }
+            pos += 1
+          }
+        case _: StringType =>
+          val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
+          columnVector.setDictionary(new RssColumnDictionary(stringDictionary))
+          while (pos < capacity) {
+            if (pos != nextNullIndex) {
+              dictionaryIds.putInt(pos, buffer.getShort())
+            } else {
+              seenNulls += 1
+              if (seenNulls < nullCount) nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
+              columnVector.putNull(pos)
+            }
+            pos += 1
+          }
+
+        case _ => throw new IllegalStateException("Not supported type in DictionaryEncoding.")
       }
     }
   }

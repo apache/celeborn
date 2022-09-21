@@ -42,7 +42,8 @@ class RssShuffleReader[K, C](
   private val essShuffleClient = ShuffleClient.get(
     handle.rssMetaServiceHost,
     handle.rssMetaServicePort,
-    conf)
+    conf,
+    handle.userIdentifier)
 
   override def read(): Iterator[Product2[K, C]] = {
 

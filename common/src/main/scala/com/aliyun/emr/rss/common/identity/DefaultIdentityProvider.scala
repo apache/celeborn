@@ -15,10 +15,17 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.internal
+package com.aliyun.emr.rss.common.identity
 
-import java.util.concurrent.TimeUnit
+import org.apache.hadoop.security.UserGroupInformation
 
-import com.aliyun.emr.rss.common.network.util.ByteUnit
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
-package object config {}
+class DefaultIdentityProvider extends IdentityProvider {
+  override def provide(): ControlMessages.UserIdentifier = {
+    UserIdentifier(
+      IdentityProvider.DEFAULT_TENANT_ID,
+      UserGroupInformation.getCurrentUser.getShortUserName)
+  }
+}

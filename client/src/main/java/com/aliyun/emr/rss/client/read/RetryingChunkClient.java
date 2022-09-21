@@ -125,12 +125,6 @@ public class RetryingChunkClient {
             currentReplica,
             retryWaitMs);
         Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
-      } else {
-        logger.info(
-            "Retrying openChunk ({}/{}) for chunks from {} immediately.",
-            numTries,
-            maxTries,
-            currentReplica);
       }
       try {
         currentReplica.getOrOpenStream();
@@ -216,7 +210,9 @@ public class RetryingChunkClient {
         e instanceof IOException
             || e instanceof TimeoutException
             || (e.getCause() != null && e.getCause() instanceof TimeoutException)
-            || (e.getCause() != null && e.getCause() instanceof IOException);
+            || (e.getCause() != null && e.getCause() instanceof IOException)
+            || (e instanceof RuntimeException
+                && e.getMessage().startsWith(IOException.class.getName()));
     return isIOException && hasRemainingRetries();
   }
 

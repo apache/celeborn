@@ -30,6 +30,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
+import com.aliyun.emr.rss.common.identity.IdentityProvider
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageInfo}
@@ -66,6 +67,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   // shuffle id -> (partitionId -> newest PartitionLocation)
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+  private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -192,6 +194,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       rpcEnv.shutdown()
       rpcEnv.awaitTermination()
     }
+  }
+
+  def getUserIdentifier(): UserIdentifier = {
+    userIdentifier
   }
 
   def getRssMetaServiceHost: String = {
