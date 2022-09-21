@@ -100,7 +100,9 @@ public class SparkUtils {
     return res;
   }
 
-  /** make rss conf from spark conf */
+  /**
+   * make rss conf from spark conf
+   */
   public static RssConf fromSparkConf(SparkConf conf) {
     RssConf tmpRssConf = new RssConf();
     for (Tuple2<String, String> kv : conf.getAll()) {
@@ -167,8 +169,7 @@ public class SparkUtils {
               endPartition,
               context);
     } catch (ReflectiveOperationException roe1) {
-        throw new RuntimeException("Get getReader method failed.", roe1);
-      }
+      throw new RuntimeException("Get getReader method failed.", roe1);
     }
   }
 }
