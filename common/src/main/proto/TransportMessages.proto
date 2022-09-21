@@ -392,6 +392,6 @@ message PBFileInfoMap {
 }
 
 message PbUserIdentifier {
-  string group = 1;
+  string tenantId = 1;
   string name = 2;
 }

@@ -138,7 +138,7 @@ message WorkerAddress {
 }
 
 message UserIdentifier {
-  required string group = 1;
+  required string tenantId = 1;
   required string name = 2;
 }
 
