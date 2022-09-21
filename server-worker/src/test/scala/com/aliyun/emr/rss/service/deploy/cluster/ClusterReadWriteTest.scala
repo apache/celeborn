@@ -42,9 +42,9 @@ class ClusterReadWriteTest extends MiniClusterFeature {
       clientConf.set("rss.client.compression.codec", codec.name());
       clientConf.set("rss.push.data.replicate", "true")
       clientConf.set("rss.push.data.buffer.size", "256K")
-      val metaSystem = new LifecycleManager(APP, clientConf)
+      val lifecycleManager = new LifecycleManager(APP, clientConf)
       val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"))
-      shuffleClient.setupMetaServiceRef(metaSystem.self)
+      shuffleClient.setupMetaServiceRef(lifecycleManager.self)
 
       val STR1 = RandomStringUtils.random(1024)
       val DATA1 = STR1.getBytes(StandardCharsets.UTF_8)
@@ -92,7 +92,7 @@ class ClusterReadWriteTest extends MiniClusterFeature {
 
       Thread.sleep(5000L)
       shuffleClient.shutDown()
-      metaSystem.rpcEnv.shutdown()
+      lifecycleManager.rpcEnv.shutdown()
     }
   }
 }
