@@ -92,7 +92,7 @@ public class RssShuffleManager implements ShuffleManager {
 
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(
-      int shuffleId, ShuffleDependency<K, V, C> dependency) {
+      int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
     // Note: generate newAppId at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
@@ -103,7 +103,7 @@ public class RssShuffleManager implements ShuffleManager {
         lifecycleManager, dependency.partitioner().numPartitions())) {
       logger.warn("Fallback to SortShuffleManager!");
       sortShuffleIds.add(shuffleId);
-      return sortShuffleManager().registerShuffle(shuffleId, dependency);
+      return sortShuffleManager().registerShuffle(shuffleId, numMaps, dependency);
     } else {
       // If not driver, use dummy rss meta service host and port.
       String metaServiceHost = "";
@@ -118,7 +118,7 @@ public class RssShuffleManager implements ShuffleManager {
           metaServicePort,
           lifecycleManager.getUserIdentifier(),
           shuffleId,
-          dependency.rdd().getNumPartitions(),
+          numMaps,
           dependency);
     }
   }
@@ -157,7 +157,7 @@ public class RssShuffleManager implements ShuffleManager {
 
   @Override
   public <K, V> ShuffleWriter<K, V> getWriter(
-      ShuffleHandle handle, long mapId, TaskContext context, ShuffleWriteMetricsReporter metrics) {
+      ShuffleHandle handle, int mapId, TaskContext context) {
     try {
       if (handle instanceof RssShuffleHandle) {
         @SuppressWarnings("unchecked")
@@ -167,16 +167,16 @@ public class RssShuffleManager implements ShuffleManager {
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), rssConf, h.userIdentifier());
         if ("sort".equals(RssConf.shuffleWriterMode(rssConf))) {
           return new SortBasedShuffleWriter<>(
-              h.dependency(), h.newAppId(), h.numMappers(), context, rssConf, client, metrics);
+              h.dependency(), h.newAppId(), h.numMaps(), context, rssConf, client);
         } else if ("hash".equals(RssConf.shuffleWriterMode(rssConf))) {
           return new HashBasedShuffleWriter<>(
-              h, context, rssConf, client, metrics, SendBufferPool.get(cores));
+              h, mapId, context, rssConf, client, SendBufferPool.get(cores));
         } else {
           throw new UnsupportedOperationException(
               "Unrecognized shuffle write mode!" + RssConf.shuffleWriterMode(rssConf));
         }
       } else {
-        return sortShuffleManager().getWriter(handle, mapId, context, metrics);
+        return sortShuffleManager().getWriter(handle, mapId, context);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -190,13 +190,12 @@ public class RssShuffleManager implements ShuffleManager {
       int endMapIndex,
       int startPartition,
       int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
+      TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
       @SuppressWarnings("unchecked")
       RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
       return new RssShuffleReader<>(
-          h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf, metrics);
+          h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf);
     }
     return SparkUtils.invokeGetReaderMethod(
         sortShuffleManagerName,
@@ -207,22 +206,17 @@ public class RssShuffleManager implements ShuffleManager {
         endMapIndex,
         startPartition,
         endPartition,
-        context,
-        metrics);
+        context);
   }
 
   // Marked as final in SPARK-32055, reserved for Spark 3.0
   public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
+      ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
       @SuppressWarnings("unchecked")
       RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
       return new RssShuffleReader<>(
-          h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, rssConf, metrics);
+          h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, rssConf);
     }
     return SparkUtils.invokeGetReaderMethod(
         sortShuffleManagerName,
@@ -233,22 +227,6 @@ public class RssShuffleManager implements ShuffleManager {
         Integer.MAX_VALUE,
         startPartition,
         endPartition,
-        context,
-        metrics);
-  }
-
-  // Renamed to getReader in SPARK-32055, reserved for Spark 3.0
-  public <K, C> ShuffleReader<K, C> getReaderForRange(
-      ShuffleHandle handle,
-      int startMapIndex,
-      int endMapIndex,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
-    @SuppressWarnings("unchecked")
-    RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-    return new RssShuffleReader<>(
-        h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf, metrics);
+        context);
   }
 }
