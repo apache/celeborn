@@ -142,6 +142,13 @@ message UserIdentifier {
   required string name = 2;
 }
 
+message ResourceConsumption {
+  required int64 diskBytesWritten = 1;
+  required int64 diskFileCount = 2;
+  required int64 hdfsBytesWritten = 3;
+  required int64 hdfsFileCount = 4;
+}
+
 enum Status {
   OK = 1;
   INTERNAL_ERROR= 2;

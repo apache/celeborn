@@ -395,3 +395,10 @@ message PbUserIdentifier {
   string tenantId = 1;
   string name = 2;
 }
+
+message PbResourceConsumption {
+   int64 diskBytesWritten = 1;
+   int64 diskFileCount = 2;
+   int64 hdfsBytesWritten = 3;
+   int64 hdfsFileCount = 4;
+}
