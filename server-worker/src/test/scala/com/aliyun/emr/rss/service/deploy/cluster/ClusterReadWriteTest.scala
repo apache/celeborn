@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets
 import io.netty.channel.ChannelFuture
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.{Assert, BeforeClass, Test}
+
 import com.aliyun.emr.rss.client.ShuffleClientImpl
 import com.aliyun.emr.rss.client.compress.Compressor.CompressionCodec
 import com.aliyun.emr.rss.client.write.LifecycleManager

@@ -25,6 +25,7 @@ import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.Utils
+
 import com.aliyun.emr.rss.client.ShuffleClient
 import com.aliyun.emr.rss.client.write.LifecycleManager
 import com.aliyun.emr.rss.common.RssConf
@@ -61,7 +62,12 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
         if (lifecycleManager.isEmpty) {
           val metaSystem = new LifecycleManager(appId, rssConf)
           lifecycleManager = Some(metaSystem)
-          rssShuffleClient = Some(ShuffleClient.get(metaSystem.self, rssConf, lifecycleManager.map(_.getUserIdentifier()).getOrElse(UserIdentifier("default", "default"))))
+          rssShuffleClient = Some(ShuffleClient.get(
+            metaSystem.self,
+            rssConf,
+            lifecycleManager.map(_.getUserIdentifier()).getOrElse(UserIdentifier(
+              "default",
+              "default"))))
         }
       }
     }
@@ -102,7 +108,8 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
       context: TaskContext): ShuffleWriter[K, V] = {
     handle match {
       case h: RssShuffleHandle[K @unchecked, V @unchecked, _] =>
-        val client = ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf, h.userIdentifier)
+        val client =
+          ShuffleClient.get(h.rssMetaServiceHost, h.rssMetaServicePort, rssConf, h.userIdentifier)
         if (RssConf.shuffleWriterMode(rssConf) == "sort") {
           new SortBasedShuffleWriter(h.dependency, h.newAppId, h.numMaps, context, rssConf, client)
         } else if (RssConf.shuffleWriterMode(rssConf) == "hash") {

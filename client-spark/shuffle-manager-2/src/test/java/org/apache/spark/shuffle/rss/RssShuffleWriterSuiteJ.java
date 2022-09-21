@@ -30,7 +30,6 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import scala.None$;
 import scala.Option;
 import scala.Product2;
@@ -77,6 +76,7 @@ import com.aliyun.emr.rss.client.DummyShuffleClient;
 import com.aliyun.emr.rss.client.ShuffleClient;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.util.Utils;
 
 public class RssShuffleWriterSuiteJ {
