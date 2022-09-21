@@ -120,7 +120,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     RssConf.handleChangePartitionRequestBatchInterval(conf)
   private val changePartitionSchedulerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-      "rss-lifecycle-maager-change-partition-scheduler")
+      "rss-lifecycle-manager-change-partition-scheduler")
 
   // init driver rss meta rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -189,8 +189,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                       }
                     }
                   }
-                  // After put request into executor, clean current requests.
-                  requests.clear()
                 }
               }
             }
@@ -575,7 +573,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       applicationId: String,
       shuffleId: Int,
       changePartitions: Array[ChangePartitionRequest]): Unit = {
-    val requests = changePartitionRequests.get(shuffleId)
+    val requestsMap = changePartitionRequests.get(shuffleId)
 
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
@@ -586,9 +584,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     // remove together to reduce lock time
     def replySuccess(locations: Array[PartitionLocation]): Unit = {
-      requests.synchronized {
+      requestsMap.synchronized {
         locations.map { location =>
-          location -> requests.remove(location.getId).asScala.toList
+          location -> requestsMap.remove(location.getId).asScala.toList
         }
       }.foreach { case (newLocation, requests) =>
         requests.foreach(_.context.reply(ChangeLocationResponse(StatusCode.SUCCESS, newLocation)))
@@ -597,9 +595,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     // remove together to reduce lock time
     def replyFailure(response: ChangeLocationResponse): Unit = {
-      requests.synchronized {
+      requestsMap.synchronized {
         changePartitions.flatMap { changePartition =>
-          requests.remove(changePartition.partitionId).asScala.toList
+          requestsMap.remove(changePartition.partitionId).asScala.toList
         }
       }.foreach(_.context.reply(response))
     }
@@ -1232,10 +1230,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(
-      oldPartitions: List[ChangePartitionRequest],
+      changePartitionRequests: List[ChangePartitionRequest],
       candidates: List[WorkerInfo]): WorkerResource = {
     val slots = new WorkerResource()
-    oldPartitions.foreach { partition =>
+    changePartitionRequests.foreach { partition =>
       allocateFromCandidates(partition.partitionId, partition.epoch, candidates, slots)
     }
     slots
