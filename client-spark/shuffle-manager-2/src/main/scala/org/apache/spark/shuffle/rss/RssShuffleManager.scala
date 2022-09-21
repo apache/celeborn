@@ -60,10 +60,10 @@ class RssShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
     if (isDriver && lifecycleManager.isEmpty) {
       lifecycleManager.synchronized {
         if (lifecycleManager.isEmpty) {
-          val metaSystem = new LifecycleManager(appId, rssConf)
-          lifecycleManager = Some(metaSystem)
+          val manager = new LifecycleManager(appId, rssConf)
+          lifecycleManager = Some(manager)
           rssShuffleClient = Some(ShuffleClient.get(
-            metaSystem.self,
+            manager.self,
             rssConf,
             lifecycleManager.map(_.getUserIdentifier()).get))
         }
