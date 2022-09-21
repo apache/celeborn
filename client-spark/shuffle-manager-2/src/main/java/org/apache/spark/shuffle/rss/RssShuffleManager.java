@@ -197,16 +197,7 @@ public class RssShuffleManager implements ShuffleManager {
       return new RssShuffleReader<>(
           h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf);
     }
-    return SparkUtils.invokeGetReaderMethod(
-        sortShuffleManagerName,
-        "getReader",
-        sortShuffleManager(),
-        handle,
-        startMapIndex,
-        endMapIndex,
-        startPartition,
-        endPartition,
-        context);
+    return  _sortShuffleManager.getReader(handle, startPartition, endPartition, context)
   }
 
   // Marked as final in SPARK-32055, reserved for Spark 3.0
@@ -223,8 +214,6 @@ public class RssShuffleManager implements ShuffleManager {
         "getReader",
         sortShuffleManager(),
         handle,
-        0,
-        Integer.MAX_VALUE,
         startPartition,
         endPartition,
         context);
