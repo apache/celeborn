@@ -125,12 +125,6 @@ public class RetryingChunkClient {
             currentReplica,
             retryWaitMs);
         Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
-      } else {
-        logger.info(
-            "Retrying openChunk ({}/{}) for chunks from {} immediately.",
-            numTries,
-            maxTries,
-            currentReplica);
       }
       try {
         currentReplica.getOrOpenStream();
