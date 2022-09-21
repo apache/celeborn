@@ -172,21 +172,19 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       new Runnable {
         override def run(): Unit = {
           try {
-            while (true) {
-              changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
-                requests.synchronized {
-                  changePartitionExecutors.submit {
-                    new Runnable {
-                      override def run(): Unit = {
-                        // For each partition only need handle one request
-                        val distinctPartitions = requests.asScala.map { case (_, request) =>
-                          request.asScala.toArray.head
-                        }.toArray
-                        batchHandleChangePartitions(
-                          distinctPartitions.head.applicationId,
-                          shuffleId,
-                          distinctPartitions)
-                      }
+            changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
+              requests.synchronized {
+                changePartitionExecutors.submit {
+                  new Runnable {
+                    override def run(): Unit = {
+                      // For each partition only need handle one request
+                      val distinctPartitions = requests.asScala.map { case (_, request) =>
+                        request.asScala.toArray.head
+                      }.toArray
+                      batchHandleChangePartitions(
+                        distinctPartitions.head.applicationId,
+                        shuffleId,
+                        distinctPartitions)
                     }
                   }
                 }
@@ -620,24 +618,19 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
     val newMasterLocations =
-      newlyAllocatedLocations.asScala.map { case (workInfo, (masterLocations, slaveLocations)) =>
-        // Add all re-allocated slots to worker snapshots.
-        workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
-          partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
-          updateLatestPartitionLocations(shuffleId, masterLocations)
-          partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
-        }
-
-        // reply the master location of this partition.
-        val newMasterLocation =
-          if (masterLocations != null && masterLocations.size() > 0) {
-            masterLocations.asScala.head
-          } else {
-            slaveLocations.asScala.head.getPeer
+      newlyAllocatedLocations.asScala.flatMap {
+        case (workInfo, (masterLocations, slaveLocations)) =>
+          // Add all re-allocated slots to worker snapshots.
+          workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
+            partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+            updateLatestPartitionLocations(shuffleId, masterLocations)
+            partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
           }
-        logDebug(s"Renew $shuffleId ${newMasterLocation.getId} " +
-          s"${newMasterLocation.getEpoch - 1} -> ${newMasterLocation.getEpoch} partition success.")
-        newMasterLocation
+          val changes = masterLocations.asScala.map { partition =>
+            s"(${partition.getId} ${partition.getEpoch - 1} -> ${partition.getEpoch})"
+          }.mkString("[", ",", "]")
+          logDebug(s"Renew $shuffleId $changes  success.")
+          masterLocations.asScala
       }
     replySuccess(newMasterLocations.toArray)
   }
