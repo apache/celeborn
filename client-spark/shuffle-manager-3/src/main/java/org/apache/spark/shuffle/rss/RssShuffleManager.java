@@ -105,17 +105,10 @@ public class RssShuffleManager implements ShuffleManager {
       sortShuffleIds.add(shuffleId);
       return sortShuffleManager().registerShuffle(shuffleId, dependency);
     } else {
-      // If not driver, use dummy rss meta service host and port.
-      String metaServiceHost = "";
-      int metaServicePort = 0;
-      if (lifecycleManager != null) {
-        metaServiceHost = lifecycleManager.getRssMetaServiceHost();
-        metaServicePort = lifecycleManager.getRssMetaServicePort();
-      }
       return new RssShuffleHandle<>(
           newAppId,
-          metaServiceHost,
-          metaServicePort,
+          lifecycleManager.getRssMetaServiceHost(),
+          lifecycleManager.getRssMetaServicePort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
           dependency.rdd().getNumPartitions(),
