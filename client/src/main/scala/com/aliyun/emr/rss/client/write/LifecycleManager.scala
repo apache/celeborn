@@ -636,7 +636,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             s"(${partition.getId} ${partition.getEpoch - 1} -> ${partition.getEpoch})"
           }.mkString("[", ",", "]")
           logDebug(s"Renew $shuffleId $changes  success.")
-          masterLocations.asScala
+          (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer)).distinct
       }
     replySuccess(newMasterLocations.toArray)
   }
