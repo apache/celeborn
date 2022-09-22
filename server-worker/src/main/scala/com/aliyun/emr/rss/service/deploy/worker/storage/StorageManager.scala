@@ -41,8 +41,7 @@ import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInf
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.util.PBSerDeUtils
+import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 
@@ -201,7 +200,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
-            val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
+            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue)
             logDebug("Reload DB: " + shuffleKey + " -> " + files)
             fileInfos.put(shuffleKey, files)
             fileInfosDb.delete(entry.getKey)
@@ -217,7 +216,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   def updateFileInfosInDB(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        fileInfosDb.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
+        fileInfosDb.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
         logDebug("Update DB: " + shuffleKey + " -> " + files)
       } catch {
         case exception: Exception =>

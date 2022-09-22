@@ -166,7 +166,7 @@ message PbRequestSlots {
   int32 storageType = 7;
 }
 
-message PbSlotInfo{
+message PbSlotInfo {
   map<string, int32> slot = 1;
 }
 
@@ -387,7 +387,7 @@ message PbFileInfo {
   repeated int64 chunkOffsets = 2;
 }
 
-message PBFileInfoMap {
+message PbFileInfoMap {
   map<string, PbFileInfo> values = 1;
 }
 
@@ -397,8 +397,8 @@ message PbUserIdentifier {
 }
 
 message PbResourceConsumption {
-   int64 diskBytesWritten = 1;
-   int64 diskFileCount = 2;
-   int64 hdfsBytesWritten = 3;
-   int64 hdfsFileCount = 4;
+  int64 diskBytesWritten = 1;
+  int64 diskFileCount = 2;
+  int64 hdfsBytesWritten = 3;
+  int64 hdfsFileCount = 4;
 }
