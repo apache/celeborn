@@ -385,10 +385,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
+          "datasource": "${DS_PROMETHEUS}",
           "expr": "metrics_OfferSlotsTime_Mean",
           "refId": "A"
         }
@@ -472,10 +469,7 @@
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
+          "datasource": "${DS_PROMETHEUS}",
           "expr": "metrics_OfferSlotsTime_Max",
           "refId": "A"
         }
