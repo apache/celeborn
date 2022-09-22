@@ -718,7 +718,18 @@ object ControlMessages extends Logging {
 
   case class ThreadDumpResponse(threadDump: String) extends Message
 
-  case class UserIdentifier(tenantId: String, name: String) extends Message
+  case class UserIdentifier(tenantId: String, name: String) extends Message {
+    override def toString: String = {
+      // TODO
+      super.toString
+    }
+  }
+
+  object UserIdentifier {
+    def apply(userIdentifier: String): UserIdentifier = {
+      UserIdentifier("mock", "mock")
+    }
+  }
 
   case class ResourceConsumption(
       diskBytesWritten: Long,

@@ -35,6 +35,7 @@ import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSou
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
+import com.aliyun.emr.rss.common.quota.QuotaManager
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.{HttpService, Service}
@@ -92,6 +93,8 @@ private[deploy] class Master(
   // Config constants
   private val WorkerTimeoutMs = RssConf.workerTimeoutMs(conf)
   private val ApplicationTimeoutMs = RssConf.applicationTimeoutMs(conf)
+  
+  private val userQuota = QuotaManager.instantiate(conf)
 
   // States
   private def workersSnapShot: util.List[WorkerInfo] =

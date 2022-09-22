@@ -28,6 +28,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type.{HDD, SSD}
+import com.aliyun.emr.rss.common.quota.DefaultQuotaManager
 import com.aliyun.emr.rss.common.util.Utils
 
 class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -820,6 +821,10 @@ object RssConf extends Logging {
 
   def identityProviderClass(conf: RssConf): String = {
     conf.get("rss.identity.provider", classOf[DefaultIdentityProvider].getName)
+  }
+
+  def quotaManagerClass(conf: RssConf): String = {
+    conf.get("rss.quota.manager", classOf[DefaultQuotaManager].getName)
   }
 
   def partitionSplitThreshold(conf: RssConf): Long = {
