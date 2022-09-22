@@ -177,7 +177,21 @@ public class RssShuffleManager implements ShuffleManager {
     }
   }
 
-  // Added in SPARK-32055, for Spark 3.1 and above
+  public <K, C> ShuffleReader<K, C> getReader(
+      ShuffleHandle handle,
+      int startPartition,
+      int endPartition,
+      TaskContext context) {
+    if (handle instanceof RssShuffleHandle) {
+      @SuppressWarnings("unchecked")
+      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
+      return new RssShuffleReader<>(
+          h, startPartition, endPartition, 0, Int.MaxValue(), context, rssConf);
+    }
+    return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
+  }
+
+  // remove override for compatibility
   public <K, C> ShuffleReader<K, C> getReader(
       ShuffleHandle handle,
       int startMapIndex,
@@ -199,20 +213,5 @@ public class RssShuffleManager implements ShuffleManager {
         startPartition,
         endPartition,
         context);
-  }
-
-  // Marked as final in SPARK-32055, reserved for Spark 3.0
-  public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startPartition,
-      int endPartition,
-      TaskContext context) {
-    if (handle instanceof RssShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
-          h, startPartition, endPartition, 0, Int.MaxValue(), context, rssConf);
-    }
-    return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
   }
 }
