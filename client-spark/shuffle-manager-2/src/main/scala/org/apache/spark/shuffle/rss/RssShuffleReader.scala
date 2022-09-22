@@ -59,7 +59,7 @@ class RssShuffleReader[K, C](
         readMetrics.incFetchWaitTime(time)
     }
 
-    val recordIter = (startPartition until endPartition).map(partitionId => {
+    val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMaps > 0) {
         val start = System.currentTimeMillis()
         val inputStream = essShuffleClient.readPartition(
@@ -77,7 +77,7 @@ class RssShuffleReader[K, C](
       } else {
         RssInputStream.empty()
       }
-    }).toIterator.flatMap(
+    }).flatMap(
       serializerInstance.deserializeStream(_).asKeyValueIterator)
 
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
