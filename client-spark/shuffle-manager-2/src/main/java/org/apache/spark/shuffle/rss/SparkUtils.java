@@ -112,10 +112,11 @@ public class SparkUtils {
   }
 
   public static String genNewAppId(SparkContext context) {
-    return context
-        .applicationAttemptId()
-        .map(id -> context.applicationId() + "_" + id)
-        .getOrElse(context::applicationId);
+    if (context.applicationAttemptId().isDefined()) {
+      return context.applicationId() + "_" + context.applicationAttemptId().get();
+    } else {
+      return context.applicationId();
+    }
   }
 
   // Create an instance of the class with the given name, possibly initializing it with our conf
