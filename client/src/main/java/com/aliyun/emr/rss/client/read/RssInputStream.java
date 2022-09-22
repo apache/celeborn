@@ -156,6 +156,9 @@ public abstract class RssInputStream extends InputStream {
 
     private PartitionLocation nextReadableLocation() {
       int locationCount = locations.length;
+      if (fileIndex >= locationCount) {
+        return null;
+      }
       PartitionLocation currentLocation = locations[fileIndex];
       while (skipLocation(startMapIndex, endMapIndex, currentLocation)) {
         fileIndex++;

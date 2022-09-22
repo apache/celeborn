@@ -190,9 +190,11 @@ public final class FileWriter implements DeviceObserver {
       return;
     }
 
-    byte[] headerBuf = new byte[16];
-    data.getBytes(0, headerBuf);
-    int mapId = Platform.getInt(headerBuf, Platform.BYTE_ARRAY_OFFSET);
+    byte[] header = new byte[16];
+    data.markReaderIndex();
+    data.readBytes(header);
+    data.resetReaderIndex();
+    int mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
 
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
