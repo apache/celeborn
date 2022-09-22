@@ -747,8 +747,8 @@ object RssConf extends Logging {
     conf.getBoolean("rss.force.fallback", false)
   }
 
-  def clusterCheckAliveEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.cluster.checkalive.enabled", defaultValue = true)
+  def clusterCheckQuotaEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
   }
 
   def deviceMonitorEnabled(conf: RssConf): Boolean = {

@@ -41,8 +41,8 @@ enum MessageType {
   HEARTBEAT_FROM_APPLICATION = 20;
   GET_BLACKLIST = 21;
   GET_BLACKLIST_RESPONSE = 22;
-  CHECK_ALIVE = 23;
-  CHECK_ALIVE_RESPONSE = 24;
+  CHECK_QUOTA = 23;
+  CHECK_QUOTA_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
   REGISTER_WORKER_RESPONSE = 26;
   REREGISTER_WORKER_RESPONSE = 27;
@@ -270,10 +270,12 @@ message PbGetBlacklistResponse {
   repeated PbWorkerInfo unknownWorkers = 3;
 }
 
-message PbCheckAlive {}
+message PbCheckQuota {
+  PbUserIdentifier userIdentifier = 1;
+}
 
-message PbCheckAliveResponse {
-  bool isAlive = 1;
+message PbCheckQuotaResponse {
+  bool available = 1;
 }
 
 message PbReportWorkerFailure {
