@@ -79,7 +79,7 @@ spec:
           - '-c'
           - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/rss-{{ .Values.rssVersion }}-bin-release/sbin/start-master.sh"
         resources:
-          {{- toYaml .Values.resources | nindent 12 }}
+          {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
           - containerPort: {{ .Values.service.port }}
           - containerPort: {{ get .Values.rss "rss.master.prometheus.metric.port" | default 9098 }}
