@@ -321,9 +321,9 @@ sealed trait Message extends Serializable {
           MessageType.CHECK_QUOTA,
           builder.build().toByteArray)
 
-      case CheckQuotaResponse(isAvailable) =>
+      case CheckQuotaResponse(available) =>
         val payload = PbCheckQuotaResponse.newBuilder()
-          .setIsAvailable(isAvailable)
+          .setAvailable(available)
           .build().toByteArray
         new TransportMessage(MessageType.CHECK_QUOTA_RESPONSE, payload)
 
@@ -950,7 +950,7 @@ object ControlMessages extends Logging {
       case CHECK_QUOTA_RESPONSE =>
         val pbCheckAvailableResponse = PbCheckQuotaResponse
           .parseFrom(message.getPayload)
-        CheckQuotaResponse(pbCheckAvailableResponse.getIsAvailable)
+        CheckQuotaResponse(pbCheckAvailableResponse.getAvailable)
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)

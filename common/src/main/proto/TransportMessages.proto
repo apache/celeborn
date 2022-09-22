@@ -275,7 +275,7 @@ message PbCheckQuota {
 }
 
 message PbCheckQuotaResponse {
-  bool isAvailable = 1;
+  bool available = 1;
 }
 
 message PbReportWorkerFailure {
