@@ -188,30 +188,4 @@ public class RssShuffleManager implements ShuffleManager {
     }
     return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
   }
-
-  // remove override for compatibility
-  public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startMapIndex,
-      int endMapIndex,
-      int startPartition,
-      int endPartition,
-      TaskContext context) {
-    if (handle instanceof RssShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
-          h, startPartition, endPartition, startMapIndex, endMapIndex, context, rssConf);
-    }
-    return SparkUtils.invokeGetReaderMethod(
-        sortShuffleManagerName,
-        "getReader",
-        sortShuffleManager(),
-        handle,
-        startMapIndex,
-        endMapIndex,
-        startPartition,
-        endPartition,
-        context);
-  }
 }

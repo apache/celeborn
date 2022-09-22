@@ -26,12 +26,8 @@ import scala.Tuple2;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
-import org.apache.spark.TaskContext;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
-import org.apache.spark.shuffle.ShuffleHandle;
-import org.apache.spark.shuffle.ShuffleReader;
-import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
@@ -138,43 +134,6 @@ public class SparkUtils {
           throw new RuntimeException(roe3);
         }
       }
-    }
-  }
-
-  // Invoke and return getReader method of SortShuffleManager
-  @SuppressWarnings("unchecked")
-  public static <K, C> ShuffleReader<K, C> invokeGetReaderMethod(
-      String className,
-      String methodName,
-      SortShuffleManager sortShuffleManager,
-      ShuffleHandle handle,
-      Integer startMapIndex,
-      Integer endMapIndex,
-      Integer startPartition,
-      Integer endPartition,
-      TaskContext context) {
-    Class<?> cls = Utils.classForName(className);
-    try {
-      Method method =
-          cls.getMethod(
-              methodName,
-              ShuffleHandle.class,
-              Integer.TYPE,
-              Integer.TYPE,
-              Integer.TYPE,
-              Integer.TYPE,
-              TaskContext.class);
-      return (ShuffleReader<K, C>)
-          method.invoke(
-              sortShuffleManager,
-              handle,
-              startMapIndex,
-              endMapIndex,
-              startPartition,
-              endPartition,
-              context);
-    } catch (ReflectiveOperationException roe1) {
-      throw new RuntimeException("Get getReader method failed.", roe1);
     }
   }
 }
