@@ -148,6 +148,8 @@ public class SparkUtils {
       String methodName,
       SortShuffleManager sortShuffleManager,
       ShuffleHandle handle,
+      Integer startMapIndex,
+      Integer endMapIndex,
       Integer startPartition,
       Integer endPartition,
       TaskContext context) {
@@ -155,9 +157,22 @@ public class SparkUtils {
     try {
       Method method =
           cls.getMethod(
-              methodName, ShuffleHandle.class, Integer.TYPE, Integer.TYPE, TaskContext.class);
+              methodName,
+              ShuffleHandle.class,
+              Integer.TYPE,
+              Integer.TYPE,
+              Integer.TYPE,
+              Integer.TYPE,
+              TaskContext.class);
       return (ShuffleReader<K, C>)
-          method.invoke(sortShuffleManager, handle, startPartition, endPartition, context);
+          method.invoke(
+              sortShuffleManager,
+              handle,
+              startMapIndex,
+              endMapIndex,
+              startPartition,
+              endPartition,
+              context);
     } catch (ReflectiveOperationException roe1) {
       throw new RuntimeException("Get getReader method failed.", roe1);
     }

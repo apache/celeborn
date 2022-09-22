@@ -20,6 +20,8 @@ package org.apache.spark.shuffle.rss;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
+import scala.Int;
+
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.shuffle.*;
@@ -30,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.client.ShuffleClient;
 import com.aliyun.emr.rss.client.write.LifecycleManager;
 import com.aliyun.emr.rss.common.RssConf;
-import scala.Int;
 
 public class RssShuffleManager implements ShuffleManager {
 
@@ -178,10 +179,7 @@ public class RssShuffleManager implements ShuffleManager {
   }
 
   public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startPartition,
-      int endPartition,
-      TaskContext context) {
+      ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
       @SuppressWarnings("unchecked")
       RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
@@ -210,6 +208,8 @@ public class RssShuffleManager implements ShuffleManager {
         "getReader",
         sortShuffleManager(),
         handle,
+        startMapIndex,
+        endMapIndex,
         startPartition,
         endPartition,
         context);
