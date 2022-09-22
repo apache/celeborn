@@ -194,7 +194,7 @@ public class ShuffleClientSuiteJ {
     conf.set("rss.client.compression.codec", codec.name());
     conf.set("rss.pushdata.retry.thread.num", "1");
     conf.set("rss.push.data.buffer.size", "1K");
-    shuffleClient = new ShuffleClientImpl(conf);
+    shuffleClient = new ShuffleClientImpl(conf, new ControlMessages.UserIdentifier("mock", "mock"));
 
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(

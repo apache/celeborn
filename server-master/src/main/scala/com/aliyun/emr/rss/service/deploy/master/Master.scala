@@ -111,7 +111,7 @@ private[deploy] class Master(
     new Runnable {
       override def run(): Unit = {
         statusSystem.handleUpdatePartitionSize()
-        logInfo(s"Cluster estimate partition size ${statusSystem.estimatedPartitionSize}")
+        logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
       }
     },
     partitionSizeUpdateInitialDelay,
@@ -509,7 +509,7 @@ private[deploy] class Master(
       requestId: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
-    logInfo(s"[handleReleaseSlots] Release all slots of $shuffleKey")
+    logInfo(s"Release all slots of $shuffleKey")
     context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
   }
 

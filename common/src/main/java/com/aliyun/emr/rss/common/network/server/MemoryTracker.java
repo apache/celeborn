@@ -21,21 +21,20 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.VM;
 
-import com.aliyun.emr.rss.common.network.util.ByteUnit;
 import com.aliyun.emr.rss.common.protocol.TransportModuleConstants;
+import com.aliyun.emr.rss.common.util.ThreadUtils;
+import com.aliyun.emr.rss.common.util.Utils;
 
 public class MemoryTracker {
   private static final Logger logger = LoggerFactory.getLogger(MemoryTracker.class);
@@ -48,23 +47,13 @@ public class MemoryTracker {
   private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
-      Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder()
-              .setNameFormat("MemoryTracker-check-thread")
-              .setDaemon(true)
-              .build());
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-tracker-check");
+
   private final ScheduledExecutorService reportService =
-      Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder()
-              .setNameFormat("MemoryTracker-report-thread")
-              .setDaemon(true)
-              .build());
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-tracker-report");
+
   private final ExecutorService actionService =
-      Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder()
-              .setNameFormat("MemoryTracker-action-thread")
-              .setDaemon(true)
-              .build());
+      ThreadUtils.newDaemonSingleThreadExecutor("memory-tracker-action");
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -188,27 +177,23 @@ public class MemoryTracker {
     reportService.scheduleWithFixedDelay(
         () ->
             logger.info(
-                "Direct memory usage: {}/{}MB, disk buffer size: {}MB, sort memory size: {}MB",
-                toMb(nettyMemoryCounter.get()),
-                toMb(maxDirectorMemory),
-                toMb(diskBufferCounter.get()),
-                toMb(sortMemoryCounter.get())),
+                "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}",
+                Utils.bytesToString(nettyMemoryCounter.get()),
+                Utils.bytesToString(maxDirectorMemory),
+                Utils.bytesToString(diskBufferCounter.get()),
+                Utils.bytesToString(sortMemoryCounter.get())),
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
 
     logger.info(
         "Memory tracker initialized with: "
-            + "max direct memory: {}MB, pause pushdata memory: {}MB, "
-            + "pause replication memory: {}MB, resume memory: {}MB",
-        toMb(maxDirectorMemory),
-        toMb(pausePushDataThreshold),
-        toMb(pauseReplicateThreshold),
-        toMb(resumeThreshold));
-  }
-
-  private long toMb(long bytes) {
-    return ByteUnit.BYTE.toMiB(bytes);
+            + "max direct memory: {}, pause pushdata memory: {}, "
+            + "pause replication memory: {}, resume memory: {}",
+        Utils.bytesToString(maxDirectorMemory),
+        Utils.bytesToString(pausePushDataThreshold),
+        Utils.bytesToString(pauseReplicateThreshold),
+        Utils.bytesToString(resumeThreshold));
   }
 
   private void initDirectMemoryIndicator() {

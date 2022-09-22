@@ -17,9 +17,10 @@
 
 package com.aliyun.emr.rss.common.metrics.source
 
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
 
 import com.codahale.metrics._
@@ -27,11 +28,11 @@ import com.codahale.metrics._
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.metrics.{ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
-import com.aliyun.emr.rss.common.util.ThreadUtils
+import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 case class NamedCounter(name: String, counter: Counter)
 
-case class NamedGauge[T](name: String, gaurge: Gauge[T])
+case class NamedGauge[T](name: String, gauge: Gauge[T])
 
 case class NamedHistogram(name: String, histogram: Histogram)
 
@@ -53,7 +54,8 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
 
   val timerSupplier = new TimerSupplier(slidingWindowSize)
 
-  val metricsClear = ThreadUtils.newDaemonSingleThreadExecutor(s"worker-metrics-clearer")
+  val metricsCleaner: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"worker-metrics-cleaner")
 
   protected val namedGauges: java.util.List[NamedGauge[_]] =
     new java.util.ArrayList[NamedGauge[_]]()
@@ -140,7 +142,7 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
     if (pair != null) {
       pair._2.put(key, System.nanoTime())
     } else {
-      logWarning(s"Metric $metricsName Not Found!")
+      logWarning(s"Metric $metricsName not found!")
     }
   }
 
@@ -167,7 +169,7 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
     if (counter != null) {
       counter.counter.inc(incV)
     } else {
-      logWarning(s"Metric $metricsName Not Found!")
+      logWarning(s"Metric $metricsName not found!")
     }
   }
 
@@ -187,19 +189,12 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
   }
 
   protected def startCleaner(): Unit = {
-    metricsClear.submit(new Runnable {
-      override def run(): Unit = {
-        while (true) {
-          try {
-            namedTimers.values().asScala.toList.map(_._2).foreach(map => clearOldValues(map))
-          } catch {
-            case t: Throwable => logError(s"clearer quit with $t")
-          } finally {
-            Thread.sleep(600000 /* 10min */ )
-          }
-        }
+    val cleanTask: Runnable = new Runnable {
+      override def run(): Unit = Utils.tryLogNonFatalError {
+        namedTimers.values.asScala.toArray.map(_._2).foreach(clearOldValues)
       }
-    })
+    }
+    metricsCleaner.scheduleWithFixedDelay(cleanTask, 10, 10, TimeUnit.MINUTES)
   }
 
   private def updateInnerMetrics(str: String): Unit = {
@@ -212,29 +207,21 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
   }
 
   def recordCounter(nc: NamedCounter): Unit = {
-    val timestamp = System.currentTimeMillis()
-    val sb = new StringBuilder
-    sb.append(s"${normalizeKey(nc.name)}Count$label ${nc.counter.getCount} $timestamp\n")
-
-    updateInnerMetrics(sb.toString())
+    val timestamp = System.currentTimeMillis
+    updateInnerMetrics(s"${normalizeKey(nc.name)}Count$label ${nc.counter.getCount} $timestamp\n")
   }
 
   def recordGauge(ng: NamedGauge[_]): Unit = {
-    val timestamp = System.currentTimeMillis()
-    val sb = new StringBuilder
-    sb.append(s"${normalizeKey(ng.name)}Value$label ${ng.gaurge.getValue} $timestamp\n")
-
-    updateInnerMetrics(sb.toString())
+    val timestamp = System.currentTimeMillis
+    updateInnerMetrics(s"${normalizeKey(ng.name)}Value$label ${ng.gauge.getValue} $timestamp\n")
   }
 
   def recordHistogram(nh: NamedHistogram): Unit = {
-    val timestamp = System.currentTimeMillis()
-    val sb = new StringBuilder
-    val metricName = nh.name
-    val h = nh.histogram
-    val snapshot = h.getSnapshot
-    val prefix = normalizeKey(metricName)
-    sb.append(s"${prefix}Count$label ${h.getCount} $timestamp\n")
+    val timestamp = System.currentTimeMillis
+    val sb = new mutable.StringBuilder
+    val snapshot = nh.histogram.getSnapshot
+    val prefix = normalizeKey(nh.name)
+    sb.append(s"${prefix}Count$label ${nh.histogram.getCount} $timestamp\n")
     sb.append(s"${prefix}Max$label ${reportNanosAsMills(snapshot.getMax)} $timestamp\n")
     sb.append(s"${prefix}Mean$label ${reportNanosAsMills(snapshot.getMean)} $timestamp\n")
     sb.append(s"${prefix}Min$label ${reportNanosAsMills(snapshot.getMin)} $timestamp\n")
@@ -255,8 +242,8 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
   }
 
   def recordTimer(nt: NamedTimer): Unit = {
-    val timestamp = System.currentTimeMillis()
-    val sb = new StringBuilder
+    val timestamp = System.currentTimeMillis
+    val sb = new mutable.StringBuilder
     val snapshot = nt.timer.getSnapshot
     val prefix = normalizeKey(nt.name)
     sb.append(s"${prefix}Count$label ${nt.timer.getCount} $timestamp\n")
@@ -292,7 +279,7 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
       t.timer.asInstanceOf[RssTimer].reservoir
         .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
-    val sb = new StringBuilder
+    val sb = new mutable.StringBuilder
     innerMetrics.synchronized {
       while (!innerMetrics.isEmpty) {
         sb.append(innerMetrics.poll())
