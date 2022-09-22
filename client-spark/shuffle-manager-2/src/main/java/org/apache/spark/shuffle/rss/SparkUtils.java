@@ -100,9 +100,7 @@ public class SparkUtils {
     return res;
   }
 
-  /**
-   * make rss conf from spark conf
-   */
+  /** make rss conf from spark conf */
   public static RssConf fromSparkConf(SparkConf conf) {
     RssConf tmpRssConf = new RssConf();
     for (Tuple2<String, String> kv : conf.getAll()) {
@@ -156,18 +154,9 @@ public class SparkUtils {
     try {
       Method method =
           cls.getMethod(
-              methodName,
-              ShuffleHandle.class,
-              Integer.TYPE,
-              Integer.TYPE,
-              TaskContext.class);
+              methodName, ShuffleHandle.class, Integer.TYPE, Integer.TYPE, TaskContext.class);
       return (ShuffleReader<K, C>)
-          method.invoke(
-              sortShuffleManager,
-              handle,
-              startPartition,
-              endPartition,
-              context);
+          method.invoke(sortShuffleManager, handle, startPartition, endPartition, context);
     } catch (ReflectiveOperationException roe1) {
       throw new RuntimeException("Get getReader method failed.", roe1);
     }
