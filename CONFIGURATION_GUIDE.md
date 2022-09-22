@@ -37,11 +37,13 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs * que
 | spark.rss.limit.inflight.timeout | 240s | Timeout for netty in-flight requests to be done. |
 | spark.rss.fetch.chunk.timeout | 120s | Timeout for a task to fetch chunk. |
 | spark.rss.fetch.chunk.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. |
-| spark.rss.data.io.threads | 8 | Amount of thread count for task to push data.  |
+| spark.rss.data.io.threads | 8 | Amount of thread count for task to push data. |
 | spark.rss.push.data.replicate | true | When true the RSS worker will replicate shuffle data to another RSS worker to ensure shuffle data won't be lost after the node failure. |
 | spark.rss.application.heartbeatInterval | 10s | Application heartbeat interval. |
 | spark.rss.stage.end.timeout | 240s | Time out for StageEnd. |
 | spark.rss.shuffle.writer.mode | hash | RSS support two different shuffle writers. Hash-based shuffle writer works fine when shuffle partition count is normal. Sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. |
+| spark.rss.client.compression.codec |   lz4   | The codec used to compress shuffle data. By default, RSS provides two codecs: `lz4` and `zstd`. |
+| spark.rss.client.compression.zstd.level | 1 | Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory. |
 
 ### RSS Master Configurations
 
