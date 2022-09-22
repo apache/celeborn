@@ -89,7 +89,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
       case _: ReportWorkerFailure =>
         incCounter(RPCReportWorkerFailureNum)
         incCounter(RPCReportWorkerFailureSize, messageLen)
-      case CheckAlive =>
+      case CheckAvailable =>
         incCounter(RPCCheckAliveNum)
       case _ => // Do nothing
     }

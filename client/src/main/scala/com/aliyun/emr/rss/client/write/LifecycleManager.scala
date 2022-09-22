@@ -1348,9 +1348,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     blacklist.addAll(failedWorker)
   }
 
-  def checkAlive(): Boolean = {
+  def checkAvaliable(): Boolean = {
     try {
-      rssHARetryClient.askSync[CheckAliveResponse](CheckAlive, classOf[CheckAliveResponse]).alive
+      rssHARetryClient.askSync[CheckAvailableResponse](
+        CheckAvailable(userIdentifier),
+        classOf[CheckAvailableResponse]).isAvailable
     } catch {
       case e: Exception =>
         logError(s"AskSync Cluster Load Status failed.", e)
