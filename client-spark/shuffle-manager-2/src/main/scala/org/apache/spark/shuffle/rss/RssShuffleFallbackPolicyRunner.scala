@@ -59,12 +59,12 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    *
    * @return if rss cluster usage of current user's percent is overhead the limit
    */
-  def checkQuota(lifeCycleManager: LifecycleManager): Boolean = {
+  def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
     if (!RssConf.clusterCheckQuotaEnabled(rssConf)) {
       return true
     }
 
-    val available = lifeCycleManager.checkQuota()
+    val available = lifecycleManager.checkQuota()
     if (!available) {
       logWarning(s"Cluster is not alive!")
     }
