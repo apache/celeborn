@@ -11,5 +11,4 @@ class RssConfSuite extends RssFunSuite{
     assert("localhost1,localhost2" == haMasterHosts(conf))
     assert(9097 == masterPort(conf))
   }
-
 }

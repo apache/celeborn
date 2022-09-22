@@ -36,7 +36,7 @@ import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.client.compress.RssLz4Compressor;
+import com.aliyun.emr.rss.client.compress.Compressor;
 import com.aliyun.emr.rss.client.read.RssInputStream;
 import com.aliyun.emr.rss.client.write.DataBatches;
 import com.aliyun.emr.rss.client.write.PushState;
@@ -99,11 +99,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final ExecutorService partitionSplitPool;
   private final Map<Integer, Set<Integer>> splitting = new ConcurrentHashMap<>();
 
-  ThreadLocal<RssLz4Compressor> lz4CompressorThreadLocal = new ThreadLocal<RssLz4Compressor>() {
+  ThreadLocal<Compressor> compressorThreadLocal = new ThreadLocal<Compressor>() {
     @Override
-    protected RssLz4Compressor initialValue() {
-      int blockSize = RssConf.pushDataBufferSize(conf);
-      return new RssLz4Compressor(blockSize);
+    protected Compressor initialValue() {
+      return Compressor.getCompressor(conf);
     }
   };
 
@@ -439,7 +438,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int nextBatchId = pushState.batchId.addAndGet(1);
 
     // compress data
-    final RssLz4Compressor compressor = lz4CompressorThreadLocal.get();
+    final Compressor compressor = compressorThreadLocal.get();
     compressor.compress(data, offset, length);
 
     final int compressedTotalSize = compressor.getCompressedTotalSize();
