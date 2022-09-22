@@ -310,22 +310,22 @@ sealed trait Message extends Serializable {
         val payload = builder.build().toByteArray
         new TransportMessage(MessageType.GET_BLACKLIST_RESPONSE, payload)
 
-      case CheckAvailable(userIdentifier) =>
-        val builder = PbCheckAvailable.newBuilder()
+      case CheckQuota(userIdentifier) =>
+        val builder = PbCheckQuota.newBuilder()
           .setUserIdentifier(
             PbUserIdentifier
               .newBuilder()
               .setTenantId(userIdentifier.tenantId)
               .setName(userIdentifier.name))
         new TransportMessage(
-          MessageType.CHECK_AVAILABLE,
+          MessageType.CHECK_QUOTA,
           builder.build().toByteArray)
 
-      case CheckAvailableResponse(isAvailable) =>
-        val payload = PbCheckAvailableResponse.newBuilder()
+      case CheckQuotaResponse(isAvailable) =>
+        val payload = PbCheckQuotaResponse.newBuilder()
           .setIsAvailable(isAvailable)
           .build().toByteArray
-        new TransportMessage(MessageType.CHECK_AVAILABLE_RESPONSE, payload)
+        new TransportMessage(MessageType.CHECK_QUOTA_RESPONSE, payload)
 
       case ReportWorkerFailure(failed, requestId) =>
         val payload = PbReportWorkerFailure.newBuilder()
@@ -645,9 +645,9 @@ object ControlMessages extends Logging {
       blacklist: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo]) extends Message
 
-  case class CheckAvailable(userIdentifier: UserIdentifier) extends Message
+  case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
-  case class CheckAvailableResponse(isAvailable: Boolean) extends Message
+  case class CheckQuotaResponse(isAvailable: Boolean) extends Message
 
   case class ReportWorkerFailure(
       failed: util.List[WorkerInfo],
@@ -940,17 +940,17 @@ object ControlMessages extends Logging {
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
             .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
 
-      case CHECK_AVAILABLE =>
-        val pbCheckAvailable = PbCheckAvailable.parseFrom(message.getPayload)
-        CheckAvailable(
+      case CHECK_QUOTA =>
+        val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
+        CheckQuota(
           UserIdentifier(
             pbCheckAvailable.getUserIdentifier.getTenantId,
             pbCheckAvailable.getUserIdentifier.getName))
 
-      case CHECK_AVAILABLE_RESPONSE =>
-        val pbCheckAvailableResponse = PbCheckAvailableResponse
+      case CHECK_QUOTA_RESPONSE =>
+        val pbCheckAvailableResponse = PbCheckQuotaResponse
           .parseFrom(message.getPayload)
-        CheckAvailableResponse(pbCheckAvailableResponse.getIsAvailable)
+        CheckQuotaResponse(pbCheckAvailableResponse.getIsAvailable)
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)

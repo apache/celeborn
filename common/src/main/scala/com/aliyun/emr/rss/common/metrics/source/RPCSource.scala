@@ -50,7 +50,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
   addCounter(RPCGetBlacklistNum)
   addCounter(RPCReportWorkerFailureNum)
   addCounter(RPCReportWorkerFailureSize)
-  addCounter(RPCCheckAliveNum)
+  addCounter(RPCCheckQuotaNum)
 
   def updateMessageMetrics(message: Any, messageLen: Long): Unit = {
     message match {
@@ -89,8 +89,8 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
       case _: ReportWorkerFailure =>
         incCounter(RPCReportWorkerFailureNum)
         incCounter(RPCReportWorkerFailureSize, messageLen)
-      case CheckAvailable =>
-        incCounter(RPCCheckAliveNum)
+      case CheckQuota =>
+        incCounter(RPCCheckQuotaNum)
       case _ => // Do nothing
     }
   }
@@ -121,5 +121,5 @@ object RPCSource {
   val RPCGetBlacklistNum = "RPCGetBlacklistNum"
   val RPCReportWorkerFailureNum = "RPCReportWorkerFailureNum"
   val RPCReportWorkerFailureSize = "RPCReportWorkerFailureSize"
-  val RPCCheckAliveNum = "RPCCheckAliveNum"
+  val RPCCheckQuotaNum = "RPCCheckQuotaNum"
 }
