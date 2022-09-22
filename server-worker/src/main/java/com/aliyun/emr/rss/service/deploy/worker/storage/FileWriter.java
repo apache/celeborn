@@ -193,11 +193,11 @@ public final class FileWriter implements DeviceObserver {
     byte[] headerBuf = new byte[16];
     data.getBytes(0, headerBuf);
     int mapId = Platform.getInt(headerBuf, Platform.BYTE_ARRAY_OFFSET);
-    mapIdBitMap.add(mapId);
 
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
+      mapIdBitMap.add(mapId);
       if (flushBuffer.readableBytes() != 0
           && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
@@ -212,7 +212,6 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public RoaringBitmap getMapIdBitMap() {
-    mapIdBitMap.runOptimize();
     return mapIdBitMap;
   }
 
