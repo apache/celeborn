@@ -27,7 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.protocol.*;
 
-public class PBSerDeUtils {
+public class PbSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)
       throws InvalidProtocolBufferException {
     PbSortedShuffleFileSet pbSortedShuffleFileSet = PbSortedShuffleFileSet.parseFrom(data);
@@ -72,7 +72,7 @@ public class PBSerDeUtils {
 
   public static ConcurrentHashMap<String, FileInfo> fromPbFileInfoMap(byte[] data)
       throws InvalidProtocolBufferException {
-    PBFileInfoMap pbFileInfoMap = PBFileInfoMap.parseFrom(data);
+    PbFileInfoMap pbFileInfoMap = PbFileInfoMap.parseFrom(data);
     ConcurrentHashMap<String, FileInfo> fileInfoMap = new ConcurrentHashMap<>();
     for (Map.Entry<String, PbFileInfo> entry : pbFileInfoMap.getValuesMap().entrySet()) {
       fileInfoMap.put(entry.getKey(), fromPbFileInfo(entry.getValue()));
@@ -81,7 +81,7 @@ public class PBSerDeUtils {
   }
 
   public static byte[] toPbFileInfoMap(ConcurrentHashMap<String, FileInfo> fileInfoMap) {
-    PBFileInfoMap.Builder builder = PBFileInfoMap.newBuilder();
+    PbFileInfoMap.Builder builder = PbFileInfoMap.newBuilder();
     ConcurrentHashMap<String, PbFileInfo> pbFileInfoMap = new ConcurrentHashMap<>();
     for (Map.Entry<String, FileInfo> entry : fileInfoMap.entrySet()) {
       pbFileInfoMap.put(entry.getKey(), toPbFileInfo(entry.getValue()));
