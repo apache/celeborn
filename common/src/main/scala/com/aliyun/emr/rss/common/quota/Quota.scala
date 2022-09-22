@@ -21,17 +21,17 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
 class Quota(
-  var diskBytesWritten: Long = -1,
-  var diskFileCount: Long = -1,
-  var hdfsBytesWritten: Long = -1,
-  var hdfsFileCount: Long = -1) extends Logging{
+    var diskBytesWritten: Long = -1,
+    var diskFileCount: Long = -1,
+    var hdfsBytesWritten: Long = -1,
+    var hdfsFileCount: Long = -1) extends Logging {
 
   def update(userIdentifier: UserIdentifier, name: String, value: Long): Unit = {
     name match {
       case "diskBytesWritten" => diskBytesWritten = value
       case "diskFileCount" => diskFileCount = value
       case "hdfsBytesWritten" => hdfsBytesWritten = value
-      case "hdfsFileCount" => hdfsFileCount  = value
+      case "hdfsFileCount" => hdfsFileCount = value
       case _ => logWarning(s"Unsupported quota name: $name for user: $userIdentifier.")
     }
   }

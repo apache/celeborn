@@ -93,7 +93,7 @@ private[deploy] class Master(
   // Config constants
   private val WorkerTimeoutMs = RssConf.workerTimeoutMs(conf)
   private val ApplicationTimeoutMs = RssConf.applicationTimeoutMs(conf)
-  
+
   private val userQuota = QuotaManager.instantiate(conf)
 
   // States
