@@ -246,7 +246,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
-      rangeReadFilter:Boolean): FileWriter = {
+      rangeReadFilter: Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0) {
       throw new IOException("No available working dirs!")
     }

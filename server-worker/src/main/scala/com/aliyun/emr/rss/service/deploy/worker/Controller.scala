@@ -127,7 +127,7 @@ private[deploy] class Controller(
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
-      rangeReadFileter:Boolean): Unit = {
+      rangeReadFileter: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
