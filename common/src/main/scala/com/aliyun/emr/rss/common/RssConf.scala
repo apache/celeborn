@@ -972,6 +972,10 @@ object RssConf extends Logging {
     conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
   }
 
+  def rangeReadFilterEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.range.read.filter.enabled", true)
+  }
+
   // If we want to use multi-raft group we can
   // add "rss.ha.service.ids" each for one raft group
   val HA_SERVICE_ID_KEY = "rss.ha.service.id"

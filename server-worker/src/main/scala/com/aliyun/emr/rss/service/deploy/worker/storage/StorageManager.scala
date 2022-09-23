@@ -245,7 +245,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       location: PartitionLocation,
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType): FileWriter = {
+      partitionType: PartitionType,
+      rangeReadFilter:Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0) {
       throw new IOException("No available working dirs!")
     }
@@ -281,7 +282,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFilter)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.synchronized {
           hdfsWriters.add(hdfsWriter)
@@ -309,7 +311,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
             deviceMonitor,
             splitThreshold,
             splitMode,
-            partitionType)
+            partitionType,
+            rangeReadFilter)
           deviceMonitor.registerFileWriter(fileWriter)
           val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           list.synchronized {

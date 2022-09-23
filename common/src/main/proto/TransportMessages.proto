@@ -301,6 +301,7 @@ message PbReserveSlots {
   int64 splitThreshold = 5;
   int32 splitMode = 6;
   int32 partitionType = 7;
+  bool rangeReadFilter = 8;
 }
 
 message PbReserveSlotsResponse {

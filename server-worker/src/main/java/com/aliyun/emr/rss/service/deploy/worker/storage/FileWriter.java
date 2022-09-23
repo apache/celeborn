@@ -76,6 +76,7 @@ public final class FileWriter implements DeviceObserver {
   private long splitThreshold = 0;
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
+  private final boolean rangeReadFilter;
 
   private Runnable destroyHook;
   private boolean deleted = false;
@@ -100,7 +101,8 @@ public final class FileWriter implements DeviceObserver {
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      PartitionType partitionType)
+      PartitionType partitionType,
+      boolean rangeReadFilter)
       throws IOException {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
@@ -113,6 +115,7 @@ public final class FileWriter implements DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
+    this.rangeReadFilter = rangeReadFilter;
     if (!fileInfo.isHdfs()) {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
@@ -190,16 +193,21 @@ public final class FileWriter implements DeviceObserver {
       return;
     }
 
-    byte[] header = new byte[16];
-    data.markReaderIndex();
-    data.readBytes(header);
-    data.resetReaderIndex();
-    int mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
+    int mapId = 0;
+    if (rangeReadFilter) {
+      byte[] header = new byte[16];
+      data.markReaderIndex();
+      data.readBytes(header);
+      data.resetReaderIndex();
+      mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
+    }
 
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
-      mapIdBitMap.add(mapId);
+      if (rangeReadFilter) {
+        mapIdBitMap.add(mapId);
+      }
       if (flushBuffer.readableBytes() != 0
           && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);

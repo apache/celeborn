@@ -50,6 +50,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
+  private val rangeReadFilter = RssConf.rangeReadFilterEnabled(conf)
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = RssConf.stageEndTimeout(conf)
 
@@ -899,7 +900,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             slaveLocations,
             splitThreshold,
             splitMode,
-            partitionType))
+            partitionType,
+            rangeReadFilter))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +

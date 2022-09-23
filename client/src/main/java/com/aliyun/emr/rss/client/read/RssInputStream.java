@@ -112,6 +112,7 @@ public abstract class RssInputStream extends InputStream {
     // mapId, attemptId, batchId, size
     private final int BATCH_HEADER_SIZE = 4 * 4;
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
+    private final boolean rangeReadFilter;
 
     RssInputStreamImpl(
         RssConf conf,
@@ -131,6 +132,7 @@ public abstract class RssInputStream extends InputStream {
       this.attemptNumber = attemptNumber;
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
+      this.rangeReadFilter = RssConf.rangeReadFilterEnabled(conf);
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = RssConf.pushDataBufferSize(conf) + headerLen;
@@ -143,6 +145,9 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
+      if (!rangeReadFilter) {
+        return true;
+      }
       if (endMapIndex == Integer.MAX_VALUE) {
         return false;
       }
