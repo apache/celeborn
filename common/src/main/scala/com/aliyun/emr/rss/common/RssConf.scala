@@ -973,7 +973,7 @@ object RssConf extends Logging {
   }
 
   def rangeReadFilterEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.range.read.filter.enabled", true)
+    conf.getBoolean("rss.range.read.filter.enabled", false)
   }
 
   // If we want to use multi-raft group we can
