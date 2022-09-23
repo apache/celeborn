@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.client.read;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.atomic.LongAdder;
 
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -112,6 +113,7 @@ public abstract class RssInputStream extends InputStream {
     // mapId, attemptId, batchId, size
     private final int BATCH_HEADER_SIZE = 4 * 4;
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
+    private LongAdder skipCount = new LongAdder();
 
     RssInputStreamImpl(
         RssConf conf,
@@ -161,6 +163,7 @@ public abstract class RssInputStream extends InputStream {
       }
       PartitionLocation currentLocation = locations[fileIndex];
       while (skipLocation(startMapIndex, endMapIndex, currentLocation)) {
+        skipCount.increment();
         fileIndex++;
         if (fileIndex == locationCount) {
           return null;
@@ -273,6 +276,12 @@ public abstract class RssInputStream extends InputStream {
 
     @Override
     public void close() {
+      int locationsCount = locations.length;
+      logger.info(
+          "total location count {} read {} skip {}",
+          locationsCount,
+          locationsCount - skipCount.sum(),
+          skipCount.sum());
       if (currentChunk != null) {
         logger.debug("Release chunk {}", currentChunk);
         currentChunk.release();
