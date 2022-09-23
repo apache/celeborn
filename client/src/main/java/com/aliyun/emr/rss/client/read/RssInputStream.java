@@ -148,7 +148,7 @@ public abstract class RssInputStream extends InputStream {
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
       if (!rangeReadFilter) {
-        return true;
+        return false;
       }
       if (endMapIndex == Integer.MAX_VALUE) {
         return false;
