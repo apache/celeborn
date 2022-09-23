@@ -222,7 +222,11 @@ abstract class AbstractSource(essConf: RssConf, role: String)
   def recordGauge(ng: NamedGauge[_]): Unit = {
     val timestamp = System.currentTimeMillis()
     val sb = new StringBuilder
-    sb.append(s"${normalizeKey(ng.name)}Value$label ${ng.gaurge.getValue} $timestamp\n")
+    if (ng.gaurge == null) {
+      sb.append(s"${normalizeKey(ng.name)}Value$label 0 $timestamp\n")
+    } else {
+      sb.append(s"${normalizeKey(ng.name)}Value$label ${ng.gaurge.getValue} $timestamp\n")
+    }
 
     updateInnerMetrics(sb.toString())
   }

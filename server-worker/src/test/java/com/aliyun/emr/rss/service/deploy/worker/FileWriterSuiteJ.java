@@ -212,7 +212,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, false);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -247,7 +247,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, false);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -286,7 +286,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileWriter writer = new FileWriter(file, flusher, file.getParentFile(), CHUNK_SIZE,
       FLUSH_BUFFER_SIZE_LIMIT, source, new RssConf(),
-      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode);
+      DeviceMonitor$.MODULE$.EmptyMonitor(), SPLIT_THRESHOLD, splitMode, false);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");

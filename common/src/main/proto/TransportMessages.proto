@@ -68,6 +68,7 @@ message PbPartitionLocation {
   int32 replicatePort = 8;
   PbPartitionLocation peer = 9;
   int32 storageHintOrdinal = 10;
+  bytes mapIdBitmap = 11;
 }
 
 message PbWorkerResource {
@@ -263,6 +264,7 @@ message PbReserveSlots {
   int64 splitThreshold = 5;
   int32 splitMode = 6;
   int32 storageHintOrdinal = 7;
+  bool rangeReadFilter = 8;
 }
 
 message PbReserveSlotsResponse {
@@ -284,6 +286,7 @@ message PbCommitFilesResponse {
   repeated string committedSlaveIds = 3;
   repeated string failedMasterIds = 4;
   repeated string failedSlaveIds = 5;
+  map<string, bytes> mapIdBitmap = 10;
 }
 
 message PbDestroy {

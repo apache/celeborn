@@ -31,6 +31,7 @@ import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,7 @@ import com.aliyun.emr.rss.common.exception.AlreadyClosedException;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
+import com.aliyun.emr.rss.common.unsafe.Platform;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -74,6 +76,8 @@ public final class FileWriter extends DeviceObserver {
   private long splitThreshold = 0;
   private final AtomicBoolean splitted = new AtomicBoolean(false);
   private final PartitionSplitMode splitMode;
+  private final boolean rangeReadFilter;
+  private RoaringBitmap mapIdBitMap = null;
 
   @Override
   public void notifyError(String deviceName, ListBuffer<File> dirs,
@@ -117,7 +121,8 @@ public final class FileWriter extends DeviceObserver {
       RssConf rssConf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
-      PartitionSplitMode splitMode) throws IOException {
+      PartitionSplitMode splitMode,
+      boolean rangeReadFilter) throws IOException {
     this.file = file;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
@@ -130,9 +135,13 @@ public final class FileWriter extends DeviceObserver {
     this.flushBufferSize = flushBufferSize;
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
+    this.rangeReadFilter = rangeReadFilter;
     channel = new FileOutputStream(file).getChannel();
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
+    if (rangeReadFilter) {
+      this.mapIdBitMap = new RoaringBitmap();
+    }
     takeBuffer();
   }
 
@@ -202,9 +211,21 @@ public final class FileWriter extends DeviceObserver {
       return;
     }
 
+    int mapId = 0;
+    if (rangeReadFilter) {
+      byte[] header = new byte[16];
+      data.markReaderIndex();
+      data.readBytes(header);
+      data.resetReaderIndex();
+      mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
+    }
+
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
+      if (rangeReadFilter) {
+        mapIdBitMap.add(mapId);
+      }
       if (flushBuffer.readableBytes() != 0 &&
         flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
@@ -216,6 +237,10 @@ public final class FileWriter extends DeviceObserver {
 
       numPendingWrites.decrementAndGet();
     }
+  }
+
+  public RoaringBitmap getMapIdBitMap() {
+    return mapIdBitMap;
   }
 
   public long close() throws IOException {

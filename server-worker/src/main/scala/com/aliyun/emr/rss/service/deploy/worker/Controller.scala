@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.IOException
-import java.util.{ArrayList => jArrayList, List => jList}
+import java.util.{ArrayList => jArrayList, List => jList, HashMap => jHashMap}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
@@ -27,6 +27,7 @@ import scala.collection.JavaConverters._
 
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import io.netty.util.internal.ConcurrentSet
+import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
@@ -69,14 +70,14 @@ private[deploy] class Controller(
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations, splitThreashold,
-    splitMode, storageHint) =>
+    splitMode, storageHint, rangeReadFileter: Boolean) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
         handleReserveSlots(context, applicationId, shuffleId, masterLocations,
-          slaveLocations, splitThreashold, splitMode, storageHint)
+          slaveLocations, splitThreashold, splitMode, storageHint, rangeReadFileter)
         logDebug(s"ReserveSlots for $shuffleKey succeed.")
       }
 
@@ -110,7 +111,8 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      storageHint: StorageHint): Unit = {
+      storageHint: StorageHint,
+      rangeReadFilter: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (!localStorageManager.hasAvailableWorkingDirs) {
       val msg = "Local storage has no available dirs!"
@@ -123,7 +125,7 @@ private[deploy] class Controller(
       for (ind <- 0 until masterLocations.size()) {
         val location = masterLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId, location,
-          splitThreshold, splitMode)
+          splitThreshold, splitMode, rangeReadFilter)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -143,7 +145,7 @@ private[deploy] class Controller(
       for (ind <- 0 until slaveLocations.size()) {
         val location = slaveLocations.get(ind)
         val writer = localStorageManager.createWriter(applicationId, shuffleId,
-          location, splitThreshold, splitMode)
+          location, splitThreshold, splitMode, rangeReadFilter)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -173,6 +175,7 @@ private[deploy] class Controller(
       uniqueIds: jList[String],
       committedIds: ConcurrentSet[String],
       failedIds: ConcurrentSet[String],
+      committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
 
@@ -195,6 +198,9 @@ private[deploy] class Controller(
               val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
               val bytes = fileWriter.close()
               if (bytes > 0L) {
+                if (fileWriter.getMapIdBitMap != null) {
+                  committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
+                }
                 committedIds.add(uniqueId)
               }
             } catch {
@@ -227,7 +233,7 @@ private[deploy] class Controller(
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(CommitFilesResponse(
         StatusCode.ShuffleNotRegistered, List.empty.asJava, List.empty.asJava,
-        masterIds, slaveIds))
+        masterIds, slaveIds, Map.empty[String, RoaringBitmap].asJava))
       return
     }
 
@@ -239,9 +245,12 @@ private[deploy] class Controller(
     val committedSlaveIds = new ConcurrentSet[String]()
     val failedMasterIds = new ConcurrentSet[String]()
     val failedSlaveIds = new ConcurrentSet[String]()
+    val committedMapIdBitMap = new ConcurrentHashMap[String, RoaringBitmap]()
 
-    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds, failedMasterIds)
-    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds, failedSlaveIds, false)
+    val masterFuture = commitFiles(shuffleKey, masterIds, committedMasterIds,
+      failedMasterIds, committedMapIdBitMap)
+    val slaveFuture = commitFiles(shuffleKey, slaveIds, committedSlaveIds,
+      failedSlaveIds, committedMapIdBitMap, false)
 
     val future = if (masterFuture != null && slaveFuture != null) {
       CompletableFuture.allOf(masterFuture, slaveFuture)
@@ -264,18 +273,20 @@ private[deploy] class Controller(
       val committedSlaveIdList = new jArrayList[String](committedSlaveIds)
       val failedMasterIdList = new jArrayList[String](failedMasterIds)
       val failedSlaveIdList = new jArrayList[String](failedSlaveIds)
+      val committedMapIdBitMapList = new jHashMap[String, RoaringBitmap](committedMapIdBitMap)
       // reply
       if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
         context.reply(CommitFilesResponse(
           StatusCode.Success, committedMasterIdList, committedSlaveIdList,
-          List.empty.asJava, List.empty.asJava))
+          List.empty.asJava, List.empty.asJava, committedMapIdBitMapList))
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
         context.reply(CommitFilesResponse(StatusCode.PartialSuccess, committedMasterIdList,
-          committedSlaveIdList, failedMasterIdList, failedSlaveIdList))
+          committedSlaveIdList, failedMasterIdList,
+          failedSlaveIdList, Map.empty[String, RoaringBitmap].asJava))
       }
     }
 

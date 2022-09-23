@@ -22,6 +22,8 @@ import java.util.UUID
 
 import scala.collection.JavaConverters._
 
+import org.roaringbitmap.RoaringBitmap
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
@@ -304,7 +306,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REREGISTER_WORKER_RESPONSE, payload)
 
       case ReserveSlots(applicationId, shuffleId, masterLocations, slaveLocations,
-      splitThreshold, splitMode, storageHint) =>
+      splitThreshold, splitMode, storageHint, rangeReadFilter) =>
         val payload = TransportMessages.PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -315,6 +317,7 @@ sealed trait Message extends Serializable{
           .setSplitThreshold(splitThreshold)
           .setSplitMode(splitMode.getValue)
           .setStorageHintOrdinal(storageHint.ordinal())
+          .setRangeReadFilter(rangeReadFilter)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.RESERVE_SLOTS, payload)
 
@@ -335,7 +338,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES, payload)
 
       case CommitFilesResponse(status, committedMasterIds, committedSlaveIds,
-      failedMasterIds, failedSlaveIds) =>
+      failedMasterIds, failedSlaveIds, committedMapIdBitMap) =>
         val builder = TransportMessages.PbCommitFilesResponse.newBuilder()
           .setStatus(status.getValue)
         if (committedMasterIds != null) {
@@ -350,6 +353,9 @@ sealed trait Message extends Serializable{
         if (failedSlaveIds != null) {
           builder.addAllFailedSlaveIds(failedSlaveIds)
         }
+        committedMapIdBitMap.asScala.foreach(entry => {
+          builder.putMapIdBitmap(entry._1, Utils.roaringBitmapToByteString(entry._2))
+        })
         val payload = builder.build().toByteArray
         new TransportMessage(TransportMessages.MessageType.COMMIT_FILES_RESPONSE, payload)
 
@@ -604,7 +610,8 @@ object ControlMessages extends Logging{
       slaveLocations: util.List[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      storageHint: PartitionLocation.StorageHint)
+      storageHint: PartitionLocation.StorageHint,
+      rangeReadFilter: Boolean)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -623,7 +630,8 @@ object ControlMessages extends Logging{
       committedMasterIds: util.List[String],
       committedSlaveIds: util.List[String],
       failedMasterIds: util.List[String],
-      failedSlaveIds: util.List[String])
+      failedSlaveIds: util.List[String],
+      committedMapIdBitMap: util.Map[String, RoaringBitmap])
     extends WorkerMessage
 
   case class Destroy(
@@ -845,7 +853,8 @@ object ControlMessages extends Logging{
           new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
           pbReserveSlots.getSplitThreshold, Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
-          PartitionLocation.StorageHint.values()(pbReserveSlots.getStorageHintOrdinal))
+          PartitionLocation.StorageHint.values()(pbReserveSlots.getStorageHintOrdinal),
+          pbReserveSlots.getRangeReadFilter)
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
@@ -860,11 +869,16 @@ object ControlMessages extends Logging{
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
+        val committedBitMap = new util.HashMap[String, RoaringBitmap]()
+        pbCommitFilesResponse.getMapIdBitmapMap.asScala.foreach { entry =>
+          committedBitMap.put(entry._1, Utils.byteStringToRoaringBitmap(entry._2))
+        }
         CommitFilesResponse(Utils.toStatusCode(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedMasterIdsList,
           pbCommitFilesResponse.getCommittedSlaveIdsList,
           pbCommitFilesResponse.getFailedMasterIdsList,
-          pbCommitFilesResponse.getFailedSlaveIdsList)
+          pbCommitFilesResponse.getFailedSlaveIdsList,
+          committedBitMap)
 
       case DESTROY =>
         val pbDestroy = PbDestroy.parseFrom(message.getPayload)

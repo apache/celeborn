@@ -819,6 +819,10 @@ object RssConf extends Logging {
     }
   }
 
+  def rangeReadFilterEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.range.read.filter.enabled", false)
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

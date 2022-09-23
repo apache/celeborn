@@ -42,6 +42,7 @@ class WorkerSource(essConf: RssConf)
   addTimer(TakeBufferTime)
   addTimer(SortTime)
 
+
   // start cleaner thread
   startCleaner()
 }
@@ -58,7 +59,6 @@ object WorkerSource {
   val OpenStreamTime = "OpenStreamTime"
 
   val FetchChunkTime = "FetchChunkTime"
-
 
   // push data
   val MasterPushDataTime = "MasterPushDataTime"

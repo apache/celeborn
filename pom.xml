@@ -50,6 +50,7 @@
     <build.testJarPhase>prepare-package</build.testJarPhase>
     <scalamock.version>5.1.0</scalamock.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
+    <roaringbitmap.version>0.9.32</roaringbitmap.version>
   </properties>
 
   <modules>
@@ -246,6 +247,11 @@
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
         <version>${protobuf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scalamock</groupId>

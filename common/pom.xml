@@ -141,6 +141,10 @@
       <artifactId>scalatest-funsuite_${scala.binary.version}</artifactId>
       <scope>test</scope>
     </dependency>
+      <dependency>
+          <groupId>org.roaringbitmap</groupId>
+          <artifactId>RoaringBitmap</artifactId>
+      </dependency>
   </dependencies>
 
   <build>
