@@ -569,12 +569,12 @@ object RssConf extends Logging {
           (workingDir, maxCapacity, flushThread, diskType)
         })
       } else {
-        baseDirs.split(",").map((_, maxCapacity, 1, HDD))
+        baseDirs.split(",").map((_, maxCapacity, HDDFlusherThread(conf), HDD))
       }
     } else {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => (s"$prefix$i", maxCapacity, 1, HDD)).toArray
+      (1 to number).map(i => (s"$prefix$i", maxCapacity, HDDFlusherThread(conf), HDD)).toArray
     }
   }
 
