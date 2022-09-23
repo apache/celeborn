@@ -271,8 +271,8 @@ private[deploy] class Master(
     case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
       executeWithLeaderChecker(context, handleReportNodeFailure(context, failedWorkers, requestId))
 
-    case CheckAlive =>
-      executeWithLeaderChecker(context, handleCheckAlive(context))
+    case CheckQuota(userIdentifier) =>
+      executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
   }
 
   private def timeoutDeadWorkers() {
@@ -572,8 +572,11 @@ private[deploy] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  private def handleCheckAlive(context: RpcCallContext): Unit = {
-    context.reply(CheckAliveResponse(true))
+  private def handleCheckQuota(
+      userIdentifier: UserIdentifier,
+      context: RpcCallContext): Unit = {
+    // TODO: Implement quota related logic
+    context.reply(CheckQuotaResponse(true))
   }
 
   private def workersNotBlacklisted(

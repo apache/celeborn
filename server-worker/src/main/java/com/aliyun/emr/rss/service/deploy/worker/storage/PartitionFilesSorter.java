@@ -54,7 +54,7 @@ import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource;
 import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.unsafe.Platform;
-import com.aliyun.emr.rss.common.util.PBSerDeUtils;
+import com.aliyun.emr.rss.common.util.PbSerDeUtils;
 import com.aliyun.emr.rss.common.util.ShuffleBlockInfoUtils;
 import com.aliyun.emr.rss.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
@@ -276,7 +276,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           String shuffleKey = parseDbShuffleKey(key);
           try {
-            Set<String> sortedFiles = PBSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
+            Set<String> sortedFiles = PbSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
             logger.debug("Reload DB: {} -> {}", shuffleKey, sortedFiles);
             sortedShuffleFiles.put(shuffleKey, sortedFiles);
             sortedFilesDb.delete(entry.getKey());
@@ -294,7 +294,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       try {
         sortedFilesDb.put(
             dbShuffleKey(shuffleKey),
-            PBSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
+            PbSerDeUtils.toPbSortedShuffleFileSet(sortedShuffleFiles.get(shuffleKey)));
         logger.debug("Update DB: {} -> {}", shuffleKey, sortedShuffleFiles.get(shuffleKey));
       } catch (Exception exception) {
         logger.error("Update DB: {} failed.", shuffleKey, exception);
