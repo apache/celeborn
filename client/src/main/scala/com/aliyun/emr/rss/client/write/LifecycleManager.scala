@@ -26,6 +26,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
+import org.roaringbitmap.RoaringBitmap
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
 import com.aliyun.emr.rss.common.identity.IdentityProvider
@@ -677,6 +679,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val committedMasterStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
     val committedSlaveStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
+    val committedMapIdBitmap = new ConcurrentHashMap[String, RoaringBitmap]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
@@ -736,6 +739,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         failedMasterIds.addAll(res.failedMasterIds)
         failedSlaveIds.addAll(res.failedSlaveIds)
 
+        if (!res.committedMapIdBitMap.isEmpty) {
+          committedMapIdBitmap.putAll(res.committedMapIdBitMap)
+        }
+
         totalWritten.add(res.totalWritten)
         fileCount.add(res.fileCount)
       }
@@ -773,6 +780,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
           masterPartMap.get(id).setStorageInfo(committedMasterStorageInfos.get(id))
+          masterPartMap.get(id).setMapIdBitMap(committedMapIdBitmap.get(id))
           committedPartitions.put(id, masterPartMap.get(id))
         }
       }
@@ -783,6 +791,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
           slavePartition.setStorageInfo(committedSlaveStorageInfos.get(id))
+          slavePartition.setMapIdBitMap(committedMapIdBitmap.get(id))
           val masterPartition = committedPartitions.get(id)
           if (masterPartition ne null) {
             masterPartition.setPeer(slavePartition)

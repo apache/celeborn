@@ -22,6 +22,7 @@ import java.util.*;
 import scala.Tuple2;
 
 import org.apache.commons.lang3.StringUtils;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -393,7 +394,8 @@ public class SlotsAllocator {
         workerInfo.replicatePort(),
         isMaster ? PartitionLocation.Mode.MASTER : PartitionLocation.Mode.SLAVE,
         peer,
-        storageInfo);
+        storageInfo,
+        new RoaringBitmap());
   }
 
   public static Map<WorkerInfo, Map<String, Integer>> slotsToDiskAllocations(
