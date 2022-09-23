@@ -880,7 +880,7 @@ object Utils extends Logging {
   }
 
   def roaringBitmapToByteString(roaringBitMap: RoaringBitmap): ByteString = {
-    if (!roaringBitMap.isEmpty) {
+    if (roaringBitMap != null && !roaringBitMap.isEmpty) {
       val buf = ByteBuffer.allocate(roaringBitMap.serializedSizeInBytes())
       roaringBitMap.serialize(buf)
       buf.rewind()
@@ -891,13 +891,15 @@ object Utils extends Logging {
   }
 
   def byteStringToRoaringBitmap(bytes: ByteString): RoaringBitmap = {
-    val roaringBitmap = new RoaringBitmap()
     if (!bytes.isEmpty) {
+      val roaringBitmap = new RoaringBitmap()
       val buf = bytes.asReadOnlyByteBuffer()
       buf.rewind()
       roaringBitmap.deserialize(buf)
+      roaringBitmap
+    } else {
+      null
     }
-    roaringBitmap
   }
 
 }

@@ -355,7 +355,8 @@ sealed trait Message extends Serializable {
             slaveLocations,
             splitThreshold,
             splitMode,
-            partType) =>
+            partType,
+            rangeReadFilter) =>
         val payload = PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -366,6 +367,7 @@ sealed trait Message extends Serializable {
           .setSplitThreshold(splitThreshold)
           .setSplitMode(splitMode.getValue)
           .setPartitionType(partType.getValue)
+          .setRangeReadFilter(rangeReadFilter)
           .build().toByteArray
         new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -675,7 +677,8 @@ object ControlMessages extends Logging {
       slaveLocations: util.List[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType)
+      partitionType: PartitionType,
+      rangeReadFilter: Boolean)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -988,7 +991,8 @@ object ControlMessages extends Logging {
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
-          Utils.toPartitionType(pbReserveSlots.getPartitionType))
+          Utils.toPartitionType(pbReserveSlots.getPartitionType),
+          pbReserveSlots.getRangeReadFilter)
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
