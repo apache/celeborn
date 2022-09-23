@@ -976,6 +976,26 @@ object RssConf extends Logging {
     conf.getBoolean("rss.range.read.filter.enabled", false)
   }
 
+  def columnarShuffleEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)
+  }
+
+  def columnarShuffleCompress(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.columnar.shuffle.encoding.enabled", defaultValue = false)
+  }
+
+  def columnarShuffleBatchSize(conf: RssConf): Int = {
+    conf.getInt("rss.columnar.shuffle.batch.size", 10000)
+  }
+
+  def columnarShuffleOffHeapColumnVectorEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.columnar.shuffle.offheap.vector.enabled", false)
+  }
+
+  def columnarShuffleMaxDictFactor(conf: RssConf): Double = {
+    conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
+  }
+
   // If we want to use multi-raft group we can
   // add "rss.ha.service.ids" each for one raft group
   val HA_SERVICE_ID_KEY = "rss.ha.service.id"
