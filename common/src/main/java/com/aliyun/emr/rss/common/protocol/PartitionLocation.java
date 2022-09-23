@@ -59,7 +59,7 @@ public class PartitionLocation implements Serializable {
   private Mode mode;
   private PartitionLocation peer;
   private StorageInfo storageInfo = new StorageInfo();
-  private RoaringBitmap mapIdBitMap = new RoaringBitmap();
+  private RoaringBitmap mapIdBitMap = null;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;

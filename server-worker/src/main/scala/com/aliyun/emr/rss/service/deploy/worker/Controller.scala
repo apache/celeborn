@@ -243,7 +243,9 @@ private[deploy] class Controller(
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo != null) {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
-                    committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
+                    if (fileWriter.getMapIdBitMap != null) {
+                      committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
+                    }
                   }
                   if (bytes >= minimumPartitionSizeForEstimation) {
                     partitionSizeList.add(bytes)

@@ -80,7 +80,7 @@ public final class FileWriter implements DeviceObserver {
 
   private Runnable destroyHook;
   private boolean deleted = false;
-  private RoaringBitmap mapIdBitMap = new RoaringBitmap();
+  private RoaringBitmap mapIdBitMap = null;
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
@@ -123,6 +123,9 @@ public final class FileWriter implements DeviceObserver {
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
+    if (rangeReadFilter) {
+      this.mapIdBitMap = new RoaringBitmap();
+    }
     takeBuffer();
   }
 
