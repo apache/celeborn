@@ -1017,7 +1017,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         reduceFileGroupsMap.computeIfAbsent(
             shuffleId,
             (id) -> {
-              long getReducerStart = System.nanoTime();
+              long getReducerFileGroupStartTime = System.nanoTime();
               try {
                 if (driverRssMetaService == null) {
                   logger.warn("Driver endpoint is null!");
@@ -1037,7 +1037,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   logger.info(
                       "Shuffle {} request reducer file group success using time:{} ms",
                       shuffleId,
-                      (System.nanoTime() - getReducerStart) / 1000_000);
+                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000);
                   return new ReduceFileGroups(response.fileGroup(), response.attempts());
                 } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
                   logger.warn(
