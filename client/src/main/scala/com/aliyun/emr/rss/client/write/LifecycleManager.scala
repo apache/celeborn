@@ -687,6 +687,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
     val commitFilesFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
+    val currentShuffleFileCount = new LongAdder
+    val commitFileStartTime = System.nanoTime()
+
     val parallelism = Math.min(workerSnapshots(shuffleId).size(), RssConf.rpcMaxParallelism(conf))
     ThreadUtils.parmap(
       allocatedWorkers.asScala.to,
@@ -746,6 +749,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
         totalWritten.add(res.totalWritten)
         fileCount.add(res.fileCount)
+        currentShuffleFileCount.add(res.fileCount)
       }
     }
 
@@ -815,6 +819,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         fileGroups(i) = sets(i).toArray(new Array[PartitionLocation](0))
         i += 1
       }
+
+      logInfo(s"Shuffle $shuffleId " +
+        s"commit files complete. File count ${currentShuffleFileCount.sum()} " +
+        s"using ${(System.nanoTime() - commitFileStartTime) / 1000000} ms")
     }
 
     // reply
