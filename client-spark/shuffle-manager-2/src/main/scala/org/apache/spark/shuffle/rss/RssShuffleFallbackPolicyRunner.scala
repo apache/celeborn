@@ -25,7 +25,7 @@ import com.aliyun.emr.rss.common.internal.Logging
 
 class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
-  private lazy val rssConf = RssShuffleManager.fromSparkConf(sparkConf)
+  private lazy val rssConf = SparkUtils.fromSparkConf(sparkConf)
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
