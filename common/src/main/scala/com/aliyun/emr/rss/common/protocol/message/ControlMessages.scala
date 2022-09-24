@@ -36,9 +36,6 @@ sealed trait Message extends Serializable {
   import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
   def toTransportMessage: TransportMessage = {
     this match {
-      case RemoveExpiredShuffle =>
-        new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
-
       case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
         val pbDisks = disks.asScala
           .map(item =>
@@ -491,7 +488,7 @@ object ControlMessages extends Logging {
   val checkForApplicationTimeout =
     new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
 
-  case object RemoveExpiredShuffle extends Message
+  val removeExpiredShuffle = new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
 
   /**
    * The response message for one-way message. Due to the Master HA, we must know whether a Master
@@ -1064,9 +1061,6 @@ object ControlMessages extends Logging {
       case THREAD_DUMP_RESPONSE =>
         val pbThreadDumpResponse = PbThreadDumpResponse.parseFrom(message.getPayload)
         ThreadDumpResponse(pbThreadDumpResponse.getThreadDump)
-
-      case REMOVE_EXPIRED_SHUFFLE =>
-        RemoveExpiredShuffle
 
       case ONE_WAY_MESSAGE_RESPONSE =>
         OneWayMessageResponse
