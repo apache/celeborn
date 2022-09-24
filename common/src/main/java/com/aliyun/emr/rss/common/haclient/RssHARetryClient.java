@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.emr.rss.common.RssConf;
+import com.aliyun.emr.rss.common.network.protocol.TransportMessage;
 import com.aliyun.emr.rss.common.protocol.RpcNameConstants;
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.OneWayMessageResponse$;
 import com.aliyun.emr.rss.common.protocol.message.MasterRequestMessage;
@@ -95,11 +96,62 @@ public class RssHARetryClient {
   /**
    * For message sent by Master itself like ApplicationLost or WorkerLost, we should set requestId
    * manually.
-   *
-   * @return
    */
   public static String genRequestId() {
     return encodeRequestId(UUID.randomUUID().toString(), nextCallId());
+  }
+
+  public void send(TransportMessage req) throws Throwable {
+    // Send a one-way message. Because we need to know whether the leader between Masters has
+    // switched, we must adopt a synchronous method, but for a one-way message, we don’t care
+    // whether it can be sent successfully, so we adopt an asynchronous method. Therefore, we
+    // choose to use one Thread pool to use synchronization.
+    oneWayMessageSender.submit(
+        () -> {
+          try {
+            sendMessageInner(req, TransportMessage.class);
+          } catch (Throwable e) {
+            LOG.warn("Exception occurs while send one-way message.", e);
+          }
+        });
+    LOG.debug("Send message {}.", req);
+  }
+
+  public TransportMessage askSync(TransportMessage req) throws Throwable {
+    return sendMessageInner(req, TransportMessage.class);
+  }
+
+  @SuppressWarnings("UnstableApiUsage")
+  private <T> T sendMessageInner(TransportMessage message, Class<T> clz) throws Throwable {
+    LOG.debug("Send rpc message {}", message);
+
+    Throwable throwable = null;
+    int numTries = 0;
+    boolean shouldRetry = true;
+    RpcEndpointRef endpointRef = null;
+    // Use AtomicInteger or Integer or any Object which holds an int value is ok, we just need to
+    // transfer a object to get the change of the current index of master addresses.
+    AtomicInteger currentMasterIdx = new AtomicInteger(0);
+
+    long sleepLimitTime = 2000; // 2s
+    while (numTries < maxTries && shouldRetry) {
+      try {
+        endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
+        Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
+        return rpcTimeout.awaitResult(future);
+      } catch (Throwable e) {
+        throwable = e;
+        shouldRetry = shouldRetry(endpointRef, throwable);
+        if (shouldRetry) {
+          numTries++;
+          Uninterruptibles.sleepUninterruptibly(
+              Math.min(numTries * 100L, sleepLimitTime), TimeUnit.MILLISECONDS);
+        }
+      }
+    }
+
+    LOG.error("Send rpc with failure, has tried {}, max try {}!", numTries, maxTries, throwable);
+    throw throwable;
   }
 
   public void send(Message message) throws Throwable {

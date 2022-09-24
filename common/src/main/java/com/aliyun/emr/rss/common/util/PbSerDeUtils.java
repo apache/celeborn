@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.protocol.*;
 
@@ -56,6 +57,23 @@ public class PbSerDeUtils {
     builder.setMajor(major);
     builder.setMinor(minor);
     return builder.build().toByteArray();
+  }
+
+  public static DiskInfo fromPbDiskInfo(PbDiskInfo pbDiskInfo) {
+    return new DiskInfo(
+        pbDiskInfo.getMountPoint(),
+        pbDiskInfo.getUsableSpace(),
+        pbDiskInfo.getAvgFlushTime(),
+        pbDiskInfo.getUsedSlots());
+  }
+
+  public static PbDiskInfo toPbDiskInfo(DiskInfo diskInfo) {
+    return PbDiskInfo.newBuilder()
+        .setMountPoint(diskInfo.mountPoint())
+        .setUsableSpace(diskInfo.actualUsableSpace())
+        .setAvgFlushTime(diskInfo.avgFlushTime())
+        .setUsedSlots(diskInfo.activeSlots())
+        .build();
   }
 
   public static FileInfo fromPbFileInfo(PbFileInfo pbFileInfo)

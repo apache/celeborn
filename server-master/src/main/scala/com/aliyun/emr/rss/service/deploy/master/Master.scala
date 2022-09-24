@@ -33,12 +33,12 @@ import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PbRegisterWorker, RpcNameConstants}
 import com.aliyun.emr.rss.common.protocol.MessageType._
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.{HttpService, Service}
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -207,9 +207,19 @@ private[deploy] class Master(
         context,
         handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
 
-    case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
+    case tm: TransportMessage if tm.getType == REGISTER_WORKER =>
+      val pbRegisterWorker = PbRegisterWorker.parseFrom(tm.getPayload)
+      val requestId = pbRegisterWorker.getRequestId
+      val host = pbRegisterWorker.getHost
+      val rpcPort = pbRegisterWorker.getRpcPort
+      val pushPort = pbRegisterWorker.getPushPort
+      val fetchPort = pbRegisterWorker.getFetchPort
+      val replicatePort = pbRegisterWorker.getReplicatePort
+      val disks = pbRegisterWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
+
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
+
       executeWithLeaderChecker(
         context,
         handleRegisterWorker(
@@ -412,7 +422,9 @@ private[deploy] class Master(
         replicatePort,
         disks,
         requestId)
-      context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
+      context.reply(ControlMessages.registerWorkerResponse(
+        true,
+        "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
@@ -425,7 +437,9 @@ private[deploy] class Master(
         replicatePort,
         disks,
         requestId)
-      context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
+      context.reply(ControlMessages.registerWorkerResponse(
+        true,
+        "Worker in workerLostEvents, re-register."))
     } else {
       statusSystem.handleRegisterWorker(
         host,
@@ -436,7 +450,7 @@ private[deploy] class Master(
         disks,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
-      context.reply(RegisterWorkerResponse(true, ""))
+      context.reply(ControlMessages.registerWorkerResponse(true, ""))
     }
   }
 

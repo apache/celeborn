@@ -460,6 +460,7 @@ private[rss] class RequestMessage(
       out.writeUTF(receiver.name)
       val s = nettyEnv.serializeStream(out)
       try {
+        // TODO remove the transformation after #673 completed
         s.writeObject(Utils.toTransportMessage(content))
       } finally {
         s.close()

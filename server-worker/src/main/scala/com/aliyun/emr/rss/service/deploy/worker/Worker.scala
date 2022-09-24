@@ -36,7 +36,8 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker}
-import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.{MessageType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -321,29 +322,39 @@ private[deploy] class Worker(
 
   private def registerWithMaster() {
     var registerTimeout = RssConf.registerWorkerTimeoutMs(conf)
-    val delta = 2000
+    val interval = 2000
     while (registerTimeout > 0) {
-      val rsp =
+      val resp =
         try {
-          rssHARetryClient.askSync[RegisterWorkerResponse](
-            RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
-            classOf[RegisterWorkerResponse])
+          val reqTm = ControlMessages.registerWorker(
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            workerInfo.diskInfos.asScala.toMap,
+            RssHARetryClient.genRequestId())
+          val respTm = rssHARetryClient.askSync(reqTm)
+          assert(
+            respTm.getType == MessageType.REGISTER_WORKER_RESPONSE,
+            s"expected REGISTER_WORKER_RESPONSE, but got ${respTm.getType}")
+          PbRegisterWorkerResponse.parseFrom(respTm.getPayload)
         } catch {
           case throwable: Throwable =>
             logWarning(
-              s"Register worker to master failed, will retry after 2s, exception: ",
+              s"Register worker to master failed, will retry after ${Utils.msDurationToString(interval)}",
               throwable)
             null
         }
       // Register successfully
-      if (null != rsp && rsp.success) {
+      if (null != resp && resp.getSuccess) {
         registered.set(true)
         logInfo("Register worker successfully.")
         return
       }
       // Register failed, sleep and retry
-      Thread.sleep(delta)
-      registerTimeout = registerTimeout - delta
+      Thread.sleep(interval)
+      registerTimeout = registerTimeout - interval
     }
     // If worker register still failed after retry, throw exception to stop worker process
     throw new RssException("Register worker failed.")
