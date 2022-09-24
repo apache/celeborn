@@ -489,7 +489,6 @@ object ControlMessages extends Logging {
    *         handled by master
    *  ==========================================
    */
-
   val checkForWorkTimeout = new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
 
   case object CheckForApplicationTimeOut extends Message

@@ -99,6 +99,7 @@ private[rss] class JavaSerializerInstance(
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
     val bos = new ByteBufferOutputStream()
     val out = serializeStream(bos)
+    // TODO remove the transformation after #673 completed
     out.writeObject(Utils.toTransportMessage(t))
     out.close()
     bos.toByteBuffer
@@ -107,12 +108,14 @@ private[rss] class JavaSerializerInstance(
   override def deserialize[T: ClassTag](bytes: ByteBuffer): T = {
     val bis = new ByteBufferInputStream(bytes)
     val in = deserializeStream(bis)
+    // TODO remove the transformation after #673 completed
     Utils.fromTransportMessage(in.readObject()).asInstanceOf[T]
   }
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer, loader: ClassLoader): T = {
     val bis = new ByteBufferInputStream(bytes)
     val in = deserializeStream(bis, loader)
+    // TODO remove the transformation after #673 completed
     Utils.fromTransportMessage(in.readObject()).asInstanceOf[T]
   }
 
