@@ -147,7 +147,7 @@ private[deploy] class Master(
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(ControlMessages.checkForWorkTimeout)
+          self.send(ControlMessages.checkForWorkerTimeout)
         }
       },
       0,
