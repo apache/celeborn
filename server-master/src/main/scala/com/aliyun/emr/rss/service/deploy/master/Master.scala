@@ -32,9 +32,9 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PbCheckForWorkerTimeout, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
-import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.{HttpService, Service}
@@ -145,7 +145,7 @@ private[deploy] class Master(
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForWorkerTimeOut)
+          self.send(ControlMessages.pbCheckForWorkerTimeout)
         }
       },
       0,
@@ -184,7 +184,7 @@ private[deploy] class Master(
     if (HAHelper.checkShouldProcess(context, statusSystem)) f
 
   override def receive: PartialFunction[Any, Unit] = {
-    case CheckForWorkerTimeOut =>
+    case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
