@@ -157,7 +157,7 @@ private[deploy] class Master(
     checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForApplicationTimeOut)
+          self.send(ControlMessages.checkForApplicationTimeout)
         }
       },
       0,
@@ -186,10 +186,13 @@ private[deploy] class Master(
     if (HAHelper.checkShouldProcess(context, statusSystem)) f
 
   override def receive: PartialFunction[Any, Unit] = {
-    case tm: TransportMessage if tm.getType == CHECK_FOR_WORKER_TIMEOUT =>
-      executeWithLeaderChecker(null, timeoutDeadWorkers())
-    case CheckForApplicationTimeOut =>
-      executeWithLeaderChecker(null, timeoutDeadApplications())
+    case tm: TransportMessage =>
+      tm.getType match {
+        case CHECK_FOR_WORKER_TIMEOUT =>
+          executeWithLeaderChecker(null, timeoutDeadWorkers())
+        case CHECK_FOR_APPLICATION_TIMEOUT =>
+          executeWithLeaderChecker(null, timeoutDeadApplications())
+      }
     case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
       logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
       executeWithLeaderChecker(
