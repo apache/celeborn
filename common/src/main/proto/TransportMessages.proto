@@ -356,6 +356,9 @@ message PbThreadDumpResponse {
   string threadDump = 1;
 }
 
+message PbCheckForWorkerTimeout {
+}
+
 message PbWorkerLost {
   string host = 1;
   int32 rpcPort = 2;

@@ -28,17 +28,14 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.MessageType._
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.util.Utils
 
 sealed trait Message extends Serializable {
-  import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
+
   def toTransportMessage: TransportMessage = {
     this match {
-      case CheckForWorkerTimeOut =>
-        new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
-
       case CheckForApplicationTimeOut =>
         new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
 
@@ -469,7 +466,9 @@ sealed trait Message extends Serializable {
     }
   }
 }
+
 sealed trait MasterMessage extends Message
+
 sealed abstract class MasterRequestMessage extends MasterMessage {
   var requestId: String
 
@@ -477,7 +476,9 @@ sealed abstract class MasterRequestMessage extends MasterMessage {
     this.requestId = id
   }
 }
+
 sealed trait WorkerMessage extends Message
+
 sealed trait ClientMessage extends Message
 
 object ControlMessages extends Logging {
@@ -492,7 +493,8 @@ object ControlMessages extends Logging {
    *         handled by master
    *  ==========================================
    */
-  case object CheckForWorkerTimeOut extends Message
+  val pbCheckForWorkerTimeout: PbCheckForWorkerTimeout =
+    PbCheckForWorkerTimeout.newBuilder().build()
 
   case object CheckForApplicationTimeOut extends Message
 
@@ -743,7 +745,12 @@ object ControlMessages extends Logging {
       hdfsBytesWritten: Long,
       hdfsFileCount: Long)
 
-  def fromTransportMessage(message: TransportMessage): Message = {
+  def mapToTransportMessage: PartialFunction[Any, Any] = {
+    case _: PbCheckForWorkerTimeoutOrBuilder =>
+      new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
+  }
+
+  def fromTransportMessage(message: TransportMessage): Any = {
     message.getType match {
       case UNKNOWN_MESSAGE | UNRECOGNIZED =>
         val msg = s"received unknown message $message"
@@ -1077,7 +1084,7 @@ object ControlMessages extends Logging {
         OneWayMessageResponse
 
       case CHECK_FOR_WORKER_TIMEOUT =>
-        CheckForWorkerTimeOut
+        pbCheckForWorkerTimeout
 
       case CHECK_FOR_APPLICATION_TIMEOUT =>
         CheckForApplicationTimeOut
