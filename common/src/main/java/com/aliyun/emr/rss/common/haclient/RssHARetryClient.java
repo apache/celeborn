@@ -35,6 +35,7 @@ import scala.concurrent.duration.Duration;
 import scala.reflect.ClassTag$;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.google.protobuf.GeneratedMessageV3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,12 +123,16 @@ public class RssHARetryClient {
     return sendMessageInner(message, clz);
   }
 
+  public <T> T askSync(GeneratedMessageV3 message, Class<T> clz) throws Throwable {
+    return sendMessageInner(message, clz);
+  }
+
   public void close() {
     ThreadUtils.shutdown(oneWayMessageSender, Duration.apply("800ms"));
   }
 
   @SuppressWarnings("UnstableApiUsage")
-  private <T> T sendMessageInner(Message message, Class<T> clz) throws Throwable {
+  private <T> T sendMessageInner(Object message, Class<T> clz) throws Throwable {
     Throwable throwable = null;
     int numTries = 0;
     boolean shouldRetry = true;

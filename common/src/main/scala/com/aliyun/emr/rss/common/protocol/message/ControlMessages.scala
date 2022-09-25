@@ -29,11 +29,11 @@ import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
 import com.aliyun.emr.rss.common.protocol.MessageType._
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
-import com.aliyun.emr.rss.common.util.Utils
+import com.aliyun.emr.rss.common.util.{PbSerDeUtils, Utils}
 
 sealed trait Message extends Serializable {
-
+  // we can not pullout this import, otherwise may cause error: illegal cyclic reference
+  import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
   def toTransportMessage: TransportMessage = {
     this match {
       case CheckForApplicationTimeOut =>
@@ -41,26 +41,6 @@ sealed trait Message extends Serializable {
 
       case RemoveExpiredShuffle =>
         new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
-
-      case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
-        val pbDisks = disks.asScala
-          .map(item =>
-            item._1 -> PbDiskInfo
-              .newBuilder()
-              .setUsableSpace(item._2.actualUsableSpace)
-              .setAvgFlushTime(item._2.avgFlushTime)
-              .setUsedSlots(item._2.activeSlots)
-              .build()).toMap.asJava
-        val payload = PbRegisterWorker.newBuilder()
-          .setHost(host)
-          .setRpcPort(rpcPort)
-          .setPushPort(pushPort)
-          .setFetchPort(fetchPort)
-          .setReplicatePort(replicatePort)
-          .putAllDisks(pbDisks)
-          .setRequestId(requestId)
-          .build().toByteArray
-        new TransportMessage(MessageType.REGISTER_WORKER, payload)
 
       case HeartbeatFromWorker(
             host,
@@ -332,13 +312,6 @@ sealed trait Message extends Serializable {
           .setRequestId(requestId).build().toByteArray
         new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
-      case RegisterWorkerResponse(success, message) =>
-        val payload = PbRegisterWorkerResponse.newBuilder()
-          .setSuccess(success)
-          .setMessage(message)
-          .build().toByteArray
-        new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, payload)
-
       case ReregisterWorkerResponse(success) =>
         val payload = PbReregisterWorkerResponse.newBuilder()
           .setSuccess(success)
@@ -507,15 +480,25 @@ object ControlMessages extends Logging {
    */
   case object OneWayMessageResponse extends Message
 
-  case class RegisterWorker(
+  def pbRegisterWorker(
       host: String,
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: util.Map[String, DiskInfo],
-      override var requestId: String = ZERO_UUID)
-    extends MasterRequestMessage
+      disks: Map[String, DiskInfo],
+      requestId: String): PbRegisterWorker = {
+    val pbDisks = disks.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
+    PbRegisterWorker.newBuilder()
+      .setHost(host)
+      .setRpcPort(rpcPort)
+      .setPushPort(pushPort)
+      .setFetchPort(fetchPort)
+      .setReplicatePort(replicatePort)
+      .putAllDisks(pbDisks)
+      .setRequestId(requestId)
+      .build()
+  }
 
   case class HeartbeatFromWorker(
       host: String,
@@ -668,7 +651,11 @@ object ControlMessages extends Logging {
    *         handled by worker
    *  ==========================================
    */
-  case class RegisterWorkerResponse(success: Boolean, message: String) extends WorkerMessage
+  def pbRegisterWorkerResponse(success: Boolean, message: String): PbRegisterWorkerResponse =
+    PbRegisterWorkerResponse.newBuilder()
+      .setSuccess(success)
+      .setMessage(message)
+      .build()
 
   case class ReregisterWorkerResponse(success: Boolean) extends WorkerMessage
 
@@ -748,6 +735,10 @@ object ControlMessages extends Logging {
   def mapToTransportMessage: PartialFunction[Any, Any] = {
     case _: PbCheckForWorkerTimeoutOrBuilder =>
       new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
+    case pb: PbRegisterWorker =>
+      new TransportMessage(MessageType.REGISTER_WORKER, pb.toByteArray)
+    case pb: PbRegisterWorkerResponse =>
+      new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
   }
 
   def fromTransportMessage(message: TransportMessage): Any = {
@@ -758,21 +749,7 @@ object ControlMessages extends Logging {
         throw new UnsupportedOperationException(msg)
 
       case REGISTER_WORKER =>
-        val pbRegisterWorker = PbRegisterWorker.parseFrom(message.getPayload)
-        val disks = pbRegisterWorker.getDisksMap.asScala.map(item =>
-          item._1 -> new DiskInfo(
-            item._1,
-            item._2.getUsableSpace,
-            item._2.getAvgFlushTime,
-            item._2.getUsedSlots)).asJava
-        RegisterWorker(
-          pbRegisterWorker.getHost,
-          pbRegisterWorker.getRpcPort,
-          pbRegisterWorker.getPushPort,
-          pbRegisterWorker.getFetchPort,
-          pbRegisterWorker.getReplicatePort,
-          disks,
-          pbRegisterWorker.getRequestId)
+        PbRegisterWorker.parseFrom(message.getPayload)
 
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
@@ -978,10 +955,7 @@ object ControlMessages extends Logging {
           pbReportWorkerFailure.getRequestId)
 
       case REGISTER_WORKER_RESPONSE =>
-        val pbRegisterWorkerResponse = PbRegisterWorkerResponse.parseFrom(message.getPayload)
-        RegisterWorkerResponse(
-          pbRegisterWorkerResponse.getSuccess,
-          pbRegisterWorkerResponse.getMessage)
+        PbRegisterWorkerResponse.parseFrom(message.getPayload)
 
       case REREGISTER_WORKER_RESPONSE =>
         val pbReregisterWorkerResponse = PbReregisterWorkerResponse.parseFrom(message.getPayload)

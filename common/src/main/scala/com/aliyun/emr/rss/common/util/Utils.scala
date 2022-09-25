@@ -137,6 +137,27 @@ object Utils extends Logging {
     bytesToString(megabytes * 1024L * 1024L)
   }
 
+  /**
+   * Returns a human-readable string representing a duration such as "35ms"
+   */
+  def msDurationToString(ms: Long): String = {
+    val second = 1000
+    val minute = 60 * second
+    val hour = 60 * minute
+    val locale = Locale.US
+
+    ms match {
+      case t if t < second =>
+        "%d ms".formatLocal(locale, t)
+      case t if t < minute =>
+        "%.1f s".formatLocal(locale, t.toFloat / second)
+      case t if t < hour =>
+        "%.1f m".formatLocal(locale, t.toFloat / minute)
+      case t =>
+        "%.2f h".formatLocal(locale, t.toFloat / hour)
+    }
+  }
+
   @throws(classOf[RssException])
   def extractHostPortFromRssUrl(essUrl: String): (String, Int) = {
     try {
