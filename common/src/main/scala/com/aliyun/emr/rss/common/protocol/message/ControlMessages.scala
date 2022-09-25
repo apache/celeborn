@@ -36,6 +36,9 @@ sealed trait Message extends Serializable {
   import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
   def toTransportMessage: TransportMessage = {
     this match {
+      case CheckForApplicationTimeOut =>
+        new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
+
       case RemoveExpiredShuffle =>
         new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
 
@@ -488,8 +491,7 @@ object ControlMessages extends Logging {
    */
   val checkForWorkerTimeout = new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
 
-  val checkForApplicationTimeout =
-    new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
+  case object CheckForApplicationTimeOut extends Message
 
   case object RemoveExpiredShuffle extends Message
 
@@ -1070,6 +1072,9 @@ object ControlMessages extends Logging {
 
       case ONE_WAY_MESSAGE_RESPONSE =>
         OneWayMessageResponse
+
+      case CHECK_FOR_APPLICATION_TIMEOUT =>
+        CheckForApplicationTimeOut
 
       case WORKER_LOST =>
         val pbWorkerLost = PbWorkerLost.parseFrom(message.getPayload)
