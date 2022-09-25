@@ -36,6 +36,9 @@ sealed trait Message extends Serializable {
   import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
   def toTransportMessage: TransportMessage = {
     this match {
+      case CheckForWorkerTimeOut =>
+        new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
+
       case CheckForApplicationTimeOut =>
         new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
 
@@ -489,7 +492,7 @@ object ControlMessages extends Logging {
    *         handled by master
    *  ==========================================
    */
-  val checkForWorkerTimeout = new TransportMessage(MessageType.CHECK_FOR_WORKER_TIMEOUT, null)
+  case object CheckForWorkerTimeOut extends Message
 
   case object CheckForApplicationTimeOut extends Message
 
@@ -740,7 +743,7 @@ object ControlMessages extends Logging {
       hdfsBytesWritten: Long,
       hdfsFileCount: Long)
 
-  def fromTransportMessage(message: TransportMessage): Any = {
+  def fromTransportMessage(message: TransportMessage): Message = {
     message.getType match {
       case UNKNOWN_MESSAGE | UNRECOGNIZED =>
         val msg = s"received unknown message $message"
@@ -1073,6 +1076,9 @@ object ControlMessages extends Logging {
       case ONE_WAY_MESSAGE_RESPONSE =>
         OneWayMessageResponse
 
+      case CHECK_FOR_WORKER_TIMEOUT =>
+        CheckForWorkerTimeOut
+
       case CHECK_FOR_APPLICATION_TIMEOUT =>
         CheckForApplicationTimeOut
 
@@ -1112,8 +1118,6 @@ object ControlMessages extends Logging {
       case STAGE_END_RESPONSE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
         StageEndResponse(Utils.toStatusCode(pbStageEndResponse.getStatus))
-
-      case _ => message
     }
   }
 }
