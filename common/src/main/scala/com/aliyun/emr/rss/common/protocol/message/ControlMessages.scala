@@ -124,6 +124,7 @@ sealed trait Message extends Serializable {
             partitionIdList,
             hostname,
             shouldReplicate,
+            userIdentifier,
             requestId) =>
         val payload = PbRequestSlots.newBuilder()
           .setApplicationId(applicationId)
@@ -132,6 +133,11 @@ sealed trait Message extends Serializable {
           .setHostname(hostname)
           .setShouldReplicate(shouldReplicate)
           .setRequestId(requestId)
+          .setUserIdentifier(
+            PbUserIdentifier
+              .newBuilder()
+              .setTenantId(userIdentifier.tenantId)
+              .setName(userIdentifier.name))
           .build().toByteArray
         new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -353,7 +359,8 @@ sealed trait Message extends Serializable {
             splitThreshold,
             splitMode,
             partType,
-            rangeReadFilter) =>
+            rangeReadFilter,
+            userIdentifier) =>
         val payload = PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -365,6 +372,11 @@ sealed trait Message extends Serializable {
           .setSplitMode(splitMode.getValue)
           .setPartitionType(partType.getValue)
           .setRangeReadFilter(rangeReadFilter)
+          .setUserIdentifier(
+            PbUserIdentifier
+              .newBuilder()
+              .setTenantId(userIdentifier.tenantId)
+              .setName(userIdentifier.name))
           .build().toByteArray
         new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -549,6 +561,7 @@ object ControlMessages extends Logging {
       partitionIdList: util.ArrayList[Integer],
       hostname: String,
       shouldReplicate: Boolean,
+      userIdentifier: UserIdentifier,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -680,7 +693,8 @@ object ControlMessages extends Logging {
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
-      rangeReadFilter: Boolean)
+      rangeReadFilter: Boolean,
+      userIdentifier: UserIdentifier)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -830,24 +844,28 @@ object ControlMessages extends Logging {
 
       case REQUEST_SLOTS =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
+        val userIdentifier = UserIdentifier(
+          pbRequestSlots.getUserIdentifier.getTenantId,
+          pbRequestSlots.getUserIdentifier.getName)
         RequestSlots(
           pbRequestSlots.getApplicationId,
           pbRequestSlots.getShuffleId,
           new util.ArrayList[Integer](pbRequestSlots.getPartitionIdListList),
           pbRequestSlots.getHostname,
           pbRequestSlots.getShouldReplicate,
+          userIdentifier,
           pbRequestSlots.getRequestId)
 
       case RELEASE_SLOTS =>
-        val pbRequestSlots = PbReleaseSlots.parseFrom(message.getPayload)
-        val slotsList = pbRequestSlots.getSlotsList.asScala.map(pbSlot =>
+        val pbReleaseSlots = PbReleaseSlots.parseFrom(message.getPayload)
+        val slotsList = pbReleaseSlots.getSlotsList.asScala.map(pbSlot =>
           new util.HashMap[String, Integer](pbSlot.getSlotMap)).toList.asJava
         ReleaseSlots(
-          pbRequestSlots.getApplicationId,
-          pbRequestSlots.getShuffleId,
-          new util.ArrayList[String](pbRequestSlots.getWorkerIdsList),
+          pbReleaseSlots.getApplicationId,
+          pbReleaseSlots.getShuffleId,
+          new util.ArrayList[String](pbReleaseSlots.getWorkerIdsList),
           new util.ArrayList[util.Map[String, Integer]](slotsList),
-          pbRequestSlots.getRequestId)
+          pbReleaseSlots.getRequestId)
 
       case RELEASE_SLOTS_RESPONSE =>
         val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
@@ -989,6 +1007,9 @@ object ControlMessages extends Logging {
 
       case RESERVE_SLOTS =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
+        val userIdentifier = UserIdentifier(
+          pbReserveSlots.getUserIdentifier.getTenantId,
+          pbReserveSlots.getUserIdentifier.getName)
         ReserveSlots(
           pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
@@ -999,7 +1020,8 @@ object ControlMessages extends Logging {
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
           Utils.toPartitionType(pbReserveSlots.getPartitionType),
-          pbReserveSlots.getRangeReadFilter)
+          pbReserveSlots.getRangeReadFilter,
+          userIdentifier)
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
