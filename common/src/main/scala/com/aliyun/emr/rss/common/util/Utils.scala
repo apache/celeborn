@@ -35,7 +35,7 @@ import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
-import com.google.protobuf.ByteString
+import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
@@ -772,9 +772,11 @@ object Utils extends Logging {
   }
 
   def toTransportMessage(message: Any): Any = {
-    ControlMessages.mapToTransportMessage(message) match {
-      case transportMessage: Message =>
-        transportMessage.toTransportMessage
+    message match {
+      case legacy: Message =>
+        ControlMessages.toTransportMessage(legacy)
+      case pb: GeneratedMessageV3 =>
+        ControlMessages.toTransportMessage(pb)
       case _ =>
         message
     }
