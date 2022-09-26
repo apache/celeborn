@@ -18,6 +18,7 @@
 package com.aliyun.emr.rss.common.identity
 
 import com.aliyun.emr.RssFunSuite
+
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
 class UserIdentifierSuite extends RssFunSuite {

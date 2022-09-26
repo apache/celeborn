@@ -35,7 +35,6 @@ import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSou
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PbCheckForWorkerTimeout, PbRegisterWorker, RpcNameConstants}
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
-import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.quota.QuotaManager
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}

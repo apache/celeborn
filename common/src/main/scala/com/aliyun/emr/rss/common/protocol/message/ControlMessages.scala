@@ -23,6 +23,7 @@ import java.util.UUID
 import scala.collection.JavaConverters._
 
 import org.roaringbitmap.RoaringBitmap
+
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
@@ -321,8 +322,8 @@ object ControlMessages extends Logging {
 
     override def equals(obj: Any): Boolean = {
       obj.isInstanceOf[UserIdentifier] &&
-        obj.asInstanceOf[UserIdentifier].tenantId == tenantId &&
-        obj.asInstanceOf[UserIdentifier].name == name
+      obj.asInstanceOf[UserIdentifier].tenantId == tenantId &&
+      obj.asInstanceOf[UserIdentifier].name == name
     }
 
     override def toString: String = {

@@ -18,6 +18,7 @@
 package com.aliyun.emr.rss.common.quota
 
 import scala.collection.JavaConverters._
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
