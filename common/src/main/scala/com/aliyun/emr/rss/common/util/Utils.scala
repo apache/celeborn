@@ -751,7 +751,7 @@ object Utils extends Logging {
   }
 
   def toTransportMessage(message: Any): Any = {
-    ControlMessages.mapToTransportMessage(message) match {
+    message match {
       case transportMessage: Message =>
         transportMessage.toTransportMessage
       case _ =>
