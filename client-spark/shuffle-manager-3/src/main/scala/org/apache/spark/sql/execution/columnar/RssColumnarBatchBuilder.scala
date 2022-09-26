@@ -109,9 +109,17 @@ class RssColumnarBatchBuilder(
 
   def writeRow(row: InternalRow): Unit = {
     var i = 0
-    var tempTotalSize = 0
     while (i < row.numFields) {
       columnBuilders(i).appendFrom(row, i)
+      i += 1
+    }
+    rowCnt += 1
+  }
+
+  def getTotalSize(): Int = {
+    var i = 0
+    var tempTotalSize = 0
+    while (i < schema.length) {
       columnBuilders(i) match {
         case builder: RssCompressibleColumnBuilder[_] =>
           tempTotalSize += builder.getTotalSize.toInt
@@ -120,8 +128,8 @@ class RssColumnarBatchBuilder(
       }
       i += 1
     }
-    rowCnt += 1
-    totalSize = tempTotalSize + 4 + 4 * row.numFields
+    totalSize = tempTotalSize + 4 + 4 * schema.length
+    totalSize
   }
 }
 
