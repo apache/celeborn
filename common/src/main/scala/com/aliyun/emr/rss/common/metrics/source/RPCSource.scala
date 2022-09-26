@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.metrics.source
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
+import com.aliyun.emr.rss.common.protocol.PbRegisterWorker
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 
 class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
@@ -75,7 +76,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
         incCounter(RPCHeartbeatFromApplicationNum)
       case _: HeartbeatFromWorker =>
         incCounter(RPCHeartbeatFromWorkerNum)
-      case _: RegisterWorker =>
+      case _: PbRegisterWorker =>
         incCounter(RPCRegisterWorkerNum)
       case _: RequestSlots =>
         incCounter(RPCRequestSlotsNum)
