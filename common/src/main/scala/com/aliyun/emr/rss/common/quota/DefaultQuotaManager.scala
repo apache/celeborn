@@ -17,8 +17,6 @@
 
 package com.aliyun.emr.rss.common.quota
 
-import scala.collection.JavaConverters._
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
@@ -28,9 +26,6 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
     // Not support refresh
   }
 
-  /**
-   * Initialize user quota settings.
-   */
   override def initialize(): Unit = {
     conf.getAll.foreach { case (key, value) =>
       if (QUOTA_REGEX.findPrefixOf(key).isDefined) {

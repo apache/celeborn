@@ -29,7 +29,6 @@ import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
 import com.aliyun.emr.rss.common.protocol.MessageType._
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier.USER_IDENTIFIER
 import com.aliyun.emr.rss.common.util.{PbSerDeUtils, Utils}
 
 sealed trait Message extends Serializable
