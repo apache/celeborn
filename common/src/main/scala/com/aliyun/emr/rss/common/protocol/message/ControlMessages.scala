@@ -319,6 +319,8 @@ object ControlMessages extends Logging {
   case class ThreadDumpResponse(threadDump: String) extends Message
 
   case class UserIdentifier(tenantId: String, name: String) extends Message {
+    assert(tenantId != null && !tenantId.isEmpty)
+    assert(name != null && !name.isEmpty)
 
     override def equals(obj: Any): Boolean = {
       obj.isInstanceOf[UserIdentifier] &&
@@ -327,11 +329,7 @@ object ControlMessages extends Logging {
     }
 
     override def toString: String = {
-      if (tenantId.isEmpty) {
-        s"`$name`"
-      } else {
-        s"`$tenantId`.`$name`"
-      }
+      s"`$tenantId`.`$name`"
     }
   }
 
