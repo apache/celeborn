@@ -29,7 +29,7 @@ import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
 import com.aliyun.emr.rss.common.protocol.MessageType._
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, ChangeLocationResponse, CheckForApplicationTimeOut, CheckQuota, CheckQuotaResponse, CommitFiles, CommitFilesResponse, Destroy, DestroyResponse, GetBlacklist, GetBlacklistResponse, GetReducerFileGroup, GetReducerFileGroupResponse, GetWorkerInfos, GetWorkerInfosResponse, HeartbeatFromApplication, HeartbeatFromWorker, HeartbeatResponse, MapperEnd, MapperEndResponse, OneWayMessageResponse, PartitionSplit, RegisterShuffle, RegisterShuffleResponse, RegisterWorker, RegisterWorkerResponse, ReleaseSlots, ReleaseSlotsResponse, RemoveExpiredShuffle, ReportWorkerFailure, RequestSlots, RequestSlotsResponse, ReregisterWorkerResponse, ReserveSlots, ReserveSlotsResponse, Revive, SlaveLostResponse, StageEnd, StageEndResponse, ThreadDump, ThreadDumpResponse, UnregisterShuffle, UnregisterShuffleResponse, WorkerLost, WorkerLostResponse}
 import com.aliyun.emr.rss.common.util.Utils
 
 sealed trait Message extends Serializable {
