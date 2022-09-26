@@ -50,17 +50,19 @@ class RssShuffleReader[K, C](
   override def read(): Iterator[Product2[K, C]] = {
 
     var serializerInstance = dep.serializer.newInstance()
-    val schema = SparkUtils.getShuffleDependencySchema(dep)
-    if (RssConf.columnarShuffleEnabled(conf) && RssColumnarBatchBuilder.supportsColumnarType(
-        schema)) {
-      val dataSize = SparkUtils.getUnsafeRowSerializerDataSizeMetric(
-        dep.serializer.asInstanceOf[UnsafeRowSerializer])
-      serializerInstance = new RssColumnarBatchSerializer(
-        schema,
-        RssConf.columnarShuffleBatchSize(conf),
-        RssConf.columnarShuffleCompress(conf),
-        RssConf.columnarShuffleOffHeapColumnVectorEnabled(conf),
-        dataSize).newInstance()
+    if (RssConf.columnarShuffleEnabled(conf)) {
+      val schema = SparkUtils.getShuffleDependencySchema(dep)
+      if (RssColumnarBatchBuilder.supportsColumnarType(
+          schema)) {
+        val dataSize = SparkUtils.getUnsafeRowSerializerDataSizeMetric(
+          dep.serializer.asInstanceOf[UnsafeRowSerializer])
+        serializerInstance = new RssColumnarBatchSerializer(
+          schema,
+          RssConf.columnarShuffleBatchSize(conf),
+          RssConf.columnarShuffleCompress(conf),
+          RssConf.columnarShuffleOffHeapColumnVectorEnabled(conf),
+          dataSize).newInstance()
+      }
     }
 
     // Update the context task metrics for each record read.
