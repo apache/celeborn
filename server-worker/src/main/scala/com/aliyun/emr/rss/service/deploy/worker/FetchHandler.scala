@@ -150,6 +150,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           req.streamChunkSlice.chunkIndex,
           req.streamChunkSlice.offset,
           req.streamChunkSlice.len)
+        workerSource.addGauge(WorkerSource.FetchChunkSize, _ => buf.size())
         streamManager.chunkBeingSent(req.streamChunkSlice.streamId)
         client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
           .addListener(new GenericFutureListener[Future[_ >: Void]] {

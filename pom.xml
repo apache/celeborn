@@ -58,6 +58,7 @@
     <scalamock.version>5.1.0</scalamock.version>
     <scalatest.version>3.2.3</scalatest.version>
     <slf4j.version>1.7.16</slf4j.version>
+    <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <!--  default hadoop version  -->
     <hadoop.version>3.3.1</hadoop.version>
 
@@ -380,6 +381,11 @@
             <artifactId>reload4j</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>

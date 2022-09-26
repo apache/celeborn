@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.client.read;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.atomic.LongAdder;
 
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -112,6 +113,8 @@ public abstract class RssInputStream extends InputStream {
     // mapId, attemptId, batchId, size
     private final int BATCH_HEADER_SIZE = 4 * 4;
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
+    private LongAdder skipCount = new LongAdder();
+    private final boolean rangeReadFilter;
 
     RssInputStreamImpl(
         RssConf conf,
@@ -131,6 +134,7 @@ public abstract class RssInputStream extends InputStream {
       this.attemptNumber = attemptNumber;
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
+      this.rangeReadFilter = RssConf.rangeReadFilterEnabled(conf);
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = RssConf.pushDataBufferSize(conf) + headerLen;
@@ -142,41 +146,60 @@ public abstract class RssInputStream extends InputStream {
       moveToNextReader();
     }
 
+    private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
+      if (!rangeReadFilter) {
+        return false;
+      }
+      if (endMapIndex == Integer.MAX_VALUE) {
+        return false;
+      }
+      for (int i = startMapIndex; i < endMapIndex; i++) {
+        if (location.getMapIdBitMap().contains(i)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    private PartitionLocation nextReadableLocation() {
+      int locationCount = locations.length;
+      if (fileIndex >= locationCount) {
+        return null;
+      }
+      PartitionLocation currentLocation = locations[fileIndex];
+      while (skipLocation(startMapIndex, endMapIndex, currentLocation)) {
+        skipCount.increment();
+        fileIndex++;
+        if (fileIndex == locationCount) {
+          return null;
+        }
+        currentLocation = locations[fileIndex];
+      }
+      return currentLocation;
+    }
+
     private void moveToNextReader() throws IOException {
       if (currentReader != null) {
         currentReader.close();
-      }
-
-      int locationCount = locations.length;
-      PartitionLocation currentLocation = locations[fileIndex];
-      currentReader = createReader(currentLocation);
-      logger.debug(
-          "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
-          currentLocation,
-          startMapIndex,
-          endMapIndex,
-          fileIndex,
-          locationCount);
-      while (!currentReader.hasNext() && fileIndex < locationCount - 1) {
-        fileIndex++;
-        currentLocation = locations[fileIndex];
-        currentReader.close();
-        currentReader = createReader(currentLocation);
-        logger.debug(
-            "Moved to next partition {},startMapIndex {} endMapIndex {} , {}/{} read ",
-            currentLocation,
-            startMapIndex,
-            endMapIndex,
-            fileIndex,
-            locationCount);
-      }
-      if (currentReader.hasNext()) {
-        currentChunk = currentReader.next();
-        fileIndex++;
-      } else {
-        currentReader.close();
         currentReader = null;
       }
+      PartitionLocation currentLocation = nextReadableLocation();
+      if (currentLocation == null) {
+        return;
+      }
+      currentReader = createReader(currentLocation);
+      fileIndex++;
+      while (!currentReader.hasNext()) {
+        currentReader.close();
+        currentReader = null;
+        currentLocation = nextReadableLocation();
+        if (currentLocation == null) {
+          return;
+        }
+        currentReader = createReader(currentLocation);
+        fileIndex++;
+      }
+      currentChunk = currentReader.next();
     }
 
     private PartitionReader createReader(PartitionLocation location) throws IOException {
@@ -258,6 +281,12 @@ public abstract class RssInputStream extends InputStream {
 
     @Override
     public void close() {
+      int locationsCount = locations.length;
+      logger.info(
+          "total location count {} read {} skip {}",
+          locationsCount,
+          locationsCount - skipCount.sum(),
+          skipCount.sum());
       if (currentChunk != null) {
         logger.debug("Release chunk {}", currentChunk);
         currentChunk.release();

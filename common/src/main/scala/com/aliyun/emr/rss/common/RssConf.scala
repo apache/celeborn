@@ -570,12 +570,12 @@ object RssConf extends Logging {
           (workingDir, maxCapacity, flushThread, diskType)
         })
       } else {
-        baseDirs.split(",").map((_, maxCapacity, 1, HDD))
+        baseDirs.split(",").map((_, maxCapacity, HDDFlusherThread(conf), HDD))
       }
     } else {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => (s"$prefix$i", maxCapacity, 1, HDD)).toArray
+      (1 to number).map(i => (s"$prefix$i", maxCapacity, HDDFlusherThread(conf), HDD)).toArray
     }
   }
 
@@ -748,8 +748,8 @@ object RssConf extends Logging {
     conf.getBoolean("rss.force.fallback", false)
   }
 
-  def clusterCheckAliveEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.cluster.checkalive.enabled", defaultValue = true)
+  def clusterCheckQuotaEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
   }
 
   def deviceMonitorEnabled(conf: RssConf): Boolean = {
@@ -975,6 +975,30 @@ object RssConf extends Logging {
 
   def hdfsFlusherThreadCount(conf: RssConf): Int = {
     conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
+  }
+
+  def rangeReadFilterEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.range.read.filter.enabled", false)
+  }
+
+  def columnarShuffleEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)
+  }
+
+  def columnarShuffleCompress(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.columnar.shuffle.encoding.enabled", defaultValue = false)
+  }
+
+  def columnarShuffleBatchSize(conf: RssConf): Int = {
+    conf.getInt("rss.columnar.shuffle.batch.size", 10000)
+  }
+
+  def columnarShuffleOffHeapColumnVectorEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.columnar.shuffle.offheap.vector.enabled", false)
+  }
+
+  def columnarShuffleMaxDictFactor(conf: RssConf): Double = {
+    conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
 
   // If we want to use multi-raft group we can

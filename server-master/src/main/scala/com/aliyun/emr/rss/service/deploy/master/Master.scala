@@ -32,12 +32,13 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
-import com.aliyun.emr.rss.common.protocol.{PartitionLocation, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PbCheckForWorkerTimeout, PbRegisterWorker, RpcNameConstants}
+import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, StatusCode}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.quota.QuotaManager
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
+import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.{HttpService, Service}
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -148,7 +149,7 @@ private[deploy] class Master(
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForWorkerTimeOut)
+          self.send(ControlMessages.pbCheckForWorkerTimeout)
         }
       },
       0,
@@ -187,7 +188,7 @@ private[deploy] class Master(
     if (HAHelper.checkShouldProcess(context, statusSystem)) f
 
   override def receive: PartialFunction[Any, Unit] = {
-    case CheckForWorkerTimeOut =>
+    case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
@@ -205,7 +206,15 @@ private[deploy] class Master(
         context,
         handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
 
-    case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
+    case pbRegisterWorker: PbRegisterWorker =>
+      val requestId = pbRegisterWorker.getRequestId
+      val host = pbRegisterWorker.getHost
+      val rpcPort = pbRegisterWorker.getRpcPort
+      val pushPort = pbRegisterWorker.getPushPort
+      val fetchPort = pbRegisterWorker.getFetchPort
+      val replicatePort = pbRegisterWorker.getReplicatePort
+      val disks = pbRegisterWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
+
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
       executeWithLeaderChecker(
@@ -274,8 +283,8 @@ private[deploy] class Master(
     case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
       executeWithLeaderChecker(context, handleReportNodeFailure(context, failedWorkers, requestId))
 
-    case CheckAlive =>
-      executeWithLeaderChecker(context, handleCheckAlive(context))
+    case CheckQuota(userIdentifier) =>
+      executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
   }
 
   private def timeoutDeadWorkers() {
@@ -410,7 +419,9 @@ private[deploy] class Master(
         replicatePort,
         disks,
         requestId)
-      context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
+      context.reply(ControlMessages.pbRegisterWorkerResponse(
+        true,
+        "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
@@ -423,7 +434,9 @@ private[deploy] class Master(
         replicatePort,
         disks,
         requestId)
-      context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
+      context.reply(ControlMessages.pbRegisterWorkerResponse(
+        true,
+        "Worker in workerLostEvents, re-register."))
     } else {
       statusSystem.handleRegisterWorker(
         host,
@@ -434,7 +447,7 @@ private[deploy] class Master(
         disks,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
-      context.reply(RegisterWorkerResponse(true, ""))
+      context.reply(ControlMessages.pbRegisterWorkerResponse(true, ""))
     }
   }
 
@@ -575,8 +588,11 @@ private[deploy] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  private def handleCheckAlive(context: RpcCallContext): Unit = {
-    context.reply(CheckAliveResponse(true))
+  private def handleCheckQuota(
+      userIdentifier: UserIdentifier,
+      context: RpcCallContext): Unit = {
+    // TODO: Implement quota related logic
+    context.reply(CheckQuotaResponse(true))
   }
 
   private def workersNotBlacklisted(

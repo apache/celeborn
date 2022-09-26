@@ -26,6 +26,7 @@ import java.util.function.BiFunction
 import scala.collection.JavaConverters._
 
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
+import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
@@ -75,7 +76,8 @@ private[deploy] class Controller(
           slaveLocations,
           splitThreshold,
           splitMode,
-          partitionType) =>
+          partitionType,
+          rangeReadFilter) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
@@ -89,7 +91,8 @@ private[deploy] class Controller(
           slaveLocations,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFilter)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -123,7 +126,8 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType): Unit = {
+      partitionType: PartitionType,
+      rangeReadFileter: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -148,7 +152,8 @@ private[deploy] class Controller(
           location,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFileter)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -173,7 +178,8 @@ private[deploy] class Controller(
           location,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFileter)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -209,6 +215,7 @@ private[deploy] class Controller(
       committedIds: jSet[String],
       failedIds: jSet[String],
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
+      committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
       partitionSizeList: LinkedBlockingQueue[Long],
       master: Boolean = true): CompletableFuture[Void] = {
     var future: CompletableFuture[Void] = null
@@ -236,6 +243,9 @@ private[deploy] class Controller(
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo != null) {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
+                    if (fileWriter.getMapIdBitMap != null) {
+                      committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
+                    }
                   }
                   if (bytes >= minimumPartitionSizeForEstimation) {
                     partitionSizeList.add(bytes)
@@ -291,6 +301,7 @@ private[deploy] class Controller(
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val committedMasterStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
     val committedSlaveStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
+    val committedMapIdBitMap = new ConcurrentHashMap[String, RoaringBitmap]()
     val partitionSizeList = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
@@ -300,6 +311,7 @@ private[deploy] class Controller(
         committedMasterIds,
         failedMasterIds,
         committedMasterStorageInfos,
+        committedMapIdBitMap,
         partitionSizeList)
     val slaveFuture = commitFiles(
       shuffleKey,
@@ -307,6 +319,7 @@ private[deploy] class Controller(
       committedSlaveIds,
       failedSlaveIds,
       committedSlaveStorageInfos,
+      committedMapIdBitMap,
       partitionSizeList,
       false)
 
@@ -341,6 +354,7 @@ private[deploy] class Controller(
         new jHashMap[String, StorageInfo](committedMasterStorageInfos)
       val committedSlaveStorageAndDiskHintList =
         new jHashMap[String, StorageInfo](committedSlaveStorageInfos)
+      val committedMapIdBitMapList = new jHashMap[String, RoaringBitmap](committedMapIdBitMap)
       val totalSize = partitionSizeList.asScala.sum
       val fileCount = partitionSizeList.size()
       // reply
@@ -356,6 +370,7 @@ private[deploy] class Controller(
             List.empty.asJava,
             committedMasterStorageAndDiskHintList,
             committedSlaveStorageAndDiskHintList,
+            committedMapIdBitMapList,
             totalSize,
             fileCount))
       } else {
@@ -370,6 +385,7 @@ private[deploy] class Controller(
             failedSlaveIdList,
             committedMasterStorageAndDiskHintList,
             committedSlaveStorageAndDiskHintList,
+            committedMapIdBitMapList,
             totalSize,
             fileCount))
       }

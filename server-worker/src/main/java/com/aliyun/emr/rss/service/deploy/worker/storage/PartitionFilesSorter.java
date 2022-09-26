@@ -597,11 +597,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         logger.error(
             "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
       } finally {
+        closeFiles();
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
         synchronized (sorting) {
           sorting.remove(fileId);
         }
-        closeFiles();
       }
       source.stopTimer(WorkerSource.SortTime(), fileId);
     }

@@ -86,7 +86,7 @@ class ClusterReadWriteTest extends MiniClusterFeature {
 
       val readBytes = outputStream.toByteArray
 
-      assert(readBytes.length == LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4)
+      Assert.assertEquals(LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4, readBytes.length)
       val targetArr = Array.concat(DATA1, DATA2, DATA3, DATA4)
       Assert.assertArrayEquals(targetArr, readBytes)
 
