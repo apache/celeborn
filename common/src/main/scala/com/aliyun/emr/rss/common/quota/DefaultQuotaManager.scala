@@ -17,6 +17,7 @@
 
 package com.aliyun.emr.rss.common.quota
 
+import scala.collection.JavaConverters._
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
@@ -34,18 +35,21 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
       if (QUOTA_REGEX.findPrefixOf(key).isDefined) {
         val QUOTA_REGEX(user, suffix) = key
         val userIdentifier = UserIdentifier(user)
-        val quotaValue =
-          try {
-            value.toLong
-          } catch {
-            case e =>
-              logError(
-                s"Quota value of ${userIdentifier} should be a long value, incorrect setting : ${value}")
-              -1
+        if (userIdentifier.isDefined) {
+          val quotaValue = {
+            try {
+              value.toLong
+            } catch {
+              case e =>
+                logError(
+                  s"Quota value of ${userIdentifier} should be a long value, incorrect setting : ${value}")
+                -1
+            }
           }
-        val quota = userQuotas.getOrDefault(userIdentifier, new Quota())
-        quota.update(userIdentifier, suffix, quotaValue)
-        userQuotas.put(userIdentifier, quota)
+          val quota = userQuotas.getOrDefault(userIdentifier.get, new Quota())
+          quota.update(userIdentifier.get, suffix, quotaValue)
+          userQuotas.put(userIdentifier.get, quota)
+        }
       }
     }
   }

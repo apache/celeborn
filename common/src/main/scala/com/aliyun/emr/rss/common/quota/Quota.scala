@@ -36,6 +36,18 @@ class Quota(
     }
   }
 
+  override def equals(obj: Any): Boolean = {
+    if (obj.isInstanceOf[Quota]) {
+      val others = obj.asInstanceOf[Quota]
+      others.diskBytesWritten == diskBytesWritten &&
+      others.diskFileCount == diskFileCount &&
+      others.hdfsBytesWritten == hdfsBytesWritten &&
+      others.hdfsFileCount == hdfsFileCount
+    } else {
+      false
+    }
+  }
+
   override def toString: String = {
     s"Quota[diskBytesWritten=$diskBytesWritten, diskFileCount=$diskFileCount, hdfsBytesWritten=$hdfsBytesWritten, hdfsFileCount=$hdfsFileCount]"
   }

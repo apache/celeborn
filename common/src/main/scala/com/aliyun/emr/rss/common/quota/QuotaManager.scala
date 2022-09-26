@@ -35,10 +35,14 @@ abstract class QuotaManager(conf: RssConf) extends Logging {
    * Method to refresh current user quota setting.
    */
   def refresh(): Unit
+
+  def getQuota(userIdentifier: UserIdentifier): Quota = {
+    userQuotas.getOrDefault(userIdentifier, new Quota())
+  }
 }
 
 object QuotaManager extends Logging {
-  val QUOTA_REGEX = "^rss\\.quota\\.(.+)\\.(.+)".r
+  val QUOTA_REGEX = "^rss\\.quota\\.\\{(.+)\\}\\.(.+)".r
 
   def instantiate(conf: RssConf): QuotaManager = {
     val className = RssConf.quotaManagerClass(conf)
@@ -49,7 +53,9 @@ object QuotaManager extends Logging {
       Thread.currentThread().getContextClassLoader).asInstanceOf[Class[QuotaManager]]
     try {
       val ctor = clazz.getDeclaredConstructor(classOf[RssConf])
-      ctor.newInstance(conf)
+      val quotaManager = ctor.newInstance(conf)
+      quotaManager.initialize()
+      quotaManager
     } catch {
       case e: NoSuchMethodException =>
         logError(s"Falling to instantiate quota manager $className", e)

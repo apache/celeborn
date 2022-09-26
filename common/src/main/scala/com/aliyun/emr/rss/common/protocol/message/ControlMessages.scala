@@ -23,12 +23,12 @@ import java.util.UUID
 import scala.collection.JavaConverters._
 
 import org.roaringbitmap.RoaringBitmap
-
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
 import com.aliyun.emr.rss.common.protocol.MessageType._
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier.USER_IDENTIFIER
 import com.aliyun.emr.rss.common.util.{PbSerDeUtils, Utils}
 
 sealed trait Message extends Serializable
@@ -318,15 +318,33 @@ object ControlMessages extends Logging {
   case class ThreadDumpResponse(threadDump: String) extends Message
 
   case class UserIdentifier(tenantId: String, name: String) extends Message {
+
+    override def equals(obj: Any): Boolean = {
+      obj.isInstanceOf[UserIdentifier] &&
+        obj.asInstanceOf[UserIdentifier].tenantId == tenantId &&
+        obj.asInstanceOf[UserIdentifier].name == name
+    }
+
     override def toString: String = {
-      // TODO
-      super.toString
+      if (tenantId.isEmpty) {
+        s"`$name`"
+      } else {
+        s"`$tenantId`.`$name`"
+      }
     }
   }
 
   object UserIdentifier {
-    def apply(userIdentifier: String): UserIdentifier = {
-      UserIdentifier("mock", "mock")
+    val USER_IDENTIFIER = "^\\`(.+)\\`\\.\\`(.+)\\`$".r
+
+    def apply(userIdentifier: String): Option[UserIdentifier] = {
+      if (USER_IDENTIFIER.findPrefixOf(userIdentifier).isDefined) {
+        val USER_IDENTIFIER(tenantId, name) = userIdentifier
+        Some(UserIdentifier(tenantId, name))
+      } else {
+        logError(s"Failed to parse user identifieer: `$userIdentifier`")
+        None
+      }
     }
   }
 

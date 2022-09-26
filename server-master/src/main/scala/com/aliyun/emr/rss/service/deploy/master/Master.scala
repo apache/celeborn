@@ -95,7 +95,7 @@ private[deploy] class Master(
   private val WorkerTimeoutMs = RssConf.workerTimeoutMs(conf)
   private val ApplicationTimeoutMs = RssConf.applicationTimeoutMs(conf)
 
-  private val userQuota = QuotaManager.instantiate(conf)
+  private val quotaManager = QuotaManager.instantiate(conf)
 
   // States
   private def workersSnapShot: util.List[WorkerInfo] =
