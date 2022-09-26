@@ -22,6 +22,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -36,7 +37,8 @@ import com.aliyun.emr.rss.common.metrics.MetricsSystem
 import com.aliyun.emr.rss.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import com.aliyun.emr.rss.common.network.TransportContext
 import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker}
-import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.{PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
@@ -319,31 +321,38 @@ private[deploy] class Worker(
     logInfo("RSS Worker is stopped.")
   }
 
-  private def registerWithMaster() {
+  private def registerWithMaster(): Unit = {
     var registerTimeout = RssConf.registerWorkerTimeoutMs(conf)
-    val delta = 2000
+    val interval = 2000
     while (registerTimeout > 0) {
-      val rsp =
+      val resp =
         try {
-          rssHARetryClient.askSync[RegisterWorkerResponse](
-            RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
-            classOf[RegisterWorkerResponse])
+          rssHARetryClient.askSync[PbRegisterWorkerResponse](
+            ControlMessages.pbRegisterWorker(
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              workerInfo.diskInfos.asScala.toMap,
+              RssHARetryClient.genRequestId()),
+            classOf[PbRegisterWorkerResponse])
         } catch {
           case throwable: Throwable =>
             logWarning(
-              s"Register worker to master failed, will retry after 2s, exception: ",
+              s"Register worker to master failed, will retry after ${Utils.msDurationToString(interval)}",
               throwable)
             null
         }
       // Register successfully
-      if (null != rsp && rsp.success) {
+      if (null != resp && resp.getSuccess) {
         registered.set(true)
         logInfo("Register worker successfully.")
         return
       }
       // Register failed, sleep and retry
-      Thread.sleep(delta)
-      registerTimeout = registerTimeout - delta
+      Thread.sleep(interval)
+      registerTimeout = registerTimeout - interval
     }
     // If worker register still failed after retry, throw exception to stop worker process
     throw new RssException("Register worker failed.")

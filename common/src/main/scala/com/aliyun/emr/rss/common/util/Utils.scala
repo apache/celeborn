@@ -35,7 +35,7 @@ import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
-import com.google.protobuf.ByteString
+import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
@@ -135,6 +135,27 @@ object Utils extends Logging {
 
   def megabytesToString(megabytes: Long): String = {
     bytesToString(megabytes * 1024L * 1024L)
+  }
+
+  /**
+   * Returns a human-readable string representing a duration such as "35ms"
+   */
+  def msDurationToString(ms: Long): String = {
+    val second = 1000
+    val minute = 60 * second
+    val hour = 60 * minute
+    val locale = Locale.US
+
+    ms match {
+      case t if t < second =>
+        "%d ms".formatLocal(locale, t)
+      case t if t < minute =>
+        "%.1f s".formatLocal(locale, t.toFloat / second)
+      case t if t < hour =>
+        "%.1f m".formatLocal(locale, t.toFloat / minute)
+      case t =>
+        "%.2f h".formatLocal(locale, t.toFloat / hour)
+    }
   }
 
   @throws(classOf[RssException])
@@ -751,9 +772,11 @@ object Utils extends Logging {
   }
 
   def toTransportMessage(message: Any): Any = {
-    ControlMessages.mapToTransportMessage(message) match {
-      case transportMessage: Message =>
-        transportMessage.toTransportMessage
+    message match {
+      case legacy: Message =>
+        ControlMessages.toTransportMessage(legacy)
+      case pb: GeneratedMessageV3 =>
+        ControlMessages.toTransportMessage(pb)
       case _ =>
         message
     }
