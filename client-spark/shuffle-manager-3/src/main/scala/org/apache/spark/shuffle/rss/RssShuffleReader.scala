@@ -20,6 +20,8 @@ package org.apache.spark.shuffle.rss
 import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.{ShuffleReader, ShuffleReadMetricsReporter}
+import org.apache.spark.sql.execution.UnsafeRowSerializer
+import org.apache.spark.sql.execution.columnar.{RssColumnarBatchBuilder, RssColumnarBatchSerializer}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -47,7 +49,19 @@ class RssShuffleReader[K, C](
 
   override def read(): Iterator[Product2[K, C]] = {
 
-    val serializerInstance = dep.serializer.newInstance()
+    var serializerInstance = dep.serializer.newInstance()
+    val schema = SparkUtils.getShuffleDependencySchema(dep)
+    if (RssConf.columnarShuffleEnabled(conf) && RssColumnarBatchBuilder.supportsColumnarType(
+        schema)) {
+      val dataSize = SparkUtils.getUnsafeRowSerializerDataSizeMetric(
+        dep.serializer.asInstanceOf[UnsafeRowSerializer])
+      serializerInstance = new RssColumnarBatchSerializer(
+        schema,
+        RssConf.columnarShuffleBatchSize(conf),
+        RssConf.columnarShuffleCompress(conf),
+        RssConf.columnarShuffleOffHeapColumnVectorEnabled(conf),
+        dataSize).newInstance()
+    }
 
     // Update the context task metrics for each record read.
     val metricsCallback = new MetricsCallback {
