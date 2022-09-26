@@ -77,7 +77,8 @@ private[deploy] class Controller(
           splitThreshold,
           splitMode,
           partitionType,
-          rangeReadFilter) =>
+          rangeReadFilter,
+          userIdentifier) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +

@@ -165,6 +165,7 @@ message PbRequestSlots {
   bool shouldReplicate = 5;
   string requestId = 6;
   int32 storageType = 7;
+  PbUserIdentifier userIdentifier = 8;
 }
 
 message PbSlotInfo {
@@ -302,6 +303,7 @@ message PbReserveSlots {
   int32 splitMode = 6;
   int32 partitionType = 7;
   bool rangeReadFilter = 8;
+  PbUserIdentifier userIdentifier = 9;
 }
 
 message PbReserveSlotsResponse {

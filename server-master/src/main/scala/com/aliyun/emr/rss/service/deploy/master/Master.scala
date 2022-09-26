@@ -225,7 +225,7 @@ private[deploy] class Master(
           disks,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
