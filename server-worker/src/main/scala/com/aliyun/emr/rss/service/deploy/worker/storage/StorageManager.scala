@@ -44,8 +44,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.util.PBSerDeUtils
+import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 
@@ -225,7 +224,7 @@ final private[worker] class StorageManager(
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
-            val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
+            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue)
             logDebug("Reload DB: " + shuffleKey + " -> " + files)
             fileInfos.put(shuffleKey, files)
             fileInfosDb.delete(entry.getKey)
@@ -241,7 +240,7 @@ final private[worker] class StorageManager(
   def updateFileInfosInDB(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        fileInfosDb.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
+        fileInfosDb.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
         logDebug("Update DB: " + shuffleKey + " -> " + files)
       } catch {
         case exception: Exception =>
@@ -270,7 +269,8 @@ final private[worker] class StorageManager(
       location: PartitionLocation,
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType): FileWriter = {
+      partitionType: PartitionType,
+      rangeReadFilter: Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0) {
       throw new IOException("No available working dirs!")
     }
@@ -320,7 +320,8 @@ final private[worker] class StorageManager(
           deviceMonitor,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFilter)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.synchronized {
           hdfsWriters.add(hdfsWriter)
@@ -348,7 +349,8 @@ final private[worker] class StorageManager(
             deviceMonitor,
             splitThreshold,
             splitMode,
-            partitionType)
+            partitionType,
+            rangeReadFilter)
           deviceMonitor.registerFileWriter(fileWriter)
           val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           list.synchronized {

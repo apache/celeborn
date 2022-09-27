@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.metrics.source
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
+import com.aliyun.emr.rss.common.protocol.PbRegisterWorker
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 
 class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
@@ -50,7 +51,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
   addCounter(RPCGetBlacklistNum)
   addCounter(RPCReportWorkerFailureNum)
   addCounter(RPCReportWorkerFailureSize)
-  addCounter(RPCCheckAliveNum)
+  addCounter(RPCCheckQuotaNum)
 
   def updateMessageMetrics(message: Any, messageLen: Long): Unit = {
     message match {
@@ -75,7 +76,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
         incCounter(RPCHeartbeatFromApplicationNum)
       case _: HeartbeatFromWorker =>
         incCounter(RPCHeartbeatFromWorkerNum)
-      case _: RegisterWorker =>
+      case _: PbRegisterWorker =>
         incCounter(RPCRegisterWorkerNum)
       case _: RequestSlots =>
         incCounter(RPCRequestSlotsNum)
@@ -89,8 +90,8 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
       case _: ReportWorkerFailure =>
         incCounter(RPCReportWorkerFailureNum)
         incCounter(RPCReportWorkerFailureSize, messageLen)
-      case CheckAlive =>
-        incCounter(RPCCheckAliveNum)
+      case CheckQuota =>
+        incCounter(RPCCheckQuotaNum)
       case _ => // Do nothing
     }
   }
@@ -121,5 +122,5 @@ object RPCSource {
   val RPCGetBlacklistNum = "RPCGetBlacklistNum"
   val RPCReportWorkerFailureNum = "RPCReportWorkerFailureNum"
   val RPCReportWorkerFailureSize = "RPCReportWorkerFailureSize"
-  val RPCCheckAliveNum = "RPCCheckAliveNum"
+  val RPCCheckQuotaNum = "RPCCheckQuotaNum"
 }

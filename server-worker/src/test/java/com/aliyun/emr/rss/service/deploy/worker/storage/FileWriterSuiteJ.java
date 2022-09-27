@@ -247,7 +247,8 @@ public class FileWriterSuiteJ {
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            partitionType);
+            partitionType,
+            false);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -291,7 +292,8 @@ public class FileWriterSuiteJ {
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            partitionType);
+            partitionType,
+            false);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -344,7 +346,8 @@ public class FileWriterSuiteJ {
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            partitionType);
+            partitionType,
+            false);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");

@@ -28,6 +28,6 @@ class RssShuffleHandle[K, V, C](
     val rssMetaServicePort: Int,
     val userIdentifier: UserIdentifier,
     shuffleId: Int,
-    val numMappers: Int,
+    numMappers: Int,
     dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, dependency)
+  extends BaseShuffleHandle(shuffleId, numMappers, dependency)

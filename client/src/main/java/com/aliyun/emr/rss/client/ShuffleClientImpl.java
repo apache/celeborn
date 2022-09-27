@@ -70,6 +70,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   private static final Random rand = new Random();
 
   private final RssConf conf;
+
+  private final UserIdentifier userIdentifier;
+
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWait;
   private final int maxInFlight;
@@ -117,9 +120,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
-  public ShuffleClientImpl(RssConf conf) {
+  public ShuffleClientImpl(RssConf conf, UserIdentifier userIdentifier) {
     super();
     this.conf = conf;
+    this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = RssConf.registerShuffleMaxRetry(conf);
     registerShuffleRetryWait = RssConf.registerShuffleRetryWait(conf);
     maxInFlight = RssConf.pushDataMaxReqsInFlight(conf);
@@ -194,8 +198,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       ArrayList<DataBatches.DataBatch> batches,
-      boolean revived,
-      StatusCode cause) {
+      StatusCode cause,
+      Integer oldGroupedBatchId) {
     HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
     for (DataBatches.DataBatch batch : batches) {
       int partitionId = batch.loc.getId();
@@ -236,8 +240,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptId,
           newDataBatches.requireBatches(),
           pushState,
-          revived);
+          true);
     }
+    pushState.inFlightBatches.remove(oldGroupedBatchId);
   }
 
   private String genAddressPair(PartitionLocation loc) {
@@ -910,7 +915,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + Arrays.toString(batchIds)
                     + ".",
                 e);
-            pushState.inFlightBatches.remove(groupedBatchId);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               pushDataRetryPool.submit(
                   () ->
@@ -921,8 +925,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                           mapId,
                           attemptId,
                           batches,
-                          true,
-                          getPushDataFailCause(e.getMessage())));
+                          getPushDataFailCause(e.getMessage()),
+                          groupedBatchId));
             }
           }
         };
@@ -1013,6 +1017,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         reduceFileGroupsMap.computeIfAbsent(
             shuffleId,
             (id) -> {
+              long getReducerFileGroupStartTime = System.nanoTime();
               try {
                 if (driverRssMetaService == null) {
                   logger.warn("Driver endpoint is null!");
@@ -1029,6 +1034,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                         getReducerFileGroup, classTag);
 
                 if (response.status() == StatusCode.SUCCESS) {
+                  logger.info(
+                      "Shuffle {} request reducer file group success using time:{} ms",
+                      shuffleId,
+                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000);
                   return new ReduceFileGroups(response.fileGroup(), response.attempts());
                 } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
                   logger.warn(

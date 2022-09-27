@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,7 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.protocol.PartitionType;
 import com.aliyun.emr.rss.common.protocol.StorageInfo;
+import com.aliyun.emr.rss.common.unsafe.Platform;
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource;
 
 /*
@@ -74,9 +76,11 @@ public final class FileWriter implements DeviceObserver {
   private long splitThreshold = 0;
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
+  private final boolean rangeReadFilter;
 
   private Runnable destroyHook;
   private boolean deleted = false;
+  private RoaringBitmap mapIdBitMap = null;
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
@@ -97,7 +101,8 @@ public final class FileWriter implements DeviceObserver {
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      PartitionType partitionType)
+      PartitionType partitionType,
+      boolean rangeReadFilter)
       throws IOException {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
@@ -110,6 +115,7 @@ public final class FileWriter implements DeviceObserver {
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
+    this.rangeReadFilter = rangeReadFilter;
     if (fileInfo.isHdfs()) {
       stream = StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true);
     }
@@ -118,6 +124,9 @@ public final class FileWriter implements DeviceObserver {
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
+    if (rangeReadFilter) {
+      this.mapIdBitMap = new RoaringBitmap();
+    }
     takeBuffer();
   }
 
@@ -191,9 +200,21 @@ public final class FileWriter implements DeviceObserver {
       return;
     }
 
+    int mapId = 0;
+    if (rangeReadFilter) {
+      byte[] header = new byte[16];
+      data.markReaderIndex();
+      data.readBytes(header);
+      data.resetReaderIndex();
+      mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
+    }
+
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
+      if (rangeReadFilter) {
+        mapIdBitMap.add(mapId);
+      }
       if (flushBuffer.readableBytes() != 0
           && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
@@ -205,6 +226,10 @@ public final class FileWriter implements DeviceObserver {
 
       numPendingWrites.decrementAndGet();
     }
+  }
+
+  public RoaringBitmap getMapIdBitMap() {
+    return mapIdBitMap;
   }
 
   public StorageInfo getStorageInfo() {

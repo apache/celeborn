@@ -26,8 +26,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
+import org.roaringbitmap.RoaringBitmap
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient
+import com.aliyun.emr.rss.common.identity.IdentityProvider
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{PartitionLocationInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageInfo}
@@ -47,6 +50,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
+  private val rangeReadFilter = RssConf.rangeReadFilterEnabled(conf)
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = RssConf.stageEndTimeout(conf)
 
@@ -64,6 +68,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   // shuffle id -> (partitionId -> newest PartitionLocation)
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+  private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -190,6 +195,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       rpcEnv.shutdown()
       rpcEnv.awaitTermination()
     }
+  }
+
+  def getUserIdentifier(): UserIdentifier = {
+    userIdentifier
   }
 
   def getRssMetaServiceHost: String = {
@@ -671,11 +680,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val committedMasterStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
     val committedSlaveStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
+    val committedMapIdBitmap = new ConcurrentHashMap[String, RoaringBitmap]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
 
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
     val commitFilesFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
+
+    val currentShuffleFileCount = new LongAdder
+    val commitFileStartTime = System.nanoTime()
 
     val parallelism = Math.min(workerSnapshots(shuffleId).size(), RssConf.rpcMaxParallelism(conf))
     ThreadUtils.parmap(
@@ -730,8 +743,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         failedMasterIds.addAll(res.failedMasterIds)
         failedSlaveIds.addAll(res.failedSlaveIds)
 
+        if (!res.committedMapIdBitMap.isEmpty) {
+          committedMapIdBitmap.putAll(res.committedMapIdBitMap)
+        }
+
         totalWritten.add(res.totalWritten)
         fileCount.add(res.fileCount)
+        currentShuffleFileCount.add(res.fileCount)
       }
     }
 
@@ -767,6 +785,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
           masterPartMap.get(id).setStorageInfo(committedMasterStorageInfos.get(id))
+          masterPartMap.get(id).setMapIdBitMap(committedMapIdBitmap.get(id))
           committedPartitions.put(id, masterPartMap.get(id))
         }
       }
@@ -777,6 +796,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
           slavePartition.setStorageInfo(committedSlaveStorageInfos.get(id))
+          slavePartition.setMapIdBitMap(committedMapIdBitmap.get(id))
           val masterPartition = committedPartitions.get(id)
           if (masterPartition ne null) {
             masterPartition.setPeer(slavePartition)
@@ -799,6 +819,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         fileGroups(i) = sets(i).toArray(new Array[PartitionLocation](0))
         i += 1
       }
+
+      logInfo(s"Shuffle $shuffleId " +
+        s"commit files complete. File count ${currentShuffleFileCount.sum()} " +
+        s"using ${(System.nanoTime() - commitFileStartTime) / 1000000} ms")
     }
 
     // reply
@@ -884,7 +908,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             slaveLocations,
             splitThreshold,
             splitMode,
-            partitionType))
+            partitionType,
+            rangeReadFilter,
+            userIdentifier))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
@@ -1234,7 +1260,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       applicationId: String,
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
-    val req = RequestSlots(applicationId, shuffleId, ids, lifecycleHost, ShouldReplicate)
+    val req =
+      RequestSlots(applicationId, shuffleId, ids, lifecycleHost, ShouldReplicate, userIdentifier)
     val res = requestRequestSlots(rssHARetryClient, req)
     if (res.status != StatusCode.SUCCESS) {
       requestRequestSlots(rssHARetryClient, req)
@@ -1342,9 +1369,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     blacklist.addAll(failedWorker)
   }
 
-  def checkAlive(): Boolean = {
+  def checkQuota(): Boolean = {
     try {
-      rssHARetryClient.askSync[CheckAliveResponse](CheckAlive, classOf[CheckAliveResponse]).alive
+      rssHARetryClient.askSync[CheckQuotaResponse](
+        CheckQuota(userIdentifier),
+        classOf[CheckQuotaResponse]).isAvailable
     } catch {
       case e: Exception =>
         logError(s"AskSync Cluster Load Status failed.", e)
