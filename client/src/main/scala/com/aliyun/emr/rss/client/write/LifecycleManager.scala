@@ -95,6 +95,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]]]()
+  // shuffleId -> set of partition id
+  private val inBatchPartitions = new ConcurrentHashMap[Int, util.Set[Integer]]()
 
   // register shuffle request waiting for response
   private val registeringShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
@@ -180,8 +182,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                   new Runnable {
                     override def run(): Unit = {
                       // For each partition only need handle one request
-                      val distinctPartitions = requests.asScala.map { case (_, request) =>
-                        request.asScala.toArray.head
+                      val distinctPartitions = requests.asScala.filter { case (partitionId, _) =>
+                        !inBatchPartitions.get(shuffleId).contains(partitionId)
+                      }.map { case (partitionId, request) =>
+                        inBatchPartitions.get(shuffleId).add(partitionId)
+                        request.asScala.toArray.maxBy(_.epoch)
                       }.toArray
                       batchHandleChangePartitions(
                         distinctPartitions.head.applicationId,
@@ -579,6 +584,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       changePartitions: Array[ChangePartitionRequest]): Unit = {
     val requestsMap = changePartitionRequests.get(shuffleId)
 
+    val changes = changePartitions.map { change =>
+      s"${change.shuffleId}-${change.partitionId}-${change.epoch}"
+    }.mkString("[", ",", "]")
+    logWarning(s"Batch handle change partition for $applicationId of $changes")
+
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
@@ -590,6 +600,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     def replySuccess(locations: Array[PartitionLocation]): Unit = {
       requestsMap.synchronized {
         locations.map { location =>
+          inBatchPartitions.get(shuffleId).remove(location.getId)
           location -> requestsMap.remove(location.getId).asScala.toList
         }
       }.foreach { case (newLocation, requests) =>
@@ -601,6 +612,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     def replyFailure(response: ChangeLocationResponse): Unit = {
       requestsMap.synchronized {
         changePartitions.flatMap { changePartition =>
+          inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
           requestsMap.remove(changePartition.partitionId).asScala.toList
         }
       }.foreach(_.context.reply(response))
@@ -1292,6 +1304,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         shuffleMapperAttempts.remove(key)
         stageEndShuffleSet.remove(key)
         changePartitionRequests.remove(key)
+        inBatchPartitions.remove(key)
         unregisterShuffleTime.remove(key)
         shuffleAllocatedWorkers.remove(key)
         latestPartitionLocation.remove(key)
