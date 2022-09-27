@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.common.util
 
-import java.io.{File, FileInputStream, InputStreamReader, IOException}
+import java.io.{File, FileInputStream, IOException, InputStreamReader}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
@@ -48,7 +48,7 @@ import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, Transp
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.protocol.PbWorkerResource
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{UserIdentifier, WorkerResource}
 
 object Utils extends Logging {
 
@@ -560,6 +560,17 @@ object Utils extends Logging {
 
   def makeMapKey(shuffleId: Int, mapId: Int, attemptId: Int): String = {
     s"$shuffleId-$mapId-$attemptId"
+  }
+
+  def makeUserResourceUsageKey(userIdentifier: UserIdentifier): String = {
+    s"${userIdentifier.tenantId}-${userIdentifier.name}"
+  }
+
+  def splitUserResourceUsageKey(userResourceUsageKey: String): UserIdentifier = {
+    val splits = userResourceUsageKey.split("-")
+    val tenant = splits.dropRight(1).mkString("-")
+    val username = splits.last
+    UserIdentifier(tenant, username)
   }
 
   def shuffleKeyPrefix(shuffleKey: String): String = {

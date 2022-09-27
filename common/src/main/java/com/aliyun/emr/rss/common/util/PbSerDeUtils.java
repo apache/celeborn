@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
@@ -108,5 +109,23 @@ public class PbSerDeUtils {
     }
     builder.putAllValues(pbFileInfoMap);
     return builder.build().toByteArray();
+  }
+
+  public static ResourceConsumption fromPbResourceConsumption(PbResourceConsumption pbResourceConsumption)
+      throws InvalidProtocolBufferException {
+    return new ResourceConsumption(
+        pbResourceConsumption.getDiskBytesWritten(),
+        pbResourceConsumption.getDiskFileCount(),
+        pbResourceConsumption.getHdfsBytesWritten(),
+        pbResourceConsumption.getHdfsFileCount());
+  }
+
+  public static PbResourceConsumption toPbResourceConsumption(ResourceConsumption resourceConsumption) {
+    return PbResourceConsumption.newBuilder()
+        .setDiskBytesWritten(resourceConsumption.diskBytesWritten())
+        .setDiskFileCount(resourceConsumption.diskFileCount())
+        .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten())
+        .setHdfsFileCount(resourceConsumption.hdfsFileCount())
+        .build();
   }
 }

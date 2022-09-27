@@ -22,7 +22,6 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
-import scala.util.Try
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -218,6 +217,7 @@ private[deploy] class Worker(
         fetchPort,
         replicatePort,
         diskInfos,
+        workerInfo.userResourceUsage.asScala.toMap,
         shuffleKeys),
       classOf[HeartbeatResponse])
     if (response.registered) {
@@ -335,6 +335,7 @@ private[deploy] class Worker(
               fetchPort,
               replicatePort,
               workerInfo.diskInfos.asScala.toMap,
+              workerInfo.userResourceUsage.asScala.toMap,
               RssHARetryClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {

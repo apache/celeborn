@@ -210,6 +210,12 @@ private[deploy] class Master(
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
       val disks = pbRegisterWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
+      val userResourceUsage = pbRegisterWorker
+        .getUserResourceUsageMap
+        .asScala
+        .map(x => (Utils.splitUserResourceUsageKey(x._1), x._2))
+        .mapValues(PbSerDeUtils.fromPbResourceConsumption)
+        .asJava
 
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
@@ -256,6 +262,7 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userResourceUsage,
           shuffleKeys,
           requestId) =>
       logDebug(s"Received heartbeat from" +
