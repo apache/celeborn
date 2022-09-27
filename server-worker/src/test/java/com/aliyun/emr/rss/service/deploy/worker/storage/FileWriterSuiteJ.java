@@ -89,7 +89,7 @@ public class FileWriterSuiteJ {
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
 
   private static File tempDir = null;
-  private static LocalBaseFlusher localFlusher = null;
+  private static LocalFlusher localFlusher = null;
   private static WorkerSource source = null;
 
   private static TransportServer server;
@@ -117,7 +117,7 @@ public class FileWriterSuiteJ {
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(tempDir);
     localFlusher =
-        new LocalBaseFlusher(
+        new LocalFlusher(
             source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
     MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 0, 10, 10);
   }
@@ -328,7 +328,7 @@ public class FileWriterSuiteJ {
     ListBuffer<File> dirs = new ListBuffer<>();
     dirs.$plus$eq(file);
     localFlusher =
-        new LocalBaseFlusher(
+        new LocalFlusher(
             source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk2", 20, 1, StorageInfo.Type.HDD);
   }
 

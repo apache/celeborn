@@ -98,12 +98,12 @@ final private[worker] class StorageManager(
   private val deviceMonitor =
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos)
 
-  // (mountPoint -> LocalBaseFlusher)
-  private val localFlushers: ConcurrentHashMap[String, LocalBaseFlusher] = {
-    val flushers = new ConcurrentHashMap[String, LocalBaseFlusher]()
+  // (mountPoint -> LocalFlusher)
+  private val localFlushers: ConcurrentHashMap[String, LocalFlusher] = {
+    val flushers = new ConcurrentHashMap[String, LocalFlusher]()
     disksSnapshot().foreach { case diskInfo =>
       if (!flushers.containsKey(diskInfo.mountPoint)) {
-        val flusher = new LocalBaseFlusher(
+        val flusher = new LocalFlusher(
           workerSource,
           deviceMonitor,
           diskInfo.threadCount,
@@ -131,7 +131,7 @@ final private[worker] class StorageManager(
       hdfsConfiguration.set("fs.defaultFS", hdfsDir)
       hdfsConfiguration.set("dfs.replication", "2")
       StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
-      Some(new HdfsBaseFlusher(
+      Some(new HdfsFlusher(
         workerSource,
         RssConf.hdfsFlusherThreadCount(conf),
         RssConf.flushAvgTimeWindow(conf),

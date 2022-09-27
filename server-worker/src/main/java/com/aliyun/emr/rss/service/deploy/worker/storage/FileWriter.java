@@ -235,8 +235,8 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public StorageInfo getStorageInfo() {
-    if (flusher instanceof LocalBaseFlusher) {
-      LocalBaseFlusher localFlusher = (LocalBaseFlusher) flusher;
+    if (flusher instanceof LocalFlusher) {
+      LocalFlusher localFlusher = (LocalFlusher) flusher;
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
     } else if (flusher instanceof MemoryFlusher) {
       return new StorageInfo(StorageInfo.Type.MEMORY, true);

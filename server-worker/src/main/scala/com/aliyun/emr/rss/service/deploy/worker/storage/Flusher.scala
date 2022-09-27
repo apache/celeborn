@@ -120,8 +120,8 @@ abstract private[worker] class BaseFlusher(
   }
 
   def averageFlushTime(): Long = {
-    if (this.isInstanceOf[LocalBaseFlusher]) {
-      logInfo(s"Flush count in ${this.asInstanceOf[LocalBaseFlusher].mountPoint}" +
+    if (this.isInstanceOf[LocalFlusher]) {
+      logInfo(s"Flush count in ${this.asInstanceOf[LocalFlusher].mountPoint}" +
         s" last heartbeat interval: $flushCount")
     }
     val currentFlushTime = flushTotalTime.sumThenReset()
@@ -185,7 +185,7 @@ abstract private[worker] class BaseFlusher(
   def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit
 }
 
-private[worker] class LocalBaseFlusher(
+private[worker] class LocalFlusher(
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
@@ -208,7 +208,7 @@ private[worker] class LocalBaseFlusher(
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {
-    logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalBaseFlusher.")
+    logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalFlusher.")
     stopAndCleanFlusher()
     deviceMonitor.unregisterFlusher(this)
   }
@@ -218,16 +218,16 @@ private[worker] class LocalBaseFlusher(
   }
 
   override def equals(obj: Any): Boolean = {
-    obj.isInstanceOf[LocalBaseFlusher] &&
-    obj.asInstanceOf[LocalBaseFlusher].mountPoint.equals(mountPoint)
+    obj.isInstanceOf[LocalFlusher] &&
+    obj.asInstanceOf[LocalFlusher].mountPoint.equals(mountPoint)
   }
 
   override def toString(): String = {
-    s"LocalBaseFlusher@$flusherId-$mountPoint"
+    s"LocalFlusher@$flusherId-$mountPoint"
   }
 }
 
-final private[worker] class HdfsBaseFlusher(
+final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
     threadCount: Int,
     flushAvgTimeWindowSize: Int,
@@ -237,7 +237,7 @@ final private[worker] class HdfsBaseFlusher(
     flushAvgTimeWindowSize,
     flushAvgTimeMinimumCount) with Logging {
 
-  override def toString: String = s"HdfsBaseFlusher@$flusherId"
+  override def toString: String = s"HdfsFlusher@$flusherId"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     stopAndCleanFlusher()

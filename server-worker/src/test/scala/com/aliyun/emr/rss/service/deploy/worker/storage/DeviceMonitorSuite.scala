@@ -172,10 +172,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(fw4))
 
-      val df1 = mock[LocalBaseFlusher]
-      val df2 = mock[LocalBaseFlusher]
-      val df3 = mock[LocalBaseFlusher]
-      val df4 = mock[LocalBaseFlusher]
+      val df1 = mock[LocalFlusher]
+      val df2 = mock[LocalFlusher]
+      val df3 = mock[LocalFlusher]
+      val df4 = mock[LocalFlusher]
 
       when(df1.stopFlag).thenReturn(new AtomicBoolean(false))
       when(df2.stopFlag).thenReturn(new AtomicBoolean(false))
