@@ -34,11 +34,24 @@ import com.aliyun.emr.rss.common.network.server.MemoryTracker
 import com.aliyun.emr.rss.common.protocol.StorageInfo
 import com.aliyun.emr.rss.service.deploy.worker.WorkerSource
 
-abstract private[worker] class Flusher(
+trait Flush {
+  def getWorkerIndex: Int
+
+  def takeBuffer(buffer: CompositeByteBuf = null): CompositeByteBuf
+
+  def returnBuffer(buffer: CompositeByteBuf): Unit
+
+  def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean
+
+  def bufferQueueInfo(): String
+
+}
+
+abstract private[worker] class BaseFlusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
     val flushAvgTimeWindowSize: Int,
-    val flushAvgTimeMinimumCount: Int) extends Logging {
+    val flushAvgTimeMinimumCount: Int) extends Flush with Logging {
   protected lazy val flusherId = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
@@ -68,7 +81,7 @@ abstract private[worker] class Flusher(
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
-            val key = s"Flusher-$this-${rand.nextInt()}"
+            val key = s"BaseFlusher-$this-${rand.nextInt()}"
             workerSource.sample(WorkerSource.FlushDataTime, key) {
               if (!task.notifier.hasException) {
                 try {
@@ -101,14 +114,14 @@ abstract private[worker] class Flusher(
     }
   }
 
-  def getWorkerIndex: Int = synchronized {
+  override def getWorkerIndex: Int = synchronized {
     nextWorkerIndex = (nextWorkerIndex + 1) % threadCount
     nextWorkerIndex
   }
 
   def averageFlushTime(): Long = {
-    if (this.isInstanceOf[LocalFlusher]) {
-      logInfo(s"Flush count in ${this.asInstanceOf[LocalFlusher].mountPoint}" +
+    if (this.isInstanceOf[LocalBaseFlusher]) {
+      logInfo(s"Flush count in ${this.asInstanceOf[LocalBaseFlusher].mountPoint}" +
         s" last heartbeat interval: $flushCount")
     }
     val currentFlushTime = flushTotalTime.sumThenReset()
@@ -132,7 +145,7 @@ abstract private[worker] class Flusher(
     }
   }
 
-  def takeBuffer(): CompositeByteBuf = {
+  override def takeBuffer(buffer: CompositeByteBuf = null): CompositeByteBuf = {
     var buffer = bufferQueue.poll()
     if (buffer == null) {
       buffer = Unpooled.compositeBuffer(256)
@@ -140,7 +153,7 @@ abstract private[worker] class Flusher(
     buffer
   }
 
-  def returnBuffer(buffer: CompositeByteBuf): Unit = {
+  override def returnBuffer(buffer: CompositeByteBuf): Unit = {
     MemoryTracker.instance().releaseDiskBuffer(buffer.readableBytes())
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
@@ -148,11 +161,11 @@ abstract private[worker] class Flusher(
     bufferQueue.put(buffer)
   }
 
-  def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
+  override def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
     workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
   }
 
-  def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueue.size()}"
+  override def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueue.size()}"
 
   def stopAndCleanFlusher(): Unit = {
     stopFlag.set(true)
@@ -172,14 +185,14 @@ abstract private[worker] class Flusher(
   def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit
 }
 
-private[worker] class LocalFlusher(
+private[worker] class LocalBaseFlusher(
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
     val mountPoint: String,
     flushAvgTimeWindowSize: Int,
     flushAvgTimeMinimumCount: Int,
-    val diskType: StorageInfo.Type) extends Flusher(
+    val diskType: StorageInfo.Type) extends BaseFlusher(
     workerSource,
     threadCount,
     flushAvgTimeWindowSize,
@@ -195,7 +208,7 @@ private[worker] class LocalFlusher(
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {
-    logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalFlusher.")
+    logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalBaseFlusher.")
     stopAndCleanFlusher()
     deviceMonitor.unregisterFlusher(this)
   }
@@ -205,29 +218,50 @@ private[worker] class LocalFlusher(
   }
 
   override def equals(obj: Any): Boolean = {
-    obj.isInstanceOf[LocalFlusher] &&
-    obj.asInstanceOf[LocalFlusher].mountPoint.equals(mountPoint)
+    obj.isInstanceOf[LocalBaseFlusher] &&
+    obj.asInstanceOf[LocalBaseFlusher].mountPoint.equals(mountPoint)
   }
 
   override def toString(): String = {
-    s"LocalFlusher@$flusherId-$mountPoint"
+    s"LocalBaseFlusher@$flusherId-$mountPoint"
   }
 }
 
-final private[worker] class HdfsFlusher(
+final private[worker] class HdfsBaseFlusher(
     workerSource: AbstractSource,
     threadCount: Int,
     flushAvgTimeWindowSize: Int,
-    flushAvgTimeMinimumCount: Int) extends Flusher(
+    flushAvgTimeMinimumCount: Int) extends BaseFlusher(
     workerSource,
     threadCount,
     flushAvgTimeWindowSize,
     flushAvgTimeMinimumCount) with Logging {
 
-  override def toString: String = s"HdfsFlusher@$flusherId"
+  override def toString: String = s"HdfsBaseFlusher@$flusherId"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     stopAndCleanFlusher()
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
   }
+}
+
+final private[worker] class MemoryFlusher extends Flush {
+  override def getWorkerIndex: Int = 1
+
+  override def takeBuffer(buffer: CompositeByteBuf): CompositeByteBuf = {
+    if (buffer != null) {
+      return buffer
+    }
+    Unpooled.compositeBuffer(256)
+  }
+
+  override def returnBuffer(buffer: CompositeByteBuf): Unit = {
+    MemoryTracker.instance().releaseMemoryShuffle(buffer.readableBytes())
+    buffer.removeComponents(0, buffer.numComponents())
+    buffer.release()
+  }
+
+  override def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = true
+
+  override def bufferQueueInfo(): String = "Memory flusher have not queue."
 }

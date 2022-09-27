@@ -61,7 +61,7 @@ public final class FileWriter implements DeviceObserver {
   private long nextBoundary;
   private long bytesFlushed;
 
-  public final Flusher flusher;
+  public final Flush flusher;
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
@@ -95,7 +95,7 @@ public final class FileWriter implements DeviceObserver {
 
   public FileWriter(
       FileInfo fileInfo,
-      Flusher flusher,
+      Flush flusher,
       AbstractSource workerSource,
       RssConf rssConf,
       DeviceMonitor deviceMonitor,
@@ -215,17 +215,19 @@ public final class FileWriter implements DeviceObserver {
       if (rangeReadFilter) {
         mapIdBitMap.add(mapId);
       }
+      if (fileInfo.isMemory()) {
+        MemoryTracker.instance().recordMemoryShuffle(numBytes);
+      }
       if (flushBuffer.readableBytes() != 0
           && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
         flush(false);
         takeBuffer();
       }
-
-      data.retain();
-      flushBuffer.addComponent(true, data);
-
-      numPendingWrites.decrementAndGet();
     }
+
+    data.retain();
+    flushBuffer.addComponent(true, data);
+    numPendingWrites.decrementAndGet();
   }
 
   public RoaringBitmap getMapIdBitMap() {
@@ -233,9 +235,11 @@ public final class FileWriter implements DeviceObserver {
   }
 
   public StorageInfo getStorageInfo() {
-    if (flusher instanceof LocalFlusher) {
-      LocalFlusher localFlusher = (LocalFlusher) flusher;
+    if (flusher instanceof LocalBaseFlusher) {
+      LocalBaseFlusher localFlusher = (LocalBaseFlusher) flusher;
       return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
+    } else if (flusher instanceof MemoryFlusher) {
+      return new StorageInfo(StorageInfo.Type.MEMORY, true);
     } else {
       if (deleted) {
         return null;
@@ -267,7 +271,9 @@ public final class FileWriter implements DeviceObserver {
 
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
-      returnBuffer();
+      if (!fileInfo.isMemory()) {
+        returnBuffer();
+      }
       try {
         if (fileInfo.isLocal()) {
           channel.close();
@@ -351,7 +357,6 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private void destroyMemory() {
-    this.flushBuffer.removeComponent(0);
     returnBuffer();
   }
 
@@ -405,7 +410,7 @@ public final class FileWriter implements DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer();
+    flushBuffer = flusher.takeBuffer(flushBuffer);
 
     // metrics end
     if (source.samplePerfCritical()) {
@@ -414,7 +419,8 @@ public final class FileWriter implements DeviceObserver {
 
     if (flushBuffer == null) {
       IOException e =
-          new IOException("Take buffer encounter error from Flusher: " + flusher.bufferQueueInfo());
+          new IOException(
+              "Take buffer encounter error from BaseFlusher: " + flusher.bufferQueueInfo());
       notifier.setException(e);
     }
   }

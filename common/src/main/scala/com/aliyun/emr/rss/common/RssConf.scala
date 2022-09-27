@@ -1116,10 +1116,6 @@ object RssConf extends Logging {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
 
-  def memoryFlushThreadCount(conf: RssConf): Int = {
-    conf.getInt("rss.worker.hdfs.flusher.thread.count", 1)
-  }
-
   def memoryStorageRatio(conf: RssConf): Double = {
     conf.getDouble("rss.memory.storage.ratio", 0)
   }

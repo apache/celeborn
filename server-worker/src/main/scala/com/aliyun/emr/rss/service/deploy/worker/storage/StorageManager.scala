@@ -98,12 +98,12 @@ final private[worker] class StorageManager(
   private val deviceMonitor =
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos)
 
-  // (mountPoint -> LocalFlusher)
-  private val localFlushers: ConcurrentHashMap[String, LocalFlusher] = {
-    val flushers = new ConcurrentHashMap[String, LocalFlusher]()
+  // (mountPoint -> LocalBaseFlusher)
+  private val localFlushers: ConcurrentHashMap[String, LocalBaseFlusher] = {
+    val flushers = new ConcurrentHashMap[String, LocalBaseFlusher]()
     disksSnapshot().foreach { case diskInfo =>
       if (!flushers.containsKey(diskInfo.mountPoint)) {
-        val flusher = new LocalFlusher(
+        val flusher = new LocalBaseFlusher(
           workerSource,
           deviceMonitor,
           diskInfo.threadCount,
@@ -131,7 +131,7 @@ final private[worker] class StorageManager(
       hdfsConfiguration.set("fs.defaultFS", hdfsDir)
       hdfsConfiguration.set("dfs.replication", "2")
       StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
-      Some(new HdfsFlusher(
+      Some(new HdfsBaseFlusher(
         workerSource,
         RssConf.hdfsFlusherThreadCount(conf),
         RssConf.flushAvgTimeWindow(conf),
@@ -151,11 +151,18 @@ final private[worker] class StorageManager(
       }
     }
   })
-  val memoryShuffleEnabled =
+  val memoryStorageEnabled =
     if (memoryStorageRatio > 0.0d) {
       true
     } else {
       false
+    }
+
+  val memoryFlusher =
+    if (memoryStorageEnabled) {
+      Some(new MemoryFlusher)
+    } else {
+      None
     }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -280,7 +287,7 @@ final private[worker] class StorageManager(
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
     while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
-      if (memoryFlusher.isDefined && memoryTracker.memoryStorageAvailable()) {
+      if (memoryTracker.memoryStorageAvailable()) {
         val memoryFileInfo = new FileInfo("memory://" + UUID.randomUUID())
         val memoryWriter = new FileWriter(
           memoryFileInfo,
@@ -290,7 +297,8 @@ final private[worker] class StorageManager(
           deviceMonitor,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFilter)
         memoryShuffleWriters.add(memoryWriter)
         return memoryWriter
       }

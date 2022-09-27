@@ -40,8 +40,8 @@ trait DeviceMonitor {
   def registerFileWriter(fileWriter: FileWriter): Unit = {}
   def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
   // Only local flush needs device monitor.
-  def registerFlusher(flusher: LocalFlusher): Unit = {}
-  def unregisterFlusher(flusher: LocalFlusher): Unit = {}
+  def registerFlusher(flusher: LocalBaseFlusher): Unit = {}
+  def unregisterFlusher(flusher: LocalBaseFlusher): Unit = {}
   def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
@@ -257,11 +257,11 @@ class LocalDeviceMonitor(
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
 
-  override def registerFlusher(flusher: LocalFlusher): Unit = {
+  override def registerFlusher(flusher: LocalBaseFlusher): Unit = {
     observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).addObserver(flusher)
   }
 
-  override def unregisterFlusher(flusher: LocalFlusher): Unit = {
+  override def unregisterFlusher(flusher: LocalBaseFlusher): Unit = {
     observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).removeObserver(flusher)
   }
 

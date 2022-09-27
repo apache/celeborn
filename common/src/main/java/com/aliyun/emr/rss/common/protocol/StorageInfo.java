@@ -80,6 +80,12 @@ public class StorageInfo implements Serializable {
     this.finalResult = finalResult;
   }
 
+  public StorageInfo(Type type, boolean finalResult) {
+    this.type = type;
+    this.mountPoint = "";
+    this.finalResult = finalResult;
+  }
+
   public StorageInfo(Type type, String mountPoint, boolean finalResult, String filePath) {
     this.type = type;
     this.mountPoint = mountPoint;

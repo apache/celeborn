@@ -924,7 +924,6 @@ object Utils extends Logging {
     }
   }
 
-
   def isMemoryPath(path: String): Boolean = {
     path.startsWith("memory")
   }

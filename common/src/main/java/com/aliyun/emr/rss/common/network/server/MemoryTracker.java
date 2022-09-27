@@ -184,12 +184,13 @@ public class MemoryTracker {
         () ->
             logger.info(
                 "Direct memory usage: {}/{}, disk buffer size: {},"
-                    + " sort memory size: {}MB, memory storage size: {}",
+                    + " sort memory size: {}MB, memory storage size: {}"
+                    + " memory storage size: {}MB",
                 Utils.bytesToString(nettyMemoryCounter.get()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
-                toMb(memoryStorageCounter.get())),
+                Utils.bytesToString(memoryStorageCounter.get())),
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
@@ -197,11 +198,13 @@ public class MemoryTracker {
     logger.info(
         "Memory tracker initialized with: "
             + "max direct memory: {}, pause pushdata memory: {}, "
-            + "pause replication memory: {}, resume memory: {}",
+            + "pause replication memory: {}, resume memory: {}"
+            + " memory storage threshold: {} ",
         Utils.bytesToString(maxDirectorMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
-        Utils.bytesToString(resumeThreshold));
+        Utils.bytesToString(resumeThreshold),
+        Utils.bytesToString(memoryStorageThreshold));
   }
 
   private void initDirectMemoryIndicator() {
@@ -318,7 +321,7 @@ public class MemoryTracker {
     return memoryStorageCounter.addAndGet(size);
   }
 
-  public long freeMemoryShuffle(long size) {
+  public long releaseMemoryShuffle(long size) {
     return memoryStorageCounter.addAndGet(-1 * size);
   }
 
