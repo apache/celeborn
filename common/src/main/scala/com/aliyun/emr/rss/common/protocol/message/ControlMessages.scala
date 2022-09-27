@@ -771,7 +771,8 @@ object ControlMessages extends Logging {
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
         val shuffleKeys = new util.HashSet[String]()
-        val disks = pbHeartbeatFromWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
+        val disks =
+          pbHeartbeatFromWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
         val userResourceUsage = pbHeartbeatFromWorker
           .getUserResourceUsageMap
           .asScala

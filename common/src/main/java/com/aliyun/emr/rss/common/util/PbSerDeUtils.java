@@ -22,12 +22,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.protocol.*;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
 
 public class PbSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)
@@ -111,8 +111,8 @@ public class PbSerDeUtils {
     return builder.build().toByteArray();
   }
 
-  public static ResourceConsumption fromPbResourceConsumption(PbResourceConsumption pbResourceConsumption)
-      throws InvalidProtocolBufferException {
+  public static ResourceConsumption fromPbResourceConsumption(
+      PbResourceConsumption pbResourceConsumption) throws InvalidProtocolBufferException {
     return new ResourceConsumption(
         pbResourceConsumption.getDiskBytesWritten(),
         pbResourceConsumption.getDiskFileCount(),
@@ -120,7 +120,8 @@ public class PbSerDeUtils {
         pbResourceConsumption.getHdfsFileCount());
   }
 
-  public static PbResourceConsumption toPbResourceConsumption(ResourceConsumption resourceConsumption) {
+  public static PbResourceConsumption toPbResourceConsumption(
+      ResourceConsumption resourceConsumption) {
     return PbResourceConsumption.newBuilder()
         .setDiskBytesWritten(resourceConsumption.diskBytesWritten())
         .setDiskFileCount(resourceConsumption.diskFileCount())

@@ -24,8 +24,8 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 import com.aliyun.emr.rss.common.protocol.{PbDiskInfo, PbWorkerInfo}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
