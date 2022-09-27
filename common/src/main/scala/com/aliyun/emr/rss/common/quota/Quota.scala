@@ -20,7 +20,7 @@ package com.aliyun.emr.rss.common.quota
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
-class Quota(
+case class Quota(
     var diskBytesWritten: Long = -1,
     var diskFileCount: Long = -1,
     var hdfsBytesWritten: Long = -1,
@@ -33,18 +33,6 @@ class Quota(
       case "hdfsBytesWritten" => hdfsBytesWritten = value
       case "hdfsFileCount" => hdfsFileCount = value
       case _ => logWarning(s"Unsupported quota name: $name for user: $userIdentifier.")
-    }
-  }
-
-  override def equals(obj: Any): Boolean = {
-    if (obj.isInstanceOf[Quota]) {
-      val others = obj.asInstanceOf[Quota]
-      others.diskBytesWritten == diskBytesWritten &&
-      others.diskFileCount == diskFileCount &&
-      others.hdfsBytesWritten == hdfsBytesWritten &&
-      others.hdfsFileCount == hdfsFileCount
-    } else {
-      false
     }
   }
 

@@ -321,12 +321,6 @@ object ControlMessages extends Logging {
     assert(tenantId != null && !tenantId.isEmpty)
     assert(name != null && !name.isEmpty)
 
-    override def equals(obj: Any): Boolean = {
-      obj.isInstanceOf[UserIdentifier] &&
-      obj.asInstanceOf[UserIdentifier].tenantId == tenantId &&
-      obj.asInstanceOf[UserIdentifier].name == name
-    }
-
     override def toString: String = {
       s"`$tenantId`.`$name`"
     }
