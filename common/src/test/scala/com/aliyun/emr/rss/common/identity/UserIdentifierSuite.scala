@@ -22,10 +22,26 @@ import com.aliyun.emr.RssFunSuite
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
 class UserIdentifierSuite extends RssFunSuite {
-  test("test UserIdentifier serde") {
+
+  test("UserIdentifier's tenantId and name should noy be null or empty") {
+    val e1 = intercept[AssertionError] {
+      UserIdentifier("", "bb")
+    }.getMessage
+    assert(e1.contains("UserIdentifier's tenantId should not be null or empty."))
+    val e2 = intercept[AssertionError] {
+      UserIdentifier("aa", "")
+    }.getMessage
+    assert(e2.contains("UserIdentifier's name should not be null or empty."))
+  }
+
+  test("test UserIdentifier serde ") {
     val userIdentifier = UserIdentifier("aa", "bb")
     val userIdentifierStr = "`aa`.`bb`"
     assert(userIdentifier.toString.equals(userIdentifierStr))
     assert(UserIdentifier(userIdentifierStr).get == userIdentifier)
+    assert(UserIdentifier("aa.bb") == None)
+    assert(UserIdentifier("`aa`.bb") == None)
+    assert(UserIdentifier("`aa.`bb`") == None)
   }
+
 }

@@ -18,13 +18,14 @@
 package com.aliyun.emr.rss.common
 
 import java.io.IOException
-import java.util.{Map => JMap}
+import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.identity.DefaultIdentityProvider
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.internal.config._
 import com.aliyun.emr.rss.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type
 import com.aliyun.emr.rss.common.protocol.StorageInfo.Type.{HDD, SSD}
@@ -40,16 +41,25 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
 
   private val settings = new ConcurrentHashMap[String, String]()
 
-  if (loadDefaults) {
-    loadFromSystemProperties(false)
+  @transient private lazy val reader: ConfigReader = {
+    val _reader = new ConfigReader(new RssConfigProvider(settings))
+    _reader.bindEnv(new ConfigProvider {
+      override def get(key: String): Option[String] = Option(getenv(key))
+    })
+    _reader
   }
 
-  private[rss] def loadFromSystemProperties(silent: Boolean): RssConf = {
-    // Load any spark.* system properties
-    for ((key, value) <- Utils.getSystemProperties if key.startsWith("rss.")) {
-      set(key, value, silent)
+  private def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
+    settings.synchronized {
+      // Load any rss.* system properties
+      for ((key, value) <- props if key.startsWith("rss.")) {
+        set(key, value, silent)
+      }
+      this
     }
-    this
+
+  if (loadDefaults) {
+    loadFromMap(Utils.getSystemProperties, false)
   }
 
   /** Set a configuration variable. */
@@ -62,12 +72,23 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
       throw new NullPointerException("null key")
     }
     if (value == null) {
-      throw new NullPointerException("null value for " + key)
+      throw new NullPointerException(s"null value for $key")
     }
     if (!silent) {
       logDeprecationWarning(key)
     }
+    requireDefaultValueOfRemovedConf(key, value)
     settings.put(key, value)
+    this
+  }
+
+  def set[T](entry: ConfigEntry[T], value: T): RssConf = {
+    set(entry.key, entry.stringConverter(value))
+    this
+  }
+
+  def set[T](entry: OptionalConfigEntry[T], value: T): RssConf = {
+    set(entry.key, entry.rawStringConverter(value))
     this
   }
 
@@ -79,16 +100,33 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
 
   /** Set a parameter if it isn't already configured */
   def setIfMissing(key: String, value: String): RssConf = {
+    requireDefaultValueOfRemovedConf(key, value)
     if (settings.putIfAbsent(key, value) == null) {
       logDeprecationWarning(key)
     }
     this
   }
 
+  def setIfMissing[T](entry: ConfigEntry[T], value: T): RssConf = {
+    setIfMissing(entry.key, entry.stringConverter(value))
+  }
+
+  def setIfMissing[T](entry: OptionalConfigEntry[T], value: T): RssConf = {
+    setIfMissing(entry.key, entry.rawStringConverter(value))
+  }
+
   /** Remove a parameter from the configuration */
-  def remove(key: String): RssConf = {
+  def unset(key: String): RssConf = {
     settings.remove(key)
     this
+  }
+
+  def unset(entry: ConfigEntry[_]): RssConf = {
+    unset(entry.key)
+  }
+
+  def clear(): Unit = {
+    settings.clear()
   }
 
   /** Get a parameter; throws a NoSuchElementException if it's not set */
@@ -99,6 +137,10 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   /** Get a parameter, falling back to a default if not set */
   def get(key: String, defaultValue: String): String = {
     getOption(key).getOrElse(defaultValue)
+  }
+
+  def get[T](entry: ConfigEntry[T]): T = {
+    entry.readFrom(reader)
   }
 
   /**
@@ -228,10 +270,10 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     Option(settings.get(key)).orElse(getDeprecatedConfig(key, settings))
   }
 
-//  /** Get an optional value, applying variable substitution. */
-//  private[rss] def getWithSubstitution(key: String): Option[String] = {
-//    getOption(key).map(reader.substitute(_))
-//  }
+  /** Get an optional value, applying variable substitution. */
+  private[rss] def getWithSubstitution(key: String): Option[String] = {
+    getOption(key).map(reader.substitute)
+  }
 
   /** Get all parameters as a list of pairs */
   def getAll: Array[(String, String)] = {
@@ -283,14 +325,14 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     settings.containsKey(key) ||
     configsWithAlternatives.get(key).toSeq.flatten.exists { alt => contains(alt.key) }
   }
-//
-//  private[rss] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
+
+  private[rss] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
 
   /** Copy this object */
   override def clone: RssConf = {
     val cloned = new RssConf(false)
     settings.entrySet().asScala.foreach { e =>
-      cloned.set(e.getKey(), e.getValue(), true)
+      cloned.set(e.getKey, e.getValue, true)
     }
     cloned
   }
@@ -323,6 +365,41 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
 object RssConf extends Logging {
 
   /**
+   * Holds information about keys that have been deprecated and do not have a replacement.
+   *
+   * @param key                The deprecated key.
+   * @param version            The version in which the key was deprecated.
+   * @param deprecationMessage Message to include in the deprecation warning.
+   */
+  private case class DeprecatedConfig(
+      key: String,
+      version: String,
+      deprecationMessage: String)
+
+  /**
+   * Information about an alternate configuration key that has been deprecated.
+   *
+   * @param key         The deprecated config key.
+   * @param version     The version in which the key was deprecated.
+   * @param translation A translation function for converting old config values into new ones.
+   */
+  private case class AlternateConfig(
+      key: String,
+      version: String,
+      translation: String => String = null)
+
+  /**
+   * Holds information about keys that have been removed.
+   *
+   * @param key          The removed config key.
+   * @param version      The version in which key was removed.
+   * @param defaultValue The default config value. It can be used to notice
+   *                     users that they set non-default value to an already removed config.
+   * @param comment      Additional info regarding to the removed config.
+   */
+  case class RemovedConfig(key: String, version: String, defaultValue: String, comment: String)
+
+  /**
    * Maps deprecated config keys to information about the deprecation.
    *
    * The extra information is logged as a warning when the config is present in the user's
@@ -336,7 +413,21 @@ object RssConf extends Logging {
   }
 
   /**
-   * Maps a current config key to alternate keys that were used in previous version of Spark.
+   * The map contains info about removed SQL configs. Keys are SQL config names,
+   * map values contain extra information like the version in which the config was removed,
+   * config's default value and a comment.
+   *
+   * Please, add a removed configuration property here only when it affects behaviours.
+   * By this, it makes migrations to new versions painless.
+   */
+  val removedConfigs: Map[String, RemovedConfig] = {
+    val configs = Seq(
+      RemovedConfig("none", "1.0", "value", "doc"))
+    Map(configs.map { cfg => cfg.key -> cfg }: _*)
+  }
+
+  /**
+   * Maps a current config key to alternate keys that were used in previous version.
    *
    * The alternates are used in the order defined in this map. If deprecated configs are
    * present in the user's configuration, a warning is logged.
@@ -371,48 +462,73 @@ object RssConf extends Logging {
     }
   }
 
+  private def requireDefaultValueOfRemovedConf(key: String, value: String): Unit = {
+    removedConfigs.get(key).foreach {
+      case RemovedConfig(configName, version, defaultValue, comment) =>
+        if (value != defaultValue) {
+          throw new IllegalArgumentException(
+            s"The config '$configName' was removed in v$version. $comment")
+        }
+    }
+  }
+
   /**
    * Logs a warning message if the given config key is deprecated.
    */
-  def logDeprecationWarning(key: String): Unit = {
+  private def logDeprecationWarning(key: String): Unit = {
     deprecatedConfigs.get(key).foreach { cfg =>
       logWarning(
-        s"The configuration key '$key' has been deprecated as of RSS ${cfg.version} and " +
+        s"The configuration key '$key' has been deprecated in v${cfg.version} and " +
           s"may be removed in the future. ${cfg.deprecationMessage}")
       return
     }
 
     allAlternatives.get(key).foreach { case (newKey, cfg) =>
       logWarning(
-        s"The configuration key '$key' has been deprecated as of RSS ${cfg.version} and " +
+        s"The configuration key '$key' has been deprecated in v${cfg.version} and " +
           s"may be removed in the future. Please use the new key '$newKey' instead.")
       return
     }
   }
 
-  /**
-   * Holds information about keys that have been deprecated and do not have a replacement.
-   *
-   * @param key                The deprecated key.
-   * @param version            Version of Spark where key was deprecated.
-   * @param deprecationMessage Message to include in the deprecation warning.
-   */
-  private case class DeprecatedConfig(
-      key: String,
-      version: String,
-      deprecationMessage: String)
+  private[this] val rssConfEntriesUpdateLock = new Object
 
-  /**
-   * Information about an alternate configuration key that has been deprecated.
-   *
-   * @param key         The deprecated config key.
-   * @param version     The Spark version in which the key was deprecated.
-   * @param translation A translation function for converting old config values into new ones.
-   */
-  private case class AlternateConfig(
-      key: String,
-      version: String,
-      translation: String => String = null)
+  @volatile
+  private[this] var rssConfEntries: JMap[String, ConfigEntry[_]] = Collections.emptyMap()
+
+  private def register(entry: ConfigEntry[_]): Unit = rssConfEntriesUpdateLock.synchronized {
+    require(
+      !rssConfEntries.containsKey(entry.key),
+      s"Duplicate RssConfigEntry. ${entry.key} has been registered")
+    val updatedMap = new JHashMap[String, ConfigEntry[_]](rssConfEntries)
+    updatedMap.put(entry.key, entry)
+    rssConfEntries = updatedMap
+  }
+
+  // For testing only
+  private[rss] def unregister(entry: ConfigEntry[_]): Unit = rssConfEntriesUpdateLock.synchronized {
+    val updatedMap = new JHashMap[String, ConfigEntry[_]](rssConfEntries)
+    updatedMap.remove(entry.key)
+    rssConfEntries = updatedMap
+  }
+
+  private[rss] def getConfigEntry(key: String): ConfigEntry[_] = {
+    rssConfEntries.get(key)
+  }
+
+  private[rss] def getConfigEntries: JCollection[ConfigEntry[_]] = {
+    rssConfEntries.values()
+  }
+
+  private[rss] def containsConfigEntry(entry: ConfigEntry[_]): Boolean = {
+    getConfigEntry(entry.key) == entry
+  }
+
+  private[rss] def containsConfigKey(key: String): Boolean = {
+    rssConfEntries.containsKey(key)
+  }
+
+  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
 
   // Conf getters
 
@@ -799,9 +915,13 @@ object RssConf extends Logging {
   /**
    * Ratis related config
    */
-  def haEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.ha.enabled", false)
-  }
+  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("rss.ha.enabled")
+    .doc("When true, master nodes run as Raft cluster mode.")
+    .version("0.1.0")
+    .booleanConf
+    .createWithDefault(false)
+
+  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
 
   def haMasterHosts(conf: RssConf): String = {
     conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))

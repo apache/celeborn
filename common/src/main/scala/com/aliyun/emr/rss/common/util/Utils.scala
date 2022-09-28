@@ -29,7 +29,6 @@ import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.Map
 import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
