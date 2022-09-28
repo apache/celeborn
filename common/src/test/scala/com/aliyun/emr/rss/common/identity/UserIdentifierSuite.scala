@@ -38,7 +38,7 @@ class UserIdentifierSuite extends RssFunSuite {
     val userIdentifier = UserIdentifier("aa", "bb")
     val userIdentifierStr = "`aa`.`bb`"
     assert(userIdentifier.toString.equals(userIdentifierStr))
-    assert(UserIdentifier(userIdentifierStr).get == userIdentifier)
+    assert(UserIdentifier(userIdentifierStr) == userIdentifier)
     assert(UserIdentifier("aa.bb") == None)
     assert(UserIdentifier("`aa`.bb") == None)
     assert(UserIdentifier("`aa.`bb`") == None)

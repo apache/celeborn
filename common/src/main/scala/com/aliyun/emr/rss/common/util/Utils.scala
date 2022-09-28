@@ -562,17 +562,6 @@ object Utils extends Logging {
     s"$shuffleId-$mapId-$attemptId"
   }
 
-  def makeUserResourceUsageKey(userIdentifier: UserIdentifier): String = {
-    s"${userIdentifier.tenantId}-${userIdentifier.name}"
-  }
-
-  def splitUserResourceUsageKey(userResourceUsageKey: String): UserIdentifier = {
-    val splits = userResourceUsageKey.split("-")
-    val tenant = splits.dropRight(1).mkString("-")
-    val username = splits.last
-    UserIdentifier(tenant, username)
-  }
-
   def shuffleKeyPrefix(shuffleKey: String): String = {
     shuffleKey + "-"
   }

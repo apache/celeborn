@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.internal.Logging
+import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
@@ -84,7 +85,7 @@ object ControlMessages extends Logging {
       requestId: String): PbRegisterWorker = {
     val pbDisks = disks.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
     val pbUserResourceUsage = userResourceUsage
-      .map(x => (Utils.makeUserResourceUsageKey(x._1), x._2))
+      .map(usage => (usage._1.toString, usage._2))
       .mapValues(PbSerDeUtils.toPbResourceConsumption)
       .asJava
     PbRegisterWorker.newBuilder()
@@ -340,13 +341,13 @@ object ControlMessages extends Logging {
   object UserIdentifier {
     val USER_IDENTIFIER = "^\\`(.+)\\`\\.\\`(.+)\\`$".r
 
-    def apply(userIdentifier: String): Option[UserIdentifier] = {
+    def apply(userIdentifier: String): UserIdentifier = {
       if (USER_IDENTIFIER.findPrefixOf(userIdentifier).isDefined) {
         val USER_IDENTIFIER(tenantId, name) = userIdentifier
-        Some(UserIdentifier(tenantId, name))
+        UserIdentifier(tenantId, name)
       } else {
-        logError(s"Failed to parse user identifier: `$userIdentifier`")
-        None
+        logError(s"Failed to parse user identifier: $userIdentifier")
+        throw new RssException(s"Failed to parse user identifier: ${userIdentifier}")
       }
     }
   }
@@ -383,7 +384,7 @@ object ControlMessages extends Logging {
           requestId) =>
       val pbDisks = disks.asScala.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceUsage = userResourceUsage
-        .map(x => (Utils.makeUserResourceUsageKey(x._1), x._2))
+        .map(usage => (usage._1.toString, usage._2))
         .mapValues(PbSerDeUtils.toPbResourceConsumption)
         .asJava
       val payload = PbHeartbeatFromWorker.newBuilder()
@@ -799,7 +800,7 @@ object ControlMessages extends Logging {
         val userResourceUsage = pbHeartbeatFromWorker
           .getUserResourceUsageMap
           .asScala
-          .map(x => (Utils.splitUserResourceUsageKey(x._1), x._2))
+          .map(x => (UserIdentifier(x._1), x._2))
           .mapValues(PbSerDeUtils.fromPbResourceConsumption)
           .toMap
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {

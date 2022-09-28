@@ -213,7 +213,7 @@ private[deploy] class Master(
       val userResourceUsage = pbRegisterWorker
         .getUserResourceUsageMap
         .asScala
-        .map(x => (Utils.splitUserResourceUsageKey(x._1), x._2))
+        .map(x => (UserIdentifier(x._1), x._2))
         .mapValues(PbSerDeUtils.fromPbResourceConsumption)
         .asJava
 
