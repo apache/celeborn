@@ -319,7 +319,30 @@ object ControlMessages extends Logging {
 
   case class ThreadDumpResponse(threadDump: String) extends Message
 
-  case class UserIdentifier(tenantId: String, name: String) extends Message
+  case class UserIdentifier(tenantId: String, name: String) extends Message {
+    assert(
+      tenantId != null && tenantId.nonEmpty,
+      "UserIdentifier's tenantId should not be null or empty.")
+    assert(name != null && name.nonEmpty, "UserIdentifier's name should not be null or empty.")
+
+    override def toString: String = {
+      s"`$tenantId`.`$name`"
+    }
+  }
+
+  object UserIdentifier {
+    val USER_IDENTIFIER = "^\\`(.+)\\`\\.\\`(.+)\\`$".r
+
+    def apply(userIdentifier: String): Option[UserIdentifier] = {
+      if (USER_IDENTIFIER.findPrefixOf(userIdentifier).isDefined) {
+        val USER_IDENTIFIER(tenantId, name) = userIdentifier
+        Some(UserIdentifier(tenantId, name))
+      } else {
+        logError(s"Failed to parse user identifier: `$userIdentifier`")
+        None
+      }
+    }
+  }
 
   case class ResourceConsumption(
       diskBytesWritten: Long,
