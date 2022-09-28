@@ -5,7 +5,7 @@
     <parent>
         <artifactId>remote-shuffle-service</artifactId>
         <groupId>com.aliyun.emr</groupId>
-        <version>0.1.2</version>
+        <version>0.1.3</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
