@@ -24,11 +24,9 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 import com.google.common.io.ByteStreams
-import org.apache.spark.SparkException
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{SpecializedGetters, UnsafeRow}
-import org.apache.spark.sql.catalyst.expressions.codegen.{UnsafeRowWriter, UnsafeWriter}
+import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.types._
@@ -95,6 +93,8 @@ private class RssColumnarBatchSerializerInstance(
     }
   }
 
+  val toUnsafe: UnsafeProjection = UnsafeProjection.create(schema.fields.map(f => f.dataType))
+
   override def deserializeStream(in: InputStream): DeserializationStream = {
     val numFields = schema.fields.length
     new DeserializationStream {
@@ -103,7 +103,6 @@ private class RssColumnarBatchSerializerInstance(
       var colBuffer: Array[Byte] = new Array[Byte](1024)
       var numRows: Int = readSize()
       var rowIter: Iterator[InternalRow] = if (numRows != EOF) nextBatch() else Iterator.empty
-      val rowWriter = new UnsafeRowWriter(numFields, numFields * 32)
 
       override def asKeyValueIterator: Iterator[(Int, InternalRow)] = {
         new Iterator[(Int, InternalRow)] {
@@ -118,9 +117,7 @@ private class RssColumnarBatchSerializerInstance(
           }
 
           override def next(): (Int, InternalRow) = {
-            rowWriter.reset()
-            writer(rowIter.next())
-            (0, rowWriter.getRow)
+            (0, rowIter.next())
           }
         }
       }
@@ -156,7 +153,7 @@ private class RssColumnarBatchSerializerInstance(
             numRows)
         }
         numRows = readSize()
-        columnarBatch.rowIterator().asScala
+        columnarBatch.rowIterator().asScala.map(toUnsafe)
       }
 
       def readSize(): Int =
@@ -170,115 +167,6 @@ private class RssColumnarBatchSerializerInstance(
 
       override def close(): Unit = {
         dIn.close()
-      }
-
-      val writer: InternalRow => Unit = {
-        val baseWriter = generateStructWriter(
-          rowWriter,
-          schema.fields)
-        if (!schema.fields.exists(_.nullable)) {
-          baseWriter
-        } else {
-          row =>
-            {
-              rowWriter.zeroOutNullBytes()
-              baseWriter(row)
-            }
-        }
-      }
-
-      def generateStructWriter(
-          rowWriter: UnsafeRowWriter,
-          fields: Array[StructField]): InternalRow => Unit = {
-        val numFields = fields.length
-
-        val fieldWriters = fields.map { field =>
-          generateFieldWriter(rowWriter, field.dataType)
-        }
-        row => {
-          var i = 0
-          while (i < numFields) {
-            fieldWriters(i).apply(row, i)
-            i += 1
-          }
-        }
-      }
-
-      def generateFieldWriter(
-          writer: UnsafeWriter,
-          dt: DataType): (SpecializedGetters, Int) => Unit = {
-
-        val unsafeWriter: (SpecializedGetters, Int) => Unit = dt match {
-          case BooleanType =>
-            (v, i) => writer.write(i, v.getBoolean(i))
-
-          case ByteType =>
-            (v, i) => writer.write(i, v.getByte(i))
-
-          case ShortType =>
-            (v, i) => writer.write(i, v.getShort(i))
-
-          case IntegerType | DateType =>
-            (v, i) => writer.write(i, v.getInt(i))
-
-          case LongType =>
-            (v, i) => writer.write(i, v.getLong(i))
-
-          case FloatType =>
-            (v, i) => writer.write(i, v.getFloat(i))
-
-          case DoubleType =>
-            (v, i) => writer.write(i, v.getDouble(i))
-
-          case DecimalType.Fixed(precision, scale) =>
-            (v, i) => writer.write(i, v.getDecimal(i, precision, scale), precision, scale)
-
-          case StringType =>
-            (v, i) => writer.write(i, v.getUTF8String(i))
-
-          case NullType =>
-            (_, _) => {}
-
-          case _ =>
-            throw new SparkException(s"Unsupported data type $dt")
-        }
-
-        dt match {
-          case DecimalType.Fixed(precision, _) if precision > Decimal.MAX_LONG_DIGITS =>
-            unsafeWriter
-          case BooleanType | ByteType =>
-            (v, i) => {
-              if (!v.isNullAt(i)) {
-                unsafeWriter(v, i)
-              } else {
-                writer.setNull1Bytes(i)
-              }
-            }
-          case ShortType =>
-            (v, i) => {
-              if (!v.isNullAt(i)) {
-                unsafeWriter(v, i)
-              } else {
-                writer.setNull2Bytes(i)
-              }
-            }
-          case IntegerType | FloatType =>
-            (v, i) => {
-              if (!v.isNullAt(i)) {
-                unsafeWriter(v, i)
-              } else {
-                writer.setNull4Bytes(i)
-              }
-            }
-          case _ =>
-            (v, i) => {
-              if (!v.isNullAt(i)) {
-                unsafeWriter(v, i)
-              } else {
-                writer.setNull8Bytes(i)
-              }
-            }
-        }
       }
     }
   }

@@ -57,7 +57,6 @@ object WorkerSource {
   val OpenStreamTime = "OpenStreamTime"
 
   val FetchChunkTime = "FetchChunkTime"
-  val FetchChunkSize = "FetchChunkSize"
 
   // push data
   val MasterPushDataTime = "MasterPushDataTime"

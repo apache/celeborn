@@ -497,6 +497,15 @@ object Utils extends Logging {
       .orNull
   }
 
+  def getDefaultQuotaConfigurationFile(env: Map[String, String] = sys.env): String = {
+    env.get("RSS_CONF_DIR")
+      .orElse(env.get("RSS_HOME").map { t => s"$t${File.separator}conf" })
+      .map { t => new File(s"$t${File.separator}quota.yml") }
+      .filter(_.isFile)
+      .map(_.getAbsolutePath)
+      .orNull
+  }
+
   private[util] def trimExceptCRLF(str: String): String = {
     val nonSpaceOrNaturalLineDelimiter: Char => Boolean = { ch =>
       ch > ' ' || ch == '\r' || ch == '\n'
