@@ -271,8 +271,8 @@ public class SortBasedPusher extends MemoryConsumer {
    * additional memory from the memory manager and spill if the requested memory can not be
    * obtained.
    *
-   * @param required the required space in the data page, in bytes, including space for storing
-   *                 the record size.
+   * @param required the required space in the data page, in bytes, including space for storing the
+   *     record size.
    */
   private void acquireNewPageIfNecessary(int required) {
     if (currentPage == null
@@ -287,8 +287,8 @@ public class SortBasedPusher extends MemoryConsumer {
    * Allocates more memory in order to insert an additional record. This will request additional
    * memory from the memory manager and spill if the requested memory can not be obtained.
    *
-   * @param required the required space in the data page, in bytes, including space for storing
-   *                 the record size.
+   * @param required the required space in the data page, in bytes, including space for storing the
+   *     record size.
    */
   private void allocateMemoryForRecordIfNecessary(int required) throws IOException {
     // Step 1:

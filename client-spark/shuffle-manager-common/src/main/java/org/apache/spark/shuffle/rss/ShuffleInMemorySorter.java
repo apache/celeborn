@@ -62,7 +62,6 @@ public class ShuffleInMemorySorter {
     return initialSize;
   }
 
-
   public void freeMemory() {
     if (consumer != null) {
       if (array != null) {
@@ -80,9 +79,7 @@ public class ShuffleInMemorySorter {
     pos = 0;
   }
 
-  /**
-   * @return the number of records that have been inserted into this sorter.
-   */
+  /** @return the number of records that have been inserted into this sorter. */
   public int numRecords() {
     return pos / 2;
   }
@@ -95,11 +92,11 @@ public class ShuffleInMemorySorter {
         // checkstyle.on: RegexpSinglelineJava
       }
       Platform.copyMemory(
-              array.getBaseObject(),
-              array.getBaseOffset(),
-              newArray.getBaseObject(),
-              newArray.getBaseOffset(),
-              pos * 8L);
+          array.getBaseObject(),
+          array.getBaseOffset(),
+          newArray.getBaseObject(),
+          newArray.getBaseOffset(),
+          pos * 8L);
       consumer.freeArray(array);
     }
     array = newArray;
