@@ -34,25 +34,29 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
   }
 
   override def initialize(): Unit = {
-    val quotaConfPath =
+    Option(
       RssConf.quotaConfigurationPath(conf)
-        .getOrElse(Utils.getDefaultQuotaConfigurationFile())
-    val stream = new FileInputStream(new File(quotaConfPath))
-    val yaml = new Yaml()
-    val quotas =
-      yaml.load(stream).asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Object]]]
-    quotas.asScala.foreach { quotaSetting =>
-      val tenantId = quotaSetting.get("tenantId").asInstanceOf[String]
-      val name = quotaSetting.get("name").asInstanceOf[String]
-      val userIdentifier = UserIdentifier(tenantId, name)
-      val quota = Quota()
-      quotaSetting.get("quota")
-        .asInstanceOf[java.util.HashMap[String, Object]]
-        .asScala
-        .foreach { case (key, value) =>
-          quota.update(userIdentifier, key, value.toString.toLong)
+        .getOrElse(Utils.getDefaultQuotaConfigurationFile()))
+      .foreach { quotaConfPath =>
+        val stream = new FileInputStream(new File(quotaConfPath))
+        val yaml = new Yaml()
+        val quotas =
+          yaml.load(stream)
+            .asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Object]]]
+        quotas.asScala.foreach { quotaSetting =>
+          val tenantId = quotaSetting.get("tenantId").asInstanceOf[String]
+          val name = quotaSetting.get("name").asInstanceOf[String]
+          val userIdentifier = UserIdentifier(tenantId, name)
+          val quota = Quota()
+          quotaSetting.get("quota")
+            .asInstanceOf[java.util.HashMap[String, Object]]
+            .asScala
+            .foreach { case (key, value) =>
+              quota.update(userIdentifier, key, value.toString.toLong)
+            }
+          userQuotas.put(userIdentifier, quota)
         }
-      userQuotas.put(userIdentifier, quota)
-    }
+      }
+
   }
 }
