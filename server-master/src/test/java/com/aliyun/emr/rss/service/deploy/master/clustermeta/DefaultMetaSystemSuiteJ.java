@@ -436,7 +436,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
-        disks1,
+        new HashMap<>(),
         userResourceUsage1,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
@@ -445,7 +445,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
-        disks2,
+        new HashMap<>(),
         userResourceUsage2,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
@@ -454,7 +454,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
-        disks3,
+        new HashMap<>(),
         userResourceUsage3,
         getNewReqeustId());
 
