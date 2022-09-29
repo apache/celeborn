@@ -87,7 +87,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
-  private final RssColumnarBatchBuilder[] rssColumnBuilders;
+  private RssColumnarBatchBuilder[] rssColumnBuilders;
   private final SendBufferPool sendBufferPool;
 
   /**
@@ -125,7 +125,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
     this.rssConf = conf;
-    this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -163,6 +162,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     if (RssConf.columnarShuffleEnabled(rssConf)) {
       this.schema = SparkUtils.getShuffleDependencySchema(dep);
+      this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
     }
   }
@@ -184,11 +184,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       write0(records);
     }
-    if (isColumnarShuffle) {
-      closeColumnarWrite();
-    } else {
-      close();
-    }
+    close();
   }
 
   @VisibleForTesting
@@ -359,11 +355,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void closeColumnarWrite() throws IOException {
-    // here we wait for all the in-flight batches to return which sent by dataPusher thread
-    long pushMergedDataTime = System.nanoTime();
-    dataPusher.waitOnTermination();
-    rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
-
     SQLMetric dataSize =
         SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
     for (int i = 0; i < numPartitions; i++) {
@@ -391,27 +382,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         writeMetrics.incBytesWritten(bytesWritten);
       }
     }
-    rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
-    writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
-
-    updateMapStatus();
-
-    long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext.attemptNumber(), numMappers);
-    writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
-
-    BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
-    mapStatus =
-        SparkUtils.createMapStatus(
-            bmId, SparkUtils.unwrap(mapStatusLengths), taskContext.taskAttemptId());
   }
 
-  private void close() throws IOException {
-    // here we wait for all the in-flight batches to return which sent by dataPusher thread
-    long pushMergedDataTime = System.nanoTime();
-    dataPusher.waitOnTermination();
-    rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
-
+  private void closeRowWrite() throws IOException {
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,
     //     we now push merged data by task thread will not introduce any contention
@@ -436,14 +409,25 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         writeMetrics.incBytesWritten(bytesWritten);
       }
     }
+    sendBufferPool.returnBuffer(sendBuffers);
+    sendBuffers = null;
+    sendOffsets = null;
+  }
+
+  private void close() throws IOException {
+    // here we wait for all the in-flight batches to return which sent by dataPusher thread
+    long pushMergedDataTime = System.nanoTime();
+    dataPusher.waitOnTermination();
+    rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
+    if (isColumnarShuffle) {
+      closeColumnarWrite();
+    } else {
+      closeRowWrite();
+    }
     rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
 
     updateMapStatus();
-
-    sendBufferPool.returnBuffer(sendBuffers);
-    sendBuffers = null;
-    sendOffsets = null;
 
     long waitStartTime = System.nanoTime();
     rssShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext.attemptNumber(), numMappers);
