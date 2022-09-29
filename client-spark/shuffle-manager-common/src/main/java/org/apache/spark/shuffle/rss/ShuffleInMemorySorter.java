@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.rss;
 
 import org.apache.spark.memory.MemoryConsumer;
+import org.apache.spark.memory.SparkOutOfMemoryError;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.array.LongArray;
 import org.apache.spark.util.collection.unsafe.sort.RadixSort;
@@ -57,40 +58,50 @@ public class ShuffleInMemorySorter {
     return (int) (array.size() / 2);
   }
 
-  public void free() {
-    if (array != null) {
-      consumer.freeArray(array);
-      array = null;
-    }
+  public long getInitialSize() {
+    return initialSize;
   }
 
-  public void reset() {
-    // Reset `pos` here so that `spill` triggered by the below `allocateArray` will be no-op.
-    pos = 0;
-    if (consumer != null && array != null) {
 
-      consumer.freeArray(array);
-      // As `array` has been released, we should set it to  `null` to avoid accessing it before
-      // `allocateArray` returns. `usableCapacity` is also set to `0` to avoid any codes writing
-      // data to `ShuffleInMemorySorter` when `array` is `null` (e.g., in
-      // ShuffleExternalSorter.growPointerArrayIfNecessary, we may try to access
-      // `ShuffleInMemorySorter` when `allocateArray` throws SparkOutOfMemoryError).
+  public void freeMemory() {
+    if (consumer != null) {
+      if (array != null) {
+        consumer.freeArray(array);
+      }
+
+      // Set the array to null instead of allocating a new array. Allocating an array could have
+      // triggered another spill and this method already is called from UnsafeExternalSorter when
+      // spilling. Attempting to allocate while spilling is dangerous, as we could be holding onto
+      // a large partially complete allocation, which may prevent other memory from being allocated.
+      // Instead we will allocate the new array when it is necessary.
       array = null;
       usableCapacity = 0;
-      array = consumer.allocateArray(initialSize);
-      usableCapacity = getUsableCapacity();
     }
+    pos = 0;
+  }
+
+  /**
+   * @return the number of records that have been inserted into this sorter.
+   */
+  public int numRecords() {
+    return pos / 2;
   }
 
   public void expandPointerArray(LongArray newArray) {
-    assert (newArray.size() > array.size());
-    Platform.copyMemory(
-        array.getBaseObject(),
-        array.getBaseOffset(),
-        newArray.getBaseObject(),
-        newArray.getBaseOffset(),
-        pos * 8L);
-    consumer.freeArray(array);
+    if (array != null) {
+      if (newArray.size() < array.size()) {
+        // checkstyle.off: RegexpSinglelineJava
+        throw new SparkOutOfMemoryError("Not enough memory to grow pointer array");
+        // checkstyle.on: RegexpSinglelineJava
+      }
+      Platform.copyMemory(
+              array.getBaseObject(),
+              array.getBaseOffset(),
+              newArray.getBaseObject(),
+              newArray.getBaseOffset(),
+              pos * 8L);
+      consumer.freeArray(array);
+    }
     array = newArray;
     usableCapacity = getUsableCapacity();
   }
@@ -153,6 +164,11 @@ public class ShuffleInMemorySorter {
 
   /** Return an iterator over record pointers in sorted order. */
   public ShuffleSorterIterator getSortedIterator() {
+    if (numRecords() == 0) {
+      // `array` might be null, so make sure that it is not accessed by returning early.
+      return new ShuffleSorterIterator(0, array, 0);
+    }
+
     int offset = 0;
     offset =
         RadixSort.sort(
