@@ -217,7 +217,7 @@ private[deploy] class Worker(
         fetchPort,
         replicatePort,
         diskInfos,
-        workerInfo.userResourceUsage.asScala.toMap,
+        workerInfo.userResourceUsage,
         shuffleKeys),
       classOf[HeartbeatResponse])
     if (response.registered) {

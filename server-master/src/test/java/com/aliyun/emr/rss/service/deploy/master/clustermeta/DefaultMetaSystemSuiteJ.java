@@ -37,6 +37,8 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
@@ -58,6 +60,7 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT1 = 1113;
   private static int REPLICATEPORT1 = 1114;
   private static Map<String, DiskInfo> disks1 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceUsage1 = new HashMap<>();
 
   private static String HOSTNAME2 = "host2";
   private static int RPCPORT2 = 2111;
@@ -65,6 +68,7 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT2 = 2113;
   private static int REPLICATEPORT2 = 2114;
   private static Map<String, DiskInfo> disks2 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceUsage2 = new HashMap<>();
 
   private static String HOSTNAME3 = "host3";
   private static int RPCPORT3 = 3111;
@@ -72,6 +76,7 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT3 = 3113;
   private static int REPLICATEPORT3 = 3114;
   private static Map<String, DiskInfo> disks3 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceUsage3 = new HashMap<>();
 
   @Before
   public void setUp() throws Exception {
@@ -331,6 +336,7 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         new HashMap<>(),
+        userResourceUsage1,
         1,
         getNewReqeustId());
 
@@ -343,13 +349,22 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         new HashMap<>(),
+        userResourceUsage2,
         1,
         getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT3, disks1, 1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT3,
+        disks1,
+        userResourceUsage1,
+        1,
+        getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
   }

@@ -280,6 +280,7 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userResourceUsage,
           shuffleKeys,
           requestId))
 
@@ -340,6 +341,7 @@ private[deploy] class Master(
       fetchPort: Int,
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
+      userResourceUsage: util.Map[UserIdentifier, ResourceConsumption],
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
@@ -355,6 +357,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceUsage,
         System.currentTimeMillis(),
         requestId)
     }

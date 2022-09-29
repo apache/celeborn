@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.util.Utils;
@@ -162,6 +164,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
       long time) {
     WorkerInfo worker =
         new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
@@ -172,6 +175,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.ifPresent(
           info -> {
             info.updateDiskInfos(disks, estimatedPartitionSize);
+            info.updateUserResourceUsage(userResourceUsage);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
           });

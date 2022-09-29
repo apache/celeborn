@@ -29,6 +29,8 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.AbstractMetaManager;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
@@ -217,6 +219,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
       long time,
       String requestId) {
     try {
@@ -232,6 +235,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .putAllUserResourceUsage(MetaUtil.toPbUserResourceUsage(userResourceUsage))
                       .setTime(time)
                       .build())
               .build());

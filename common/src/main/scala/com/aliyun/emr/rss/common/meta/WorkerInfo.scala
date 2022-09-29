@@ -39,7 +39,7 @@ class WorkerInfo(
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
-  var userResourceUsage = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
+  val userResourceUsage = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -214,6 +214,10 @@ class WorkerInfo(
         diskInfos.remove(nonExistsMountPoint)
       }
     }
+  }
+
+  def updateUserResourceUsage(usage: util.Map[UserIdentifier, ResourceConsumption]): Unit = {
+    userResourceUsage.putAll(usage)
   }
 
   override def toString(): String = {

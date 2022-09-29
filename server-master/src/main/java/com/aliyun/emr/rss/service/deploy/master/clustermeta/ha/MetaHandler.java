@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -99,6 +101,7 @@ public class MetaHandler {
       int fetchPort;
       int replicatePort;
       Map<String, DiskInfo> disks;
+      Map<UserIdentifier, ResourceConsumption> userResourceUsage;
       List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
       switch (cmdType) {
@@ -175,6 +178,7 @@ public class MetaHandler {
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
           disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
+          userResourceUsage = MetaUtil.fromPbUserResourceUsage(request.getWorkerHeartbeatRequest().getUserResourceUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {}",
@@ -186,7 +190,7 @@ public class MetaHandler {
               disks);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceUsage, time);
           break;
 
         case RegisterWorker:

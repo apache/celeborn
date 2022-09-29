@@ -114,6 +114,7 @@ message WorkerHeartbeatRequest {
   required int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
   required int64 time = 7;
+  map<string, ResourceConsumption> userResourceUsage = 8;
 }
 
 message RegisterWorkerRequest {

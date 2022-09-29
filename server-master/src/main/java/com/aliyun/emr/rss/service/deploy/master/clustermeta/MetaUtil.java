@@ -22,6 +22,9 @@ import java.util.Map;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.util.Utils;
 
 public class MetaUtil {
@@ -74,6 +77,37 @@ public class MetaUtil {
                     .setAvgFlushTime(v.avgFlushTime())
                     .setUsedSlots(v.activeSlots())
                     .setStatus(v.status().getValue())
+                    .build()));
+    return map;
+  }
+
+  public static Map<UserIdentifier, ResourceConsumption> fromPbUserResourceUsage(
+          Map<String, ResourceProtos.ResourceConsumption> pbUserResourceUsage) {
+    Map<UserIdentifier, ResourceConsumption> map = new HashMap<>();
+    pbUserResourceUsage.forEach(
+            (k,v) -> {
+                ResourceConsumption resourceConsumption = new ResourceConsumption(
+                    v.getDiskBytesWritten(),
+                    v.getDiskFileCount(),
+                    v.getHdfsBytesWritten(),
+                    v.getHdfsFileCount());
+                map.put(ControlMessages.UserIdentifier$.MODULE$.apply(k), resourceConsumption);
+            });
+    return map;
+  }
+
+  public static Map<String, ResourceProtos.ResourceConsumption> toPbUserResourceUsage(
+          Map<UserIdentifier, ResourceConsumption> userResourceUsage) {
+    Map<String, ResourceProtos.ResourceConsumption> map = new HashMap<>();
+    userResourceUsage.forEach(
+        (k,v) ->
+            map.put(
+                k.toString(),
+                ResourceProtos.ResourceConsumption.newBuilder()
+                    .setDiskBytesWritten(v.diskBytesWritten())
+                    .setDiskFileCount(v.diskFileCount())
+                    .setHdfsBytesWritten(v.hdfsBytesWritten())
+                    .setHdfsFileCount(v.hdfsFileCount())
                     .build()));
     return map;
   }
