@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.common.identity
 
 import com.aliyun.emr.RssFunSuite
-
+import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
 class UserIdentifierSuite extends RssFunSuite {
@@ -34,14 +34,26 @@ class UserIdentifierSuite extends RssFunSuite {
     assert(e2.contains("UserIdentifier's name should not be null or empty."))
   }
 
-  test("test UserIdentifier serde ") {
+  test("test UserIdentifier serde") {
     val userIdentifier = UserIdentifier("aa", "bb")
     val userIdentifierStr = "`aa`.`bb`"
     assert(userIdentifier.toString.equals(userIdentifierStr))
     assert(UserIdentifier(userIdentifierStr) == userIdentifier)
-    assert(UserIdentifier("aa.bb") == None)
-    assert(UserIdentifier("`aa`.bb") == None)
-    assert(UserIdentifier("`aa.`bb`") == None)
+  }
+
+  test("Both UserIdentifier's tenantId and name should contains ``") {
+    val e1 = intercept[RssException] {
+      UserIdentifier("aa.bb")
+    }.getMessage
+    assert(e1.contains("Failed to parse user identifier: aa.bb"))
+    val e2 = intercept[RssException] {
+      UserIdentifier("`aa`.bb")
+    }.getMessage
+    assert(e2.contains("Failed to parse user identifier: `aa`.bb"))
+    val e3 = intercept[RssException] {
+      UserIdentifier("aa.`bb`")
+    }.getMessage
+    assert(e3.contains("Failed to parse user identifier: aa.`bb`"))
   }
 
 }
