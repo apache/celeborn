@@ -42,8 +42,6 @@ abstract class QuotaManager(conf: RssConf) extends Logging {
 }
 
 object QuotaManager extends Logging {
-  val QUOTA_REGEX = "^rss\\.quota\\.\\{(.+)\\}\\.(.+)".r
-
   def instantiate(conf: RssConf): QuotaManager = {
     val className = RssConf.quotaManagerClass(conf)
     logDebug(s"Creating quota manager $className")
@@ -62,4 +60,5 @@ object QuotaManager extends Logging {
         throw e
     }
   }
+
 }

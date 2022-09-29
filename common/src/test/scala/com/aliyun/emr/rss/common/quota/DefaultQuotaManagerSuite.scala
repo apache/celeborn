@@ -26,22 +26,20 @@ class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
 
   override def beforeAll(): Unit = {
     val conf = new RssConf()
-    conf.set("rss.quota.{`aa`.`bb`}.diskBytesWritten", "100")
-    conf.set("rss.quota.{`aa`.`bb`}.diskFileCount", "200")
-    conf.set("rss.quota.{`aa`.`bb`}.hdfsBytesWritten", "300")
-    conf.set("rss.quota.{`aa`.`bb`}.hdfsFileCount", "400")
-    conf.set("rss.quota.{`aa`.`cc}.hdfsFileCount", "400")
-
+    conf.set("rss.quota.configuration.path", getTestResourceFile("test-quota.yaml").getPath)
     quotaManager = QuotaManager.instantiate(conf)
   }
 
   test("initialize QuotaManager") {
     assert(quotaManager.isInstanceOf[DefaultQuotaManager])
-    println(quotaManager)
   }
 
   test("test rss quota conf") {
-    assertEquals(quotaManager.getQuota(UserIdentifier("aa", "bb")), new Quota(100, 200, 300, 400))
-    assertEquals(quotaManager.getQuota(UserIdentifier("aa", "cc")), new Quota(-1, -1, -1, -1))
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("AAA", "Tom")),
+      Quota(10000, 200, -1, -1))
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("BBB", "Jerry")),
+      Quota(-1, -1, 10000, 200))
   }
 }

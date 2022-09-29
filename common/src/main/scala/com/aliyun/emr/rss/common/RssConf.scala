@@ -947,6 +947,10 @@ object RssConf extends Logging {
     conf.get("rss.quota.manager", classOf[DefaultQuotaManager].getName)
   }
 
+  def quotaConfigurationPath(conf: RssConf): Option[String] = {
+    conf.getOption("rss.quota.configuration.path")
+  }
+
   def partitionSplitThreshold(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }

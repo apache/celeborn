@@ -17,8 +17,15 @@
 
 package com.aliyun.emr.rss.common.quota
 
+import java.io.{File, FileInputStream}
+
+import scala.collection.JavaConverters._
+
+import org.yaml.snakeyaml.Yaml
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
+import com.aliyun.emr.rss.common.util.Utils
 
 class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
   import QuotaManager._
@@ -27,26 +34,25 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
   }
 
   override def initialize(): Unit = {
-    conf.getAll.foreach { case (key, value) =>
-      if (QUOTA_REGEX.findPrefixOf(key).isDefined) {
-        val QUOTA_REGEX(user, suffix) = key
-        val userIdentifier = UserIdentifier(user)
-        if (userIdentifier.isDefined) {
-          val quotaValue = {
-            try {
-              value.toLong
-            } catch {
-              case e =>
-                logError(
-                  s"Quota value of ${userIdentifier} should be a long value, incorrect setting : ${value}")
-                -1
-            }
-          }
-          val quota = userQuotas.getOrDefault(userIdentifier.get, new Quota())
-          quota.update(userIdentifier.get, suffix, quotaValue)
-          userQuotas.put(userIdentifier.get, quota)
+    val quotaConfPath =
+      RssConf.quotaConfigurationPath(conf)
+        .getOrElse(Utils.getDefaultQuotaConfigurationFile())
+    val stream = new FileInputStream(new File(quotaConfPath))
+    val yaml = new Yaml()
+    val quotas =
+      yaml.load(stream).asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Object]]]
+    quotas.asScala.foreach { quotaSetting =>
+      val tenantId = quotaSetting.get("tenantId").asInstanceOf[String]
+      val name = quotaSetting.get("name").asInstanceOf[String]
+      val userIdentifier = UserIdentifier(tenantId, name)
+      val quota = Quota()
+      quotaSetting.get("quota")
+        .asInstanceOf[java.util.HashMap[String, Object]]
+        .asScala
+        .foreach { case (key, value) =>
+          quota.update(userIdentifier, key, value.toString.toLong)
         }
-      }
+      userQuotas.put(userIdentifier, quota)
     }
   }
 }
