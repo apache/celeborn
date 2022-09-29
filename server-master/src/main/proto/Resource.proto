@@ -124,6 +124,7 @@ message RegisterWorkerRequest {
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
+  map<string, ResourceConsumption> userResourceUsage = 7;
 }
 
 message ReportWorkerFailureRequest {

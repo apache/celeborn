@@ -252,6 +252,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -266,6 +267,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .putAllUserResourceUsage(MetaUtil.toPbUserResourceUsage(userResourceUsage))
                       .build())
               .build());
     } catch (ServiceException e) {

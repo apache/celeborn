@@ -108,8 +108,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
       String requestId) {
-    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks);
+    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceUsage);
   }
 
   @Override

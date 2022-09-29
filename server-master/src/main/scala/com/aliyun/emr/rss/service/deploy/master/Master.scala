@@ -232,6 +232,7 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userResourceUsage,
           requestId))
 
     case requestSlots @ RequestSlots(_, _, _, _, _, _, _) =>
@@ -413,6 +414,7 @@ private[deploy] class Master(
       fetchPort: Int,
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
+      userResourceUsage: util.Map[UserIdentifier, ResourceConsumption],
       requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
@@ -427,6 +429,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceUsage,
         requestId)
       context.reply(ControlMessages.pbRegisterWorkerResponse(
         true,
@@ -442,6 +445,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceUsage,
         requestId)
       context.reply(ControlMessages.pbRegisterWorkerResponse(
         true,
@@ -454,6 +458,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceUsage,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(ControlMessages.pbRegisterWorkerResponse(true, ""))

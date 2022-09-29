@@ -181,13 +181,14 @@ public class MetaHandler {
           userResourceUsage = MetaUtil.fromPbUserResourceUsage(request.getWorkerHeartbeatRequest().getUserResourceUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
-              "Handle worker heartbeat for {} {} {} {} {} {}",
+              "Handle worker heartbeat for {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
-              disks);
+              disks,
+              userResourceUsage);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
               host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceUsage, time);
@@ -200,16 +201,18 @@ public class MetaHandler {
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
+          userResourceUsage = MetaUtil.fromPbUserResourceUsage(request.getRegisterWorkerRequest().getUserResourceUsageMap());
           LOG.debug(
-              "Handle worker register for {} {} {} {} {} {}",
+              "Handle worker register for {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
-              disks);
+              disks,
+              userResourceUsage);
           metaSystem.updateRegisterWorkerMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks);
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceUsage);
           break;
 
         case ReportWorkerFailure:
