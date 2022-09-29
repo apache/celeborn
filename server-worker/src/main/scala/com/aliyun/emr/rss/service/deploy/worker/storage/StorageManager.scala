@@ -41,8 +41,7 @@ import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInf
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.util.PBSerDeUtils
+import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
 
@@ -87,7 +86,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   val tmpDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
-  disksSnapshot().foreach { case diskInfo =>
+  disksSnapshot().foreach { diskInfo =>
     tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
   }
   private val deviceMonitor =
@@ -96,7 +95,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   // (mountPoint -> LocalFlusher)
   private val localFlushers: ConcurrentHashMap[String, LocalFlusher] = {
     val flushers = new ConcurrentHashMap[String, LocalFlusher]()
-    disksSnapshot().foreach { case diskInfo =>
+    disksSnapshot().foreach { diskInfo =>
       if (!flushers.containsKey(diskInfo.mountPoint)) {
         val flusher = new LocalFlusher(
           workerSource,
@@ -201,7 +200,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
-            val files = PBSerDeUtils.fromPbFileInfoMap(entry.getValue)
+            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue)
             logDebug("Reload DB: " + shuffleKey + " -> " + files)
             fileInfos.put(shuffleKey, files)
             fileInfosDb.delete(entry.getKey)
@@ -217,7 +216,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   def updateFileInfosInDB(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        fileInfosDb.put(dbShuffleKey(shuffleKey), PBSerDeUtils.toPbFileInfoMap(files))
+        fileInfosDb.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
         logDebug("Update DB: " + shuffleKey + " -> " + files)
       } catch {
         case exception: Exception =>
@@ -246,7 +245,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       location: PartitionLocation,
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType): FileWriter = {
+      partitionType: PartitionType,
+      rangeReadFilter: Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0) {
       throw new IOException("No available working dirs!")
     }
@@ -282,7 +282,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          rangeReadFilter)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.synchronized {
           hdfsWriters.add(hdfsWriter)
@@ -310,7 +311,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
             deviceMonitor,
             splitThreshold,
             splitMode,
-            partitionType)
+            partitionType,
+            rangeReadFilter)
           deviceMonitor.registerFileWriter(fileWriter)
           val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           list.synchronized {
@@ -357,17 +359,13 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-      disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { case diskInfo =>
-        diskInfo.dirs.foreach { case dir =>
+      disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
+        diskInfo.dirs.foreach { dir =>
           val file = new File(dir, s"$appId/$shuffleId")
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
       }
-      if (hdfsInfos.size > 0) {
-        for ((_, info) <- hdfsInfos) {
-          info.deleteAllFiles(StorageManager.hdfsFs)
-        }
-      }
+      hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hdfsFs))
     }
   }
 
@@ -394,10 +392,10 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   private def cleanupExpiredAppDirs(expireTime: Long, isGracefulShutdown: Boolean = false): Unit = {
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
-    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { case diskInfo =>
+    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
       diskInfo.dirs.foreach {
         case workingDir if workingDir.exists() =>
-          workingDir.listFiles().foreach { case appDir =>
+          workingDir.listFiles().foreach { appDir =>
             // Don't delete shuffleKey's data recovered from levelDB when restart with graceful shutdown
             if (!(isGracefulShutdown && appIds.contains(appDir.getName))) {
               if (appDir.lastModified() < expireTime) {
@@ -464,15 +462,16 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     val awaitTimeout = RssConf.checkFileCleanTimeoutMs(conf)
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
     while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
-      val localCleaned = !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists {
-        case diskInfo => diskInfo.dirs.exists {
+      val localCleaned =
+        !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists { diskInfo =>
+          diskInfo.dirs.exists {
             case workingDir if workingDir.exists() =>
               // Don't check appDirs that store information in the fileInfos
               workingDir.listFiles().exists(appDir => !appIds.contains(appDir.getName))
             case _ =>
               false
           }
-      }
+        }
 
       val hdfsCleaned = hdfsFs match {
         case hdfs: FileSystem =>
@@ -534,7 +533,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         allWriters.addAll(writers)
       }
     }
-    allWriters.asScala.foreach { case writer =>
+    allWriters.asScala.foreach { writer =>
       writer.flushOnMemoryPressure()
     }
   }
@@ -552,7 +551,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
-    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { case diskInfo =>
+    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
       val totalUsage = diskInfo.dirs.map { dir =>
         val writers = workingDirWriters.get(dir)
         if (writers != null) {

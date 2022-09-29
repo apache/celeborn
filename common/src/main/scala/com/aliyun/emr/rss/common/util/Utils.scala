@@ -21,6 +21,7 @@ import java.io.{File, FileInputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
@@ -28,14 +29,15 @@ import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.Map
 import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
+import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+import org.roaringbitmap.RoaringBitmap
 
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
@@ -132,6 +134,27 @@ object Utils extends Logging {
 
   def megabytesToString(megabytes: Long): String = {
     bytesToString(megabytes * 1024L * 1024L)
+  }
+
+  /**
+   * Returns a human-readable string representing a duration such as "35ms"
+   */
+  def msDurationToString(ms: Long): String = {
+    val second = 1000
+    val minute = 60 * second
+    val hour = 60 * minute
+    val locale = Locale.US
+
+    ms match {
+      case t if t < second =>
+        "%d ms".formatLocal(locale, t)
+      case t if t < minute =>
+        "%.1f s".formatLocal(locale, t.toFloat / second)
+      case t if t < hour =>
+        "%.1f m".formatLocal(locale, t.toFloat / minute)
+      case t =>
+        "%.2f h".formatLocal(locale, t.toFloat / hour)
+    }
   }
 
   @throws(classOf[RssException])
@@ -474,6 +497,15 @@ object Utils extends Logging {
       .orNull
   }
 
+  def getDefaultQuotaConfigurationFile(env: Map[String, String] = sys.env): String = {
+    env.get("RSS_CONF_DIR")
+      .orElse(env.get("RSS_HOME").map { t => s"$t${File.separator}conf" })
+      .map { t => new File(s"$t${File.separator}quota.yml") }
+      .filter(_.isFile)
+      .map(_.getAbsolutePath)
+      .orNull
+  }
+
   private[util] def trimExceptCRLF(str: String): String = {
     val nonSpaceOrNaturalLineDelimiter: Char => Boolean = { ch =>
       ch > ' ' || ch == '\r' || ch == '\n'
@@ -749,8 +781,10 @@ object Utils extends Logging {
 
   def toTransportMessage(message: Any): Any = {
     message match {
-      case transportMessage: Message =>
-        transportMessage.toTransportMessage
+      case legacy: Message =>
+        ControlMessages.toTransportMessage(legacy)
+      case pb: GeneratedMessageV3 =>
+        ControlMessages.toTransportMessage(pb)
       case _ =>
         message
     }
@@ -875,4 +909,28 @@ object Utils extends Logging {
   def getWriteSuccessFilePath(path: String): String = {
     path + SUFFIX_HDFS_WRITE_SUCCESS
   }
+
+  def roaringBitmapToByteString(roaringBitMap: RoaringBitmap): ByteString = {
+    if (roaringBitMap != null && !roaringBitMap.isEmpty) {
+      val buf = ByteBuffer.allocate(roaringBitMap.serializedSizeInBytes())
+      roaringBitMap.serialize(buf)
+      buf.rewind()
+      ByteString.copyFrom(buf)
+    } else {
+      ByteString.EMPTY
+    }
+  }
+
+  def byteStringToRoaringBitmap(bytes: ByteString): RoaringBitmap = {
+    if (!bytes.isEmpty) {
+      val roaringBitmap = new RoaringBitmap()
+      val buf = bytes.asReadOnlyByteBuffer()
+      buf.rewind()
+      roaringBitmap.deserialize(buf)
+      roaringBitmap
+    } else {
+      null
+    }
+  }
+
 }

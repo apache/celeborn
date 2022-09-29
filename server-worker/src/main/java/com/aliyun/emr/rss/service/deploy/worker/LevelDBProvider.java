@@ -29,7 +29,7 @@ import org.iq80.leveldb.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aliyun.emr.rss.common.util.PBSerDeUtils;
+import com.aliyun.emr.rss.common.util.PbSerDeUtils;
 
 /**
  * LevelDB utility class available in the network package.
@@ -107,7 +107,7 @@ public class LevelDBProvider {
     if (bytes == null) {
       storeVersion(db, newversion);
     } else {
-      ArrayList<Integer> versions = PBSerDeUtils.fromPbStoreVersion(bytes);
+      ArrayList<Integer> versions = PbSerDeUtils.fromPbStoreVersion(bytes);
       StoreVersion version = new StoreVersion(versions.get(0), versions.get(1));
       if (version.major != newversion.major) {
         throw new IOException(
@@ -122,7 +122,7 @@ public class LevelDBProvider {
   }
 
   public static void storeVersion(DB db, StoreVersion version) throws IOException {
-    db.put(StoreVersion.KEY, PBSerDeUtils.toPbStoreVersion(version.major, version.minor));
+    db.put(StoreVersion.KEY, PbSerDeUtils.toPbStoreVersion(version.major, version.minor));
   }
 
   public static class StoreVersion {
