@@ -114,11 +114,32 @@ public class DefaultMetaSystemSuiteJ {
   public void testHandleRegisterWorker() {
 
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     assert (statusSystem.workers.size() == 3);
   }
@@ -126,11 +147,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleWorkerLost() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     statusSystem.handleWorkerLost(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
@@ -144,11 +186,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleRequestSlots() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(
@@ -176,11 +239,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleReleaseSlots() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     assert 3 == statusSystem.workers.size();
 
@@ -230,11 +314,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleAppLost() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(
@@ -261,11 +366,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleUnRegisterShuffle() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(
@@ -375,11 +501,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleReportWorkerFailure() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, userResourceUsage1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceUsage1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, userResourceUsage2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceUsage2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, userResourceUsage3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceUsage3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(

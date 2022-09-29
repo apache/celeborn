@@ -178,7 +178,9 @@ public class MetaHandler {
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
           disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
-          userResourceUsage = MetaUtil.fromPbUserResourceUsage(request.getWorkerHeartbeatRequest().getUserResourceUsageMap());
+          userResourceUsage =
+              MetaUtil.fromPbUserResourceUsage(
+                  request.getWorkerHeartbeatRequest().getUserResourceUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
@@ -201,7 +203,9 @@ public class MetaHandler {
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
-          userResourceUsage = MetaUtil.fromPbUserResourceUsage(request.getRegisterWorkerRequest().getUserResourceUsageMap());
+          userResourceUsage =
+              MetaUtil.fromPbUserResourceUsage(
+                  request.getRegisterWorkerRequest().getUserResourceUsageMap());
           LOG.debug(
               "Handle worker register for {} {} {} {} {} {} {}",
               host,

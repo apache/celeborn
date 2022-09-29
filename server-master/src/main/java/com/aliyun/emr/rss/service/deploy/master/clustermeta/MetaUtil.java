@@ -82,25 +82,26 @@ public class MetaUtil {
   }
 
   public static Map<UserIdentifier, ResourceConsumption> fromPbUserResourceUsage(
-          Map<String, ResourceProtos.ResourceConsumption> pbUserResourceUsage) {
+      Map<String, ResourceProtos.ResourceConsumption> pbUserResourceUsage) {
     Map<UserIdentifier, ResourceConsumption> map = new HashMap<>();
     pbUserResourceUsage.forEach(
-            (k,v) -> {
-                ResourceConsumption resourceConsumption = new ResourceConsumption(
-                    v.getDiskBytesWritten(),
-                    v.getDiskFileCount(),
-                    v.getHdfsBytesWritten(),
-                    v.getHdfsFileCount());
-                map.put(ControlMessages.UserIdentifier$.MODULE$.apply(k), resourceConsumption);
-            });
+        (k, v) -> {
+          ResourceConsumption resourceConsumption =
+              new ResourceConsumption(
+                  v.getDiskBytesWritten(),
+                  v.getDiskFileCount(),
+                  v.getHdfsBytesWritten(),
+                  v.getHdfsFileCount());
+          map.put(ControlMessages.UserIdentifier$.MODULE$.apply(k), resourceConsumption);
+        });
     return map;
   }
 
   public static Map<String, ResourceProtos.ResourceConsumption> toPbUserResourceUsage(
-          Map<UserIdentifier, ResourceConsumption> userResourceUsage) {
+      Map<UserIdentifier, ResourceConsumption> userResourceUsage) {
     Map<String, ResourceProtos.ResourceConsumption> map = new HashMap<>();
     userResourceUsage.forEach(
-        (k,v) ->
+        (k, v) ->
             map.put(
                 k.toString(),
                 ResourceProtos.ResourceConsumption.newBuilder()

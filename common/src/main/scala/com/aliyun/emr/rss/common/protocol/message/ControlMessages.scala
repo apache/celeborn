@@ -24,8 +24,8 @@ import scala.collection.JavaConverters._
 
 import org.roaringbitmap.RoaringBitmap
 
-import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.exception.RssException
+import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DiskInfo, WorkerInfo}
 import com.aliyun.emr.rss.common.network.protocol.TransportMessage
 import com.aliyun.emr.rss.common.protocol._
