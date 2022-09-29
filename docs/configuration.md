@@ -74,7 +74,6 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bu
 | spark.rss.change.partition.numThreads             | 8                                                            | Threads number for LifecycleManager to handle change partition request in batch.                                                                                                                                                                                                              |
 | spark.rss.change.partition.batchInterval          | 1s                                                           | Batch handling interval for LifecycleManager handle change partition requests in batch.                                                                                                                                                                                                       |
 
-
 ### RSS Master Configurations
 
 | Key                                          | Default                 | Description                                                                                                                  |
