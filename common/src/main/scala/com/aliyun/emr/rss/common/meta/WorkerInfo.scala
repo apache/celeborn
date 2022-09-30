@@ -217,6 +217,7 @@ class WorkerInfo(
   }
 
   def updateUserResourceUsage(usage: util.Map[UserIdentifier, ResourceConsumption]): Unit = {
+    userResourceUsage.clear()
     userResourceUsage.putAll(usage)
   }
 

@@ -85,7 +85,7 @@ object ControlMessages extends Logging {
       requestId: String): PbRegisterWorker = {
     val pbDisks = disks.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
     val pbUserResourceUsage = userResourceUsage
-      .map(usage => (usage._1.toString, usage._2))
+      .map { case (userIdentifier, resourceConsumption) => (userIdentifier.toString, resourceConsumption) }
       .mapValues(PbSerDeUtils.toPbResourceConsumption)
       .asJava
     PbRegisterWorker.newBuilder()
@@ -385,7 +385,7 @@ object ControlMessages extends Logging {
       val pbDisks = disks.asScala.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceUsage = userResourceUsage
         .asScala
-        .map(usage => (usage._1.toString, usage._2))
+        .map { case (userIdentifier, resourceConsumption) => (userIdentifier.toString, resourceConsumption) }
         .mapValues(PbSerDeUtils.toPbResourceConsumption)
         .asJava
       val payload = PbHeartbeatFromWorker.newBuilder()
