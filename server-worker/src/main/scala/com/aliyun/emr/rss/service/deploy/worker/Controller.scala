@@ -93,7 +93,8 @@ private[deploy] class Controller(
           splitThreshold,
           splitMode,
           partitionType,
-          rangeReadFilter)
+          rangeReadFilter,
+          userIdentifier)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -128,7 +129,8 @@ private[deploy] class Controller(
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
-      rangeReadFileter: Boolean): Unit = {
+      rangeReadFileter: Boolean,
+      userIdentifier: UserIdentifier): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -154,7 +156,8 @@ private[deploy] class Controller(
           splitThreshold,
           splitMode,
           partitionType,
-          rangeReadFileter)
+          rangeReadFileter,
+          userIdentifier)
         masterPartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
@@ -180,7 +183,8 @@ private[deploy] class Controller(
           splitThreshold,
           splitMode,
           partitionType,
-          rangeReadFileter)
+          rangeReadFileter,
+          userIdentifier)
         slavePartitions.add(new WorkingPartition(location, writer))
       }
     } catch {
