@@ -41,6 +41,7 @@ import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInf
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs
@@ -49,6 +50,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
+  // userIdentifier -> shuffleKey
+  val userShuffleKeys = new ConcurrentHashMap[UserIdentifier, util.Set[String]]()
 
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -571,6 +574,34 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       diskInfo.setFlushTime(flushTimeAverage)
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
+  }
+
+  def getUserFileInfos(shuffleKey: String): Seq[FileInfo] = {
+    fileInfos.get(shuffleKey).values().asScala.toSeq
+  }
+
+  def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
+    userShuffleKeys.synchronized {
+      userShuffleKeys.asScala.map { case (userIdentifier, shuffleKeys) =>
+        val resourceMetrics = shuffleKeys.asScala.map { shuffleKey =>
+          val userFileInfos = getUserFileInfos(shuffleKey)
+          val diskFileInfos = userFileInfos.filter(!_.isHdfs)
+          val hdfsFileInfos = userFileInfos.filter(_.isHdfs)
+
+          val diskBytesWritten = diskFileInfos.map(_.getFileLength).sum
+          val diskFileCount = diskFileInfos.size
+          val hdfsBytesWritten = hdfsFileInfos.map(_.getFileLength).sum
+          val hdfsFileCount = hdfsFileInfos.size
+          (diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount)
+        }
+        val resourceConsumption = ResourceConsumption(
+          resourceMetrics.map(_._1).sum,
+          resourceMetrics.map(_._2).sum,
+          resourceMetrics.map(_._3).sum,
+          resourceMetrics.map(_._4).sum)
+        (userIdentifier, resourceConsumption)
+      }.toMap
+    }
   }
 }
 

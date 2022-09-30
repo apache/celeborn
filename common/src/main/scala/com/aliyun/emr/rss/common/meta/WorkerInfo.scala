@@ -216,10 +216,12 @@ class WorkerInfo(
     }
   }
 
-  def updateUserResourceConsumption(consumption: util.Map[UserIdentifier, ResourceConsumption])
-      : Unit = {
+  def updateThenGetUserResourceConsumption(consumption: util.Map[
+    UserIdentifier,
+    ResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
     userResourceConsumption.clear()
     userResourceConsumption.putAll(consumption)
+    userResourceConsumption
   }
 
   override def toString(): String = {
