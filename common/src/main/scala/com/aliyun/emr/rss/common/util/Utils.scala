@@ -48,7 +48,7 @@ import com.aliyun.emr.rss.common.network.util.{ConfigProvider, JavaUtils, Transp
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.protocol.PbWorkerResource
 import com.aliyun.emr.rss.common.protocol.message.{ControlMessages, Message, StatusCode}
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.WorkerResource
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{UserIdentifier, WorkerResource}
 
 object Utils extends Logging {
 

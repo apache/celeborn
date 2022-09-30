@@ -22,6 +22,8 @@ import java.util.Map;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 
 public interface IMetadataHandler {
   void handleRequestSlots(
@@ -56,6 +58,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       String requestId);
 
@@ -66,6 +69,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);
 
   void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);

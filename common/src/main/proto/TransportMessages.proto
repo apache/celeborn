@@ -127,6 +127,7 @@ message PbRegisterWorker {
   int32 replicatePort = 5;
   map<string, PbDiskInfo> disks = 6;
   string requestId = 9;
+  map<string, PbResourceConsumption> userResourceConsumption = 8;
 }
 
 message PbHeartbeatFromWorker {
@@ -138,6 +139,7 @@ message PbHeartbeatFromWorker {
   map<string, PbDiskInfo> disks = 6;
   repeated string shuffleKeys = 7;
   string requestId = 8;
+  map<string, PbResourceConsumption> userResourceConsumption = 9;
 }
 
 message PbHeartbeatResponse {

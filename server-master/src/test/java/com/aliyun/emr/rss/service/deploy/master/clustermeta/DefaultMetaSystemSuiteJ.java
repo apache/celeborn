@@ -37,6 +37,8 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
@@ -58,6 +60,8 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT1 = 1113;
   private static int REPLICATEPORT1 = 1114;
   private static Map<String, DiskInfo> disks1 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
+      new HashMap<>();
 
   private static String HOSTNAME2 = "host2";
   private static int RPCPORT2 = 2111;
@@ -65,6 +69,8 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT2 = 2113;
   private static int REPLICATEPORT2 = 2114;
   private static Map<String, DiskInfo> disks2 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
+      new HashMap<>();
 
   private static String HOSTNAME3 = "host3";
   private static int RPCPORT3 = 3111;
@@ -72,6 +78,8 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT3 = 3113;
   private static int REPLICATEPORT3 = 3114;
   private static Map<String, DiskInfo> disks3 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
+      new HashMap<>();
 
   @Before
   public void setUp() throws Exception {
@@ -109,11 +117,32 @@ public class DefaultMetaSystemSuiteJ {
   public void testHandleRegisterWorker() {
 
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     assert (statusSystem.workers.size() == 3);
   }
@@ -121,11 +150,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleWorkerLost() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     statusSystem.handleWorkerLost(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
@@ -139,11 +189,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleRequestSlots() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(
@@ -171,11 +242,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleReleaseSlots() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     assert 3 == statusSystem.workers.size();
 
@@ -225,11 +317,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleAppLost() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(
@@ -256,11 +369,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleUnRegisterShuffle() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(
@@ -306,6 +440,7 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         new HashMap<>(),
+        userResourceConsumption1,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
         HOSTNAME2,
@@ -314,6 +449,7 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         new HashMap<>(),
+        userResourceConsumption2,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
         HOSTNAME3,
@@ -322,6 +458,7 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         new HashMap<>(),
+        userResourceConsumption3,
         getNewReqeustId());
 
     statusSystem.handleWorkerHeartbeat(
@@ -331,6 +468,7 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         new HashMap<>(),
+        userResourceConsumption1,
         1,
         getNewReqeustId());
 
@@ -343,13 +481,22 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         new HashMap<>(),
+        userResourceConsumption2,
         1,
         getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT3, disks1, 1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT3,
+        disks1,
+        userResourceConsumption1,
+        1,
+        getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
   }
@@ -357,11 +504,32 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleReportWorkerFailure() {
     statusSystem.handleRegisterWorker(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, disks1, getNewReqeustId());
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2, disks2, getNewReqeustId());
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-        HOSTNAME3, RPCPORT3, PUSHPORT3, FETCHPORT3, REPLICATEPORT3, disks3, getNewReqeustId());
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
 
     WorkerInfo workerInfo1 =
         new WorkerInfo(

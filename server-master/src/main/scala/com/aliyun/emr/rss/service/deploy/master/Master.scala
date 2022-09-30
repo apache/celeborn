@@ -213,6 +213,12 @@ private[deploy] class Master(
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
       val disks = pbRegisterWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
+      val userResourceConsumption = pbRegisterWorker
+        .getUserResourceConsumptionMap
+        .asScala
+        .map(x => (UserIdentifier(x._1), x._2))
+        .mapValues(PbSerDeUtils.fromPbResourceConsumption)
+        .asJava
 
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
@@ -226,6 +232,7 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userResourceConsumption,
           requestId))
 
     case requestSlots @ RequestSlots(_, _, _, _, _, _, _) =>
@@ -259,6 +266,7 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userResourceConsumption,
           shuffleKeys,
           requestId) =>
       logDebug(s"Received heartbeat from" +
@@ -273,6 +281,7 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userResourceConsumption,
           shuffleKeys,
           requestId))
 
@@ -333,6 +342,7 @@ private[deploy] class Master(
       fetchPort: Int,
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
+      userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
@@ -348,6 +358,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceConsumption,
         System.currentTimeMillis(),
         requestId)
     }
@@ -403,6 +414,7 @@ private[deploy] class Master(
       fetchPort: Int,
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
+      userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
@@ -417,6 +429,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceConsumption,
         requestId)
       context.reply(ControlMessages.pbRegisterWorkerResponse(
         true,
@@ -432,6 +445,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceConsumption,
         requestId)
       context.reply(ControlMessages.pbRegisterWorkerResponse(
         true,
@@ -444,6 +458,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userResourceConsumption,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(ControlMessages.pbRegisterWorkerResponse(true, ""))

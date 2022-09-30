@@ -19,11 +19,13 @@ package com.aliyun.emr.rss.common.meta
 
 import java.util
 import java.util.Objects
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PbDiskInfo, PbWorkerInfo}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
@@ -37,6 +39,7 @@ class WorkerInfo(
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
+  val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -211,6 +214,12 @@ class WorkerInfo(
         diskInfos.remove(nonExistsMountPoint)
       }
     }
+  }
+
+  def updateUserResourceConsumption(consumption: util.Map[UserIdentifier, ResourceConsumption])
+      : Unit = {
+    userResourceConsumption.clear()
+    userResourceConsumption.putAll(consumption)
   }
 
   override def toString(): String = {

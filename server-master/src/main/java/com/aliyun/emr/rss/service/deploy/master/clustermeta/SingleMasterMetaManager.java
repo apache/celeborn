@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
@@ -92,9 +94,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       String requestId) {
-    updateWorkerHeartbeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
+    updateWorkerHeartbeatMeta(
+        host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption, time);
   }
 
   @Override
@@ -105,8 +109,10 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
-    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks);
+    updateRegisterWorkerMeta(
+        host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
   }
 
   @Override

@@ -27,6 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.FileInfo;
 import com.aliyun.emr.rss.common.protocol.*;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.ResourceConsumption;
 
 public class PbSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)
@@ -108,5 +109,24 @@ public class PbSerDeUtils {
     }
     builder.putAllValues(pbFileInfoMap);
     return builder.build().toByteArray();
+  }
+
+  public static ResourceConsumption fromPbResourceConsumption(
+      PbResourceConsumption pbResourceConsumption) throws InvalidProtocolBufferException {
+    return new ResourceConsumption(
+        pbResourceConsumption.getDiskBytesWritten(),
+        pbResourceConsumption.getDiskFileCount(),
+        pbResourceConsumption.getHdfsBytesWritten(),
+        pbResourceConsumption.getHdfsFileCount());
+  }
+
+  public static PbResourceConsumption toPbResourceConsumption(
+      ResourceConsumption resourceConsumption) {
+    return PbResourceConsumption.newBuilder()
+        .setDiskBytesWritten(resourceConsumption.diskBytesWritten())
+        .setDiskFileCount(resourceConsumption.diskFileCount())
+        .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten())
+        .setHdfsFileCount(resourceConsumption.hdfsFileCount())
+        .build();
   }
 }
