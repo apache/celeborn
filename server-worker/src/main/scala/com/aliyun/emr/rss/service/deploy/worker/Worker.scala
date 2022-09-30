@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashSet => jHashSet}
+import java.util.{HashSet => JHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -181,7 +181,7 @@ private[deploy] class Worker(
   private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
   private val REPLICATE_FAST_FAIL_DURATION = RssConf.replicateFastFailDurationMs(conf)
 
-  private val cleanTaskQueue = new LinkedBlockingQueue[jHashSet[String]]
+  private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: Thread = _
 
   workerSource.addGauge(
@@ -200,7 +200,7 @@ private[deploy] class Worker(
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   private def heartBeatToMaster(): Unit = {
-    val shuffleKeys = new jHashSet[String]
+    val shuffleKeys = new JHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
@@ -355,7 +355,7 @@ private[deploy] class Worker(
     throw new RssException("Register worker failed.")
   }
 
-  private def cleanup(expiredShuffleKeys: jHashSet[String]): Unit = synchronized {
+  private def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         partition.asInstanceOf[WorkingPartition].getFileWriter.destroy()
