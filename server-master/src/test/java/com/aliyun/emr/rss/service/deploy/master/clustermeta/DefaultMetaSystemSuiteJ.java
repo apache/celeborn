@@ -60,7 +60,8 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT1 = 1113;
   private static int REPLICATEPORT1 = 1114;
   private static Map<String, DiskInfo> disks1 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
+      new HashMap<>();
 
   private static String HOSTNAME2 = "host2";
   private static int RPCPORT2 = 2111;
@@ -68,7 +69,8 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT2 = 2113;
   private static int REPLICATEPORT2 = 2114;
   private static Map<String, DiskInfo> disks2 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
+      new HashMap<>();
 
   private static String HOSTNAME3 = "host3";
   private static int RPCPORT3 = 3111;
@@ -76,7 +78,8 @@ public class DefaultMetaSystemSuiteJ {
   private static int FETCHPORT3 = 3113;
   private static int REPLICATEPORT3 = 3114;
   private static Map<String, DiskInfo> disks3 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 = new HashMap<>();
+  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
+      new HashMap<>();
 
   @Before
   public void setUp() throws Exception {
@@ -437,7 +440,7 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         new HashMap<>(),
-            userResourceConsumption1,
+        userResourceConsumption1,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
         HOSTNAME2,

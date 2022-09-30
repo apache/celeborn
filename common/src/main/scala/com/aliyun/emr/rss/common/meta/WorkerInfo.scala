@@ -216,7 +216,8 @@ class WorkerInfo(
     }
   }
 
-  def updateUserResourceConsumption(consumption: util.Map[UserIdentifier, ResourceConsumption]): Unit = {
+  def updateUserResourceConsumption(consumption: util.Map[UserIdentifier, ResourceConsumption])
+      : Unit = {
     userResourceConsumption.clear()
     userResourceConsumption.putAll(consumption)
   }

@@ -235,7 +235,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .putAllUserResourceConsumption(MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
+                      .putAllUserResourceConsumption(
+                          MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .setTime(time)
                       .build())
               .build());
@@ -267,7 +268,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .putAllUserResourceConsumption(MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
+                      .putAllUserResourceConsumption(
+                          MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .build())
               .build());
     } catch (ServiceException e) {

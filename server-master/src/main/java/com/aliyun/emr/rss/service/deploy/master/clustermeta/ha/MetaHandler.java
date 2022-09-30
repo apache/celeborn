@@ -193,7 +193,14 @@ public class MetaHandler {
               userResourceConsumption);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption, time);
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              disks,
+              userResourceConsumption,
+              time);
           break;
 
         case RegisterWorker:
