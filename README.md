@@ -40,7 +40,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 
 We introduce slots to achieve load balance. We will equally distribute partitions on every RSS worker by tracking slots usage.
 The Slot is a logical concept in RSS Worker that represents how many partitions can be allocated on each RSS Worker.
-RSS Worker's slot count is decided by `rss.worker.numSlots` or`rss.worker.flush.queue.capacity * (number of RSS Worker storage directories)` if `rss.worker.numSlots` is not set.
+RSS Worker's slot count is decided by `total usable disk size / average shuffle file size`.
 RSS worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
