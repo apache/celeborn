@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.common.quota
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 
 case class Quota(
     var diskBytesWritten: Long = -1,
@@ -34,6 +34,48 @@ case class Quota(
       case "hdfsFileCount" => hdfsFileCount = value
       case _ => logWarning(s"Unsupported quota name: $name for user: $userIdentifier.")
     }
+  }
+
+  def checkQuotaAvailable(
+      userIdentifier: UserIdentifier,
+      resourceResumption: ResourceConsumption): Boolean = {
+    val exceed =
+      checkDiskBytesWritten(userIdentifier, resourceResumption.diskBytesWritten) ||
+        checkDiskFileCount(userIdentifier, resourceResumption.diskFileCount) ||
+        checkHdfsBytesWritten(userIdentifier, resourceResumption.hdfsBytesWritten) ||
+        checkHdfsFileCount(userIdentifier, resourceResumption.hdfsFileCount)
+    !exceed
+  }
+  def checkDiskBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
+    val exceed = (diskBytesWritten > 0 && value >= diskBytesWritten)
+    if (exceed) {
+      logWarning(s"User $userIdentifier quota exceed diskBytesWritten, $value >= $diskBytesWritten")
+    }
+    exceed
+  }
+
+  def checkDiskFileCount(userIdentifier: UserIdentifier, value: Long): Boolean = {
+    val exceed = (diskFileCount > 0 && value >= diskFileCount)
+    if (exceed) {
+      logWarning(s"User $userIdentifier quota exceed diskFileCount, $value >= $diskFileCount")
+    }
+    exceed
+  }
+
+  def checkHdfsBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
+    val exceed = (hdfsBytesWritten > 0 && value >= hdfsBytesWritten)
+    if (exceed) {
+      logWarning(s"User $userIdentifier quota exceed hdfsBytesWritten, $value >= $hdfsBytesWritten")
+    }
+    exceed
+  }
+
+  def checkHdfsFileCount(userIdentifier: UserIdentifier, value: Long): Boolean = {
+    val exceed = (hdfsFileCount > 0 && value >= hdfsFileCount)
+    if (exceed) {
+      logWarning(s"User $userIdentifier quota exceed hdfsFileCount, $value >= $hdfsFileCount")
+    }
+    exceed
   }
 
   override def toString: String = {

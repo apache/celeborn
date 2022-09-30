@@ -66,7 +66,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
     val available = lifecycleManager.checkQuota()
     if (!available) {
-      logWarning(s"Cluster is not alive!")
+      logWarning(s"Quota exceed for current user ${lifecycleManager.getUserIdentifier()}.")
     }
     available
   }
