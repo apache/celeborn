@@ -81,7 +81,7 @@ public class ShuffleInMemorySorter {
 
   /** @return the number of records that have been inserted into this sorter. */
   public int numRecords() {
-    return pos / 2;
+    return pos;
   }
 
   public void expandPointerArray(LongArray newArray) {
