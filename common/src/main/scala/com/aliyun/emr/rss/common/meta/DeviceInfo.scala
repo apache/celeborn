@@ -54,16 +54,19 @@ class DiskInfo(
   var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
 
-  def setStatus(status: DiskStatus): Unit = this.synchronized {
+  def setStatus(status: DiskStatus): this.type = this.synchronized {
     this.status = status
+    this
   }
 
-  def setUsableSpace(usableSpace: Long): Unit = this.synchronized {
+  def setUsableSpace(usableSpace: Long): this.type = this.synchronized {
     this.actualUsableSpace = usableSpace
+    this
   }
 
-  def setFlushTime(avgFlushTime: Long): Unit = this.synchronized {
+  def setFlushTime(avgFlushTime: Long): this.type = this.synchronized {
     this.avgFlushTime = avgFlushTime
+    this
   }
 
   def availableSlots(): Long = this.synchronized {

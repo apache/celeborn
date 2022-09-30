@@ -83,7 +83,7 @@ object ControlMessages extends Logging {
       disks: Map[String, DiskInfo],
       userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
       requestId: String): PbRegisterWorker = {
-    val pbDisks = disks.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
+    val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
     val pbUserResourceConsumption = userResourceConsumption
       .map { case (userIdentifier, resourceConsumption) =>
         (userIdentifier.toString, resourceConsumption)
@@ -96,7 +96,7 @@ object ControlMessages extends Logging {
       .setPushPort(pushPort)
       .setFetchPort(fetchPort)
       .setReplicatePort(replicatePort)
-      .putAllDisks(pbDisks)
+      .addAllDisks(pbDisks)
       .putAllUserResourceConsumption(pbUserResourceConsumption)
       .setRequestId(requestId)
       .build()
@@ -108,7 +108,7 @@ object ControlMessages extends Logging {
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: util.Map[String, DiskInfo],
+      disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       shuffleKeys: util.HashSet[String],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
@@ -384,7 +384,7 @@ object ControlMessages extends Logging {
           userResourceConsumption,
           shuffleKeys,
           requestId) =>
-      val pbDisks = disks.asScala.mapValues(PbSerDeUtils.toPbDiskInfo).asJava
+      val pbDisks = disks.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption = userResourceConsumption
         .asScala
         .map { case (userIdentifier, resourceConsumption) =>
@@ -397,7 +397,7 @@ object ControlMessages extends Logging {
         .setRpcPort(rpcPort)
         .setPushPort(pushPort)
         .setFetchPort(fetchPort)
-        .putAllDisks(pbDisks)
+        .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setReplicatePort(replicatePort)
         .addAllShuffleKeys(shuffleKeys)
@@ -800,8 +800,6 @@ object ControlMessages extends Logging {
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
         val shuffleKeys = new util.HashSet[String]()
-        val disks =
-          pbHeartbeatFromWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
         val userResourceConsumption = pbHeartbeatFromWorker
           .getUserResourceConsumptionMap
           .asScala
@@ -809,6 +807,7 @@ object ControlMessages extends Logging {
           .mapValues(PbSerDeUtils.fromPbResourceConsumption)
           .toMap
           .asJava
+        val pbDisks = pbHeartbeatFromWorker.getDisksList.asScala.map(PbSerDeUtils.fromPbDiskInfo)
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
           shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
         }
@@ -818,7 +817,7 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getPushPort,
           pbHeartbeatFromWorker.getFetchPort,
           pbHeartbeatFromWorker.getReplicatePort,
-          disks,
+          pbDisks,
           userResourceConsumption,
           shuffleKeys,
           pbHeartbeatFromWorker.getRequestId)

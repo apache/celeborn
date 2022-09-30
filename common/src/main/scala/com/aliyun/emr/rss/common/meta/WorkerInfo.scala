@@ -21,13 +21,14 @@ import java.util
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsJavaMapConverter, mapAsScalaMapConverter}
+import scala.collection.JavaConverters._
 
 import com.aliyun.emr.rss.common.internal.Logging
-import com.aliyun.emr.rss.common.protocol.{PbDiskInfo, PbWorkerInfo}
+import com.aliyun.emr.rss.common.protocol.PbWorkerInfo
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
+import com.aliyun.emr.rss.common.util.PbSerDeUtils
 
 class WorkerInfo(
     val host: String,
@@ -260,13 +261,9 @@ object WorkerInfo {
   def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
     val disks =
       if (pbWorker.getDisksCount > 0) {
-        pbWorker.getDisksMap.asScala
-          .map(item =>
-            item._1 -> new DiskInfo(
-              item._1,
-              item._2.getUsableSpace,
-              item._2.getAvgFlushTime,
-              item._2.getUsedSlots)).asJava
+        pbWorker.getDisksList.asScala
+          .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
+          .toMap.asJava
       } else {
         new util.HashMap[String, DiskInfo]()
       }
@@ -282,15 +279,8 @@ object WorkerInfo {
   }
 
   def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
-    val disks = workerInfo.diskInfos.asScala
-      .map(item =>
-        item._1 ->
-          PbDiskInfo
-            .newBuilder()
-            .setUsableSpace(item._2.actualUsableSpace)
-            .setAvgFlushTime(item._2.avgFlushTime)
-            .setUsedSlots(item._2.activeSlots)
-            .build())
+    val disks = workerInfo.diskInfos.asScala.values
+      .map { diskInfo => PbSerDeUtils.toPbDiskInfo(diskInfo) }
       .asJava
     PbWorkerInfo
       .newBuilder()
@@ -299,7 +289,7 @@ object WorkerInfo {
       .setFetchPort(workerInfo.fetchPort)
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
-      .putAllDisks(disks)
+      .addAllDisks(disks)
       .build()
   }
 }

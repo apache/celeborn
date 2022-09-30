@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashMap => JHashMap, HashSet => jHashSet}
+import java.util.{HashSet => jHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -40,8 +40,7 @@ import com.aliyun.emr.rss.common.protocol.{PbRegisterWorkerResponse, RpcNameCons
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.util.ShutdownHookManager
+import com.aliyun.emr.rss.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.{HttpService, Service}
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
@@ -205,10 +204,7 @@ private[deploy] class Worker(
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
-    val diskInfos = new JHashMap[String, DiskInfo]()
-    storageManager.disksSnapshot().foreach { case diskInfo =>
-      diskInfos.put(diskInfo.mountPoint, diskInfo)
-    }
+    val diskInfos = storageManager.disksSnapshot()
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(
         host,
