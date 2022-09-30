@@ -219,7 +219,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       String requestId) {
     try {
@@ -235,7 +235,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .putAllUserResourceUsage(MetaUtil.toPbUserResourceUsage(userResourceUsage))
+                      .putAllUserResourceConsumption(MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .setTime(time)
                       .build())
               .build());
@@ -252,7 +252,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -267,7 +267,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .putAllUserResourceUsage(MetaUtil.toPbUserResourceUsage(userResourceUsage))
+                      .putAllUserResourceConsumption(MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .build())
               .build());
     } catch (ServiceException e) {

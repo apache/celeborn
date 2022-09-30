@@ -217,7 +217,7 @@ private[deploy] class Worker(
         fetchPort,
         replicatePort,
         diskInfos,
-        workerInfo.userResourceUsage,
+        workerInfo.userResourceConsumption,
         shuffleKeys),
       classOf[HeartbeatResponse])
     if (response.registered) {
@@ -335,7 +335,7 @@ private[deploy] class Worker(
               fetchPort,
               replicatePort,
               workerInfo.diskInfos.asScala.toMap,
-              workerInfo.userResourceUsage.asScala.toMap,
+              workerInfo.userResourceConsumption.asScala.toMap,
               RssHARetryClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {

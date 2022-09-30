@@ -58,7 +58,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       String requestId);
 
@@ -69,7 +69,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);
 
   void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);

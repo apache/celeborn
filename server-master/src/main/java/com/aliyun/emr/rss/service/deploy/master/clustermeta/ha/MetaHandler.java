@@ -101,7 +101,7 @@ public class MetaHandler {
       int fetchPort;
       int replicatePort;
       Map<String, DiskInfo> disks;
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage;
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
       switch (cmdType) {
@@ -178,9 +178,9 @@ public class MetaHandler {
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
           disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
-          userResourceUsage =
-              MetaUtil.fromPbUserResourceUsage(
-                  request.getWorkerHeartbeatRequest().getUserResourceUsageMap());
+          userResourceConsumption =
+              MetaUtil.fromPbUserResourceConsumption(
+                  request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
@@ -190,10 +190,10 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               disks,
-              userResourceUsage);
+              userResourceConsumption);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceUsage, time);
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption, time);
           break;
 
         case RegisterWorker:
@@ -203,9 +203,9 @@ public class MetaHandler {
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
-          userResourceUsage =
-              MetaUtil.fromPbUserResourceUsage(
-                  request.getRegisterWorkerRequest().getUserResourceUsageMap());
+          userResourceConsumption =
+              MetaUtil.fromPbUserResourceConsumption(
+                  request.getRegisterWorkerRequest().getUserResourceConsumptionMap());
           LOG.debug(
               "Handle worker register for {} {} {} {} {} {} {}",
               host,
@@ -214,9 +214,9 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               disks,
-              userResourceUsage);
+              userResourceConsumption);
           metaSystem.updateRegisterWorkerMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceUsage);
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
           break;
 
         case ReportWorkerFailure:

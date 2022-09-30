@@ -164,7 +164,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time) {
     WorkerInfo worker =
         new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
@@ -175,7 +175,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.ifPresent(
           info -> {
             info.updateDiskInfos(disks, estimatedPartitionSize);
-            info.updateUserResourceUsage(userResourceUsage);
+            info.updateUserResourceConsumption(userResourceConsumption);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
           });
@@ -196,7 +196,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage) {
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     WorkerInfo workerInfo =
         new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
@@ -209,7 +209,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
 
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
-    workerInfo.updateUserResourceUsage(userResourceUsage);
+    workerInfo.updateUserResourceConsumption(userResourceConsumption);
     synchronized (workers) {
       workers.add(workerInfo);
     }

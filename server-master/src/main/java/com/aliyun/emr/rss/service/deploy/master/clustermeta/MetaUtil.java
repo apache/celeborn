@@ -81,10 +81,10 @@ public class MetaUtil {
     return map;
   }
 
-  public static Map<UserIdentifier, ResourceConsumption> fromPbUserResourceUsage(
-      Map<String, ResourceProtos.ResourceConsumption> pbUserResourceUsage) {
+  public static Map<UserIdentifier, ResourceConsumption> fromPbUserResourceConsumption(
+      Map<String, ResourceProtos.ResourceConsumption> pbUserResourceConsumption) {
     Map<UserIdentifier, ResourceConsumption> map = new HashMap<>();
-    pbUserResourceUsage.forEach(
+    pbUserResourceConsumption.forEach(
         (k, v) -> {
           ResourceConsumption resourceConsumption =
               new ResourceConsumption(
@@ -97,10 +97,10 @@ public class MetaUtil {
     return map;
   }
 
-  public static Map<String, ResourceProtos.ResourceConsumption> toPbUserResourceUsage(
-      Map<UserIdentifier, ResourceConsumption> userResourceUsage) {
+  public static Map<String, ResourceProtos.ResourceConsumption> toPbUserResourceConsumption(
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     Map<String, ResourceProtos.ResourceConsumption> map = new HashMap<>();
-    userResourceUsage.forEach(
+    userResourceConsumption.forEach(
         (k, v) ->
             map.put(
                 k.toString(),
