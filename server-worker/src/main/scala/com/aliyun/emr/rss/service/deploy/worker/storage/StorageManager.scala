@@ -40,8 +40,8 @@ import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 import com.aliyun.emr.rss.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.service.deploy.worker._
 import com.aliyun.emr.rss.service.deploy.worker.storage.StorageManager.hdfsFs

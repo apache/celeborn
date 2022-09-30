@@ -111,8 +111,7 @@ public class PbSerDeUtils {
     return builder.build().toByteArray();
   }
 
-  public static Set<String> fromPbShuffleKeys(byte[] data)
-      throws InvalidProtocolBufferException {
+  public static Set<String> fromPbShuffleKeys(byte[] data) throws InvalidProtocolBufferException {
     PbShuffleKeys pbShuffleKeys = PbShuffleKeys.parseFrom(data);
     Set<String> shuffleKeys = ConcurrentHashMap.newKeySet();
     shuffleKeys.addAll(pbShuffleKeys.getShuffleKeysList());

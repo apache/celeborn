@@ -39,13 +39,16 @@ public abstract class ShuffleRecoverHelper {
   }
 
   protected byte[] dbUserIdentifier(UserIdentifier userIdentifier) {
-    return (USER_IDENTIFIER_PREFIX + ";" + userIdentifier.toString()).getBytes(StandardCharsets.UTF_8);
+    return (USER_IDENTIFIER_PREFIX + ";" + userIdentifier.toString())
+        .getBytes(StandardCharsets.UTF_8);
   }
 
   protected UserIdentifier parseDbUserIdentifier(String s) {
-    if(!s.startsWith(USER_IDENTIFIER_PREFIX)) {
-      throw new IllegalArgumentException("Expected a string starting with " + USER_IDENTIFIER_PREFIX);
+    if (!s.startsWith(USER_IDENTIFIER_PREFIX)) {
+      throw new IllegalArgumentException(
+          "Expected a string starting with " + USER_IDENTIFIER_PREFIX);
     }
-    return ControlMessages.UserIdentifier$.MODULE$.apply(s.substring(USER_IDENTIFIER_PREFIX.length() + 1));
+    return ControlMessages.UserIdentifier$.MODULE$.apply(
+        s.substring(USER_IDENTIFIER_PREFIX.length() + 1));
   }
 }
