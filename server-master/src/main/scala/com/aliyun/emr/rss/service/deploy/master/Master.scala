@@ -212,7 +212,9 @@ private[deploy] class Master(
       val pushPort = pbRegisterWorker.getPushPort
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
-      val disks = pbRegisterWorker.getDisksMap.asScala.mapValues(PbSerDeUtils.fromPbDiskInfo).asJava
+      val disks = pbRegisterWorker.getDisksList.asScala
+        .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
+        .toMap.asJava
       val userResourceConsumption = pbRegisterWorker
         .getUserResourceConsumptionMap
         .asScala
@@ -341,7 +343,7 @@ private[deploy] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: util.Map[String, DiskInfo],
+      disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
@@ -357,7 +359,7 @@ private[deploy] class Master(
         pushPort,
         fetchPort,
         replicatePort,
-        disks,
+        disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
         System.currentTimeMillis(),
         requestId)

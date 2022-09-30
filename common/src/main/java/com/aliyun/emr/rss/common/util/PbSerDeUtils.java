@@ -61,21 +61,21 @@ public class PbSerDeUtils {
   }
 
   public static DiskInfo fromPbDiskInfo(PbDiskInfo pbDiskInfo) {
-    // TODO disk status
     return new DiskInfo(
-        pbDiskInfo.getMountPoint(),
-        pbDiskInfo.getUsableSpace(),
-        pbDiskInfo.getAvgFlushTime(),
-        pbDiskInfo.getUsedSlots());
+            pbDiskInfo.getMountPoint(),
+            pbDiskInfo.getUsableSpace(),
+            pbDiskInfo.getAvgFlushTime(),
+            pbDiskInfo.getUsedSlots())
+        .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus()));
   }
 
   public static PbDiskInfo toPbDiskInfo(DiskInfo diskInfo) {
-    // TODO disk status
     return PbDiskInfo.newBuilder()
         .setMountPoint(diskInfo.mountPoint())
         .setUsableSpace(diskInfo.actualUsableSpace())
         .setAvgFlushTime(diskInfo.avgFlushTime())
         .setUsedSlots(diskInfo.activeSlots())
+        .setStatus(diskInfo.status().getValue())
         .build();
   }
 

@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashMap => JHashMap, HashSet => jHashSet}
+import java.util.{HashSet => JHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -40,8 +40,7 @@ import com.aliyun.emr.rss.common.protocol.{PbRegisterWorkerResponse, RpcNameCons
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.util.ShutdownHookManager
+import com.aliyun.emr.rss.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.{HttpService, Service}
 import com.aliyun.emr.rss.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
@@ -182,7 +181,7 @@ private[deploy] class Worker(
   private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
   private val REPLICATE_FAST_FAIL_DURATION = RssConf.replicateFastFailDurationMs(conf)
 
-  private val cleanTaskQueue = new LinkedBlockingQueue[jHashSet[String]]
+  private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: Thread = _
 
   workerSource.addGauge(
@@ -201,14 +200,11 @@ private[deploy] class Worker(
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   private def heartBeatToMaster(): Unit = {
-    val shuffleKeys = new jHashSet[String]
+    val shuffleKeys = new JHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
-    val diskInfos = new JHashMap[String, DiskInfo]()
-    storageManager.disksSnapshot().foreach { case diskInfo =>
-      diskInfos.put(diskInfo.mountPoint, diskInfo)
-    }
+    val diskInfos = storageManager.disksSnapshot()
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(
         host,
@@ -359,7 +355,7 @@ private[deploy] class Worker(
     throw new RssException("Register worker failed.")
   }
 
-  private def cleanup(expiredShuffleKeys: jHashSet[String]): Unit = synchronized {
+  private def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         partition.asInstanceOf[WorkingPartition].getFileWriter.destroy()
