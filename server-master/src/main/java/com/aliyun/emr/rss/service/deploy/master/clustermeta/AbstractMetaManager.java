@@ -175,7 +175,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.ifPresent(
           info -> {
             info.updateDiskInfos(disks, estimatedPartitionSize);
-            info.updateUserResourceConsumption(userResourceConsumption);
+            info.updateThenGetUserResourceConsumption(userResourceConsumption);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
           });
@@ -209,7 +209,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
 
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
-    workerInfo.updateUserResourceConsumption(userResourceConsumption);
+    workerInfo.updateThenGetUserResourceConsumption(userResourceConsumption);
     synchronized (workers) {
       workers.add(workerInfo);
     }

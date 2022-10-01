@@ -213,7 +213,8 @@ private[deploy] class Worker(
         fetchPort,
         replicatePort,
         diskInfos,
-        workerInfo.userResourceConsumption,
+        workerInfo.updateThenGetUserResourceConsumption(
+          storageManager.userResourceConsumptionSnapshot().asJava),
         shuffleKeys),
       classOf[HeartbeatResponse])
     if (response.registered) {
@@ -331,7 +332,8 @@ private[deploy] class Worker(
               fetchPort,
               replicatePort,
               workerInfo.diskInfos.asScala.toMap,
-              workerInfo.userResourceConsumption.asScala.toMap,
+              workerInfo.updateThenGetUserResourceConsumption(
+                storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,
               RssHARetryClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {
