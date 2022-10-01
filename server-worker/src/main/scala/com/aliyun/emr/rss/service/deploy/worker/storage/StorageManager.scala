@@ -576,15 +576,11 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
   }
 
-  def getUserFileInfos(shuffleKey: String): Seq[FileInfo] = {
-    fileInfos.get(shuffleKey).values().asScala.toSeq
-  }
-
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
     userShuffleKeys.synchronized {
       userShuffleKeys.asScala.map { case (userIdentifier, shuffleKeys) =>
         val resourceMetrics = shuffleKeys.asScala.map { shuffleKey =>
-          val userFileInfos = getUserFileInfos(shuffleKey)
+          val userFileInfos = fileInfos.get(shuffleKey).values().asScala.toSeq
           val diskFileInfos = userFileInfos.filter(!_.isHdfs)
           val hdfsFileInfos = userFileInfos.filter(_.isHdfs)
 
