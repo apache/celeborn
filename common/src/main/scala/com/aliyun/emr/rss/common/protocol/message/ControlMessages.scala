@@ -358,7 +358,15 @@ object ControlMessages extends Logging {
       diskBytesWritten: Long,
       diskFileCount: Long,
       hdfsBytesWritten: Long,
-      hdfsFileCount: Long)
+      hdfsFileCount: Long) {
+    def add(other: ResourceConsumption): ResourceConsumption = {
+      ResourceConsumption(
+        diskBytesWritten + other.diskBytesWritten,
+        diskFileCount + other.diskFileCount,
+        hdfsBytesWritten + other.hdfsBytesWritten,
+        hdfsFileCount + other.hdfsFileCount)
+    }
+  }
 
   // TODO change message type to GeneratedMessageV3
   def toTransportMessage(message: Any): TransportMessage = message match {

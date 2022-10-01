@@ -607,8 +607,12 @@ private[deploy] class Master(
   private def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-    // TODO: Implement quota related logic
-    context.reply(CheckQuotaResponse(true))
+    val userResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
+      workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+    val quota = quotaManager.getQuota(userIdentifier)
+    val isAvailable = quota.checkQuotaAvailable(userIdentifier, userResourceConsumption)
+    context.reply(CheckQuotaResponse(isAvailable))
   }
 
   private def workersNotBlacklisted(
