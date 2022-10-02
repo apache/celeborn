@@ -135,7 +135,7 @@
                                     <include>org.apache.celeborn:common</include>
                                     <include>org.apache.celeborn:client</include>
                                     <include>org.apache.celeborn:shuffle-manager-common</include>
-                                    <include>org.apache.celeborn:rss-shuffle-manager</include>
+                                    <include>org.apache.celeborn:celeborn-shuffle-manager</include>
                                     <include>com.google.protobuf:protobuf-java</include>
                                     <include>com.google.guava:guava</include>
                                     <include>io.netty:*</include>
