@@ -19,10 +19,15 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <parent>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>27</version>
+  </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.apache.celeborn</groupId>
-  <artifactId>remote-shuffle-service</artifactId>
+  <artifactId>celeborn-parent</artifactId>
   <version>0.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
@@ -78,6 +83,13 @@
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <build.testJarPhase>prepare-package</build.testJarPhase>
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
+
+    <distMgmtReleaseId>apache.releases.https</distMgmtReleaseId>
+    <distMgmtReleaseName>Apache Release Distribution Repository</distMgmtReleaseName>
+    <distMgmtReleaseUrl>https://repository.apache.org/service/local/staging/deploy/maven2</distMgmtReleaseUrl>
+    <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
+    <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
+    <distMgmtSnapshotsUrl>https://repository.apache.org/content/repositories/snapshots</distMgmtSnapshotsUrl>
   </properties>
 
   <modules>
@@ -114,6 +126,19 @@
       </snapshots>
     </pluginRepository>
   </pluginRepositories>
+
+  <distributionManagement>
+    <repository>
+      <id>${distMgmtReleaseId}</id>
+      <name>${distMgmtReleaseName}</name>
+      <url>${distMgmtReleaseUrl}</url>
+    </repository>
+    <snapshotRepository>
+      <id>${distMgmtSnapshotsId}</id>
+      <name>${distMgmtSnapshotsName}</name>
+      <url>${distMgmtSnapshotsUrl}</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <dependencyManagement>
     <dependencies>
@@ -839,6 +864,82 @@
           <version>${jackson.databind.version}</version>
         </dependency>
       </dependencies>
+    </profile>
+
+    <profile>
+      <id>apache-release</id>
+      <build>
+        <plugins>
+          <!-- Prevent the source-release-assembly execution defined in the Apache parent POM
+               from running so we can control it ourselves -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-assembly</id>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>net.nicoulaj.maven.plugins</groupId>
+            <artifactId>checksum-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-checksum</id>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <inherited>true</inherited>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <quiet>true</quiet>
+              <doclint>none</doclint>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>sign-release-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>
