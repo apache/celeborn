@@ -48,7 +48,8 @@ class SkewJoinSuite extends AnyFunSuite
   }
 
   override def afterEach(): Unit = {
-    System.gc() }
+    System.gc()
+  }
 
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
