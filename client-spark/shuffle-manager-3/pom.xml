@@ -121,8 +121,7 @@
               </relocations>
               <artifactSet>
                 <includes>
-                  <!-- Include here the dependencies you
-                                        want to be packed in your fat jar -->
+                  <!-- Include here the dependencies you want to be packed in your fat jar -->
                   <include>org.apache.celeborn:common</include>
                   <include>org.apache.celeborn:client</include>
                   <include>org.apache.celeborn:shuffle-manager-common</include>
@@ -143,17 +142,6 @@
                   </excludes>
                 </filter>
               </filters>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                  <resource>reference.conf</resource>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                  <resource>META-INF/services/org.apache.spark.sql.sources.DataSourceRegister</resource>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                  <resource>META-INF/services/org.apache.hadoop.fs.FileSystem</resource>
-                </transformer>
-              </transformers>
             </configuration>
           </execution>
         </executions>
