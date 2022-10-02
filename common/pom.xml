@@ -15,8 +15,7 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -150,13 +149,6 @@
   </dependencies>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${maven.plugin.os.version}</version>
-      </extension>
-    </extensions>
     <plugins>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
@@ -172,17 +164,20 @@
             </goals>
             <configuration>
               <protoSourceRoot>${basedir}/src/main/proto/</protoSourceRoot>
-              <protocArtifact>
-                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-              </protocArtifact>
+              <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
               <pluginId>grpc-java</pluginId>
-              <pluginArtifact>
-                io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
-              </pluginArtifact>
+              <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
             </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${maven.plugin.os.version}</version>
+      </extension>
+    </extensions>
   </build>
 </project>
