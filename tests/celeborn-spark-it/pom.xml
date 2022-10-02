@@ -94,7 +94,7 @@
         <artifactId>scalatest-maven-plugin</artifactId>
         <configuration>
           <systemProperties>
-            <spark.driver.memory>5g</spark.driver.memory>
+            <spark.driver.memory>2g</spark.driver.memory>
           </systemProperties>
         </configuration>
       </plugin>
