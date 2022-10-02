@@ -14,7 +14,7 @@
 // limitations under the License.
 
 syntax = "proto2";
-option java_package = "com.aliyun.emr.rss.service.deploy.master.clustermeta";
+option java_package = "org.apache.celeborn.service.deploy.master.clustermeta";
 option java_outer_classname = "ResourceProtos";
 option java_generic_services = true;
 option java_generate_equals_and_hash = true;

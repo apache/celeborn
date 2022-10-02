@@ -19,7 +19,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.aliyun.emr</groupId>
+        <groupId>org.apache.celeborn</groupId>
         <artifactId>remote-shuffle-service</artifactId>
         <version>0.2.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
@@ -31,7 +31,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.aliyun.emr</groupId>
+            <groupId>org.apache.celeborn</groupId>
             <artifactId>common</artifactId>
             <version>${project.version}</version>
             <exclusions>
@@ -42,12 +42,12 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.aliyun.emr</groupId>
+            <groupId>org.apache.celeborn</groupId>
             <artifactId>client</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.aliyun.emr</groupId>
+            <groupId>org.apache.celeborn</groupId>
             <artifactId>shuffle-manager-common</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -63,7 +63,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.aliyun.emr</groupId>
+            <groupId>org.apache.celeborn</groupId>
             <artifactId>client</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
@@ -122,25 +122,25 @@
                             <relocations>
                                 <relocation>
                                     <pattern>com.google.protobuf</pattern>
-                                    <shadedPattern>com.aliyun.emr.com.google.protobuf</shadedPattern>
+                                    <shadedPattern>org.apache.celeborn.com.google.protobuf</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>com.google.common</pattern>
-                                    <shadedPattern>com.aliyun.emr.com.google.common</shadedPattern>
+                                    <shadedPattern>org.apache.celeborn.com.google.common</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>io.netty</pattern>
-                                    <shadedPattern>com.aliyun.emr.io.netty</shadedPattern>
+                                    <shadedPattern>org.apache.celeborn.io.netty</shadedPattern>
                                 </relocation>
                             </relocations>
                             <artifactSet>
                                 <includes>
                                     <!-- Include here the dependencies you
                                         want to be packed in your fat jar -->
-                                    <include>com.aliyun.emr:common</include>
-                                    <include>com.aliyun.emr:client</include>
-                                    <include>com.aliyun.emr:shuffle-manager-common</include>
-                                    <include>com.aliyun.emr:shuffle-manager</include>
+                                    <include>org.apache.celeborn:common</include>
+                                    <include>org.apache.celeborn:client</include>
+                                    <include>org.apache.celeborn:shuffle-manager-common</include>
+                                    <include>org.apache.celeborn:shuffle-manager</include>
                                     <include>com.google.protobuf:protobuf-java</include>
                                     <include>com.google.guava:guava</include>
                                     <include>io.netty:*</include>

@@ -28,7 +28,7 @@ diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scal
 +      !Utils.isRssEnabled(conf) && !testing) {
 +      throw new SparkException("Dynamic allocation of executors requires the external or remote " +
 +        "shuffle service. You may enable this through spark.shuffle.service.enabled or " +
-+        "set spark.shuffle.manager=org.apache.spark.shuffle.rss.RssShuffleManager.")
++        "set spark.shuffle.manager=org.apache.spark.shuffle.celeborn.RssShuffleManager.")
      }
      if (tasksPerExecutorForFullParallelism == 0) {
        throw new SparkException("spark.executor.cores must not be < spark.task.cpus.")
@@ -84,7 +84,7 @@ diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/ma
    }
 +
 +  def isRssEnabled(conf: SparkConf): Boolean =
-+    conf.get("spark.shuffle.manager", "sort") == "org.apache.spark.shuffle.rss.RssShuffleManager"
++    conf.get("spark.shuffle.manager", "sort") == "org.apache.spark.shuffle.celeborn.RssShuffleManager"
 +
  }
  
