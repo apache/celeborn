@@ -37,7 +37,7 @@ import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol._
+import org.apache.celeborn.common.network.protocol.{OneWayMessage => NOneWayMessage, RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest, RpcResponse}
 import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
