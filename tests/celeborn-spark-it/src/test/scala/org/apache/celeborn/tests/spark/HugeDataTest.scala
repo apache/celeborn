@@ -43,6 +43,9 @@ class HugeDataTest extends AnyFunSuite
     ShuffleClient.reset()
   }
 
+  override def afterEach(): Unit = {
+    System.gc() }
+
   test("celeborn spark integration test - huge data") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()

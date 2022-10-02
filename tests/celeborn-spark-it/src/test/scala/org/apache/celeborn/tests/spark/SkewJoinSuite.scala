@@ -47,6 +47,9 @@ class SkewJoinSuite extends AnyFunSuite
     ShuffleClient.reset()
   }
 
+  override def afterEach(): Unit = {
+    System.gc() }
+
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
       .set("spark.rss.master.address", tuple._1.rpcEnv.address.toString)

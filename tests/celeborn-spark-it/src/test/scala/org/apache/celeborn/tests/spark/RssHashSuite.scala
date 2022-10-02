@@ -43,6 +43,9 @@ class RssHashSuite extends AnyFunSuite
     ShuffleClient.reset()
   }
 
+  override def afterEach(): Unit = {
+    System.gc() }
+
   test("celeborn spark integration test - hash") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()

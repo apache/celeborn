@@ -37,8 +37,8 @@ class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with Bef
     setUpMiniCluster()
   }
 
-  test("test MiniCluster") {
-    CompressionCodec.values.foreach { codec =>
+  CompressionCodec.values.foreach { codec =>
+    test(s"test MiniCluster - $codec") {
       val APP = "app-1"
 
       val clientConf = new RssConf()
