@@ -18,9 +18,7 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.RssFunSuite
-
 import org.apache.celeborn.common.RssConf.{haMasterHosts, masterPort}
-import org.apache.celeborn.common.protocol.StorageInfo
 
 class RssConfSuite extends RssFunSuite {
 

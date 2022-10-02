@@ -49,11 +49,14 @@ private[celeborn] case class RemoteProcessConnected(remoteAddress: RpcAddress)
   extends InboxMessage
 
 /** A message to tell all endpoints that a remote process has disconnected. */
-private[celeborn] case class RemoteProcessDisconnected(remoteAddress: RpcAddress)
+private[celeborn] case class RemoteProcessDisconnected(
+    remoteAddress: RpcAddress)
   extends InboxMessage
 
 /** A message to tell all endpoints that a network error has happened. */
-private[celeborn] case class RemoteProcessConnectionError(cause: Throwable, remoteAddress: RpcAddress)
+private[celeborn] case class RemoteProcessConnectionError(
+    cause: Throwable,
+    remoteAddress: RpcAddress)
   extends InboxMessage
 
 /**

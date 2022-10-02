@@ -18,7 +18,6 @@
 package org.apache.celeborn.common.identity
 
 import org.apache.celeborn.RssFunSuite
-
 import org.apache.celeborn.common.exception.RssException
 import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
 

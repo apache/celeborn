@@ -18,7 +18,6 @@
 package org.apache.celeborn.common.meta
 
 import java.util
-import java.util.{ArrayList => jArrayList}
 import java.util.{Map => jMap}
 import java.util.concurrent.{Future, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicInteger
@@ -26,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
-import org.apache.celeborn.RssFunSuite
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
+import org.apache.celeborn.RssFunSuite
 import org.apache.celeborn.common.util.ThreadUtils
 
 class WorkerInfoSuite extends RssFunSuite {

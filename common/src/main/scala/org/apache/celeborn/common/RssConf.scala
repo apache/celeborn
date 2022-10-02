@@ -505,12 +505,12 @@ object RssConf extends Logging {
     rssConfEntries = updatedMap
   }
 
-  // For testing only
-  private[celeborn] def unregister(entry: ConfigEntry[_]): Unit = rssConfEntriesUpdateLock.synchronized {
-    val updatedMap = new JHashMap[String, ConfigEntry[_]](rssConfEntries)
-    updatedMap.remove(entry.key)
-    rssConfEntries = updatedMap
-  }
+  private[celeborn] def unregister(entry: ConfigEntry[_]): Unit =
+    rssConfEntriesUpdateLock.synchronized {
+      val updatedMap = new JHashMap[String, ConfigEntry[_]](rssConfEntries)
+      updatedMap.remove(entry.key)
+      rssConfEntries = updatedMap
+    }
 
   private[celeborn] def getConfigEntry(key: String): ConfigEntry[_] = {
     rssConfEntries.get(key)
