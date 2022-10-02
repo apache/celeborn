@@ -13,6 +13,7 @@
 .ensime
 .ensime_cache/
 .ensime_lucene
+.flattened-pom.xml
 .generated-mima*
 .idea/
 .idea_modules/

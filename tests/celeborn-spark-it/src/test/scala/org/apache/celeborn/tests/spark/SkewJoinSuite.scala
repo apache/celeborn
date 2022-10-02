@@ -21,13 +21,17 @@ import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.common.util.Utils
 
-class SkewJoinSuite extends AnyFunSuite with SparkTestBase with BeforeAndAfterAll {
+class SkewJoinSuite extends AnyFunSuite
+  with SparkTestBase
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
@@ -39,15 +43,18 @@ class SkewJoinSuite extends AnyFunSuite with SparkTestBase with BeforeAndAfterAl
     clearMiniCluster(tuple)
   }
 
+  override def beforeEach(): Unit = {
+    ShuffleClient.reset()
+  }
+
   private def enableRss(conf: SparkConf) = {
-    val localhost = Utils.localHostName()
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.rss.master.address", s"$localhost:9097")
+      .set("spark.rss.master.address", tuple._1.rpcEnv.address.toString)
       .set("spark.rss.shuffle.split.threshold", "10MB")
   }
 
-  test("celeborn spark integration test - skew join") {
-    CompressionCodec.values.foreach { codec =>
+  CompressionCodec.values.foreach { codec =>
+    test(s"celeborn spark integration test - skew join - $codec") {
       val sparkConf = new SparkConf().setAppName("rss-demo")
         .setMaster("local[4]")
         .set("spark.sql.adaptive.enabled", "true")
@@ -103,6 +110,7 @@ class SkewJoinSuite extends AnyFunSuite with SparkTestBase with BeforeAndAfterAl
         sparkSession.sql("drop table if exists fres")
         sparkSession.sql("create table fres using parquet as select * from view1 a inner join view2 b on a.fa=b.fb where a.fa=1 ")
         sparkSession.sql("drop table fres")
+        sparkSession.stop()
       }
     }
   }

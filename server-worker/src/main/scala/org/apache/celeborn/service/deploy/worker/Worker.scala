@@ -49,9 +49,11 @@ private[celeborn] class Worker(
     val workerArgs: WorkerArguments)
   extends HttpService with Logging {
 
+  @volatile private var stopped = false
+
   override def serviceName: String = Service.WORKER
 
-  override val metricsSystem =
+  override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.ServletPath)
 
   val rpcEnv = RpcEnv.create(
@@ -288,34 +290,41 @@ private[celeborn] class Worker(
     cleaner.setDaemon(true)
     cleaner.start()
 
+    logInfo("Worker started.")
     rpcEnv.awaitTermination()
   }
 
-  override def close(): Unit = {
-    logInfo("Stopping RSS Worker.")
+  override def close(): Unit = synchronized {
+    if (!stopped) {
+      logInfo("Stopping Worker.")
 
-    if (sendHeartbeatTask != null) {
-      sendHeartbeatTask.cancel(true)
-      sendHeartbeatTask = null
-    }
-    if (checkFastfailTask != null) {
-      checkFastfailTask.cancel(true)
-      checkFastfailTask = null
-    }
-    forwardMessageScheduler.shutdownNow()
-    replicateThreadPool.shutdownNow()
-    commitThreadPool.shutdownNow()
-    asyncReplyPool.shutdownNow()
-    partitionsSorter.close()
+      if (sendHeartbeatTask != null) {
+        sendHeartbeatTask.cancel(true)
+        sendHeartbeatTask = null
+      }
+      if (checkFastfailTask != null) {
+        checkFastfailTask.cancel(true)
+        checkFastfailTask = null
+      }
+      forwardMessageScheduler.shutdownNow()
+      replicateThreadPool.shutdownNow()
+      commitThreadPool.shutdownNow()
+      asyncReplyPool.shutdownNow()
+      partitionsSorter.close()
 
-    if (null != storageManager) {
-      storageManager.close()
-    }
+      if (null != storageManager) {
+        storageManager.close()
+      }
 
-    rssHARetryClient.close()
-    replicateServer.close()
-    fetchServer.close()
-    logInfo("RSS Worker is stopped.")
+      rssHARetryClient.close()
+      replicateServer.close()
+      fetchServer.close()
+
+      super.close()
+
+      logInfo("Worker is stopped.")
+      stopped = true
+    }
   }
 
   private def registerWithMaster(): Unit = {

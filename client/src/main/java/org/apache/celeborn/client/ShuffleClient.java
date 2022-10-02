@@ -36,6 +36,13 @@ public abstract class ShuffleClient implements Cloneable {
   private static volatile boolean initFinished = false;
   private static volatile FileSystem hdfsFs;
 
+  // for testing
+  public static void reset() {
+    _instance = null;
+    initFinished = false;
+    hdfsFs = null;
+  }
+
   protected ShuffleClient() {}
 
   public static ShuffleClient get(

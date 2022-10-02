@@ -19,13 +19,11 @@ package org.apache.celeborn.tests.spark
 
 import scala.util.Random
 
-import io.netty.channel.ChannelFuture
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.RpcEnv
-import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -36,7 +34,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     .toList
     .map(v => (v.toUpper, Random.nextInt(12) + 1))
 
-  var tuple: (
+  @volatile var tuple: (
       Master,
       RpcEnv,
       Worker,
@@ -44,11 +42,11 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       Worker,
       RpcEnv,
       Worker,
+      RpcEnv,
       Thread,
       Thread,
       Thread,
-      Thread,
-      ChannelFuture) = _
+      Thread) = _
 
   def clearMiniCluster(
       tuple: (
@@ -59,22 +57,23 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
           Worker,
           RpcEnv,
           Worker,
+          RpcEnv,
           Thread,
           Thread,
           Thread,
-          Thread,
-          ChannelFuture)): Unit = {
+          Thread)): Unit = {
     tuple._3.close()
     tuple._4.shutdown()
     tuple._5.close()
     tuple._6.shutdown()
     tuple._7.close()
-    tuple._1.stop()
+    tuple._8.shutdown()
+    tuple._1.close()
     tuple._2.shutdown()
     Thread.sleep(5000L)
-    tuple._9.interrupt()
     tuple._10.interrupt()
     tuple._11.interrupt()
+    tuple._12.interrupt()
   }
 
   def setupRssMiniCluster(): (
@@ -85,17 +84,17 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       Worker,
       RpcEnv,
       Worker,
+      RpcEnv,
       Thread,
       Thread,
       Thread,
-      Thread,
-      ChannelFuture) = {
+      Thread) = {
     Thread.sleep(3000L)
 
-    val (master, masterRpcEnv, masterMetric) = createMaster()
+    val (master, masterRpcEnv) = createMaster()
     val (worker1, workerRpcEnv1) = createWorker()
     val (worker2, workerRpcEnv2) = createWorker()
-    val (worker3, workerRpcEnv) = createWorker()
+    val (worker3, workerRpcEnv3) = createWorker()
     val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
     val workerThread1 = runnerWrap(worker1.initialize())
     val workerThread2 = runnerWrap(worker2.initialize())
@@ -121,18 +120,17 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       worker2,
       workerRpcEnv2,
       worker3,
+      workerRpcEnv3,
       masterThread,
       workerThread1,
       workerThread2,
-      workerThread3,
-      masterMetric)
+      workerThread3)
   }
 
   def updateSparkConf(sparkConf: SparkConf, sort: Boolean): SparkConf = {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-    val localhost = Utils.localHostName()
-    sparkConf.set("spark.rss.master.address", s"$localhost:9097")
+    sparkConf.set("spark.rss.master.address", tuple._1.rpcEnv.address.toString)
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
     sparkConf.set("spark.sql.adaptive.enabled", "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
