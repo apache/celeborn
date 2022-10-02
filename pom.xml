@@ -21,7 +21,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.aliyun.emr</groupId>
+  <groupId>org.apache.celeborn</groupId>
   <artifactId>remote-shuffle-service</artifactId>
   <version>0.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -642,7 +642,7 @@
               </googleJavaFormat>
               <removeUnusedImports />
               <importOrder>
-                <order>java,javax,scala,,com.aliyun.emr.rss</order>
+                <order>java,javax,scala,,org.apache.celeborn</order>
               </importOrder>
             </java>
             <scala>
@@ -709,11 +709,11 @@
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.8</spark.version>
-        <rss.shuffle.manager>shuffle-manager-2</rss.shuffle.manager>
+        <celeborn.shuffle.manager>shuffle-manager-2</celeborn.shuffle.manager>
       </properties>
       <modules>
         <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${rss.shuffle.manager}</module>
+        <module>client-spark/${celeborn.shuffle.manager}</module>
       </modules>
       <dependencies>
         <dependency>
@@ -737,11 +737,11 @@
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.3</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <modules>
         <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${rss.shuffle.manager}</module>
+        <module>client-spark/${celeborn.shuffle.manager}</module>
       </modules>
       <dependencies>
         <dependency>
@@ -765,11 +765,11 @@
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.1.3</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <modules>
         <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${rss.shuffle.manager}</module>
+        <module>client-spark/${celeborn.shuffle.manager}</module>
       </modules>
       <dependencies>
         <dependency>
@@ -793,11 +793,11 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.2</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <modules>
         <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${rss.shuffle.manager}</module>
+        <module>client-spark/${celeborn.shuffle.manager}</module>
       </modules>
       <dependencies>
         <dependency>
@@ -821,11 +821,11 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.0</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <modules>
         <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${rss.shuffle.manager}</module>
+        <module>client-spark/${celeborn.shuffle.manager}</module>
       </modules>
       <dependencies>
         <dependency>

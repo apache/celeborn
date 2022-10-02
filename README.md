@@ -177,7 +177,7 @@ Copy $RSS_HOME/spark/*.jar to $SPARK_HOME/jars/
 ### Spark Configuration
 To use RSS, following spark configurations should be added.
 ```properties
-spark.shuffle.manager org.apache.spark.shuffle.rss.RssShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
 

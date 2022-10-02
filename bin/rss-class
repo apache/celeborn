@@ -49,15 +49,15 @@ fi
 
 for i in "$@"
 do
-  if [ "$i" == "com.aliyun.emr.rss.service.deploy.master.Master" ] ; then
-    LAUNCH_CLASS=com.aliyun.emr.rss.service.deploy.master.Master
+  if [ "$i" == "org.apache.celeborn.service.deploy.master.Master" ] ; then
+    LAUNCH_CLASS=org.apache.celeborn.service.deploy.master.Master
   fi
-  if [ "$i" == "com.aliyun.emr.rss.service.deploy.worker.Worker" ] ; then
-    LAUNCH_CLASS=com.aliyun.emr.rss.service.deploy.worker.Worker
+  if [ "$i" == "org.apache.celeborn.service.deploy.worker.Worker" ] ; then
+    LAUNCH_CLASS=org.apache.celeborn.service.deploy.worker.Worker
   fi
 done
 
-if [ "${LAUNCH_CLASS}" == "com.aliyun.emr.rss.service.deploy.master.Master" ] ; then
+if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.master.Master" ] ; then
   if [ -d "${RSS_HOME}/master-jars" ]; then
     RSS_JARS_DIR="${RSS_HOME}/master-jars"
   else
@@ -65,7 +65,7 @@ if [ "${LAUNCH_CLASS}" == "com.aliyun.emr.rss.service.deploy.master.Master" ] ; 
   fi
 fi
 
-if [ "${LAUNCH_CLASS}" == "com.aliyun.emr.rss.service.deploy.worker.Worker" ] ; then
+if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.worker.Worker" ] ; then
   if [ -d "${RSS_HOME}/worker-jars" ]; then
     RSS_JARS_DIR="${RSS_HOME}/worker-jars"
   else

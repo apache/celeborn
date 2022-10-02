@@ -20,7 +20,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.aliyun.emr</groupId>
+    <groupId>org.apache.celeborn</groupId>
     <artifactId>remote-shuffle-service</artifactId>
     <version>0.2.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
@@ -32,7 +32,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.aliyun.emr</groupId>
+      <groupId>org.apache.celeborn</groupId>
       <artifactId>common</artifactId>
       <version>${project.version}</version>
     </dependency>

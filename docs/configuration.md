@@ -64,7 +64,7 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bu
 | spark.rss.shuffle.writer.mode                     | hash                                                         | RSS support two different shuffle writers. Hash-based shuffle writer works fine when shuffle partition count is normal. Sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge.                                                                 |
 | spark.rss.client.compression.codec                | lz4                                                          | The codec used to compress shuffle data. By default, RSS provides two codecs: `lz4` and `zstd`.                                                                                                                                                                                               |
 | spark.rss.client.compression.zstd.level           | 1                                                            | Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory.                                                                                     |
-| spark.rss.identity.provider                       | `com.aliyun.emr.rss.common.identity.DefaultIdentityProvider` | Identity provider class name. Default value use `DefaultIdentityProvider`, return `UserIdentifier` with default tenant id and username from `UsergroupInformation`.                                                                                                                           |  
+| spark.rss.identity.provider                       | `org.apache.celeborn.common.identity.DefaultIdentityProvider` | Identity provider class name. Default value use `DefaultIdentityProvider`, return `UserIdentifier` with default tenant id and username from `UsergroupInformation`.                                                                                                                           |  
 | spark.rss.range.read.filter.enabled               | false                                                        | If a spark application have skewed partition, this value can set to true to improve performance.                                                                                                                                                                                              |  
 | spark.rss.rss.columnar.shuffle.enabled            | false                                                        | When true the RSS will convert shuffle mode to columnar shuffle.                                                                                                                                                                                                                              |  
 | spark.rss.columnar.shuffle.encoding.enabled       | false                                                        | When true the RSS will use encoding in columnar shuffle.                                                                                                                                                                                                                                      |  
@@ -130,8 +130,8 @@ memory. Empirically, RSS worker off-heap memory should be set to `(numDirs  * bu
 #### metrics.properties
 
 ```properties
-*.sink.csv.class=com.aliyun.emr.rss.common.metrics.sink.CsvSink
-*.sink.prometheusServlet.class=com.aliyun.emr.rss.common.metrics.sink.PrometheusServlet
+*.sink.csv.class=org.apache.celeborn.common.metrics.sink.CsvSink
+*.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
 ```
 
 ## Tuning
