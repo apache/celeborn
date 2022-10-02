@@ -15,30 +15,39 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.integration
+package org.apache.celeborn.tests.spark
 
 import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.service.deploy.SparkTestBase
 
-class SkewJoinTest extends SparkTestBase {
+class SkewJoinSuite extends AnyFunSuite with SparkTestBase with BeforeAndAfterAll {
+
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup rss mini cluster")
+    tuple = setupRssMiniCluster()
+  }
+
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop rss mini cluster")
+    clearMiniCluster(tuple)
+  }
 
   private def enableRss(conf: SparkConf) = {
     val localhost = Utils.localHostName()
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.rss.master.address", s"${localhost}:9097")
+      .set("spark.rss.master.address", s"$localhost:9097")
       .set("spark.rss.shuffle.split.threshold", "10MB")
   }
 
-  @Test
-  def test(): Unit = {
-    CompressionCodec.values().foreach { codec =>
+  test("celeborn spark integration test - skew join") {
+    CompressionCodec.values.foreach { codec =>
       val sparkConf = new SparkConf().setAppName("rss-demo")
         .setMaster("local[4]")
         .set("spark.sql.adaptive.enabled", "true")
@@ -49,7 +58,7 @@ class SkewJoinTest extends SparkTestBase {
         .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.parquet.compression.codec", "gzip")
-        .set("rss.client.compression.codec", codec.name());
+        .set("rss.client.compression.codec", codec.name)
 
       enableRss(sparkConf)
 
@@ -96,19 +105,5 @@ class SkewJoinTest extends SparkTestBase {
         sparkSession.sql("drop table fres")
       }
     }
-  }
-}
-
-object SkewJoinTest extends SparkTestBase {
-  @BeforeClass
-  def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniCluster()
-  }
-
-  @AfterClass
-  def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
-    clearMiniCluster(tuple)
   }
 }

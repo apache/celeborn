@@ -44,7 +44,7 @@ import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
-private[deploy] class Worker(
+private[celeborn] class Worker(
     override val conf: RssConf,
     val workerArgs: WorkerArguments)
   extends HttpService with Logging {

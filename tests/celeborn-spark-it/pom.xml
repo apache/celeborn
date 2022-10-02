@@ -22,76 +22,31 @@
         <artifactId>celeborn-parent</artifactId>
         <groupId>org.apache.celeborn</groupId>
         <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>worker</artifactId>
+    <artifactId>celeborn-spark-it</artifactId>
     <packaging>jar</packaging>
-    <name>Aliyun E-MapReduce Shuffle Service Worker Module</name>
+    <name>Celeborn Spark Integration Test</name>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.celeborn</groupId>
-            <artifactId>common</artifactId>
-            <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.ratis</groupId>
-                    <artifactId>ratis-common</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.ratis</groupId>
-                    <artifactId>ratis-client</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.celeborn</groupId>
-            <artifactId>server-common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.fusesource.leveldbjni</groupId>
-            <artifactId>leveldbjni-all</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.roaringbitmap</groupId>
-            <artifactId>RoaringBitmap</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-1.2-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.celeborn</groupId>
-            <artifactId>client</artifactId>
+            <artifactId>master</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.celeborn</groupId>
-            <artifactId>master</artifactId>
+            <artifactId>worker</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.celeborn</groupId>
+            <artifactId>worker</artifactId>
+            <type>test-jar</type>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -127,14 +82,25 @@
             <version>3.6.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>

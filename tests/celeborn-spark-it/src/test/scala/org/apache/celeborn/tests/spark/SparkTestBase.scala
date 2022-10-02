@@ -1,21 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package org.apache.celeborn.service.deploy
+package org.apache.celeborn.tests.spark
 
 import scala.util.Random
 
@@ -26,11 +9,12 @@ import org.apache.spark.sql.SparkSession
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.RpcEnv
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
 
 trait SparkTestBase extends Logging with MiniClusterFeature {
-  val sampleSeq = (1 to 78)
+  private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
     .toList
     .map(v => (v.toUpper, Random.nextInt(12) + 1))
@@ -131,7 +115,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
     val localhost = Utils.localHostName()
-    sparkConf.set("spark.rss.master.address", s"${localhost}:9097")
+    sparkConf.set("spark.rss.master.address", s"$localhost:9097")
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
     sparkConf.set("spark.sql.adaptive.enabled", "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
