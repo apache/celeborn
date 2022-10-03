@@ -86,18 +86,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-maven-plugin</artifactId>
-        <configuration>
-          <systemProperties>
-            <spark.driver.memory>2g</spark.driver.memory>
-          </systemProperties>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 </project>

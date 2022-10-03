@@ -95,7 +95,7 @@
     <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
     <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
     <maven.plugin.scala.version>3.3.2</maven.plugin.scala.version>
-    <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
+    <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>2.4.3</maven.plugin.shade.version>
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
@@ -560,6 +560,7 @@
           <version>${maven.plugin.scalatest.version}</version>
           <configuration>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+            <argLine>-ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
             <filereports>TestSuite.txt</filereports>
             <!--
               the plugin does not support always now, we must be careful w/ singletons.
