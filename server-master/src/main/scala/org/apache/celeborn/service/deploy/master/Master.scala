@@ -42,14 +42,16 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 
-private[deploy] class Master(
+private[celeborn] class Master(
     override val conf: RssConf,
     val masterArgs: MasterArguments)
   extends HttpService with RpcEndpoint with Logging {
 
+  @volatile private var stopped = false
+
   override def serviceName: String = Service.MASTER
 
-  override val metricsSystem =
+  override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf, MasterSource.ServletPath)
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -723,12 +725,18 @@ private[deploy] class Master(
 
   override def initialize(): Unit = {
     super.initialize()
+    logInfo("Master started.")
     rpcEnv.awaitTermination()
   }
 
-  override def close(): Unit = {
-    // RpcEndpoint.stop()
-    stop()
+  override def close(): Unit = synchronized {
+    if (!stopped) {
+      logInfo("Stopping Master")
+      stop()
+      super.close()
+      logInfo("Master stopped.")
+      stopped = true
+    }
   }
 }
 

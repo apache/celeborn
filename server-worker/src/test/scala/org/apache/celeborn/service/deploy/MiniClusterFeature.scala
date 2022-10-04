@@ -20,16 +20,12 @@ package org.apache.celeborn.service.deploy
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 
-import io.netty.channel.ChannelFuture
-
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.rpc.RpcEnv
-import org.apache.celeborn.server.common.http.{HttpServer, HttpServerInitializer}
-import org.apache.celeborn.service.deploy.master.{Master, MasterArguments, MasterSource}
-import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments, WorkerSource}
+import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
+import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
 trait MiniClusterFeature extends Logging {
   val workerPrometheusPort = new AtomicInteger(12378)
@@ -37,10 +33,7 @@ trait MiniClusterFeature extends Logging {
 
   protected def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
     override def run(): Unit = {
-      try code
-      catch {
-        case e: Exception => logWarning(s"Ignore thread exception: ${e.getMessage}")
-      }
+      Utils.tryLogNonFatalError(code)
     }
   })
 
@@ -51,10 +44,10 @@ trait MiniClusterFeature extends Logging {
     tmpDir.toAbsolutePath.toString
   }
 
-  protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv, ChannelFuture) = {
+  protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv) = {
     val conf = new RssConf()
     conf.set("rss.metrics.system.enabled", "false")
-    val prometheusPort = workerPrometheusPort.getAndIncrement()
+    val prometheusPort = masterPort.getAndIncrement()
     conf.set("rss.master.prometheus.metric.port", s"$prometheusPort")
     logInfo(s"set prometheus.metric.port to $prometheusPort")
     if (map != null) {
@@ -63,10 +56,10 @@ trait MiniClusterFeature extends Logging {
 
     val masterArguments = new MasterArguments(Array(), conf)
     val master = new Master(conf, masterArguments)
-    val channelFuture = master.startHttpServer()
+    master.startHttpServer()
 
     Thread.sleep(5000L)
-    (master, master.rpcEnv, channelFuture)
+    (master, master.rpcEnv)
   }
 
   protected def createWorker(map: Map[String, String] = null): (Worker, RpcEnv) = {
@@ -101,7 +94,7 @@ trait MiniClusterFeature extends Logging {
       masterConfs: Map[String, String] = null,
       workerConfs: Map[String, String] = null)
       : (Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv) = {
-    val (master, masterRpcEnv, masterMetric) = createMaster(masterConfs)
+    val (master, masterRpcEnv) = createMaster(masterConfs)
     val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
     masterThread.start()
 

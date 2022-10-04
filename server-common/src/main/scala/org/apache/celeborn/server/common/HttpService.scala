@@ -17,13 +17,13 @@
 
 package org.apache.celeborn.server.common
 
-import io.netty.channel.ChannelFuture
-
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
 
 abstract class HttpService extends Service with Logging {
+
+  private var httpServer: HttpServer = _
 
   def getWorkerInfo: String
 
@@ -35,14 +35,14 @@ abstract class HttpService extends Service with Logging {
 
   def getShuffleList: String
 
-  def startHttpServer(): ChannelFuture = {
+  def startHttpServer(): Unit = {
     val handlers =
       if (metricsSystem.running) {
         new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
       } else {
         new HttpRequestHandler(this, null)
       }
-    val httpServer = new HttpServer(
+    httpServer = new HttpServer(
       serviceName,
       prometheusHost(),
       prometheusPort(),
@@ -71,5 +71,10 @@ abstract class HttpService extends Service with Logging {
   override def initialize(): Unit = {
     super.initialize()
     startHttpServer()
+  }
+
+  override def close(): Unit = {
+    httpServer.stop()
+    super.close()
   }
 }

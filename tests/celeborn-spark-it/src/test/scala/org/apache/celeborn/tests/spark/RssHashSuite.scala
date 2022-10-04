@@ -15,18 +15,39 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.integration
+package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.service.deploy.SparkTestBase
-import org.apache.celeborn.service.deploy.integration.RssHashTests.{clearMiniCluster, logInfo, setupRssMiniCluster, tuple}
+import org.apache.celeborn.client.ShuffleClient
 
-class RssSortTests extends SparkTestBase {
-  @Test
-  def test(): Unit = {
+class RssHashSuite extends AnyFunSuite
+  with SparkTestBase
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach {
+
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup rss mini cluster")
+    tuple = setupRssMiniCluster()
+  }
+
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop rss mini cluster")
+    clearMiniCluster(tuple)
+  }
+
+  override def beforeEach(): Unit = {
+    ShuffleClient.reset()
+  }
+
+  override def afterEach(): Unit = {
+    System.gc()
+  }
+
+  test("celeborn spark integration test - hash") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
@@ -38,7 +59,7 @@ class RssSortTests extends SparkTestBase {
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, true)).getOrCreate()
+      .config(updateSparkConf(sparkConf, false)).getOrCreate()
     val rssCombineResult = combine(rssSparkSession)
     val rssGroupbyResult = groupBy(rssSparkSession)
     val rssRepartitionResult = repartition(rssSparkSession)
@@ -51,19 +72,5 @@ class RssSortTests extends SparkTestBase {
     assert(sqlResult.equals(rssSqlResult))
 
     rssSparkSession.stop()
-  }
-}
-
-object RssSortTests extends SparkTestBase {
-  @BeforeClass
-  def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniCluster()
-  }
-
-  @AfterClass
-  def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
-    clearMiniCluster(tuple)
   }
 }

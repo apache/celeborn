@@ -15,17 +15,39 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.integration
+package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.service.deploy.SparkTestBase
+import org.apache.celeborn.client.ShuffleClient
 
-class RssHashTests extends SparkTestBase {
-  @Test
-  def test(): Unit = {
+class RssSortSuite extends AnyFunSuite
+  with SparkTestBase
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach {
+
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup rss mini cluster")
+    tuple = setupRssMiniCluster()
+  }
+
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop rss mini cluster")
+    clearMiniCluster(tuple)
+  }
+
+  override def beforeEach(): Unit = {
+    ShuffleClient.reset()
+  }
+
+  override def afterEach(): Unit = {
+    System.gc()
+  }
+
+  test("celeborn spark integration test - sort") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
@@ -37,7 +59,7 @@ class RssHashTests extends SparkTestBase {
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate()
+      .config(updateSparkConf(sparkConf, true)).getOrCreate()
     val rssCombineResult = combine(rssSparkSession)
     val rssGroupbyResult = groupBy(rssSparkSession)
     val rssRepartitionResult = repartition(rssSparkSession)
@@ -50,19 +72,5 @@ class RssHashTests extends SparkTestBase {
     assert(sqlResult.equals(rssSqlResult))
 
     rssSparkSession.stop()
-  }
-}
-
-object RssHashTests extends SparkTestBase {
-  @BeforeClass
-  def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniCluster()
-  }
-
-  @AfterClass
-  def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
-    clearMiniCluster(tuple)
   }
 }

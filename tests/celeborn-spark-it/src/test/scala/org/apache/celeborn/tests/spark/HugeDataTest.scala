@@ -15,35 +15,43 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.integration
+package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.service.deploy.SparkTestBase
+import org.apache.celeborn.client.ShuffleClient
 
-class HugeDataTest extends SparkTestBase {
-  @Test
-  def test(): Unit = {
+class HugeDataTest extends AnyFunSuite
+  with SparkTestBase
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach {
+
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup rss mini cluster")
+    tuple = setupRssMiniCluster()
+  }
+
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop rss mini cluster")
+    clearMiniCluster(tuple)
+  }
+
+  override def beforeEach(): Unit = {
+    ShuffleClient.reset()
+  }
+
+  override def afterEach(): Unit = {
+    System.gc()
+  }
+
+  test("celeborn spark integration test - huge data") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
     ss.sparkContext.parallelize(1 to 10000, 2)
       .map { i => (i, Range(1, 10000).mkString(",")) }.groupByKey(16).collect()
     ss.stop()
-  }
-}
-
-object HugeDataTest extends SparkTestBase {
-  @BeforeClass
-  def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniCluster()
-  }
-
-  @AfterClass
-  def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
-    clearMiniCluster(tuple)
   }
 }

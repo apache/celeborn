@@ -20,22 +20,25 @@ package org.apache.celeborn.service.deploy.cluster
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 
-import io.netty.channel.ChannelFuture
 import org.apache.commons.lang3.RandomStringUtils
-import org.junit.{Assert, BeforeClass, Test}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClientImpl
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.client.write.LifecycleManager
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
-import org.apache.celeborn.common.rpc.RpcEnv
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-class ClusterReadWriteTest extends MiniClusterFeature {
-  @Test
-  def testMiniCluster(): Unit = {
-    CompressionCodec.values().foreach { codec =>
+class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with BeforeAndAfterAll {
+
+  override def beforeAll(): Unit = {
+    setUpMiniCluster()
+  }
+
+  CompressionCodec.values.foreach { codec =>
+    test(s"test MiniCluster - $codec") {
       val APP = "app-1"
 
       val clientConf = new RssConf()
@@ -86,20 +89,13 @@ class ClusterReadWriteTest extends MiniClusterFeature {
 
       val readBytes = outputStream.toByteArray
 
-      Assert.assertEquals(LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4, readBytes.length)
+      assert(LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4 === readBytes.length)
       val targetArr = Array.concat(DATA1, DATA2, DATA3, DATA4)
-      Assert.assertArrayEquals(targetArr, readBytes)
+      assert(targetArr === readBytes)
 
       Thread.sleep(5000L)
       shuffleClient.shutDown()
       lifecycleManager.rpcEnv.shutdown()
     }
-  }
-}
-
-object ClusterReadWriteTest extends MiniClusterFeature {
-  @BeforeClass
-  def beforeAll(): Unit = {
-    setUpMiniCluster()
   }
 }
