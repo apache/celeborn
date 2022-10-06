@@ -40,6 +40,7 @@ import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.client.write.DataBatches;
 import org.apache.celeborn.client.write.PushState;
 import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
@@ -978,7 +979,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (isDriver) {
       try {
         driverRssMetaService.send(
-            new UnregisterShuffle(applicationId, shuffleId, ControlMessages.ZERO_UUID()));
+            ControlMessages.pbUnregisterShuffle(
+                applicationId, shuffleId, RssHARetryClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.

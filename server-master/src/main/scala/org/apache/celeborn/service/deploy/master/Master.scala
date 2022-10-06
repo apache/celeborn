@@ -32,7 +32,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PbCheckForWorkerTimeout, PbRegisterWorker, RpcNameConstants}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbCheckForWorkerTimeout, PbRegisterWorker, PbUnregisterShuffle, RpcNameConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.QuotaManager
@@ -250,7 +250,10 @@ private[celeborn] class Master(
         context,
         handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
 
-    case UnregisterShuffle(applicationId, shuffleId, requestId) =>
+    case pb: PbUnregisterShuffle =>
+      val applicationId = pb.getAppId
+      val shuffleId = pb.getShuffleId
+      val requestId = pb.getRequestId
       logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
       executeWithLeaderChecker(
         context,
@@ -555,7 +558,7 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
-    context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
+    context.reply(ControlMessages.pbUnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
   def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
