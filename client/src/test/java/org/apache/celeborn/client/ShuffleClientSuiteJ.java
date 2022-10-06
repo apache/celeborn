@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -45,6 +44,7 @@ import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbRegisterShuffleResponse;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -198,17 +198,12 @@ public class ShuffleClientSuiteJ {
 
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(
-            new ControlMessages.RegisterShuffle(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
-            ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
+            ControlMessages.pbRegisterShuffle(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
+            ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
         .thenAnswer(
             t ->
-                new ControlMessages.RegisterShuffleResponse(
-                    StatusCode.SUCCESS,
-                    new ArrayList<PartitionLocation>() {
-                      {
-                        add(masterLocation);
-                      }
-                    }));
+                ControlMessages.pbRegisterShuffleResponse(
+                    StatusCode.SUCCESS, new PartitionLocation[] {masterLocation}));
 
     shuffleClient.setupMetaServiceRef(endpointRef);
 

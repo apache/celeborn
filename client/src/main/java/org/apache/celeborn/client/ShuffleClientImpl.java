@@ -49,9 +49,7 @@ import org.apache.celeborn.common.network.protocol.PushData;
 import org.apache.celeborn.common.network.protocol.PushMergedData;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.RpcNameConstants;
-import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -260,19 +258,21 @@ public class ShuffleClientImpl extends ShuffleClient {
     int numRetries = registerShuffleMaxRetries;
     while (numRetries > 0) {
       try {
-        RegisterShuffleResponse response =
+        PbRegisterShuffleResponse response =
             driverRssMetaService.askSync(
-                new RegisterShuffle(appId, shuffleId, numMappers, numPartitions),
-                ClassTag$.MODULE$.apply(RegisterShuffleResponse.class));
-
-        if (response.status().equals(StatusCode.SUCCESS)) {
+                ControlMessages.pbRegisterShuffle(appId, shuffleId, numMappers, numPartitions),
+                ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class));
+        StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+        if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
-          for (int i = 0; i < response.partitionLocations().size(); i++) {
-            PartitionLocation partitionLoc = response.partitionLocations().get(i);
+          for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
+            PartitionLocation partitionLoc =
+                PartitionLocation.fromPbPartitionLocation(
+                    response.getPartitionLocationsList().get(i));
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
-        } else if (response.status().equals(StatusCode.SLOT_NOT_AVAILABLE)) {
+        } else if (StatusCode.SLOT_NOT_AVAILABLE.equals(respStatus)) {
           logger.warn(
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
               StatusCode.SLOT_NOT_AVAILABLE,
