@@ -39,7 +39,7 @@ class RssShuffleManagerSuite extends Logging {
     val sc = new SparkContext(conf)
     // scalastyle:off println
     sc.parallelize(1 to 1000, 2).map { i => (i, Range(1, 100).mkString(",")) }
-      .groupByKey(16).collect.foreach(println)
+      .groupByKey(16).count()
     // scalastyle:on println
     sc.stop()
   }
@@ -57,7 +57,7 @@ class RssShuffleManagerSuite extends Logging {
     val sc = new SparkContext(conf)
     // scalastyle:off println
     sc.parallelize(1 to 1000, 2).map { i => (i, Range(1, 100).mkString(",")) }
-      .groupByKey(16).collect.foreach(println)
+      .groupByKey(16).count()
     // scalastyle:on println
     sc.stop()
   }
