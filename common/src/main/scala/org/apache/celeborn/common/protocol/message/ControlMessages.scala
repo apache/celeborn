@@ -117,17 +117,26 @@ object ControlMessages extends Logging {
       expiredShuffleKeys: util.HashSet[String],
       registered: Boolean) extends MasterMessage
 
-  case class RegisterShuffle(
-      applicationId: String,
+  def pbRegisterShuffle(
+      appId: String,
       shuffleId: Int,
       numMappers: Int,
-      numPartitions: Int)
-    extends MasterMessage
+      numPartitions: Int): PbRegisterShuffle =
+    PbRegisterShuffle.newBuilder()
+      .setApplicationId(appId)
+      .setShuffleId(shuffleId)
+      .setNumMapppers(numMappers)
+      .setNumPartitions(numPartitions)
+      .build()
 
-  case class RegisterShuffleResponse(
+  def pbRegisterShuffleResponse(
       status: StatusCode,
-      partitionLocations: util.List[PartitionLocation])
-    extends MasterMessage
+      partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse =
+    PbRegisterShuffleResponse.newBuilder()
+      .setStatus(status.getValue)
+      .addAllPartitionLocations(
+        partitionLocations.map(PartitionLocation.toPbPartitionLocation).toSeq.asJava)
+      .build()
 
   case class RequestSlots(
       applicationId: String,
@@ -420,24 +429,11 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_RESPONSE, payload)
 
-    case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions) =>
-      val payload = PbRegisterShuffle.newBuilder()
-        .setApplicationId(applicationId)
-        .setShuffleId(shuffleId)
-        .setNumMapppers(numMappers)
-        .setNumPartitions(numPartitions)
-        .build().toByteArray
-      new TransportMessage(MessageType.REGISTER_SHUFFLE, payload)
+    case pb: PbRegisterShuffle =>
+      new TransportMessage(MessageType.REGISTER_SHUFFLE, pb.toByteArray)
 
-    case RegisterShuffleResponse(status, partitionLocations) =>
-      val builder = PbRegisterShuffleResponse.newBuilder()
-        .setStatus(status.getValue)
-      if (!partitionLocations.isEmpty) {
-        builder.addAllPartitionLocations(partitionLocations.iterator().asScala
-          .map(PartitionLocation.toPbPartitionLocation).toList.asJava)
-      }
-      val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, payload)
+    case pb: PbRegisterShuffleResponse =>
+      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case RequestSlots(
           applicationId,
@@ -839,23 +835,10 @@ object ControlMessages extends Logging {
         HeartbeatResponse(expiredShuffleKeys, pbHeartbeatResponse.getRegistered)
 
       case REGISTER_SHUFFLE =>
-        val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)
-        RegisterShuffle(
-          pbRegisterShuffle.getApplicationId,
-          pbRegisterShuffle.getShuffleId,
-          pbRegisterShuffle.getNumMapppers,
-          pbRegisterShuffle.getNumPartitions)
+        PbRegisterShuffle.parseFrom(message.getPayload)
 
       case REGISTER_SHUFFLE_RESPONSE =>
-        val pbRegisterShuffleResponse = PbRegisterShuffleResponse.parseFrom(message.getPayload)
-        val partitionLocations = new util.ArrayList[PartitionLocation]()
-        if (pbRegisterShuffleResponse.getPartitionLocationsCount > 0) {
-          partitionLocations.addAll(pbRegisterShuffleResponse.getPartitionLocationsList
-            .asScala.map(PartitionLocation.fromPbPartitionLocation).toList.asJava)
-        }
-        RegisterShuffleResponse(
-          Utils.toStatusCode(pbRegisterShuffleResponse.getStatus),
-          partitionLocations)
+        PbRegisterShuffleResponse.parseFrom(message.getPayload)
 
       case REQUEST_SLOTS =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)

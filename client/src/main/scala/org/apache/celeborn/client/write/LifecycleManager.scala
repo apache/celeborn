@@ -33,10 +33,10 @@ import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.IdentityProvider
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, RpcNameConstants, StorageInfo}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbRegisterShuffle, PbRegisterShuffleResponse, RpcNameConstants, StorageInfo}
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
+import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
-import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
@@ -224,7 +224,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case RegisterShuffle(applicationId, shuffleId, numMappers, numPartitions) =>
+    case pb: PbRegisterShuffle =>
+      val applicationId = pb.getApplicationId
+      val shuffleId = pb.getShuffleId
+      val numMappers = pb.getNumMapppers
+      val numPartitions = pb.getNumPartitions
       logDebug(s"Received RegisterShuffle request, " +
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
       handleRegisterShuffle(context, applicationId, shuffleId, numMappers, numPartitions)
@@ -300,9 +304,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             .asScala
             .flatMap(_.getAllMasterLocationsWithMinEpoch(shuffleId.toString).asScala)
             .filter(_.getEpoch == 0)
-            .toList
-            .asJava
-          context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
+            .toArray
+          context.reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
           return
         }
         logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType " +
@@ -314,7 +317,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     }
 
     // Reply to all RegisterShuffle request for current shuffle id.
-    def reply(response: RegisterShuffleResponse): Unit = {
+    def reply(response: PbRegisterShuffleResponse): Unit = {
       registeringShuffleRequest.synchronized {
         registeringShuffleRequest.asScala
           .get(shuffleId)
@@ -335,11 +338,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     res.status match {
       case StatusCode.FAILED =>
         logError(s"OfferSlots RPC request failed for $shuffleId!")
-        reply(RegisterShuffleResponse(StatusCode.FAILED, List.empty.asJava))
+        reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.FAILED, Array.empty))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
         logError(s"OfferSlots for $shuffleId failed!")
-        reply(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, List.empty.asJava))
+        reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
         logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
@@ -378,7 +381,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
-      reply(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, List.empty.asJava))
+      reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
       // tell Master to release slots
       requestReleaseSlots(
         rssHARetryClient,
@@ -412,8 +415,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
-      val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toList
-      reply(RegisterShuffleResponse(StatusCode.SUCCESS, allMasterPartitionLocations.asJava))
+      val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
+      reply(ControlMessages.pbRegisterShuffleResponse(
+        StatusCode.SUCCESS,
+        allMasterPartitionLocations))
     }
   }
 
