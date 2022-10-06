@@ -115,6 +115,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       this.mapAttempts = mapAttempts;
     }
   }
+
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
@@ -396,9 +397,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     try {
-      ChangeLocationResponse response =
+      PbChangeLocationResponse response =
           driverRssMetaService.askSync(
-              new Revive(
+              ControlMessages.pbRevive(
                   applicationId,
                   shuffleId,
                   mapId,
@@ -407,12 +408,13 @@ public class ShuffleClientImpl extends ShuffleClient {
                   epoch,
                   oldLocation,
                   cause),
-              ClassTag$.MODULE$.apply(ChangeLocationResponse.class));
+              ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
       // per partitionKey only serve single PartitionLocation in Client Cache.
-      if (response.status().equals(StatusCode.SUCCESS)) {
-        map.put(partitionId, response.partition());
+      StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+      if (StatusCode.SUCCESS.equals(respStatus)) {
+        map.put(partitionId, PartitionLocation.fromPbPartitionLocation(response.getLocation()));
         return true;
-      } else if (response.status().equals(StatusCode.MAP_ENDED)) {
+      } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapKey);
         return true;
       } else {
@@ -715,7 +717,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     ShuffleClientHelper.sendShuffleSplitAsync(
         driverRssMetaService,
-        new PartitionSplit(applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
+        ControlMessages.pbPartitionSplit(
+            applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
         splittingSet,
         partitionId,
