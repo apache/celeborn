@@ -25,7 +25,7 @@
 
   <artifactId>master</artifactId>
   <packaging>jar</packaging>
-  <name>Aliyun E-MapReduce Shuffle Service Master Module</name>
+  <name>Celeborn Master Module</name>
 
   <dependencies>
     <dependency>

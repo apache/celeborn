@@ -26,7 +26,7 @@
 
   <artifactId>shuffle-manager-common</artifactId>
   <packaging>jar</packaging>
-  <name>Aliyun E-MapReduce Shuffle Service Shuffle Manager for Spark</name>
+  <name>Celeborn Shuffle Manager Common for Spark</name>
 
   <dependencies>
     <dependency>
