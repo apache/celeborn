@@ -27,7 +27,7 @@
 
   <artifactId>client</artifactId>
   <packaging>jar</packaging>
-  <name>Aliyun E-MapReduce Shuffle Service Java Client</name>
+  <name>Celeborn Java Client</name>
 
   <dependencies>
     <dependency>

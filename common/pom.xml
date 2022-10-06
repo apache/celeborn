@@ -27,7 +27,7 @@
 
   <artifactId>common</artifactId>
   <packaging>jar</packaging>
-  <name>Aliyun E-MapReduce Shuffle Service Common</name>
+  <name>Celeborn Common</name>
 
   <dependencies>
     <dependency>

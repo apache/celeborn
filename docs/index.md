@@ -20,7 +20,7 @@ license: |
 Overview
 ===
 
-Aliyun Remote Shuffle Service(RSS) is dedicated to improving the efficiency and elasticity of
+Celeborn is dedicated to improving the efficiency and elasticity of
 different map-reduce engines. RSS provides an elastic and high efficient management service
 for shuffle data.
 
