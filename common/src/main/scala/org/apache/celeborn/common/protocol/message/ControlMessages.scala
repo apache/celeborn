@@ -229,15 +229,25 @@ object ControlMessages extends Logging {
       attempts: Array[Int])
     extends MasterMessage
 
-  case class WorkerLost(
+  def pbWorkerLost(
       host: String,
       rpcPort: Int,
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      requestId: String): PbWorkerLost = PbWorkerLost.newBuilder()
+    .setHost(host)
+    .setRpcPort(rpcPort)
+    .setPushPort(pushPort)
+    .setFetchPort(fetchPort)
+    .setReplicatePort(replicatePort)
+    .setRequestId(requestId)
+    .build()
 
-  case class WorkerLostResponse(success: Boolean) extends MasterMessage
+  def pbWorkerLostResponse(success: Boolean): PbWorkerLostResponse =
+    PbWorkerLostResponse.newBuilder()
+      .setSuccess(success)
+      .build()
 
   case class StageEnd(applicationId: String, shuffleId: Int) extends MasterMessage
 
@@ -555,22 +565,11 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
-    case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
-      val payload = PbWorkerLost.newBuilder()
-        .setHost(host)
-        .setRpcPort(rpcPort)
-        .setPushPort(pushPort)
-        .setFetchPort(fetchPort)
-        .setReplicatePort(replicatePort)
-        .setRequestId(requestId)
-        .build().toByteArray
-      new TransportMessage(MessageType.WORKER_LOST, payload)
+    case pb: PbWorkerLost =>
+      new TransportMessage(MessageType.WORKER_LOST, pb.toByteArray)
 
-    case WorkerLostResponse(success) =>
-      val payload = PbWorkerLostResponse.newBuilder()
-        .setSuccess(success)
-        .build().toByteArray
-      new TransportMessage(MessageType.WORKER_LOST_RESPONSE, payload)
+    case pb: PbWorkerLostResponse =>
+      new TransportMessage(MessageType.WORKER_LOST_RESPONSE, pb.toByteArray)
 
     case StageEnd(applicationId, shuffleId) =>
       val payload = PbStageEnd.newBuilder()
@@ -1073,18 +1072,10 @@ object ControlMessages extends Logging {
         CheckForApplicationTimeOut
 
       case WORKER_LOST =>
-        val pbWorkerLost = PbWorkerLost.parseFrom(message.getPayload)
-        WorkerLost(
-          pbWorkerLost.getHost,
-          pbWorkerLost.getRpcPort,
-          pbWorkerLost.getPushPort,
-          pbWorkerLost.getFetchPort,
-          pbWorkerLost.getReplicatePort,
-          pbWorkerLost.getRequestId)
+        PbWorkerLost.parseFrom(message.getPayload)
 
       case WORKER_LOST_RESPONSE =>
-        val pbWorkerLostResponse = PbWorkerLostResponse.parseFrom(message.getPayload)
-        WorkerLostResponse(pbWorkerLostResponse.getSuccess)
+        PbWorkerLostResponse.parseFrom(message.getPayload)
 
       case STAGE_END =>
         val pbStageEnd = PbStageEnd.parseFrom(message.getPayload)
