@@ -88,6 +88,7 @@
     <hadoop.version>3.3.1</hadoop.version>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
+    <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.flatten.version>1.3.0</maven.plugin.flatten.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
@@ -505,6 +506,28 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>${maven.plugin.clean.version}</version>
+          <configuration>
+            <filesets>
+              <fileset>
+                <directory>${project.basedir}</directory>
+                <includes>
+                  <include>**/*.log</include>
+                </includes>
+              </fileset>
+              <fileset>
+                <directory>${project.basedir}/metastore_db</directory>
+              </fileset>
+              <fileset>
+                <directory>${project.basedir}/spark-warehouse</directory>
+              </fileset>
+            </filesets>
+          </configuration>
         </plugin>
 
         <plugin>
