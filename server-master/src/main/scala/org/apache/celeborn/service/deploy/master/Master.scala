@@ -194,7 +194,7 @@ private[celeborn] class Master(
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
     case pb: PbWorkerLost =>
-      val host = pb.getRequestId
+      val host = pb.getHost
       val rpcPort = pb.getRpcPort
       val pushPort = pb.getPushPort
       val fetchPort = pb.getFetchPort
