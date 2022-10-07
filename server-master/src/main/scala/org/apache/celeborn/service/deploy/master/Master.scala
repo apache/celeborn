@@ -32,7 +32,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PbCheckForWorkerTimeout, PbRegisterWorker, PbUnregisterShuffle, RpcNameConstants}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.QuotaManager
@@ -193,7 +193,13 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
-    case WorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId) =>
+    case pb: PbWorkerLost =>
+      val host = pb.getHost
+      val rpcPort = pb.getRpcPort
+      val pushPort = pb.getPushPort
+      val fetchPort = pb.getFetchPort
+      val replicatePort = pb.getReplicatePort
+      val requestId = pb.getRequestId
       logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
       executeWithLeaderChecker(
         null,
@@ -310,7 +316,7 @@ private[celeborn] class Master(
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
-        self.send(WorkerLost(
+        self.send(ControlMessages.pbWorkerLost(
           worker.host,
           worker.rpcPort,
           worker.pushPort,
@@ -409,7 +415,7 @@ private[celeborn] class Master(
     statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
 
     if (context != null) {
-      context.reply(WorkerLostResponse(true))
+      context.reply(ControlMessages.pbWorkerLostResponse(true))
     }
   }
 
