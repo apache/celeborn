@@ -225,12 +225,20 @@ object ControlMessages extends Logging {
   case class StageEndResponse(status: StatusCode)
     extends MasterMessage
 
-  case class UnregisterShuffle(
+  def pbUnregisterShuffle(
       appId: String,
       shuffleId: Int,
-      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      requestId: String): PbUnregisterShuffle =
+    PbUnregisterShuffle.newBuilder()
+      .setAppId(appId)
+      .setShuffleId(shuffleId)
+      .setRequestId(requestId)
+      .build()
 
-  case class UnregisterShuffleResponse(status: StatusCode) extends MasterMessage
+  def pbUnregisterShuffleResponse(status: StatusCode): PbUnregisterShuffleResponse =
+    PbUnregisterShuffleResponse.newBuilder()
+      .setStatus(status.getValue)
+      .build()
 
   case class ApplicationLost(
       appId: String,
@@ -584,17 +592,11 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.STAGE_END_RESPONSE, payload)
 
-    case UnregisterShuffle(appId, shuffleId, requestId) =>
-      val payload = PbUnregisterShuffle.newBuilder()
-        .setAppId(appId).setShuffleId(shuffleId).setRequestId(requestId)
-        .build().toByteArray
-      new TransportMessage(MessageType.UNREGISTER_SHUFFLE, payload)
+    case pb: PbUnregisterShuffle =>
+      new TransportMessage(MessageType.UNREGISTER_SHUFFLE, pb.toByteArray)
 
-    case UnregisterShuffleResponse(status) =>
-      val payload = PbUnregisterShuffleResponse.newBuilder()
-        .setStatus(status.getValue)
-        .build().toByteArray
-      new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, payload)
+    case pb: PbUnregisterShuffleResponse =>
+      new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case ApplicationLost(appId, requestId) =>
       val payload = PbApplicationLost.newBuilder()
@@ -934,15 +936,10 @@ object ControlMessages extends Logging {
           attempts)
 
       case UNREGISTER_SHUFFLE =>
-        val pbUnregisterShuffle = PbUnregisterShuffle.parseFrom(message.getPayload)
-        UnregisterShuffle(
-          pbUnregisterShuffle.getAppId,
-          pbUnregisterShuffle.getShuffleId,
-          pbUnregisterShuffle.getRequestId)
+        PbUnregisterShuffle.parseFrom(message.getPayload)
 
       case UNREGISTER_SHUFFLE_RESPONSE =>
-        val pbUnregisterShuffleResponse = PbUnregisterShuffleResponse.parseFrom(message.getPayload)
-        UnregisterShuffleResponse(Utils.toStatusCode(pbUnregisterShuffleResponse.getStatus))
+        PbUnregisterShuffleResponse.parseFrom(message.getPayload)
 
       case APPLICATION_LOST =>
         val pbApplicationLost = PbApplicationLost.parseFrom(message.getPayload)

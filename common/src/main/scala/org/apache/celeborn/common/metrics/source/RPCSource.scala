@@ -19,7 +19,7 @@ package org.apache.celeborn.common.metrics.source
 
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
-import org.apache.celeborn.common.protocol.PbRegisterWorker
+import org.apache.celeborn.common.protocol.{PbRegisterWorker, PbUnregisterShuffle}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 
 class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
@@ -83,7 +83,7 @@ class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, 
       case _: ReleaseSlots =>
         incCounter(RPCReleaseSlotsNum)
         incCounter(RPCReleaseSlotsSize, messageLen)
-      case _: UnregisterShuffle =>
+      case _: PbUnregisterShuffle =>
         incCounter(RPCUnregisterShuffleNum)
       case _: GetBlacklist =>
         incCounter(RPCGetBlacklistNum)

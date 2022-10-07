@@ -33,7 +33,7 @@ import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.IdentityProvider
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbRegisterShuffle, PbRegisterShuffleResponse, RpcNameConstants, StorageInfo}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -217,7 +217,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     case StageEnd(applicationId, shuffleId) =>
       logInfo(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleStageEnd(applicationId, shuffleId)
-    case UnregisterShuffle(applicationId, shuffleId, _) =>
+    case pb: PbUnregisterShuffle =>
+      val applicationId = pb.getAppId
+      val shuffleId = pb.getShuffleId
       logDebug(s"Received UnregisterShuffle request," +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleUnregisterShuffle(applicationId, shuffleId)
@@ -1226,23 +1228,24 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def removeExpiredShuffle(): Unit = {
     val currentTime = System.currentTimeMillis()
-    val keys = unregisterShuffleTime.keys().asScala.toList
-    keys.foreach { key =>
-      if (unregisterShuffleTime.get(key) < currentTime - RemoveShuffleDelayMs) {
-        logInfo(s"Clear shuffle $key.")
+    unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
+      if (unregisterShuffleTime.get(shuffleId) < currentTime - RemoveShuffleDelayMs) {
+        logInfo(s"Clear shuffle $shuffleId.")
         // clear for the shuffle
-        registeredShuffle.remove(key)
-        registeringShuffleRequest.remove(key)
-        reducerFileGroupsMap.remove(key)
-        dataLostShuffleSet.remove(key)
-        shuffleMapperAttempts.remove(key)
-        stageEndShuffleSet.remove(key)
-        changePartitionRequests.remove(key)
-        unregisterShuffleTime.remove(key)
-        shuffleAllocatedWorkers.remove(key)
-        latestPartitionLocation.remove(key)
+        registeredShuffle.remove(shuffleId)
+        registeringShuffleRequest.remove(shuffleId)
+        reducerFileGroupsMap.remove(shuffleId)
+        dataLostShuffleSet.remove(shuffleId)
+        shuffleMapperAttempts.remove(shuffleId)
+        stageEndShuffleSet.remove(shuffleId)
+        changePartitionRequests.remove(shuffleId)
+        unregisterShuffleTime.remove(shuffleId)
+        shuffleAllocatedWorkers.remove(shuffleId)
+        latestPartitionLocation.remove(shuffleId)
 
-        requestUnregisterShuffle(rssHARetryClient, UnregisterShuffle(appId, key))
+        requestUnregisterShuffle(
+          rssHARetryClient,
+          ControlMessages.pbUnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
       }
     }
   }
@@ -1344,15 +1347,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private def requestUnregisterShuffle(
       rssHARetryClient: RssHARetryClient,
-      message: UnregisterShuffle): UnregisterShuffleResponse = {
+      message: PbUnregisterShuffle): PbUnregisterShuffleResponse = {
     try {
-      rssHARetryClient.askSync[UnregisterShuffleResponse](
+      rssHARetryClient.askSync[PbUnregisterShuffleResponse](
         message,
-        classOf[UnregisterShuffleResponse])
+        classOf[PbUnregisterShuffleResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync UnregisterShuffle for ${message.shuffleId} failed.", e)
-        UnregisterShuffleResponse(StatusCode.FAILED)
+        logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
+        pbUnregisterShuffleResponse(StatusCode.FAILED)
     }
   }
 
