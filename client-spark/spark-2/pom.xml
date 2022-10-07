@@ -24,7 +24,7 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client_spark-2_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-spark-2_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Client for Spark 2</name>
 
