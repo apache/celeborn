@@ -27,7 +27,7 @@
 
   <artifactId>celeborn-client_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Java Client</name>
+  <name>Celeborn Client</name>
 
   <dependencies>
     <dependency>

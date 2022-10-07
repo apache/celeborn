@@ -27,7 +27,7 @@
 
   <artifactId>celeborn-service_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Common</name>
+  <name>Celeborn Service</name>
 
   <dependencies>
     <dependency>
