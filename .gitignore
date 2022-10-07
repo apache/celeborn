@@ -60,6 +60,8 @@ scalastyle-output.xml
 scalastyle.txt
 rss-*.tgz
 emr-*.tgz
+celeborn-*.tgz
+celeborn-*-bin
 src_managed/
 target/
 unit-tests.log
