@@ -12,7 +12,7 @@ docker build -f docker/Dockerfile --build-arg celeborn_version=0.1.0 -t ${your-r
 
 You can use `--build-arg celeborn_version` to indicates the version of Celeborn currently in use, default value is 0.1.1.
 
-Make sure you have already built Celeborn, the target file 'rss-${project.version}-bin-release.tgz' is in ${RSS_HOME}.
+Make sure you have already built Celeborn, the target file 'celeborn-${project.version}-bin.tgz' is in ${RSS_HOME}.
 
 ## Deploy Celeborn with helm
 
@@ -31,9 +31,9 @@ You can modify helm values file and set up customed deployment configuration.
 vim ${RSS_HOME}/docker/helm/values.yaml
 `
 These values are suggested to be checked before deploy:  
-- masterReplicas (number of rss master)
-- workerReplicas (number of rss worker)
-- celebornVersion (rss release version)
+- masterReplicas (number of Celeborn Master)
+- workerReplicas (number of Celeborn Worker)
+- celebornVersion (Celeborn release version)
 - rss.worker.base.dirs (local disk mount path on k8s node)
 
 For more information of Celeborn configurations, see [CONFIGURATIONS](../CONFIGURATION_GUIDE.md)
