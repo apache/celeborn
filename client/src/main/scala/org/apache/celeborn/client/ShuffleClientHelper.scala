@@ -22,26 +22,27 @@ import java.util.concurrent.{ConcurrentHashMap, ExecutorService}
 import scala.util.{Failure, Success}
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.PartitionLocation
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ChangeLocationResponse, PartitionSplit}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbChangeLocationResponse, PbPartitionSplit}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcEndpointRef
+import org.apache.celeborn.common.util.Utils
 
 object ShuffleClientHelper extends Logging {
   def sendShuffleSplitAsync(
       endpointRef: RpcEndpointRef,
-      message: PartitionSplit,
+      req: PbPartitionSplit,
       executors: ExecutorService,
       splittingSet: java.util.Set[Integer],
       partitionId: Int,
       shuffleId: Int,
       shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
-    endpointRef.ask[ChangeLocationResponse](message).onComplete {
-      case Success(value) =>
-        if (value.status == StatusCode.SUCCESS) {
-          shuffleLocs.put(partitionId, value.partition)
+    endpointRef.ask[PbChangeLocationResponse](req).onComplete {
+      case Success(resp) =>
+        val respStatus = Utils.toStatusCode(resp.getStatus)
+        if (respStatus == StatusCode.SUCCESS) {
+          shuffleLocs.put(partitionId, PartitionLocation.fromPbPartitionLocation(resp.getLocation))
         } else {
-          logInfo(s"split failed for ${value.status.toString()}, " +
+          logInfo(s"split failed for $respStatus, " +
             s"shuffle file can be larger than expected, try split again");
         }
         splittingSet.remove(partitionId)

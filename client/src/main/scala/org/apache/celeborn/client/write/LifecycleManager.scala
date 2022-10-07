@@ -235,15 +235,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
       handleRegisterShuffle(context, applicationId, shuffleId, numMappers, numPartitions)
 
-    case Revive(
-          applicationId,
-          shuffleId,
-          mapId,
-          attemptId,
-          partitionId,
-          epoch,
-          oldPartition,
-          cause) =>
+    case pb: PbRevive =>
+      val applicationId = pb.getApplicationId
+      val shuffleId = pb.getShuffleId
+      val mapId = pb.getMapId
+      val attemptId = pb.getAttemptId
+      val partitionId = pb.getPartitionId
+      val epoch = pb.getEpoch
+      val oldPartition = PartitionLocation.fromPbPartitionLocation(pb.getOldPartition)
+      val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
         s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
         s" $epoch, $oldPartition, $cause.")
@@ -258,7 +258,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         oldPartition,
         cause)
 
-    case PartitionSplit(applicationId, shuffleId, partitionId, epoch, oldPartition) =>
+    case pb: PbPartitionSplit =>
+      val applicationId = pb.getApplicationId
+      val shuffleId = pb.getShuffleId
+      val partitionId = pb.getPartitionId
+      val epoch = pb.getEpoch
+      val oldPartition = PartitionLocation.fromPbPartitionLocation(pb.getOldPartition)
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
       handleChangePartitionLocation(
@@ -456,7 +461,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
-      context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, null))
+      context.reply(pbChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
       return
     }
 
@@ -465,7 +470,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       && shuffleMapperAttempts.get(shuffleId)(mapId) != -1) {
       logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
         s"ended attemptId ${shuffleMapperAttempts.get(shuffleId)(mapId)}, shuffleId $shuffleId.")
-      context.reply(ChangeLocationResponse(StatusCode.MAP_ENDED, null))
+      context.reply(pbChangeLocationResponse(StatusCode.MAP_ENDED, None))
       return
     }
 
@@ -508,9 +513,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       } else {
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
-        val latestLoc = getLatestPartition(shuffleId, partitionId, oldEpoch)
-        if (latestLoc != null) {
-          context.reply(ChangeLocationResponse(StatusCode.SUCCESS, latestLoc))
+        getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
+          context.reply(pbChangeLocationResponse(StatusCode.SUCCESS, Some(latestLoc)))
           logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -525,7 +529,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       blacklistPartition(shuffleId, oldPartition, cause.get)
     }
 
-    def reply(response: ChangeLocationResponse): Unit = {
+    def reply(response: PbChangeLocationResponse): Unit = {
       requests.synchronized {
         requests.remove(partitionId)
       }.asScala.foreach(_.reply(response))
@@ -534,7 +538,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val candidates = workersNotBlacklisted(shuffleId)
     if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      reply(ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, null))
+      reply(pbChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, None))
       return null
     }
 
@@ -547,7 +551,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocation)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      reply(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, null))
+      reply(pbChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
       return
     }
 
@@ -563,12 +567,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // reply the master location of this partition.
     val newMasterLocation =
       if (masterLocations != null && masterLocations.size() > 0) {
-        masterLocations.asScala.head
+        masterLocations.asScala.headOption
       } else {
-        slavePartitions.asScala.head.getPeer
+        slavePartitions.asScala.headOption.map(_.getPeer)
       }
 
-    reply(ChangeLocationResponse(StatusCode.SUCCESS, newMasterLocation))
+    reply(pbChangeLocationResponse(StatusCode.SUCCESS, newMasterLocation))
     logDebug(s"Renew $shuffleId $partitionId" +
       "$oldEpoch->${newMasterLocation.getEpoch} partition success.")
   }
@@ -576,15 +580,15 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private def getLatestPartition(
       shuffleId: Int,
       partitionId: Int,
-      epoch: Int): PartitionLocation = {
+      epoch: Int): Option[PartitionLocation] = {
     val map = latestPartitionLocation.get(shuffleId)
     if (map != null) {
       val loc = map.get(partitionId)
       if (loc != null && loc.getEpoch > epoch) {
-        return loc
+        return Some(loc)
       }
     }
-    null
+    None
   }
 
   private def handleMapperEnd(

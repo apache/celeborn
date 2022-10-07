@@ -164,31 +164,50 @@ object ControlMessages extends Logging {
       workerResource: WorkerResource)
     extends MasterMessage
 
-  trait ChangeLocationRequest
-
-  case class Revive(
-      applicationId: String,
+  def pbRevive(
+      appId: String,
       shuffleId: Int,
       mapId: Int,
       attemptId: Int,
       partitionId: Int,
       epoch: Int,
       oldPartition: PartitionLocation,
-      cause: StatusCode)
-    extends MasterMessage with ChangeLocationRequest
+      cause: StatusCode): PbRevive =
+    PbRevive.newBuilder()
+      .setApplicationId(appId)
+      .setShuffleId(shuffleId)
+      .setMapId(mapId)
+      .setAttemptId(attemptId)
+      .setPartitionId(partitionId)
+      .setEpoch(epoch)
+      .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+      .setStatus(cause.getValue)
+      .build()
 
-  case class PartitionSplit(
-      applicationId: String,
+  def pbPartitionSplit(
+      appId: String,
       shuffleId: Int,
       partitionId: Int,
       epoch: Int,
-      oldPartition: PartitionLocation)
-    extends MasterMessage with ChangeLocationRequest
+      oldPartition: PartitionLocation): PbPartitionSplit =
+    PbPartitionSplit.newBuilder()
+      .setApplicationId(appId)
+      .setShuffleId(shuffleId)
+      .setPartitionId(partitionId)
+      .setEpoch(epoch)
+      .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+      .build()
 
-  case class ChangeLocationResponse(
+  def pbChangeLocationResponse(
       status: StatusCode,
-      partition: PartitionLocation)
-    extends MasterMessage
+      partitionLocationOpt: Option[PartitionLocation]): PbChangeLocationResponse = {
+    val builder = PbChangeLocationResponse.newBuilder()
+    builder.setStatus(status.getValue)
+    partitionLocationOpt.foreach { partitionLocation =>
+      builder.setLocation(PartitionLocation.toPbPartitionLocation(partitionLocation))
+    }
+    builder.build()
+  }
 
   case class MapperEnd(
       applicationId: String,
@@ -493,37 +512,11 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS_RESPONSE, payload)
 
-    case Revive(
-          applicationId,
-          shuffleId,
-          mapId,
-          attemptId,
-          partitionId,
-          epoch,
-          oldPartition,
-          cause) =>
-      val builder = PbRevive.newBuilder()
-      builder.setApplicationId(applicationId)
-        .setShuffleId(shuffleId)
-        .setMapId(mapId)
-        .setAttemptId(attemptId)
-        .setPartitionId(partitionId)
-        .setEpoch(epoch)
-        .setStatus(cause.getValue)
-      if (oldPartition != null) {
-        builder.setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
-      }
-      val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.REVIVE, payload)
+    case pb: PbRevive =>
+      new TransportMessage(MessageType.REVIVE, pb.toByteArray)
 
-    case ChangeLocationResponse(status, location) =>
-      val builder = PbChangeLocationResponse.newBuilder()
-        .setStatus(status.getValue)
-      if (location != null) {
-        builder.setLocation(PartitionLocation.toPbPartitionLocation(location))
-      }
-      val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, payload)
+    case pb: PbChangeLocationResponse =>
+      new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
     case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
       val payload = PbMapperEnd.newBuilder()
@@ -781,12 +774,8 @@ object ControlMessages extends Logging {
         .setThreadDump(threadDump).build().toByteArray
       new TransportMessage(MessageType.THREAD_DUMP_RESPONSE, payload)
 
-    case PartitionSplit(applicationId, shuffleId, partitionId, epoch, oldPartition) =>
-      val payload = PbPartitionSplit.newBuilder()
-        .setApplicationId(applicationId).setShuffleId(shuffleId).setPartitionId(partitionId)
-        .setEpoch(epoch).setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
-        .build().toByteArray
-      new TransportMessage(MessageType.PARTITION_SPLIT, payload)
+    case pb: PbPartitionSplit =>
+      new TransportMessage(MessageType.PARTITION_SPLIT, pb.toByteArray)
 
     case OneWayMessageResponse =>
       new TransportMessage(MessageType.ONE_WAY_MESSAGE_RESPONSE, null)
@@ -879,30 +868,10 @@ object ControlMessages extends Logging {
             pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
-        val pbRevive = PbRevive.parseFrom(message.getPayload)
-        val oldPartition =
-          if (pbRevive.hasOldPartition) {
-            PartitionLocation.fromPbPartitionLocation(pbRevive.getOldPartition)
-          } else {
-            null
-          }
-        Revive(
-          pbRevive.getApplicationId,
-          pbRevive.getShuffleId,
-          pbRevive.getMapId,
-          pbRevive.getAttemptId,
-          pbRevive.getPartitionId,
-          pbRevive.getEpoch,
-          oldPartition,
-          Utils.toStatusCode(pbRevive.getStatus))
+        PbRevive.parseFrom(message.getPayload)
 
       case CHANGE_LOCATION_RESPONSE =>
-        val pbReviveResponse = PbChangeLocationResponse.parseFrom(message.getPayload)
-        val loc =
-          if (pbReviveResponse.hasLocation) {
-            PartitionLocation.fromPbPartitionLocation(pbReviveResponse.getLocation)
-          } else null
-        ChangeLocationResponse(Utils.toStatusCode(pbReviveResponse.getStatus), loc)
+        PbChangeLocationResponse.parseFrom(message.getPayload)
 
       case MAPPER_END =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
@@ -1122,19 +1091,7 @@ object ControlMessages extends Logging {
         StageEnd(pbStageEnd.getApplicationId, pbStageEnd.getShuffleId)
 
       case PARTITION_SPLIT =>
-        val pbShuffleSplitRequest = PbPartitionSplit.parseFrom(message.getPayload)
-        val partition =
-          if (pbShuffleSplitRequest.hasOldPartition) {
-            PartitionLocation.fromPbPartitionLocation(pbShuffleSplitRequest.getOldPartition)
-          } else {
-            null
-          }
-        PartitionSplit(
-          pbShuffleSplitRequest.getApplicationId,
-          pbShuffleSplitRequest.getShuffleId,
-          pbShuffleSplitRequest.getPartitionId,
-          pbShuffleSplitRequest.getEpoch,
-          partition)
+        PbPartitionSplit.parseFrom(message.getPayload)
 
       case STAGE_END_RESPONSE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
