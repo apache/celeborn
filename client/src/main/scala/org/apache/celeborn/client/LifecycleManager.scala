@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.write
+package org.apache.celeborn.client
 
 import java.util
 import java.util.{List => JList}
