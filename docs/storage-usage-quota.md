@@ -19,26 +19,26 @@ limitations under the License.
 
 Storage Usage Quota Guide
 ===
-This documentation contains how RSS limit user's storage resource usage by setting quota.
+This documentation describes how RSS limits user's storage resource usage by setting quota.
 
 ## Quota limitation
 
 RSS has a configurable user storage quota system. This allows RSS admin to manage each user's
 max resource usage to keep RSS cluster more stable. This feature can avoid RSS cluster resources
-been occupied by several users with huge application.
+being occupied by the minority with huge applications.
 
-RSS cluster's worker will collect each user's resource consumption and report these information
+RSS cluster's worker will collect each user's resource consumption and report the information
 to master in register and heartbeat message. When `LifecycleManager` register shuffle to RSS master,
 will check current user's resource usage, if used resource exceed the quota setting,
 shuffle will be fallback to ESS.
 
 ## Storage resource
 
-Currently, RSS support two storage level:
+Currently, RSS support two storage levels:
   1. Local disk.
   2. HDFS.
 
-And there are two level of resources: 
+And there are two levels of resources: 
   1. written bytes.
   2. written file numbers.
 
