@@ -1,0 +1,32 @@
+Index: core/src/main/scala/org/apache/spark/Dependency.scala
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/core/src/main/scala/org/apache/spark/Dependency.scala b/core/src/main/scala/org/apache/spark/Dependency.scala
+--- a/core/src/main/scala/org/apache/spark/Dependency.scala	(revision e8e53c5dda17d63698b1542c179415b8ef145856)
++++ b/core/src/main/scala/org/apache/spark/Dependency.scala	(revision 1abb59096135cdceedb0ab1591eaa267d93703f4)
+@@ -78,6 +78,7 @@
+     val keyOrdering: Option[Ordering[K]] = None,
+     val aggregator: Option[Aggregator[K, V, C]] = None,
+     val mapSideCombine: Boolean = false,
++    var schema: AnyRef = null,
+     val shuffleWriterProcessor: ShuffleWriteProcessor = new ShuffleWriteProcessor)
+   extends Dependency[Product2[K, V]] with Logging {
+ 
+Index: sql/core/src/main/scala/org/apache/spark/sql/execution/exchange/ShuffleExchangeExec.scala
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/exchange/ShuffleExchangeExec.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/exchange/ShuffleExchangeExec.scala
+--- a/sql/core/src/main/scala/org/apache/spark/sql/execution/exchange/ShuffleExchangeExec.scala	(revision e8e53c5dda17d63698b1542c179415b8ef145856)
++++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/exchange/ShuffleExchangeExec.scala	(revision 1abb59096135cdceedb0ab1591eaa267d93703f4)
+@@ -452,6 +452,7 @@
+         rddWithPartitionIds,
+         new PartitionIdPassthrough(part.numPartitions),
+         serializer,
++        schema = StructType.fromAttributes(outputAttributes),
+         shuffleWriterProcessor = createShuffleWriteProcessor(writeMetrics))
+ 
+     dependency

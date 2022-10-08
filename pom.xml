@@ -15,29 +15,53 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>27</version>
+  </parent>
 
-  <groupId>com.aliyun.emr</groupId>
-  <artifactId>remote-shuffle-service</artifactId>
+  <groupId>org.apache.celeborn</groupId>
+  <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
   <version>0.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>Aliyun E-MapReduce Shuffle Service Project Parent POM</name>
+  <name>Celeborn Project Parent POM</name>
+
+  <modules>
+    <module>common</module>
+    <module>client</module>
+    <module>service</module>
+    <module>master</module>
+    <module>worker</module>
+    <module>tests/spark-it</module>
+  </modules>
+
+  <distributionManagement>
+    <repository>
+      <id>${distMgmtReleaseId}</id>
+      <name>${distMgmtReleaseName}</name>
+      <url>${distMgmtReleaseUrl}</url>
+    </repository>
+    <snapshotRepository>
+      <id>${distMgmtSnapshotsId}</id>
+      <name>${distMgmtSnapshotsName}</name>
+      <url>${distMgmtSnapshotsUrl}</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
+    <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
 
-    <checkstyle.version>8.23</checkstyle.version>
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.10</commons-lang3.version>
     <commons-io.version>2.8.0</commons-io.version>
@@ -48,10 +72,7 @@
     <javaxservlet.version>3.1.0</javaxservlet.version>
     <junit.version>4.12</junit.version>
     <leveldb.version>1.8</leveldb.version>
-    <log4j.version>1.2.17</log4j.version>
     <log4j2.version>2.17.1</log4j2.version>
-    <lz4-java.version>1.8.0</lz4-java.version>
-    <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <mockito.version>1.10.19</mockito.version>
     <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
     <netty.version>4.1.77.Final</netty.version>
@@ -60,73 +81,58 @@
     <scalamock.version>5.1.0</scalamock.version>
     <scalatest.version>3.2.3</scalatest.version>
     <slf4j.version>1.7.16</slf4j.version>
+    <roaringbitmap.version>0.9.32</roaringbitmap.version>
+    <snakeyaml.version>1.30</snakeyaml.version>
     <!--  default hadoop version  -->
     <hadoop.version>3.3.1</hadoop.version>
 
-    <maven.plugin.checkstyle.version>3.0.0</maven.plugin.checkstyle.version>
+    <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
+    <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
-    <maven.plugin.git.version>4.9.10</maven.plugin.git.version>
+    <maven.plugin.flatten.version>1.3.0</maven.plugin.flatten.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.5.0.Final</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
-    <maven.plugin.scala.version>3.3.2</maven.plugin.scala.version>
-    <maven.plugin.scalastyle.version>1.0.0</maven.plugin.scalastyle.version>
-    <maven.plugin.scalatest.version>1.0</maven.plugin.scalatest.version>
+    <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
+    <maven.plugin.scala.version>4.7.2</maven.plugin.scala.version>
+    <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>2.4.3</maven.plugin.shade.version>
+    <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
-    <build.testJarPhase>prepare-package</build.testJarPhase>
+    <testJarPhase>prepare-package</testJarPhase>
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
+
+    <!-- for JDK-17 test-->
+    <extraJavaTestArgs>-XX:+IgnoreUnrecognizedVMOptions
+      --add-opens=java.base/java.lang=ALL-UNNAMED
+      --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+      --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+      --add-opens=java.base/java.io=ALL-UNNAMED
+      --add-opens=java.base/java.net=ALL-UNNAMED
+      --add-opens=java.base/java.nio=ALL-UNNAMED
+      --add-opens=java.base/java.util=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+      --add-opens=java.base/sun.security.action=ALL-UNNAMED
+      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</extraJavaTestArgs>
+
+    <distMgmtReleaseId>apache.releases.https</distMgmtReleaseId>
+    <distMgmtReleaseName>Apache Release Distribution Repository</distMgmtReleaseName>
+    <distMgmtReleaseUrl>https://repository.apache.org/service/local/staging/deploy/maven2</distMgmtReleaseUrl>
+    <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
+    <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
+    <distMgmtSnapshotsUrl>https://repository.apache.org/content/repositories/snapshots</distMgmtSnapshotsUrl>
   </properties>
-
-  <modules>
-    <module>common</module>
-    <module>client</module>
-    <module>./client-spark/shuffle-manager-common</module>
-    <module>./client-spark/${rss.shuffle.manager}</module>
-    <module>server-common</module>
-    <module>server-master</module>
-    <module>server-worker</module>
-  </modules>
-
-  <repositories>
-    <repository>
-      <id>central</id>
-      <name>Maven Repository</name>
-      <url>https://repo.maven.apache.org/maven2</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>central</id>
-      <url>https://repo.maven.apache.org/maven2</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </pluginRepository>
-  </pluginRepositories>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-log4j12</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
       <dependency>
@@ -138,11 +144,6 @@
         <groupId>org.slf4j</groupId>
         <artifactId>jcl-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>log4j</groupId>
-        <artifactId>log4j</artifactId>
-        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
@@ -252,8 +253,8 @@
         <version>${google.jsr305.version}</version>
       </dependency>
       <dependency>
-        <artifactId>protobuf-java</artifactId>
         <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
         <version>${protobuf.version}</version>
       </dependency>
       <dependency>
@@ -282,8 +283,8 @@
         <version>${commons-crypto.version}</version>
         <exclusions>
           <exclusion>
-            <artifactId>jna</artifactId>
             <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -385,25 +386,43 @@
             <groupId>com.thoughtworks.paranamer</groupId>
             <artifactId>paranamer</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>ch.qos.reload4j</groupId>
+            <artifactId>reload4j</artifactId>
+          </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <scope>test</scope>
         <version>${junit.version}</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest_${scala.binary.version}</artifactId>
-        <scope>test</scope>
         <version>${scalatest.version}</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-funsuite_${scala.binary.version}</artifactId>
-        <scope>test</scope>
         <version>${scalatest.version}</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.scalamock</groupId>
@@ -425,14 +444,110 @@
     </dependencies>
   </dependencyManagement>
 
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_${scala.binary.version}</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </pluginRepository>
+  </pluginRepositories>
+
   <build>
     <pluginManagement>
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>${maven.plugin.antrun.version}</version>
+          <executions>
+            <execution>
+              <id>create-tmp-dir</id>
+              <goals>
+                <goal>run</goal>
+              </goals>
+              <phase>generate-test-resources</phase>
+              <configuration>
+                <target>
+                  <mkdir dir="${project.build.directory}/tmp"></mkdir>
+                </target>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>${maven.plugin.clean.version}</version>
+          <configuration>
+            <filesets>
+              <fileset>
+                <directory>${project.basedir}</directory>
+                <includes>
+                  <include>**/*.log</include>
+                </includes>
+              </fileset>
+              <fileset>
+                <directory>${project.basedir}/metastore_db</directory>
+              </fileset>
+              <fileset>
+                <directory>${project.basedir}/spark-warehouse</directory>
+              </fileset>
+            </filesets>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>${maven.plugin.jar.version}</version>
+          <executions>
+            <execution>
+              <id>prepare-test-jar</id>
+              <goals>
+                <goal>test-jar</goal>
+              </goals>
+              <phase>${testJarPhase}</phase>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven.plugin.surefire.version}</version>
-          <!-- Note config is repeated in scalatest config -->
           <configuration>
             <includes>
               <include>**/*Spec*.*</include>
@@ -440,9 +555,16 @@
               <include>**/*Test*.*</include>
             </includes>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+            <argLine>-ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <systemProperties>
+              <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
+              <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
+              <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
+              <spark.driver.memory>1g</spark.driver.memory>
+            </systemProperties>
+            <forkCount>1</forkCount>
+            <reuseForks>false</reuseForks>
             <failIfNoTests>false</failIfNoTests>
-            <threadCount>8</threadCount>
-            <forkCount>8C</forkCount>
           </configuration>
           <executions>
             <execution>
@@ -453,10 +575,27 @@
             </execution>
           </executions>
         </plugin>
+
         <plugin>
           <groupId>org.scalatest</groupId>
           <artifactId>scalatest-maven-plugin</artifactId>
           <version>${maven.plugin.scalatest.version}</version>
+          <configuration>
+            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+            <argLine>-ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <filereports>TestSuite.txt</filereports>
+            <!--
+              the plugin does not support always now, we must be careful w/ singletons.
+              tracking at: https://github.com/scalatest/scalatest-maven-plugin/issues/99
+              -->
+            <forkMode>once</forkMode>
+            <systemProperties>
+              <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
+              <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
+              <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
+              <spark.driver.memory>1g</spark.driver.memory>
+            </systemProperties>
+          </configuration>
           <executions>
             <execution>
               <id>test</id>
@@ -466,55 +605,45 @@
             </execution>
           </executions>
         </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>flatten-maven-plugin</artifactId>
+          <version>${maven.plugin.flatten.version}</version>
+          <configuration>
+            <flattenMode>oss</flattenMode>
+          </configuration>
+          <executions>
+            <execution>
+              <id>flatten</id>
+              <goals>
+                <goal>flatten</goal>
+              </goals>
+              <phase>process-resources</phase>
+            </execution>
+            <execution>
+              <id>flatten.clean</id>
+              <goals>
+                <goal>clean</goal>
+              </goals>
+              <phase>clean</phase>
+            </execution>
+          </executions>
+        </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <version>${maven.plugin.shade.version}</version>
           <executions>
             <execution>
-              <phase>package</phase>
               <goals>
                 <goal>shade</goal>
               </goals>
+              <phase>package</phase>
               <configuration>
                 <minimizeJar>false</minimizeJar>
                 <shadedArtifactAttached>true</shadedArtifactAttached>
-                <artifactSet>
-                  <includes>
-                    <!-- Include here the dependencies you
-                        want to be packed in your fat jar -->
-                    <include>*:*</include>
-                  </includes>
-                </artifactSet>
-                <filters>
-                  <filter>
-                    <artifact>*:*</artifact>
-                    <excludes>
-                      <exclude>META-INF/*.SF</exclude>
-                      <exclude>META-INF/*.DSA</exclude>
-                      <exclude>META-INF/*.RSA</exclude>
-                      <exclude>**/log4j.properties</exclude>
-                    </excludes>
-                  </filter>
-                </filters>
-                <transformers>
-                  <transformer
-                      implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                    <resource>reference.conf</resource>
-                  </transformer>
-                  <transformer
-                      implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                    <resource>
-                      META-INF/services/org.apache.spark.sql.sources.DataSourceRegister
-                    </resource>
-                  </transformer>
-                  <transformer
-                      implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                    <resource>
-                      META-INF/services/org.apache.hadoop.fs.FileSystem
-                    </resource>
-                  </transformer>
-                </transformers>
               </configuration>
             </execution>
           </executions>
@@ -526,42 +655,26 @@
           <executions>
             <execution>
               <id>scala-compile-first</id>
-              <phase>process-resources</phase>
               <goals>
                 <goal>compile</goal>
               </goals>
+              <phase>process-resources</phase>
             </execution>
             <execution>
               <id>scala-test-compile-first</id>
-              <phase>process-test-resources</phase>
               <goals>
                 <goal>testCompile</goal>
               </goals>
+              <phase>process-test-resources</phase>
             </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>pl.project13.maven</groupId>
-          <artifactId>git-commit-id-plugin</artifactId>
-          <version>${maven.plugin.git.version}</version>
-          <executions>
             <execution>
-              <id>get-the-git-infos</id>
+              <id>attach-scaladocs</id>
               <goals>
-                <goal>revision</goal>
+                <goal>doc-jar</goal>
               </goals>
-              <phase>initialize</phase>
+              <phase>verify</phase>
             </execution>
           </executions>
-          <configuration>
-            <generateGitPropertiesFile>true</generateGitPropertiesFile>
-            <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-            <includeOnlyProperties>
-              <includeOnlyProperty>^git.build.version$</includeOnlyProperty>
-              <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
-            </includeOnlyProperties>
-            <commitIdGenerationMode>full</commitIdGenerationMode>
-          </configuration>
         </plugin>
 
         <plugin>
@@ -571,14 +684,93 @@
           <executions>
             <execution>
               <id>copy-module-dependencies</id>
-              <phase>package</phase>
               <goals>
                 <goal>copy-dependencies</goal>
               </goals>
+              <phase>package</phase>
               <configuration>
                 <includeScope>runtime</includeScope>
                 <outputDirectory>${jars.target.dir}</outputDirectory>
               </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.rat</groupId>
+          <artifactId>apache-rat-plugin</artifactId>
+          <version>${maven.plugin.rat.version}</version>
+          <inherited>true</inherited>
+          <configuration>
+            <excludeSubProjects>false</excludeSubProjects>
+            <numUnapprovedLicenses>0</numUnapprovedLicenses>
+            <licenseFamilies>
+              <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
+                <familyName>Apache License 2.0</familyName>
+              </licenseFamily>
+            </licenseFamilies>
+            <excludesFile>.rat-excludes</excludesFile>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+              <phase>verify</phase>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${maven.plugin.spotless.version}</version>
+          <configuration>
+            <upToDateChecking>
+              <enabled>true</enabled>
+            </upToDateChecking>
+            <java>
+              <includes>
+                <include>src/main/java/**/*.java</include>
+                <include>src/test/java/**/*.java</include>
+              </includes>
+              <googleJavaFormat>
+                <version>1.7</version>
+                <style>GOOGLE</style>
+              </googleJavaFormat>
+              <removeUnusedImports></removeUnusedImports>
+              <importOrder>
+                <order>java,javax,scala,,org.apache.celeborn</order>
+              </importOrder>
+            </java>
+            <scala>
+              <includes>
+                <include>src/main/scala/**/*.scala</include>
+                <include>src/test/scala/**/*.scala</include>
+              </includes>
+              <scalafmt>
+                <version>3.1.1</version>
+                <file>${maven.multiModuleProjectDirectory}/.scalafmt.conf</file>
+              </scalafmt>
+            </scala>
+            <pom>
+              <includes>
+                <include>pom.xml</include>
+              </includes>
+
+              <sortPom>
+                <encoding>UTF-8</encoding>
+                <keepBlankLines>true</keepBlankLines>
+                <nrOfIndentSpace>2</nrOfIndentSpace>
+                <indentBlankLines>false</indentBlankLines>
+              </sortPom>
+            </pom>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
             </execution>
           </executions>
         </plugin>
@@ -587,81 +779,38 @@
 
     <plugins>
       <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>${maven.plugin.scalastyle.version}</version>
-        <configuration>
-          <verbose>false</verbose>
-          <failOnViolation>true</failOnViolation>
-          <includeTestSourceDirectory>false</includeTestSourceDirectory>
-          <failOnWarning>false</failOnWarning>
-          <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-          <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-          <configLocation>./dev/scalastyle-config.xml</configLocation>
-          <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
-          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
-          <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>${maven.plugin.checkstyle.version}</version>
-        <configuration>
-          <failOnViolation>true</failOnViolation>
-          <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <sourceDirectories>
-            <directory>${basedir}/src/main/java</directory>
-            <directory>${basedir}/src/main/scala</directory>
-          </sourceDirectories>
-          <testSourceDirectories>
-            <directory>${basedir}/src/test/java</directory>
-          </testSourceDirectories>
-          <configLocation>dev/checkstyle.xml</configLocation>
-          <outputFile>${basedir}/target/checkstyle-output.xml</outputFile>
-          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
-          <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
-        </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>${checkstyle.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
+        <artifactId>maven-antrun-plugin</artifactId>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>${maven.plugin.jar.version}</version>
-        <executions>
-          <execution>
-            <id>prepare-test-jar</id>
-            <phase>${build.testJarPhase}</phase>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-            <configuration>
-              <excludes>
-                <exclude>log4j.properties</exclude>
-              </excludes>
-            </configuration>
-          </execution>
-        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
@@ -669,13 +818,18 @@
   <profiles>
     <profile>
       <id>spark-2.4</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-2</module>
+      </modules>
       <properties>
         <jackson.version>2.6.7</jackson.version>
         <jackson.databind.version>2.6.7.3</jackson.databind.version>
+        <lz4-java.version>1.4.0</lz4-java.version>
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
-        <spark.version>2.4.5</spark.version>
-        <rss.shuffle.manager>shuffle-manager-2</rss.shuffle.manager>
+        <spark.version>2.4.8</spark.version>
+        <zstd-jni.version>1.4.4-3</zstd-jni.version>
       </properties>
       <dependencies>
         <dependency>
@@ -693,13 +847,18 @@
 
     <profile>
       <id>spark-3.0</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+      </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
         <jackson.databind.version>2.10.0</jackson.databind.version>
+        <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.0.1</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <spark.version>3.0.3</spark.version>
+        <zstd-jni.version>1.4.4-3</zstd-jni.version>
       </properties>
       <dependencies>
         <dependency>
@@ -717,13 +876,19 @@
 
     <profile>
       <id>spark-3.1</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+      </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
         <jackson.databind.version>2.10.0</jackson.databind.version>
+        <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.1.3</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <zstd-jni.version>1.4.8-1</zstd-jni.version>
+        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <dependencies>
         <dependency>
@@ -741,13 +906,18 @@
 
     <profile>
       <id>spark-3.2</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+      </modules>
       <properties>
         <jackson.version>2.12.3</jackson.version>
         <jackson.databind.version>2.12.3</jackson.databind.version>
+        <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.2</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <zstd-jni.version>1.5.0-4</zstd-jni.version>
       </properties>
       <dependencies>
         <dependency>
@@ -765,13 +935,18 @@
 
     <profile>
       <id>spark-3.3</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+      </modules>
       <properties>
         <jackson.version>2.13.3</jackson.version>
         <jackson.databind.version>2.13.3</jackson.databind.version>
+        <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.0</spark.version>
-        <rss.shuffle.manager>shuffle-manager-3</rss.shuffle.manager>
+        <zstd-jni.version>1.5.2-1</zstd-jni.version>
       </properties>
       <dependencies>
         <dependency>
@@ -788,39 +963,79 @@
     </profile>
 
     <profile>
-      <id>log4j-1</id>
-      <dependencies>
-        <dependency>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>log4j-2</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-api</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-core</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-1.2-api</artifactId>
-        </dependency>
-      </dependencies>
+      <id>apache-release</id>
+      <build>
+        <plugins>
+          <!-- Prevent the source-release-assembly execution defined in the Apache parent POM
+               from running so we can control it ourselves -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-assembly</id>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>net.nicoulaj.maven.plugins</groupId>
+            <artifactId>checksum-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-checksum</id>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <inherited>true</inherited>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <quiet>true</quiet>
+              <doclint>none</doclint>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>sign-release-artifacts</id>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <phase>verify</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

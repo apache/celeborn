@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 set -o pipefail
 set -e
 set -x
 
 # Figure out where the RSS framework is installed
-RSS_HOME="$(cd "`dirname "$0"`/.."; pwd)"
-DISTDIR="$RSS_HOME/dist"
-NAME=none
+PROJECT_DIR="$(cd "`dirname "$0"`/.."; pwd)"
+DIST_DIR="$PROJECT_DIR/dist"
+NAME="bin"
 
 function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Remote Shuffle Service"
@@ -23,7 +39,7 @@ function exit_with_usage {
 while (( "$#" )); do
   case $1 in
     --name)
-      NAME="$2"
+      NAME="bin-$2"
       shift
       ;;
     --help)
@@ -44,7 +60,7 @@ while (( "$#" )); do
   shift
 done
 
-MVN="$RSS_HOME/build/mvn"
+MVN="$PROJECT_DIR/build/mvn"
 
 if [ -z "$JAVA_HOME" ]; then
   # Fall back on JAVA_HOME from rpm, if found
@@ -90,28 +106,26 @@ SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
-SHUFFLE_MANAGER_DIR=$("$MVN" help:evaluate -Dexpression=rss.shuffle.manager $@ 2>/dev/null\
+SPARK_VERSION=$("$MVN" help:evaluate -Dexpression=spark.version $@ 2>/dev/null\
     | grep -v "INFO"\
     | grep -v "WARNING"\
     | tail -n 1)
 
-echo "RSS version is $VERSION"
+SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
 
-if [ "$NAME" == "none" ]; then
-  NAME="release"
-fi
+echo "Celeborn version is $VERSION"
 
-echo "Making rss-$VERSION-bin-$NAME.tgz"
+echo "Making celeborn-$VERSION-$NAME.tgz"
 
 # Build uber fat JAR
-cd "$RSS_HOME"
+cd "$PROJECT_DIR"
 
 export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
 
 # Store the command as an array because $MVN variable might have spaces in it.
 # Normal quoting tricks don't work.
 # See: http://mywiki.wooledge.org/BashFAQ/050
-BUILD_COMMAND=("$MVN" -T 1C clean package -DskipTests $@)
+BUILD_COMMAND=("$MVN" clean package -DskipTests $@)
 
 # Actually build the jar
 echo -e "\nBuilding with..."
@@ -120,33 +134,33 @@ echo -e "\$ ${BUILD_COMMAND[@]}\n"
 "${BUILD_COMMAND[@]}"
 
 # Make directories
-rm -rf "$DISTDIR"
-mkdir -p "$DISTDIR/master-jars"
-mkdir -p "$DISTDIR/worker-jars"
-mkdir -p "$DISTDIR/spark"
+rm -rf "$DIST_DIR"
+mkdir -p "$DIST_DIR/master-jars"
+mkdir -p "$DIST_DIR/worker-jars"
+mkdir -p "$DIST_DIR/spark"
 
-echo "RSS $VERSION$GITREVSTRING" > "$DISTDIR/RELEASE"
-echo "Build flags: $@" >> "$DISTDIR/RELEASE"
+echo "Celeborn $VERSION$GITREVSTRING" > "$DIST_DIR/RELEASE"
+echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
 
 # Copy jars
-cp "$RSS_HOME"/server-master/target/master-"$VERSION".jar "$DISTDIR/master-jars/"
-cp "$RSS_HOME"/server-master/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/master-jars/"
-cp "$RSS_HOME"/server-worker/target/worker-"$VERSION".jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/server-worker/target/scala-${SCALA_VERSION}/jars/*.jar "$DISTDIR/worker-jars/"
-cp "$RSS_HOME"/client-spark/${SHUFFLE_MANAGER_DIR}/target/rss-shuffle-manager-"$VERSION"-shaded.jar "$DISTDIR/spark/"
+cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
+cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/master-jars/"
+cp "$PROJECT_DIR"/worker/target/celeborn-worker_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/worker-jars/"
+cp "$PROJECT_DIR"/worker/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/worker-jars/"
+cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}_$SCALA_VERSION-$VERSION-shaded.jar "$DIST_DIR/spark/"
 
 # Copy other things
-mkdir "$DISTDIR/conf"
-cp "$RSS_HOME"/conf/*.template "$DISTDIR/conf"
-cp -r "$RSS_HOME/bin" "$DISTDIR"
-cp -r "$RSS_HOME/sbin" "$DISTDIR"
-mkdir "$DISTDIR/docker"
-cp "$RSS_HOME/docker/Dockerfile" "$DISTDIR/docker"
-cp -r "$RSS_HOME/docker/helm" "$DISTDIR/docker"
+mkdir "$DIST_DIR/conf"
+cp "$PROJECT_DIR"/conf/*.template "$DIST_DIR/conf"
+cp -r "$PROJECT_DIR/bin" "$DIST_DIR"
+cp -r "$PROJECT_DIR/sbin" "$DIST_DIR"
+mkdir "$DIST_DIR/docker"
+cp "$PROJECT_DIR/docker/Dockerfile" "$DIST_DIR/docker"
+cp -r "$PROJECT_DIR/docker/helm" "$DIST_DIR/docker"
 
-TARDIR_NAME="rss-$VERSION-bin-$NAME"
-TARDIR="$RSS_HOME/$TARDIR_NAME"
+TARDIR_NAME="celeborn-$VERSION-$NAME"
+TARDIR="$PROJECT_DIR/$TARDIR_NAME"
 rm -rf "$TARDIR"
-cp -r "$DISTDIR" "$TARDIR"
-tar czf "rss-$VERSION-bin-$NAME.tgz" -C "$RSS_HOME" "$TARDIR_NAME"
+cp -r "$DIST_DIR" "$TARDIR"
+tar czf "celeborn-$VERSION-$NAME.tgz" -C "$PROJECT_DIR" "$TARDIR_NAME"
 rm -rf "$TARDIR"

@@ -1,3 +1,20 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -12,10 +29,10 @@ data:
     {{- $namespace  := .Release.Namespace }}
     rss.ha.enabled=true
     rss.ha.service.id=rss
-    rss.ha.master.hosts={{ range until (.Values.masterReplicas |int) }}shuffleservice-master-{{ . }}.rss-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
+    rss.ha.master.hosts={{ range until (.Values.masterReplicas |int) }}shuffleservice-master-{{ . }}.rss-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
     rss.ha.nodes.rss={{ range until (.Values.masterReplicas |int) }}node{{ . }},{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
-    rss.ha.address.rss.node{{ . }}=shuffleservice-master-{{ . }}.rss-svc.{{ $namespace }}.svc.cluster.local
+    rss.ha.address.rss.node{{ . }}=shuffleservice-master-{{ . }}.rss-master-svc.{{ $namespace }}.svc.cluster.local
     {{- end }}
     
   rss-env.sh: |
@@ -23,13 +40,47 @@ data:
     {{ $key }}="{{ $val }}"
     {{- end}} 
 
-  log4j.properties: |-
-    # Set everything to be logged to the console
-    log4j.rootCategory=INFO, console
-    log4j.appender.console=org.apache.log4j.ConsoleAppender
-    log4j.appender.console.target=System.err
-    log4j.appender.console.layout=org.apache.log4j.PatternLayout
-    log4j.appender.console.layout.ConversionPattern=%d{yy/MM/dd HH:mm:ss} %p %c{1}: %m%n
+  log4j2.xml: |-
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!--
+    ~ Licensed to the Apache Software Foundation (ASF) under one or more
+    ~ contributor license agreements.  See the NOTICE file distributed with
+    ~ this work for additional information regarding copyright ownership.
+    ~ The ASF licenses this file to You under the Apache License, Version 2.0
+    ~ (the "License"); you may not use this file except in compliance with
+    ~ the License.  You may obtain a copy of the License at
+    ~
+    ~     http://www.apache.org/licenses/LICENSE-2.0
+    ~
+    ~ Unless required by applicable law or agreed to in writing, software
+    ~ distributed under the License is distributed on an "AS IS" BASIS,
+    ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    ~ See the License for the specific language governing permissions and
+    ~ limitations under the License.
+    -->
+    <!--
+    ~ Extra logging related to initialization of Log4j.
+    ~ Set to debug or trace if log4j initialization is failing.
+    -->
+    <Configuration status="INFO">
+      <Appenders>
+        <Console name="stdout" target="SYSTEM_OUT">
+          <!--
+          ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
+          ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
+          ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
+          ~ class packaging information. That extra information can sometimes add a substantial
+          ~ performance overhead, so we disable it in our default logging config.
+          -->
+          <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+        </Console>
+      </Appenders>
+      <Loggers>
+        <Root level="INFO">
+          <AppenderRef ref="stdout"/>
+        </Root>
+      </Loggers>
+    </Configuration>
 
   metrics.properties: >-
-    *.sink.prometheusServlet.class=com.aliyun.emr.rss.common.metrics.sink.PrometheusServlet
+    *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
