@@ -20,37 +20,37 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: shuffleservice-master-podmonitor
+  name: celeborn-master-podmonitor
 spec:
   podMetricsEndpoints:
     - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
       port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
       scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
       path: /metrics/prometheus
-  jobLabel: shuffleservice-master-podmonitor
+  jobLabel: celeborn-master-podmonitor
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: shuffleservicemaster
+      app.kubernetes.io/name: celeborn-master
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: shuffleservice-worker-podmonitor
+  name: celeborn-worker-podmonitor
 spec:
   podMetricsEndpoints:
     - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
       port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
       scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
       path: /metrics/prometheus
-  jobLabel: shuffleservice-worker-podmonitor
+  jobLabel: celeborn-worker-podmonitor
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: shuffleserviceworker
+      app.kubernetes.io/name: celeborn-worker
 {{ end }}
 {{- end }}
