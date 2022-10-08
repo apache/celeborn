@@ -618,7 +618,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           location -> requestsMap.remove(location.getId).asScala.toList
         }
       }.foreach { case (newLocation, requests) =>
-        requests.foreach(_.context.reply(pbChangeLocationResponse(StatusCode.SUCCESS, Option(newLocation))))
+        requests.foreach(_.context.reply(pbChangeLocationResponse(
+          StatusCode.SUCCESS,
+          Option(newLocation))))
       }
     }
 
