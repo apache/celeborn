@@ -16,10 +16,10 @@
 # limitations under the License.
 #
 
-# Stops the CLB master on the machine this script is executed on.
+# Stops the celeborn master on the machine this script is executed on.
 
-if [ -z "${CLB_HOME}" ]; then
-  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-"${CLB_HOME}/sbin/clb-daemon.sh" stop org.apache.celeborn.service.deploy.master.Master 1
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" stop org.apache.celeborn.service.deploy.master.Master 1

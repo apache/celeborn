@@ -16,18 +16,18 @@
 # limitations under the License.
 #
 
-# Starts the clb master on the machine this script is executed on.
+# Starts the celeborn master on the machine this script is executed on.
 
-if [ -z "${CLB_HOME}" ]; then
-  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${CLB_HOME}/sbin/clb-config.sh"
+. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
 
-if [ "$CLB_MASTER_MEMORY" = "" ]; then
-  CLB_MASTER_MEMORY="1g"
+if [ "$CELEBORN_MASTER_MEMORY" = "" ]; then
+  CELEBORN_MASTER_MEMORY="1g"
 fi
 
-export CLB_JAVA_OPTS="-Xmx$CLB_MASTER_MEMORY $CLB_MASTER_JAVA_OPTS"
+export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_MASTER_MEMORY $CELEBORN_MASTER_JAVA_OPTS"
 
-"${CLB_HOME}/sbin/clb-daemon.sh" start org.apache.celeborn.service.deploy.master.Master 1 "$@"
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.master.Master 1 "$@"

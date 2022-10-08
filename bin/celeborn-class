@@ -16,19 +16,19 @@
 # limitations under the License.
 #
 
-if [ -z "${CLB_HOME}" ]; then
-  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-export CLB_CONF_DIR="${CLB_CONF_DIR:-"${CLB_HOME}/conf"}"
+export CELEBORN_CONF_DIR="${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}"
 
-if [ -z "$CLB_ENV_LOADED" ]; then
-  export CLB_ENV_LOADED=1
+if [ -z "$CELEBORN_ENV_LOADED" ]; then
+  export CELEBORN_ENV_LOADED=1
 
-  if [ -f "${CLB_CONF_DIR}/clb-env.sh" ]; then
+  if [ -f "${CELEBORN_CONF_DIR}/celeborn-env.sh" ]; then
     # Promote all variable declarations to environment (exported) variables
     set -a
-    . "${CLB_CONF_DIR}/clb-env.sh"
+    . "${CELEBORN_CONF_DIR}/celeborn-env.sh"
     set +a
   fi
 fi
@@ -45,7 +45,7 @@ else
   fi
 fi
 
-# Find CLB jars.
+# Find CELEBORN jars.
 
 for i in "$@"
 do
@@ -58,36 +58,36 @@ do
 done
 
 if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.master.Master" ] ; then
-  if [ -d "${CLB_HOME}/master-jars" ]; then
-    CLB_JARS_DIR="${CLB_HOME}/master-jars"
+  if [ -d "${CELEBORN_HOME}/master-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/master-jars"
   else
-    CLB_JARS_DIR="${CLB_HOME}/master/target"
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/master/target"
   fi
 fi
 
 if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.worker.Worker" ] ; then
-  if [ -d "${CLB_HOME}/worker-jars" ]; then
-    CLB_JARS_DIR="${CLB_HOME}/worker-jars"
+  if [ -d "${CELEBORN_HOME}/worker-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/worker-jars"
   else
-    CLB_JARS_DIR="${CLB_HOME}/worker/target"
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/worker/target"
   fi
 fi
 
-if [ ! -d "$CLB_JARS_DIR" ]; then
-  echo "Failed to find CLB jars directory ($CLB_JARS_DIR)." 1>&2
-  echo "You need to build CLB with the target \"package\" before running this program." 1>&2
+if [ ! -d "$CELEBORN_JARS_DIR" ]; then
+  echo "Failed to find CELEBORN jars directory ($CELEBORN_JARS_DIR)." 1>&2
+  echo "You need to build CELEBORN with the target \"package\" before running this program." 1>&2
   exit 1
 else
-  CLB_CLASSPATH="$CLB_CONF_DIR:$HADOOP_CONF_DIR:$CLB_JARS_DIR/*"
+  CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*"
 fi
 
 # Turn off posix mode since it does not allow process substitution
 set +o posix
 CMD=()
 CMD+=("$RUNNER")
-CMD=(${CMD[@]} "$CLB_JAVA_OPTS")
+CMD=(${CMD[@]} "$CELEBORN_JAVA_OPTS")
 CMD+=("-cp")
-CMD+=("$CLB_CLASSPATH")
+CMD+=("$CELEBORN_CLASSPATH")
 CMD=(${CMD[@]} "$@")
 
 COUNT=${#CMD[@]}

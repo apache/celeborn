@@ -18,24 +18,24 @@
 
 unset HADOOP_CONF_DIR
 
-# included in all the clb scripts with source command
+# included in all the celeborn scripts with source command
 # should not be executable directly
 # also should not be passed any arguments, since we need original $*
 
-# symlink and absolute path should rely on CLB_HOME to resolve
-if [ -z "${CLB_HOME}" ]; then
-  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+# symlink and absolute path should rely on CELEBORN_HOME to resolve
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-export CLB_CONF_DIR="${CLB_CONF_DIR:-"${CLB_HOME}/conf"}"
+export CELEBORN_CONF_DIR="${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}"
 
-if [ -z "$CLB_ENV_LOADED" ]; then
-  export CLB_ENV_LOADED=1
+if [ -z "$CELEBORN_ENV_LOADED" ]; then
+  export CELEBORN_ENV_LOADED=1
 
-  if [ -f "${CLB_CONF_DIR}/clb-env.sh" ]; then
+  if [ -f "${CELEBORN_CONF_DIR}/celeborn-env.sh" ]; then
     # Promote all variable declarations to environment (exported) variables
     set -a
-    . "${CLB_CONF_DIR}/clb-env.sh"
+    . "${CELEBORN_CONF_DIR}/celeborn-env.sh"
     set +a
   fi
 fi

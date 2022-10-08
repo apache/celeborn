@@ -16,48 +16,48 @@
 # limitations under the License.
 #
 
-# Starts the clb master and workers on the machine this script is executed on.
+# Starts the celeborn master and workers on the machine this script is executed on.
 
-if [ -z "${CLB_HOME}" ]; then
-  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${CLB_HOME}/sbin/clb-config.sh"
+. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
 
-if [ -f "${CLB_CONF_DIR}/hosts" ]; then
-  HOST_LIST=$(awk '/\[/{prefix=$0; next} $1{print prefix,$0}' "${CLB_CONF_DIR}/hosts")
+if [ -f "${CELEBORN_CONF_DIR}/hosts" ]; then
+  HOST_LIST=$(awk '/\[/{prefix=$0; next} $1{print prefix,$0}' "${CELEBORN_CONF_DIR}/hosts")
 else
   HOST_LIST="[master] localhost\n[worker] localhost"
 fi
 
 # By default disable strict host key checking
-if [ "$CLB_SSH_OPTS" = "" ]; then
-  CLB_SSH_OPTS="-o StrictHostKeyChecking=no"
+if [ "$CELEBORN_SSH_OPTS" = "" ]; then
+  CELEBORN_SSH_OPTS="-o StrictHostKeyChecking=no"
 fi
 
 # start masters
 for host in `echo "$HOST_LIST" | sed  "s/#.*$//;/^$/d" | grep '\[master\]' | awk '{print $NF}'`
 do
-  if [ -n "${CLB_SSH_FOREGROUND}" ]; then
-    ssh $CLB_SSH_OPTS "$host" "${CLB_HOME}/sbin/stop-master.sh"
+  if [ -n "${CELEBORN_SSH_FOREGROUND}" ]; then
+    ssh $CELEBORN_SSH_OPTS "$host" "${CELEBORN_HOME}/sbin/stop-master.sh"
   else
-    ssh $CLB_SSH_OPTS "$host" "${CLB_HOME}/sbin/stop-master.sh" &
+    ssh $CELEBORN_SSH_OPTS "$host" "${CELEBORN_HOME}/sbin/stop-master.sh" &
   fi
-  if [ "$CLB_SLEEP" != "" ]; then
-    sleep $CLB_SLEEP
+  if [ "$CELEBORN_SLEEP" != "" ]; then
+    sleep $CELEBORN_SLEEP
   fi
 done
 
 # start workers
 for host in `echo "$HOST_LIST"| sed  "s/#.*$//;/^$/d" | grep '\[worker\]' | awk '{print $NF}'`
 do
-  if [ -n "${CLB_SSH_FOREGROUND}" ]; then
-    ssh $CLB_SSH_OPTS "$host" "${CLB_HOME}/sbin/stop-worker.sh"
+  if [ -n "${CELEBORN_SSH_FOREGROUND}" ]; then
+    ssh $CELEBORN_SSH_OPTS "$host" "${CELEBORN_HOME}/sbin/stop-worker.sh"
   else
-    ssh $CLB_SSH_OPTS "$host" "${CLB_HOME}/sbin/stop-worker.sh" &
+    ssh $CELEBORN_SSH_OPTS "$host" "${CELEBORN_HOME}/sbin/stop-worker.sh" &
   fi
-  if [ "$CLB_SLEEP" != "" ]; then
-    sleep $CLB_SLEEP
+  if [ "$CELEBORN_SLEEP" != "" ]; then
+    sleep $CELEBORN_SLEEP
   fi
 done
 
