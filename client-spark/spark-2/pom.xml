@@ -19,19 +19,19 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.celeborn</groupId>
-    <artifactId>celeborn-parent</artifactId>
+    <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
     <version>0.2.0-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>shuffle-manager-3</artifactId>
+  <artifactId>celeborn-client-spark-2_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Shuffle Manager for Spark 3</name>
+  <name>Celeborn Client for Spark 2</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>common</artifactId>
+      <artifactId>celeborn-common_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
@@ -42,12 +42,12 @@
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>client</artifactId>
+      <artifactId>celeborn-client_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>shuffle-manager-common</artifactId>
+      <artifactId>celeborn-spark-client-common_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -63,7 +63,7 @@
 
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>client</artifactId>
+      <artifactId>celeborn-client_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -75,8 +75,23 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_${scala.binary.version}</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scalamock</groupId>
+      <artifactId>scalamock_${scala.binary.version}</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -104,10 +119,7 @@
           <artifactSet>
             <includes>
               <!-- Include here the dependencies you want to be packed in your fat jar -->
-              <include>org.apache.celeborn:common</include>
-              <include>org.apache.celeborn:client</include>
-              <include>org.apache.celeborn:shuffle-manager-common</include>
-              <include>org.apache.celeborn:celeborn-shuffle-manager</include>
+              <include>org.apache.celeborn:*</include>
               <include>com.google.protobuf:protobuf-java</include>
               <include>com.google.guava:guava</include>
               <include>io.netty:*</include>

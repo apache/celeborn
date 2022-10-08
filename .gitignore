@@ -59,7 +59,11 @@ scalastyle-on-compile.generated.xml
 scalastyle-output.xml
 scalastyle.txt
 rss-*.tgz
+rss-*-bin*
 emr-*.tgz
+emr-*-bin*
+celeborn-*.tgz
+celeborn-*-bin*
 src_managed/
 target/
 unit-tests.log

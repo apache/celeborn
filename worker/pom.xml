@@ -19,24 +19,42 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.celeborn</groupId>
-    <artifactId>celeborn-parent</artifactId>
+    <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
     <version>0.2.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>master</artifactId>
+  <artifactId>celeborn-worker_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Master Module</name>
+  <name>Celeborn Worker</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>common</artifactId>
+      <artifactId>celeborn-common_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.ratis</groupId>
+          <artifactId>ratis-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.ratis</groupId>
+          <artifactId>ratis-client</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>server-common</artifactId>
+      <artifactId>celeborn-service_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.fusesource.leveldbjni</groupId>
+      <artifactId>leveldbjni-all</artifactId>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
@@ -47,28 +65,12 @@
       <artifactId>guava</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-server</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-netty</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-grpc</artifactId>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -79,6 +81,18 @@
       <artifactId>log4j-1.2-api</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-master_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
@@ -98,34 +112,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
       </plugin>
-      <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <version>${maven.plugin.protobuf.version}</version>
-        <extensions>true</extensions>
-        <executions>
-          <execution>
-            <id>compile-protoc</id>
-            <goals>
-              <goal>compile</goal>
-              <goal>compile-custom</goal>
-            </goals>
-            <configuration>
-              <protoSourceRoot>${basedir}/src/main/proto/</protoSourceRoot>
-              <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-              <pluginId>grpc-java</pluginId>
-              <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${maven.plugin.os.version}</version>
-      </extension>
-    </extensions>
   </build>
 </project>

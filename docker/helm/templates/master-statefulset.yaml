@@ -77,7 +77,7 @@ spec:
           - "--"
           - "/bin/sh"
           - '-c'
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/rss-{{ .Values.rssVersion }}-bin-release/sbin/start-master.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn-{{ .Values.celebornVersion }}-bin/sbin/start-master.sh"
         resources:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
@@ -86,7 +86,7 @@ spec:
             name: metrics
             protocol: TCP
         volumeMounts:
-          - mountPath: /opt/rss-{{ .Values.rssVersion }}-bin-release/conf
+          - mountPath: /opt/celeborn-{{ .Values.celebornVersion }}-bin/conf
             name: {{ include "remote-shuffle-service.fullname" . }}-volume
             readOnly: true
           - name: {{ include "remote-shuffle-service.fullname" . }}-master-ratis

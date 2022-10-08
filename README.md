@@ -51,7 +51,7 @@ Build for Spark
 ./dev/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/Spark-3.3
 ```
 
-package rss-${project.version}-bin-release.tgz will be generated.
+package celeborn-${project.version}-bin.tgz will be generated.
 
 ### Package Details
 Build procedure will create a compressed package.

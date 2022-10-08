@@ -24,7 +24,7 @@
   </parent>
 
   <groupId>org.apache.celeborn</groupId>
-  <artifactId>celeborn-parent</artifactId>
+  <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
   <version>0.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
@@ -33,10 +33,10 @@
   <modules>
     <module>common</module>
     <module>client</module>
-    <module>server-common</module>
-    <module>server-master</module>
-    <module>server-worker</module>
-    <module>tests/celeborn-spark-it</module>
+    <module>service</module>
+    <module>master</module>
+    <module>worker</module>
+    <module>tests/spark-it</module>
   </modules>
 
   <distributionManagement>
@@ -57,6 +57,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
+    <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
@@ -818,8 +819,8 @@
     <profile>
       <id>spark-2.4</id>
       <modules>
-        <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${celeborn.shuffle.manager}</module>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-2</module>
       </modules>
       <properties>
         <jackson.version>2.6.7</jackson.version>
@@ -829,7 +830,6 @@
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.8</spark.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
-        <celeborn.shuffle.manager>shuffle-manager-2</celeborn.shuffle.manager>
       </properties>
       <dependencies>
         <dependency>
@@ -848,8 +848,8 @@
     <profile>
       <id>spark-3.0</id>
       <modules>
-        <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${celeborn.shuffle.manager}</module>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -859,7 +859,6 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.3</spark.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
-        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <dependencies>
         <dependency>
@@ -878,8 +877,8 @@
     <profile>
       <id>spark-3.1</id>
       <modules>
-        <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${celeborn.shuffle.manager}</module>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -908,8 +907,8 @@
     <profile>
       <id>spark-3.2</id>
       <modules>
-        <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${celeborn.shuffle.manager}</module>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
       </modules>
       <properties>
         <jackson.version>2.12.3</jackson.version>
@@ -919,7 +918,6 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.2</spark.version>
         <zstd-jni.version>1.5.0-4</zstd-jni.version>
-        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <dependencies>
         <dependency>
@@ -938,8 +936,8 @@
     <profile>
       <id>spark-3.3</id>
       <modules>
-        <module>client-spark/shuffle-manager-common</module>
-        <module>client-spark/${celeborn.shuffle.manager}</module>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
       </modules>
       <properties>
         <jackson.version>2.13.3</jackson.version>
@@ -949,7 +947,6 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.0</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>
-        <celeborn.shuffle.manager>shuffle-manager-3</celeborn.shuffle.manager>
       </properties>
       <dependencies>
         <dependency>
