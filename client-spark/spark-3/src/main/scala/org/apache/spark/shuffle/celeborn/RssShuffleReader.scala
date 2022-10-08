@@ -89,7 +89,7 @@ class RssShuffleReader[K, C](
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
         // ensure inputStream is closed when task completes
-        context.addTaskCompletionListener(_ => inputStream.close())
+        context.addTaskCompletionListener[Unit](_ => inputStream.close())
         inputStream
       } else {
         RssInputStream.empty()
