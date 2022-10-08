@@ -622,7 +622,7 @@ private[celeborn] class Master(
       workerInfo.userResourceConsumption.asScala.get(userIdentifier)
     }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     val quota = quotaManager.getQuota(userIdentifier)
-    val isAvailable = quota.checkQuotaAvailable(userIdentifier, userResourceConsumption)
+    val isAvailable = quota.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
     context.reply(CheckQuotaResponse(isAvailable))
   }
 
