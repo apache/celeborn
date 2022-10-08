@@ -38,4 +38,4 @@ if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${RSS_HOME}/sbin/rss-daemon.sh" start com.aliyun.emr.rss.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
+"${RSS_HOME}/sbin/rss-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"

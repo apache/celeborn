@@ -1,4 +1,4 @@
-# Contributing to RSS
+# Contributing to Celeborn
 Any contributions from the open-source community to improve this project are welcome!
 
 ## Code Style
