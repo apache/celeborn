@@ -14,7 +14,7 @@
 // limitations under the License.
 
 syntax = "proto3";
-option java_package = "com.aliyun.emr.rss.common.protocol";
+option java_package = "org.apache.celeborn.common.protocol";
 option java_multiple_files = true;
 
 enum MessageType {
@@ -112,7 +112,7 @@ message PbWorkerInfo {
   int32 pushPort = 3;
   int32 fetchPort = 4;
   int32 replicatePort = 5;
-  map<string, PbDiskInfo> disks = 6;
+  repeated PbDiskInfo disks = 6;
 }
 
 message PbFileGroup {
@@ -125,7 +125,7 @@ message PbRegisterWorker {
   int32 pushPort = 3;
   int32 fetchPort = 4;
   int32 replicatePort = 5;
-  map<string, PbDiskInfo> disks = 6;
+  repeated PbDiskInfo disks = 6;
   string requestId = 9;
   map<string, PbResourceConsumption> userResourceConsumption = 8;
 }
@@ -136,7 +136,7 @@ message PbHeartbeatFromWorker {
   int32 pushPort = 3;
   int32 fetchPort = 4;
   int32 replicatePort = 5;
-  map<string, PbDiskInfo> disks = 6;
+  repeated PbDiskInfo disks = 6;
   repeated string shuffleKeys = 7;
   string requestId = 8;
   map<string, PbResourceConsumption> userResourceConsumption = 9;

@@ -83,4 +83,4 @@ data:
     </Configuration>
 
   metrics.properties: >-
-    *.sink.prometheusServlet.class=com.aliyun.emr.rss.common.metrics.sink.PrometheusServlet
+    *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
