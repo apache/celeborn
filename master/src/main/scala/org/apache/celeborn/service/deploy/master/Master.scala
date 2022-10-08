@@ -278,12 +278,12 @@ private[celeborn] class Master(
           pushPort,
           fetchPort,
           replicatePort,
-          disks,
+          diskInfoMap,
           userResourceConsumption,
           shuffleKeys,
           requestId) =>
       logDebug(s"Received heartbeat from" +
-        s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
+        s" worker $host:$rpcPort:$pushPort:$fetchPort with $diskInfoMap.")
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromWorker(
@@ -293,7 +293,7 @@ private[celeborn] class Master(
           pushPort,
           fetchPort,
           replicatePort,
-          disks,
+          diskInfoMap,
           userResourceConsumption,
           shuffleKeys,
           requestId))
@@ -354,7 +354,7 @@ private[celeborn] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: Seq[DiskInfo],
+      diskInfoMap: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       shuffleKeys: util.HashSet[String],
       requestId: String): Unit = {
@@ -370,7 +370,7 @@ private[celeborn] class Master(
         pushPort,
         fetchPort,
         replicatePort,
-        disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
+        diskInfoMap,
         userResourceConsumption,
         System.currentTimeMillis(),
         requestId)

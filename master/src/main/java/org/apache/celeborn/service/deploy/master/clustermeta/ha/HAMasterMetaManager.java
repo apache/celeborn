@@ -218,7 +218,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfo> disks,
+      Map<String, DiskInfo> diskInfoMap,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       String requestId) {
@@ -234,7 +234,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setPushPort(pushPort)
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .putAllDisks(MetaUtil.toPbDiskInfos(diskInfoMap))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .setTime(time)
@@ -252,7 +252,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfo> disks,
+      Map<String, DiskInfo> diskInfoMap,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
     try {
@@ -267,7 +267,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setPushPort(pushPort)
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .putAllDisks(MetaUtil.toPbDiskInfos(diskInfoMap))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .build())

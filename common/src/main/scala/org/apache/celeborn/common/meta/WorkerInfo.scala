@@ -188,9 +188,9 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.availableSlots()).sum
   }
 
-  def updateDiskInfos(
+  def updateThenGetDiskInfos(
       newDiskInfos: java.util.Map[String, DiskInfo],
-      estimatedPartitionSize: Long): Unit = this.synchronized {
+      estimatedPartitionSize: Long): util.Map[String, DiskInfo] = this.synchronized {
     import scala.collection.JavaConverters._
     for (newDisk <- newDiskInfos.values().asScala) {
       val mountPoint: String = newDisk.mountPoint
@@ -215,6 +215,7 @@ class WorkerInfo(
         diskInfos.remove(nonExistsMountPoint)
       }
     }
+    diskInfos
   }
 
   def updateThenGetUserResourceConsumption(consumption: util.Map[

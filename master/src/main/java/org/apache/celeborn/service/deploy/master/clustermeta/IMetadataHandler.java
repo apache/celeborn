@@ -57,7 +57,7 @@ public interface IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfo> disks,
+      Map<String, DiskInfo> diskInfoMap,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       String requestId);
@@ -68,7 +68,7 @@ public interface IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfo> disks,
+      Map<String, DiskInfo> diskInfoMap,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);
 
