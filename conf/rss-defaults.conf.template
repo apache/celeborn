@@ -1,0 +1,43 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# An Example:
+rss.rpc.io.mode                                  NIO
+rss.rpc.io.clientThreads                         8
+rss.rpc.io.serverThreads                         8
+rss.rpc.io.numConnectionsPerPeer                 8
+
+rss.push.io.numConnectionsPerPeer                8
+rss.push.io.threads                              8
+
+rss.worker.flush.queue.capacity                  4096
+rss.push.data.replicate                          true
+rss.metrics.system.enabled                       true
+rss.worker.prometheus.metric.port                9096
+rss.master.prometheus.metric.port                9098
+rss.worker.base.dirs                             /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5,/mnt/disk6,/mnt/disk7,/mnt/disk8,/mnt/disk9,/mnt/disk10
+
+rss.master.port                                  9097
+rss.ha.enabled                                    true
+rss.ha.master.hosts                              localhost
+rss.ha.service.id                             rss
+rss.ha.nodes.rss                              node1
+rss.ha.address.rss.node1                      localhost
+rss.ha.port                                   9872
+rss.ha.storage.dir                               /mnt/disk1/rss_ratis/
+rss.ha.ratis.snapshot.auto.trigger.enabled            true
+rss.ha.ratis.snapshot.auto.trigger.threshold        200000

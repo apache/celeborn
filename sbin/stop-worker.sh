@@ -16,14 +16,14 @@
 # limitations under the License.
 #
 
-# Stops the celeborn worker on the machine this script is executed on.
+# Stops the clb worker on the machine this script is executed on.
 
-if [ -z "${CELEBORN_HOME}" ]; then
-  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CLB_HOME}" ]; then
+  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
 if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" stop org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE"
+"${CLB_HOME}/sbin/clb-daemon.sh" stop org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE"

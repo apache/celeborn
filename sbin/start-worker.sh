@@ -16,26 +16,26 @@
 # limitations under the License.
 #
 
-# Starts the celeborn worker on the machine this script is executed on.
+# Starts the clb worker on the machine this script is executed on.
 
-if [ -z "${CELEBORN_HOME}" ]; then
-  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CLB_HOME}" ]; then
+  export CLB_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
+. "${CLB_HOME}/sbin/clb-config.sh"
 
-if [ "$CELEBORN_WORKER_MEMORY" = "" ]; then
-  CELEBORN_WORKER_MEMORY="1g"
+if [ "$CLB_WORKER_MEMORY" = "" ]; then
+  CLB_WORKER_MEMORY="1g"
 fi
 
-if [ "$CELEBORN_WORKER_OFFHEAP_MEMORY" = "" ]; then
-  CELEBORN_WORKER_OFFHEAP_MEMORY="1g"
+if [ "$CLB_WORKER_OFFHEAP_MEMORY" = "" ]; then
+  CLB_WORKER_OFFHEAP_MEMORY="1g"
 fi
 
-export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
+export CLB_JAVA_OPTS="-Xmx$CLB_WORKER_MEMORY -XX:MaxDirectMemorySize=$CLB_WORKER_OFFHEAP_MEMORY $CLB_WORKER_JAVA_OPTS"
 
 if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
+"${CLB_HOME}/sbin/clb-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
