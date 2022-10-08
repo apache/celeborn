@@ -51,7 +51,8 @@ case class Quota(
   private def checkDiskBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
     val exceed = (diskBytesWritten > 0 && value >= diskBytesWritten)
     if (exceed) {
-      logWarning(s"User $userIdentifier quota exceed diskBytesWritten, $value >= $diskBytesWritten")
+      logWarning(s"User $userIdentifier quota exceed diskBytesWritten, " +
+        s"$value >= $diskBytesWritten")
     }
     exceed
   }
@@ -67,7 +68,8 @@ case class Quota(
   private def checkHdfsBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
     val exceed = (hdfsBytesWritten > 0 && value >= hdfsBytesWritten)
     if (exceed) {
-      logWarning(s"User $userIdentifier quota exceed hdfsBytesWritten, $value >= $hdfsBytesWritten")
+      logWarning(s"User $userIdentifier quota exceed hdfsBytesWritten, " +
+        s"$value >= $hdfsBytesWritten")
     }
     exceed
   }
