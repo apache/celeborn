@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import org.apache.spark.SparkConf
 
-import org.apache.celeborn.client.write.LifecycleManager
+import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.internal.Logging
 
