@@ -27,8 +27,8 @@ import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.client.write.LifecycleManager;
 import org.apache.celeborn.common.RssConf;
 
 public class RssShuffleManager implements ShuffleManager {
