@@ -30,4 +30,4 @@ fi
 
 export RSS_JAVA_OPTS="-Xmx$RSS_MASTER_MEMORY $RSS_MASTER_JAVA_OPTS"
 
-"${RSS_HOME}/sbin/rss-daemon.sh" start com.aliyun.emr.rss.service.deploy.master.Master 1 "$@"
+"${RSS_HOME}/sbin/rss-daemon.sh" start org.apache.celeborn.service.deploy.master.Master 1 "$@"

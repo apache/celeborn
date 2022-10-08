@@ -12,7 +12,7 @@ diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/ma
    }
 +
 +  def isRssEnabled(conf: SparkConf): Boolean =
-+    conf.get("spark.shuffle.manager", "sort") == "org.apache.spark.shuffle.rss.RssShuffleManager"
++    conf.get("spark.shuffle.manager", "sort") == "org.apache.spark.shuffle.celeborn.RssShuffleManager"
  }
  
  private[util] object CallerContext extends Logging {

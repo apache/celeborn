@@ -32,8 +32,8 @@ masterReplicas: 3
 # worker replicas set on demand, should less than node number
 workerReplicas: 5
 
-# rss release version
-rssVersion: 0.1.1
+# celeborn release version
+celebornVersion: 0.1.1
 
 # rss configurations
 rss:
