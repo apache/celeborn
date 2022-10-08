@@ -16,19 +16,19 @@
 # limitations under the License.
 #
 
-# Runs a RSS command as a daemon.
+# Runs a celeborn command as a daemon.
 #
 # Environment Variables
 #
-#   RSS_CONF_DIR  Alternate conf dir. Default is ${RSS_HOME}/conf.
-#   RSS_LOG_DIR   Where log files are stored. ${RSS_HOME}/logs by default.
-#   RSS_PID_DIR   The pid files are stored. /tmp by default.
-#   RSS_IDENT_STRING   A string representing this instance of rss. $USER by default
-#   RSS_NICENESS The scheduling priority for daemons. Defaults to 0.
-#   RSS_NO_DAEMONIZE   If set, will run the proposed command in the foreground. It will not output a PID file.
+#   CELEBORN_CONF_DIR  Alternate conf dir. Default is ${CELEBORN_HOME}/conf.
+#   CELEBORN_LOG_DIR   Where log files are stored. ${CELEBORN_HOME}/logs by default.
+#   CELEBORN_PID_DIR   The pid files are stored. /tmp by default.
+#   CELEBORN_IDENT_STRING   A string representing this instance of celeborn. $USER by default
+#   CELEBORN_NICENESS The scheduling priority for daemons. Defaults to 0.
+#   CELEBORN_NO_DAEMONIZE   If set, will run the proposed command in the foreground. It will not output a PID file.
 ##
 
-usage="Usage: rss-daemon.sh [--config <conf-dir>] (start|stop|status) <rss-command> <rss-instance-number> <args...>"
+usage="Usage: celeborn-daemon.sh [--config <conf-dir>] (start|stop|status) <celeborn-command> <celeborn-instance-number> <args...>"
 
 # if no args specified, show usage
 if [ $# -le 1 ]; then
@@ -36,11 +36,11 @@ if [ $# -le 1 ]; then
   exit 1
 fi
 
-if [ -z "${RSS_HOME}" ]; then
-  export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${RSS_HOME}/sbin/rss-config.sh"
+. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
 
 # get arguments
 
@@ -57,7 +57,7 @@ then
     echo $usage
     exit 1
   else
-    export RSS_CONF_DIR="$conf_dir"
+    export CELEBORN_CONF_DIR="$conf_dir"
   fi
   shift
 fi
@@ -69,7 +69,7 @@ shift
 instance=$1
 shift
 
-rss_rotate_log ()
+celeborn_rotate_log ()
 {
     log=$1;
     num=5;
@@ -86,40 +86,40 @@ rss_rotate_log ()
     fi
 }
 
-if [ "$RSS_IDENT_STRING" = "" ]; then
-  export RSS_IDENT_STRING="$USER"
+if [ "$CELEBORN_IDENT_STRING" = "" ]; then
+  export CELEBORN_IDENT_STRING="$USER"
 fi
 
-export RSS_PRINT_LAUNCH_COMMAND="1"
+export CELEBORN_PRINT_LAUNCH_COMMAND="1"
 
 # get log directory
-if [ "$RSS_LOG_DIR" = "" ]; then
-  export RSS_LOG_DIR="${RSS_HOME}/logs"
+if [ "$CELEBORN_LOG_DIR" = "" ]; then
+  export CELEBORN_LOG_DIR="${CELEBORN_HOME}/logs"
 fi
-mkdir -p "$RSS_LOG_DIR"
-touch "$RSS_LOG_DIR"/.rss_test > /dev/null 2>&1
+mkdir -p "$CELEBORN_LOG_DIR"
+touch "$CELEBORN_LOG_DIR"/.celeborn_test > /dev/null 2>&1
 TEST_LOG_DIR=$?
 if [ "${TEST_LOG_DIR}" = "0" ]; then
-  rm -f "$RSS_LOG_DIR"/.rss_test
+  rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
 else
-  chown "$RSS_IDENT_STRING" "$RSS_LOG_DIR"
+  chown "$CELEBORN_IDENT_STRING" "$CELEBORN_LOG_DIR"
 fi
 
-if [ "$RSS_PID_DIR" = "" ]; then
-  RSS_PID_DIR="${RSS_HOME}/pids"
+if [ "$CELEBORN_PID_DIR" = "" ]; then
+  CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
 fi
 
 # some variables
-log="$RSS_LOG_DIR/rss-$RSS_IDENT_STRING-$command-$instance-$HOSTNAME.out"
-pid="$RSS_PID_DIR/rss-$RSS_IDENT_STRING-$command-$instance.pid"
+log="$CELEBORN_LOG_DIR/celeborn-$CELEBORN_IDENT_STRING-$command-$instance-$HOSTNAME.out"
+pid="$CELEBORN_PID_DIR/celeborn-$CELEBORN_IDENT_STRING-$command-$instance.pid"
 
 # Set default scheduling priority
-if [ "$RSS_NICENESS" = "" ]; then
-    export RSS_NICENESS=0
+if [ "$CELEBORN_NICENESS" = "" ]; then
+    export CELEBORN_NICENESS=0
 fi
 
 execute_command() {
-  if [ -z ${RSS_NO_DAEMONIZE+set} ]; then
+  if [ -z ${CELEBORN_NO_DAEMONIZE+set} ]; then
       nohup -- "$@" >> $log 2>&1 < /dev/null &
       newpid="$!"
 
@@ -150,7 +150,7 @@ run_command() {
   mode="$1"
   shift
 
-  mkdir -p "$RSS_PID_DIR"
+  mkdir -p "$CELEBORN_PID_DIR"
 
   if [ -f "$pid" ]; then
     TARGET_ID="$(cat "$pid")"
@@ -160,12 +160,12 @@ run_command() {
     fi
   fi
 
-  rss_rotate_log "$log"
+  celeborn_rotate_log "$log"
   echo "starting $command, logging to $log"
 
   case "$mode" in
     (class)
-      execute_command nice -n "$RSS_NICENESS" "${RSS_HOME}"/bin/rss-class "$command" "$@"
+      execute_command nice -n "$CELEBORN_NICENESS" "${CELEBORN_HOME}"/bin/celeborn-class "$command" "$@"
       ;;
 
     (*)
@@ -205,7 +205,7 @@ case $option in
         echo "stopping $command"
         kill "$TARGET_ID" && rm -f "$pid"
         wait_time=0
-        # keep same with `rss.worker.shutdown.timeout`
+        # keep same with `celeborn.worker.shutdown.timeout`
         wait_timeout=600
         while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
         do

@@ -16,10 +16,10 @@
 # limitations under the License.
 #
 
-# Stops the rss master on the machine this script is executed on.
+# Stops the CELEBORN master on the machine this script is executed on.
 
-if [ -z "${RSS_HOME}" ]; then
-  export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-"${RSS_HOME}/sbin/rss-daemon.sh" stop org.apache.celeborn.service.deploy.master.Master 1
+"${CELEBORN_HOME}/sbin/CELEBORN-daemon.sh" stop org.apache.celeborn.service.deploy.master.Master 1
