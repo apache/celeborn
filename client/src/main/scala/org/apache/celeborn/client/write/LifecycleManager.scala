@@ -1388,7 +1388,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         classOf[CheckQuotaResponse]).isAvailable
     } catch {
       case e: Exception =>
-        logError(s"AskSync Cluster Load Status failed.", e)
+        logError(s"AskSync Cluster check quota for $userIdentifier failed.", e)
         false
     }
   }

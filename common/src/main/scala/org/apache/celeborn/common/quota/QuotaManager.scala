@@ -23,6 +23,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
 
 abstract class QuotaManager(conf: RssConf) extends Logging {
+
   val userQuotas: ConcurrentHashMap[UserIdentifier, Quota] =
     new ConcurrentHashMap[UserIdentifier, Quota]()
 
@@ -37,7 +38,7 @@ abstract class QuotaManager(conf: RssConf) extends Logging {
   def refresh(): Unit
 
   def getQuota(userIdentifier: UserIdentifier): Quota = {
-    userQuotas.getOrDefault(userIdentifier, new Quota())
+    userQuotas.getOrDefault(userIdentifier, Quota())
   }
 }
 
@@ -60,5 +61,4 @@ object QuotaManager extends Logging {
         throw e
     }
   }
-
 }
