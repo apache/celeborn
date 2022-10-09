@@ -18,18 +18,18 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: shuffleservice-master
+  name: celeborn-master
   labels:
-    app.kubernetes.io/name: shuffleservicemaster
+    app.kubernetes.io/name: celeborn-master
     app.kubernetes.io/role: master
-    {{- include "remote-shuffle-service.labels" . | nindent 4 }}
+    {{- include "celeborn.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: shuffleservicemaster
+      app.kubernetes.io/name: celeborn-master
       app.kubernetes.io/role: master
-      {{- include "remote-shuffle-service.selectorLabels" . | nindent 6 }}
-  serviceName: rss-svc
+      {{- include "celeborn.selectorLabels" . | nindent 6 }}
+  serviceName: celeborn-master-svc
   replicas: {{ .Values.masterReplicas }}
   template:
     metadata:
@@ -38,9 +38,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app.kubernetes.io/name: shuffleservicemaster
+        app.kubernetes.io/name: celeborn-master
         app.kubernetes.io/role: master
-        {{- include "remote-shuffle-service.selectorLabels" . | nindent 8 }}
+        {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
       affinity:
         podAntiAffinity:
@@ -50,7 +50,7 @@ spec:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                - shuffleservicemaster
+                - celeborn-master
             topologyKey: kubernetes.io/hostname
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -77,20 +77,20 @@ spec:
           - "--"
           - "/bin/sh"
           - '-c'
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/rss-{{ .Values.rssVersion }}-bin-release/sbin/start-master.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn-{{ .Values.celebornVersion }}-bin/sbin/start-master.sh"
         resources:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
           - containerPort: {{ .Values.service.port }}
-          - containerPort: {{ get .Values.rss "rss.master.prometheus.metric.port" | default 9098 }}
+          - containerPort: {{ get .Values.celeborn "rss.master.prometheus.metric.port" | default 9098 }}
             name: metrics
             protocol: TCP
         volumeMounts:
-          - mountPath: /opt/rss-{{ .Values.rssVersion }}-bin-release/conf
-            name: {{ include "remote-shuffle-service.fullname" . }}-volume
+          - mountPath: /opt/celeborn-{{ .Values.celebornVersion }}-bin/conf
+            name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
-          - name: {{ include "remote-shuffle-service.fullname" . }}-master-ratis
-            mountPath: {{get .Values.rss "rss.ha.storage.dir"}}
+          - name: {{ include "celeborn.fullname" . }}-master-ratis
+            mountPath: {{get .Values.celeborn "rss.ha.storage.dir"}}
         env:
           - name:  TZ
             value: "Asia/Shanghai"
@@ -104,9 +104,9 @@ spec:
       volumes:
         - configMap:
             name: {{ .Values.configmap }}
-          name: {{ include "remote-shuffle-service.fullname" . }}-volume 
-        {{- $dirs := get .Values.rss "rss.worker.base.dirs" | splitList ","}}
+          name: {{ include "celeborn.fullname" . }}-volume
+        {{- $dirs := get .Values.celeborn "rss.worker.base.dirs" | splitList ","}}
         - hostPath:
             path: {{ index $dirs 0 }}/ratis
             type: DirectoryOrCreate
-          name: {{ include "remote-shuffle-service.fullname" . }}-master-ratis
+          name: {{ include "celeborn.fullname" . }}-master-ratis

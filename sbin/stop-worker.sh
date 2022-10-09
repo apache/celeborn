@@ -16,14 +16,14 @@
 # limitations under the License.
 #
 
-# Stops the rss worker on the machine this script is executed on.
+# Stops the celeborn worker on the machine this script is executed on.
 
-if [ -z "${RSS_HOME}" ]; then
-  export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
 if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${RSS_HOME}/sbin/rss-daemon.sh" stop com.aliyun.emr.rss.service.deploy.worker.Worker "$WORKER_INSTANCE"
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" stop org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE"

@@ -18,21 +18,21 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: shuffle-service-conf
+  name: celeborn-conf
   labels:
-    {{- include "remote-shuffle-service.labels" . | nindent 4 }}
+    {{- include "celeborn.labels" . | nindent 4 }}
 data:
   rss-defaults.conf: |-
-    {{- range $key, $val := .Values.rss }}
+    {{- range $key, $val := .Values.celeborn }}
     {{ $key }}={{ $val }}
     {{- end -}} 
     {{- $namespace  := .Release.Namespace }}
     rss.ha.enabled=true
     rss.ha.service.id=rss
-    rss.ha.master.hosts={{ range until (.Values.masterReplicas |int) }}shuffleservice-master-{{ . }}.rss-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
+    rss.ha.master.hosts={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
     rss.ha.nodes.rss={{ range until (.Values.masterReplicas |int) }}node{{ . }},{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
-    rss.ha.address.rss.node{{ . }}=shuffleservice-master-{{ . }}.rss-master-svc.{{ $namespace }}.svc.cluster.local
+    rss.ha.address.rss.node{{ . }}=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local
     {{- end }}
     
   rss-env.sh: |
@@ -83,4 +83,4 @@ data:
     </Configuration>
 
   metrics.properties: >-
-    *.sink.prometheusServlet.class=com.aliyun.emr.rss.common.metrics.sink.PrometheusServlet
+    *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet

@@ -18,7 +18,7 @@
 ARG java_image_tag=8-jdk-focal
 FROM eclipse-temurin:${java_image_tag}
 
-ARG rss_version=0.1.1
+ARG celeborn_version=0.1.1
 
 USER root
 
@@ -29,4 +29,4 @@ RUN set -ex && \
     rm -rf /var/cache/apt/* && \
     mkdir -p /opt/
 
-ADD rss-${rss_version}-bin-release.tgz /opt/
+ADD celeborn-${celeborn_version}-bin.tgz /opt/
