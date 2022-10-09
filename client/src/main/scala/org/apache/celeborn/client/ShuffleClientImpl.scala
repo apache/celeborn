@@ -300,7 +300,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     val delta: Long = RssConf.limitInFlightSleepDeltaMs(conf)
     var times: Long = timeoutMs / delta
     try {
-      while (times > 0 || inFlightBatches.size > limit) {
+      while (times > 0 && inFlightBatches.size > limit) {
         if (pushState.exception.get != null) {
           throw pushState.exception.get
         }
