@@ -924,7 +924,11 @@ object RssConf extends Logging {
   def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
 
   def haMasterHosts(conf: RssConf): String = {
-    conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
+    if (conf.get(HA_ENABLED)) {
+      conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
+    } else {
+      masterHostsFromAddress(conf)
+    }
   }
 
   def haClientMaxTries(conf: RssConf): Int = {
