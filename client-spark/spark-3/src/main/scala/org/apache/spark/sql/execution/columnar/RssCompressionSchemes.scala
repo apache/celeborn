@@ -241,7 +241,7 @@ case object RssPassThrough extends RssCompressionScheme {
 }
 
 case object RssDictionaryEncoding extends RssCompressionScheme {
-  override val typeId = 2
+  override val typeId = 1
 
   // 32K unique values allowed
   var MAX_DICT_SIZE = Short.MaxValue
