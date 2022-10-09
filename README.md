@@ -31,7 +31,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 6. Workers merge and replicate data to its peer.
 7. Workers flush to disk periodically.
 8. Mapper tasks accomplish and trigger MapperEnd event.
-9. When all mapper tasks complete, workers commit files.
+9. When all mapper tasks are complete, workers commit files.
 10. Reducers ask for file locations.
 11. Reducers read shuffle data.
 
@@ -75,17 +75,17 @@ For example, if you are running Spark 2.4, you must compile Celeborn client with
 Celeborn supports HA mode deployment.
 
 ### Deploy Celeborn
-1. Unzip the package to $RSS_HOME
-2. Modify environment variables in $RSS_HOME/conf/rss-env.sh
+1. Unzip the package to $CELEBORN_HOME
+2. Modify environment variables in $CELEBORN_HOME/conf/celeborn-env.sh
 
 EXAMPLE:
 ```properties
 #!/usr/bin/env bash
-RSS_MASTER_MEMORY=4g
-RSS_WORKER_MEMORY=2g
-RSS_WORKER_OFFHEAP_MEMORY=4g
+CELEBORN_MASTER_MEMORY=4g
+CELEBORN_WORKER_MEMORY=2g
+CELEBORN_WORKER_OFFHEAP_MEMORY=4g
 ```
-3. Modify configurations in $RSS_HOME/conf/rss-defaults.conf
+3. Modify configurations in $CELEBORN_HOME/conf/rss-defaults.conf
 
 EXAMPLE: single master cluster
 ```properties
@@ -123,56 +123,32 @@ rss.ha.port.dev-cluster.node3 9872
 ```
 4. Copy Celeborn and configurations to all nodes
 5. Start Celeborn master
-   `$RSS_HOME/sbin/start-master.sh`
+   `$CELEBORN_HOME/sbin/start-master.sh`
 6. Start Celeborn worker
-   For single master cluster : `$RSS_HOME/sbin/start-worker.sh rss://masterhost:port`
-   For HA cluster :`$RSS_HOME/sbin/start-worker.sh`
+   For single master cluster : `$CELEBORN_HOME/sbin/start-worker.sh rss://masterhost:port`
+   For HA cluster :`$CELEBORN_HOME/sbin/start-worker.sh`
 7. If Celeborn start success, the output of Master's log should be like this:
 ```angular2html
-21/12/21 20:06:18,964 INFO [main] Dispatcher: Dispatcher numThreads: 64
-21/12/21 20:06:18,994 INFO [main] TransportClientFactory: mode NIO threads 8
-21/12/21 20:06:19,113 WARN [main] ServerBootstrap: Unknown channel option 'TCP_NODELAY' for channel '[id: 0x8a9442f6]'
-21/12/21 20:06:19,129 INFO [main] Utils: Successfully started service 'MasterSys' on port 9097.
-21/12/21 20:06:19,150 INFO [main] HttpServer: HttpServer started on port 7001.
-21/12/21 20:06:21,615 INFO [netty-rpc-connection-0] TransportClientFactory: Successfully created connection to /172.16.159.100:40115 after 4 ms (0 ms spent in bootstraps)
-21/12/21 20:06:21,661 INFO [dispatcher-event-loop-9] Master: Registered worker
-Host: 172.16.159.100
-RpcPort: 40115
-PushPort: 35489
-FetchPort: 35689
-TotalSlots: 4096
-SlotsUsed: 0
-SlotsAvailable: 4096
+22/10/08 19:29:11,805 INFO [main] Dispatcher: Dispatcher numThreads: 64
+22/10/08 19:29:11,875 INFO [main] TransportClientFactory: mode NIO threads 64
+22/10/08 19:29:12,057 INFO [main] Utils: Successfully started service 'MasterSys' on port 9097.
+22/10/08 19:29:12,113 INFO [main] Master: Metrics system enabled.
+22/10/08 19:29:12,125 INFO [main] HttpServer: master: HttpServer started on port 9098.
+22/10/08 19:29:12,126 INFO [main] Master: Master started.
+22/10/08 19:29:57,842 INFO [dispatcher-event-loop-19] Master: Registered worker
+Host: 192.168.15.140
+RpcPort: 37359
+PushPort: 38303
+FetchPort: 37569
+ReplicatePort: 37093
+SlotsUsed: 0()
 LastHeartbeat: 0
-WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.100:40115)
-.
-21/12/21 20:06:23,785 INFO [netty-rpc-connection-1] TransportClientFactory: Successfully created connection to /172.16.159.98:39151 after 1 ms (0 ms spent in bootstraps)
-21/12/21 20:06:23,817 INFO [dispatcher-event-loop-17] Master: Registered worker
-Host: 172.16.159.98
-RpcPort: 39151
-PushPort: 40193
-FetchPort: 37455
-TotalSlots: 4096
-SlotsUsed: 0
-SlotsAvailable: 4096
-LastHeartbeat: 0
-WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.98:39151)
-.
-21/12/21 20:06:25,948 INFO [netty-rpc-connection-2] TransportClientFactory: Successfully created connection to /172.16.159.99:41955 after 1 ms (0 ms spent in bootstraps)
-21/12/21 20:06:26,009 INFO [dispatcher-event-loop-25] Master: Registered worker
-Host: 172.16.159.99
-RpcPort: 41955
-PushPort: 37587
-FetchPort: 46865
-TotalSlots: 4096
-SlotsUsed: 0
-SlotsAvailable: 4096
-LastHeartbeat: 0
-WorkerRef: NettyRpcEndpointRef(ess://WorkerEndpoint@172.16.159.99:41955)
+Disks: {/mnt/disk1=DiskInfo(maxSlots: 6679, committed shuffles 0 shuffleAllocations: Map(), mountPoint: /mnt/disk1, usableSpace: 448284381184, avgFlushTime: 0, activeSlots: 0) status: HEALTHY dirs , /mnt/disk3=DiskInfo(maxSlots: 6716, committed shuffles 0 shuffleAllocations: Map(), mountPoint: /mnt/disk3, usableSpace: 450755608576, avgFlushTime: 0, activeSlots: 0) status: HEALTHY dirs , /mnt/disk2=DiskInfo(maxSlots: 6713, committed shuffles 0 shuffleAllocations: Map(), mountPoint: /mnt/disk2, usableSpace: 450532900864, avgFlushTime: 0, activeSlots: 0) status: HEALTHY dirs , /mnt/disk4=DiskInfo(maxSlots: 6712, committed shuffles 0 shuffleAllocations: Map(), mountPoint: /mnt/disk4, usableSpace: 450456805376, avgFlushTime: 0, activeSlots: 0) status: HEALTHY dirs }
+WorkerRef: null
 ```
 
 ### Deploy Spark client
-Copy $RSS_HOME/spark/*.jar to $SPARK_HOME/jars/
+Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 
 ### Spark Configuration
 To use Celeborn, following spark configurations should be added.
@@ -197,15 +173,15 @@ spark.rss.push.data.replicate true
 # we recommend set localShuffleReader to false to get better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
 
-# we recommend enable aqe support to gain better performance
+# we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
-spark.sql.adaptive.skewJoin.enabled true 
+spark.sql.adaptive.skewJoin.enabled true
 ```
 
 ### Best Practice
 If you want to set up a production-ready Celeborn cluster, your cluster should have at least 3 masters and at least 4 workers.
-Masters and works can be deployed on the same node, but should not deploy multiple masters or workers on the same node.
-See more detail in [CONFIGURATIONS](CONFIGURATION_GUIDE.md)
+Masters and works can be deployed on the same node but should not deploy multiple masters or workers on the same node.
+See more detail in [CONFIGURATIONS](docs/configuration.md)
 
 ### Support Spark Dynamic Allocation
 We provide a patch to enable users to use Spark with both dynamic allocation and Remote Shuffle Service.
@@ -213,18 +189,20 @@ For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_RDA_spark2.patch).
 For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_RDA_spark3.patch).
 
 ### Metrics
-Celeborn have various metrics. [METRICS](METRICS.md)
+Celeborn has various metrics. [METRICS](METRICS.md)
 
 ## Contribution
-This is an active open-source project. We are always open to developers who want to use the system or contribute to it.  
+This is an active open-source project. We are always open to developers who want to use the system or contribute to it. 
 See more detail in [Contributing](CONTRIBUTING.md).
 
 ## NOTICE
-If you need to fully restart an Celeborn cluster in HA mode, you must clean ratis meta storage first because ratis meta will store expired states of the last running cluster.
+If you need to fully restart a Celeborn cluster in HA mode,
+you must clean ratis meta storage first
+because ratis meta will store expired states of the last running cluster.
 
 Here are some instructions:
 1. Stop all workers.
 2. Stop all masters.
-3. Clean all master`s ratis meta storage directory(rss.ha.storage.dir).
+3. Clean all master's ratis meta storage directory(rss.ha.storage.dir).
 4. Start all masters.
 5. Start all workers.
