@@ -33,7 +33,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 
-import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.ShuffleClient$;
 import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -84,13 +84,16 @@ public class DfsPartitionReader implements PartitionReader {
             e);
       }
       hdfsInputStream =
-          ShuffleClient.getHdfsFs(conf)
+          ShuffleClient$.MODULE$
+              .getHdfsFs(conf)
               .open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
       hdfsInputStream =
-          ShuffleClient.getHdfsFs(conf).open(new Path(location.getStorageInfo().getFilePath()));
+          ShuffleClient$.MODULE$
+              .getHdfsFs(conf)
+              .open(new Path(location.getStorageInfo().getFilePath()));
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
     if (chunkOffsets.size() > 1) {
@@ -123,7 +126,8 @@ public class DfsPartitionReader implements PartitionReader {
   private List<Long> getChunkOffsetsFromUnsortedIndex(RssConf conf, PartitionLocation location)
       throws IOException {
     FSDataInputStream indexInputStream =
-        ShuffleClient.getHdfsFs(conf)
+        ShuffleClient$.MODULE$
+            .getHdfsFs(conf)
             .open(new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())));
     List<Long> offsets = new ArrayList<>();
     int offsetCount = indexInputStream.readInt();
@@ -138,8 +142,10 @@ public class DfsPartitionReader implements PartitionReader {
       RssConf conf, PartitionLocation location, int startMapIndex, int endMapIndex)
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
-    FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
-    long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
+    FSDataInputStream indexInputStream =
+        ShuffleClient$.MODULE$.getHdfsFs(conf).open(new Path(indexPath));
+    long indexSize =
+        ShuffleClient$.MODULE$.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
     // Index size won't be large, so it's safe to do the conversion.
     ByteBuffer indexBuffer = ByteBuffer.allocate((int) indexSize);
     indexInputStream.readFully(0L, indexBuffer);
