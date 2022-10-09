@@ -18,24 +18,24 @@
 
 unset HADOOP_CONF_DIR
 
-# included in all the rss scripts with source command
+# included in all the celeborn scripts with source command
 # should not be executable directly
 # also should not be passed any arguments, since we need original $*
 
-# symlink and absolute path should rely on RSS_HOME to resolve
-if [ -z "${RSS_HOME}" ]; then
-  export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+# symlink and absolute path should rely on CELEBORN_HOME to resolve
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-export RSS_CONF_DIR="${RSS_CONF_DIR:-"${RSS_HOME}/conf"}"
+export CELEBORN_CONF_DIR="${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}"
 
-if [ -z "$RSS_ENV_LOADED" ]; then
-  export RSS_ENV_LOADED=1
+if [ -z "$CELEBORN_ENV_LOADED" ]; then
+  export CELEBORN_ENV_LOADED=1
 
-  if [ -f "${RSS_CONF_DIR}/rss-env.sh" ]; then
+  if [ -f "${CELEBORN_CONF_DIR}/celeborn-env.sh" ]; then
     # Promote all variable declarations to environment (exported) variables
     set -a
-    . "${RSS_CONF_DIR}/rss-env.sh"
+    . "${CELEBORN_CONF_DIR}/celeborn-env.sh"
     set +a
   fi
 fi

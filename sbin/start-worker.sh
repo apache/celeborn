@@ -16,26 +16,26 @@
 # limitations under the License.
 #
 
-# Starts the rss worker on the machine this script is executed on.
+# Starts the celeborn worker on the machine this script is executed on.
 
-if [ -z "${RSS_HOME}" ]; then
-  export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${RSS_HOME}/sbin/rss-config.sh"
+. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
 
-if [ "$RSS_WORKER_MEMORY" = "" ]; then
-  RSS_WORKER_MEMORY="1g"
+if [ "$CELEBORN_WORKER_MEMORY" = "" ]; then
+  CELEBORN_WORKER_MEMORY="1g"
 fi
 
-if [ "$RSS_WORKER_OFFHEAP_MEMORY" = "" ]; then
-  RSS_WORKER_OFFHEAP_MEMORY="1g"
+if [ "$CELEBORN_WORKER_OFFHEAP_MEMORY" = "" ]; then
+  CELEBORN_WORKER_OFFHEAP_MEMORY="1g"
 fi
 
-export RSS_JAVA_OPTS="-Xmx$RSS_WORKER_MEMORY -XX:MaxDirectMemorySize=$RSS_WORKER_OFFHEAP_MEMORY $RSS_WORKER_JAVA_OPTS"
+export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
 
 if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${RSS_HOME}/sbin/rss-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
