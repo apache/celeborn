@@ -19,8 +19,8 @@ package org.apache.celeborn.service.deploy.worker;
 
 import java.nio.charset.StandardCharsets;
 
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
-import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
+import org.apache.celeborn.common.protocol.message.ControlMessages;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 
 public abstract class ShuffleRecoverHelper {
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
