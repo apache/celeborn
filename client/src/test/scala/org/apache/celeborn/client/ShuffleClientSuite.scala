@@ -21,14 +21,9 @@ import java.io.IOException
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
 
-import io.netty.channel.Channel
 import io.netty.channel.ChannelFuture
-import io.netty.util.concurrent.Future
-import io.netty.util.concurrent.GenericFutureListener
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.Test
 import org.mockito.Matchers.any
@@ -195,15 +190,15 @@ class ShuffleClientSuite {
     when(mockedFuture.isVoid).thenReturn(false)
     when(mockedFuture.isSuccess).thenReturn(true)
     when(mockedFuture.isCancellable).thenReturn(false)
-    when(mockedFuture.await(mock[Long](classOf[Long]))).thenReturn(true)
+    when(mockedFuture.await(any[Long](classOf[Long]))).thenReturn(true)
     when(
-      mockedFuture.await(mock[Long](classOf[Long]), mock[TimeUnit](classOf[TimeUnit]))).thenReturn(
+      mockedFuture.await(any[Long](classOf[Long]), any[TimeUnit](classOf[TimeUnit]))).thenReturn(
       true)
-    when(mockedFuture.awaitUninterruptibly(mock[Long](classOf[Long]))).thenReturn(true)
+    when(mockedFuture.awaitUninterruptibly(any[Long](classOf[Long]))).thenReturn(true)
     when(mockedFuture.awaitUninterruptibly(
-      mock[Long](classOf[Long]),
-      mock[TimeUnit](classOf[TimeUnit]))).thenReturn(true)
-    when(mockedFuture.cancel(mock[Boolean](classOf[Boolean]))).thenReturn(false)
+      any[Long](classOf[Long]),
+      any[TimeUnit](classOf[TimeUnit]))).thenReturn(true)
+    when(mockedFuture.cancel(any[Boolean](classOf[Boolean]))).thenReturn(false)
     when(mockedFuture.isCancelled).thenReturn(false)
     when(mockedFuture.isDone).thenReturn(true)
     when(client.pushData(any(classOf[PushData]), any(classOf[RpcResponseCallback]))).thenAnswer(
