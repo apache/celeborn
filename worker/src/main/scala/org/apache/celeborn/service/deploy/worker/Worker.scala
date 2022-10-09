@@ -342,6 +342,8 @@ private[celeborn] class Worker(
               pushPort,
               fetchPort,
               replicatePort,
+              // Use WorkerInfo's diskInfo since re-register when heartbeat return not-registered,
+              // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
               workerInfo.updateThenGetUserResourceConsumption(
                 storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,
