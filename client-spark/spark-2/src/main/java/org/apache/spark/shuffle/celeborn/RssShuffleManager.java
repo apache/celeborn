@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.ShuffleClient$;
 import org.apache.celeborn.common.RssConf;
 
 public class RssShuffleManager implements ShuffleManager {
@@ -85,7 +86,7 @@ public class RssShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appId, rssConf);
           rssShuffleClient =
-              ShuffleClient.get(
+              ShuffleClient$.MODULE$.get(
                   lifecycleManager.self(), rssConf, lifecycleManager.getUserIdentifier());
         }
       }
@@ -158,7 +159,7 @@ public class RssShuffleManager implements ShuffleManager {
         @SuppressWarnings("unchecked")
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
-            ShuffleClient.get(
+            ShuffleClient$.MODULE$.get(
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), rssConf, h.userIdentifier());
         if ("sort".equals(RssConf.shuffleWriterMode(rssConf))) {
           return new SortBasedShuffleWriter<>(
