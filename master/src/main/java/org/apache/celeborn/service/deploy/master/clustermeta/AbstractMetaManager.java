@@ -174,7 +174,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(
           info -> {
-            info.updateThenGetDiskInfos(disks, estimatedPartitionSize);
+            info.updateDiskInfos(disks, estimatedPartitionSize);
             info.updateThenGetUserResourceConsumption(userResourceConsumption);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
