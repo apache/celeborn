@@ -65,7 +65,7 @@ trait AllRssCompressionSchemes extends WithRssCompressionSchemes {
 
 object RssCompressionScheme {
   val all: Seq[RssCompressionScheme] =
-    Seq(RssPassThrough)
+    Seq(RssPassThrough, RssDictionaryEncoding)
 
   private val typeIdToScheme = all.map(scheme => scheme.typeId -> scheme).toMap
 
