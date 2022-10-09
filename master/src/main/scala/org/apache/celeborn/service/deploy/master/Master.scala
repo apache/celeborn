@@ -316,7 +316,7 @@ private[celeborn] class Master(
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
-        self.send(ControlMessages.pbWorkerLost(
+        self.send(WorkerLost(
           worker.host,
           worker.rpcPort,
           worker.pushPort,
@@ -415,7 +415,7 @@ private[celeborn] class Master(
     statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
 
     if (context != null) {
-      context.reply(ControlMessages.pbWorkerLostResponse(true))
+      context.reply(WorkerLostResponse(true))
     }
   }
 
@@ -444,9 +444,7 @@ private[celeborn] class Master(
         disks,
         userResourceConsumption,
         requestId)
-      context.reply(ControlMessages.pbRegisterWorkerResponse(
-        true,
-        "Worker in snapshot, re-register."))
+      context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
@@ -460,9 +458,7 @@ private[celeborn] class Master(
         disks,
         userResourceConsumption,
         requestId)
-      context.reply(ControlMessages.pbRegisterWorkerResponse(
-        true,
-        "Worker in workerLostEvents, re-register."))
+      context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
       statusSystem.handleRegisterWorker(
         host,
@@ -474,7 +470,7 @@ private[celeborn] class Master(
         userResourceConsumption,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
-      context.reply(ControlMessages.pbRegisterWorkerResponse(true, ""))
+      context.reply(RegisterWorkerResponse(true, ""))
     }
   }
 
@@ -564,7 +560,7 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
-    context.reply(ControlMessages.pbUnregisterShuffleResponse(StatusCode.SUCCESS))
+    context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
   def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {

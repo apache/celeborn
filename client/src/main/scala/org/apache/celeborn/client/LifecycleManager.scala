@@ -312,7 +312,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             .flatMap(_.getAllMasterLocationsWithMinEpoch(shuffleId.toString).asScala)
             .filter(_.getEpoch == 0)
             .toArray
-          context.reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
+          context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
           return
         }
         logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType " +
@@ -345,11 +345,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     res.status match {
       case StatusCode.FAILED =>
         logError(s"OfferSlots RPC request failed for $shuffleId!")
-        reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.FAILED, Array.empty))
+        reply(RegisterShuffleResponse(StatusCode.FAILED, Array.empty))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
         logError(s"OfferSlots for $shuffleId failed!")
-        reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
+        reply(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
         logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
@@ -388,7 +388,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
-      reply(ControlMessages.pbRegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
+      reply(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
       // tell Master to release slots
       requestReleaseSlots(
         rssHARetryClient,
@@ -423,9 +423,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
       val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
-      reply(ControlMessages.pbRegisterShuffleResponse(
-        StatusCode.SUCCESS,
-        allMasterPartitionLocations))
+      reply(RegisterShuffleResponse(StatusCode.SUCCESS, allMasterPartitionLocations))
     }
   }
 
@@ -461,7 +459,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
-      context.reply(pbChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
       return
     }
 
@@ -470,7 +468,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       && shuffleMapperAttempts.get(shuffleId)(mapId) != -1) {
       logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
         s"ended attemptId ${shuffleMapperAttempts.get(shuffleId)(mapId)}, shuffleId $shuffleId.")
-      context.reply(pbChangeLocationResponse(StatusCode.MAP_ENDED, None))
+      context.reply(ChangeLocationResponse(StatusCode.MAP_ENDED, None))
       return
     }
 
@@ -514,7 +512,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
-          context.reply(pbChangeLocationResponse(StatusCode.SUCCESS, Some(latestLoc)))
+          context.reply(ChangeLocationResponse(StatusCode.SUCCESS, Some(latestLoc)))
           logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -538,7 +536,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val candidates = workersNotBlacklisted(shuffleId)
     if (candidates.size < 1 || (ShouldReplicate && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      reply(pbChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, None))
+      reply(ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, None))
       return null
     }
 
@@ -551,7 +549,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocation)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      reply(pbChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
+      reply(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
       return
     }
 
@@ -572,7 +570,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         slavePartitions.asScala.headOption.map(_.getPeer)
       }
 
-    reply(pbChangeLocationResponse(StatusCode.SUCCESS, newMasterLocation))
+    reply(ChangeLocationResponse(StatusCode.SUCCESS, newMasterLocation))
     logDebug(s"Renew $shuffleId $partitionId" +
       "$oldEpoch->${newMasterLocation.getEpoch} partition success.")
   }
@@ -1249,7 +1247,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
         requestUnregisterShuffle(
           rssHARetryClient,
-          ControlMessages.pbUnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
+          UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
       }
     }
   }
@@ -1359,7 +1357,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     } catch {
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
-        pbUnregisterShuffleResponse(StatusCode.FAILED)
+        UnregisterShuffleResponse(StatusCode.FAILED)
     }
   }
 
