@@ -415,6 +415,6 @@ message PbResourceConsumption {
   int64 hdfsFileCount = 4;
 }
 
-message PbShuffleKeys {
+message PbShuffleKeySet {
   repeated string shuffleKeys = 1;
 }

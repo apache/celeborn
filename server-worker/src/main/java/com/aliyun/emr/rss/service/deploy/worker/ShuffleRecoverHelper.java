@@ -24,7 +24,7 @@ import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 
 public abstract class ShuffleRecoverHelper {
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
-  protected String USER_IDENTIFIER_PREFIX = "USER_IDENTIFIER";
+  protected String USER_IDENTIFIER_PREFIX = "USER-IDENTIFIER";
   protected LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
 
   protected byte[] dbShuffleKey(String shuffleKey) {

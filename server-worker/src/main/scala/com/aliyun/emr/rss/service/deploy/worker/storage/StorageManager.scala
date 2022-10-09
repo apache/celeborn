@@ -168,13 +168,16 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
-  private val RECOVERY_FILE_INFOS_FILE_NAME = "fileInfos.ldb"
+  private val RECOVERY_FILE_NAME = "recovery.ldb"
+  // sequences of store and recover are in reverse order
+  // store sequence : userShuffleKeys -> fileInfos
+  // recover sequence: fileInfos -> userShuffleKeys
   private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
   if (RssConf.workerGracefulShutdown(conf)) {
     try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
+      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
       reloadAndCleanUserShuffleKeys(this.db)
@@ -239,7 +242,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         if (key.startsWith(USER_IDENTIFIER_PREFIX)) {
           val userIdentifier = parseDbUserIdentifier(key)
           try {
-            val shuffleKeys = PbSerDeUtils.fromPbShuffleKeys(entry.getValue)
+            val shuffleKeys = PbSerDeUtils.fromPbShuffleKeySet(entry.getValue)
             logDebug(s"Reload DB: ${userIdentifier}")
             userShuffleKeys.put(userIdentifier, shuffleKeys)
             db.delete(entry.getKey)
@@ -255,7 +258,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   def updateUserShuffleKeysInDB(): Unit = {
     userShuffleKeys.asScala.foreach { case (userIdentifier, shuffleKeys) =>
       try {
-        db.put(dbUserIdentifier(userIdentifier), PbSerDeUtils.toPbShuffleKeys(shuffleKeys))
+        db.put(dbUserIdentifier(userIdentifier), PbSerDeUtils.toPbShuffleKeySet(shuffleKeys))
         logDebug(s"Update UserShuffleInfos into DB: ${userIdentifier}")
       } catch {
         case exception: Exception =>
