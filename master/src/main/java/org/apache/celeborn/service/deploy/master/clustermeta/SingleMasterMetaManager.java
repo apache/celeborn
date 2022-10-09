@@ -98,14 +98,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       long time,
       String requestId) {
     updateWorkerHeartbeatMeta(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        diskInfoMap,
-        userResourceConsumption,
-        time);
+        host, rpcPort, pushPort, fetchPort, replicatePort, diskInfoMap, userResourceConsumption, time);
   }
 
   @Override
