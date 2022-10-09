@@ -18,13 +18,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: rss-worker-svc
+  name: celeborn-worker-svc
   labels:
-    {{- include "remote-shuffle-service.labels" . | nindent 4 }}
+    {{- include "celeborn.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   clusterIP: None
   selector:
-    {{- include "remote-shuffle-service.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/name: shuffleserviceworker
+    {{- include "celeborn.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/name: celeborn-worker
     app.kubernetes.io/role: worker

@@ -45,7 +45,7 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbRegisterShuffleResponse;
-import org.apache.celeborn.common.protocol.message.ControlMessages;
+import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
@@ -194,15 +194,15 @@ public class ShuffleClientSuiteJ {
     conf.set("rss.client.compression.codec", codec.name());
     conf.set("rss.pushdata.retry.thread.num", "1");
     conf.set("rss.push.data.buffer.size", "1K");
-    shuffleClient = new ShuffleClientImpl(conf, new ControlMessages.UserIdentifier("mock", "mock"));
+    shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
 
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(
-            ControlMessages.pbRegisterShuffle(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
+            RegisterShuffle$.MODULE$.apply(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
             ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
         .thenAnswer(
             t ->
-                ControlMessages.pbRegisterShuffleResponse(
+                RegisterShuffleResponse$.MODULE$.apply(
                     StatusCode.SUCCESS, new PartitionLocation[] {masterLocation}));
 
     shuffleClient.setupMetaServiceRef(endpointRef);

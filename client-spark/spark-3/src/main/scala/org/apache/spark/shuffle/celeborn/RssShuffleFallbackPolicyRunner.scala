@@ -57,7 +57,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
   /**
    * If rss cluster is exceed current user's quota, fallback to external shuffle
    *
-   * @return if rss cluster usage of current user's percent is overhead the limit
+   * @return if rss cluster have available space for current user.
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
     if (!RssConf.clusterCheckQuotaEnabled(rssConf)) {
