@@ -51,7 +51,6 @@ import org.apache.celeborn.common.network.protocol.PushMergedData;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.*;
-import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcAddress;
@@ -262,7 +261,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       try {
         PbRegisterShuffleResponse response =
             driverRssMetaService.askSync(
-                ControlMessages.pbRegisterShuffle(appId, shuffleId, numMappers, numPartitions),
+                RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class));
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
@@ -400,7 +399,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       PbChangeLocationResponse response =
           driverRssMetaService.askSync(
-              ControlMessages.pbRevive(
+              Revive$.MODULE$.apply(
                   applicationId,
                   shuffleId,
                   mapId,
@@ -718,8 +717,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     ShuffleClientHelper.sendShuffleSplitAsync(
         driverRssMetaService,
-        ControlMessages.pbPartitionSplit(
-            applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
+        PartitionSplit$.MODULE$.apply(applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
         splittingSet,
         partitionId,
@@ -982,7 +980,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (isDriver) {
       try {
         driverRssMetaService.send(
-            ControlMessages.pbUnregisterShuffle(
+            UnregisterShuffle$.MODULE$.apply(
                 applicationId, shuffleId, RssHARetryClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,

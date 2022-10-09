@@ -334,7 +334,7 @@ private[celeborn] class Worker(
       val resp =
         try {
           rssHARetryClient.askSync[PbRegisterWorkerResponse](
-            ControlMessages.pbRegisterWorker(
+            RegisterWorker(
               host,
               rpcPort,
               pushPort,
