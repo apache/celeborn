@@ -214,7 +214,9 @@ private[celeborn] class Worker(
         pushPort,
         fetchPort,
         replicatePort,
-        diskInfos,
+        workerInfo.updateThenGetDiskInfos(
+          diskInfos.map { disk => disk.mountPoint -> disk }.toMap.asJava,
+          RssConf.initialPartitionSize(conf)).values().asScala.toSeq,
         workerInfo.updateThenGetUserResourceConsumption(
           storageManager.userResourceConsumptionSnapshot().asJava),
         shuffleKeys),
