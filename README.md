@@ -1,4 +1,4 @@
-# Apache Celeborn
+# Celeborn
 
 [![Celeborn CI](https://github.com/alibaba/celeborn/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/alibaba/celeborn/actions/workflows/maven.yml)
 
