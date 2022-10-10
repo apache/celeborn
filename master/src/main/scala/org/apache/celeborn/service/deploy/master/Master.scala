@@ -226,7 +226,9 @@ private[celeborn] class Master(
       val userResourceConsumption = pbRegisterWorker
         .getUserResourceConsumptionMap
         .asScala
-        .map(x => (UserIdentifier(x._1), x._2))
+        .map { case (userInfo, resourceConsumption) =>
+          (UserIdentifier(userInfo), resourceConsumption)
+        }
         .mapValues(PbSerDeUtils.fromPbResourceConsumption)
         .asJava
 

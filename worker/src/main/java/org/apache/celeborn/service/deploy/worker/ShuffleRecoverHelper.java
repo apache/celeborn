@@ -19,8 +19,11 @@ package org.apache.celeborn.service.deploy.worker;
 
 import java.nio.charset.StandardCharsets;
 
+import org.apache.celeborn.common.protocol.message.ControlMessages.*;
+
 public abstract class ShuffleRecoverHelper {
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
+  protected String USER_IDENTIFIER_PREFIX = "USER-IDENTIFIER";
   protected LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
 
   protected byte[] dbShuffleKey(String shuffleKey) {
@@ -29,8 +32,21 @@ public abstract class ShuffleRecoverHelper {
 
   protected String parseDbShuffleKey(String s) {
     if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("expected a string starting with " + SHUFFLE_KEY_PREFIX);
+      throw new IllegalArgumentException("Expected a string starting with " + SHUFFLE_KEY_PREFIX);
     }
     return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+  }
+
+  protected byte[] dbUserIdentifier(UserIdentifier userIdentifier) {
+    return (USER_IDENTIFIER_PREFIX + ";" + userIdentifier.toString())
+        .getBytes(StandardCharsets.UTF_8);
+  }
+
+  protected UserIdentifier parseDbUserIdentifier(String s) {
+    if (!s.startsWith(USER_IDENTIFIER_PREFIX)) {
+      throw new IllegalArgumentException(
+          "Expected a string starting with " + USER_IDENTIFIER_PREFIX);
+    }
+    return UserIdentifier$.MODULE$.apply(s.substring(USER_IDENTIFIER_PREFIX.length() + 1));
   }
 }

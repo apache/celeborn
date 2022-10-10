@@ -819,7 +819,9 @@ object ControlMessages extends Logging {
         val userResourceConsumption = pbHeartbeatFromWorker
           .getUserResourceConsumptionMap
           .asScala
-          .map(x => (UserIdentifier(x._1), x._2))
+          .map { case (userInfo, resourceConsumption) =>
+            (UserIdentifier(userInfo), resourceConsumption)
+          }
           .mapValues(PbSerDeUtils.fromPbResourceConsumption)
           .toMap
           .asJava

@@ -168,19 +168,23 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
-  private val RECOVERY_FILE_INFOS_FILE_NAME = "fileInfos.ldb"
-  private var fileInfosDb: DB = null
+  private val RECOVERY_FILE_NAME = "recovery.ldb"
+  // sequences of store and recover are in reverse order
+  // store sequence : userShuffleKeys -> fileInfos
+  // recover sequence: fileInfos -> userShuffleKeys
+  private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
   if (RssConf.workerGracefulShutdown(conf)) {
     try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_INFOS_FILE_NAME)
-      this.fileInfosDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
-      reloadAndCleanFileInfos(this.fileInfosDb)
+      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
+      this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
+      reloadAndCleanFileInfos(this.db)
+      reloadAndCleanUserShuffleKeys(this.db)
     } catch {
       case e: Exception =>
         logError("Init level DB failed:", e)
-        this.fileInfosDb = null
+        this.db = null
     }
   }
   cleanupExpiredAppDirs(System.currentTimeMillis(), RssConf.workerGracefulShutdown(conf))
@@ -204,12 +208,12 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           val shuffleKey = parseDbShuffleKey(key)
           try {
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue)
-            logDebug("Reload DB: " + shuffleKey + " -> " + files)
+            logDebug(s"Reload DB: ${shuffleKey} -> ${files}")
             fileInfos.put(shuffleKey, files)
-            fileInfosDb.delete(entry.getKey)
+            db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
-              logError("Reload DB: " + shuffleKey + " failed.", exception);
+              logError(s"Reload DB: ${shuffleKey} failed.", exception)
           }
         }
       }
@@ -219,11 +223,46 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   def updateFileInfosInDB(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        fileInfosDb.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
-        logDebug("Update DB: " + shuffleKey + " -> " + files)
+        db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
+        logDebug(s"Update FileInfos into DB: ${shuffleKey} -> ${files}")
       } catch {
         case exception: Exception =>
-          logError("Update DB: " + shuffleKey + " failed.", exception)
+          logError(s"Update FileInfos into DB: ${shuffleKey} failed.", exception)
+      }
+    }
+  }
+
+  private def reloadAndCleanUserShuffleKeys(db: DB): Unit = {
+    if (db != null) {
+      val itr = db.iterator
+      itr.seek(USER_IDENTIFIER_PREFIX.getBytes(StandardCharsets.UTF_8))
+      while (itr.hasNext) {
+        val entry = itr.next
+        val key = new String(entry.getKey, StandardCharsets.UTF_8)
+        if (key.startsWith(USER_IDENTIFIER_PREFIX)) {
+          val userIdentifier = parseDbUserIdentifier(key)
+          try {
+            val shuffleKeys = PbSerDeUtils.fromPbShuffleKeySet(entry.getValue)
+            logDebug(s"Reload DB: ${userIdentifier}")
+            userShuffleKeys.put(userIdentifier, shuffleKeys)
+            db.delete(entry.getKey)
+          } catch {
+            case exception: Exception =>
+              logError(s"Reload DB: ${userIdentifier} failed.", exception)
+          }
+        }
+      }
+    }
+  }
+
+  def updateUserShuffleKeysInDB(): Unit = {
+    userShuffleKeys.asScala.foreach { case (userIdentifier, shuffleKeys) =>
+      try {
+        db.put(dbUserIdentifier(userIdentifier), PbSerDeUtils.toPbShuffleKeySet(shuffleKeys))
+        logDebug(s"Update UserShuffleInfos into DB: ${userIdentifier}")
+      } catch {
+        case exception: Exception =>
+          logError(s"Update UserShuffleInfos into DB: ${userIdentifier} failed.", exception)
       }
     }
   }
@@ -234,6 +273,13 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     new java.util.function.Function[String, ConcurrentHashMap[String, FileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, FileInfo] =
         new ConcurrentHashMap()
+    }
+
+  private val newSetFunc =
+    new java.util.function.Function[UserIdentifier, util.Set[String]]() {
+      override def apply(key: UserIdentifier): util.Set[String] = {
+        ConcurrentHashMap.newKeySet[String]()
+      }
     }
 
   private val workingDirWriterListFunc =
@@ -249,7 +295,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
-      rangeReadFilter: Boolean): FileWriter = {
+      rangeReadFilter: Boolean,
+      userIdentifier: UserIdentifier): FileWriter = {
     if (healthyWorkingDirs().size <= 0) {
       throw new IOException("No available working dirs!")
     }
@@ -292,6 +339,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           hdfsWriters.add(hdfsWriter)
         }
         hdfsWriter.registerDestroyHook(hdfsWriters)
+        userShuffleKeys.computeIfAbsent(userIdentifier, newSetFunc).add(shuffleKey)
         return hdfsWriter
       } else {
         val dir = dirs(getNextIndex() % dirs.size)
@@ -325,6 +373,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           location.getStorageInfo.setMountPoint(mountPoint)
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
+          userShuffleKeys.computeIfAbsent(userIdentifier, newSetFunc).add(shuffleKey)
           return fileWriter
         } catch {
           case t: Throwable =>
@@ -503,13 +552,14 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   def close(): Unit = {
-    if (fileInfosDb != null) {
+    if (db != null) {
       try {
-        updateFileInfosInDB();
-        fileInfosDb.close();
+        updateUserShuffleKeysInDB()
+        updateFileInfosInDB()
+        db.close()
       } catch {
         case exception: Exception =>
-          logError("Store recover data to LevelDB failed.", exception);
+          logError("Store recover data to LevelDB failed.", exception)
       }
     }
     if (null != diskOperators) {
