@@ -630,9 +630,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           if (handleChangePartitionInBatch) {
             inBatchPartitions.get(shuffleId).remove(location.getId)
           }
+          // Here one partition id can be remove more than once,
+          // so need to filter null result before reply.
           location -> requestsMap.remove(location.getId).asScala.toList
         }
-      }.foreach { case (newLocation, requests) =>
+      }.filter(_._2 != null).foreach { case (newLocation, requests) =>
         requests.foreach(_.context.reply(ChangeLocationResponse(
           StatusCode.SUCCESS,
           Option(newLocation))))
@@ -681,7 +683,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             s"(${partition.getId} ${partition.getEpoch - 1} -> ${partition.getEpoch})"
           }.mkString("[", ",", "]")
           logDebug(s"Renew $shuffleId $changes success.")
-          (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer)).distinct
+          // partition location can be null when call reserveSlotsWithRetry
+          (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer)).distinct.filter(_ != null)
       }
     replySuccess(newMasterLocations.toArray)
   }

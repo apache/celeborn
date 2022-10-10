@@ -968,7 +968,7 @@ object RssConf extends Logging {
   }
 
   def handleChangePartitionRequestBatchInterval(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.change.partition.batchInterval", "1s")
+    conf.getTimeAsMs("rss.change.partition.batchInterval", "100ms")
   }
 
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
