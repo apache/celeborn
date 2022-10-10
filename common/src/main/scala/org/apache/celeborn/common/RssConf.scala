@@ -18,14 +18,11 @@
 package org.apache.celeborn.common
 
 import java.io.IOException
-import java.net.InetAddress
 import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 import scala.util.Try
-
-import com.google.common.net.HostAndPort
 
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.internal.Logging
