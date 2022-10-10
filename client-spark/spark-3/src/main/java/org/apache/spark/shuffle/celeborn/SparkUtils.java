@@ -76,7 +76,7 @@ public class SparkUtils {
   public static RssConf fromSparkConf(SparkConf conf) {
     RssConf tmpRssConf = new RssConf();
     for (Tuple2<String, String> kv : conf.getAll()) {
-      if (kv._1.startsWith("spark.rss.")) {
+      if (kv._1.startsWith("spark.celeborn.") || kv._1.startsWith("spark.rss.")) {
         tmpRssConf.set(kv._1.substring("spark.".length()), kv._2);
       }
     }

@@ -60,7 +60,7 @@ private[celeborn] class Worker(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
     workerArgs.host,
-    workerArgs.port.getOrElse(0),
+    workerArgs.port,
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 

@@ -42,7 +42,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
 
-  private val lifecycleHost = Utils.localHostName()
+  private val lifecycleHost = Utils.localHostName
 
   private val RemoveShuffleDelayMs = RssConf.removeShuffleDelayMs(conf)
   private val GetBlacklistDelayMs = RssConf.getBlacklistDelayMs(conf)

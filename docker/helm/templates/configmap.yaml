@@ -22,7 +22,7 @@ metadata:
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 data:
-  rss-defaults.conf: |-
+  celeborn-defaults.conf: |-
     {{- range $key, $val := .Values.celeborn }}
     {{ $key }}={{ $val }}
     {{- end -}} 

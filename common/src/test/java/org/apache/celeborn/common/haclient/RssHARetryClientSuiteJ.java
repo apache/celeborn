@@ -62,8 +62,7 @@ public class RssHARetryClientSuiteJ {
   public void beforeEach() {
     rssConf
         .set("rss.rpc.askTimeout", "5s")
-        .set("rss.network.timeout", "5s")
-        .set("rss.master.port", String.valueOf(masterPort));
+        .set("rss.network.timeout", "5s");
     rpcEnv = Mockito.mock(RpcEnv.class);
     endpointRef = Mockito.mock(RpcEndpointRef.class);
   }
@@ -227,7 +226,7 @@ public class RssHARetryClientSuiteJ {
     final RpcEndpointRef master3 = Mockito.mock(RpcEndpointRef.class);
 
     // master leader switch to host2
-    Mockito.doReturn(Future$.MODULE$.failed(new MasterNotLeaderException("host1", "host2")))
+    Mockito.doReturn(Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097")))
         .when(master1)
         .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
 
@@ -274,7 +273,7 @@ public class RssHARetryClientSuiteJ {
     final RpcEndpointRef ref3 = Mockito.mock(RpcEndpointRef.class);
 
     // master leader switch to host2
-    Mockito.doReturn(Future$.MODULE$.failed(new MasterNotLeaderException("host1", "host2")))
+    Mockito.doReturn(Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097")))
         .when(ref1)
         .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
     // Assume host2 down.
@@ -360,15 +359,15 @@ public class RssHARetryClientSuiteJ {
   }
 
   private RssConf prepareForRssConfWithoutHA() {
-    return rssConf.clone().set("rss.ha.enabled", "false").set("rss.master.host", masterHost);
+    return rssConf.clone()
+            .set("celeborn.ha.enabled", "false")
+            .set("celeborn.master.endpoints", masterHost + ":" + masterPort);
   }
 
   private RssConf prepareForRssConfWithHA() {
-    String masterHosts = "host1,host2,host3";
-    return rssConf
-        .clone()
-        .set("rss.ha.enabled", "true")
-        .set("rss.ha.master.hosts", masterHosts)
+    return rssConf.clone()
+        .set("celeborn.ha.enabled", "true")
+        .set("celeborn.master.endpoints", "host1:9097,host2:9097,host3:9097")
         .set("rss.ha.client.maxTries", "5");
   }
 }

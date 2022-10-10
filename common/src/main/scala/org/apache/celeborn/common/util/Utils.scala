@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
 import java.util.{Locale, Properties, Random, UUID}
-import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -56,10 +56,6 @@ object Utils extends Logging {
 
   def stringToSeq(str: String): Seq[String] = {
     str.split(",").map(_.trim()).filter(_.nonEmpty)
-  }
-
-  def checkHost(host: String) {
-    assert(host != null && host.indexOf(':') == -1, s"Expected hostname (not IP) but got $host")
   }
 
   def getSystemProperties: Map[String, String] = {
@@ -412,16 +408,80 @@ object Utils extends Logging {
     customHostname = Some(hostname)
   }
 
-  def localCanonicalHostName(): String = {
+  def localCanonicalHostName: String = {
     customHostname.getOrElse(localIpAddress.getCanonicalHostName)
   }
 
-  def localHostName(): String = {
+  def localHostName: String = {
     customHostname.getOrElse(localIpAddress.getHostAddress)
   }
 
-  def localHostNameForURI(): String = {
+  def localHostNameForURI: String = {
     customHostname.getOrElse(InetAddresses.toUriString(localIpAddress))
+  }
+
+  /**
+   * Checks if the host contains only valid hostname/ip without port
+   * NOTE: Incase of IPV6 ip it should be enclosed inside []
+   */
+  def checkHost(host: String): Unit = {
+    if (host != null && host.split(":").length > 2) {
+      assert(
+        host.startsWith("[") && host.endsWith("]"),
+        s"Expected hostname or IPv6 IP enclosed in [] but got $host")
+    } else {
+      assert(host != null && host.indexOf(':') == -1, s"Expected hostname or IP but got $host")
+    }
+  }
+
+  def checkHostPort(hostPort: String): Unit = {
+    if (hostPort != null && hostPort.split(":").length > 2) {
+      assert(
+        hostPort != null && hostPort.indexOf("]:") != -1,
+        s"Expected host and port but got $hostPort")
+    } else {
+      assert(
+        hostPort != null && hostPort.indexOf(':') != -1,
+        s"Expected host and port but got $hostPort")
+    }
+  }
+
+  // Typically, this will be of order of number of nodes in cluster
+  // If not, we should change it to LRUCache or something.
+  private val hostPortParseResults = new ConcurrentHashMap[String, (String, Int)]()
+
+  def parseHostPort(hostPort: String): (String, Int) = {
+    // Check cache first.
+    val cached = hostPortParseResults.get(hostPort)
+    if (cached != null) {
+      return cached
+    }
+
+    def setDefaultPortValue(): (String, Int) = {
+      val retval = (hostPort, 0)
+      hostPortParseResults.put(hostPort, retval)
+      retval
+    }
+    // checks if the host:port contains IPV6 ip and parses the host, port
+    if (hostPort != null && hostPort.split(":").length > 2) {
+      val index: Int = hostPort.lastIndexOf("]:")
+      if (-1 == index) {
+        return setDefaultPortValue()
+      }
+      val port = hostPort.substring(index + 2).trim()
+      val retVal = (hostPort.substring(0, index + 1).trim(), if (port.isEmpty) 0 else port.toInt)
+      hostPortParseResults.putIfAbsent(hostPort, retVal)
+    } else {
+      val index: Int = hostPort.lastIndexOf(':')
+      if (-1 == index) {
+        return setDefaultPortValue()
+      }
+      val port = hostPort.substring(index + 1).trim()
+      val retVal = (hostPort.substring(0, index).trim(), if (port.isEmpty) 0 else port.toInt)
+      hostPortParseResults.putIfAbsent(hostPort, retVal)
+    }
+
+    hostPortParseResults.get(hostPort)
   }
 
   private val MAX_DEFAULT_NETTY_THREADS = 64
@@ -479,7 +539,7 @@ object Utils extends Logging {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
       getPropertiesFromFile(confFile).filter { case (k, v) =>
-        k.startsWith("rss.")
+        k.startsWith("celeborn.") || k.startsWith("rss.")
       }.foreach { case (k, v) =>
         conf.setIfMissing(k, v)
         sys.props.getOrElseUpdate(k, v)
@@ -491,7 +551,7 @@ object Utils extends Logging {
   def getDefaultPropertiesFile(env: Map[String, String] = sys.env): String = {
     env.get("CELEBORN_CONF_DIR")
       .orElse(env.get("CELEBORN_HOME").map { t => s"$t${File.separator}conf" })
-      .map { t => new File(s"$t${File.separator}rss-defaults.conf") }
+      .map { t => new File(s"$t${File.separator}celeborn-defaults.conf") }
       .filter(_.isFile)
       .map(_.getAbsolutePath)
       .orNull
