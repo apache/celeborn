@@ -549,6 +549,10 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         new ConcurrentHashMap()
     }
 
+  private val inBatchShuffleIdRegisterFunc = new util.function.Function[Int, util.Set[Integer]]() {
+      override def apply(s: Int): util.Set[Integer] = new util.HashSet[Integer]()
+    }
+
   private def handleChangePartitionLocation(
       context: RpcCallContext,
       applicationId: String,
@@ -568,6 +572,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       cause)
     // check if there exists request for the partition, if do just register
     val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+    inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
     requests.synchronized {
       if (requests.containsKey(partitionId)) {
         requests.get(partitionId).add(changePartition)
