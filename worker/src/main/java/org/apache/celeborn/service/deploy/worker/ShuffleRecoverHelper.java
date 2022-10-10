@@ -47,7 +47,6 @@ public abstract class ShuffleRecoverHelper {
       throw new IllegalArgumentException(
           "Expected a string starting with " + USER_IDENTIFIER_PREFIX);
     }
-    return UserIdentifier$.MODULE$.apply(
-        s.substring(USER_IDENTIFIER_PREFIX.length() + 1));
+    return UserIdentifier$.MODULE$.apply(s.substring(USER_IDENTIFIER_PREFIX.length() + 1));
   }
 }
