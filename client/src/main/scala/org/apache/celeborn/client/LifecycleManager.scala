@@ -684,7 +684,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           }.mkString("[", ",", "]")
           logDebug(s"Renew $shuffleId $changes success.")
           // partition location can be null when call reserveSlotsWithRetry
-          (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer)).distinct.filter(_ != null)
+          (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer))
+            .distinct.filter(_ != null)
       }
     replySuccess(newMasterLocations.toArray)
   }
