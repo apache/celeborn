@@ -940,6 +940,7 @@ object RssConf extends Logging {
    * Ratis related config
    */
   val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
+    .withAlternative("rss.ha.enabled")
     .doc("When true, master nodes run as Raft cluster mode.")
     .version("0.1.0")
     .booleanConf
