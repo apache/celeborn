@@ -64,7 +64,7 @@ public class RatisMasterStatusSystemSuiteJ {
   protected static RpcEnv mockRpcEnv = Mockito.mock(RpcEnv.class);
   protected static RpcEndpointRef mockRpcEndpoint = Mockito.mock(RpcEndpointRef.class);
 
-  private static String DEFAULT_SERVICE_ID = "RSS_DEFAULT_SERVICE_ID";
+  private static String DEFAULT_SERVICE_ID = "CELEBORN_DEFAULT_SERVICE_ID";
 
   @BeforeClass
   public static void init() throws IOException, InterruptedException {
