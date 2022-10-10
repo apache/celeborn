@@ -30,7 +30,6 @@ import org.mockito.Matchers.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
-
 import org.apache.celeborn.client.compress.Compressor
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.common.RssConf
@@ -38,9 +37,10 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol.{PushData, PushMergedData}
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.PbRegisterShuffleResponse
-import org.apache.celeborn.common.protocol.message.ControlMessages._
+import org.apache.celeborn.common.protocol.message.ControlMessages.{RegisterShuffleResponse, _}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcEndpointRef
+import org.mockito.stubbing.Answer
 
 class ShuffleClientSuite {
   private var shuffleClient: ShuffleClientImpl = null
@@ -183,8 +183,11 @@ class ShuffleClientSuite {
       TEST_APPLICATION_ID,
       TEST_SHUFFLE_ID,
       1,
-      1))).thenAnswer((t: InvocationOnMock) =>
-      RegisterShuffleResponse(StatusCode.SUCCESS, Array[PartitionLocation](masterLocation)))
+      1)))
+      .thenAnswer(new Answer[PbRegisterShuffleResponse] {
+        override def answer(invocationOnMock: InvocationOnMock): PbRegisterShuffleResponse =
+          RegisterShuffleResponse(StatusCode.SUCCESS, Array[PartitionLocation](masterLocation))
+      })
     shuffleClient.setupMetaServiceRef(endpointRef)
     val mockedFuture: ChannelFuture = mock(classOf[ChannelFuture])
     when(mockedFuture.isVoid).thenReturn(false)
@@ -201,18 +204,29 @@ class ShuffleClientSuite {
     when(mockedFuture.cancel(any[Boolean](classOf[Boolean]))).thenReturn(false)
     when(mockedFuture.isCancelled).thenReturn(false)
     when(mockedFuture.isDone).thenReturn(true)
-    when(client.pushData(any(classOf[PushData]), any(classOf[RpcResponseCallback]))).thenAnswer(
-      (t: InvocationOnMock) => mockedFuture)
+    when(client.pushData(any(classOf[PushData]), any(classOf[RpcResponseCallback])))
+      .thenAnswer(new Answer[ChannelFuture] {
+        override def answer(invocationOnMock: InvocationOnMock): ChannelFuture = mockedFuture
+      })
     when(clientFactory.createClient(
       masterLocation.getHost,
       masterLocation.getPushPort,
-      TEST_REDUCRE_ID)).thenAnswer((t: InvocationOnMock) => client)
+      TEST_REDUCRE_ID))
+      .thenAnswer(new Answer[TransportClient] {
+        override def answer(invocationOnMock: InvocationOnMock): TransportClient = client
+      })
     when(
       client.pushMergedData(
         any(classOf[PushMergedData]),
-        any(classOf[RpcResponseCallback]))).thenAnswer((t: InvocationOnMock) => mockedFuture)
-    when(clientFactory.createClient(masterLocation.getHost, masterLocation.getPushPort)).thenAnswer(
-      (t: InvocationOnMock) => client)
+        any(classOf[RpcResponseCallback])))
+      .thenAnswer(new Answer[ChannelFuture] {
+        override def answer(invocationOnMock: InvocationOnMock): ChannelFuture = mockedFuture
+      })
+    when(clientFactory.createClient(masterLocation.getHost, masterLocation.getPushPort))
+      .thenAnswer(
+        new Answer[TransportClient] {
+          override def answer(invocationOnMock: InvocationOnMock): TransportClient = client
+        })
     shuffleClient.dataClientFactory = clientFactory
     conf
   }

@@ -24,6 +24,7 @@ import java.nio.ByteBuffer
 import java.util
 import java.util._
 import java.util.concurrent._
+import java.util.function.Function
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
@@ -208,7 +209,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
           logInfo(s"Revive success, new location for reduce $partitionId is $newLoc.")
           val newDataBatches: DataBatches = newDataBatchesMap.computeIfAbsent(
             genAddressPair(newLoc),
-            (s: String) => new DataBatches)
+            new Function[String, DataBatches] {
+              override def apply(v1: String): DataBatches = {
+                new DataBatches
+              }
+            })
           newDataBatches.addDataBatch(newLoc, batch.batchId, batch.body)
         }
       }
@@ -383,7 +388,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         if (StatusCode.MAP_ENDED == respStatus) {
           mapperEndMap.computeIfAbsent(
             shuffleId,
-            (id: Integer) => ConcurrentHashMap.newKeySet[String]).add(mapKey)
+            new Function[Integer, Set[String]] {
+              override def apply(t: Integer): util.Set[String] = {
+                ConcurrentHashMap.newKeySet[String]
+              }
+            }).add(mapKey)
           true
         } else {
           false
@@ -425,7 +434,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     // register shuffle if not registered
     val map: ConcurrentHashMap[Integer, PartitionLocation] = reducePartitionMap.computeIfAbsent(
       shuffleId,
-      (id: Integer) => registerShuffle(applicationId, shuffleId, numMappers, numPartitions))
+      new Function[Integer, ConcurrentHashMap[Integer, PartitionLocation]] {
+        override def apply(t: Integer): ConcurrentHashMap[Integer, PartitionLocation] = {
+          registerShuffle(applicationId, shuffleId, numMappers, numPartitions)
+        }
+      })
     if (map == null) {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey)
     }
@@ -456,8 +469,12 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       throw new IOException(
         "Partition location for shuffle " + shuffleKey + " partitionId " + partitionId + " is NULL!")
     }
-    val pushState: PushState =
-      pushStates.computeIfAbsent(mapKey, (s: String) => new PushState(conf))
+    val pushState: PushState = pushStates.computeIfAbsent(mapKey,
+        new Function[String, PushState] {
+          override def apply(t: String): PushState = {
+            new PushState(conf)
+          }
+        })
     // increment batchId
     val nextBatchId: Int = pushState.batchId.addAndGet(1)
     // compress data
@@ -493,7 +510,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
           if (response.remaining > 0 && response.get == StatusCode.STAGE_ENDED.getValue) {
             mapperEndMap.computeIfAbsent(
               shuffleId,
-              (id: Integer) => ConcurrentHashMap.newKeySet[String]).add(mapKey)
+              new Function[Integer, Set[String]] {
+                override def apply(t: Integer): util.Set[String] = {
+                  ConcurrentHashMap.newKeySet[String]
+                }
+              }).add(mapKey)
           }
           pushState.removeFuture(nextBatchId)
           logDebug(s"Push data to ${loc.getHost}:${loc.getPushPort} success for map $mapId attempt $attemptId batch $nextBatchId.")
@@ -615,7 +636,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     val splittingSet: Set[Integer] =
       splitting.computeIfAbsent(
         shuffleId,
-        (integer: Integer) => ConcurrentHashMap.newKeySet[Integer])
+        new Function[Integer, Set[Integer]] {
+          override def apply(t: Integer): util.Set[Integer] = {
+            ConcurrentHashMap.newKeySet[Integer]
+          }
+        })
     splittingSet.synchronized {
       if (splittingSet.contains(partitionId)) {
         logDebug(s"shuffle $shuffleId partitionId $partitionId is splitting, skip split request.")
@@ -797,8 +822,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         if (response.remaining > 0 && response.get == StatusCode.STAGE_ENDED.getValue) {
           mapperEndMap.computeIfAbsent(
             shuffleId,
-            (id: Integer) => ConcurrentHashMap.newKeySet[String]).add(
-            Utils.makeMapKey(shuffleId, mapId, attemptId))
+            new Function[Integer, Set[String]] {
+              override def apply(t: Integer): util.Set[String] = {
+                ConcurrentHashMap.newKeySet[String]
+              }
+            }).add(Utils.makeMapKey(shuffleId, mapId, attemptId))
         }
       }
 
@@ -876,7 +904,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       numMappers: Int): Unit = {
     val mapKey: String = Utils.makeMapKey(shuffleId, mapId, attemptId)
     val pushState: PushState =
-      pushStates.computeIfAbsent(mapKey, (s: String) => new PushState(conf))
+      pushStates.computeIfAbsent(mapKey, new Function[String, PushState] {
+        override def apply(t: String): PushState = {
+          new PushState(conf)
+        }
+      })
     try {
       limitMaxInFlight(mapKey, pushState, 0)
       val response: MapperEndResponse = driverRssMetaService.askSync[MapperEndResponse](MapperEnd(
@@ -933,7 +965,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       shuffleId: Int,
       partitionId: Int,
       attemptNumber: Int): RssInputStream = {
-    return readPartition(applicationId, shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE)
+    readPartition(applicationId, shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE)
   }
 
   @throws[IOException]
@@ -947,40 +979,42 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     val shuffleKey: String = Utils.makeShuffleKey(applicationId, shuffleId)
     val fileGroups: ReduceFileGroups = reduceFileGroupsMap.computeIfAbsent(
       shuffleId,
-      (id: Integer) => {
-        def foo(id: Integer): ReduceFileGroups = {
-          val getReducerFileGroupStartTime: Long = System.nanoTime
-          try {
-            if (driverRssMetaService == null) {
-              logWarning("Driver endpoint is null!")
-              return null
-            }
-            val getReducerFileGroup: GetReducerFileGroup =
-              GetReducerFileGroup(applicationId, shuffleId)
-            val response =
-              driverRssMetaService.askSync[GetReducerFileGroupResponse](getReducerFileGroup)
-            if (response.status eq StatusCode.SUCCESS) {
-              logInfo(s"Shuffle $shuffleId request reducer file group success using time:${(System.nanoTime - getReducerFileGroupStartTime) / 1000000} ms")
-              return new ReduceFileGroups(response.fileGroup, response.attempts)
-            } else {
-              if (response.status eq StatusCode.STAGE_END_TIME_OUT) {
-                logWarning(
-                  s"Request $getReducerFileGroup return ${StatusCode.STAGE_END_TIME_OUT.toString} for $shuffleKey")
+      new Function[Integer, ReduceFileGroups] {
+        override def apply(id: Integer): ReduceFileGroups = {
+          def foo(id: Integer): ReduceFileGroups = {
+            val getReducerFileGroupStartTime: Long = System.nanoTime
+            try {
+              if (driverRssMetaService == null) {
+                logWarning("Driver endpoint is null!")
+                return null
+              }
+              val getReducerFileGroup: GetReducerFileGroup =
+                GetReducerFileGroup(applicationId, shuffleId)
+              val response =
+                driverRssMetaService.askSync[GetReducerFileGroupResponse](getReducerFileGroup)
+              if (response.status eq StatusCode.SUCCESS) {
+                logInfo(s"Shuffle $shuffleId request reducer file group success using time:${(System.nanoTime - getReducerFileGroupStartTime) / 1000000} ms")
+                return new ReduceFileGroups(response.fileGroup, response.attempts)
               } else {
-                if (response.status eq StatusCode.SHUFFLE_DATA_LOST) {
+                if (response.status eq StatusCode.STAGE_END_TIME_OUT) {
                   logWarning(
-                    s"Request $getReducerFileGroup return ${StatusCode.SHUFFLE_DATA_LOST.toString} for $shuffleKey")
+                    s"Request $getReducerFileGroup return ${StatusCode.STAGE_END_TIME_OUT.toString} for $shuffleKey")
+                } else {
+                  if (response.status eq StatusCode.SHUFFLE_DATA_LOST) {
+                    logWarning(
+                      s"Request $getReducerFileGroup return ${StatusCode.SHUFFLE_DATA_LOST.toString} for $shuffleKey")
+                  }
                 }
               }
+            } catch {
+              case e: Exception =>
+                logError(s"Exception raised while call GetReducerFileGroup for $shuffleKey.", e)
             }
-          } catch {
-            case e: Exception =>
-              logError(s"Exception raised while call GetReducerFileGroup for $shuffleKey.", e)
+            null
           }
-          null
-        }
 
-        foo(id)
+          foo(id)
+        }
       })
     if (fileGroups == null) {
       val msg: String = s"Shuffle data lost for shuffle $shuffleId reduce $partitionId!"
