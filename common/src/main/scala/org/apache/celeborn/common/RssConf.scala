@@ -959,7 +959,11 @@ object RssConf extends Logging {
     conf.getSizeAsBytes("rss.partition.split.minimum.size", "1m")
   }
 
-  def changePartitionNumThreads(conf: RssConf): Int = {
+  def batchHandleChangePartitionEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.change.partition.batch.enabled", false)
+  }
+
+  def batchHandleChangePartitionNumThreads(conf: RssConf): Int = {
     conf.getInt("rss.change.partition.numThreads", 8)
   }
 
