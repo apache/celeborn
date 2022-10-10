@@ -19,8 +19,7 @@ package org.apache.celeborn.service.deploy.worker;
 
 import java.nio.charset.StandardCharsets;
 
-import org.apache.celeborn.common.protocol.message.ControlMessages;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
+import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 
 public abstract class ShuffleRecoverHelper {
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
@@ -48,7 +47,7 @@ public abstract class ShuffleRecoverHelper {
       throw new IllegalArgumentException(
           "Expected a string starting with " + USER_IDENTIFIER_PREFIX);
     }
-    return ControlMessages.UserIdentifier$.MODULE$.apply(
+    return UserIdentifier$.MODULE$.apply(
         s.substring(USER_IDENTIFIER_PREFIX.length() + 1));
   }
 }
