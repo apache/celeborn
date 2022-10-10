@@ -469,12 +469,13 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       throw new IOException(
         "Partition location for shuffle " + shuffleKey + " partitionId " + partitionId + " is NULL!")
     }
-    val pushState: PushState = pushStates.computeIfAbsent(mapKey,
-        new Function[String, PushState] {
-          override def apply(t: String): PushState = {
-            new PushState(conf)
-          }
-        })
+    val pushState: PushState = pushStates.computeIfAbsent(
+      mapKey,
+      new Function[String, PushState] {
+        override def apply(t: String): PushState = {
+          new PushState(conf)
+        }
+      })
     // increment batchId
     val nextBatchId: Int = pushState.batchId.addAndGet(1)
     // compress data
@@ -904,11 +905,13 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       numMappers: Int): Unit = {
     val mapKey: String = Utils.makeMapKey(shuffleId, mapId, attemptId)
     val pushState: PushState =
-      pushStates.computeIfAbsent(mapKey, new Function[String, PushState] {
-        override def apply(t: String): PushState = {
-          new PushState(conf)
-        }
-      })
+      pushStates.computeIfAbsent(
+        mapKey,
+        new Function[String, PushState] {
+          override def apply(t: String): PushState = {
+            new PushState(conf)
+          }
+        })
     try {
       limitMaxInFlight(mapKey, pushState, 0)
       val response: MapperEndResponse = driverRssMetaService.askSync[MapperEndResponse](MapperEnd(
@@ -993,7 +996,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
               val response =
                 driverRssMetaService.askSync[GetReducerFileGroupResponse](getReducerFileGroup)
               if (response.status eq StatusCode.SUCCESS) {
-                logInfo(s"Shuffle $shuffleId request reducer file group success using time:${(System.nanoTime - getReducerFileGroupStartTime) / 1000000} ms")
+                logInfo(
+                  s"Shuffle $shuffleId request reducer file group success using time:${(System.nanoTime - getReducerFileGroupStartTime) / 1000000} ms")
                 return new ReduceFileGroups(response.fileGroup, response.attempts)
               } else {
                 if (response.status eq StatusCode.STAGE_END_TIME_OUT) {

@@ -30,6 +30,8 @@ import org.mockito.Matchers.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
+
 import org.apache.celeborn.client.compress.Compressor
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.common.RssConf
@@ -40,7 +42,6 @@ import org.apache.celeborn.common.protocol.PbRegisterShuffleResponse
 import org.apache.celeborn.common.protocol.message.ControlMessages.{RegisterShuffleResponse, _}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcEndpointRef
-import org.mockito.stubbing.Answer
 
 class ShuffleClientSuite {
   private var shuffleClient: ShuffleClientImpl = null
