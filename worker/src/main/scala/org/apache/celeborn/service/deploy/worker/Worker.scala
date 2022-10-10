@@ -442,8 +442,8 @@ private[deploy] object Worker extends Logging {
     // much as possible. Therefore, if the user manually specifies the address of the Master when
     // starting the Worker, we should set it in the parameters and automatically calculate what the
     // address of the Master should be used in the end.
-    if (workerArgs.master != null) {
-      conf.set("rss.master.address", RpcAddress.fromRssURL(workerArgs.master).toString)
+    workerArgs.master.foreach { master =>
+      conf.set("rss.master.address", RpcAddress.fromRssURL(master).toString)
     }
 
     val worker = new Worker(conf, workerArgs)

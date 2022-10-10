@@ -35,7 +35,7 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
   parse(args.toList)
   // 2nd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
-  _master = _master.orElse(Some(Utils.localHostName))
+  _host = _host.orElse(Some(Utils.localHostName))
   _port = _port.orElse(Some(RssConf.workerRPCPort(conf)))
 
   if (_host.isEmpty || _port.isEmpty) {
@@ -46,7 +46,7 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
 
   def port: Int = _port.get
 
-  def master: String = _master.get
+  def master: Option[String] = _master
 
   @tailrec
   private def parse(args: List[String]): Unit = args match {
