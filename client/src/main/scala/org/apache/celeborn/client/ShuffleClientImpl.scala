@@ -443,7 +443,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey)
     }
     // get location
-    if (!(map.containsKey(partitionId)) && !(revive(
+    if (!map.containsKey(partitionId) && !revive(
         applicationId,
         shuffleId,
         mapId,
@@ -451,7 +451,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         partitionId,
         0,
         null,
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE))) {
+        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
       throw new IOException(
         "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.")
     }
@@ -608,11 +608,12 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
           logError("PushData failed", e)
           wrappedCallback.onFailure(new Exception(getPushDataFailCause(e.getMessage).toString, e))
       }
-    } else { // add batch data
+    } else {
+      // add batch data
       logDebug(s"Merge batch $nextBatchId.")
       val addressPair: String = genAddressPair(loc)
-      val shoudPush: Boolean = pushState.addBatchData(addressPair, loc, nextBatchId, body)
-      if (shoudPush) {
+      val shouldPush: Boolean = pushState.addBatchData(addressPair, loc, nextBatchId, body)
+      if (shouldPush) {
         limitMaxInFlight(mapKey, pushState, maxInFlight)
         val dataBatches: DataBatches = pushState.takeDataBatches(addressPair)
         doPushMergedData(
@@ -682,10 +683,9 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       case Failure(exception) =>
         splittingSet.remove(partitionId)
         logWarning(
-          s"Shuffle file split failed for map ${shuffleId} partitionId ${partitionId}," +
+          s"Shuffle file split failed for map $shuffleId partitionId $partitionId," +
             s" try again, detail : {}",
           exception);
-
     }(scala.concurrent.ExecutionContext.fromExecutorService(executors))
   }
 
