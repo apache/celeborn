@@ -225,7 +225,7 @@ case class ConfigBuilder(key: String) {
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
   private[config] var _alternatives = List.empty[String]
 
-  def internal(): ConfigBuilder = {
+  def internal: ConfigBuilder = {
     _public = false
     this
   }

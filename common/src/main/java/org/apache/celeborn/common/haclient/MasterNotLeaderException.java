@@ -39,6 +39,6 @@ public class MasterNotLeaderException extends IOException {
   }
 
   public String getSuggestedLeaderAddress() {
-    return leaderPeer.contains(":") ? leaderPeer.split(":")[0] : leaderPeer;
+    return leaderPeer;
   }
 }

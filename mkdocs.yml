@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-site_name: Remote Shuffle Service
-repo_name: alibaba/RemoteShuffleService
-repo_url: https://github.com/alibaba/RemoteShuffleService
+site_name: Celeborn
+repo_name: alibaba/celeborn
+repo_url: https://github.com/alibaba/celeborn
 
 plugins:
   - search

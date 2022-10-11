@@ -34,6 +34,11 @@ case class RpcAddress(host: String, port: Int) {
 
 private[celeborn] object RpcAddress {
 
+  def fromHostAndPort(hostAndPort: String): RpcAddress = {
+    val (host, port) = Utils.parseHostPort(hostAndPort)
+    RpcAddress(host, port)
+  }
+
   /** Return the [[RpcAddress]] represented by `uri`. */
   def fromURIString(uri: String): RpcAddress = {
     val uriObj = new java.net.URI(uri)

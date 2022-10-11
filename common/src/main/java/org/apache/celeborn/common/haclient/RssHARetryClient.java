@@ -18,8 +18,6 @@
 package org.apache.celeborn.common.haclient;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -55,8 +53,7 @@ public class RssHARetryClient {
   private static final Logger LOG = LoggerFactory.getLogger(RssHARetryClient.class);
 
   private final RpcEnv rpcEnv;
-  private final int masterPort;
-  private final List<String> masterHosts;
+  private final String[] masterEndpoints;
   private final int maxTries;
 
   private final RpcTimeout rpcTimeout;
@@ -66,9 +63,8 @@ public class RssHARetryClient {
 
   public RssHARetryClient(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
-    this.masterPort = RssConf.masterPort(conf);
-    this.masterHosts = Arrays.asList(RssConf.haMasterHosts(conf).split(","));
-    this.maxTries = Math.max(masterHosts.size(), RssConf.haClientMaxTries(conf));
+    this.masterEndpoints = RssConf.masterEndpoints(conf);
+    this.maxTries = Math.max(masterEndpoints.length, RssConf.haClientMaxTries(conf));
     this.rpcTimeout = RpcUtils.haClientAskRpcTimeout(conf);
     this.rpcEndpointRef = new AtomicReference<>();
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");
@@ -188,13 +184,13 @@ public class RssHARetryClient {
     return false;
   }
 
-  private void setRpcEndpointRef(String masterHost) {
+  private void setRpcEndpointRef(String masterEndpoint) {
     // This method should never care newer or old value, we just set the suggest master endpoint.
     // If an error occurs when setting the suggest Master, it means that the Master may be down.
     // At this time, we just set `rpcEndpointRef` to null. Then next time, we will re-select the
     // Master and get the correct leader.
-    rpcEndpointRef.set(setupEndpointRef(masterHost));
-    LOG.info("Fail over to master {}.", masterHost);
+    rpcEndpointRef.set(setupEndpointRef(masterEndpoint));
+    LOG.info("Fail over to master {}.", masterEndpoint);
   }
 
   private void resetRpcEndpointRef(@Nullable RpcEndpointRef oldRef) {
@@ -229,9 +225,9 @@ public class RssHARetryClient {
     if (endpointRef == null) {
       int index = currentIndex.get();
       do {
-        RpcEndpointRef tempEndpointRef = setupEndpointRef(masterHosts.get(index));
+        RpcEndpointRef tempEndpointRef = setupEndpointRef(masterEndpoints[index]);
         if (rpcEndpointRef.compareAndSet(null, tempEndpointRef)) {
-          index = (index + 1) % masterHosts.size();
+          index = (index + 1) % masterEndpoints.length;
         }
         endpointRef = rpcEndpointRef.get();
       } while (endpointRef == null && index != currentIndex.get());
@@ -249,16 +245,16 @@ public class RssHARetryClient {
     return endpointRef;
   }
 
-  private RpcEndpointRef setupEndpointRef(String host) {
+  private RpcEndpointRef setupEndpointRef(String endpoint) {
     RpcEndpointRef endpointRef = null;
     try {
       endpointRef =
-          rpcEnv.setupEndpointRef(new RpcAddress(host, masterPort), RpcNameConstants.MASTER_EP);
+          rpcEnv.setupEndpointRef(RpcAddress.fromHostAndPort(endpoint), RpcNameConstants.MASTER_EP);
     } catch (Exception e) {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
       // we try next address.
-      LOG.warn("Connect to {}:{} failed.", host, masterPort, e);
+      LOG.warn("Connect to {} failed.", endpoint, e);
     }
     return endpointRef;
   }

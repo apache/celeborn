@@ -58,7 +58,7 @@ private[celeborn] class Master(
     RpcNameConstants.MASTER_SYS,
     masterArgs.host,
     masterArgs.host,
-    masterArgs.port.getOrElse(0),
+    masterArgs.port,
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 

@@ -36,7 +36,7 @@ class MasterSuite extends AnyFunSuite
 
   test("test single node startup functionality") {
     val conf = new RssConf()
-    conf.set("rss.ha.enabled", "false")
+    conf.set("celeborn.ha.enabled", "false")
     conf.set("rss.ha.storage.dir", getTmpDir())
     conf.set("rss.worker.base.dirs", getTmpDir())
     conf.set("rss.metrics.system.enabled", "true")

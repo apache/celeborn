@@ -24,41 +24,50 @@ import org.apache.celeborn.common.util.{IntParam, Utils}
 
 class WorkerArguments(args: Array[String], conf: RssConf) {
 
-  var host = Utils.localHostName()
-  var port: Option[Int] = None
+  private var _host: Option[String] = None
+  private var _port: Option[Int] = None
   // var master: String = null
   // for local testing.
-  var master: String = null
-  var propertiesFile: String = null
+  private var _master: Option[String] = None
+  private var _propertiesFile: Option[String] = None
 
+  // 1st parse from cli args
   parse(args.toList)
+  // 2nd read from configuration file
+  _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
+  _host = _host.orElse(Some(Utils.localHostName))
+  _port = _port.orElse(Some(RssConf.workerRPCPort(conf)))
 
-  propertiesFile = Utils.loadDefaultRssProperties(conf, propertiesFile)
-
-  if (port.isEmpty) {
-    port = Some(RssConf.workerRPCPort(conf))
+  if (_host.isEmpty || _port.isEmpty) {
+    printUsageAndExit(1)
   }
+
+  def host: String = _host.get
+
+  def port: Int = _port.get
+
+  def master: Option[String] = _master
 
   @tailrec
   private def parse(args: List[String]): Unit = args match {
     case ("--host" | "-h") :: value :: tail =>
       Utils.checkHost(value)
-      host = value
+      _host = Some(value)
       parse(tail)
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
-      port = Some(value)
+      _port = Some(value)
       parse(tail)
 
-    case ("--properties-file") :: value :: tail =>
-      propertiesFile = value
+    case "--properties-file" :: value :: tail =>
+      _propertiesFile = Some(value)
       parse(tail)
 
-    case ("--help") :: tail =>
+    case "--help" :: _ =>
       printUsageAndExit(0)
 
     case value :: tail =>
-      master = value
+      _master = Some(value)
       parse(tail)
 
     case Nil =>
@@ -70,19 +79,19 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
   /**
    * Print usage and exit JVM with the given exit code.
    */
-  def printUsageAndExit(exitCode: Int) {
+  def printUsageAndExit(exitCode: Int): Unit = {
     // scalastyle:off println
     System.err.println(
-      "Usage: Worker [options] <master>\n" +
-        "\n" +
-        "Master must be a URL of the form rss://hostname:port\n" +
-        "\n" +
-        "Options:\n" +
-        "  -h HOST, --host HOST     Hostname to listen on\n" +
-        "  -p PORT, --port PORT     Port to listen on (default: random)\n" +
-        "  --properties-file FILE   Path to a custom RSS properties file.\n" +
-        "                           Default is conf/rss-defaults.conf.")
+      """Usage: Worker [options] <master>
+        |
+        |<master> must be a URL of the form rss://hostname:port
+        |Options:
+        |  -h HOST, --host HOST     Hostname to listen on
+        |  -p PORT, --port PORT     Port to listen on (default: random)
+        |  --properties-file FILE   Path to a custom Celeborn properties file.
+        |                           Default is conf/celeborn-defaults.conf.
+        |""".stripMargin)
     // scalastyle:on println
-    System.exit(exitCode)
+    sys.exit(exitCode)
   }
 }

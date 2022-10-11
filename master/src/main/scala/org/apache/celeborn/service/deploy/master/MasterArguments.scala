@@ -24,41 +24,46 @@ import org.apache.celeborn.common.util.{IntParam, Utils}
 
 class MasterArguments(args: Array[String], conf: RssConf) {
 
-  var host = Utils.localHostName()
-  var port: Option[Int] = None
-  var propertiesFile: String = null
+  private var _host: Option[String] = None
+  private var _port: Option[Int] = None
+  private var _propertiesFile: Option[String] = None
 
-  if (System.getenv("CELEBORN_MASTER_HOST") != null) {
-    host = System.getenv("CELEBORN_MASTER_HOST")
-  }
-  if (System.getenv("CELEBORN_MASTER_PORT") != null) {
-    port = Some(System.getenv("CELEBORN_MASTER_PORT").toInt)
-  }
-
+  // 1st parse from cli args
   parse(args.toList)
 
-  propertiesFile = Utils.loadDefaultRssProperties(conf, propertiesFile)
+  // 2nd parse from environment variables
+  _host = _host.orElse(sys.env.get("CELEBORN_MASTER_HOST"))
+  _port = _port.orElse(sys.env.get("CELEBORN_MASTER_PORT").map(_.toInt))
 
-  if (port.isEmpty) {
-    port = Some(RssConf.masterPort(conf))
+  // 3rd read from configuration file
+  _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
+  _host = _host.orElse(Some(RssConf.masterHost(conf)))
+  _port = _port.orElse(Some(RssConf.masterPort(conf)))
+
+  if (_host.isEmpty || _port.isEmpty) {
+    printUsageAndExit(1)
   }
+
+  def host: String = _host.get
+
+  def port: Int = _port.get
 
   @tailrec
   private def parse(args: List[String]): Unit = args match {
     case ("--host" | "-h") :: value :: tail =>
       Utils.checkHost(value)
-      host = value
+      _host = Some(value)
       parse(tail)
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
-      port = Some(value)
+      _port = Some(value)
       parse(tail)
 
-    case ("--properties-file") :: value :: tail =>
-      propertiesFile = value
+    case "--properties-file" :: value :: tail =>
+      _propertiesFile = Some(value)
       parse(tail)
 
-    case ("--help") :: tail =>
+    case "--help" :: _ =>
       printUsageAndExit(0)
 
     case Nil => // No-op
@@ -70,17 +75,18 @@ class MasterArguments(args: Array[String], conf: RssConf) {
   /**
    * Print usage and exit JVM with the given exit code.
    */
-  private def printUsageAndExit(exitCode: Int) {
+  private def printUsageAndExit(exitCode: Int): Unit = {
     // scalastyle:off println
     System.err.println(
-      "Usage: Master [options]\n" +
-        "\n" +
-        "Options:\n" +
-        "  -h HOST, --host HOST   Hostname to listen on\n" +
-        "  -p PORT, --port PORT   Port to listen on (default: 9097)\n" +
-        "  --properties-file FILE Path to a custom RSS properties file.\n" +
-        "                         Default is conf/rss-defaults.conf.")
+      """Usage: Master [options]
+        |
+        |Options:
+        |  -h HOST, --host HOST   Hostname to listen on
+        |  -p PORT, --port PORT   Port to listen on (default: 9097)
+        |  --properties-file FILE Path to a custom Celeborn properties file,
+        |                         default is conf/celeborn-defaults.conf.
+        |""".stripMargin)
     // scalastyle:on println
-    System.exit(exitCode)
+    sys.exit(exitCode)
   }
 }

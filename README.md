@@ -85,7 +85,7 @@ CELEBORN_MASTER_MEMORY=4g
 CELEBORN_WORKER_MEMORY=2g
 CELEBORN_WORKER_OFFHEAP_MEMORY=4g
 ```
-3. Modify configurations in $CELEBORN_HOME/conf/rss-defaults.conf
+3. Modify configurations in $CELEBORN_HOME/conf/celeborn-defaults.conf
 
 EXAMPLE: single master cluster
 ```properties
@@ -184,7 +184,7 @@ Masters and works can be deployed on the same node but should not deploy multipl
 See more detail in [CONFIGURATIONS](docs/configuration.md)
 
 ### Support Spark Dynamic Allocation
-We provide a patch to enable users to use Spark with both dynamic allocation and Remote Shuffle Service.
+We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
 For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_RDA_spark2.patch).  
 For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_RDA_spark3.patch).
 

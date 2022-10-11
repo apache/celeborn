@@ -498,7 +498,7 @@ public class HARaftServer {
       RaftProtos.RaftPeerRole thisNodeRole = roleInfoProto.getRole();
 
       if (thisNodeRole.equals(RaftProtos.RaftPeerRole.LEADER)) {
-        setServerRole(thisNodeRole, masterRatisAddress.getAddress().getHostAddress());
+        setServerRole(thisNodeRole, masterRatisAddress.getAddress().toString());
 
       } else if (thisNodeRole.equals(RaftProtos.RaftPeerRole.FOLLOWER)) {
         ByteString leaderNodeId = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getId();
@@ -545,7 +545,7 @@ public class HARaftServer {
 
   @VisibleForTesting
   public String getRaftAddress() {
-    return this.masterRatisAddress.getAddress().getHostAddress();
+    return this.masterRatisAddress.getAddress().toString();
   }
 
   public int getRaftPort() {

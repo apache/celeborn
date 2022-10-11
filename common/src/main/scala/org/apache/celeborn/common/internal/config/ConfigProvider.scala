@@ -54,7 +54,7 @@ class MapProvider(conf: JMap[String, String]) extends ConfigProvider {
 class RssConfigProvider(conf: JMap[String, String]) extends ConfigProvider {
 
   override def get(key: String): Option[String] = {
-    if (key.startsWith("rss.")) {
+    if (key.startsWith("celeborn.") || key.startsWith("rss.")) {
       Option(conf.get(key)).orElse(RssConf.getDeprecatedConfig(key, conf))
     } else {
       None

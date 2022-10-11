@@ -22,6 +22,7 @@ import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, M
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.internal.Logging
@@ -52,7 +53,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   private def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
     settings.synchronized {
       // Load any rss.* system properties
-      for ((key, value) <- props if key.startsWith("rss.")) {
+      for ((key, value) <- props if key.startsWith("celeborn.") || key.startsWith("rss.")) {
         set(key, value, silent)
       }
       this
@@ -421,8 +422,12 @@ object RssConf extends Logging {
    * By this, it makes migrations to new versions painless.
    */
   val removedConfigs: Map[String, RemovedConfig] = {
+    val masterEndpointsTips = "The behavior is controlled by `celeborn.master.endpoints` now, " +
+      "please check the documentation for details."
     val configs = Seq(
-      RemovedConfig("none", "1.0", "value", "doc"))
+      RemovedConfig("rss.master.host", "0.2.0", null, masterEndpointsTips),
+      RemovedConfig("rss.master.port", "0.2.0", null, masterEndpointsTips),
+      RemovedConfig("rss.ha.master.hosts", "0.2.0", null, masterEndpointsTips))
     Map(configs.map { cfg => cfg.key -> cfg }: _*)
   }
 
@@ -579,21 +584,40 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.get.blacklist.delay", "30s")
   }
 
-  def masterAddress(conf: RssConf): String = {
-    conf.get("rss.master.address", masterHost(conf) + ":" + 9097)
+  val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.endpoints")
+      .version("0.2.0")
+      .doc("Endpoints of master nodes, allowed pattern is: " +
+        "`<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
+      .stringConf
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"localhost:9097")
+
+  def masterEndpoints(conf: RssConf): Array[String] = {
+    conf.get(MASTER_ENDPOINTS).toArray
   }
 
-  def masterHostsFromAddress(conf: RssConf): String = {
-    masterAddress(conf).split(",").map(_.split(":")(0)).mkString(",")
+  def masterHostsAndPorts(conf: RssConf): Array[(String, Int)] = {
+    masterEndpoints(conf).map { endpoint => Utils.parseHostPort(endpoint) }
   }
 
-  def masterHost(conf: RssConf): String = {
-    conf.get("rss.master.host", Utils.localHostName())
+  def masterEndpoint(conf: RssConf): String = {
+    require(!haEnabled(conf), s"illegal invocation when ${HA_ENABLED.key} is true")
+    val endpoints = masterEndpoints(conf)
+    require(endpoints.length == 1, s"expect 1 master node, but got ${endpoints.length}")
+    endpoints.head
   }
 
-  def masterPort(conf: RssConf): Int = {
-    conf.getInt("rss.master.port", masterAddress(conf).split(",").head.split(":")(1).toInt)
+  def masterHostAndPort(conf: RssConf): (String, Int) = {
+    Utils.parseHostPort(masterEndpoint(conf))
   }
+
+  def masterHost(conf: RssConf): String = masterHostAndPort(conf)._1
+
+  def masterPort(conf: RssConf): Int = masterHostAndPort(conf)._2
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
     conf.getInt("rss.worker.replicate.numThreads", 64)
@@ -915,21 +939,14 @@ object RssConf extends Logging {
   /**
    * Ratis related config
    */
-  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("rss.ha.enabled")
+  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
+    .withAlternative("rss.ha.enabled")
     .doc("When true, master nodes run as Raft cluster mode.")
     .version("0.1.0")
     .booleanConf
     .createWithDefault(false)
 
   def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
-
-  def haMasterHosts(conf: RssConf): String = {
-    if (conf.get(HA_ENABLED)) {
-      conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
-    } else {
-      masterHostsFromAddress(conf)
-    }
-  }
 
   def haClientMaxTries(conf: RssConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
