@@ -91,7 +91,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val openBlocks = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
-    val userIdentifier = new UserIdentifier("", "")
+    val userIdentifier = UserIdentifier(new String(openBlocks.userIdentifier, StandardCharsets.UTF_8))
     val startMapIndex = openBlocks.startMapIndex
     val endMapIndex = openBlocks.endMapIndex
     // metrics start
