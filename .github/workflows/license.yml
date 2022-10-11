@@ -42,7 +42,7 @@ jobs:
           java-version: 8
           cache: 'maven'
           check-latest: false
-      - run: build/mvn org.apache.rat:apache-rat-plugin:check -Pspark-3.1
+      - run: build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-3.1
       - name: Upload rat report
         if: failure()
         uses: actions/upload-artifact@v2

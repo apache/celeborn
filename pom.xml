@@ -120,6 +120,10 @@
       --add-opens=java.base/sun.security.action=ALL-UNNAMED
       --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</extraJavaTestArgs>
 
+    <mavenCentralId>central</mavenCentralId>
+    <mavenCentralName>Maven Central</mavenCentralName>
+    <mavenCentralUrl>https://repo.maven.apache.org/maven2</mavenCentralUrl>
+
     <distMgmtReleaseId>apache.releases.https</distMgmtReleaseId>
     <distMgmtReleaseName>Apache Release Distribution Repository</distMgmtReleaseName>
     <distMgmtReleaseUrl>https://repository.apache.org/service/local/staging/deploy/maven2</distMgmtReleaseUrl>
@@ -466,8 +470,8 @@
         <enabled>false</enabled>
       </snapshots>
       <id>central</id>
-      <name>Maven Repository</name>
-      <url>https://repo.maven.apache.org/maven2</url>
+      <name>Maven Central</name>
+      <url>${mavenCentralUrl}</url>
     </repository>
   </repositories>
 
@@ -480,7 +484,8 @@
         <enabled>false</enabled>
       </snapshots>
       <id>central</id>
-      <url>https://repo.maven.apache.org/maven2</url>
+      <name>Maven Central</name>
+      <url>${mavenCentralUrl}</url>
     </pluginRepository>
   </pluginRepositories>
 
@@ -960,6 +965,15 @@
           <version>${jackson.databind.version}</version>
         </dependency>
       </dependencies>
+    </profile>
+
+    <profile>
+      <id>google-mirror</id>
+      <properties>
+        <mavenCentralId>gcs-maven-central-mirror</mavenCentralId>
+        <mavenCentralName>GCS Maven Central mirror</mavenCentralName>
+        <mavenCentralUrl>https://maven-central.storage-download.googleapis.com/maven2</mavenCentralUrl>
+      </properties>
     </profile>
 
     <profile>
