@@ -16,19 +16,19 @@
 # limitations under the License.
 #
 
-if [ -z "${RSS_HOME}" ]; then
-  export RSS_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-export RSS_CONF_DIR="${RSS_CONF_DIR:-"${RSS_HOME}/conf"}"
+export CELEBORN_CONF_DIR="${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}"
 
-if [ -z "$RSS_ENV_LOADED" ]; then
-  export RSS_ENV_LOADED=1
+if [ -z "$CELEBORN_ENV_LOADED" ]; then
+  export CELEBORN_ENV_LOADED=1
 
-  if [ -f "${RSS_CONF_DIR}/rss-env.sh" ]; then
+  if [ -f "${CELEBORN_CONF_DIR}/celeborn-env.sh" ]; then
     # Promote all variable declarations to environment (exported) variables
     set -a
-    . "${RSS_CONF_DIR}/rss-env.sh"
+    . "${CELEBORN_CONF_DIR}/celeborn-env.sh"
     set +a
   fi
 fi
@@ -45,7 +45,7 @@ else
   fi
 fi
 
-# Find RSS jars.
+# Find CELEBORN jars.
 
 for i in "$@"
 do
@@ -58,36 +58,36 @@ do
 done
 
 if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.master.Master" ] ; then
-  if [ -d "${RSS_HOME}/master-jars" ]; then
-    RSS_JARS_DIR="${RSS_HOME}/master-jars"
+  if [ -d "${CELEBORN_HOME}/master-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/master-jars"
   else
-    RSS_JARS_DIR="${RSS_HOME}/master/target"
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/master/target"
   fi
 fi
 
 if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.worker.Worker" ] ; then
-  if [ -d "${RSS_HOME}/worker-jars" ]; then
-    RSS_JARS_DIR="${RSS_HOME}/worker-jars"
+  if [ -d "${CELEBORN_HOME}/worker-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/worker-jars"
   else
-    RSS_JARS_DIR="${RSS_HOME}/worker/target"
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/worker/target"
   fi
 fi
 
-if [ ! -d "$RSS_JARS_DIR" ]; then
-  echo "Failed to find RSS jars directory ($RSS_JARS_DIR)." 1>&2
-  echo "You need to build RSS with the target \"package\" before running this program." 1>&2
+if [ ! -d "$CELEBORN_JARS_DIR" ]; then
+  echo "Failed to find CELEBORN jars directory ($CELEBORN_JARS_DIR)." 1>&2
+  echo "You need to build CELEBORN with the target \"package\" before running this program." 1>&2
   exit 1
 else
-  RSS_CLASSPATH="$RSS_CONF_DIR:$HADOOP_CONF_DIR:$RSS_JARS_DIR/*"
+  CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*"
 fi
 
 # Turn off posix mode since it does not allow process substitution
 set +o posix
 CMD=()
 CMD+=("$RUNNER")
-CMD=(${CMD[@]} "$RSS_JAVA_OPTS")
+CMD=(${CMD[@]} "$CELEBORN_JAVA_OPTS")
 CMD+=("-cp")
-CMD+=("$RSS_CLASSPATH")
+CMD+=("$CELEBORN_CLASSPATH")
 CMD=(${CMD[@]} "$@")
 
 COUNT=${#CMD[@]}

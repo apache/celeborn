@@ -24,9 +24,8 @@ import org.apache.commons.lang3.RandomStringUtils
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.ShuffleClientImpl
+import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
-import org.apache.celeborn.client.write.LifecycleManager
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
 import org.apache.celeborn.service.deploy.MiniClusterFeature

@@ -28,11 +28,11 @@ class MasterArguments(args: Array[String], conf: RssConf) {
   var port: Option[Int] = None
   var propertiesFile: String = null
 
-  if (System.getenv("RSS_MASTER_HOST") != null) {
-    host = System.getenv("RSS_MASTER_HOST")
+  if (System.getenv("CELEBORN_MASTER_HOST") != null) {
+    host = System.getenv("CELEBORN_MASTER_HOST")
   }
-  if (System.getenv("RSS_MASTER_PORT") != null) {
-    port = Some(System.getenv("RSS_MASTER_PORT").toInt)
+  if (System.getenv("CELEBORN_MASTER_PORT") != null) {
+    port = Some(System.getenv("CELEBORN_MASTER_PORT").toInt)
   }
 
   parse(args.toList)

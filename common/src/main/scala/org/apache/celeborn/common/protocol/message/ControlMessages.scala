@@ -57,8 +57,8 @@ object ControlMessages extends Logging {
 
   /**
    * ==========================================
-   *         handled by master
-   *  ==========================================
+   * handled by master
+   * ==========================================
    */
   val pbCheckForWorkerTimeout: PbCheckForWorkerTimeout =
     PbCheckForWorkerTimeout.newBuilder().build()
@@ -74,32 +74,34 @@ object ControlMessages extends Logging {
    */
   case object OneWayMessageResponse extends Message
 
-  def pbRegisterWorker(
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: Map[String, DiskInfo],
-      userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
-      requestId: String): PbRegisterWorker = {
-    val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
-    val pbUserResourceConsumption = userResourceConsumption
-      .map { case (userIdentifier, resourceConsumption) =>
-        (userIdentifier.toString, resourceConsumption)
-      }
-      .mapValues(PbSerDeUtils.toPbResourceConsumption)
-      .asJava
-    PbRegisterWorker.newBuilder()
-      .setHost(host)
-      .setRpcPort(rpcPort)
-      .setPushPort(pushPort)
-      .setFetchPort(fetchPort)
-      .setReplicatePort(replicatePort)
-      .addAllDisks(pbDisks)
-      .putAllUserResourceConsumption(pbUserResourceConsumption)
-      .setRequestId(requestId)
-      .build()
+  object RegisterWorker {
+    def apply(
+        host: String,
+        rpcPort: Int,
+        pushPort: Int,
+        fetchPort: Int,
+        replicatePort: Int,
+        disks: Map[String, DiskInfo],
+        userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
+        requestId: String): PbRegisterWorker = {
+      val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
+      val pbUserResourceConsumption = userResourceConsumption
+        .map { case (userIdentifier, resourceConsumption) =>
+          (userIdentifier.toString, resourceConsumption)
+        }
+        .mapValues(PbSerDeUtils.toPbResourceConsumption)
+        .asJava
+      PbRegisterWorker.newBuilder()
+        .setHost(host)
+        .setRpcPort(rpcPort)
+        .setPushPort(pushPort)
+        .setFetchPort(fetchPort)
+        .setReplicatePort(replicatePort)
+        .addAllDisks(pbDisks)
+        .putAllUserResourceConsumption(pbUserResourceConsumption)
+        .setRequestId(requestId)
+        .build()
+    }
   }
 
   case class HeartbeatFromWorker(
@@ -117,26 +119,30 @@ object ControlMessages extends Logging {
       expiredShuffleKeys: util.HashSet[String],
       registered: Boolean) extends MasterMessage
 
-  def pbRegisterShuffle(
-      appId: String,
-      shuffleId: Int,
-      numMappers: Int,
-      numPartitions: Int): PbRegisterShuffle =
-    PbRegisterShuffle.newBuilder()
-      .setApplicationId(appId)
-      .setShuffleId(shuffleId)
-      .setNumMapppers(numMappers)
-      .setNumPartitions(numPartitions)
-      .build()
+  object RegisterShuffle {
+    def apply(
+        appId: String,
+        shuffleId: Int,
+        numMappers: Int,
+        numPartitions: Int): PbRegisterShuffle =
+      PbRegisterShuffle.newBuilder()
+        .setApplicationId(appId)
+        .setShuffleId(shuffleId)
+        .setNumMapppers(numMappers)
+        .setNumPartitions(numPartitions)
+        .build()
+  }
 
-  def pbRegisterShuffleResponse(
-      status: StatusCode,
-      partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse =
-    PbRegisterShuffleResponse.newBuilder()
-      .setStatus(status.getValue)
-      .addAllPartitionLocations(
-        partitionLocations.map(PartitionLocation.toPbPartitionLocation).toSeq.asJava)
-      .build()
+  object RegisterShuffleResponse {
+    def apply(
+        status: StatusCode,
+        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse =
+      PbRegisterShuffleResponse.newBuilder()
+        .setStatus(status.getValue)
+        .addAllPartitionLocations(
+          partitionLocations.map(PartitionLocation.toPbPartitionLocation).toSeq.asJava)
+        .build()
+  }
 
   case class RequestSlots(
       applicationId: String,
@@ -164,49 +170,55 @@ object ControlMessages extends Logging {
       workerResource: WorkerResource)
     extends MasterMessage
 
-  def pbRevive(
-      appId: String,
-      shuffleId: Int,
-      mapId: Int,
-      attemptId: Int,
-      partitionId: Int,
-      epoch: Int,
-      oldPartition: PartitionLocation,
-      cause: StatusCode): PbRevive =
-    PbRevive.newBuilder()
-      .setApplicationId(appId)
-      .setShuffleId(shuffleId)
-      .setMapId(mapId)
-      .setAttemptId(attemptId)
-      .setPartitionId(partitionId)
-      .setEpoch(epoch)
-      .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
-      .setStatus(cause.getValue)
-      .build()
+  object Revive {
+    def apply(
+        appId: String,
+        shuffleId: Int,
+        mapId: Int,
+        attemptId: Int,
+        partitionId: Int,
+        epoch: Int,
+        oldPartition: PartitionLocation,
+        cause: StatusCode): PbRevive =
+      PbRevive.newBuilder()
+        .setApplicationId(appId)
+        .setShuffleId(shuffleId)
+        .setMapId(mapId)
+        .setAttemptId(attemptId)
+        .setPartitionId(partitionId)
+        .setEpoch(epoch)
+        .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+        .setStatus(cause.getValue)
+        .build()
+  }
 
-  def pbPartitionSplit(
-      appId: String,
-      shuffleId: Int,
-      partitionId: Int,
-      epoch: Int,
-      oldPartition: PartitionLocation): PbPartitionSplit =
-    PbPartitionSplit.newBuilder()
-      .setApplicationId(appId)
-      .setShuffleId(shuffleId)
-      .setPartitionId(partitionId)
-      .setEpoch(epoch)
-      .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
-      .build()
+  object PartitionSplit {
+    def apply(
+        appId: String,
+        shuffleId: Int,
+        partitionId: Int,
+        epoch: Int,
+        oldPartition: PartitionLocation): PbPartitionSplit =
+      PbPartitionSplit.newBuilder()
+        .setApplicationId(appId)
+        .setShuffleId(shuffleId)
+        .setPartitionId(partitionId)
+        .setEpoch(epoch)
+        .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+        .build()
+  }
 
-  def pbChangeLocationResponse(
-      status: StatusCode,
-      partitionLocationOpt: Option[PartitionLocation]): PbChangeLocationResponse = {
-    val builder = PbChangeLocationResponse.newBuilder()
-    builder.setStatus(status.getValue)
-    partitionLocationOpt.foreach { partitionLocation =>
-      builder.setLocation(PartitionLocation.toPbPartitionLocation(partitionLocation))
+  object ChangeLocationResponse {
+    def apply(
+        status: StatusCode,
+        partitionLocationOpt: Option[PartitionLocation]): PbChangeLocationResponse = {
+      val builder = PbChangeLocationResponse.newBuilder()
+      builder.setStatus(status.getValue)
+      partitionLocationOpt.foreach { partitionLocation =>
+        builder.setLocation(PartitionLocation.toPbPartitionLocation(partitionLocation))
+      }
+      builder.build()
     }
-    builder.build()
   }
 
   case class MapperEnd(
@@ -229,45 +241,53 @@ object ControlMessages extends Logging {
       attempts: Array[Int])
     extends MasterMessage
 
-  def pbWorkerLost(
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      requestId: String): PbWorkerLost = PbWorkerLost.newBuilder()
-    .setHost(host)
-    .setRpcPort(rpcPort)
-    .setPushPort(pushPort)
-    .setFetchPort(fetchPort)
-    .setReplicatePort(replicatePort)
-    .setRequestId(requestId)
-    .build()
-
-  def pbWorkerLostResponse(success: Boolean): PbWorkerLostResponse =
-    PbWorkerLostResponse.newBuilder()
-      .setSuccess(success)
+  object WorkerLost {
+    def apply(
+        host: String,
+        rpcPort: Int,
+        pushPort: Int,
+        fetchPort: Int,
+        replicatePort: Int,
+        requestId: String): PbWorkerLost = PbWorkerLost.newBuilder()
+      .setHost(host)
+      .setRpcPort(rpcPort)
+      .setPushPort(pushPort)
+      .setFetchPort(fetchPort)
+      .setReplicatePort(replicatePort)
+      .setRequestId(requestId)
       .build()
+  }
+
+  object WorkerLostResponse {
+    def apply(success: Boolean): PbWorkerLostResponse =
+      PbWorkerLostResponse.newBuilder()
+        .setSuccess(success)
+        .build()
+  }
 
   case class StageEnd(applicationId: String, shuffleId: Int) extends MasterMessage
 
   case class StageEndResponse(status: StatusCode)
     extends MasterMessage
 
-  def pbUnregisterShuffle(
-      appId: String,
-      shuffleId: Int,
-      requestId: String): PbUnregisterShuffle =
-    PbUnregisterShuffle.newBuilder()
-      .setAppId(appId)
-      .setShuffleId(shuffleId)
-      .setRequestId(requestId)
-      .build()
+  object UnregisterShuffle {
+    def apply(
+        appId: String,
+        shuffleId: Int,
+        requestId: String): PbUnregisterShuffle =
+      PbUnregisterShuffle.newBuilder()
+        .setAppId(appId)
+        .setShuffleId(shuffleId)
+        .setRequestId(requestId)
+        .build()
+  }
 
-  def pbUnregisterShuffleResponse(status: StatusCode): PbUnregisterShuffleResponse =
-    PbUnregisterShuffleResponse.newBuilder()
-      .setStatus(status.getValue)
-      .build()
+  object UnregisterShuffleResponse {
+    def apply(status: StatusCode): PbUnregisterShuffleResponse =
+      PbUnregisterShuffleResponse.newBuilder()
+        .setStatus(status.getValue)
+        .build()
+  }
 
   case class ApplicationLost(
       appId: String,
@@ -301,11 +321,13 @@ object ControlMessages extends Logging {
    *         handled by worker
    *  ==========================================
    */
-  def pbRegisterWorkerResponse(success: Boolean, message: String): PbRegisterWorkerResponse =
-    PbRegisterWorkerResponse.newBuilder()
-      .setSuccess(success)
-      .setMessage(message)
-      .build()
+  object RegisterWorkerResponse {
+    def apply(success: Boolean, message: String): PbRegisterWorkerResponse =
+      PbRegisterWorkerResponse.newBuilder()
+        .setSuccess(success)
+        .setMessage(message)
+        .build()
+  }
 
   case class ReregisterWorkerResponse(success: Boolean) extends WorkerMessage
 
@@ -797,7 +819,9 @@ object ControlMessages extends Logging {
         val userResourceConsumption = pbHeartbeatFromWorker
           .getUserResourceConsumptionMap
           .asScala
-          .map(x => (UserIdentifier(x._1), x._2))
+          .map { case (userInfo, resourceConsumption) =>
+            (UserIdentifier(userInfo), resourceConsumption)
+          }
           .mapValues(PbSerDeUtils.fromPbResourceConsumption)
           .toMap
           .asJava

@@ -28,7 +28,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifie
 import org.apache.celeborn.common.util.Utils
 
 class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
-  import QuotaManager._
+
   override def refresh(): Unit = {
     // Not support refresh
   }
@@ -41,8 +41,7 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
         val stream = new FileInputStream(new File(quotaConfPath))
         val yaml = new Yaml()
         val quotas =
-          yaml.load(stream)
-            .asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Object]]]
+          yaml.load(stream).asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Object]]]
         quotas.asScala.foreach { quotaSetting =>
           val tenantId = quotaSetting.get("tenantId").asInstanceOf[String]
           val name = quotaSetting.get("name").asInstanceOf[String]
@@ -57,6 +56,5 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
           userQuotas.put(userIdentifier, quota)
         }
       }
-
   }
 }

@@ -18,18 +18,18 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: shuffleservice-worker
+  name: celeborn-worker
   labels:
-    app.kubernetes.io/name: shuffleserviceworker
+    app.kubernetes.io/name: celeborn-worker
     app.kubernetes.io/role: worker
-    {{- include "remote-shuffle-service.labels" . | nindent 4 }}
+    {{- include "celeborn.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: shuffleserviceworker
+      app.kubernetes.io/name: celeborn-worker
       app.kubernetes.io/role: worker
-      {{- include "remote-shuffle-service.selectorLabels" . | nindent 6 }}
-  serviceName: shuffleservice-worker
+      {{- include "celeborn.selectorLabels" . | nindent 6 }}
+  serviceName: celeborn-worker
   replicas: {{ .Values.workerReplicas }}
   template:
     metadata:
@@ -38,9 +38,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app.kubernetes.io/name: shuffleserviceworker
+        app.kubernetes.io/name: celeborn-worker
         app.kubernetes.io/role: worker
-        {{- include "remote-shuffle-service.selectorLabels" . | nindent 8 }}
+        {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
       affinity:
         podAntiAffinity:
@@ -50,7 +50,7 @@ spec:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                - shuffleserviceworker
+                - celeborn-worker
             topologyKey: "kubernetes.io/hostname"
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -72,25 +72,25 @@ spec:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
-        command: 
+        command:
           - "/usr/bin/tini"
           - "--"
           - "/bin/sh"
           - '-c'
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup shuffleservice-master-{{ . }}.rss-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn-{{ .Values.celebornVersion }}-bin/sbin/start-worker.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn-{{ .Values.celebornVersion }}-bin/sbin/start-worker.sh"
         resources:
           {{- toYaml .Values.resources.worker | nindent 12 }}
         ports:
-          - containerPort: {{ get .Values.rss "rss.worker.prometheus.metric.port" | default 9096 }}
+          - containerPort: {{ get .Values.celeborn "rss.worker.prometheus.metric.port" | default 9096 }}
             name: metrics
             protocol: TCP
         volumeMounts:
           {{- if .Values.configmap }}
           - mountPath: /opt/celeborn-{{ .Values.celebornVersion }}-bin/conf
-            name: {{ include "remote-shuffle-service.fullname" . }}-volume
+            name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
           {{- end }}
-          {{- $dirs := get .Values.rss "rss.worker.base.dirs" | splitList "," -}}
+          {{- $dirs := get .Values.celeborn "rss.worker.base.dirs" | splitList "," -}}
           {{- range $index, $dir := $dirs }}
           - mountPath: {{ $dir }} 
             name: vol-{{ $index }}
@@ -108,7 +108,7 @@ spec:
       volumes:
         - configMap:
             name: {{ .Values.configmap }}
-          name: {{ include "remote-shuffle-service.fullname" . }}-volume
+          name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $dir := $dirs }}
         - hostPath:
             path: {{ $dir }}/worker

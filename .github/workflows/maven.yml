@@ -33,4 +33,4 @@ jobs:
         cache: maven
         check-latest: false
     - name: Test with Maven
-      run: build/mvn -Pspark-${{ matrix.spark }} test
+      run: build/mvn -Pgoogle-mirror,spark-${{ matrix.spark }} test

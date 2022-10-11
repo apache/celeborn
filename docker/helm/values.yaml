@@ -15,11 +15,12 @@
 # limitations under the License.
 #
 
-# Default values for remote-shuffle-service.
+# Default values for celeborn.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# we provide a default rss image, you can also replace to your image
+# we provide a default celeborn image, you can also replace to your image
+# TODO rebuild celeborn official image
 image:
   repository: aliyunemr/remote-shuffle-service
   pullPolicy: Always
@@ -35,8 +36,8 @@ workerReplicas: 5
 # celeborn release version
 celebornVersion: 0.1.1
 
-# rss configurations
-rss:
+# celeborn configurations
+celeborn:
   # please update rss.worker.base.dirs to disk mount path on k8s node
   rss.worker.base.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
   rss.push.data.replicate: true
@@ -76,7 +77,7 @@ service:
   type: ClusterIP
   port: 9097
 
-configmap: shuffle-service-conf
+configmap: celeborn-conf
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

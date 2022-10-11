@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import org.apache.spark.SparkConf
 
-import org.apache.celeborn.client.write.LifecycleManager
+import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.internal.Logging
 
@@ -57,7 +57,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
   /**
    * If rss cluster is exceed current user's quota, fallback to external shuffle
    *
-   * @return if rss cluster usage of current user's percent is overhead the limit
+   * @return if rss cluster have available space for current user.
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
     if (!RssConf.clusterCheckQuotaEnabled(rssConf)) {

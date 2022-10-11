@@ -924,7 +924,11 @@ object RssConf extends Logging {
   def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
 
   def haMasterHosts(conf: RssConf): String = {
-    conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
+    if (conf.get(HA_ENABLED)) {
+      conf.get("rss.ha.master.hosts", masterHostsFromAddress(conf))
+    } else {
+      masterHostsFromAddress(conf)
+    }
   }
 
   def haClientMaxTries(conf: RssConf): Int = {
@@ -957,6 +961,18 @@ object RssConf extends Logging {
 
   def partitionSplitMinimumSize(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.partition.split.minimum.size", "1m")
+  }
+
+  def batchHandleChangePartitionEnabled(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.change.partition.batch.enabled", false)
+  }
+
+  def batchHandleChangePartitionNumThreads(conf: RssConf): Int = {
+    conf.getInt("rss.change.partition.numThreads", 8)
+  }
+
+  def handleChangePartitionRequestBatchInterval(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.change.partition.batchInterval", "100ms")
   }
 
   def partitionSplitMode(conf: RssConf): PartitionSplitMode = {

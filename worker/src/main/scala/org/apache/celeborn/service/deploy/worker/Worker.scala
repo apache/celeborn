@@ -214,7 +214,9 @@ private[celeborn] class Worker(
         pushPort,
         fetchPort,
         replicatePort,
-        diskInfos,
+        workerInfo.updateThenGetDiskInfos(
+          diskInfos.map { disk => disk.mountPoint -> disk }.toMap.asJava,
+          RssConf.initialPartitionSize(conf)).values().asScala.toSeq,
         workerInfo.updateThenGetUserResourceConsumption(
           storageManager.userResourceConsumptionSnapshot().asJava),
         shuffleKeys),
@@ -334,12 +336,14 @@ private[celeborn] class Worker(
       val resp =
         try {
           rssHARetryClient.askSync[PbRegisterWorkerResponse](
-            ControlMessages.pbRegisterWorker(
+            RegisterWorker(
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
+              // Use WorkerInfo's diskInfo since re-register when heartbeat return not-registered,
+              // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
               workerInfo.updateThenGetUserResourceConsumption(
                 storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,

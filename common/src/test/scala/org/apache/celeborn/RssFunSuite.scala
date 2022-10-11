@@ -91,10 +91,10 @@ abstract class RssFunSuite
    * Get a Path relative to the root project. It is assumed that a spark home is set.
    */
   final protected def getWorkspaceFilePath(first: String, more: String*): Path = {
-    if (!(sys.props.contains("rss.test.home") || sys.env.contains("RSS_HOME"))) {
+    if (!(sys.props.contains("rss.test.home") || sys.env.contains("CELEBORN_HOME"))) {
       fail("spark.test.home or SPARK_HOME is not set.")
     }
-    val sparkHome = sys.props.getOrElse("rss.test.home", sys.env("RSS_HOME"))
+    val sparkHome = sys.props.getOrElse("rss.test.home", sys.env("CELEBORN_HOME"))
     java.nio.file.Paths.get(sparkHome, first +: more: _*)
   }
 

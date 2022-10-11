@@ -68,6 +68,7 @@ class RssColumnarBatchBuilder(
       encodersArr(i) match {
         case encoder: RssDictionaryEncoding.RssEncoder[_] if !encoder.overflow =>
           encoder.cleanBatch
+        case _ =>
       }
       RssColumnBuilder(
         attribute.dataType,

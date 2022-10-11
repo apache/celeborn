@@ -19,6 +19,7 @@ package org.apache.celeborn.common.quota
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
+import org.apache.celeborn.common.util.Utils
 
 case class Quota(
     var diskBytesWritten: Long = -1,
@@ -36,7 +37,7 @@ case class Quota(
     }
   }
 
-  def checkQuotaAvailable(
+  def checkQuotaSpaceAvailable(
       userIdentifier: UserIdentifier,
       resourceResumption: ResourceConsumption): Boolean = {
     val exceed =
@@ -46,15 +47,17 @@ case class Quota(
         checkHdfsFileCount(userIdentifier, resourceResumption.hdfsFileCount)
     !exceed
   }
-  def checkDiskBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
+
+  private def checkDiskBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
     val exceed = (diskBytesWritten > 0 && value >= diskBytesWritten)
     if (exceed) {
-      logWarning(s"User $userIdentifier quota exceed diskBytesWritten, $value >= $diskBytesWritten")
+      logWarning(s"User $userIdentifier quota exceed diskBytesWritten, " +
+        s"$value >= $diskBytesWritten")
     }
     exceed
   }
 
-  def checkDiskFileCount(userIdentifier: UserIdentifier, value: Long): Boolean = {
+  private def checkDiskFileCount(userIdentifier: UserIdentifier, value: Long): Boolean = {
     val exceed = (diskFileCount > 0 && value >= diskFileCount)
     if (exceed) {
       logWarning(s"User $userIdentifier quota exceed diskFileCount, $value >= $diskFileCount")
@@ -62,15 +65,16 @@ case class Quota(
     exceed
   }
 
-  def checkHdfsBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
+  private def checkHdfsBytesWritten(userIdentifier: UserIdentifier, value: Long): Boolean = {
     val exceed = (hdfsBytesWritten > 0 && value >= hdfsBytesWritten)
     if (exceed) {
-      logWarning(s"User $userIdentifier quota exceed hdfsBytesWritten, $value >= $hdfsBytesWritten")
+      logWarning(s"User $userIdentifier quota exceed hdfsBytesWritten, " +
+        s"$value >= $hdfsBytesWritten")
     }
     exceed
   }
 
-  def checkHdfsFileCount(userIdentifier: UserIdentifier, value: Long): Boolean = {
+  private def checkHdfsFileCount(userIdentifier: UserIdentifier, value: Long): Boolean = {
     val exceed = (hdfsFileCount > 0 && value >= hdfsFileCount)
     if (exceed) {
       logWarning(s"User $userIdentifier quota exceed hdfsFileCount, $value >= $hdfsFileCount")
@@ -79,6 +83,11 @@ case class Quota(
   }
 
   override def toString: String = {
-    s"Quota[diskBytesWritten=$diskBytesWritten, diskFileCount=$diskFileCount, hdfsBytesWritten=$hdfsBytesWritten, hdfsFileCount=$hdfsFileCount]"
+    s"Quota[" +
+      s"diskBytesWritten=${Utils.bytesToString(diskBytesWritten)}, " +
+      s"diskFileCount=$diskFileCount, " +
+      s"hdfsBytesWritten=${Utils.bytesToString(hdfsBytesWritten)}, " +
+      s"hdfsFileCount=$hdfsFileCount" +
+      s"]"
   }
 }

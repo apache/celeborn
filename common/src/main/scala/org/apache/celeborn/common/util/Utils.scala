@@ -366,7 +366,7 @@ object Utils extends Logging {
   private lazy val localIpAddress: InetAddress = findLocalInetAddress()
 
   private def findLocalInetAddress(): InetAddress = {
-    val defaultIpOverride = System.getenv("RSS_LOCAL_IP")
+    val defaultIpOverride = System.getenv("CELEBORN_LOCAL_IP")
     if (defaultIpOverride != null) {
       InetAddress.getByName(defaultIpOverride)
     } else {
@@ -404,7 +404,7 @@ object Utils extends Logging {
     }
   }
 
-  private var customHostname: Option[String] = sys.env.get("RSS_LOCAL_HOSTNAME")
+  private var customHostname: Option[String] = sys.env.get("CELEBORN_LOCAL_HOSTNAME")
 
   def setCustomHostname(hostname: String) {
     // DEBUG code
@@ -489,8 +489,8 @@ object Utils extends Logging {
   }
 
   def getDefaultPropertiesFile(env: Map[String, String] = sys.env): String = {
-    env.get("RSS_CONF_DIR")
-      .orElse(env.get("RSS_HOME").map { t => s"$t${File.separator}conf" })
+    env.get("CELEBORN_CONF_DIR")
+      .orElse(env.get("CELEBORN_HOME").map { t => s"$t${File.separator}conf" })
       .map { t => new File(s"$t${File.separator}rss-defaults.conf") }
       .filter(_.isFile)
       .map(_.getAbsolutePath)
@@ -498,8 +498,8 @@ object Utils extends Logging {
   }
 
   def getDefaultQuotaConfigurationFile(env: Map[String, String] = sys.env): String = {
-    env.get("RSS_CONF_DIR")
-      .orElse(env.get("RSS_HOME").map { t => s"$t${File.separator}conf" })
+    env.get("CELEBORN_CONF_DIR")
+      .orElse(env.get("CELEBORN_HOME").map { t => s"$t${File.separator}conf" })
       .map { t => new File(s"$t${File.separator}quota.yml") }
       .filter(_.isFile)
       .map(_.getAbsolutePath)
