@@ -469,8 +469,8 @@
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
-      <id>central</id>
-      <name>Maven Central</name>
+      <id>${mavenCentralId}</id>
+      <name>${mavenCentralName}</name>
       <url>${mavenCentralUrl}</url>
     </repository>
   </repositories>
@@ -483,8 +483,8 @@
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
-      <id>central</id>
-      <name>Maven Central</name>
+      <id>${mavenCentralId}</id>
+      <name>${mavenCentralName}</name>
       <url>${mavenCentralUrl}</url>
     </pluginRepository>
   </pluginRepositories>
