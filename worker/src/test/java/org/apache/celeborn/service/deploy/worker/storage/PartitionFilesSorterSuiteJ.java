@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -48,6 +49,7 @@ public class PartitionFilesSorterSuiteJ {
 
   private File shuffleFile;
   private FileInfo fileInfo;
+  private UserIdentifier userIdentifier;
   public final int CHUNK_SIZE = 8 * 1024 * 1024;
   private String originFileName;
   private long originFileLen;
@@ -60,7 +62,8 @@ public class PartitionFilesSorterSuiteJ {
     shuffleFile = File.createTempFile("RSS", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
-    fileInfo = new FileInfo(shuffleFile);
+    userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
+    fileInfo = new FileInfo(shuffleFile, userIdentifier);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -124,9 +127,10 @@ public class PartitionFilesSorterSuiteJ {
     RssConf conf = new RssConf();
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+
     FileInfo info =
         partitionFilesSorter.openStream(
-            "application-1", originFileName, fileWriter.getFileInfo(), 5, 10);
+            "application-1", originFileName, fileWriter.getFileInfo(), userIdentifier, 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks() > 0);
@@ -142,7 +146,7 @@ public class PartitionFilesSorterSuiteJ {
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info =
         partitionFilesSorter.openStream(
-            "application-1", originFileName, fileWriter.getFileInfo(), 5, 10);
+            "application-1", originFileName, fileWriter.getFileInfo(), userIdentifier, 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
     Assert.assertTrue(info.numChunks() > 0);

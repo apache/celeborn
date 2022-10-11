@@ -128,7 +128,7 @@ public class FileWriterSuiteJ {
         new FetchHandler(transConf) {
           @Override
           public FileInfo openStream(
-              String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
+              String shuffleKey, String fileName, UserIdentifier userIdentifier, int startMapIndex, int endMapIndex) {
             return info;
           }
 

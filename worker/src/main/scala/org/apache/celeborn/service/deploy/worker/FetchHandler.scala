@@ -33,6 +33,7 @@ import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.{BaseMessageHandler, OneForOneStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
@@ -54,6 +55,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   def openStream(
       shuffleKey: String,
       fileName: String,
+      userIdentifier: UserIdentifier,
       startMapIndex: Int,
       endMapIndex: Int): FileInfo = {
     // find FileWriter responsible for the data
@@ -63,7 +65,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       logWarning(errMsg)
       throw new FileNotFoundException(errMsg)
     }
-    partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
+    partitionsSorter.openStream(shuffleKey, fileName, fileInfo, userIdentifier, startMapIndex, endMapIndex)
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
@@ -83,12 +85,13 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val openBlocks = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
+    val userIdentifier = new UserIdentifier("","")
     val startMapIndex = openBlocks.startMapIndex
     val endMapIndex = openBlocks.endMapIndex
     // metrics start
     workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
-      val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
+      val fileInfo = openStream(shuffleKey, fileName, userIdentifier, startMapIndex, endMapIndex)
       logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
         s"$startMapIndex $endMapIndex get file info $fileInfo")
       try {
