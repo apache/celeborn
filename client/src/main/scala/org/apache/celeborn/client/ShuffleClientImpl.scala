@@ -288,7 +288,6 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       } catch {
         case e: InterruptedException =>
           return null
-
       }
       numRetries -= 1
     }
