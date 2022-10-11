@@ -29,7 +29,7 @@ import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 
-abstract class ShuffleClient extends Cloneable {
+abstract class ShuffleClient {
 
   def setupMetaServiceRef(host: String, port: Int): Unit
 
