@@ -1074,6 +1074,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           conf,
           dataClientFactory,
           shuffleKey,
+          userIdentifier,
           fileGroups.partitionGroups[partitionId],
           fileGroups.mapAttempts,
           attemptNumber,

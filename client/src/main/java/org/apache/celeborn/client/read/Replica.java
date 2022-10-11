@@ -28,10 +28,12 @@ import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 
 class Replica {
   private final long timeoutMs;
   private final String shuffleKey;
+  private final UserIdentifier userIdentifier;
   private final PartitionLocation location;
   private final TransportClientFactory clientFactory;
 
@@ -43,12 +45,14 @@ class Replica {
   Replica(
       long timeoutMs,
       String shuffleKey,
+      UserIdentifier userIdentifier,
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex) {
     this.timeoutMs = timeoutMs;
     this.shuffleKey = shuffleKey;
+    this.userIdentifier = userIdentifier;
     this.location = location;
     this.clientFactory = clientFactory;
     this.startMapIndex = startMapIndex;
@@ -60,7 +64,7 @@ class Replica {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
 
       OpenStream openBlocks =
-          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+          new OpenStream(shuffleKey, location.getFileName(), userIdentifier, startMapIndex, endMapIndex);
       ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
       streamHandle = (StreamHandle) Message.decode(response);
     }
