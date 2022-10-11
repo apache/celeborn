@@ -27,7 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.protocol.*;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
+import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 
 public class PbSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)
@@ -81,8 +81,10 @@ public class PbSerDeUtils {
 
   public static FileInfo fromPbFileInfo(PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
+    PbUserIdentifier pbUserIdentifier = pbFileInfo.getUserIdentifier();
+    UserIdentifier userIdentifier = new UserIdentifier(pbUserIdentifier.getTenantId(), pbUserIdentifier.getName());
     return new FileInfo(
-        pbFileInfo.getFilePath(), new ArrayList<>(pbFileInfo.getChunkOffsetsList()));
+        pbFileInfo.getFilePath(), new ArrayList<>(pbFileInfo.getChunkOffsetsList()), userIdentifier);
   }
 
   public static PbFileInfo toPbFileInfo(FileInfo fileInfo) {

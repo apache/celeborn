@@ -74,6 +74,7 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.FetchHandler;
@@ -238,9 +239,10 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
+    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileWriter fileWriter =
         new FileWriter(
-            new FileInfo(file),
+            new FileInfo(file, userIdentifier),
             localFlusher,
             source,
             RSS_CONF,
@@ -283,9 +285,10 @@ public class FileWriterSuiteJ {
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
+    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileWriter fileWriter =
         new FileWriter(
-            new FileInfo(file),
+            new FileInfo(file, userIdentifier),
             localFlusher,
             source,
             RSS_CONF,
@@ -336,7 +339,8 @@ public class FileWriterSuiteJ {
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    FileInfo fileInfo = new FileInfo(file);
+    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
+    FileInfo fileInfo = new FileInfo(file, userIdentifier);
     FileWriter fileWriter =
         new FileWriter(
             fileInfo,
