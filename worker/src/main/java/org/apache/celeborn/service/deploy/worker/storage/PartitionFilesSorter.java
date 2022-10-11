@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -54,6 +53,7 @@ import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
@@ -163,7 +163,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   public FileInfo openStream(
-          String shuffleKey, String fileName, FileInfo fileInfo, UserIdentifier userIdentifier, int startMapIndex, int endMapIndex)
+      String shuffleKey,
+      String fileName,
+      FileInfo fileInfo,
+      UserIdentifier userIdentifier,
+      int startMapIndex,
+      int endMapIndex)
       throws IOException {
     if (endMapIndex == Integer.MAX_VALUE) {
       return fileInfo;
@@ -181,7 +186,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
           return resolve(
-              shuffleKey, fileId, sortedFilePath, indexFilePath, userIdentifier, startMapIndex, endMapIndex);
+              shuffleKey,
+              fileId,
+              sortedFilePath,
+              indexFilePath,
+              userIdentifier,
+              startMapIndex,
+              endMapIndex);
         }
         if (!sorting.contains(fileId)) {
           try {
@@ -223,7 +234,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
 
-      return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath, userIdentifier, startMapIndex, endMapIndex);
+      return resolve(
+          shuffleKey,
+          fileId,
+          sortedFilePath,
+          indexFilePath,
+          userIdentifier,
+          startMapIndex,
+          endMapIndex);
     }
   }
 

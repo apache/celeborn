@@ -23,7 +23,6 @@ import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +31,7 @@ import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 

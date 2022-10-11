@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
@@ -41,6 +40,7 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -75,7 +75,8 @@ public class DfsPartitionReader implements PartitionReader {
         TransportClient client =
             clientFactory.createClient(location.getHost(), location.getFetchPort());
         OpenStream openBlocks =
-            new OpenStream(shuffleKey, location.getFileName(), userIdentifier, startMapIndex, endMapIndex);
+            new OpenStream(
+                shuffleKey, location.getFileName(), userIdentifier, startMapIndex, endMapIndex);
         ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
         Message.decode(response);
         // Parse this message to ensure sort is done.

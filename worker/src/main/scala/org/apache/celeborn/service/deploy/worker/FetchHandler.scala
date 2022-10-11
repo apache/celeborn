@@ -65,7 +65,13 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       logWarning(errMsg)
       throw new FileNotFoundException(errMsg)
     }
-    partitionsSorter.openStream(shuffleKey, fileName, fileInfo, userIdentifier, startMapIndex, endMapIndex)
+    partitionsSorter.openStream(
+      shuffleKey,
+      fileName,
+      fileInfo,
+      userIdentifier,
+      startMapIndex,
+      endMapIndex)
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
@@ -85,7 +91,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val openBlocks = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
-    val userIdentifier = new UserIdentifier("","")
+    val userIdentifier = new UserIdentifier("", "")
     val startMapIndex = openBlocks.startMapIndex
     val endMapIndex = openBlocks.endMapIndex
     // metrics start

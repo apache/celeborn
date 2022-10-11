@@ -88,7 +88,8 @@ public class FileWriterSuiteJ {
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
-  private static final UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
+  private static final UserIdentifier userIdentifier =
+      new UserIdentifier("mock-tenant", "mock-name");
 
   private static File tempDir = null;
   private static LocalFlusher localFlusher = null;
@@ -129,7 +130,11 @@ public class FileWriterSuiteJ {
         new FetchHandler(transConf) {
           @Override
           public FileInfo openStream(
-              String shuffleKey, String fileName, UserIdentifier userIdentifier, int startMapIndex, int endMapIndex) {
+              String shuffleKey,
+              String fileName,
+              UserIdentifier userIdentifier,
+              int startMapIndex,
+              int endMapIndex) {
             return info;
           }
 
@@ -188,7 +193,8 @@ public class FileWriterSuiteJ {
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
     byte[] userIdentifierBytes = userIdentifier.toString().getBytes(StandardCharsets.UTF_8);
 
-    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, userIdentifierBytes, 0, Integer.MAX_VALUE);
+    OpenStream openBlocks =
+        new OpenStream(shuffleKeyBytes, fileNameBytes, userIdentifierBytes, 0, Integer.MAX_VALUE);
 
     return openBlocks.toByteBuffer();
   }

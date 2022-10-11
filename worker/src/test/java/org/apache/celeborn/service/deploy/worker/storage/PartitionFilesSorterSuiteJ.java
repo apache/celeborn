@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -39,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
