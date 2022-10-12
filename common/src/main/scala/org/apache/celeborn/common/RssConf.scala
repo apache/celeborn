@@ -596,6 +596,30 @@ object RssConf extends Logging {
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"<localhost>:9097")
 
+  val MASTER_HOST: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.host")
+      .withAlternative("rss.master.host")
+      .version("0.2.0")
+      .doc("Hostname for master to bind.")
+      .stringConf
+      .createOptional
+
+  val MASTER_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.port")
+      .withAlternative("rss.master.port")
+      .version("0.2.0")
+      .doc("Port for master to bind.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9097)
+
+  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
+    .withAlternative("rss.ha.enabled")
+    .doc("When true, master nodes run as Raft cluster mode.")
+    .version("0.1.0")
+    .booleanConf
+    .createWithDefault(false)
+
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
     buildConf("celeborn.ha.master.node.id")
       .doc("Node id for master raft cluster in HA mode, if not define, " +
@@ -616,11 +640,13 @@ object RssConf extends Logging {
       .doc("Port to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9097)
 
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
     buildConf("celeborn.ha.master.node.<id>.ratis.host")
-      .doc("Ratis host to bind of master node <id> in HA mode.")
+      .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
+        s"fallback to ${HA_MASTER_NODE_HOST.key}.")
       .version("0.2.0")
       .stringConf
       .createOptional
@@ -630,24 +656,8 @@ object RssConf extends Logging {
       .doc("Ratis port to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .intConf
-      .createWithDefault(9872)
-
-  val MASTER_HOST: OptionalConfigEntry[String] =
-    buildConf("celeborn.master.host")
-      .withAlternative("rss.master.host")
-      .version("0.2.0")
-      .doc("Hostname for master to bind.")
-      .stringConf
-      .createOptional
-
-  val MASTER_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.master.port")
-      .withAlternative("rss.master.port")
-      .version("0.2.0")
-      .doc("Port for master to bind.")
-      .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
-      .createWithDefault(9097)
+      .createWithDefault(9872)
 
   def masterEndpoints(conf: RssConf): Array[String] =
     conf.get(MASTER_ENDPOINTS).map(_.replace("<localhost>", Utils.localHostName)).toArray
@@ -656,6 +666,8 @@ object RssConf extends Logging {
     conf.get(MASTER_HOST).getOrElse(Utils.localHostName)
 
   def masterPort(conf: RssConf): Int = conf.get(MASTER_PORT)
+
+  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
 
   def haMasterNodeId(conf: RssConf): Option[String] = conf.get(HA_MASTER_NODE_ID)
 
@@ -1001,26 +1013,6 @@ object RssConf extends Logging {
   def checkFileCleanTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
   }
-
-  /**
-   * Add non empty and non null suffix to a key.
-   */
-  def concatKeySuffix(key: String, suffix: String): String = {
-    if (suffix == null || suffix.isEmpty) return key
-    s"${key}.${suffix}"
-  }
-
-  /**
-   * Ratis related config
-   */
-  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
-    .withAlternative("rss.ha.enabled")
-    .doc("When true, master nodes run as Raft cluster mode.")
-    .version("0.1.0")
-    .booleanConf
-    .createWithDefault(false)
-
-  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
 
   def haClientMaxTries(conf: RssConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
