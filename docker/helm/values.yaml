@@ -65,6 +65,8 @@ environments:
   RSS_MASTER_MEMORY: 2g
   RSS_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
   RSS_WORKER_OFFHEAP_MEMORY: 12g
+  CELEBORN_NO_DAEMONIZE: "yes"
+  TZ: "Asia/Shanghai"
 
 podMonitor:
   enable: true
