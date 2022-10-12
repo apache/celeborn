@@ -79,30 +79,27 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
   private var ia: InetAddress = null
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
-  private val reducePartitionMap: Map[Integer, ConcurrentHashMap[Integer, PartitionLocation]] =
+  private val reducePartitionMap =
     new ConcurrentHashMap[Integer, ConcurrentHashMap[Integer, PartitionLocation]]
 
-  private val mapperEndMap: ConcurrentHashMap[Integer, Set[String]] =
-    new ConcurrentHashMap[Integer, Set[String]]
+  private val mapperEndMap = new ConcurrentHashMap[Integer, Set[String]]
 
   // key: shuffleId-mapId-attemptId
-  private val pushStates: Map[String, PushState] = new ConcurrentHashMap[String, PushState]
+  private val pushStates = new ConcurrentHashMap[String, PushState]
 
   private var pushDataRetryPool: ExecutorService = null
 
   private var partitionSplitPool: ExecutorService = null
-  private val splitting: Map[Integer, Set[Integer]] = new ConcurrentHashMap[Integer, Set[Integer]]
+  private val splitting = new ConcurrentHashMap[Integer, Set[Integer]]
 
-  private[client] val compressorThreadLocal: ThreadLocal[Compressor] =
-    new ThreadLocal[Compressor]() {
-      override protected def initialValue: Compressor = {
-        Compressor.getCompressor(conf)
-      }
+  private[client] val compressorThreadLocal = new ThreadLocal[Compressor]() {
+    override protected def initialValue: Compressor = {
+      Compressor.getCompressor(conf)
     }
+  }
 
   // key: shuffleId
-  private val reduceFileGroupsMap: Map[Integer, ReduceFileGroups] =
-    new ConcurrentHashMap[Integer, ReduceFileGroups]
+  private val reduceFileGroupsMap = new ConcurrentHashMap[Integer, ReduceFileGroups]
 
   def this(conf: RssConf, userIdentifier: UserIdentifier) {
     this()
@@ -118,12 +115,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       conf,
       TransportModuleConstants.DATA_MODULE,
       conf.getInt("rss.data.io.threads", 8))
-    val context: TransportContext =
-      new TransportContext(dataTransportConf, new BaseMessageHandler, true)
+    val context = new TransportContext(dataTransportConf, new BaseMessageHandler, true)
     dataClientFactory = context.createClientFactory
-    val retryThreadNum: Int = RssConf.pushDataRetryThreadNum(conf)
+    val retryThreadNum = RssConf.pushDataRetryThreadNum(conf)
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60)
-    val splitPoolSize: Int = RssConf.clientSplitPoolSize(conf)
+    val splitPoolSize = RssConf.clientSplitPoolSize(conf)
     partitionSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60)
   }
 
@@ -154,15 +150,14 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         logDebug(s"Retrying push data, but the mapper(map $mapId attempt $attemptId) has ended.")
         pushState.inFlightBatches.remove(batchId)
       } else {
-        val newLoc: PartitionLocation = reducePartitionMap.get(shuffleId).get(partitionId)
+        val newLoc = reducePartitionMap.get(shuffleId).get(partitionId)
         logInfo(s"Revive success, new location for reduce $partitionId is $newLoc.")
         try {
-          val client: TransportClient =
+          val client =
             dataClientFactory.createClient(newLoc.getHost, newLoc.getPushPort, partitionId)
-          val newBuffer: NettyManagedBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body))
-          val shuffleKey: String = Utils.makeShuffleKey(applicationId, shuffleId)
-          val newPushData: PushData =
-            new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId, newBuffer)
+          val newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body))
+          val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
+          val newPushData = new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId, newBuffer)
           val future: ChannelFuture = client.pushData(newPushData, callback)
           pushState.addFuture(batchId, future)
         } catch {
@@ -185,9 +180,9 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       batches: ArrayList[DataBatches.DataBatch],
       cause: StatusCode,
       oldGroupedBatchId: Integer): Unit = {
-    val newDataBatchesMap: HashMap[String, DataBatches] = new HashMap[String, DataBatches]
+    val newDataBatchesMap = new HashMap[String, DataBatches]
     batches.asScala.foreach { batch =>
-      val partitionId: Int = batch.loc.getId
+      val partitionId = batch.loc.getId
       if (!revive(
           applicationId,
           shuffleId,
@@ -205,9 +200,9 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         if (mapperEnded(shuffleId, mapId, attemptId)) {
           logDebug(s"Retrying push data, but the mapper(map $mapId attempt $attemptId) has ended.")
         } else {
-          val newLoc: PartitionLocation = reducePartitionMap.get(shuffleId).get(partitionId)
+          val newLoc = reducePartitionMap.get(shuffleId).get(partitionId)
           logInfo(s"Revive success, new location for reduce $partitionId is $newLoc.")
-          val newDataBatches: DataBatches = newDataBatchesMap.computeIfAbsent(
+          val newDataBatches = newDataBatchesMap.computeIfAbsent(
             genAddressPair(newLoc),
             new Function[String, DataBatches] {
               override def apply(v1: String): DataBatches = {
@@ -219,9 +214,9 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       }
     }
     newDataBatchesMap.entrySet().asScala.foreach { entry =>
-      val addressPair: String = entry.getKey
-      val newDataBatches: DataBatches = entry.getValue
-      val tokens: Array[String] = addressPair.split("-")
+      val addressPair = entry.getKey
+      val newDataBatches = entry.getValue
+      val tokens = addressPair.split("-")
       doPushMergedData(
         tokens(0),
         applicationId,
@@ -253,18 +248,17 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     var numRetries: Int = registerShuffleMaxRetries
     while (numRetries > 0) {
       try {
-        val response: PbRegisterShuffleResponse =
-          driverRssMetaService.askSync[PbRegisterShuffleResponse](RegisterShuffle(
+        val response = driverRssMetaService.askSync[PbRegisterShuffleResponse](
+          RegisterShuffle(
             appId,
             shuffleId,
             numMappers,
             numPartitions))
-        val respStatus: StatusCode = Utils.toStatusCode(response.getStatus)
+        val respStatus = Utils.toStatusCode(response.getStatus)
         if (StatusCode.SUCCESS == respStatus) {
-          val result: ConcurrentHashMap[Integer, PartitionLocation] =
-            new ConcurrentHashMap[Integer, PartitionLocation]
+          val result = new ConcurrentHashMap[Integer, PartitionLocation]
           for (i <- 0 until response.getPartitionLocationsList.size) {
-            val partitionLoc: PartitionLocation =
+            val partitionLoc =
               PartitionLocation.fromPbPartitionLocation(response.getPartitionLocationsList.get(i))
             result.put(partitionLoc.getId, partitionLoc)
           }
@@ -286,7 +280,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       try {
         TimeUnit.SECONDS.sleep(registerShuffleRetryWait)
       } catch {
-        case e: InterruptedException =>
+        case _: InterruptedException =>
           return null
       }
       numRetries -= 1
@@ -299,10 +293,10 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     if (pushState.exception.get != null) {
       throw pushState.exception.get
     }
-    val inFlightBatches: ConcurrentHashMap[Integer, PartitionLocation] = pushState.inFlightBatches
-    val timeoutMs: Long = RssConf.limitInFlightTimeoutMs(conf)
-    val delta: Long = RssConf.limitInFlightSleepDeltaMs(conf)
-    var times: Long = timeoutMs / delta
+    val inFlightBatches = pushState.inFlightBatches
+    val timeoutMs = RssConf.limitInFlightTimeoutMs(conf)
+    val delta = RssConf.limitInFlightSleepDeltaMs(conf)
+    var times = timeoutMs / delta
     try {
       while (times > 0 && inFlightBatches.size > limit) {
         if (pushState.exception.get != null) {
@@ -329,11 +323,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       map: ConcurrentHashMap[Integer, PartitionLocation],
       partitionId: Int,
       epoch: Int): Boolean = {
-    var currentLocation: PartitionLocation = map.get(partitionId)
-    if (currentLocation != null && currentLocation.getEpoch > epoch) {
+    var partitionLocation = map.get(partitionId)
+    if (partitionLocation != null && partitionLocation.getEpoch > epoch) {
       return true
     }
-    val sleepTimeMs: Long = rand.nextInt(50)
+    val sleepTimeMs = rand.nextInt(50)
     if (sleepTimeMs > 30) {
       try TimeUnit.MILLISECONDS.sleep(sleepTimeMs)
       catch {
@@ -342,8 +336,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
           Thread.currentThread.interrupt()
       }
     }
-    currentLocation = map.get(partitionId)
-    currentLocation != null && currentLocation.getEpoch > epoch
+    partitionLocation = map.get(partitionId)
+    partitionLocation != null && partitionLocation.getEpoch > epoch
   }
 
   private def revive(
@@ -355,8 +349,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       epoch: Int,
       oldLocation: PartitionLocation,
       cause: StatusCode): Boolean = {
-    val map: ConcurrentHashMap[Integer, PartitionLocation] = reducePartitionMap.get(shuffleId)
-    if (waitRevivedLocation(map, partitionId, epoch)) {
+    val partitionLocationMap = reducePartitionMap.get(shuffleId)
+    if (waitRevivedLocation(partitionLocationMap, partitionId, epoch)) {
       logDebug(
         s"Has already revived for shuffle $shuffleId map $mapId reduce $partitionId epoch $epoch, just return(Assume revive successfully).")
       return true
@@ -368,20 +362,14 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       return true
     }
     try {
-      val response: PbChangeLocationResponse =
-        driverRssMetaService.askSync[PbChangeLocationResponse](Revive(
-          applicationId,
-          shuffleId,
-          mapId,
-          attemptId,
-          partitionId,
-          epoch,
-          oldLocation,
-          cause))
+      val response = driverRssMetaService.askSync[PbChangeLocationResponse](
+        Revive(applicationId, shuffleId, mapId, attemptId, partitionId, epoch, oldLocation, cause))
       // per partitionKey only serve single PartitionLocation in Client Cache.
-      val respStatus: StatusCode = Utils.toStatusCode(response.getStatus)
+      val respStatus = Utils.toStatusCode(response.getStatus)
       if (StatusCode.SUCCESS == respStatus) {
-        map.put(partitionId, PartitionLocation.fromPbPartitionLocation(response.getLocation))
+        partitionLocationMap.put(
+          partitionId,
+          PartitionLocation.fromPbPartitionLocation(response.getLocation))
         true
       } else {
         if (StatusCode.MAP_ENDED == respStatus) {
@@ -419,8 +407,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       numMappers: Int,
       numPartitions: Int,
       doPush: Boolean): Int = { // mapKey
-    val mapKey: String = Utils.makeMapKey(shuffleId, mapId, attemptId)
-    val shuffleKey: String = Utils.makeShuffleKey(applicationId, shuffleId)
+    val mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId)
+    val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     // return if shuffle stage already ended
     if (mapperEnded(shuffleId, mapId, attemptId)) {
       logDebug(s"The mapper(shuffle $shuffleId map $mapId attempt $attemptId) has already ended while pushing data.")
@@ -431,18 +419,18 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       return 0
     }
     // register shuffle if not registered
-    val map: ConcurrentHashMap[Integer, PartitionLocation] = reducePartitionMap.computeIfAbsent(
+    val partitionLocationMap = reducePartitionMap.computeIfAbsent(
       shuffleId,
       new Function[Integer, ConcurrentHashMap[Integer, PartitionLocation]] {
         override def apply(t: Integer): ConcurrentHashMap[Integer, PartitionLocation] = {
           registerShuffle(applicationId, shuffleId, numMappers, numPartitions)
         }
       })
-    if (map == null) {
+    if (partitionLocationMap == null) {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey)
     }
     // get location
-    if (!map.containsKey(partitionId) && !revive(
+    if (!partitionLocationMap.containsKey(partitionId) && !revive(
         applicationId,
         shuffleId,
         mapId,
@@ -457,18 +445,18 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     if (mapperEnded(shuffleId, mapId, attemptId)) {
       logDebug(
         s"The mapper(shuffle $shuffleId map $mapId attempt $attemptId) has already ended while" + " pushing data.")
-      val pushState: PushState = pushStates.get(mapKey)
+      val pushState = pushStates.get(mapKey)
       if (pushState != null) {
         pushState.cancelFutures()
       }
       return 0
     }
-    val loc: PartitionLocation = map.get(partitionId)
-    if (loc == null) {
+    val partitionLocation = partitionLocationMap.get(partitionId)
+    if (partitionLocation == null) {
       throw new IOException(
         "Partition location for shuffle " + shuffleKey + " partitionId " + partitionId + " is NULL!")
     }
-    val pushState: PushState = pushStates.computeIfAbsent(
+    val pushState = pushStates.computeIfAbsent(
       mapKey,
       new Function[String, PushState] {
         override def apply(t: String): PushState = {
@@ -476,13 +464,13 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         }
       })
     // increment batchId
-    val nextBatchId: Int = pushState.batchId.addAndGet(1)
+    val nextBatchId = pushState.batchId.addAndGet(1)
     // compress data
-    val compressor: Compressor = compressorThreadLocal.get
+    val compressor = compressorThreadLocal.get
     compressor.compress(data, offset, length)
-    val compressedTotalSize: Int = compressor.getCompressedTotalSize
-    val BATCH_HEADER_SIZE: Int = 4 * 4
-    val body: Array[Byte] = new Array[Byte](BATCH_HEADER_SIZE + compressedTotalSize)
+    val compressedTotalSize = compressor.getCompressedTotalSize
+    val BATCH_HEADER_SIZE = 4 * 4
+    val body = new Array[Byte](BATCH_HEADER_SIZE + compressedTotalSize)
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId)
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId)
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, nextBatchId)
@@ -499,12 +487,12 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       // check limit
       limitMaxInFlight(mapKey, pushState, maxInFlight)
       // add inFlight requests
-      pushState.inFlightBatches.put(nextBatchId, loc)
+      pushState.inFlightBatches.put(nextBatchId, partitionLocation)
       // build PushData request
-      val buffer: NettyManagedBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body))
-      val pushData: PushData = new PushData(MASTER_MODE, shuffleKey, loc.getUniqueId, buffer)
+      val buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body))
+      val pushData = new PushData(MASTER_MODE, shuffleKey, partitionLocation.getUniqueId, buffer)
       // build callback
-      val callback: RpcResponseCallback = new RpcResponseCallback() {
+      val callback = new RpcResponseCallback() {
         override def onSuccess(response: ByteBuffer): Unit = {
           pushState.inFlightBatches.remove(nextBatchId)
           if (response.remaining > 0 && response.get == StatusCode.STAGE_ENDED.getValue) {
@@ -517,14 +505,14 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
               }).add(mapKey)
           }
           pushState.removeFuture(nextBatchId)
-          logDebug(s"Push data to ${loc.getHost}:${loc.getPushPort} success for map $mapId attempt $attemptId batch $nextBatchId.")
+          logDebug(s"Push data to ${partitionLocation.getHost}:${partitionLocation.getPushPort} success for map $mapId attempt $attemptId batch $nextBatchId.")
         }
 
         override def onFailure(e: Throwable): Unit = {
           pushState.exception.compareAndSet(null, new IOException("Revived PushData failed!", e))
           pushState.removeFuture(nextBatchId)
           logError(
-            s"Push data to ${loc.getHost}:${loc.getPushPort} failed for map $mapId attempt $attemptId batch $nextBatchId.",
+            s"Push data to ${partitionLocation.getHost}:${partitionLocation.getPushPort} failed for map $mapId attempt $attemptId batch $nextBatchId.",
             e)
         }
       }
@@ -535,7 +523,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
             if (reason == StatusCode.SOFT_SPLIT.getValue) {
               logDebug(
                 s"Push data split required for map $mapId attempt $attemptId batch $nextBatchId")
-              splitPartition(shuffleId, partitionId, applicationId, loc)
+              splitPartition(shuffleId, partitionId, applicationId, partitionLocation)
               callback.onSuccess(response)
             } else {
               if (reason == StatusCode.HARD_SPLIT.getValue) {
@@ -550,7 +538,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
                       attemptId,
                       body,
                       nextBatchId,
-                      loc,
+                      partitionLocation,
                       wrappedCallbackRef,
                       pushState,
                       StatusCode.HARD_SPLIT)
@@ -571,7 +559,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
             return
           }
           logError(
-            s"Push data to ${loc.getHost}:${loc.getPushPort} failed for map $mapId attempt $attemptId batch $nextBatchId.",
+            s"Push data to ${partitionLocation.getHost}:${partitionLocation.getPushPort} failed for map $mapId attempt $attemptId batch $nextBatchId.",
             e)
           // async retry push data
           if (!mapperEnded(shuffleId, mapId, attemptId)) {
@@ -584,7 +572,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
                   attemptId,
                   body,
                   nextBatchId,
-                  loc,
+                  partitionLocation,
                   callback,
                   pushState,
                   getPushDataFailCause(e.getMessage))
@@ -598,8 +586,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       }
       // do push data
       try {
-        val client: TransportClient =
-          dataClientFactory.createClient(loc.getHost, loc.getPushPort, partitionId)
+        val client =
+          dataClientFactory.createClient(
+            partitionLocation.getHost,
+            partitionLocation.getPushPort,
+            partitionId)
         val future: ChannelFuture = client.pushData(pushData, wrappedCallback)
         pushState.addFuture(nextBatchId, future)
       } catch {
@@ -610,11 +601,11 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
     } else {
       // add batch data
       logDebug(s"Merge batch $nextBatchId.")
-      val addressPair: String = genAddressPair(loc)
-      val shouldPush: Boolean = pushState.addBatchData(addressPair, loc, nextBatchId, body)
+      val addressPair = genAddressPair(partitionLocation)
+      val shouldPush = pushState.addBatchData(addressPair, partitionLocation, nextBatchId, body)
       if (shouldPush) {
         limitMaxInFlight(mapKey, pushState, maxInFlight)
-        val dataBatches: DataBatches = pushState.takeDataBatches(addressPair)
+        val dataBatches = pushState.takeDataBatches(addressPair)
         doPushMergedData(
           addressPair.split("-")(0),
           applicationId,
@@ -649,8 +640,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       }
       splittingSet.add(partitionId)
     }
-    val currentShuffleLocs: ConcurrentHashMap[Integer, PartitionLocation] =
-      reducePartitionMap.get(shuffleId)
+    val currentShufflePartitionLocationMap = reducePartitionMap.get(shuffleId)
     sendShuffleSplitAsync(
       driverRssMetaService,
       PartitionSplit(applicationId, shuffleId, partitionId, loc.getEpoch, loc),
@@ -658,7 +648,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       splittingSet,
       partitionId,
       shuffleId,
-      currentShuffleLocs)
+      currentShufflePartitionLocationMap)
   }
 
   private def sendShuffleSplitAsync(
@@ -668,12 +658,14 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       splittingSet: java.util.Set[Integer],
       partitionId: Int,
       shuffleId: Int,
-      shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
+      shufflePartitionLocationMap: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
     endpointRef.ask[PbChangeLocationResponse](req).onComplete {
       case Success(resp) =>
         val respStatus = Utils.toStatusCode(resp.getStatus)
         if (respStatus == StatusCode.SUCCESS) {
-          shuffleLocs.put(partitionId, PartitionLocation.fromPbPartitionLocation(resp.getLocation))
+          shufflePartitionLocationMap.put(
+            partitionId,
+            PartitionLocation.fromPbPartitionLocation(resp.getLocation))
         } else {
           logInfo(s"split failed for $respStatus, " +
             s"shuffle file can be larger than expected, try split again");
@@ -716,8 +708,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
 
   @throws[IOException]
   override def prepareForMergeData(shuffleId: Int, mapId: Int, attemptId: Int): Unit = {
-    val mapKey: String = Utils.makeMapKey(shuffleId, mapId, attemptId)
-    val pushState: PushState = pushStates.get(mapKey)
+    val mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId)
+    val pushState = pushStates.get(mapKey)
     if (pushState != null) {
       limitMaxInFlight(mapKey, pushState, 0)
     }
@@ -755,17 +747,17 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       shuffleId: Int,
       mapId: Int,
       attemptId: Int): Unit = {
-    val mapKey: String = Utils.makeMapKey(shuffleId, mapId, attemptId)
-    val pushState: PushState = pushStates.get(mapKey)
+    val mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId)
+    val pushState = pushStates.get(mapKey)
     if (pushState == null) {
       return
     }
-    val batchesArr: ArrayList[util.Map.Entry[String, DataBatches]] =
+    val batchesArr =
       new ArrayList[util.Map.Entry[String, DataBatches]](pushState.batchesMap.entrySet)
     while (!batchesArr.isEmpty) {
       limitMaxInFlight(mapKey, pushState, maxInFlight)
-      val entry: util.Map.Entry[String, DataBatches] = batchesArr.get(rand.nextInt(batchesArr.size))
-      val batches: ArrayList[DataBatches.DataBatch] = entry.getValue.requireBatches(pushBufferSize)
+      val entry = batchesArr.get(rand.nextInt(batchesArr.size))
+      val batches = entry.getValue.requireBatches(pushBufferSize)
       if (entry.getValue.getTotalSize == 0) {
         batchesArr.remove(entry)
       }
@@ -791,28 +783,28 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       batches: ArrayList[DataBatches.DataBatch],
       pushState: PushState,
       revived: Boolean): Unit = {
-    val splits: Array[String] = hostPort.split(":")
-    val host: String = splits(0)
-    val port: Int = splits(1).toInt
-    val groupedBatchId: Int = pushState.batchId.addAndGet(1)
+    val splits = hostPort.split(":")
+    val host = splits(0)
+    val port = splits(1).toInt
+    val groupedBatchId = pushState.batchId.addAndGet(1)
     pushState.inFlightBatches.put(groupedBatchId, batches.get(0).loc)
-    val numBatches: Int = batches.size
-    val partitionUniqueIds: Array[String] = new Array[String](numBatches)
-    val offsets: Array[Int] = new Array[Int](numBatches)
-    val batchIds: Array[Int] = new Array[Int](numBatches)
-    var currentSize: Int = 0
+    val numBatches = batches.size
+    val partitionUniqueIds = new Array[String](numBatches)
+    val offsets = new Array[Int](numBatches)
+    val batchIds = new Array[Int](numBatches)
+    var currentSize = 0
     val byteBuf: CompositeByteBuf = Unpooled.compositeBuffer
     for (i <- 0 until numBatches) {
-      val batch: DataBatches.DataBatch = batches.get(i)
+      val batch = batches.get(i)
       partitionUniqueIds(i) = batch.loc.getUniqueId
       offsets(i) = currentSize
       batchIds(i) = batch.batchId
       currentSize += batch.body.length
       byteBuf.addComponent(true, Unpooled.wrappedBuffer(batch.body))
     }
-    val buffer: NettyManagedBuffer = new NettyManagedBuffer(byteBuf)
-    val shuffleKey: String = Utils.makeShuffleKey(applicationId, shuffleId)
-    val mergedData: PushMergedData =
+    val buffer = new NettyManagedBuffer(byteBuf)
+    val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
+    val mergedData =
       new PushMergedData(MASTER_MODE, shuffleKey, partitionUniqueIds, offsets, buffer)
     val callback: RpcResponseCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
@@ -902,8 +894,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       mapId: Int,
       attemptId: Int,
       numMappers: Int): Unit = {
-    val mapKey: String = Utils.makeMapKey(shuffleId, mapId, attemptId)
-    val pushState: PushState =
+    val mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId)
+    val pushState =
       pushStates.computeIfAbsent(
         mapKey,
         new Function[String, PushState] {
@@ -913,12 +905,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
         })
     try {
       limitMaxInFlight(mapKey, pushState, 0)
-      val response: MapperEndResponse = driverRssMetaService.askSync[MapperEndResponse](MapperEnd(
-        applicationId,
-        shuffleId,
-        mapId,
-        attemptId,
-        numMappers))
+      val response: MapperEndResponse = driverRssMetaService.askSync[MapperEndResponse](
+        MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers))
       if (response.status ne StatusCode.SUCCESS) {
         throw new IOException("MapperEnd failed! StatusCode: " + response.status)
       }
@@ -941,11 +929,13 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       shuffleId: Int,
       isDriver: Boolean): Boolean = {
     if (isDriver) {
-      try driverRssMetaService.send(UnregisterShuffle(
-        applicationId,
-        shuffleId,
-        RssHARetryClient.genRequestId))
-      catch {
+      try {
+        driverRssMetaService.send(
+          UnregisterShuffle(
+            applicationId,
+            shuffleId,
+            RssHARetryClient.genRequestId))
+      } catch {
         case e: Exception =>
           // If some exceptions need to be ignored, they shouldn't be logged as error-level,
           // otherwise it will mislead users.
@@ -978,8 +968,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       attemptNumber: Int,
       startMapIndex: Int,
       endMapIndex: Int): RssInputStream = {
-    val shuffleKey: String = Utils.makeShuffleKey(applicationId, shuffleId)
-    val fileGroups: ReduceFileGroups = reduceFileGroupsMap.computeIfAbsent(
+    val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
+    val fileGroups = reduceFileGroupsMap.computeIfAbsent(
       shuffleId,
       new Function[Integer, ReduceFileGroups] {
         override def apply(id: Integer): ReduceFileGroups = {
@@ -990,8 +980,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
                 logWarning("Driver endpoint is null!")
                 return null
               }
-              val getReducerFileGroup: GetReducerFileGroup =
-                GetReducerFileGroup(applicationId, shuffleId)
+              val getReducerFileGroup = GetReducerFileGroup(applicationId, shuffleId)
               val response =
                 driverRssMetaService.askSync[GetReducerFileGroupResponse](getReducerFileGroup)
               if (response.status eq StatusCode.SUCCESS) {
@@ -1082,10 +1071,8 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
   }
 
   private def mapperEnded(shuffleId: Int, mapId: Int, attemptId: Int): Boolean = {
-    mapperEndMap.containsKey(shuffleId) && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(
-      shuffleId,
-      mapId,
-      attemptId))
+    mapperEndMap.containsKey(shuffleId) &&
+    mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId))
   }
 
   private def getPushDataFailCause(message: String): StatusCode = {
