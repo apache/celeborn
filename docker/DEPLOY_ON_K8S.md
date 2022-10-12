@@ -12,7 +12,7 @@ docker build -f docker/Dockerfile --build-arg celeborn_version=0.1.0 -t ${your-r
 
 You can use `--build-arg celeborn_version` to indicates the version of Celeborn currently in use, default value is 0.1.1.
 
-Make sure you have already built Celeborn, the target file 'celeborn-${project.version}-bin.tgz' is in ${RSS_HOME}.
+Make sure you have already built Celeborn, the target file 'celeborn-${project.version}-bin.tgz' is in ${CELEBORN_HOME}.
 
 ## Deploy Celeborn with helm
 
@@ -28,7 +28,7 @@ kubectl create ns rss
 #### [Optional] Modify helm values file values.yaml
 You can modify helm values file and set up customed deployment configuration.
 `
-vim ${RSS_HOME}/docker/helm/values.yaml
+vim ${CELEBORN_HOME}/docker/helm/values.yaml
 `
 These values are suggested to be checked before deploy:  
 - masterReplicas (number of Celeborn Master)
@@ -40,16 +40,16 @@ For more information of Celeborn configurations, see [CONFIGURATIONS](../CONFIGU
 
 #### Install Celeborn
 `
-helm install rss-helm ${RSS_HOME}/docker/helm -n ${rss namespace}
+helm install celeborn-helm ${CELEBORN_HOME}/docker/helm -n ${celeborn namespace}
 `
 
 #### Connect to Celeborn in K8s pod
 After installation, you can connect to Celeborn master through headless service. For example, this is the spark configuration for 3-master RSS:
 `
-spark.rss.ha.master.hosts=shuffleservice-master-0.rss-master-svc.${rss namespace},shuffleservice-master-1.rss-master-svc.${rss namespace},shuffleservice-master-2.rss-master-svc.${rss namespace}
+spark.celeborn.master.endpoints=shuffleservice-master-0.rss-master-svc.${celeborn namespace},shuffleservice-master-1.rss-master-svc.${celeborn namespace},shuffleservice-master-2.rss-master-svc.${celeborn namespace}
 `
 
 #### Uninstall Celeborn
 `
-helm uninstall rss-helm -n ${rss namespace}
+helm uninstall celeborn-helm -n ${celeborn namespace}
 `

@@ -60,11 +60,11 @@ celeborn:
   rss.ha.storage.dir: /mnt/rss_ratis/
 
 environments:
-  RSS_MASTER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
-  RSS_WORKER_MEMORY: 2g
-  RSS_MASTER_MEMORY: 2g
-  RSS_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
-  RSS_WORKER_OFFHEAP_MEMORY: 12g
+  CELEBORN_MASTER_MEMORY: 2g
+  CELEBORN_MASTER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced"
+  CELEBORN_WORKER_MEMORY: 2g
+  CELEBORN_WORKER_OFFHEAP_MEMORY: 12g
+  CELEBORN_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
   CELEBORN_NO_DAEMONIZE: "yes"
   TZ: "Asia/Shanghai"
 

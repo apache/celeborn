@@ -587,7 +587,8 @@ object RssConf extends Logging {
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
       .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
-        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
+        "If the port is omitted, 9097 will be used.")
       .version("0.2.0")
       .stringConf
       .transform(_.replace("<localhost>", Utils.localHostName))
@@ -662,7 +663,12 @@ object RssConf extends Logging {
       .createWithDefault(9872)
 
   def masterEndpoints(conf: RssConf): Array[String] =
-    conf.get(MASTER_ENDPOINTS).toArray
+    conf.get(MASTER_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue}"
+        case (host, port) => s"$host:$port"
+      }
+    }
 
   def masterHost(conf: RssConf): String = conf.get(MASTER_HOST)
 
