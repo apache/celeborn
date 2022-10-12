@@ -46,8 +46,8 @@ public class MetaHandler {
     this.metaSystem = metaSystem;
   }
 
-  public void setUpMasterRatisServer(RssConf conf) throws IOException {
-    MasterClusterInfo masterClusterInfo = MasterClusterInfo.loadHAConfig(conf);
+  public void setUpMasterRatisServer(RssConf conf, MasterClusterInfo masterClusterInfo)
+      throws IOException {
     metaSystem.setRatisServer(
         HARaftServer.newMasterRatisServer(
             this, conf, masterClusterInfo.localNode(), masterClusterInfo.peerNodes()));

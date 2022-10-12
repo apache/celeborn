@@ -18,17 +18,17 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.RssConf.masterHostsAndPorts
+import org.apache.celeborn.common.RssConf.masterEndpoints
 
 class RssConfSuite extends RssFunSuite {
 
   test("celeborn.master.endpoints support multi nodes") {
     val conf = new RssConf()
       .set("celeborn.master.endpoints", "localhost1:9097,localhost2:9097")
-    val endpoints = masterHostsAndPorts(conf)
+    val endpoints = masterEndpoints(conf)
     assert(endpoints.length == 2)
-    assert(endpoints(0) == ("localhost1", 9097))
-    assert(endpoints(1) == ("localhost2", 9097))
+    assert(endpoints(0) == "localhost1:9097")
+    assert(endpoints(1) == "localhost2:9097")
   }
 
   test("basedir test") {
@@ -96,6 +96,6 @@ class RssConfSuite extends RssFunSuite {
       .set("celeborn.ha.master.node.1.host", "clb-1")
       .set("celeborn.ha.master.node.2.host", "clb-1")
       .set("celeborn.ha.master.node.3.host", "clb-1")
-    assert(RssConf.masterNodeIds(conf).sorted === Array("1", "2", "3"))
+    assert(RssConf.haMasterNodeIds(conf).sorted === Array("1", "2", "3"))
   }
 }

@@ -567,6 +567,9 @@
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>1g</spark.driver.memory>
             </systemProperties>
+            <environmentVariables>
+              <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
+            </environmentVariables>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
             <failIfNoTests>false</failIfNoTests>
@@ -600,6 +603,9 @@
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>1g</spark.driver.memory>
             </systemProperties>
+            <environmentVariables>
+              <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
+            </environmentVariables>
           </configuration>
           <executions>
             <execution>

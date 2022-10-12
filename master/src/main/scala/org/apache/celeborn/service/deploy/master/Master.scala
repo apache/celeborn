@@ -67,7 +67,7 @@ private[celeborn] class Master(
       val sys = new HAMasterMetaManager(rpcEnv, conf)
       val handler = new MetaHandler(sys)
       try {
-        handler.setUpMasterRatisServer(conf)
+        handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
       } catch {
         case ioe: IOException =>
           if (ioe.getCause.isInstanceOf[BindException]) {

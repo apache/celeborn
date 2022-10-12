@@ -38,12 +38,12 @@ object MasterClusterInfo extends Logging {
 
   @throws[IllegalArgumentException]
   def loadHAConfig(conf: RssConf): MasterClusterInfo = {
-    val localNodeIdOpt = masterNodeId(conf)
-    val clusterNodeIds = masterNodeIds(conf)
+    val localNodeIdOpt = haMasterNodeId(conf)
+    val clusterNodeIds = haMasterNodeIds(conf)
 
     val masterNodes = clusterNodeIds.map { nodeId =>
-      val ratisHost = RssConf.masterRatisHost(conf, nodeId)
-      val ratisPort = RssConf.masterRatisPort(conf, nodeId)
+      val ratisHost = RssConf.haMasterRatisHost(conf, nodeId)
+      val ratisPort = RssConf.haMasterRatisPort(conf, nodeId)
       val addr: InetSocketAddress = Try(NetUtils.createSocketAddr(ratisHost, ratisPort)) match {
         case Success(socketAddress) => socketAddress
         case Failure(e) =>
@@ -58,8 +58,8 @@ object MasterClusterInfo extends Logging {
     }
 
     val (localNodes, peerNodes) = localNodeIdOpt match {
-      case Some(currentNodeId) =>
-        masterNodes.partition { currentNodeId == _.getNodeId }
+      case Some(localNodeId) =>
+        masterNodes.partition { localNodeId == _.getNodeId }
       case None =>
         masterNodes.partition { node =>
           !node.getRpcAddress.isUnresolved && isLocalAddress(node.getRpcAddress.getAddress)

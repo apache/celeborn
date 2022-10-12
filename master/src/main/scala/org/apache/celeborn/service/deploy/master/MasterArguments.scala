@@ -20,13 +20,16 @@ package org.apache.celeborn.service.deploy.master
 import scala.annotation.tailrec
 
 import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.RssConf._
 import org.apache.celeborn.common.util.{IntParam, Utils}
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.MasterClusterInfo
 
 class MasterArguments(args: Array[String], conf: RssConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
   private var _propertiesFile: Option[String] = None
+  private var _masterClusterInfo: Option[MasterClusterInfo] = None
 
   // 1st parse from cli args
   parse(args.toList)
@@ -37,8 +40,16 @@ class MasterArguments(args: Array[String], conf: RssConf) {
 
   // 3rd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
-  _host = _host.orElse(Some(RssConf.masterBindHost(conf)))
-  _port = _port.orElse(Some(RssConf.masterBindPort(conf)))
+  if (haEnabled(conf)) {
+    val clusterInfo = MasterClusterInfo.loadHAConfig(conf)
+    val localNodeId = clusterInfo.localNode.getNodeId
+    _host = _host.orElse(Some(haMasterNodeHost(conf, localNodeId)))
+    _port = _port.orElse(Some(haMasterNodePort(conf, localNodeId)))
+    _masterClusterInfo = Some(clusterInfo)
+  } else {
+    _host = _host.orElse(Some(masterHost(conf)))
+    _port = _port.orElse(Some(masterPort(conf)))
+  }
 
   if (_host.isEmpty || _port.isEmpty) {
     printUsageAndExit(1)
@@ -47,6 +58,8 @@ class MasterArguments(args: Array[String], conf: RssConf) {
   def host: String = _host.get
 
   def port: Int = _port.get
+
+  def masterClusterInfo: Option[MasterClusterInfo] = _masterClusterInfo
 
   @tailrec
   private def parse(args: List[String]): Unit = args match {

@@ -40,14 +40,15 @@ public class HAHelper {
         return true;
       }
       if (context != null) {
-        if (ratisServer.getCachedLeaderPeerAddress().isPresent()) {
+        if (ratisServer.getCachedLeaderPeerRpcEndpoint().isPresent()) {
           context.sendFailure(
               new MasterNotLeaderException(
-                  ratisServer.getRaftAddress(), ratisServer.getCachedLeaderPeerAddress().get()));
+                  ratisServer.getRpcEndpoint(),
+                  ratisServer.getCachedLeaderPeerRpcEndpoint().get()));
         } else {
           context.sendFailure(
               new MasterNotLeaderException(
-                  ratisServer.getRaftAddress(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
+                  ratisServer.getRpcEndpoint(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
         }
       }
       return false;
