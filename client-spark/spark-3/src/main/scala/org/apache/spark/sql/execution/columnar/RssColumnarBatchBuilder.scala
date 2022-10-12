@@ -25,7 +25,7 @@ class RssColumnarBatchBuilder(
     schema: StructType,
     batchSize: Int = 0,
     maxDictFactor: Double,
-    useCompression: Boolean = false) {
+    useCompression: Boolean = false) extends RssBatchBuilder {
   var rowCnt = 0
 
   val typeConversion: PartialFunction[DataType, NativeRssColumnType[_ <: AtomicType]] = {
@@ -97,15 +97,6 @@ class RssColumnarBatchBuilder(
     giantBuffer
   }
 
-  def int2ByteArray(i: Int): Array[Byte] = {
-    val result = new Array[Byte](4)
-    result(0) = ((i >> 24) & 0xFF).toByte
-    result(1) = ((i >> 16) & 0xFF).toByte
-    result(2) = ((i >> 8) & 0xFF).toByte
-    result(3) = (i & 0xFF).toByte
-    result
-  }
-
   var totalSize = 0
 
   def writeRow(row: InternalRow): Unit = {
@@ -132,6 +123,8 @@ class RssColumnarBatchBuilder(
     totalSize = tempTotalSize + 4 + 4 * schema.length
     totalSize
   }
+
+  def getRowCnt(): Int = rowCnt
 }
 
 object RssColumnarBatchBuilder {

@@ -18,17 +18,14 @@
 package org.apache.spark.sql.execution.columnar
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.storage.DiskBlockObjectWriter
 
 abstract class RssBatchBuilder {
 
   def newBuilders(): Unit
 
-  def write(writer: DiskBlockObjectWriter): Unit
-
   def writeRow(row: InternalRow): Unit
 
-  def getSize(): Int
+  def getRowCnt(): Int
 
   def int2ByteArray(i: Int): Array[Byte] = {
     val result = new Array[Byte](4)
