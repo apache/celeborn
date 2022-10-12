@@ -665,7 +665,7 @@ object RssConf extends Logging {
   def masterEndpoints(conf: RssConf): Array[String] =
     conf.get(MASTER_ENDPOINTS).toArray.map { endpoint =>
       Utils.parseHostPort(endpoint) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue}"
+        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
         case (host, port) => s"$host:$port"
       }
     }
