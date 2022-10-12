@@ -21,7 +21,6 @@ import java.io.IOException
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.nio.ByteBuffer
-import java.util
 import java.util._
 import java.util.concurrent._
 import java.util.function.Function
@@ -134,7 +133,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       callback: RpcResponseCallback,
       pushState: PushState,
       cause: StatusCode): Unit = {
-    val partitionId: Int = loc.getId
+    val partitionId = loc.getId
     if (!revive(
         applicationId,
         shuffleId,
@@ -376,7 +375,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
           mapperEndMap.computeIfAbsent(
             shuffleId,
             new Function[Integer, Set[String]] {
-              override def apply(t: Integer): util.Set[String] = {
+              override def apply(t: Integer): Set[String] = {
                 ConcurrentHashMap.newKeySet[String]
               }
             }).add(mapKey)
@@ -499,7 +498,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
             mapperEndMap.computeIfAbsent(
               shuffleId,
               new Function[Integer, Set[String]] {
-                override def apply(t: Integer): util.Set[String] = {
+                override def apply(t: Integer): Set[String] = {
                   ConcurrentHashMap.newKeySet[String]
                 }
               }).add(mapKey)
@@ -629,7 +628,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       splitting.computeIfAbsent(
         shuffleId,
         new Function[Integer, Set[Integer]] {
-          override def apply(t: Integer): util.Set[Integer] = {
+          override def apply(t: Integer): Set[Integer] = {
             ConcurrentHashMap.newKeySet[Integer]
           }
         })
@@ -655,7 +654,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       endpointRef: RpcEndpointRef,
       req: PbPartitionSplit,
       executors: ExecutorService,
-      splittingSet: java.util.Set[Integer],
+      splittingSet: Set[Integer],
       partitionId: Int,
       shuffleId: Int,
       shufflePartitionLocationMap: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
@@ -753,7 +752,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
       return
     }
     val batchesArr =
-      new ArrayList[util.Map.Entry[String, DataBatches]](pushState.batchesMap.entrySet)
+      new ArrayList[Map.Entry[String, DataBatches]](pushState.batchesMap.entrySet)
     while (!batchesArr.isEmpty) {
       limitMaxInFlight(mapKey, pushState, maxInFlight)
       val entry = batchesArr.get(rand.nextInt(batchesArr.size))
@@ -815,7 +814,7 @@ class ShuffleClientImpl extends ShuffleClient with Logging {
           mapperEndMap.computeIfAbsent(
             shuffleId,
             new Function[Integer, Set[String]] {
-              override def apply(t: Integer): util.Set[String] = {
+              override def apply(t: Integer): Set[String] = {
                 ConcurrentHashMap.newKeySet[String]
               }
             }).add(Utils.makeMapKey(shuffleId, mapId, attemptId))
