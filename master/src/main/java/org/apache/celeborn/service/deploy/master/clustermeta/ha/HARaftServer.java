@@ -20,12 +20,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -42,16 +37,7 @@ import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.netty.NettyConfigKeys;
 import org.apache.ratis.proto.RaftProtos;
-import org.apache.ratis.protocol.ClientId;
-import org.apache.ratis.protocol.GroupInfoReply;
-import org.apache.ratis.protocol.GroupInfoRequest;
-import org.apache.ratis.protocol.Message;
-import org.apache.ratis.protocol.RaftClientReply;
-import org.apache.ratis.protocol.RaftClientRequest;
-import org.apache.ratis.protocol.RaftGroup;
-import org.apache.ratis.protocol.RaftGroupId;
-import org.apache.ratis.protocol.RaftPeer;
-import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.*;
 import org.apache.ratis.protocol.exceptions.LeaderNotReadyException;
 import org.apache.ratis.protocol.exceptions.NotLeaderException;
 import org.apache.ratis.protocol.exceptions.StateMachineException;
@@ -77,8 +63,8 @@ public class HARaftServer {
 
   private final int port;
   private final InetSocketAddress masterRatisAddress;
-  private final org.apache.ratis.server.RaftServer server;
-  private final RaftGroupId raftGroupId;
+  private final RaftServer server;
+  private final RaftGroupId raftGroupId = RaftGroupId.emptyGroupId();
   private final RaftGroup raftGroup;
   private final RaftPeerId raftPeerId;
 
@@ -104,7 +90,6 @@ public class HARaftServer {
    * Returns an Master Ratis server.
    *
    * @param conf configuration
-   * @param raftGroupIdStr raft group id string
    * @param localRaftPeerId raft peer id of this Ratis server
    * @param addr address of the ratis server
    * @param raftPeers peer nodes in the raft ring
@@ -113,7 +98,6 @@ public class HARaftServer {
   private HARaftServer(
       MetaHandler metaHandler,
       RssConf conf,
-      String raftGroupIdStr,
       RaftPeerId localRaftPeerId,
       InetSocketAddress addr,
       List<RaftPeer> raftPeers)
@@ -124,7 +108,6 @@ public class HARaftServer {
     RaftProperties serverProperties = newRaftProperties(conf);
 
     this.raftPeerId = localRaftPeerId;
-    this.raftGroupId = RaftGroupId.valueOf(getRaftGroupIdFromOmServiceId(raftGroupIdStr));
     this.raftGroup = RaftGroup.valueOf(raftGroupId, raftPeers);
 
     StringBuilder raftPeersStr = new StringBuilder();
@@ -143,8 +126,8 @@ public class HARaftServer {
             .build();
 
     LOG.info(
-        "Ratis server started with GroupID: {} and " + "Raft Peers: {}.",
-        raftGroupIdStr,
+        "Ratis server started with GroupID: {} and Raft Peers: {}.",
+        raftGroupId,
         raftPeersStr.substring(2));
 
     // Run a scheduler to check and update the server role on the leader
@@ -166,9 +149,6 @@ public class HARaftServer {
   public static HARaftServer newMasterRatisServer(
       MetaHandler metaHandler, RssConf conf, NodeDetails nodeDetails, List<NodeDetails> peerNodes)
       throws IOException {
-    // Raft group is serviceId
-    String serviceId = nodeDetails.getServiceId();
-
     String nodeId = nodeDetails.getNodeId();
     RaftPeerId localRaftPeerId = RaftPeerId.getRaftPeerId(nodeId);
 
@@ -199,7 +179,7 @@ public class HARaftServer {
           // Add other nodes belonging to the same service to the Ratis ring
           raftPeers.add(raftPeer);
         });
-    return new HARaftServer(metaHandler, conf, serviceId, localRaftPeerId, ratisAddr, raftPeers);
+    return new HARaftServer(metaHandler, conf, localRaftPeerId, ratisAddr, raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
@@ -416,10 +396,6 @@ public class HARaftServer {
     return properties;
   }
 
-  private UUID getRaftGroupIdFromOmServiceId(String serviceId) {
-    return UUID.nameUUIDFromBytes(serviceId.getBytes(StandardCharsets.UTF_8));
-  }
-
   private StateMachine getStateMachine() {
     StateMachine stateMachine = new StateMachine(this);
     stateMachine.setRaftGroupId(raftGroupId);
@@ -539,8 +515,7 @@ public class HARaftServer {
   private GroupInfoReply getGroupInfo() throws IOException {
     GroupInfoRequest groupInfoRequest =
         new GroupInfoRequest(clientId, raftPeerId, raftGroupId, nextCallId());
-    GroupInfoReply groupInfo = server.getGroupInfo(groupInfoRequest);
-    return groupInfo;
+    return server.getGroupInfo(groupInfoRequest);
   }
 
   @VisibleForTesting

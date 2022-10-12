@@ -90,4 +90,12 @@ class RssConfSuite extends RssFunSuite {
     conf.set("rss.client.compression.zstd.level", "100")
     assert(RssConf.zstdCompressLevel(conf) == 22)
   }
+
+  test("extract masterNodeIds") {
+    val conf = new RssConf()
+      .set("celeborn.ha.master.node.1.host", "clb-1")
+      .set("celeborn.ha.master.node.2.host", "clb-1")
+      .set("celeborn.ha.master.node.3.host", "clb-1")
+    assert(RssConf.masterNodeIds(conf).sorted === Array("1", "2", "3"))
+  }
 }

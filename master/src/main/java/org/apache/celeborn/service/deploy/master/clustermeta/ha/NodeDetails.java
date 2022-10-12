@@ -21,16 +21,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 public class NodeDetails {
-  private String serviceId;
-  private String nodeId;
-  private InetSocketAddress rpcAddress;
-  private int rpcPort;
-  private int ratisPort;
+  private final String nodeId;
+  private final InetSocketAddress rpcAddress;
+  private final int rpcPort;
+  private final int ratisPort;
 
   /** Constructs MasterNodeDetails object. */
-  private NodeDetails(
-      String serviceId, String nodeId, InetSocketAddress rpcAddr, int rpcPort, int ratisPort) {
-    this.serviceId = serviceId;
+  private NodeDetails(String nodeId, InetSocketAddress rpcAddr, int rpcPort, int ratisPort) {
     this.nodeId = nodeId;
     this.rpcAddress = rpcAddr;
     this.rpcPort = rpcPort;
@@ -40,9 +37,7 @@ public class NodeDetails {
   @Override
   public String toString() {
     return "MasterNodeDetails["
-        + "serviceId="
-        + serviceId
-        + ", nodeId="
+        + "nodeId="
         + nodeId
         + ", rpcAddress="
         + rpcAddress
@@ -55,7 +50,6 @@ public class NodeDetails {
 
   /** Builder class for MasterNodeDetails. */
   public static class Builder {
-    private String serviceId;
     private String nodeId;
     private InetSocketAddress rpcAddress;
     private int rpcPort;
@@ -72,23 +66,14 @@ public class NodeDetails {
       return this;
     }
 
-    public Builder setServiceId(String serviceId) {
-      this.serviceId = serviceId;
-      return this;
-    }
-
     public Builder setNodeId(String nodeId) {
       this.nodeId = nodeId;
       return this;
     }
 
     public NodeDetails build() {
-      return new NodeDetails(serviceId, nodeId, rpcAddress, rpcPort, ratisPort);
+      return new NodeDetails(nodeId, rpcAddress, rpcPort, ratisPort);
     }
-  }
-
-  public String getServiceId() {
-    return serviceId;
   }
 
   public String getNodeId() {
@@ -112,9 +97,7 @@ public class NodeDetails {
   }
 
   public String getRatisHostPortStr() {
-    StringBuilder hostPort = new StringBuilder();
-    hostPort.append(getHostName()).append(":").append(ratisPort);
-    return hostPort.toString();
+    return getHostName() + ":" + ratisPort;
   }
 
   public int getRatisPort() {

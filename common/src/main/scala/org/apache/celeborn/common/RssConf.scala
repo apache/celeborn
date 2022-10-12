@@ -425,7 +425,9 @@ object RssConf extends Logging {
     val masterEndpointsTips = "The behavior is controlled by `celeborn.master.endpoints` now, " +
       "please check the documentation for details."
     val configs = Seq(
-      RemovedConfig("rss.ha.master.hosts", "0.2.0", null, masterEndpointsTips))
+      RemovedConfig("rss.ha.master.hosts", "0.2.0", null, masterEndpointsTips),
+      RemovedConfig("rss.ha.service.id", "0.2.0", "rss", "configuration key removed."),
+      RemovedConfig("rss.ha.nodes.rss", "0.2.0", "1,2,3,", "configuration key removed."))
     Map(configs.map { cfg => cfg.key -> cfg }: _*)
   }
 
@@ -584,15 +586,51 @@ object RssConf extends Logging {
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
-      .version("0.2.0")
       .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
         "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
+      .version("0.2.0")
       .stringConf
       .toSequence
       .checkValue(
         endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"localhost:9097")
+
+  val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
+    buildConf("celeborn.ha.master.node.id")
+      .doc("Node id for master raft cluster in HA mode, if not define, " +
+        "will be inferred by hostname.")
+      .version("0.2.0")
+      .stringConf
+      .createOptional
+
+  val HA_MASTER_NODE_HOST: ConfigEntry[String] =
+    buildConf("celeborn.ha.master.node.<id>.host")
+      .doc("Host to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefaultString("<required>")
+
+  val HA_MASTER_NODE_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.node.<id>.port")
+      .doc("Port to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(9097)
+
+  val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
+    buildConf("celeborn.ha.master.node.<id>.ratis.host")
+      .doc("Ratis host to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .stringConf
+      .createOptional
+
+  val HA_MASTER_NODE_RATIS_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.node.<id>.ratis.port")
+      .doc("Ratis port to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(9872)
 
   val MASTER_BIND_HOST: OptionalConfigEntry[String] =
     buildConf("celeborn.master.bind.host")
@@ -624,6 +662,32 @@ object RssConf extends Logging {
   }
 
   def masterBindPort(conf: RssConf): Int = conf.get(MASTER_BIND_PORT)
+
+  def masterNodeId(conf: RssConf): Option[String] = conf.get(HA_MASTER_NODE_ID)
+
+  def masterNodeIds(conf: RssConf): Array[String] = {
+    def extractPrefix(original: String, stop: String): String = {
+      val i = original.indexOf(stop)
+      assert(i >= 0, s"$original does not contain $stop")
+      original.substring(0, i)
+    }
+    val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
+    conf.getAllWithPrefix(nodeConfPrefix)
+      .map(_._1)
+      .map(k => extractPrefix(k, "."))
+      .distinct
+  }
+
+  def masterRatisHost(conf: RssConf, nodeId: String): String = {
+    val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
+    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    conf.get(key, conf.get(fallbackKey))
+  }
+
+  def masterRatisPort(conf: RssConf, nodeId: String): Int = {
+    val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
+    conf.getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
+  }
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
     conf.getInt("rss.worker.replicate.numThreads", 64)
@@ -1164,13 +1228,9 @@ object RssConf extends Logging {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
 
-  // If we want to use multi-raft group we can
-  // add "rss.ha.service.ids" each for one raft group
-  val HA_SERVICE_ID_KEY = "rss.ha.service.id"
   val HA_NODES_KEY = "rss.ha.nodes"
   val HA_ADDRESS_KEY = "rss.ha.address"
   val HA_RATIS_PORT_KEY = "rss.ha.port"
-  val HA_RATIS_PORT_DEFAULT = 9872
 
   val HA_RPC_TYPE_KEY: String = "rss.ha.rpc.type"
   val HA_RPC_TYPE_DEFAULT: String = "NETTY"

@@ -31,8 +31,6 @@ import org.apache.celeborn.common.RssConf;
 public class RatisBaseSuiteJ {
   HARaftServer ratisServer;
 
-  protected final String DEFAULT_SERVICE_ID = "ServiceIdDefault";
-
   @Before
   public void init() throws Exception {
     RssConf conf = new RssConf();
@@ -50,7 +48,6 @@ public class RatisBaseSuiteJ {
             .setRpcAddress(rpcAddress)
             .setRatisPort(ratisPort)
             .setNodeId(id)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
     ratisServer =
         HARaftServer.newMasterRatisServer(handler, conf, nodeDetails, Collections.emptyList());

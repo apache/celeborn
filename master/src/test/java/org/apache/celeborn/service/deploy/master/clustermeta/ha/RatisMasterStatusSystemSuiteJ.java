@@ -64,8 +64,6 @@ public class RatisMasterStatusSystemSuiteJ {
   protected static RpcEnv mockRpcEnv = Mockito.mock(RpcEnv.class);
   protected static RpcEndpointRef mockRpcEndpoint = Mockito.mock(RpcEndpointRef.class);
 
-  private static String DEFAULT_SERVICE_ID = "CELEBORN_DEFAULT_SERVICE_ID";
-
   @BeforeClass
   public static void init() throws IOException, InterruptedException {
     Mockito.when(mockRpcEnv.setupEndpointRef(Mockito.any(), Mockito.any()))
@@ -115,21 +113,18 @@ public class RatisMasterStatusSystemSuiteJ {
             .setRpcAddress(rpcAddress1)
             .setRatisPort(ratisPort1)
             .setNodeId(id1)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
     NodeDetails nodeDetails2 =
         new NodeDetails.Builder()
             .setRpcAddress(rpcAddress2)
             .setRatisPort(ratisPort2)
             .setNodeId(id2)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
     NodeDetails nodeDetails3 =
         new NodeDetails.Builder()
             .setRpcAddress(rpcAddress3)
             .setRatisPort(ratisPort3)
             .setNodeId(id3)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
 
     List<NodeDetails> peersForNode1 =
