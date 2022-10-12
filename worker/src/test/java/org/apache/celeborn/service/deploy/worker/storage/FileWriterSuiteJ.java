@@ -97,6 +97,7 @@ public class FileWriterSuiteJ {
   private static TransportClientFactory clientFactory;
   private static long streamId;
   private static int numChunks;
+  private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   private static final TransportConf transConf =
       new TransportConf("shuffle", MapConfigProvider.EMPTY);
@@ -239,7 +240,6 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileWriter fileWriter =
         new FileWriter(
             new FileInfo(file, userIdentifier),
@@ -285,7 +285,6 @@ public class FileWriterSuiteJ {
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
-    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileWriter fileWriter =
         new FileWriter(
             new FileInfo(file, userIdentifier),
@@ -339,7 +338,6 @@ public class FileWriterSuiteJ {
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 8;
     File file = getTemporaryFile();
-    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileInfo fileInfo = new FileInfo(file, userIdentifier);
     FileWriter fileWriter =
         new FileWriter(

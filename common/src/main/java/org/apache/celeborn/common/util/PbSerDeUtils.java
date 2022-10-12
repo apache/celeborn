@@ -82,9 +82,12 @@ public class PbSerDeUtils {
   public static FileInfo fromPbFileInfo(PbFileInfo pbFileInfo)
       throws InvalidProtocolBufferException {
     PbUserIdentifier pbUserIdentifier = pbFileInfo.getUserIdentifier();
-    UserIdentifier userIdentifier = new UserIdentifier(pbUserIdentifier.getTenantId(), pbUserIdentifier.getName());
+    UserIdentifier userIdentifier =
+        new UserIdentifier(pbUserIdentifier.getTenantId(), pbUserIdentifier.getName());
     return new FileInfo(
-        pbFileInfo.getFilePath(), new ArrayList<>(pbFileInfo.getChunkOffsetsList()), userIdentifier);
+        pbFileInfo.getFilePath(),
+        new ArrayList<>(pbFileInfo.getChunkOffsetsList()),
+        userIdentifier);
   }
 
   public static PbFileInfo toPbFileInfo(FileInfo fileInfo) {
