@@ -32,11 +32,6 @@ import scala.Tuple2;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.ServiceException;
-import org.apache.celeborn.common.RssConf;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
-import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
@@ -57,6 +52,12 @@ import org.apache.ratis.util.StringUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.haclient.RssHARetryClient;
+import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 
 public class HARaftServer {
   public static final Logger LOG = LoggerFactory.getLogger(HARaftServer.class);
