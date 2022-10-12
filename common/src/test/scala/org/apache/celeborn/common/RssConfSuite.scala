@@ -18,7 +18,8 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.RssConf.masterEndpoints
+import org.apache.celeborn.common.RssConf.{masterEndpoints, MASTER_HOST}
+import org.apache.celeborn.common.util.Utils
 
 class RssConfSuite extends RssFunSuite {
 
@@ -89,6 +90,18 @@ class RssConfSuite extends RssFunSuite {
     assert(RssConf.zstdCompressLevel(conf) == 22)
     conf.set("rss.client.compression.zstd.level", "100")
     assert(RssConf.zstdCompressLevel(conf) == 22)
+  }
+
+  test("replace <localhost> placeholder") {
+    val conf = new RssConf()
+    val replacedHost = RssConf.masterHost(conf)
+    assert(!replacedHost.contains("<localhost>"))
+    assert(replacedHost === Utils.localHostName)
+    val replacedHosts = RssConf.masterEndpoints(conf)
+    replacedHosts.foreach { replacedHost =>
+      assert(!replacedHost.contains("<localhost>"))
+      assert(replacedHost contains Utils.localHostName)
+    }
   }
 
   test("extract masterNodeIds") {

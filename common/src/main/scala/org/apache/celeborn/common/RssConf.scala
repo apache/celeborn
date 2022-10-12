@@ -590,19 +590,21 @@ object RssConf extends Logging {
         "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
       .version("0.2.0")
       .stringConf
+      .transform(_.replace("<localhost>", Utils.localHostName))
       .toSequence
       .checkValue(
         endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"<localhost>:9097")
 
-  val MASTER_HOST: OptionalConfigEntry[String] =
+  val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
       .withAlternative("rss.master.host")
       .version("0.2.0")
       .doc("Hostname for master to bind.")
       .stringConf
-      .createOptional
+      .transform(_.replace("<localhost>", Utils.localHostName))
+      .createWithDefaultString("<localhost>")
 
   val MASTER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.master.port")
@@ -660,10 +662,9 @@ object RssConf extends Logging {
       .createWithDefault(9872)
 
   def masterEndpoints(conf: RssConf): Array[String] =
-    conf.get(MASTER_ENDPOINTS).map(_.replace("<localhost>", Utils.localHostName)).toArray
+    conf.get(MASTER_ENDPOINTS).toArray
 
-  def masterHost(conf: RssConf): String =
-    conf.get(MASTER_HOST).getOrElse(Utils.localHostName)
+  def masterHost(conf: RssConf): String = conf.get(MASTER_HOST)
 
   def masterPort(conf: RssConf): Int = conf.get(MASTER_PORT)
 
