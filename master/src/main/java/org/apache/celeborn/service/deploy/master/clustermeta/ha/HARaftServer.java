@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,6 +32,11 @@ import scala.Tuple2;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.ServiceException;
+import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.haclient.RssHARetryClient;
+import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
@@ -53,11 +57,6 @@ import org.apache.ratis.util.StringUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.celeborn.common.RssConf;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 
 public class HARaftServer {
   public static final Logger LOG = LoggerFactory.getLogger(HARaftServer.class);
@@ -85,7 +84,8 @@ public class HARaftServer {
 
   private final StateMachine masterStateMachine;
 
-  private final ScheduledExecutorService scheduledRoleChecker;
+  private final ScheduledExecutorService scheduledRoleChecker =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("ratis-role-checker");
   private long roleCheckIntervalMs;
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
@@ -132,9 +132,7 @@ public class HARaftServer {
         RAFT_GROUP_ID,
         raftPeersStr.substring(2));
 
-    // Run a scheduler to check and update the server role on the leader
-    // periodically
-    this.scheduledRoleChecker = Executors.newSingleThreadScheduledExecutor();
+    // Run a scheduler to check and update the server role on the leader periodically
     this.scheduledRoleChecker.scheduleWithFixedDelay(
         () -> {
           // Run this check only on the leader OM
@@ -175,6 +173,7 @@ public class HARaftServer {
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
                     .setAddress(peer.getRatisHostPortStr())
+                    .setClientAddress(peer.getRpcAddress())
                     .build();
           } else {
             InetSocketAddress peerRatisAddr =
