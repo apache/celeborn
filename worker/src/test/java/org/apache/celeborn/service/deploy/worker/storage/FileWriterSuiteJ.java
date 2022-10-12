@@ -88,7 +88,6 @@ public class FileWriterSuiteJ {
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
-  private static final UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
 
   private static File tempDir = null;
   private static LocalFlusher localFlusher = null;
@@ -186,9 +185,8 @@ public class FileWriterSuiteJ {
   public ByteBuffer createOpenMessage() {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
-    byte[] userIdentifierBytes = userIdentifier.toString().getBytes(StandardCharsets.UTF_8);
 
-    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, userIdentifierBytes, 0, Integer.MAX_VALUE);
+    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
 
     return openBlocks.toByteBuffer();
   }
@@ -241,6 +239,7 @@ public class FileWriterSuiteJ {
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
     File file = getTemporaryFile();
+    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileWriter fileWriter =
         new FileWriter(
             new FileInfo(file, userIdentifier),
@@ -286,6 +285,7 @@ public class FileWriterSuiteJ {
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
+    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileWriter fileWriter =
         new FileWriter(
             new FileInfo(file, userIdentifier),
@@ -339,6 +339,7 @@ public class FileWriterSuiteJ {
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 8;
     File file = getTemporaryFile();
+    UserIdentifier userIdentifier = new UserIdentifier("mock-tenant", "mock-name");
     FileInfo fileInfo = new FileInfo(file, userIdentifier);
     FileWriter fileWriter =
         new FileWriter(

@@ -23,7 +23,6 @@ import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +41,6 @@ public abstract class RssInputStream extends InputStream {
       RssConf conf,
       TransportClientFactory clientFactory,
       String shuffleKey,
-      UserIdentifier userIdentifier,
       PartitionLocation[] locations,
       int[] attempts,
       int attemptNumber,
@@ -56,7 +54,6 @@ public abstract class RssInputStream extends InputStream {
           conf,
           clientFactory,
           shuffleKey,
-          userIdentifier,
           locations,
           attempts,
           attemptNumber,
@@ -93,7 +90,6 @@ public abstract class RssInputStream extends InputStream {
     private final RssConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
-    private final UserIdentifier userIdentifier;
     private final PartitionLocation[] locations;
     private final int[] attempts;
     private final int attemptNumber;
@@ -124,7 +120,6 @@ public abstract class RssInputStream extends InputStream {
         RssConf conf,
         TransportClientFactory clientFactory,
         String shuffleKey,
-        UserIdentifier userIdentifier,
         PartitionLocation[] locations,
         int[] attempts,
         int attemptNumber,
@@ -134,7 +129,6 @@ public abstract class RssInputStream extends InputStream {
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
-      this.userIdentifier = userIdentifier;
       this.locations = (PartitionLocation[]) Utils.randomizeInPlace(locations, RAND);
       this.attempts = attempts;
       this.attemptNumber = attemptNumber;
@@ -221,11 +215,11 @@ public abstract class RssInputStream extends InputStream {
       if (storageInfo.getType() == StorageInfo.Type.HDD
           || storageInfo.getType() == StorageInfo.Type.SSD) {
         return new WorkerPartitionReader(
-            conf, shuffleKey, userIdentifier, location, clientFactory, startMapIndex, endMapIndex);
+            conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       }
       if (storageInfo.getType() == StorageInfo.Type.HDFS) {
         return new DfsPartitionReader(
-            conf, shuffleKey, userIdentifier, location, clientFactory, startMapIndex, endMapIndex);
+            conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       }
 
       throw new IOException(

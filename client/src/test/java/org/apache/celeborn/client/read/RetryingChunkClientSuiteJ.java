@@ -47,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
@@ -358,7 +357,7 @@ public class RetryingChunkClientSuiteJ {
     doAnswer(invocation -> client).when(clientFactory).createClient(anyString(), anyInt());
 
     RetryingChunkClient retryingChunkClient =
-        new RetryingChunkClient(conf, "test", new UserIdentifier("mock-tenant", "mock-name"), masterLocation, callback, clientFactory);
+        new RetryingChunkClient(conf, "test", masterLocation, callback, clientFactory);
     chunkIds.stream().sorted().forEach(retryingChunkClient::fetchChunk);
     return retryingChunkClient;
   }
