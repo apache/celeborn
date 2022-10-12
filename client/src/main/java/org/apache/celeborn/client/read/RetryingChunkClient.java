@@ -25,6 +25,7 @@ import java.util.concurrent.TimeoutException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,6 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.util.Utils;
 
 /**
@@ -93,27 +93,13 @@ public class RetryingChunkClient {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");
     } else {
       Replica main =
-          new Replica(
-              timeoutMs,
-              shuffleKey,
-              userIdentifier,
-              location,
-              clientFactory,
-              startMapIndex,
-              endMapIndex);
+          new Replica(timeoutMs, shuffleKey, userIdentifier, location, clientFactory, startMapIndex, endMapIndex);
       PartitionLocation peerLoc = location.getPeer();
       if (peerLoc == null) {
         replicas = new Replica[] {main};
       } else {
         Replica peer =
-            new Replica(
-                timeoutMs,
-                shuffleKey,
-                userIdentifier,
-                peerLoc,
-                clientFactory,
-                startMapIndex,
-                endMapIndex);
+            new Replica(timeoutMs, shuffleKey, userIdentifier, peerLoc, clientFactory, startMapIndex, endMapIndex);
         replicas = new Replica[] {main, peer};
       }
     }

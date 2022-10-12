@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCounted;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +34,6 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
@@ -84,14 +84,7 @@ public class WorkerPartitionReader implements PartitionReader {
         };
     client =
         new RetryingChunkClient(
-            conf,
-            shuffleKey,
-            userIdentifier,
-            location,
-            callback,
-            clientFactory,
-            startMapIndex,
-            endMapIndex);
+            conf, shuffleKey, userIdentifier, location, callback, clientFactory, startMapIndex, endMapIndex);
     numChunks = client.openChunks();
   }
 

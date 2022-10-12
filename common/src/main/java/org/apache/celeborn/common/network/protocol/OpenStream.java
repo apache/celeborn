@@ -22,7 +22,6 @@ import java.util.Arrays;
 
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
-
 import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 
 /** Request to read a set of blocks. Returns {@link StreamHandle}. */
@@ -33,12 +32,7 @@ public final class OpenStream extends RequestMessage {
   public int startMapIndex;
   public int endMapIndex;
 
-  public OpenStream(
-      String shuffleKey,
-      String fileName,
-      UserIdentifier userIdentifier,
-      int startMapIndex,
-      int endMapIndex) {
+  public OpenStream(String shuffleKey, String fileName, UserIdentifier userIdentifier, int startMapIndex, int endMapIndex) {
     this(
         shuffleKey.getBytes(StandardCharsets.UTF_8),
         fileName.getBytes(StandardCharsets.UTF_8),
@@ -47,12 +41,7 @@ public final class OpenStream extends RequestMessage {
         endMapIndex);
   }
 
-  public OpenStream(
-      byte[] shuffleKey,
-      byte[] fileName,
-      byte[] userIdentifier,
-      int startMapIndex,
-      int endMapIndex) {
+  public OpenStream(byte[] shuffleKey, byte[] fileName, byte[] userIdentifier, int startMapIndex, int endMapIndex) {
     this.shuffleKey = shuffleKey;
     this.fileName = fileName;
     this.userIdentifier = userIdentifier;
@@ -92,7 +81,7 @@ public final class OpenStream extends RequestMessage {
     int userIdentifierSize = buf.readInt();
     byte[] userIdentifier = new byte[userIdentifierSize];
     buf.readBytes(userIdentifier);
-    return new OpenStream(shuffleKey, fileName, userIdentifier, buf.readInt(), buf.readInt());
+    return new OpenStream(shuffleKey, fileName, userIdentifier,buf.readInt(), buf.readInt());
   }
 
   @Override
