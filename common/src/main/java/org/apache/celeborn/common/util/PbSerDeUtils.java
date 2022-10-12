@@ -116,19 +116,6 @@ public class PbSerDeUtils {
     return builder.build().toByteArray();
   }
 
-  public static Set<String> fromPbShuffleKeySet(byte[] data) throws InvalidProtocolBufferException {
-    PbShuffleKeySet pbShuffleKeySet = PbShuffleKeySet.parseFrom(data);
-    Set<String> shuffleKeySet = ConcurrentHashMap.newKeySet();
-    shuffleKeySet.addAll(pbShuffleKeySet.getShuffleKeysList());
-    return shuffleKeySet;
-  }
-
-  public static byte[] toPbShuffleKeySet(Set<String> shuffleKeySet) {
-    PbShuffleKeySet.Builder builder = PbShuffleKeySet.newBuilder();
-    builder.addAllShuffleKeys(shuffleKeySet);
-    return builder.build().toByteArray();
-  }
-
   public static ResourceConsumption fromPbResourceConsumption(
       PbResourceConsumption pbResourceConsumption) throws InvalidProtocolBufferException {
     return new ResourceConsumption(
