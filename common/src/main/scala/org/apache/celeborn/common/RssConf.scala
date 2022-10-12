@@ -18,7 +18,7 @@
 package org.apache.celeborn.common
 
 import java.io.IOException
-import java.util.{Collections, Collection => JCollection, HashMap => JHashMap, Map => JMap}
+import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
