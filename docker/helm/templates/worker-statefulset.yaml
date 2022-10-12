@@ -96,10 +96,6 @@ spec:
             name: vol-{{ $index }}
           {{- end }}
         env:
-          - name:  TZ
-            value: "Asia/Shanghai"
-          - name:  RSS_NO_DAEMONIZE
-            value: "yes"
           {{- range $key, $val := .Values.environments }}
           - name: {{ $key }}
             value: {{ $val | quote }}
