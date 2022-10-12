@@ -323,7 +323,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         val shuffleDir =
           new Path(new Path(hdfsDir, RssConf.workingDirName(conf)), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
-        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
+        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString)
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
@@ -353,7 +353,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
             throw new RssException("create app shuffle data dir or file failed!" +
               s"${file.getAbsolutePath}")
           }
-          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier)
+          val fileInfo = new FileInfo(file.getAbsolutePath)
           val fileWriter = new FileWriter(
             fileInfo,
             localFlushers.get(mountPoint),
