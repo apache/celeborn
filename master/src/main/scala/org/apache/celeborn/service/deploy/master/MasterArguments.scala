@@ -37,8 +37,8 @@ class MasterArguments(args: Array[String], conf: RssConf) {
 
   // 3rd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
-  _host = _host.orElse(Some(RssConf.masterHost(conf)))
-  _port = _port.orElse(Some(RssConf.masterPort(conf)))
+  _host = _host.orElse(Some(RssConf.masterBindHost(conf)))
+  _port = _port.orElse(Some(RssConf.masterBindPort(conf)))
 
   if (_host.isEmpty || _port.isEmpty) {
     printUsageAndExit(1)

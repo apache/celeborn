@@ -425,8 +425,6 @@ object RssConf extends Logging {
     val masterEndpointsTips = "The behavior is controlled by `celeborn.master.endpoints` now, " +
       "please check the documentation for details."
     val configs = Seq(
-      RemovedConfig("rss.master.host", "0.2.0", null, masterEndpointsTips),
-      RemovedConfig("rss.master.port", "0.2.0", null, masterEndpointsTips),
       RemovedConfig("rss.ha.master.hosts", "0.2.0", null, masterEndpointsTips))
     Map(configs.map { cfg => cfg.key -> cfg }: _*)
   }
@@ -587,14 +585,31 @@ object RssConf extends Logging {
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
       .version("0.2.0")
-      .doc("Endpoints of master nodes, allowed pattern is: " +
-        "`<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
+      .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
       .stringConf
       .toSequence
       .checkValue(
         endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"localhost:9097")
+
+  val MASTER_BIND_HOST: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.bind.host")
+      .withAlternative("rss.master.host")
+      .version("0.2.0")
+      .doc("Hostname for master to bind.")
+      .stringConf
+      .createOptional
+
+  val MASTER_BIND_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.bind.port")
+      .withAlternative("rss.master.port")
+      .version("0.2.0")
+      .doc("Port for master to bind.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9097)
 
   def masterEndpoints(conf: RssConf): Array[String] = {
     conf.get(MASTER_ENDPOINTS).toArray
@@ -604,20 +619,11 @@ object RssConf extends Logging {
     masterEndpoints(conf).map { endpoint => Utils.parseHostPort(endpoint) }
   }
 
-  def masterEndpoint(conf: RssConf): String = {
-    require(!haEnabled(conf), s"illegal invocation when ${HA_ENABLED.key} is true")
-    val endpoints = masterEndpoints(conf)
-    require(endpoints.length == 1, s"expect 1 master node, but got ${endpoints.length}")
-    endpoints.head
+  def masterBindHost(conf: RssConf): String = {
+    conf.get(MASTER_BIND_HOST).getOrElse(Utils.localHostName)
   }
 
-  def masterHostAndPort(conf: RssConf): (String, Int) = {
-    Utils.parseHostPort(masterEndpoint(conf))
-  }
-
-  def masterHost(conf: RssConf): String = masterHostAndPort(conf)._1
-
-  def masterPort(conf: RssConf): Int = masterHostAndPort(conf)._2
+  def masterBindPort(conf: RssConf): Int = conf.get(MASTER_BIND_PORT)
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
     conf.getInt("rss.worker.replicate.numThreads", 64)
