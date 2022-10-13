@@ -19,7 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.{Map => jMap}
-import java.util.concurrent.{Future, ThreadLocalRandom}
+import java.util.concurrent.{ConcurrentHashMap, Future, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
@@ -28,6 +28,7 @@ import scala.concurrent.duration._
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
 import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
 import org.apache.celeborn.common.util.ThreadUtils
 
 class WorkerInfoSuite extends RssFunSuite {
@@ -61,7 +62,10 @@ class WorkerInfoSuite extends RssFunSuite {
     disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 0))
     disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 0))
     disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 0))
-    val worker = new WorkerInfo("localhost", 10000, 10001, 10002, 10003, disks, null)
+    val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
+    userResourceConsumption.put(UserIdentifier("tenant1", "name1"), ResourceConsumption(1, 1, 1, 1))
+    val worker =
+      new WorkerInfo("localhost", 10000, 10001, 10002, 10003, disks, userResourceConsumption, null)
 
     val allocatedSlots = new AtomicInteger(0)
     val shuffleKey = "appId-shuffleId"
@@ -127,32 +131,32 @@ class WorkerInfoSuite extends RssFunSuite {
   }
 
   test("WorkerInfo not equals when host different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
-    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, null, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when rpc port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
-    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, null, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when push port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, null, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when fetch port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, null, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when replicate port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, null, null, null)
     assertNotEquals(worker1, worker2)
   }
 }

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 
@@ -38,6 +39,8 @@ import org.junit.Test;
 import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
@@ -177,20 +180,41 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
     disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
     disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 = new ConcurrentHashMap<>();
+    userResourceConsumption1.put(
+        new UserIdentifier("tenant1", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
+    userResourceConsumption1.put(
+        new UserIdentifier("tenant1", "name2"), new ResourceConsumption(2000, 2, 2000, 2));
+    userResourceConsumption1.put(
+        new UserIdentifier("tenant1", "name3"), new ResourceConsumption(3000, 3, 3000, 3));
 
     Map<String, DiskInfo> disks2 = new HashMap<>();
     disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
     disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
     disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 = new ConcurrentHashMap<>();
+    userResourceConsumption2.put(
+        new UserIdentifier("tenant2", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
+    userResourceConsumption2.put(
+        new UserIdentifier("tenant2", "name2"), new ResourceConsumption(2000, 2, 2000, 2));
+    userResourceConsumption2.put(
+        new UserIdentifier("tenant2", "name3"), new ResourceConsumption(3000, 3, 3000, 3));
 
     Map<String, DiskInfo> disks3 = new HashMap<>();
     disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
     disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
     disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 = new ConcurrentHashMap<>();
+    userResourceConsumption3.put(
+        new UserIdentifier("tenant3", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
+    userResourceConsumption3.put(
+        new UserIdentifier("tenant3", "name2"), new ResourceConsumption(2000, 2, 2000, 2));
+    userResourceConsumption3.put(
+        new UserIdentifier("tenant3", "name3"), new ResourceConsumption(3000, 3, 3000, 3));
 
-    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, null);
-    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, null);
-    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, null);
+    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, userResourceConsumption1, null);
+    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, userResourceConsumption2, null);
+    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, userResourceConsumption3, null);
 
     String host1 = "host1";
     String host2 = "host2";

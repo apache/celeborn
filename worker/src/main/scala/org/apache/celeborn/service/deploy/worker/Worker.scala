@@ -37,7 +37,6 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSo
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.server.{ChannelsLimiter, MemoryTracker}
 import org.apache.celeborn.common.protocol.{PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
@@ -151,8 +150,20 @@ private[celeborn] class Worker(
   storageManager.disksSnapshot().foreach { case diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
+
+  // need to ensure storageManager has recovered fileinfos data before retrieve consumption
+  val userResourceConsumption = storageManager.userResourceConsumptionSnapshot().asJava
+
   val workerInfo =
-    new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, diskInfos, controller.self)
+    new WorkerInfo(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      diskInfos,
+      userResourceConsumption,
+      controller.self)
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)

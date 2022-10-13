@@ -37,10 +37,10 @@ class WorkerInfo(
     val fetchPort: Int,
     val replicatePort: Int,
     val diskInfos: util.Map[String, DiskInfo],
+    val userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
-  val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -50,6 +50,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null)
   }
 
@@ -67,6 +68,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       endpoint)
   }
 
@@ -250,7 +252,7 @@ class WorkerInfo(
   }
 
   override def hashCode(): Int = {
-    Objects.hashCode(host, rpcPort, pushPort, fetchPort)
+    Objects.hashCode(host, rpcPort, pushPort, fetchPort, replicatePort)
   }
 }
 
@@ -261,29 +263,45 @@ object WorkerInfo {
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
   }
 
-  def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
+  def fromPbWorkerInfo(pbWorkerInfo: PbWorkerInfo): WorkerInfo = {
     val disks =
-      if (pbWorker.getDisksCount > 0) {
-        pbWorker.getDisksList.asScala
+      if (pbWorkerInfo.getDisksCount > 0) {
+        pbWorkerInfo.getDisksList.asScala
           .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
           .toMap.asJava
       } else {
         new util.HashMap[String, DiskInfo]()
       }
+    val userResourceConsumption = pbWorkerInfo
+      .getUserResourceConsumptionMap
+      .asScala
+      .map { case (userInfo, pbResourceConsumption) =>
+        (UserIdentifier(userInfo), pbResourceConsumption)
+      }
+      .mapValues(PbSerDeUtils.fromPbResourceConsumption)
+      .asJava
 
     new WorkerInfo(
-      pbWorker.getHost,
-      pbWorker.getRpcPort,
-      pbWorker.getPushPort,
-      pbWorker.getFetchPort,
-      pbWorker.getReplicatePort,
+      pbWorkerInfo.getHost,
+      pbWorkerInfo.getRpcPort,
+      pbWorkerInfo.getPushPort,
+      pbWorkerInfo.getFetchPort,
+      pbWorkerInfo.getReplicatePort,
       disks,
+      userResourceConsumption,
       null)
   }
 
   def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
     val disks = workerInfo.diskInfos.asScala.values
       .map { diskInfo => PbSerDeUtils.toPbDiskInfo(diskInfo) }
+      .asJava
+    val pbUserResourceConsumption = workerInfo.userResourceConsumption
+      .asScala
+      .map { case (userIdentifier, resourceConsumption) =>
+        (userIdentifier.toString, resourceConsumption)
+      }
+      .mapValues(PbSerDeUtils.toPbResourceConsumption)
       .asJava
     PbWorkerInfo
       .newBuilder()
@@ -293,6 +311,7 @@ object WorkerInfo {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .addAllDisks(disks)
+      .putAllUserResourceConsumption(pbUserResourceConsumption)
       .build()
   }
 }
