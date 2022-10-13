@@ -434,6 +434,14 @@ object ControlMessages extends Logging {
         hdfsBytesWritten + other.hdfsBytesWritten,
         hdfsFileCount + other.hdfsFileCount)
     }
+
+    override def toString: String = {
+      val GiB = 1024 * 1024 * 1024 * 1.0;
+      s"ResourceConsumption(diskBytesWritten: ${(diskBytesWritten / GiB).formatted("%.3f")} GiB," +
+        s" diskFileCount: ${diskFileCount}," +
+        s" hdfsBytesWritten: ${(hdfsBytesWritten / GiB).formatted("%.3f")} GiB," +
+        s" hdfsFileCount: ${hdfsFileCount})"
+    }
   }
 
   // TODO change message type to GeneratedMessageV3
