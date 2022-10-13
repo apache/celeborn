@@ -89,8 +89,9 @@ object MasterClusterInfo extends Logging {
   }
 
   private def isLocalAddress(addr: InetAddress): Boolean = {
-    if (addr.isAnyLocalAddress || addr.isLoopbackAddress)
+    if (addr.isAnyLocalAddress || addr.isLoopbackAddress) {
       return true
+    }
     Try(NetworkInterface.getByInetAddress(addr)) match {
       case Success(value) => value != null
       case Failure(_) => false
