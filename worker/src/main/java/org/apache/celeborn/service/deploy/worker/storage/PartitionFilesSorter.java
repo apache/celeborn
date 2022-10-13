@@ -53,6 +53,7 @@ import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
@@ -168,6 +169,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       return fileInfo;
     } else {
       String fileId = shuffleKey + "-" + fileName;
+      UserIdentifier userIdentifier = fileInfo.getUserIdentifier();
 
       Set<String> sorted =
           sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
@@ -180,7 +182,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
           return resolve(
-              shuffleKey, fileId, sortedFilePath, indexFilePath, startMapIndex, endMapIndex);
+              shuffleKey,
+              fileId,
+              userIdentifier,
+              sortedFilePath,
+              indexFilePath,
+              startMapIndex,
+              endMapIndex);
         }
         if (!sorting.contains(fileId)) {
           try {
@@ -222,7 +230,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
 
-      return resolve(shuffleKey, fileId, sortedFilePath, indexFilePath, startMapIndex, endMapIndex);
+      return resolve(
+          shuffleKey,
+          fileId,
+          userIdentifier,
+          sortedFilePath,
+          indexFilePath,
+          startMapIndex,
+          endMapIndex);
     }
   }
 
@@ -436,6 +451,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   public FileInfo resolve(
       String shuffleKey,
       String fileId,
+      UserIdentifier userIdentifier,
       String sortedFilePath,
       String indexFilePath,
       int startMapIndex,
@@ -481,7 +497,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return new FileInfo(
         sortedFilePath,
         ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-            startMapIndex, endMapIndex, fetchChunkSize, indexMap));
+            startMapIndex, endMapIndex, fetchChunkSize, indexMap),
+        userIdentifier);
   }
 
   class FileSorter {

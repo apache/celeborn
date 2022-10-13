@@ -50,8 +50,6 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
-  // userIdentifier -> shuffleKey
-  val userShuffleKeys = new ConcurrentHashMap[UserIdentifier, util.Set[String]]()
 
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -169,9 +167,6 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   private val fileInfos =
     new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
   private val RECOVERY_FILE_NAME = "recovery.ldb"
-  // sequences of store and recover are in reverse order
-  // store sequence : userShuffleKeys -> fileInfos
-  // recover sequence: fileInfos -> userShuffleKeys
   private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
@@ -180,7 +175,6 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
-      reloadAndCleanUserShuffleKeys(this.db)
     } catch {
       case e: Exception =>
         logError("Init level DB failed:", e)
@@ -215,6 +209,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
             case exception: Exception =>
               logError(s"Reload DB: ${shuffleKey} failed.", exception)
           }
+        } else {
+          return
         }
       }
     }
@@ -232,54 +228,12 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  private def reloadAndCleanUserShuffleKeys(db: DB): Unit = {
-    if (db != null) {
-      val itr = db.iterator
-      itr.seek(USER_IDENTIFIER_PREFIX.getBytes(StandardCharsets.UTF_8))
-      while (itr.hasNext) {
-        val entry = itr.next
-        val key = new String(entry.getKey, StandardCharsets.UTF_8)
-        if (key.startsWith(USER_IDENTIFIER_PREFIX)) {
-          val userIdentifier = parseDbUserIdentifier(key)
-          try {
-            val shuffleKeys = PbSerDeUtils.fromPbShuffleKeySet(entry.getValue)
-            logDebug(s"Reload DB: ${userIdentifier}")
-            userShuffleKeys.put(userIdentifier, shuffleKeys)
-            db.delete(entry.getKey)
-          } catch {
-            case exception: Exception =>
-              logError(s"Reload DB: ${userIdentifier} failed.", exception)
-          }
-        }
-      }
-    }
-  }
-
-  def updateUserShuffleKeysInDB(): Unit = {
-    userShuffleKeys.asScala.foreach { case (userIdentifier, shuffleKeys) =>
-      try {
-        db.put(dbUserIdentifier(userIdentifier), PbSerDeUtils.toPbShuffleKeySet(shuffleKeys))
-        logDebug(s"Update UserShuffleInfos into DB: ${userIdentifier}")
-      } catch {
-        case exception: Exception =>
-          logError(s"Update UserShuffleInfos into DB: ${userIdentifier} failed.", exception)
-      }
-    }
-  }
-
   private def getNextIndex() = counter.getAndUpdate(counterOperator)
 
   private val newMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, FileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, FileInfo] =
         new ConcurrentHashMap()
-    }
-
-  private val newSetFunc =
-    new java.util.function.Function[UserIdentifier, util.Set[String]]() {
-      override def apply(key: UserIdentifier): util.Set[String] = {
-        ConcurrentHashMap.newKeySet[String]()
-      }
     }
 
   private val workingDirWriterListFunc =
@@ -323,7 +277,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         val shuffleDir =
           new Path(new Path(hdfsDir, RssConf.workingDirName(conf)), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
-        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString)
+        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
@@ -339,7 +293,6 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           hdfsWriters.add(hdfsWriter)
         }
         hdfsWriter.registerDestroyHook(hdfsWriters)
-        userShuffleKeys.computeIfAbsent(userIdentifier, newSetFunc).add(shuffleKey)
         return hdfsWriter
       } else {
         val dir = dirs(getNextIndex() % dirs.size)
@@ -353,7 +306,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
             throw new RssException("create app shuffle data dir or file failed!" +
               s"${file.getAbsolutePath}")
           }
-          val fileInfo = new FileInfo(file.getAbsolutePath)
+          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier)
           val fileWriter = new FileWriter(
             fileInfo,
             localFlushers.get(mountPoint),
@@ -373,7 +326,6 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           location.getStorageInfo.setMountPoint(mountPoint)
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
-          userShuffleKeys.computeIfAbsent(userIdentifier, newSetFunc).add(shuffleKey)
           return fileWriter
         } catch {
           case t: Throwable =>
@@ -554,7 +506,6 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   def close(): Unit = {
     if (db != null) {
       try {
-        updateUserShuffleKeysInDB()
         updateFileInfosInDB()
         db.close()
       } catch {
@@ -627,26 +578,34 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
-    userShuffleKeys.synchronized {
-      userShuffleKeys.asScala.map { case (userIdentifier, shuffleKeys) =>
-        val resourceMetrics = shuffleKeys.asScala.map { shuffleKey =>
-          val userFileInfos = fileInfos.get(shuffleKey).values().asScala.toSeq
-          val diskFileInfos = userFileInfos.filter(!_.isHdfs)
-          val hdfsFileInfos = userFileInfos.filter(_.isHdfs)
-
-          val diskBytesWritten = diskFileInfos.map(_.getFileLength).sum
-          val diskFileCount = diskFileInfos.size
-          val hdfsBytesWritten = hdfsFileInfos.map(_.getFileLength).sum
-          val hdfsFileCount = hdfsFileInfos.size
-          (diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount)
+    fileInfos.synchronized {
+      // shuffleId -> (fileName -> fileInfo)
+      fileInfos
+        .asScala
+        .toList
+        .flatMap { case (_, fileInfoMaps) =>
+          // userIdentifier -> fileInfo
+          fileInfoMaps.values().asScala.map { fileInfo =>
+            (fileInfo.getUserIdentifier, fileInfo)
+          }
         }
-        val resourceConsumption = ResourceConsumption(
-          resourceMetrics.map(_._1).sum,
-          resourceMetrics.map(_._2).sum,
-          resourceMetrics.map(_._3).sum,
-          resourceMetrics.map(_._4).sum)
-        (userIdentifier, resourceConsumption)
-      }.toMap
+        // userIdentifier -> List((userIdentifier, fileInfo))
+        .groupBy(_._1)
+        .map { case (userIdentifier, userWithFileInfoList) =>
+          // collect resource consumed by each user on this worker
+          val resourceConsumption = {
+            val userFileInfos = userWithFileInfoList.map(_._2)
+            val diskFileInfos = userFileInfos.filter(!_.isHdfs)
+            val hdfsFileInfos = userFileInfos.filter(_.isHdfs)
+
+            val diskBytesWritten = diskFileInfos.map(_.getFileLength).sum
+            val diskFileCount = diskFileInfos.size
+            val hdfsBytesWritten = hdfsFileInfos.map(_.getFileLength).sum
+            val hdfsFileCount = hdfsFileInfos.size
+            ResourceConsumption(diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount)
+          }
+          (userIdentifier, resourceConsumption)
+        }
     }
   }
 }

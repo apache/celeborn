@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -53,6 +54,7 @@ public class PartitionFilesSorterSuiteJ {
   private long originFileLen;
   private FileWriter fileWriter;
   private long sortTimeout = 16 * 1000;
+  private UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   public void prepare(boolean largefile) throws IOException {
     byte[] batchHeader = new byte[16];
@@ -60,7 +62,7 @@ public class PartitionFilesSorterSuiteJ {
     shuffleFile = File.createTempFile("RSS", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
-    fileInfo = new FileInfo(shuffleFile);
+    fileInfo = new FileInfo(shuffleFile, userIdentifier);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();

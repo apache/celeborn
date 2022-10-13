@@ -27,28 +27,33 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.util.Utils;
 
 public class FileInfo {
   private final String filePath;
   private final List<Long> chunkOffsets;
+  private final UserIdentifier userIdentifier;
 
-  public FileInfo(String filePath, List<Long> chunkOffsets) {
+  public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
+    this.userIdentifier = userIdentifier;
   }
 
-  public FileInfo(String filePath) {
+  public FileInfo(String filePath, UserIdentifier userIdentifier) {
     this.filePath = filePath;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
+    this.userIdentifier = userIdentifier;
   }
 
   @VisibleForTesting
-  public FileInfo(File file) {
+  public FileInfo(File file, UserIdentifier userIdentifier) {
     this.filePath = file.getAbsolutePath();
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
+    this.userIdentifier = userIdentifier;
   }
 
   public synchronized void addChunkOffset(long bytesFlushed) {
@@ -107,6 +112,10 @@ public class FileInfo {
     return new Path(Utils.getWriteSuccessFilePath(Utils.getPeerPath(filePath)));
   }
 
+  public UserIdentifier getUserIdentifier() {
+    return userIdentifier;
+  }
+
   public void deleteAllFiles(FileSystem hdfsFs) throws IOException {
     if (isHdfs()) {
       hdfsFs.delete(getHdfsPath(), false);
@@ -135,6 +144,8 @@ public class FileInfo {
         + filePath
         + ", chunkOffsets="
         + StringUtils.join(this.chunkOffsets, ",")
+        + ", userIdentifier="
+        + userIdentifier.toString()
         + '}';
   }
 }

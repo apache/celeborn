@@ -397,6 +397,7 @@ message PbStoreVersion {
 message PbFileInfo {
   string filePath = 1;
   repeated int64 chunkOffsets = 2;
+  PbUserIdentifier userIdentifier = 3;
 }
 
 message PbFileInfoMap {
@@ -413,8 +414,4 @@ message PbResourceConsumption {
   int64 diskFileCount = 2;
   int64 hdfsBytesWritten = 3;
   int64 hdfsFileCount = 4;
-}
-
-message PbShuffleKeySet {
-  repeated string shuffleKeys = 1;
 }
