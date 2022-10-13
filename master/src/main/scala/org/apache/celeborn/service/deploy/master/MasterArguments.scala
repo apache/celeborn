@@ -42,9 +42,9 @@ class MasterArguments(args: Array[String], conf: RssConf) {
   _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
   if (haEnabled(conf)) {
     val clusterInfo = MasterClusterInfo.loadHAConfig(conf)
-    val localNodeId = clusterInfo.localNode.getNodeId
-    _host = _host.orElse(Some(haMasterNodeHost(conf, localNodeId)))
-    _port = _port.orElse(Some(haMasterNodePort(conf, localNodeId)))
+    val localNode = clusterInfo.localNode
+    _host = _host.orElse(Some(haMasterNodeHost(conf, localNode.nodeId)))
+    _port = _port.orElse(Some(haMasterNodePort(conf, localNode.nodeId)))
     _masterClusterInfo = Some(clusterInfo)
   } else {
     _host = _host.orElse(Some(masterHost(conf)))

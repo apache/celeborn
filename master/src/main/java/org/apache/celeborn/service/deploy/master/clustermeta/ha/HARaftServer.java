@@ -74,7 +74,7 @@ public class HARaftServer {
   }
 
   private final InetSocketAddress ratisAddr;
-  private final InetSocketAddress rpcAddr;
+  private final String rpcEndpoint;
   private final RaftServer server;
   private final RaftGroup raftGroup;
   private final RaftPeerId raftPeerId;
@@ -106,12 +106,12 @@ public class HARaftServer {
       RssConf conf,
       RaftPeerId localRaftPeerId,
       InetSocketAddress ratisAddr,
-      InetSocketAddress rpcAddr,
+      String rpcEndpoint,
       List<RaftPeer> raftPeers)
       throws IOException {
     this.metaHandler = metaHandler;
     this.ratisAddr = ratisAddr;
-    this.rpcAddr = rpcAddr;
+    this.rpcEndpoint = rpcEndpoint;
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
@@ -148,42 +148,40 @@ public class HARaftServer {
   }
 
   public static HARaftServer newMasterRatisServer(
-      MetaHandler metaHandler, RssConf conf, NodeDetails localNode, List<NodeDetails> peerNodes)
+      MetaHandler metaHandler, RssConf conf, MasterNode localNode, List<MasterNode> peerNodes)
       throws IOException {
-    String nodeId = localNode.getNodeId();
+    String nodeId = localNode.nodeId();
     RaftPeerId localRaftPeerId = RaftPeerId.getRaftPeerId(nodeId);
 
-    InetSocketAddress ratisAddr =
-        new InetSocketAddress(localNode.getInetAddress(), localNode.getRatisPort());
+    InetSocketAddress ratisAddr = localNode.ratisAddr();
     RaftPeer localRaftPeer =
         RaftPeer.newBuilder()
             .setId(localRaftPeerId)
             .setAddress(ratisAddr)
-            .setClientAddress(localNode.getRpcAddress())
+            .setClientAddress(localNode.rpcEndpoint())
             .build();
     List<RaftPeer> raftPeers = new ArrayList<>();
     // Add this Ratis server to the Ratis ring
     raftPeers.add(localRaftPeer);
     peerNodes.forEach(
         peer -> {
-          String peerNodeId = peer.getNodeId();
+          String peerNodeId = peer.nodeId();
           RaftPeerId raftPeerId = RaftPeerId.valueOf(peerNodeId);
           RaftPeer raftPeer;
-          if (peer.isHostUnresolved()) {
+          if (peer.isRatisHostUnresolved()) {
             raftPeer =
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
-                    .setAddress(peer.getRatisHostPortStr())
-                    .setClientAddress(peer.getRpcAddress())
+                    .setAddress(peer.ratisEndpoint())
+                    .setClientAddress(peer.rpcEndpoint())
                     .build();
           } else {
-            InetSocketAddress peerRatisAddr =
-                new InetSocketAddress(peer.getInetAddress(), peer.getRatisPort());
+            InetSocketAddress peerRatisAddr = peer.ratisAddr();
             raftPeer =
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
                     .setAddress(peerRatisAddr)
-                    .setClientAddress(peer.getRpcAddress())
+                    .setClientAddress(peer.rpcEndpoint())
                     .build();
           }
 
@@ -191,7 +189,7 @@ public class HARaftServer {
           raftPeers.add(raftPeer);
         });
     return new HARaftServer(
-        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.getRpcAddress(), raftPeers);
+        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.rpcEndpoint(), raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
@@ -539,6 +537,6 @@ public class HARaftServer {
   }
 
   public String getRpcEndpoint() {
-    return this.rpcAddr.toString();
+    return this.rpcEndpoint;
   }
 }

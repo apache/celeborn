@@ -31,8 +31,8 @@ import org.apache.celeborn.common.RssConf._
 import org.apache.celeborn.common.internal.Logging
 
 case class MasterClusterInfo(
-    localNode: NodeDetails,
-    peerNodes: util.List[NodeDetails])
+    localNode: MasterNode,
+    peerNodes: util.List[MasterNode])
 
 object MasterClusterInfo extends Logging {
 
@@ -44,25 +44,19 @@ object MasterClusterInfo extends Logging {
     val masterNodes = clusterNodeIds.map { nodeId =>
       val ratisHost = RssConf.haMasterRatisHost(conf, nodeId)
       val ratisPort = RssConf.haMasterRatisPort(conf, nodeId)
-      val addr: InetSocketAddress = Try(NetUtils.createSocketAddr(ratisHost, ratisPort)) match {
-        case Success(socketAddress) => socketAddress
-        case Failure(e) =>
-          throw new IOException(
-            s"Couldn't create socket address for node[$nodeId] $ratisHost:$ratisPort",
-            e)
-      }
-      if (addr.isUnresolved)
-        logError(s"Address of node[$nodeId] $ratisHost:$ratisPort couldn't be resolved. " +
-          s"Proceeding with unresolved host to create Ratis ring.")
-      masterNode(nodeId, addr, ratisPort)
+      val ratisAddr = createSocketAddr(ratisHost, ratisPort)
+      val rpcHost = RssConf.haMasterNodeHost(conf, nodeId)
+      val rpcPort = RssConf.haMasterNodePort(conf, nodeId)
+      val rpcAddr = createSocketAddr(rpcHost, rpcPort)
+      MasterNode(nodeId, ratisAddr, rpcAddr)
     }
 
     val (localNodes, peerNodes) = localNodeIdOpt match {
       case Some(localNodeId) =>
-        masterNodes.partition { localNodeId == _.getNodeId }
+        masterNodes.partition { localNodeId == _.nodeId }
       case None =>
         masterNodes.partition { node =>
-          !node.getRpcAddress.isUnresolved && isLocalAddress(node.getRpcAddress.getAddress)
+          !node.isRatisHostUnresolved && isLocalAddress(node.ratisIpAddr)
         }
     }
 
@@ -70,24 +64,28 @@ object MasterClusterInfo extends Logging {
       throw new IllegalArgumentException("Can not found local node")
 
     if (localNodes.length > 1) {
-      val nodesAddr = localNodes.map(_.getRpcAddressString).mkString(",")
+      val nodesAddr = localNodes.map(_.ratisEndpoint).mkString(",")
       throw new IllegalArgumentException(
-        s"Detecting multi instances[$nodesAddr] in single node, please specific ${HA_MASTER_NODE_ID.key}.")
+        s"Detecting multi Ratis instances[$nodesAddr] in single node, please specific ${HA_MASTER_NODE_ID.key}.")
     }
 
     MasterClusterInfo(localNodes.head, peerNodes.toList.asJava)
   }
 
-  def masterNode(
-      nodeId: String,
-      rpcAddress: InetSocketAddress,
-      ratisPort: Int): NodeDetails = {
-    require(nodeId != null)
-    new NodeDetails.Builder()
-      .setNodeId(nodeId)
-      .setRpcAddress(rpcAddress)
-      .setRatisPort(ratisPort)
-      .build
+  def createSocketAddr(host: String, port: Int): InetSocketAddress = {
+    val socketAddr: InetSocketAddress =
+      Try(NetUtils.createSocketAddr(host, port)) match {
+        case Success(addr) => addr
+        case Failure(e) =>
+          throw new IOException(
+            s"Couldn't create socket address for $host:$port",
+            e)
+      }
+    if (socketAddr.isUnresolved)
+      logError(s"Address of $host:$port couldn't be resolved. " +
+        s"Proceeding with unresolved host to create Ratis ring.")
+
+    socketAddr
   }
 
   private def isLocalAddress(addr: InetAddress): Boolean = {
