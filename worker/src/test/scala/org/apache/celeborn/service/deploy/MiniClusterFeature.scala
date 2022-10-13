@@ -29,7 +29,7 @@ import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
 trait MiniClusterFeature extends Logging {
   val workerPrometheusPort = new AtomicInteger(12378)
-  val masterPort = new AtomicInteger(22378)
+  val masterPrometheusPort = new AtomicInteger(22378)
 
   protected def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
     override def run(): Unit = {
@@ -47,7 +47,7 @@ trait MiniClusterFeature extends Logging {
   protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv) = {
     val conf = new RssConf()
     conf.set("rss.metrics.system.enabled", "false")
-    val prometheusPort = masterPort.getAndIncrement()
+    val prometheusPort = masterPrometheusPort.getAndIncrement()
     conf.set("rss.master.prometheus.metric.port", s"$prometheusPort")
     logInfo(s"set prometheus.metric.port to $prometheusPort")
     if (map != null) {

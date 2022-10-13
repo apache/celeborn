@@ -425,9 +425,9 @@ object RssConf extends Logging {
     val masterEndpointsTips = "The behavior is controlled by `celeborn.master.endpoints` now, " +
       "please check the documentation for details."
     val configs = Seq(
-      RemovedConfig("rss.master.host", "0.2.0", null, masterEndpointsTips),
-      RemovedConfig("rss.master.port", "0.2.0", null, masterEndpointsTips),
-      RemovedConfig("rss.ha.master.hosts", "0.2.0", null, masterEndpointsTips))
+      RemovedConfig("rss.ha.master.hosts", "0.2.0", null, masterEndpointsTips),
+      RemovedConfig("rss.ha.service.id", "0.2.0", "rss", "configuration key removed."),
+      RemovedConfig("rss.ha.nodes.rss", "0.2.0", "1,2,3,", "configuration key removed."))
     Map(configs.map { cfg => cfg.key -> cfg }: _*)
   }
 
@@ -586,38 +586,132 @@ object RssConf extends Logging {
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
+      .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
+        "If the port is omitted, 9097 will be used.")
       .version("0.2.0")
-      .doc("Endpoints of master nodes, allowed pattern is: " +
-        "`<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.")
       .stringConf
+      .transform(_.replace("<localhost>", Utils.localHostName))
       .toSequence
       .checkValue(
         endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
-      .createWithDefaultString(s"localhost:9097")
+      .createWithDefaultString(s"<localhost>:9097")
 
-  def masterEndpoints(conf: RssConf): Array[String] = {
-    conf.get(MASTER_ENDPOINTS).toArray
+  val MASTER_HOST: ConfigEntry[String] =
+    buildConf("celeborn.master.host")
+      .withAlternative("rss.master.host")
+      .version("0.2.0")
+      .doc("Hostname for master to bind.")
+      .stringConf
+      .transform(_.replace("<localhost>", Utils.localHostName))
+      .createWithDefaultString("<localhost>")
+
+  val MASTER_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.port")
+      .withAlternative("rss.master.port")
+      .version("0.2.0")
+      .doc("Port for master to bind.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9097)
+
+  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
+    .withAlternative("rss.ha.enabled")
+    .doc("When true, master nodes run as Raft cluster mode.")
+    .version("0.1.0")
+    .booleanConf
+    .createWithDefault(false)
+
+  val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
+    buildConf("celeborn.ha.master.node.id")
+      .doc("Node id for master raft cluster in HA mode, if not define, " +
+        "will be inferred by hostname.")
+      .version("0.2.0")
+      .stringConf
+      .createOptional
+
+  val HA_MASTER_NODE_HOST: ConfigEntry[String] =
+    buildConf("celeborn.ha.master.node.<id>.host")
+      .doc("Host to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefaultString("<required>")
+
+  val HA_MASTER_NODE_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.node.<id>.port")
+      .doc("Port to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9097)
+
+  val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
+    buildConf("celeborn.ha.master.node.<id>.ratis.host")
+      .internal
+      .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
+        s"fallback to ${HA_MASTER_NODE_HOST.key}.")
+      .version("0.2.0")
+      .stringConf
+      .createOptional
+
+  val HA_MASTER_NODE_RATIS_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.node.<id>.ratis.port")
+      .doc("Ratis port to bind of master node <id> in HA mode.")
+      .version("0.2.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9872)
+
+  def masterEndpoints(conf: RssConf): Array[String] =
+    conf.get(MASTER_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
+
+  def masterHost(conf: RssConf): String = conf.get(MASTER_HOST)
+
+  def masterPort(conf: RssConf): Int = conf.get(MASTER_PORT)
+
+  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
+
+  def haMasterNodeId(conf: RssConf): Option[String] = conf.get(HA_MASTER_NODE_ID)
+
+  def haMasterNodeIds(conf: RssConf): Array[String] = {
+    def extractPrefix(original: String, stop: String): String = {
+      val i = original.indexOf(stop)
+      assert(i >= 0, s"$original does not contain $stop")
+      original.substring(0, i)
+    }
+    val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
+    conf.getAllWithPrefix(nodeConfPrefix)
+      .map(_._1)
+      .map(k => extractPrefix(k, "."))
+      .distinct
   }
 
-  def masterHostsAndPorts(conf: RssConf): Array[(String, Int)] = {
-    masterEndpoints(conf).map { endpoint => Utils.parseHostPort(endpoint) }
+  def haMasterNodeHost(conf: RssConf, nodeId: String): String = {
+    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    conf.get(key, Utils.localHostName)
   }
 
-  def masterEndpoint(conf: RssConf): String = {
-    require(!haEnabled(conf), s"illegal invocation when ${HA_ENABLED.key} is true")
-    val endpoints = masterEndpoints(conf)
-    require(endpoints.length == 1, s"expect 1 master node, but got ${endpoints.length}")
-    endpoints.head
+  def haMasterNodePort(conf: RssConf, nodeId: String): Int = {
+    val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
+    conf.getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
   }
 
-  def masterHostAndPort(conf: RssConf): (String, Int) = {
-    Utils.parseHostPort(masterEndpoint(conf))
+  def haMasterRatisHost(conf: RssConf, nodeId: String): String = {
+    val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
+    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    conf.get(key, conf.get(fallbackKey))
   }
 
-  def masterHost(conf: RssConf): String = masterHostAndPort(conf)._1
-
-  def masterPort(conf: RssConf): Int = masterHostAndPort(conf)._2
+  def haMasterRatisPort(conf: RssConf, nodeId: String): Int = {
+    val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
+    conf.getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
+  }
 
   def workerReplicateNumThreads(conf: RssConf): Int = {
     conf.getInt("rss.worker.replicate.numThreads", 64)
@@ -928,26 +1022,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
   }
 
-  /**
-   * Add non empty and non null suffix to a key.
-   */
-  def concatKeySuffix(key: String, suffix: String): String = {
-    if (suffix == null || suffix.isEmpty) return key
-    s"${key}.${suffix}"
-  }
-
-  /**
-   * Ratis related config
-   */
-  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
-    .withAlternative("rss.ha.enabled")
-    .doc("When true, master nodes run as Raft cluster mode.")
-    .version("0.1.0")
-    .booleanConf
-    .createWithDefault(false)
-
-  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
-
   def haClientMaxTries(conf: RssConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
   }
@@ -1157,14 +1231,6 @@ object RssConf extends Logging {
   def columnarShuffleMaxDictFactor(conf: RssConf): Double = {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
-
-  // If we want to use multi-raft group we can
-  // add "rss.ha.service.ids" each for one raft group
-  val HA_SERVICE_ID_KEY = "rss.ha.service.id"
-  val HA_NODES_KEY = "rss.ha.nodes"
-  val HA_ADDRESS_KEY = "rss.ha.address"
-  val HA_RATIS_PORT_KEY = "rss.ha.port"
-  val HA_RATIS_PORT_DEFAULT = 9872
 
   val HA_RPC_TYPE_KEY: String = "rss.ha.rpc.type"
   val HA_RPC_TYPE_DEFAULT: String = "NETTY"

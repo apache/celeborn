@@ -72,11 +72,11 @@ However, Celeborn client must be consistent with the version of the Spark.
 For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4; if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2.
 
 ## Usage
-Celeborn supports HA mode deployment.
+Celeborn cluster composes of Master and Worker nodes, the Master supports both single and HA mode(Raft-based) deployments.
 
 ### Deploy Celeborn
-1. Unzip the package to $CELEBORN_HOME
-2. Modify environment variables in $CELEBORN_HOME/conf/celeborn-env.sh
+1. Unzip the tarball to `$CELEBORN_HOME`
+2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`
 
 EXAMPLE:
 ```properties
@@ -85,11 +85,17 @@ CELEBORN_MASTER_MEMORY=4g
 CELEBORN_WORKER_MEMORY=2g
 CELEBORN_WORKER_OFFHEAP_MEMORY=4g
 ```
-3. Modify configurations in $CELEBORN_HOME/conf/celeborn-defaults.conf
+3. Modify configurations in `$CELEBORN_HOME/conf/celeborn-defaults.conf`
 
 EXAMPLE: single master cluster
 ```properties
-rss.master.address master-host:port
+# used by client and worker to connect to master
+celeborn.master.endpoints=clb-master:9097
+
+# used by master to bootstrap
+celeborn.master.host clb-master
+celeborn.master.port 9097
+
 rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 4096
@@ -100,32 +106,37 @@ rss.device.monitor.enabled false
 
 EXAMPLE: HA cluster
 ```properties
+# used by client and worker to connect to master
+celeborn.master.endpoints=clb-1:9097,clb-2:9098,clb-3:9099
+
+# used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
+# `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required
+celeborn.ha.enabled true
+celeborn.ha.master.node.id 1
+celeborn.ha.master.node.1.host clb-1
+celeborn.ha.master.node.1.port 9097
+celeborn.ha.master.node.1.ratis.port 9872
+celeborn.ha.master.node.2.host clb-2
+celeborn.ha.master.node.2.port 9098
+celeborn.ha.master.node.2.ratis.port 9873
+celeborn.ha.master.node.3.host clb-3
+celeborn.ha.master.node.3.port 9099
+celeborn.ha.master.node.3.ratis.port 9874
+
+rss.ha.storage.dir /mnt/disk1/rss_ratis/
+
 rss.metrics.system.enabled true
 rss.worker.flush.buffer.size 256k
 rss.worker.flush.queue.capacity 4096
 rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
-rss.master.port 9097
 # If your hosts have disk raid or use lvm, set rss.device.monitor.enabled to false
 rss.device.monitor.enabled false
-
-rss.ha.enabled true
-rss.ha.service.id dev-cluster
-rss.ha.nodes.dev-cluster node1,node2,node3
-rss.ha.address.dev-cluster.node1 host1
-rss.ha.address.dev-cluster.node2 host2
-rss.ha.address.dev-cluster.node3 host3
-rss.ha.storage.dir /mnt/disk1/rss_ratis/
-rss.ha.master.hosts host1,host2,host3
-# If you want to customize HA port
-rss.ha.port.dev-cluster.node1 9872
-rss.ha.port.dev-cluster.node2 9872
-rss.ha.port.dev-cluster.node3 9872
 ```
 4. Copy Celeborn and configurations to all nodes
 5. Start Celeborn master
    `$CELEBORN_HOME/sbin/start-master.sh`
 6. Start Celeborn worker
-   For single master cluster : `$CELEBORN_HOME/sbin/start-worker.sh rss://masterhost:port`
+   For single master cluster : `$CELEBORN_HOME/sbin/start-worker.sh rss://<master-host>:<master-port>`
    For HA cluster :`$CELEBORN_HOME/sbin/start-worker.sh`
 7. If Celeborn start success, the output of Master's log should be like this:
 ```angular2html
@@ -157,13 +168,13 @@ spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
-# if you are running HA cluster ,set spark.rss.master.address to any Celeborn master
-spark.rss.master.address rss-master-host:rss-master-port
+# celeborn master
+spark.celeborn.master.endpoints=clb-1:9097,clb-2:9098,clb-3:9099
 spark.shuffle.service.enabled false
 
-# optional:hash,sort
+# options: hash, sort
 # Hash shuffle writer use (partition count) * (rss.push.data.buffer.size) * (spark.executor.cores) memory.
-# Sort shuffle writer use less memory than hash shuffle writer, If your shuffle partition count is large, try to use sort hash writer.  
+# Sort shuffle writer use less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.rss.shuffle.writer.mode hash
 
 # we recommend set spark.rss.push.data.replicate to true to enable server-side data replication 

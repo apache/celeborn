@@ -46,11 +46,11 @@ public class MetaHandler {
     this.metaSystem = metaSystem;
   }
 
-  public void setUpMasterRatisServer(RssConf conf) throws IOException {
-    HANodeDetails haNodeDetails = HANodeDetails.loadHAConfig(conf);
+  public void setUpMasterRatisServer(RssConf conf, MasterClusterInfo masterClusterInfo)
+      throws IOException {
     metaSystem.setRatisServer(
         HARaftServer.newMasterRatisServer(
-            this, conf, haNodeDetails.getLocalNodeDetails(), haNodeDetails.getPeerNodeDetails()));
+            this, conf, masterClusterInfo.localNode(), masterClusterInfo.peerNodes()));
     metaSystem.getRatisServer().start();
   }
 

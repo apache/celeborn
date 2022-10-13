@@ -18,8 +18,6 @@
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -30,8 +28,6 @@ import org.apache.celeborn.common.RssConf;
 
 public class RatisBaseSuiteJ {
   HARaftServer ratisServer;
-
-  protected final String DEFAULT_SERVICE_ID = "ServiceIdDefault";
 
   @Before
   public void init() throws Exception {
@@ -44,16 +40,10 @@ public class RatisBaseSuiteJ {
     conf.set("rss.ha.storage.dir", tmpDir1.getAbsolutePath());
     String id = UUID.randomUUID().toString();
     int ratisPort = 9999;
-    InetSocketAddress rpcAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
-    NodeDetails nodeDetails =
-        new NodeDetails.Builder()
-            .setRpcAddress(rpcAddress)
-            .setRatisPort(ratisPort)
-            .setNodeId(id)
-            .setServiceId(DEFAULT_SERVICE_ID)
-            .build();
+    MasterNode masterNode =
+        new MasterNode.Builder().setNodeId(id).setHost("localhost").setRatisPort(ratisPort).build();
     ratisServer =
-        HARaftServer.newMasterRatisServer(handler, conf, nodeDetails, Collections.emptyList());
+        HARaftServer.newMasterRatisServer(handler, conf, masterNode, Collections.emptyList());
     ratisServer.start();
   }
 

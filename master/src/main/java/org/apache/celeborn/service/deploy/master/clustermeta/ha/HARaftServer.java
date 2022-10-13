@@ -21,12 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.Executors;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,16 +37,7 @@ import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.netty.NettyConfigKeys;
 import org.apache.ratis.proto.RaftProtos;
-import org.apache.ratis.protocol.ClientId;
-import org.apache.ratis.protocol.GroupInfoReply;
-import org.apache.ratis.protocol.GroupInfoRequest;
-import org.apache.ratis.protocol.Message;
-import org.apache.ratis.protocol.RaftClientReply;
-import org.apache.ratis.protocol.RaftClientRequest;
-import org.apache.ratis.protocol.RaftGroup;
-import org.apache.ratis.protocol.RaftGroupId;
-import org.apache.ratis.protocol.RaftPeer;
-import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.*;
 import org.apache.ratis.protocol.exceptions.LeaderNotReadyException;
 import org.apache.ratis.protocol.exceptions.NotLeaderException;
 import org.apache.ratis.protocol.exceptions.StateMachineException;
@@ -69,20 +55,29 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 
 public class HARaftServer {
-  private static final Logger LOG = LoggerFactory.getLogger(HARaftServer.class);
+  public static final Logger LOG = LoggerFactory.getLogger(HARaftServer.class);
 
-  private final int port;
-  private final InetSocketAddress masterRatisAddress;
-  private final org.apache.ratis.server.RaftServer server;
-  private final RaftGroupId raftGroupId;
-  private final RaftGroup raftGroup;
-  private final RaftPeerId raftPeerId;
+  public static final UUID CELEBORN_UUID =
+      UUID.nameUUIDFromBytes("CELEBORN".getBytes(StandardCharsets.UTF_8));
+
+  public static final RaftGroupId RAFT_GROUP_ID = RaftGroupId.valueOf(CELEBORN_UUID);
 
   private static final AtomicLong CALL_ID_COUNTER = new AtomicLong();
+
+  static long nextCallId() {
+    return CALL_ID_COUNTER.getAndIncrement() & Long.MAX_VALUE;
+  }
+
+  private final InetSocketAddress ratisAddr;
+  private final String rpcEndpoint;
+  private final RaftServer server;
+  private final RaftGroup raftGroup;
+  private final RaftPeerId raftPeerId;
 
   private final ClientId clientId = ClientId.randomId();
 
@@ -90,50 +85,37 @@ public class HARaftServer {
 
   private final StateMachine masterStateMachine;
 
-  private final ScheduledExecutorService scheduledRoleChecker;
+  private final ScheduledExecutorService scheduledRoleChecker =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("ratis-role-checker");
   private long roleCheckIntervalMs;
-  private ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
+  private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
-  private Optional<String> cachedLeaderPeerAddress = Optional.empty();
-
-  static long nextCallId() {
-    return CALL_ID_COUNTER.getAndIncrement() & Long.MAX_VALUE;
-  }
+  private Optional<String> cachedLeaderPeerRpcEndpoint = Optional.empty();
 
   /**
    * Returns an Master Ratis server.
    *
    * @param conf configuration
-   * @param raftGroupIdStr raft group id string
    * @param localRaftPeerId raft peer id of this Ratis server
-   * @param addr address of the ratis server
+   * @param ratisAddr address of the ratis server
    * @param raftPeers peer nodes in the raft ring
    * @throws IOException
    */
   private HARaftServer(
       MetaHandler metaHandler,
       RssConf conf,
-      String raftGroupIdStr,
       RaftPeerId localRaftPeerId,
-      InetSocketAddress addr,
+      InetSocketAddress ratisAddr,
+      String rpcEndpoint,
       List<RaftPeer> raftPeers)
       throws IOException {
     this.metaHandler = metaHandler;
-    this.masterRatisAddress = addr;
-    this.port = addr.getPort();
-    RaftProperties serverProperties = newRaftProperties(conf);
-
+    this.ratisAddr = ratisAddr;
+    this.rpcEndpoint = rpcEndpoint;
     this.raftPeerId = localRaftPeerId;
-    this.raftGroupId = RaftGroupId.valueOf(getRaftGroupIdFromOmServiceId(raftGroupIdStr));
-    this.raftGroup = RaftGroup.valueOf(raftGroupId, raftPeers);
-
-    StringBuilder raftPeersStr = new StringBuilder();
-    for (RaftPeer peer : raftPeers) {
-      raftPeersStr.append(", ").append(peer.getAddress());
-    }
-
+    this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
-
+    RaftProperties serverProperties = newRaftProperties(conf);
     this.server =
         RaftServer.newBuilder()
             .setServerId(this.raftPeerId)
@@ -142,14 +124,16 @@ public class HARaftServer {
             .setStateMachine(masterStateMachine)
             .build();
 
+    StringBuilder raftPeersStr = new StringBuilder();
+    for (RaftPeer peer : raftPeers) {
+      raftPeersStr.append(", ").append(peer.getAddress());
+    }
     LOG.info(
-        "Ratis server started with GroupID: {} and " + "Raft Peers: {}.",
-        raftGroupIdStr,
+        "Ratis server started with GroupID: {} and Raft Peers: {}.",
+        RAFT_GROUP_ID,
         raftPeersStr.substring(2));
 
-    // Run a scheduler to check and update the server role on the leader
-    // periodically
-    this.scheduledRoleChecker = Executors.newSingleThreadScheduledExecutor();
+    // Run a scheduler to check and update the server role on the leader periodically
     this.scheduledRoleChecker.scheduleWithFixedDelay(
         () -> {
           // Run this check only on the leader OM
@@ -164,42 +148,48 @@ public class HARaftServer {
   }
 
   public static HARaftServer newMasterRatisServer(
-      MetaHandler metaHandler, RssConf conf, NodeDetails nodeDetails, List<NodeDetails> peerNodes)
+      MetaHandler metaHandler, RssConf conf, MasterNode localNode, List<MasterNode> peerNodes)
       throws IOException {
-    // Raft group is serviceId
-    String serviceId = nodeDetails.getServiceId();
-
-    String nodeId = nodeDetails.getNodeId();
+    String nodeId = localNode.nodeId();
     RaftPeerId localRaftPeerId = RaftPeerId.getRaftPeerId(nodeId);
 
-    InetSocketAddress ratisAddr =
-        new InetSocketAddress(nodeDetails.getInetAddress(), nodeDetails.getRatisPort());
+    InetSocketAddress ratisAddr = localNode.ratisAddr();
     RaftPeer localRaftPeer =
-        RaftPeer.newBuilder().setId(localRaftPeerId).setAddress(ratisAddr).build();
+        RaftPeer.newBuilder()
+            .setId(localRaftPeerId)
+            .setAddress(ratisAddr)
+            .setClientAddress(localNode.rpcEndpoint())
+            .build();
     List<RaftPeer> raftPeers = new ArrayList<>();
     // Add this Ratis server to the Ratis ring
     raftPeers.add(localRaftPeer);
     peerNodes.forEach(
         peer -> {
-          String peerNodeId = peer.getNodeId();
+          String peerNodeId = peer.nodeId();
           RaftPeerId raftPeerId = RaftPeerId.valueOf(peerNodeId);
           RaftPeer raftPeer;
-          if (peer.isHostUnresolved()) {
+          if (peer.isRatisHostUnresolved()) {
             raftPeer =
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
-                    .setAddress(peer.getRatisHostPortStr())
+                    .setAddress(peer.ratisEndpoint())
+                    .setClientAddress(peer.rpcEndpoint())
                     .build();
           } else {
-            InetSocketAddress peerRatisAddr =
-                new InetSocketAddress(peer.getInetAddress(), peer.getRatisPort());
-            raftPeer = RaftPeer.newBuilder().setId(raftPeerId).setAddress(peerRatisAddr).build();
+            InetSocketAddress peerRatisAddr = peer.ratisAddr();
+            raftPeer =
+                RaftPeer.newBuilder()
+                    .setId(raftPeerId)
+                    .setAddress(peerRatisAddr)
+                    .setClientAddress(peer.rpcEndpoint())
+                    .build();
           }
 
           // Add other nodes belonging to the same service to the Ratis ring
           raftPeers.add(raftPeer);
         });
-    return new HARaftServer(metaHandler, conf, serviceId, localRaftPeerId, ratisAddr, raftPeers);
+    return new HARaftServer(
+        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.rpcEndpoint(), raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
@@ -215,7 +205,7 @@ public class HARaftServer {
         new RaftClientRequest.Builder()
             .setClientId(clientId)
             .setServerId(server.getId())
-            .setGroupId(raftGroupId)
+            .setGroupId(RAFT_GROUP_ID)
             .setCallId(callId)
             .setType(RaftClientRequest.writeRequestType())
             .setMessage(Message.valueOf(HAHelper.convertRequestToByteString(request)))
@@ -279,7 +269,11 @@ public class HARaftServer {
    * @throws IOException
    */
   public void start() throws IOException {
-    LOG.info("Starting {} {} at port {}", getClass().getSimpleName(), server.getId(), port);
+    LOG.info(
+        "Starting {} {} at port {}",
+        getClass().getSimpleName(),
+        server.getId(),
+        ratisAddr.getPort());
     server.start();
   }
 
@@ -300,9 +294,9 @@ public class HARaftServer {
 
     // Set the ratis port number
     if (rpc == SupportedRpcType.GRPC) {
-      GrpcConfigKeys.Server.setPort(properties, port);
+      GrpcConfigKeys.Server.setPort(properties, ratisAddr.getPort());
     } else if (rpc == SupportedRpcType.NETTY) {
-      NettyConfigKeys.Server.setPort(properties, port);
+      NettyConfigKeys.Server.setPort(properties, ratisAddr.getPort());
     }
 
     // Set Ratis storage directory
@@ -416,13 +410,9 @@ public class HARaftServer {
     return properties;
   }
 
-  private UUID getRaftGroupIdFromOmServiceId(String serviceId) {
-    return UUID.nameUUIDFromBytes(serviceId.getBytes(StandardCharsets.UTF_8));
-  }
-
   private StateMachine getStateMachine() {
     StateMachine stateMachine = new StateMachine(this);
-    stateMachine.setRaftGroupId(raftGroupId);
+    stateMachine.setRaftGroupId(RAFT_GROUP_ID);
     return stateMachine;
   }
 
@@ -479,17 +469,17 @@ public class HARaftServer {
    *
    * @return RaftPeerId of the suggested leader node.
    */
-  public Optional<String> getCachedLeaderPeerAddress() {
+  public Optional<String> getCachedLeaderPeerRpcEndpoint() {
     this.roleCheckLock.readLock().lock();
     try {
-      return cachedLeaderPeerAddress;
+      return cachedLeaderPeerRpcEndpoint;
     } finally {
       this.roleCheckLock.readLock().unlock();
     }
   }
 
   /**
-   * Get the gorup info (peer role and leader peer id) from Ratis server and update the server role.
+   * Get the group info (peer role and leader peer id) from Ratis server and update the server role.
    */
   public void updateServerRole() {
     try {
@@ -498,19 +488,19 @@ public class HARaftServer {
       RaftProtos.RaftPeerRole thisNodeRole = roleInfoProto.getRole();
 
       if (thisNodeRole.equals(RaftProtos.RaftPeerRole.LEADER)) {
-        setServerRole(thisNodeRole, masterRatisAddress.getAddress().toString());
-
+        setServerRole(thisNodeRole, getRpcEndpoint());
       } else if (thisNodeRole.equals(RaftProtos.RaftPeerRole.FOLLOWER)) {
         ByteString leaderNodeId = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getId();
         // There may be a chance, here we get leaderNodeId as null. For
         // example, in 3 node Ratis, if 2 nodes are down, there will
         // be no leader.
-        String leaderPeerAddress = null;
+        String leaderPeerRpcEndpoint = null;
         if (leaderNodeId != null && !leaderNodeId.isEmpty()) {
-          leaderPeerAddress = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAddress();
+          leaderPeerRpcEndpoint =
+              roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
         }
 
-        setServerRole(thisNodeRole, leaderPeerAddress);
+        setServerRole(thisNodeRole, leaderPeerRpcEndpoint);
 
       } else {
         setServerRole(thisNodeRole, null);
@@ -525,12 +515,12 @@ public class HARaftServer {
     }
   }
 
-  /** Set the current server role and the leader peer address. */
-  private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerAddress) {
+  /** Set the current server role and the leader peer rpc endpoint. */
+  private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
       this.cachedPeerRole = Optional.ofNullable(currentRole);
-      this.cachedLeaderPeerAddress = Optional.ofNullable(leaderPeerAddress);
+      this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
     } finally {
       this.roleCheckLock.writeLock().unlock();
     }
@@ -538,17 +528,15 @@ public class HARaftServer {
 
   private GroupInfoReply getGroupInfo() throws IOException {
     GroupInfoRequest groupInfoRequest =
-        new GroupInfoRequest(clientId, raftPeerId, raftGroupId, nextCallId());
-    GroupInfoReply groupInfo = server.getGroupInfo(groupInfoRequest);
-    return groupInfo;
-  }
-
-  @VisibleForTesting
-  public String getRaftAddress() {
-    return this.masterRatisAddress.getAddress().toString();
+        new GroupInfoRequest(clientId, raftPeerId, RAFT_GROUP_ID, nextCallId());
+    return server.getGroupInfo(groupInfoRequest);
   }
 
   public int getRaftPort() {
-    return this.masterRatisAddress.getPort();
+    return this.ratisAddr.getPort();
+  }
+
+  public String getRpcEndpoint() {
+    return this.rpcEndpoint;
   }
 }

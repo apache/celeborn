@@ -26,13 +26,11 @@ data:
     {{- range $key, $val := .Values.celeborn }}
     {{ $key }}={{ $val }}
     {{- end -}} 
-    {{- $namespace  := .Release.Namespace }}
-    rss.ha.enabled=true
-    rss.ha.service.id=rss
-    rss.ha.master.hosts={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
-    rss.ha.nodes.rss={{ range until (.Values.masterReplicas |int) }}node{{ . }},{{ end }}
+    {{- $namespace := .Release.Namespace }}
+    celeborn.ha.enabled=true
+    celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
-    rss.ha.address.rss.node{{ . }}=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local
+    celeborn.ha.master.node.{{ . }}.host=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local
     {{- end }}
     
   rss-env.sh: |

@@ -31,9 +31,16 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifie
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with BeforeAndAfterAll {
+  val masterPort = 19097
 
   override def beforeAll(): Unit = {
-    setUpMiniCluster()
+    val masterPort = 19097
+    val masterConf = Map(
+      "celeborn.master.host" -> "localhost",
+      "celeborn.master.port" -> masterPort.toString)
+    val workerConf = Map(
+      "celeborn.master.endpoints" -> s"localhost:$masterPort")
+    setUpMiniCluster(masterConf, workerConf)
   }
 
   CompressionCodec.values.foreach { codec =>
@@ -41,9 +48,10 @@ class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with Bef
       val APP = "app-1"
 
       val clientConf = new RssConf()
-      clientConf.set("rss.client.compression.codec", codec.name());
-      clientConf.set("rss.push.data.replicate", "true")
-      clientConf.set("rss.push.data.buffer.size", "256K")
+        .set("celeborn.master.endpoints", s"localhost:$masterPort")
+        .set("rss.client.compression.codec", codec.name)
+        .set("rss.push.data.replicate", "true")
+        .set("rss.push.data.buffer.size", "256K")
       val lifecycleManager = new LifecycleManager(APP, clientConf)
       val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"))
       shuffleClient.setupMetaServiceRef(lifecycleManager.self)

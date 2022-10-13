@@ -22,12 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Assert;
@@ -63,8 +58,6 @@ public class RatisMasterStatusSystemSuiteJ {
 
   protected static RpcEnv mockRpcEnv = Mockito.mock(RpcEnv.class);
   protected static RpcEndpointRef mockRpcEndpoint = Mockito.mock(RpcEndpointRef.class);
-
-  private static String DEFAULT_SERVICE_ID = "CELEBORN_DEFAULT_SERVICE_ID";
 
   @BeforeClass
   public static void init() throws IOException, InterruptedException {
@@ -107,56 +100,35 @@ public class RatisMasterStatusSystemSuiteJ {
 
     String localHost = Utils.localHostName();
 
-    InetSocketAddress rpcAddress1 = new InetSocketAddress(localHost, 9872);
-    InetSocketAddress rpcAddress2 = new InetSocketAddress(localHost, 9873);
-    InetSocketAddress rpcAddress3 = new InetSocketAddress(localHost, 9874);
-    NodeDetails nodeDetails1 =
-        new NodeDetails.Builder()
-            .setRpcAddress(rpcAddress1)
+    MasterNode masterNode1 =
+        new MasterNode.Builder()
+            .setHost(localHost)
             .setRatisPort(ratisPort1)
+            .setRpcPort(9872)
             .setNodeId(id1)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
-    NodeDetails nodeDetails2 =
-        new NodeDetails.Builder()
-            .setRpcAddress(rpcAddress2)
+    MasterNode masterNode2 =
+        new MasterNode.Builder()
+            .setHost(localHost)
             .setRatisPort(ratisPort2)
+            .setRpcPort(9873)
             .setNodeId(id2)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
-    NodeDetails nodeDetails3 =
-        new NodeDetails.Builder()
-            .setRpcAddress(rpcAddress3)
+    MasterNode masterNode3 =
+        new MasterNode.Builder()
+            .setHost(localHost)
             .setRatisPort(ratisPort3)
+            .setRpcPort(9874)
             .setNodeId(id3)
-            .setServiceId(DEFAULT_SERVICE_ID)
             .build();
 
-    List<NodeDetails> peersForNode1 =
-        new ArrayList() {
-          {
-            add(nodeDetails2);
-            add(nodeDetails3);
-          }
-        };
-    List<NodeDetails> peersForNode2 =
-        new ArrayList() {
-          {
-            add(nodeDetails1);
-            add(nodeDetails3);
-          }
-        };
-    List<NodeDetails> peersForNode3 =
-        new ArrayList() {
-          {
-            add(nodeDetails1);
-            add(nodeDetails2);
-          }
-        };
+    List<MasterNode> peersForNode1 = Arrays.asList(masterNode2, masterNode3);
+    List<MasterNode> peersForNode2 = Arrays.asList(masterNode1, masterNode3);
+    List<MasterNode> peersForNode3 = Arrays.asList(masterNode1, masterNode2);
 
-    RATISSERVER1 = HARaftServer.newMasterRatisServer(handler1, conf1, nodeDetails1, peersForNode1);
-    RATISSERVER2 = HARaftServer.newMasterRatisServer(handler2, conf2, nodeDetails2, peersForNode2);
-    RATISSERVER3 = HARaftServer.newMasterRatisServer(handler3, conf3, nodeDetails3, peersForNode3);
+    RATISSERVER1 = HARaftServer.newMasterRatisServer(handler1, conf1, masterNode1, peersForNode1);
+    RATISSERVER2 = HARaftServer.newMasterRatisServer(handler2, conf2, masterNode2, peersForNode2);
+    RATISSERVER3 = HARaftServer.newMasterRatisServer(handler3, conf3, masterNode3, peersForNode3);
 
     STATUSSYSTEM1.setRatisServer(RATISSERVER1);
     STATUSSYSTEM2.setRatisServer(RATISSERVER2);
@@ -542,9 +514,9 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(true, STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertEquals(true, STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertEquals(true, STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
   }
 
   @Test

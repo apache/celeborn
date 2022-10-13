@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
-import java.util.UUID;
-
 import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.util.LifeCycle;
 import org.junit.Assert;
@@ -37,9 +35,8 @@ public class MasterRatisServerSuiteJ extends RatisBaseSuiteJ {
 
   @Test
   public void verifyRaftGroupIdGenerationWithDefaultServiceId() {
-    UUID uuid = UUID.nameUUIDFromBytes(DEFAULT_SERVICE_ID.getBytes());
     RaftGroupId raftGroupId = ratisServer.getRaftGroup().getGroupId();
-    Assert.assertEquals(uuid, raftGroupId.getUuid());
+    Assert.assertEquals(HARaftServer.CELEBORN_UUID, raftGroupId.getUuid());
     Assert.assertEquals(raftGroupId.toByteString().size(), 16);
   }
 
@@ -47,6 +44,6 @@ public class MasterRatisServerSuiteJ extends RatisBaseSuiteJ {
   public void testIsLeader() {
     // since we just has one instance by default, isLeader will always be false,
     // we use this test case to verify api access correctness.
-    Assert.assertTrue(!ratisServer.isLeader());
+    Assert.assertFalse(ratisServer.isLeader());
   }
 }
