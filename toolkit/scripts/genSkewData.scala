@@ -23,7 +23,7 @@ val datascala=214748364
 val df = spark.sparkContext.parallelize(1 to datascala, 1024).map(i => { 
         val random = new Random() 
         val oriKey = random.nextInt(4096) 
-        val key = if (oriKey < 256) random.nextInt(1) else oriKey
+        val key = if (oriKey < 3800) random.nextInt(1) else oriKey
         val fas = random.nextInt(1200000)
         val fa = Range(fas, fas + 100).mkString(",")
         val fbs = random.nextInt(60000)
@@ -39,7 +39,7 @@ val df = spark.sparkContext.parallelize(1 to datascala, 1024).map(i => {
 val df2 = spark.sparkContext.parallelize(1 to 64, 64).map(i => {
         val random = new Random()
         val oriKey = random.nextInt(2048)+2048
-        val key = if (oriKey < 256) random.nextInt(2048) else oriKey
+        val key = oriKey
         val fas = random.nextInt(1200000)
         val fa = Range(fas, fas + 100).mkString(",")
         val fbs = random.nextInt(60000)
