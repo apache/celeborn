@@ -40,6 +40,6 @@ jobs:
 
       - name: Upload Result
         uses: actions/upload-artifact@v3
-          with:
-            name: benchmark result
-            path: /home/hadoop/celeborn-toolkit/result/
+        with:
+          name: benchmark result
+          path: /home/hadoop/celeborn-toolkit/result/
