@@ -648,6 +648,7 @@ object RssConf extends Logging {
 
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
     buildConf("celeborn.ha.master.node.<id>.ratis.host")
+      .internal
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
         s"fallback to ${HA_MASTER_NODE_HOST.key}.")
       .version("0.2.0")
