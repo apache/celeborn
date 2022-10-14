@@ -38,7 +38,8 @@ val df = spark.sparkContext.parallelize(1 to datascala, 1024).map(i => {
     df.createOrReplaceTempView("view1")
 val df2 = spark.sparkContext.parallelize(1 to 64, 64).map(i => {
         val random = new Random()
-        val oriKey = random.nextInt(2048)+2048
+        // we need to ensure that the join result be null , so keys can not match.
+        val oriKey = random.nextInt(2048) + 4096
         val key = oriKey
         val fas = random.nextInt(1200000)
         val fa = Range(fas, fas + 100).mkString(",")

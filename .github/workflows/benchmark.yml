@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-name: Celeborn benchmark
+name: Celeborn Benchmark
 
 on:
   workflow_dispatch:
@@ -24,9 +24,6 @@ on:
         description: 'benchmark'
         required: true
         default: 'default-benchmark'
-      branch:
-        description: 'branch for benchmark'
-        default: 'main'
 
 jobs:
   regression:
@@ -36,7 +33,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build
-        run: ./dev/make-distribution.sh -Pspark-3.2  && rm -rf /home/hadoop/celeborn-toolkit/dist/celeborn-*.tgz && mv celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
+        run: ./dev/make-distribution.sh -Pspark-3.2 && rm -rf /home/hadoop/celeborn-toolkit/dist/celeborn-*.tgz && mv celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
 
       - name: Benchmark
         run: /home/hadoop/celeborn-toolkit/reg.sh benchmark

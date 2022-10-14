@@ -22,20 +22,21 @@ REG_HOME="$(
   pwd
 )"
 REG_HOSTS=("core-1-1" "core-1-2" "core-1-3" "core-1-4" "core-1-5" "core-1-6" "core-1-7" "core-1-8")
-REG_CONF=${REG_HOME}/conf
+REG_CONF_DIR=${REG_HOME}/conf
 REG_TOOLS=${REG_HOME}/tools
 REG_SCRIPTS=${REG_HOME}/scripts
 REG_CELEBORN_DIST=${REG_HOME}/dist
 
 HIVEBENCH_DIR=${REG_HOME}/hive-testbench
 HIVEBENCH_QUERY_DIR=${HIVEBENCH_DIR}/spark-queries-tpcds
+HIVEBENCH_SCHEMA=tpcds_bin_partitioned_orc_1000
 
 HIBEN_DIR=${REG_HOME}/hibench3
 HIBEN_CONF_DIR=${HIBEN_DIR}/conf
 
 CHECK_TPCDS_PYTHON=${REG_SCRIPTS}/check.py
 
-CELEBORN_CONF_DIR=${REG_CONF}/celeborn
+CELEBORN_CONF_DIR=${REG_CONF_DIR}/celeborn
 RSS_INSTALL_DIR=/opt/apps/RSS/rss-0.1.1
 
 REG_RESULT=${REG_HOME}/result
@@ -43,6 +44,8 @@ REG_RESULT=${REG_HOME}/result
 SPARK3_HOME=/opt/apps/SPARK3/spark3-current
 
 loglevel=1
+
+CELEBORN_DIST=""
 
 function log() {
   local msg
@@ -62,9 +65,8 @@ function getCelebornDist() {
   cd ${REG_CELEBORN_DIST}
   tar xf celeborn*.tgz
   rm -rf ./celeborn*.tgz
-  CELEBORN_DIST = `ls celeborn*`
+  CELEBORN_DIST="$(basename `cd celeborn* && pwd`)"
   cd -
-  return ${CELEBORN_DIST}
 }
 
 function output_msg() {
@@ -94,23 +96,40 @@ function output_msg() {
 function runTerasort() {
   start=$(($(date +%s%N) / 1000000))
 
-  cp ${HIBEN_CONF_DIR}/spark.conf.normal ${HIBEN_CONF_DIR}/spark.conf
+  cp ${HIBEN_CONF_DIR}/spark.conf.rss ${HIBEN_CONF_DIR}/spark.conf
   ${HIBEN_DIR}/bin/workloads/micro/terasort/spark/run.sh
 
   end=$(($(date +%s%N) / 1000000))
   duration=$(((end - start) / 1000))
   sec=$(bc <<<"scale=3; ($end - $start)/1000")
   elapse_time=$(printf "%d:%02d:%02d, %s seconds" $(($duration / 3600)) $((($duration / 60) % 60)) $(($duration % 60)) $sec)
-  log info "Run terasort regression finished. Time token: $elapse_time"
+  log info "Run terasort finished. Time token: $elapse_time"
 }
 
 function runManySplits() {
+  start=$(($(date +%s%N) / 1000000))
+
   cp ${HIBEN_CONF_DIR}/spark.conf.split ${HIBEN_CONF_DIR}/spark.conf
   ${HIBEN_DIR}/bin/workloads/micro/terasort/spark/run.sh
+
+  end=$(($(date +%s%N) / 1000000))
+  duration=$(((end - start) / 1000))
+  sec=$(bc <<<"scale=3; ($end - $start)/1000")
+  elapse_time=$(printf "%d:%02d:%02d, %s seconds" $(($duration / 3600)) $((($duration / 60) % 60)) $(($duration % 60)) $sec)
+  log info "Run terasort with many splits finished. Time token: $elapse_time"
 }
 
 function runSkewJoin() {
-  spark-sql --properties ${REG_CONF_DIR}/spark.conf
+  start=$(($(date +%s%N) / 1000000))
+
+  spark-sql --properties-file ${REG_CONF_DIR}/spark.conf -e "select max(fa),max(length(f1)),max(length(f2)),max(length(f3)),max(length(f4)),max(fb),max(length(f6)),max(length(f7)),max(length(f8)),max(length(f9)) from table1 a inner join table2 b on a.fa=b.fb;"
+
+
+  end=$(($(date +%s%N) / 1000000))
+  duration=$(((end - start) / 1000))
+  sec=$(bc <<<"scale=3; ($end - $start)/1000")
+  elapse_time=$(printf "%d:%02d:%02d, %s seconds" $(($duration / 3600)) $((($duration / 60) % 60)) $(($duration % 60)) $sec)
+  log info "Run skew join finished. Time token: $elapse_time"
 }
 
 function switchToESS() {
@@ -137,24 +156,27 @@ function runTPCDSSuite() {
     exit -1
   fi
 
-  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess-${DATE}
+  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess
   echo -e "finish TPC-DS on ESS \n"
 
+  getCelebornDist
   echo -e "Run TPC-DS suite on celeborn"
   switchToCeleborn
-  updateCeleborn $(getCelebornDist)
+  updateCeleborn
   singleTPCDS
   if [[ $? -ne 0 ]]; then
     echo -e "Run TPC-DS suite on ESS failed"
     exit -1
   fi
 
-  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/celeborn-${DATE}
+  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/celeborn
+  checkTPCDSResult ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess
+  echo -e "finish TPC-DS on celeborn \n"
 
   echo -e "Run TPC-DS suite on celeborn Duplicate"
   switchToCelebornAndDuplicate
-  updateCeleborn $(getCelebornDist)
-  if [ $1 == "regression"]; then
+  updateCeleborn
+  if [[ $1 == "regression" ]]; then
     singleTPCDS $1
   else
     singleTPCDS
@@ -164,8 +186,11 @@ function runTPCDSSuite() {
     exit -1
   fi
 
-  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/celeborn-dup-${DATE}
+  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/celeborn-dup
+  checkTPCDSResult ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess
+  echo -e "finish TPC-DS on celeborn \n"
 
+  ${SPARK3_HOME}/sbin/stop-thriftserver.sh
 }
 
 function singleTPCDS() {
@@ -177,8 +202,9 @@ function singleTPCDS() {
 
   ${SPARK3_HOME}/sbin/stop-thriftserver.sh
 
-  ${SPARK3_HOME}/sbin/start-thriftserver.sh --properties-file=${REG_CONF}/spark.conf --hiveconf hive.server2.thrift.port=10001
+  ${SPARK3_HOME}/sbin/start-thriftserver.sh --properties-file=${REG_CONF_DIR}/spark.conf --hiveconf hive.server2.thrift.port=10001
 
+  # waiting for the spark thrift server get ready
   sleep 50
 
   WORKER_INDEX=$(shuf -i1-8 -n1)
@@ -192,7 +218,7 @@ function singleTPCDS() {
 
     echo $i
 
-    beeline --showStartEndTime=true -u jdbc:hive2://master-1-1:10001/tpcds_bin_partitioned_orc_1000 -f $i >${HIVEBENCH_QUERY_DIR}/$(basename $i | cut -d . -f1).out 2>/home/hadoop/hive-testbench/spark-queries-tpcds/$(basename $i | cut -d . -f1).err
+    beeline --showStartEndTime=true -u jdbc:hive2://master-1-1:10001/${HIVEBENCH_SCHEMA} -f $i >${HIVEBENCH_QUERY_DIR}/$(basename $i | cut -d . -f1).out 2>/home/hadoop/hive-testbench/spark-queries-tpcds/$(basename $i | cut -d . -f1).err
 
     if [[ $? -ne 0 ]]; then
       echo Query ${BASE_NAME} Failed.
@@ -202,6 +228,9 @@ function singleTPCDS() {
     fi
 
   done
+
+  sleep 10s
+  echo -e "assume TPC-DS done."
 
   end=$(($(date +%s%N) / 1000000))
   duration=$(((end - start) / 1000))
@@ -229,13 +258,10 @@ function checkTPCDSResult() {
 }
 
 function updateCeleborn() {
-  echo -e "using release $1"
-  if [ -z "$1" ]; then
-    echo -e "release is required \n"
+  if [[ "CELEBORN_DIST" == "" ]]; then
+    echo -e "CELEBORN_DIST must not be null, abort \n"
     exit -1
   fi
-
-  CELEBORN_DIST=$1
   # stop master
   echo -e "restart master node \n"
   export CELEBORN_CONF_DIR=${REG_CONF_DIR}/celeborn
@@ -253,8 +279,8 @@ function updateCeleborn() {
     ssh ${host} "rm -rf /mnt/disk2/hadoop/rss-worker/shuffle_data/*"
     ssh ${host} "rm -rf /mnt/disk3/hadoop/rss-worker/shuffle_data/*"
     ssh ${host} "rm -rf /mnt/disk4/hadoop/rss-worker/shuffle_data/*"
-    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/ ${host}:~/
-    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${RSS_INSTALL_DIR}/spark3/
+    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/ ${host}:~/ > /dev/null 2>&1
+    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${RSS_INSTALL_DIR}/spark3/ > /dev/null 2>&1
   done
 
   for host in "${HOSTS[@]}"; do
@@ -266,8 +292,9 @@ function updateCeleborn() {
 
   sleep 10
 
-  for host in "${HOSTS[@]}"; do
-    ssh ${host} "export CELEBORN_CONF_DIR=${CELEBORN_CONF_DIR} ; /home/hadoop/${CELEBORN_DIST}/sbin/start-worker.sh rss://master-1-1:9097"
+  for host in "${REG_HOSTS[@]}"; do
+    echo -e "start worker on ${host} \n"
+    ssh ${host} "export CELEBORN_CONF_DIR=/home/hadoop/conf ; /home/hadoop/${CELEBORN_DIST}/sbin/start-worker.sh rss://master-1-1:9097"
   done
 }
 
