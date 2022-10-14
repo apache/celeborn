@@ -37,7 +37,7 @@ HIBEN_CONF_DIR=${HIBEN_DIR}/conf
 CHECK_TPCDS_PYTHON=${REG_SCRIPTS}/check.py
 
 CELEBORN_CONF_DIR=${REG_CONF_DIR}/celeborn
-RSS_INSTALL_DIR=/opt/apps/RSS/rss-0.1.1
+CELEBORN_CLIENT_INSTALL_DIR=/opt/apps/RSS/rss-current/spark3
 
 REG_RESULT=${REG_HOME}/result
 
@@ -268,8 +268,8 @@ function updateCeleborn() {
   ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/sbin/stop-master.sh
   jps | grep Master | awk '{print $1}' | xargs kill -9
 
-  rm -rf ${RSS_INSTALL_DIR}/spark3/*
-  cp ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${RSS_INSTALL_DIR}/spark3/
+  rm -rf ${CELEBORN_CLIENT_INSTALL_DIR}/spark3/*
+  cp ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${CELEBORN_CLIENT_INSTALL_DIR}/spark3/
 
   for host in "${REG_HOSTS[@]}"; do
     echo -e "update ${host} \n"
@@ -280,7 +280,7 @@ function updateCeleborn() {
     ssh ${host} "rm -rf /mnt/disk3/hadoop/rss-worker/shuffle_data/*"
     ssh ${host} "rm -rf /mnt/disk4/hadoop/rss-worker/shuffle_data/*"
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/ ${host}:~/ > /dev/null 2>&1
-    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${RSS_INSTALL_DIR}/spark3/ > /dev/null 2>&1
+    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${CELEBORN_CLIENT_INSTALL_DIR}/spark3/ > /dev/null 2>&1
   done
 
   for host in "${HOSTS[@]}"; do
@@ -348,8 +348,9 @@ function setupEnv() {
   #set directory permission
   for host in "${HOSTS[@]}"; do
     scp -r ${CELEBORN_CONF_DIR} $host:~/
-    ssh ${host} "sudo chown hadoop:hadoop -R ${RSS_INSTALL_DIR}"
+    ssh ${host} "sudo chown hadoop:hadoop -R ${CELEBORN_CLIENT_INSTALL_DIR}"
   done
+  #generate skew join data
 
   sudo mkdir -p /tmp/spark-events
   sudo chown hadoop:hadoop -R /tmp/spark-events
