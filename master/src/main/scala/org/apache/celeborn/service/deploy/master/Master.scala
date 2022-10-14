@@ -223,14 +223,8 @@ private[celeborn] class Master(
       val disks = pbRegisterWorker.getDisksList.asScala
         .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
         .toMap.asJava
-      val userResourceConsumption = pbRegisterWorker
-        .getUserResourceConsumptionMap
-        .asScala
-        .map { case (userInfo, pbResourceConsumption) =>
-          (UserIdentifier(userInfo), pbResourceConsumption)
-        }
-        .mapValues(PbSerDeUtils.fromPbResourceConsumption)
-        .asJava
+      val userResourceConsumption =
+        PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
 
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")

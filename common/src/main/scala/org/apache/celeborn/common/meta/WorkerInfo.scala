@@ -242,7 +242,7 @@ class WorkerInfo(
        |PushPort: $pushPort
        |FetchPort: $fetchPort
        |ReplicatePort: $replicatePort
-       |SlotsUsed: $usedSlots()
+       |SlotsUsed: $usedSlots
        |LastHeartbeat: $lastHeartbeat
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
@@ -260,7 +260,7 @@ class WorkerInfo(
   }
 
   override def hashCode(): Int = {
-    Objects.hashCode(host, rpcPort, pushPort, fetchPort, replicatePort)
+    Objects.hashCode(host, rpcPort, pushPort, fetchPort)
   }
 }
 
@@ -280,14 +280,8 @@ object WorkerInfo {
       } else {
         new util.HashMap[String, DiskInfo]()
       }
-    val userResourceConsumption = pbWorkerInfo
-      .getUserResourceConsumptionMap
-      .asScala
-      .map { case (userInfo, pbResourceConsumption) =>
-        (UserIdentifier(userInfo), pbResourceConsumption)
-      }
-      .mapValues(PbSerDeUtils.fromPbResourceConsumption)
-      .asJava
+    val userResourceConsumption =
+      PbSerDeUtils.fromPbUserResourceConsumption(pbWorkerInfo.getUserResourceConsumptionMap)
 
     new WorkerInfo(
       pbWorkerInfo.getHost,
@@ -304,13 +298,8 @@ object WorkerInfo {
     val disks = workerInfo.diskInfos.asScala.values
       .map { diskInfo => PbSerDeUtils.toPbDiskInfo(diskInfo) }
       .asJava
-    val pbUserResourceConsumption = workerInfo.userResourceConsumption
-      .asScala
-      .map { case (userIdentifier, resourceConsumption) =>
-        (userIdentifier.toString, resourceConsumption)
-      }
-      .mapValues(PbSerDeUtils.toPbResourceConsumption)
-      .asJava
+    val pbUserResourceConsumption =
+      PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption)
     PbWorkerInfo
       .newBuilder()
       .setHost(workerInfo.host)

@@ -151,7 +151,7 @@ private[celeborn] class Worker(
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
-  // need to ensure storageManager has recovered fileinfos data before retrieve consumption
+  // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
   val userResourceConsumption = storageManager.userResourceConsumptionSnapshot().asJava
 
   val workerInfo =

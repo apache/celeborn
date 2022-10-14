@@ -27,7 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.protocol.*;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
+import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 
 public class PbSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)
@@ -125,7 +125,7 @@ public class PbSerDeUtils {
   }
 
   public static ResourceConsumption fromPbResourceConsumption(
-      PbResourceConsumption pbResourceConsumption) throws InvalidProtocolBufferException {
+      PbResourceConsumption pbResourceConsumption) {
     return new ResourceConsumption(
         pbResourceConsumption.getDiskBytesWritten(),
         pbResourceConsumption.getDiskFileCount(),
@@ -141,5 +141,20 @@ public class PbSerDeUtils {
         .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten())
         .setHdfsFileCount(resourceConsumption.hdfsFileCount())
         .build();
+  }
+
+  public static Map<UserIdentifier, ResourceConsumption> fromPbUserResourceConsumption(
+      Map<String, PbResourceConsumption> pbUserResourceConsumption) {
+    Map<UserIdentifier, ResourceConsumption> map = new ConcurrentHashMap<>();
+    pbUserResourceConsumption.forEach(
+        (k, v) -> map.put(UserIdentifier$.MODULE$.apply(k), fromPbResourceConsumption(v)));
+    return map;
+  }
+
+  public static Map<String, PbResourceConsumption> toPbUserResourceConsumption(
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
+    Map<String, PbResourceConsumption> map = new ConcurrentHashMap<>();
+    userResourceConsumption.forEach((k, v) -> map.put(k.toString(), toPbResourceConsumption(v)));
+    return map;
   }
 }
