@@ -197,10 +197,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
                           inBatchPartitions.get(shuffleId).add(partitionId)
                           request.asScala.toArray.maxBy(_.epoch)
                         }.toArray
-                        batchHandleChangePartitions(
-                          distinctPartitions.head.applicationId,
-                          shuffleId,
-                          distinctPartitions)
+                        if (distinctPartitions.nonEmpty) {
+                          batchHandleChangePartitions(
+                            distinctPartitions.head.applicationId,
+                            shuffleId,
+                            distinctPartitions)
+                        }
                       }
                     }
                   }
@@ -679,13 +681,18 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             updateLatestPartitionLocations(shuffleId, masterLocations)
             partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
           }
-          val changes = masterLocations.asScala.map { partition =>
-            s"(${partition.getId} ${partition.getEpoch - 1} -> ${partition.getEpoch})"
-          }.mkString("[", ",", "]")
-          logDebug(s"Renew $shuffleId $changes success.")
-          // partition location can be null when call reserveSlotsWithRetry
-          (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer))
+          // partition location can be null when call reserveSlotsWithRetry().
+          val locations = (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer))
             .distinct.filter(_ != null)
+          if (locations.nonEmpty) {
+            val changes = locations.map { partition =>
+              s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
+            }.mkString("[", ", ", "]")
+            logDebug(s"[Update partition] success for " +
+              s"shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, succeed partitions: " +
+              s"$changes.")
+          }
+          locations
       }
     replySuccess(newMasterLocations.toArray)
   }
