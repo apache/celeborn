@@ -229,21 +229,23 @@ class WorkerInfo(
   }
 
   override def toString(): String = {
-    val (diskInfosString, slots) = if (diskInfos != null) {
-      val str = diskInfos.values().asScala.zipWithIndex.map { case (diskInfo, index) =>
-        s"\n  DiskInfo${index}: ${diskInfo}"
-      }.mkString("")
-      (str, usedSlots)
-    } else {
-      ("null", 0)
-    }
-    val userResourceConsumptionString = if (userResourceConsumption != null) {
-      userResourceConsumption.asScala.map { case (userIdentifier, resourceConsumption) =>
-        s"\n  UserIdentifier: ${userIdentifier}, ResourceConsumption: ${resourceConsumption}"
-      }.mkString("")
-    } else {
-      "null"
-    }
+    val (diskInfosString, slots) =
+      if (diskInfos != null) {
+        val str = diskInfos.values().asScala.zipWithIndex.map { case (diskInfo, index) =>
+          s"\n  DiskInfo${index}: ${diskInfo}"
+        }.mkString("")
+        (str, usedSlots)
+      } else {
+        ("null", 0)
+      }
+    val userResourceConsumptionString =
+      if (userResourceConsumption != null) {
+        userResourceConsumption.asScala.map { case (userIdentifier, resourceConsumption) =>
+          s"\n  UserIdentifier: ${userIdentifier}, ResourceConsumption: ${resourceConsumption}"
+        }.mkString("")
+      } else {
+        "null"
+      }
     s"""
        |Host: $host
        |RpcPort: $rpcPort
