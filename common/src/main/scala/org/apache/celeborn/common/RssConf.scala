@@ -574,32 +574,53 @@ object RssConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val PUSH_BUFFER_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.push.buffer.size")
+  val PUSH_BUFFER_INITIAL_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.push.buffer.initial.size")
+      .withAlternative("rss.push.data.buffer.initial.size")
+      .categories("client")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8k")
+
+  val PUSH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.push.buffer.max.size")
       .withAlternative("rss.push.data.buffer.size")
       .categories("client")
-      .doc("Size of reducer partition buffer memory. The pushed data will be buffered in memory " +
-        "before sending to Celeborn worker. For performance consideration keep this buffer size " +
-        "higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task " +
-        "will consume up to `64KiB * 2000 = 125MiB` heap memory.")
+      .doc("Max size of reducer partition buffer memory. The pushed data will be buffered in " +
+        "memory before sending to Celeborn worker. For performance consideration keep this buffer " +
+        "size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each " +
+        "task will consume up to `64KiB * 2000 = 125MiB` heap memory.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64k")
 
+  val PUSH_QUEUE_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.push.queue.capacity")
+      .withAlternative("rss.push.data.queue.capacity")
+      .categories("client")
+      .doc("Push buffer queue size for a task. The maximum memory is " +
+        "`celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, " +
+        "default: 64KiB * 512 = 32MiB")
+      .intConf
+      .createWithDefault(512)
+
+  val PUSH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
+    buildConf("celeborn.push.maxReqsInFlight")
+      .withAlternative("rss.push.data.maxReqsInFlight")
+      .categories("client")
+      .doc("Amount of Netty in-flight requests. The maximum memory is " +
+        "`celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
+        "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
+      .intConf
+      .createWithDefault(32)
+
   def pushReplicateEnabled(conf: RssConf): Boolean = conf.get(PUSH_REPLICATE_ENABLED)
 
-  def pushDataBufferInitialSize(conf: RssConf): Int = {
-    conf.getSizeAsBytes("rss.push.data.buffer.initial.size", "8k").toInt
-  }
+  def pushBufferInitialSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_INITIAL_SIZE).toInt
 
-  def pushBufferSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_SIZE).toInt
+  def pushBufferMaxSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_MAX_SIZE).toInt
 
-  def pushDataQueueCapacity(conf: RssConf): Int = {
-    conf.getInt("rss.push.data.queue.capacity", 512)
-  }
+  def pushDataQueueCapacity(conf: RssConf): Int = conf.get(PUSH_QUEUE_CAPACITY)
 
-  def pushDataMaxReqsInFlight(conf: RssConf): Int = {
-    conf.getInt("rss.push.data.maxReqsInFlight", 32)
-  }
+  def pushDataMaxReqsInFlight(conf: RssConf): Int = conf.get(PUSH_MAX_REQS_IN_FLIGHT)
 
   def fetchChunkTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.fetch.chunk.timeout", "120s")

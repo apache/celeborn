@@ -38,7 +38,7 @@ public interface Compressor {
 
   static Compressor getCompressor(RssConf conf) {
     String codec = RssConf.compressionCodec(conf);
-    int blockSize = RssConf.pushBufferSize(conf);
+    int blockSize = RssConf.pushBufferMaxSize(conf);
     switch (codec) {
       case "lz4":
         return new RssLz4Compressor(blockSize);
