@@ -32,7 +32,7 @@ Celeborn workers tend to improve performance by using off-heap buffers.
 Off-heap memory requirement can be estimated as below:
 
 ```math
-numDirs = `rss.worker.base.dirs`              # the amount of directory will be used by Celeborn storage
+numDirs = `celeborn.worker.storage.dirs`      # the amount of directory will be used by Celeborn storage
 bufferSize = `rss.worker.flush.buffer.size`   # the amount of memory will be used by a single flush buffer 
 off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
 ```
@@ -50,7 +50,7 @@ memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs 
 | spark.celeborn.master.endpoints                   | localhost:9097                                                | Endpoints of master nodes, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`.                                                                                                                                                                         |
 | spark.rss.push.data.buffer.size                   | 64k                                                           | Amount of reducer partition buffer memory. Buffered data will be sent to Celeborn worker if buffer is full. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000,buffer size is 64K and task will consume up to 64K * 2000 = 125 M heap memory. |
 | spark.rss.push.data.queue.capacity                | 512                                                           | Push buffer queue size for a task. The maximum memory is `spark.rss.push.data.buffer.size` * `spark.rss.push.data.queue.capacity`(64K * 512 = 32M)                                                                                                                                                 |
-| spark.rss.push.data.maxReqsInFlight               | 32                                                            | Amount of netty in-flight requests. The maximum memory is `rss.push.data.maxReqsInFlight` * `spark.rss.push.data.buffer.size` * compression ratio(1 in worst case)(64K * 32 = 2M )                                                                                                                 |
+| spark.rss.push.data.maxReqsInFlight               | 32                                                            | Amount of netty in-flight requests. The maximum memory is `rss.push.data.maxReqsInFlight` * `spark.celeborn.push.buffer.size` * compression ratio(1 in worst case)(64K * 32 = 2M )                                                                                                                 |
 | spark.rss.limit.inflight.timeout                  | 240s                                                          | Timeout for netty in-flight requests to be done.                                                                                                                                                                                                                                                   |
 | spark.rss.fetch.chunk.timeout                     | 120s                                                          | Timeout for a task to fetch chunk.                                                                                                                                                                                                                                                                 |
 | spark.rss.fetch.chunk.maxReqsInFlight             | 3                                                             | Amount of in-flight chunk fetch request.                                                                                                                                                                                                                                                           |
@@ -100,7 +100,6 @@ memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs 
 | rss.worker.base.dirs                     |                                                   | Directory list to store shuffle data. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 directories on the same disk partition if you are using HDD. There can be 4 or more directories can run on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |
 | rss.worker.workingDirName                | `hadoop/rss-worker/shuffle_data`                  |                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | rss.worker.flush.buffer.size             | 256K                                              |                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| rss.worker.flush.queue.capacity          | 512                                               | Size of buffer queue attached to each storage directory. Each flush buffer queue consumes `rss.worker.flush.buffer.size` * `rss.worker.flush.queue.capacity`(256K * 512 = 128M) off-heap memory. This config can be used to estimate Celeborn worker's off-heap memory demands.                                                                                                                                   |
 | rss.chunk.size                           | 8m                                                | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128 M and the data will need 16 fetch chunk requests to fetch.                                                                                                                                                                                                                                                       |
 | rss.push.io.threads                      | `rss.worker.base.dirs` * 2                        |                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | rss.fetch.io.threads                     | `rss.worker.base.dirs` * 2                        |                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -119,13 +118,13 @@ memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs 
 
 ### Metrics
 
-| Key                               | Default | Description |
-|-----------------------------------|---------|-------------|
-| rss.metrics.system.enabled        | true    |             |
-| rss.master.prometheus.metric.host | 0.0.0.0 |             |
-| rss.master.prometheus.metric.port | 9098    |             |
-| rss.worker.prometheus.metric.host | 0.0.0.0 |             |
-| rss.worker.prometheus.metric.port | 9096    |             |
+| Key                                     | Default | Description |
+|-----------------------------------------|---------|-------------|
+| celeborn.metrics.enabled                | true    |             |
+| celeborn.master.metrics.prometheus.host | 0.0.0.0 |             |
+| celeborn.master.metrics.prometheus.port | 9098    |             |
+| celeborn.worker.metrics.prometheus.port | 0.0.0.0 |             |
+| celeborn.worker.metrics.prometheus.port | 9096    |             |
 
 #### metrics.properties
 
@@ -141,11 +140,10 @@ Assume we have a cluster described as below:
 As we need to reserve 20% off-heap memory for netty,
 so we could assume 16 GB off-heap memory can be used for flush buffers.
 
-If `spark.rss.push.data.buffer.size` is 64 KB, we can have in-flight requests up to 1310720.
+If `spark.celeborn.push.buffer.size` is 64 KB, we can have in-flight requests up to 1310720.
 If you have 8192 mapper tasks, you could set `spark.rss.push.data.maxReqsInFlight=160` to gain performance improvements.
 
 If `rss.worker.flush.buffer` is 256 KB, we can have total slots up to 327680 slots.
-So we should set `rss.worker.flush.queue.capacity=6553` and each Celeborn worker has 65530 slots.
 
 ## Worker Recover Status After Restart
 
@@ -198,7 +196,6 @@ rss.replicateserver.port
 | `rss.worker.replicate.numThreads`           | 64                               | int     |                                                                                                                                                 |
 | `rss.worker.asyncCommitFiles.numThreads`    | 32                               | int     |                                                                                                                                                 |
 | `rss.worker.flush.buffer.size`              | 256 KiB                          | String  |                                                                                                                                                 |
-| `rss.worker.flush.queue.capacity`           | 512                              | int     |                                                                                                                                                 |
 | `rss.worker.fetch.chunk.size`               | 8 MiB                            | String  |                                                                                                                                                 |
 | `rss.rpc.max.parallelism`                   | 1024                             | int     |                                                                                                                                                 |
 | `rss.register.shuffle.max.retry`            | 3                                | int     |                                                                                                                                                 |
@@ -225,8 +222,8 @@ rss.replicateserver.port
 | `rss.metrics.system.sample.rate`            | 1                                | double  |                                                                                                                                                 |
 | `rss.metrics.system.sliding.window.size`    | 4096                             | int     |                                                                                                                                                 |
 | `rss.inner.metrics.size`                    | 4096                             | int     |                                                                                                                                                 |
-| `rss.master.prometheus.metric.port`         | 9098                             | int     |                                                                                                                                                 |
-| `rss.worker.prometheus.metric.port`         | 9096                             | int     |                                                                                                                                                 |
+| `celeborn.master.metrics.prometheus.port`   | 9098                             | int     |                                                                                                                                                 |
+| `celeborn.worker.metrics.prometheus.port`   | 9096                             | int     |                                                                                                                                                 |
 | `rss.merge.push.data.threshold`             | 1 MiB                            | String  |                                                                                                                                                 |
 | `rss.driver.metaService.port`               | 0                                | int     |                                                                                                                                                 |
 | `rss.worker.closeIdleConnections`           | false                            | bool    |                                                                                                                                                 |

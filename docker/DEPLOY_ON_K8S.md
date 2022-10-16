@@ -34,7 +34,7 @@ These values are suggested to be checked before deploy:
 - masterReplicas (number of Celeborn Master)
 - workerReplicas (number of Celeborn Worker)
 - celebornVersion (Celeborn release version)
-- rss.worker.base.dirs (local disk mount path on k8s node)
+- celeborn.worker.storage.dirs (local disk mount path on k8s node)
 
 For more information of Celeborn configurations, see [CONFIGURATIONS](../CONFIGURATION_GUIDE.md)
 

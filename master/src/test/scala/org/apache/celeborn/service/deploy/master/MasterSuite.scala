@@ -37,11 +37,11 @@ class MasterSuite extends AnyFunSuite
   test("test single node startup functionality") {
     val conf = new RssConf()
     conf.set("celeborn.ha.enabled", "false")
-    conf.set("rss.ha.storage.dir", getTmpDir())
-    conf.set("rss.worker.base.dirs", getTmpDir())
-    conf.set("rss.metrics.system.enabled", "true")
-    conf.set("rss.master.prometheus.metric.host", "127.0.0.1")
-    conf.set("rss.master.prometheus.metric.port", "11112")
+    conf.set("celeborn.ha.master.ratis.raft.server.storage.dir", getTmpDir())
+    conf.set("celeborn.worker.storage.dirs", getTmpDir())
+    conf.set("celeborn.metrics.enabled", "true")
+    conf.set("celeborn.master.metrics.prometheus.host", "127.0.0.1")
+    conf.set("celeborn.master.metrics.prometheus.port", "11112")
 
     val args = Array("-h", "localhost", "-p", "9097")
 

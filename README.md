@@ -96,12 +96,11 @@ celeborn.master.endpoints=clb-master:9097
 celeborn.master.host clb-master
 celeborn.master.port 9097
 
-rss.metrics.system.enabled true
-rss.worker.flush.buffer.size 256k
-rss.worker.flush.queue.capacity 4096
-rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
-# If your hosts have disk raid or use lvm, set rss.device.monitor.enabled to false
-rss.device.monitor.enabled false
+celeborn.metrics.enabled true
+celeborn.worker.flush.buffer.size 256k
+celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
+# If your hosts have disk raid or use lvm, set celeborn.worker.deviceMonitor.enabled to false
+celeborn.worker.deviceMonitor.enabled false
 ```   
 
 EXAMPLE: HA cluster
@@ -122,15 +121,13 @@ celeborn.ha.master.node.2.ratis.port 9873
 celeborn.ha.master.node.3.host clb-3
 celeborn.ha.master.node.3.port 9099
 celeborn.ha.master.node.3.ratis.port 9874
+celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 
-rss.ha.storage.dir /mnt/disk1/rss_ratis/
-
-rss.metrics.system.enabled true
-rss.worker.flush.buffer.size 256k
-rss.worker.flush.queue.capacity 4096
-rss.worker.base.dirs /mnt/disk1/,/mnt/disk2
-# If your hosts have disk raid or use lvm, set rss.device.monitor.enabled to false
-rss.device.monitor.enabled false
+celeborn.metrics.enabled true
+celeborn.worker.flush.buffer.size 256k
+celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
+# If your hosts have disk raid or use lvm, set celeborn.worker.deviceMonitor.enabled to false
+celeborn.worker.deviceMonitor.enabled false
 ```
 4. Copy Celeborn and configurations to all nodes
 5. Start Celeborn master
@@ -173,12 +170,12 @@ spark.celeborn.master.endpoints=clb-1:9097,clb-2:9098,clb-3:9099
 spark.shuffle.service.enabled false
 
 # options: hash, sort
-# Hash shuffle writer use (partition count) * (rss.push.data.buffer.size) * (spark.executor.cores) memory.
+# Hash shuffle writer use (partition count) * (celeborn.push.buffer.size) * (spark.executor.cores) memory.
 # Sort shuffle writer use less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
-spark.rss.shuffle.writer.mode hash
+spark.celeborn.shuffle.writer.mode hash
 
-# we recommend set spark.rss.push.data.replicate to true to enable server-side data replication 
-spark.rss.push.data.replicate true
+# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication 
+spark.celeborn.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
 # we recommend set localShuffleReader to false to get better performance of Celeborn
@@ -214,6 +211,6 @@ because ratis meta will store expired states of the last running cluster.
 Here are some instructions:
 1. Stop all workers.
 2. Stop all masters.
-3. Clean all master's ratis meta storage directory(rss.ha.storage.dir).
+3. Clean all master's ratis meta storage directory(celeborn.ha.master.ratis.raft.server.storage.dir).
 4. Start all masters.
 5. Start all workers.

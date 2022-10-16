@@ -81,7 +81,7 @@ spec:
         resources:
           {{- toYaml .Values.resources.worker | nindent 12 }}
         ports:
-          - containerPort: {{ get .Values.celeborn "rss.worker.prometheus.metric.port" | default 9096 }}
+          - containerPort: {{ get .Values.celeborn "celeborn.master.metrics.prometheus.port" | default 9096 }}
             name: metrics
             protocol: TCP
         volumeMounts:
@@ -90,7 +90,7 @@ spec:
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
           {{- end }}
-          {{- $dirs := get .Values.celeborn "rss.worker.base.dirs" | splitList "," -}}
+          {{- $dirs := get .Values.celeborn "celeborn.worker.storage.dirs" | splitList "," -}}
           {{- range $index, $dir := $dirs }}
           - mountPath: {{ $dir }} 
             name: vol-{{ $index }}

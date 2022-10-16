@@ -110,7 +110,7 @@ public class SortBasedPusher extends MemoryConsumer {
             afterPush,
             mapStatusLengths);
 
-    pushBufferSize = RssConf.pushDataBufferSize(conf);
+    pushBufferSize = RssConf.pushBufferSize(conf);
     PushThreshold = RssConf.sortPushThreshold(conf);
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);

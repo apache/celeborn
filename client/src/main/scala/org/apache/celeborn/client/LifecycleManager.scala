@@ -46,7 +46,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private val RemoveShuffleDelayMs = RssConf.removeShuffleDelayMs(conf)
   private val GetBlacklistDelayMs = RssConf.getBlacklistDelayMs(conf)
-  private val ShouldReplicate = RssConf.replicate(conf)
+  private val ShouldReplicate = RssConf.pushReplicateEnabled(conf)
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)

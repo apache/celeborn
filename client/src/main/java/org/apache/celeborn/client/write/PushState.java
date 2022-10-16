@@ -43,7 +43,7 @@ public class PushState {
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
   public PushState(RssConf conf) {
-    pushBufferSize = RssConf.pushDataBufferSize(conf);
+    pushBufferSize = RssConf.pushBufferSize(conf);
   }
 
   public void addFuture(int batchId, ChannelFuture future) {

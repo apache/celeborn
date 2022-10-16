@@ -82,7 +82,7 @@ spec:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
           - containerPort: {{ .Values.service.port }}
-          - containerPort: {{ get .Values.celeborn "rss.master.prometheus.metric.port" | default 9098 }}
+          - containerPort: {{ get .Values.celeborn "celeborn.master.metrics.prometheus.port" | default 9098 }}
             name: metrics
             protocol: TCP
         volumeMounts:
@@ -90,7 +90,7 @@ spec:
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
           - name: {{ include "celeborn.fullname" . }}-master-ratis
-            mountPath: {{get .Values.celeborn "rss.ha.storage.dir"}}
+            mountPath: {{get .Values.celeborn "celeborn.ha.master.ratis.raft.server.storage.dir"}}
         env:
           {{- range $key, $val := .Values.environments }}
           - name: {{ $key }}
@@ -101,7 +101,7 @@ spec:
         - configMap:
             name: {{ .Values.configmap }}
           name: {{ include "celeborn.fullname" . }}-volume
-        {{- $dirs := get .Values.celeborn "rss.worker.base.dirs" | splitList ","}}
+        {{- $dirs := get .Values.celeborn "celeborn.worker.storage.dirs" | splitList ","}}
         - hostPath:
             path: {{ index $dirs 0 }}/ratis
             type: DirectoryOrCreate

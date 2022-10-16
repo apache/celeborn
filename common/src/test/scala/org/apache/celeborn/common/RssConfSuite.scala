@@ -18,7 +18,7 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.RssConf.{masterEndpoints, MASTER_HOST}
+import org.apache.celeborn.common.RssConf.masterEndpoints
 import org.apache.celeborn.common.util.Utils
 
 class RssConfSuite extends RssFunSuite {
@@ -35,7 +35,7 @@ class RssConfSuite extends RssFunSuite {
   test("basedir test") {
     val conf = new RssConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
-    conf.set("rss.worker.base.dirs", "/mnt/disk1")
+    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
     val parsedDirs = RssConf.workerBaseDirs(conf)
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 1)
@@ -45,7 +45,7 @@ class RssConfSuite extends RssFunSuite {
   test("basedir test2") {
     val conf = new RssConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
-    conf.set("rss.worker.base.dirs", "/mnt/disk1:disktype=SSD:capacity=10g")
+    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g")
     val parsedDirs = RssConf.workerBaseDirs(conf)
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 8)
@@ -54,7 +54,7 @@ class RssConfSuite extends RssFunSuite {
 
   test("basedir test3") {
     val conf = new RssConf()
-    conf.set("rss.worker.base.dirs", "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
+    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
     val parsedDirs = RssConf.workerBaseDirs(conf)
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 3)
@@ -64,7 +64,7 @@ class RssConfSuite extends RssFunSuite {
   test("basedir test4") {
     val conf = new RssConf()
     conf.set(
-      "rss.worker.base.dirs",
+      "celeborn.worker.storage.dirs",
       "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3," +
         "/mnt/disk2:disktype=HDD:capacity=15g:flushthread=7")
     val parsedDirs = RssConf.workerBaseDirs(conf)

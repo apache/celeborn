@@ -149,7 +149,7 @@ object DeviceInfo {
    *         (deviceName -> deviceInfo)
    *         (mount point -> diskInfo)
    */
-  def getDeviceAndDiskInfos(workingDirs: Array[(File, Long, Int, StorageInfo.Type)])
+  def getDeviceAndDiskInfos(workingDirs: Seq[(File, Long, Int, StorageInfo.Type)])
       : (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
