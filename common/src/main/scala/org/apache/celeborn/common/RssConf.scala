@@ -947,16 +947,16 @@ object RssConf extends Logging {
   def haMasterRatisSnapshotRetentionFileNum(conf: RssConf): Int =
     conf.get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
 
-  val WORKER_REPLICATE_THREAD_NUM: ConfigEntry[Int] =
-    buildConf("celeborn.worker.replicate.numThreads")
+  val WORKER_REPLICATE_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.replicate.threads")
       .withAlternative("rss.worker.replicate.numThreads")
       .categories("worker")
       .doc("Thread number of worker to replicate shuffle data.")
       .intConf
       .createWithDefault(64)
 
-  val WORKER_COMMIT_THREAD_NUM: ConfigEntry[Int] =
-    buildConf("celeborn.worker.commit.numThreads")
+  val WORKER_COMMIT_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.commit.threads")
       .withAlternative("rss.worker.asyncCommitFiles.numThreads")
       .categories("worker")
       .doc("Thread number of worker to commit shuffle data files asynchronously.")
@@ -984,9 +984,9 @@ object RssConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
 
-  def workerReplicateNumThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREAD_NUM)
+  def workerReplicateThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREADS)
 
-  def workerAsyncCommitFileThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREAD_NUM)
+  def workerCommitThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREADS)
 
   def workerFlushBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSH_BUFFER_SIZE)
 

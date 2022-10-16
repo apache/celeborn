@@ -172,10 +172,10 @@ private[celeborn] class Worker(
   private var checkFastfailTask: ScheduledFuture[_] = _
   val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
     "worker-replicate-data",
-    RssConf.workerReplicateNumThreads(conf))
+    RssConf.workerReplicateThreads(conf))
   val commitThreadPool = ThreadUtils.newDaemonCachedThreadPool(
     "Worker-CommitFiles",
-    RssConf.workerAsyncCommitFileThreads(conf))
+    RssConf.workerCommitThreads(conf))
   val asyncReplyPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
 
