@@ -38,7 +38,7 @@ trait MiniClusterFeature extends Logging {
   })
 
   protected def createTmpDir(): String = {
-    val tmpDir = Files.createTempDirectory("rss-")
+    val tmpDir = Files.createTempDirectory("celeborn-")
     logInfo(s"created temp dir: $tmpDir")
     tmpDir.toFile.deleteOnExit()
     tmpDir.toAbsolutePath.toString
