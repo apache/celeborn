@@ -69,7 +69,7 @@ trait MiniClusterFeature extends Logging {
     conf.set("celeborn.worker.deviceMonitor.enabled", "false")
     conf.set("celeborn.push.buffer.size", "256K")
     conf.set(
-      "celeborn.master.metrics.prometheus.port",
+      "celeborn.worker.metrics.prometheus.port",
       s"${workerPrometheusPort.incrementAndGet()}")
     conf.set("rss.fetch.io.threads", "4")
     conf.set("rss.push.io.threads", "4")
