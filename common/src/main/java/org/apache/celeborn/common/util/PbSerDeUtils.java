@@ -90,6 +90,13 @@ public class PbSerDeUtils {
         userIdentifier);
   }
 
+  public static FileInfo fromPbFileInfo(PbFileInfo pbFileInfo, UserIdentifier userIdentifier) {
+    return new FileInfo(
+        pbFileInfo.getFilePath(),
+        new ArrayList<>(pbFileInfo.getChunkOffsetsList()),
+        userIdentifier);
+  }
+
   public static PbFileInfo toPbFileInfo(FileInfo fileInfo) {
     PbFileInfo.Builder builder = PbFileInfo.newBuilder();
     builder.setFilePath(fileInfo.getFilePath()).addAllChunkOffsets(fileInfo.getChunkOffsets());
@@ -100,8 +107,18 @@ public class PbSerDeUtils {
       throws InvalidProtocolBufferException {
     PbFileInfoMap pbFileInfoMap = PbFileInfoMap.parseFrom(data);
     ConcurrentHashMap<String, FileInfo> fileInfoMap = new ConcurrentHashMap<>();
+    ConcurrentHashMap<String, UserIdentifier> cache = new ConcurrentHashMap<>();
     for (Map.Entry<String, PbFileInfo> entry : pbFileInfoMap.getValuesMap().entrySet()) {
-      fileInfoMap.put(entry.getKey(), fromPbFileInfo(entry.getValue()));
+      FileInfo fileInfo;
+      PbUserIdentifier pbUserIdentifier = entry.getValue().getUserIdentifier();
+      String userIdentifierKey = pbUserIdentifier.getTenantId() + "-" + pbUserIdentifier.getName();
+      if (!cache.containsKey(userIdentifierKey)) {
+        fileInfo = fromPbFileInfo(entry.getValue());
+        cache.put(userIdentifierKey, fileInfo.getUserIdentifier());
+      } else {
+        fileInfo = fromPbFileInfo(entry.getValue(), cache.get(userIdentifierKey));
+      }
+      fileInfoMap.put(entry.getKey(), fileInfo);
     }
     return fileInfoMap;
   }
