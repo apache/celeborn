@@ -102,7 +102,7 @@
             </relocation>
             <relocation>
               <pattern>org.apache.commons</pattern>
-              <shadedPattern>com.aliyun.emr.org.apache.commons</shadedPattern>
+              <shadedPattern>org.apache.celeborn.org.apache.commons</shadedPattern>
             </relocation>
           </relocations>
           <artifactSet>
