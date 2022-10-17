@@ -38,7 +38,7 @@ trait MiniClusterFeature extends Logging {
   })
 
   protected def createTmpDir(): String = {
-    val tmpDir = Files.createTempDirectory("rss-")
+    val tmpDir = Files.createTempDirectory("celeborn-")
     logInfo(s"created temp dir: $tmpDir")
     tmpDir.toFile.deleteOnExit()
     tmpDir.toAbsolutePath.toString
@@ -46,10 +46,10 @@ trait MiniClusterFeature extends Logging {
 
   protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv) = {
     val conf = new RssConf()
-    conf.set("rss.metrics.system.enabled", "false")
+    conf.set("celeborn.metrics.enabled", "false")
     val prometheusPort = masterPrometheusPort.getAndIncrement()
-    conf.set("rss.master.prometheus.metric.port", s"$prometheusPort")
-    logInfo(s"set prometheus.metric.port to $prometheusPort")
+    conf.set("celeborn.master.metrics.prometheus.port", s"$prometheusPort")
+    logInfo(s"set celeborn.master.metrics.prometheus.port to $prometheusPort")
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
     }
@@ -65,10 +65,12 @@ trait MiniClusterFeature extends Logging {
   protected def createWorker(map: Map[String, String] = null): (Worker, RpcEnv) = {
     logInfo("start create worker for mini cluster")
     val conf = new RssConf()
-    conf.set("rss.worker.base.dirs", createTmpDir())
-    conf.set("rss.device.monitor.enabled", "false")
-    conf.set("rss.push.data.buffer.size", "256K")
-    conf.set("rss.worker.prometheus.metric.port", s"${workerPrometheusPort.incrementAndGet()}")
+    conf.set("celeborn.worker.storage.dirs", createTmpDir())
+    conf.set("celeborn.worker.deviceMonitor.enabled", "false")
+    conf.set("celeborn.push.buffer.size", "256K")
+    conf.set(
+      "celeborn.worker.metrics.prometheus.port",
+      s"${workerPrometheusPort.incrementAndGet()}")
     conf.set("rss.fetch.io.threads", "4")
     conf.set("rss.push.io.threads", "4")
     if (map != null) {

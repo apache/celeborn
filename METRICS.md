@@ -6,7 +6,7 @@ issue or monitor Celeborn cluster.
 ## Prerequisites
 
 1.Enable Celeborn metrics.
-set rss.metrics.system.enabled = true  
+set celeborn.metrics.enabled = true  
 2.You need to install prometheus(https://prometheus.io/)  
 We provide an example for prometheus config file
 

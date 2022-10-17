@@ -46,7 +46,7 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
 
   val sampleRate: Double = RssConf.metricsSampleRate(rssConf)
 
-  val samplePerfCritical: Boolean = RssConf.metricsSystemSamplePerfCritical(rssConf)
+  val samplePerfCritical: Boolean = RssConf.metricsSamplePerfCritical(rssConf)
 
   final val InnerMetricsSize = RssConf.innerMetricsSize(rssConf)
 

@@ -221,12 +221,18 @@ case class ConfigBuilder(key: String) {
   private[config] var _prependSeparator: String = ""
   private[config] var _public = true
   private[config] var _doc = ""
+  private[config] var _categories = Seq.empty[String]
   private[config] var _version = ""
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
   private[config] var _alternatives = List.empty[String]
 
   def internal: ConfigBuilder = {
     _public = false
+    this
+  }
+
+  def categories(categories: String*): ConfigBuilder = {
+    _categories = categories
     this
   }
 
@@ -241,8 +247,8 @@ case class ConfigBuilder(key: String) {
   }
 
   /**
-   * Registers a callback for when the config entry is finally instantiated. Currently used by
-   * SQLConf to keep track of SQL configuration entries.
+   * Registers a callback for when the config entry is finally instantiated. Currently used to
+   * keep track of configuration entries.
    */
   def onCreate(callback: ConfigEntry[_] => Unit): ConfigBuilder = {
     _onCreate = Option(callback)

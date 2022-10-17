@@ -288,7 +288,7 @@ public class HARaftServer {
   private RaftProperties newRaftProperties(RssConf conf) {
     final RaftProperties properties = new RaftProperties();
     // Set RPC type
-    final String rpcType = conf.get(RssConf.HA_RPC_TYPE_KEY(), RssConf.HA_RPC_TYPE_DEFAULT());
+    final String rpcType = RssConf.haMasterRatisRpcType(conf);
     final RpcType rpc = SupportedRpcType.valueOfIgnoreCase(rpcType);
     RaftConfigKeys.Rpc.setType(properties, rpc);
 
@@ -300,32 +300,18 @@ public class HARaftServer {
     }
 
     // Set Ratis storage directory
-    String storageDir = RssConf.haStorageDir(conf);
+    String storageDir = RssConf.haMasterRatisStorageDir(conf);
     RaftServerConfigKeys.setStorageDir(properties, Collections.singletonList(new File(storageDir)));
 
     // Set RAFT segment size
-    final int raftSegmentSize =
-        (int)
-            conf.getSizeAsBytes(
-                RssConf.HA_RATIS_SEGMENT_SIZE_KEY(), RssConf.HA_RATIS_SEGMENT_SIZE_DEFAULT());
+    long raftSegmentSize = RssConf.haMasterRatisLogSegmentSizeMax(conf);
     RaftServerConfigKeys.Log.setSegmentSizeMax(properties, SizeInBytes.valueOf(raftSegmentSize));
     RaftServerConfigKeys.Log.setPurgeUptoSnapshotIndex(properties, true);
 
     // Set RAFT segment pre-allocated size
-    final int raftSegmentPreallocatedSize =
-        (int)
-            conf.getSizeAsBytes(
-                RssConf.HA_RATIS_SEGMENT_PREALLOCATED_SIZE_KEY(),
-                RssConf.HA_RATIS_SEGMENT_PREALLOCATED_SIZE_DEFAULT());
-    int logAppenderQueueNumElements =
-        conf.getInt(
-            RssConf.HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS(),
-            RssConf.HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS_DEFAULT());
-    final int logAppenderQueueByteLimit =
-        (int)
-            conf.getSizeAsBytes(
-                RssConf.HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT(),
-                RssConf.HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT_DEFAULT());
+    long raftSegmentPreallocatedSize = RssConf.haMasterRatisLogPreallocatedSize(conf);
+    int logAppenderQueueNumElements = RssConf.haMasterRatisLogAppenderQueueNumElements(conf);
+    long logAppenderQueueByteLimit = RssConf.haMasterRatisLogAppenderQueueBytesLimit(conf);
     RaftServerConfigKeys.Log.Appender.setBufferElementLimit(
         properties, logAppenderQueueNumElements);
     RaftServerConfigKeys.Log.Appender.setBufferByteLimit(
@@ -333,78 +319,53 @@ public class HARaftServer {
     RaftServerConfigKeys.Log.setPreallocatedSize(
         properties, SizeInBytes.valueOf(raftSegmentPreallocatedSize));
     RaftServerConfigKeys.Log.Appender.setInstallSnapshotEnabled(properties, false);
-    final int logPurgeGap =
-        conf.getInt(RssConf.HA_RATIS_LOG_PURGE_GAP(), RssConf.HA_RATIS_LOG_PURGE_GAP_DEFAULT());
+    int logPurgeGap = RssConf.haMasterRatisLogPurgeGap(conf);
     RaftServerConfigKeys.Log.setPurgeGap(properties, logPurgeGap);
 
     // For grpc set the maximum message size
     GrpcConfigKeys.setMessageSizeMax(properties, SizeInBytes.valueOf(logAppenderQueueByteLimit));
 
     // Set the server request timeout
-    long serverRequestTimeoutDuration =
-        conf.getTimeAsSeconds(
-            RssConf.HA_RATIS_SERVER_REQUEST_TIMEOUT_KEY(),
-            RssConf.HA_RATIS_SERVER_REQUEST_TIMEOUT_DEFAULT());
-    final TimeDuration serverRequestTimeout =
-        TimeDuration.valueOf(serverRequestTimeoutDuration, TimeUnit.SECONDS);
+    TimeDuration serverRequestTimeout =
+        TimeDuration.valueOf(RssConf.haMasterRatisRpcRequestTimeout(conf), TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setRequestTimeout(properties, serverRequestTimeout);
 
     // Set timeout for server retry cache entry
-    long retryCacheTimeoutDuration =
-        conf.getTimeAsSeconds(
-            RssConf.HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_KEY(),
-            RssConf.HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_DEFAULT());
-    final TimeDuration retryCacheTimeout =
-        TimeDuration.valueOf(retryCacheTimeoutDuration, TimeUnit.SECONDS);
-    RaftServerConfigKeys.RetryCache.setExpiryTime(properties, retryCacheTimeout);
+    TimeDuration retryCacheExpiryTime =
+        TimeDuration.valueOf(RssConf.haMasterRatisRetryCacheExpiryTime(conf), TimeUnit.SECONDS);
+    RaftServerConfigKeys.RetryCache.setExpiryTime(properties, retryCacheExpiryTime);
 
     // Set the server min and max timeout
-    long serverMinTimeoutDuration =
-        conf.getTimeAsSeconds(
-            RssConf.HA_RATIS_MINIMUM_TIMEOUT_KEY(), RssConf.HA_RATIS_MINIMUM_TIMEOUT_DEFAULT());
-    final TimeDuration serverMinTimeout =
-        TimeDuration.valueOf(serverMinTimeoutDuration, TimeUnit.SECONDS);
-    long serverMaxTimeoutDuration = serverMinTimeout.toLong(TimeUnit.SECONDS) + 2;
-    final TimeDuration serverMaxTimeout =
-        TimeDuration.valueOf(serverMaxTimeoutDuration, TimeUnit.SECONDS);
-    RaftServerConfigKeys.Rpc.setTimeoutMin(properties, serverMinTimeout);
-    RaftServerConfigKeys.Rpc.setTimeoutMax(properties, serverMaxTimeout);
+    TimeDuration rpcTimeoutMin =
+        TimeDuration.valueOf(RssConf.haMasterRatisRpcTimeoutMin(conf), TimeUnit.SECONDS);
+    TimeDuration rpcTimeoutMax =
+        TimeDuration.valueOf(RssConf.haMasterRatisRpcTimeoutMax(conf), TimeUnit.SECONDS);
+    RaftServerConfigKeys.Rpc.setTimeoutMin(properties, rpcTimeoutMin);
+    RaftServerConfigKeys.Rpc.setTimeoutMax(properties, rpcTimeoutMax);
 
     // Set the number of maximum cached segments
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
 
-    long nodeFailureTimeoutDuration =
-        conf.getTimeAsSeconds(
-            RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_KEY(),
-            RssConf.HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_DEFAULT());
-    final TimeDuration nodeFailureTimeout =
-        TimeDuration.valueOf(nodeFailureTimeoutDuration, TimeUnit.SECONDS);
-    RaftServerConfigKeys.Notification.setNoLeaderTimeout(properties, nodeFailureTimeout);
-    RaftServerConfigKeys.Rpc.setSlownessTimeout(properties, nodeFailureTimeout);
+    TimeDuration noLeaderTimeout =
+        TimeDuration.valueOf(
+            RssConf.haMasterRatisNotificationNoLeaderTimeout(conf), TimeUnit.SECONDS);
+    RaftServerConfigKeys.Notification.setNoLeaderTimeout(properties, noLeaderTimeout);
+    TimeDuration slownessTimeout =
+        TimeDuration.valueOf(RssConf.haMasterRatisRpcSlownessTimeout(conf), TimeUnit.SECONDS);
+    RaftServerConfigKeys.Rpc.setSlownessTimeout(properties, slownessTimeout);
 
     // Set role checker time
-    this.roleCheckIntervalMs =
-        conf.getTimeAsMs(
-            RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY(),
-            RssConf.HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT());
+    this.roleCheckIntervalMs = RssConf.haMasterRatisRoleCheckInterval(conf);
 
     // snapshot retention
-    int numSnapshotFilesRetained =
-        conf.getInt(
-            RssConf.HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_KEY(),
-            RssConf.HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_DEFAULT());
-    RaftServerConfigKeys.Snapshot.setRetentionFileNum(properties, numSnapshotFilesRetained);
+    int numSnapshotRetentionFileNum = RssConf.haMasterRatisSnapshotRetentionFileNum(conf);
+    RaftServerConfigKeys.Snapshot.setRetentionFileNum(properties, numSnapshotRetentionFileNum);
 
     // snapshot interval
     RaftServerConfigKeys.Snapshot.setAutoTriggerEnabled(
-        properties,
-        conf.getBoolean(
-            RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY(),
-            RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT()));
-    long snapshotAutoTriggerThreshold =
-        conf.getLong(
-            RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY(),
-            RssConf.HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT());
+        properties, RssConf.haMasterRatisSnapshotAutoTriggerEnabled(conf));
+
+    long snapshotAutoTriggerThreshold = RssConf.haMasterRatisSnapshotAutoTriggerThreshold(conf);
     RaftServerConfigKeys.Snapshot.setAutoTriggerThreshold(properties, snapshotAutoTriggerThreshold);
 
     return properties;

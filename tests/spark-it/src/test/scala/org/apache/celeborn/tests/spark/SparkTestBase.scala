@@ -130,14 +130,14 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
   def updateSparkConf(sparkConf: SparkConf, sort: Boolean): SparkConf = {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-    sparkConf.set("spark.rss.master.address", tuple._1.rpcEnv.address.toString)
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
     sparkConf.set("spark.sql.adaptive.enabled", "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
     sparkConf.set("spark.sql.adaptive.skewJoin.enabled", "false")
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
+    sparkConf.set("spark.celeborn.master.endpoints", tuple._1.rpcEnv.address.toString)
     if (sort) {
-      sparkConf.set("spark.rss.shuffle.writer.mode", "sort")
+      sparkConf.set("spark.celeborn.shuffle.writer.mode", "sort")
     }
     sparkConf
   }

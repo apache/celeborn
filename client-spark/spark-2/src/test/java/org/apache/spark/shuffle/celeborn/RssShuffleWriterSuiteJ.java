@@ -173,7 +173,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "1024");
+    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "1024");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -181,7 +181,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "1024");
+    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "1024");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -189,7 +189,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecord() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "5");
+    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "5");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -197,7 +197,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "5");
+    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "5");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -205,7 +205,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "128");
+    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }
@@ -213,7 +213,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf().set("rss.push.data.buffer.size", "128");
+    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }

@@ -19,7 +19,7 @@ package org.apache.celeborn.common
 
 import java.io.IOException
 import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Map => JMap}
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -27,6 +27,7 @@ import scala.util.Try
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
+import org.apache.celeborn.common.network.util.ByteUnit
 import org.apache.celeborn.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
@@ -535,22 +536,91 @@ object RssConf extends Logging {
 
   def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
 
-  // Conf getters
+  val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.endpoints")
+      .categories("client", "worker")
+      .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
+        "If the port is omitted, 9097 will be used.")
+      .version("0.2.0")
+      .stringConf
+      .transform(_.replace("<localhost>", Utils.localHostName))
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"<localhost>:9097")
 
-  def pushDataBufferInitialSize(conf: RssConf): Int = {
-    conf.getSizeAsBytes("rss.push.data.buffer.initial.size", "8k").toInt
-  }
-  def pushDataBufferSize(conf: RssConf): Int = {
-    conf.getSizeAsBytes("rss.push.data.buffer.size", "64k").toInt
-  }
+  val SHUFFLE_WRITER_MODE: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.writer.mode")
+      .withAlternative("rss.shuffle.writer.mode")
+      .categories("client")
+      .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
+        "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
+        "when memory pressure is high or shuffle partition count it huge.")
+      .version("0.2.0")
+      .stringConf
+      .transform(_.toLowerCase)
+      .checkValue(v => v == "hash" || v == "sort", "invalid value, options: 'hash', 'sort'")
+      .createWithDefault("hash")
 
-  def pushDataQueueCapacity(conf: RssConf): Int = {
-    conf.getInt("rss.push.data.queue.capacity", 512)
-  }
+  val PUSH_REPLICATE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.replicate.enabled")
+      .withAlternative("rss.push.data.replicate")
+      .categories("client")
+      .doc("When true, Celeborn worker will replicate shuffle data to another Celeborn worker " +
+        "asynchronously to ensure the pushed shuffle data won't be lost after the node failure.")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
 
-  def pushDataMaxReqsInFlight(conf: RssConf): Int = {
-    conf.getInt("rss.push.data.maxReqsInFlight", 32)
-  }
+  val PUSH_BUFFER_INITIAL_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.push.buffer.initial.size")
+      .withAlternative("rss.push.data.buffer.initial.size")
+      .categories("client")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8k")
+
+  val PUSH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.push.buffer.max.size")
+      .withAlternative("rss.push.data.buffer.size")
+      .categories("client")
+      .doc("Max size of reducer partition buffer memory. The pushed data will be buffered in " +
+        "memory before sending to Celeborn worker. For performance consideration keep this buffer " +
+        "size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each " +
+        "task will consume up to `64KiB * 2000 = 125MiB` heap memory.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64k")
+
+  val PUSH_QUEUE_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.push.queue.capacity")
+      .withAlternative("rss.push.data.queue.capacity")
+      .categories("client")
+      .doc("Push buffer queue size for a task. The maximum memory is " +
+        "`celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, " +
+        "default: 64KiB * 512 = 32MiB")
+      .intConf
+      .createWithDefault(512)
+
+  val PUSH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
+    buildConf("celeborn.push.maxReqsInFlight")
+      .withAlternative("rss.push.data.maxReqsInFlight")
+      .categories("client")
+      .doc("Amount of Netty in-flight requests. The maximum memory is " +
+        "`celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
+        "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
+      .intConf
+      .createWithDefault(32)
+
+  def pushReplicateEnabled(conf: RssConf): Boolean = conf.get(PUSH_REPLICATE_ENABLED)
+
+  def pushBufferInitialSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_INITIAL_SIZE).toInt
+
+  def pushBufferMaxSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_MAX_SIZE).toInt
+
+  def pushDataQueueCapacity(conf: RssConf): Int = conf.get(PUSH_QUEUE_CAPACITY)
+
+  def pushDataMaxReqsInFlight(conf: RssConf): Int = conf.get(PUSH_MAX_REQS_IN_FLIGHT)
 
   def fetchChunkTimeoutMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.fetch.chunk.timeout", "120s")
@@ -558,10 +628,6 @@ object RssConf extends Logging {
 
   def fetchChunkMaxReqsInFlight(conf: RssConf): Int = {
     conf.getInt("rss.fetch.chunk.maxReqsInFlight", 3)
-  }
-
-  def replicate(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.push.data.replicate", true)
   }
 
   def workerTimeoutMs(conf: RssConf): Long = {
@@ -584,22 +650,9 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.get.blacklist.delay", "30s")
   }
 
-  val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
-    buildConf("celeborn.master.endpoints")
-      .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
-        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
-        "If the port is omitted, 9097 will be used.")
-      .version("0.2.0")
-      .stringConf
-      .transform(_.replace("<localhost>", Utils.localHostName))
-      .toSequence
-      .checkValue(
-        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
-        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
-      .createWithDefaultString(s"<localhost>:9097")
-
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
+      .categories("master")
       .withAlternative("rss.master.host")
       .version("0.2.0")
       .doc("Hostname for master to bind.")
@@ -610,6 +663,7 @@ object RssConf extends Logging {
   val MASTER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.master.port")
       .withAlternative("rss.master.port")
+      .categories("master")
       .version("0.2.0")
       .doc("Port for master to bind.")
       .intConf
@@ -618,6 +672,7 @@ object RssConf extends Logging {
 
   val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
     .withAlternative("rss.ha.enabled")
+    .categories("master")
     .doc("When true, master nodes run as Raft cluster mode.")
     .version("0.1.0")
     .booleanConf
@@ -633,6 +688,7 @@ object RssConf extends Logging {
 
   val HA_MASTER_NODE_HOST: ConfigEntry[String] =
     buildConf("celeborn.ha.master.node.<id>.host")
+      .categories("master")
       .doc("Host to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .stringConf
@@ -640,6 +696,7 @@ object RssConf extends Logging {
 
   val HA_MASTER_NODE_PORT: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.node.<id>.port")
+      .categories("master")
       .doc("Port to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .intConf
@@ -649,6 +706,7 @@ object RssConf extends Logging {
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
     buildConf("celeborn.ha.master.node.<id>.ratis.host")
       .internal
+      .categories("master")
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
         s"fallback to ${HA_MASTER_NODE_HOST.key}.")
       .version("0.2.0")
@@ -657,11 +715,164 @@ object RssConf extends Logging {
 
   val HA_MASTER_NODE_RATIS_PORT: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.node.<id>.ratis.port")
+      .categories("master")
       .doc("Ratis port to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9872)
+
+  val HA_MASTER_RATIS_RPC_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.ha.master.ratis.raft.rpc.type")
+      .withAlternative("rss.ha.rpc.type")
+      .categories("master")
+      .doc("RPC type for Ratis, available options: netty, grpc.")
+      .version("0.2.0")
+      .stringConf
+      .transform(_.toLowerCase)
+      .checkValue(v => v == "netty" || v == "grpc", "illegal value, available options: netty, grpc")
+      .createWithDefault("netty")
+
+  val HA_MASTER_RATIS_STORAGE_DIR: ConfigEntry[String] =
+    buildConf("celeborn.ha.master.ratis.raft.server.storage.dir")
+      .categories("master")
+      .withAlternative("rss.ha.storage.dir")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault("/tmp/ratis")
+
+  val HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
+      .withAlternative("rss.ha.ratis.segment.size")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("4MB")
+
+  val HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
+      .withAlternative("rss.ratis.segment.preallocated.size")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("4MB")
+
+  val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
+      .withAlternative("rss.ratis.log.appender.queue.num-elements")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(1024)
+
+  val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
+      .withAlternative("rss.ratis.log.appender.queue.byte-limit")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32MB")
+
+  val HA_MASTER_RATIS_LOG_PURGE_GAP: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
+      .withAlternative("rss.ratis.log.purge.gap")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(1000000)
+
+  val HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
+      .withAlternative("rss.ratis.server.request.timeout")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("3s")
+
+  val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
+      .withAlternative("rss.ratis.server.retry.cache.timeout")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("600s")
+
+  val HA_MASTER_RATIS_RPC_TIMEOUT_MIN: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
+      .withAlternative("rss.ratis.minimum.timeout")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("3s")
+
+  val HA_MASTER_RATIS_RPC_TIMEOUT_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("5s")
+
+  val HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("120s")
+
+  val HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
+      .withAlternative("rss.ratis.server.failure.timeout.duration")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("120s")
+
+  val HA_MASTER_RATIS_ROLE_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.role.check.interval")
+      .withAlternative("rss.ratis.server.role.check.interval")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
+
+  val HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
+      .withAlternative("rss.ha.ratis.snapshot.auto.trigger.enabled")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
+
+  val HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
+      .withAlternative("rss.ha.ratis.snapshot.auto.trigger.threshold")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(200000L)
+
+  val HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM: ConfigEntry[Int] =
+    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
+      .withAlternative("rss.ratis.snapshot.retention.file.num")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(3)
 
   def masterEndpoints(conf: RssConf): Array[String] =
     conf.get(MASTER_ENDPOINTS).toArray.map { endpoint =>
@@ -713,17 +924,92 @@ object RssConf extends Logging {
     conf.getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
   }
 
-  def workerReplicateNumThreads(conf: RssConf): Int = {
-    conf.getInt("rss.worker.replicate.numThreads", 64)
-  }
+  def haMasterRatisRpcType(conf: RssConf): String = conf.get(HA_MASTER_RATIS_RPC_TYPE)
+  def haMasterRatisStorageDir(conf: RssConf): String = conf.get(HA_MASTER_RATIS_STORAGE_DIR)
 
-  def workerAsyncCommitFileThreads(conf: RssConf): Int = {
-    conf.getInt("rss.worker.asyncCommitFiles.numThreads", 32)
-  }
+  def haMasterRatisLogSegmentSizeMax(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
 
-  def workerFlushBufferSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.worker.flush.buffer.size", "256k")
-  }
+  def haMasterRatisLogPreallocatedSize(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
+
+  def haMasterRatisLogAppenderQueueNumElements(conf: RssConf): Int =
+    conf.get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
+
+  def haMasterRatisLogAppenderQueueBytesLimit(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
+
+  def haMasterRatisLogPurgeGap(conf: RssConf): Int = conf.get(HA_MASTER_RATIS_LOG_PURGE_GAP)
+
+  def haMasterRatisRpcRequestTimeout(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
+
+  def haMasterRatisRetryCacheExpiryTime(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
+
+  def haMasterRatisRpcTimeoutMin(conf: RssConf): Long = conf.get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
+
+  def haMasterRatisRpcTimeoutMax(conf: RssConf): Long = conf.get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
+
+  def haMasterRatisNotificationNoLeaderTimeout(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
+
+  def haMasterRatisRpcSlownessTimeout(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
+
+  def haMasterRatisRoleCheckInterval(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
+
+  def haMasterRatisSnapshotAutoTriggerEnabled(conf: RssConf): Boolean =
+    conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
+
+  def haMasterRatisSnapshotAutoTriggerThreshold(conf: RssConf): Long =
+    conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
+  def haMasterRatisSnapshotRetentionFileNum(conf: RssConf): Int =
+    conf.get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+
+  val WORKER_REPLICATE_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.replicate.threads")
+      .withAlternative("rss.worker.replicate.numThreads")
+      .categories("worker")
+      .doc("Thread number of worker to replicate shuffle data.")
+      .intConf
+      .createWithDefault(64)
+
+  val WORKER_COMMIT_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.commit.threads")
+      .withAlternative("rss.worker.asyncCommitFiles.numThreads")
+      .categories("worker")
+      .doc("Thread number of worker to commit shuffle data files asynchronously.")
+      .intConf
+      .createWithDefault(32)
+
+  val WORKER_STORAGE_DIRS: OptionalConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.storage.dirs")
+      .withAlternative("rss.worker.base.dirs")
+      .categories("worker")
+      .doc("Directory list to store shuffle data. Storage size limit can be set for each " +
+        "directory. For the sake of performance, there should be no more than 2 directories " +
+        "on the same disk partition if you are using HDD. There can be 4 or more directories " +
+        "can run on the same disk partition if you are using SSD. For example: " +
+        "dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]")
+      .stringConf
+      .toSequence
+      .createOptional
+
+  val WORKER_FLUSH_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flush.buffer.size")
+      .withAlternative("rss.worker.flush.buffer.size")
+      .categories("worker")
+      .doc("Size of buffer used by a single flusher.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("256k")
+
+  def workerReplicateThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREADS)
+
+  def workerCommitThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREADS)
+
+  def workerFlushBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSH_BUFFER_SIZE)
 
   def chunkSize(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.chunk.size", "8m")
@@ -766,50 +1052,48 @@ object RssConf extends Logging {
   }
 
   /**
-   * @param conf
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
    */
-  def workerBaseDirs(conf: RssConf): Array[(String, Long, Int, Type)] = {
+  def workerBaseDirs(conf: RssConf): Seq[(String, Long, Int, Type)] = {
     // I assume there is no disk is bigger than 1 PB in recent days.
-    var maxCapacity = 1024L * 1024 * 1024 * 1024 * 1024
-    val baseDirs = conf.get("rss.worker.base.dirs", "")
-    if (baseDirs.nonEmpty) {
-      if (baseDirs.contains(":")) {
+    val defaultMaxCapacity = Utils.byteStringAsBytes("1PB")
+    conf.get(WORKER_STORAGE_DIRS).map { storageDirs: Seq[String] =>
+      storageDirs.map { str =>
+        var maxCapacity = defaultMaxCapacity
         var diskType = HDD
         var flushThread = -1
-        baseDirs.split(",").map(str => {
-          val parts = str.split(":")
-          val partsIter = parts.iterator
-          val workingDir = partsIter.next()
-          while (partsIter.hasNext) {
-            partsIter.next() match {
-              case capacityStr if capacityStr.startsWith("capacity") =>
-                maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
-              case disktypeStr if disktypeStr.startsWith("disktype") =>
-                diskType = Type.valueOf(disktypeStr.split("=")(1))
-                if (diskType == Type.MEMORY) {
-                  throw new IOException(s"Invalid disktype! $diskType")
-                }
-              case threadCountStr if threadCountStr.startsWith("flushthread") =>
-                flushThread = threadCountStr.split("=")(1).toInt
+        val (dir, attributes) = str.split(":").toList match {
+          case _dir :: tail => (_dir, tail)
+          case nil => throw new IllegalArgumentException(s"Illegal storage dir: $nil")
+        }
+        attributes.foreach {
+          case capacityStr if capacityStr.toLowerCase.startsWith("capacity=") =>
+            maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
+          case diskTypeStr if diskTypeStr.toLowerCase.startsWith("disktype=") =>
+            diskType = Type.valueOf(diskTypeStr.split("=")(1))
+            if (diskType == Type.MEMORY) {
+              throw new IOException(s"Invalid diskType: $diskType")
             }
+          case threadCountStr if threadCountStr.toLowerCase.startsWith("flushthread=") =>
+            flushThread = threadCountStr.split("=")(1).toInt
+          case illegal =>
+            throw new IllegalArgumentException(s"Illegal attribute: $illegal")
+        }
+        if (flushThread == -1) {
+          flushThread = diskType match {
+            case HDD => HDDFlusherThread(conf)
+            case SSD => SSDFlusherThread(conf)
           }
-          if (flushThread == -1) {
-            flushThread = diskType match {
-              case HDD => HDDFlusherThread(conf)
-              case SSD => SSDFlusherThread(conf)
-            }
-          }
-          (workingDir, maxCapacity, flushThread, diskType)
-        })
-      } else {
-        baseDirs.split(",").map((_, maxCapacity, HDDFlusherThread(conf), HDD))
+        }
+        (dir, maxCapacity, flushThread, diskType)
       }
-    } else {
+    }.getOrElse {
       val prefix = RssConf.workerBaseDirPrefix(conf)
       val number = RssConf.workerBaseDirNumber(conf)
-      (1 to number).map(i => (s"$prefix$i", maxCapacity, HDDFlusherThread(conf), HDD)).toArray
+      (1 to number).map { i =>
+        (s"$prefix$i", defaultMaxCapacity, HDDFlusherThread(conf), HDD)
+      }
     }
   }
 
@@ -826,7 +1110,6 @@ object RssConf extends Logging {
   }
 
   /**
-   * @param conf
    * @return This configuration is a guidance for load-aware slot allocation algorithm. This value
    *         is control how many disk groups will be created.
    */
@@ -897,49 +1180,92 @@ object RssConf extends Logging {
   def pushDataRetryThreadNum(conf: RssConf): Int = {
     conf.getInt(
       "rss.pushdata.retry.thread.num",
-      Math.max(8, Runtime.getRuntime().availableProcessors()))
+      Math.max(8, Runtime.getRuntime.availableProcessors()))
   }
 
-  def metricsSystemEnable(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.metrics.system.enabled", defaultValue = true)
-  }
+  val METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.enabled")
+      .withAlternative("rss.metrics.system.enabled")
+      .categories("master", "worker")
+      .doc("When true, enable metrics system.")
+      .booleanConf
+      .createWithDefault(true)
 
-  def metricsTimerSlidingSize(conf: RssConf): Int = {
-    conf.getInt("rss.metrics.system.timer.sliding.size", 4000)
-  }
+  val METRICS_TIMER_SLIDING_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.timer.sliding.size")
+      .withAlternative("rss.metrics.system.timer.sliding.size")
+      .categories("master", "worker")
+      .intConf
+      .createWithDefault(4000)
 
-  // 0 to 1.0
-  def metricsSampleRate(conf: RssConf): Double = {
-    conf.getDouble("rss.metrics.system.sample.rate", 1)
-  }
+  val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
+    buildConf("celeborn.metrics.sample.rate")
+      .withAlternative("rss.metrics.system.sample.rate")
+      .categories("master", "worker")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0]")
+      .createWithDefault(1.0)
 
-  def metricsSystemSamplePerfCritical(conf: RssConf): Boolean = {
+  val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.timer.sliding.window.size")
+      .withAlternative("rss.metrics.system.sliding.window.size")
+      .categories("master", "worker")
+      .intConf
+      .createWithDefault(4096)
+
+  val MASTER_PROMETHEUS_HOST: ConfigEntry[String] =
+    buildConf("celeborn.master.metrics.prometheus.host")
+      .withAlternative("rss.master.prometheus.metric.host")
+      .categories("master")
+      .stringConf
+      .createWithDefault("0.0.0.0")
+
+  val MASTER_PROMETHEUS_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.metrics.prometheus.port")
+      .withAlternative("rss.master.prometheus.metric.port")
+      .categories("master")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9098)
+
+  val WORKER_PROMETHEUS_HOST: ConfigEntry[String] =
+    buildConf("celeborn.worker.metrics.prometheus.host")
+      .withAlternative("rss.worker.prometheus.metric.host")
+      .categories("worker")
+      .stringConf
+      .createWithDefault("0.0.0.0")
+
+  val WORKER_PROMETHEUS_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.metrics.prometheus.port")
+      .withAlternative("rss.worker.prometheus.metric.port")
+      .categories("worker")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .createWithDefault(9096)
+
+  def metricsSystemEnable(conf: RssConf): Boolean = conf.get(METRICS_ENABLED)
+
+  def metricsTimerSlidingSize(conf: RssConf): Int = conf.get(METRICS_TIMER_SLIDING_SIZE)
+
+  def metricsSampleRate(conf: RssConf): Double = conf.get(METRICS_SAMPLE_RATE)
+
+  def metricsSamplePerfCritical(conf: RssConf): Boolean = {
     conf.getBoolean("rss.metrics.system.sample.perf.critical", false)
   }
 
-  def metricsSlidingWindowSize(conf: RssConf): Int = {
-    conf.getInt("rss.metrics.system.sliding.window.size", 4096)
-  }
+  def metricsSlidingWindowSize(conf: RssConf): Int = conf.get(METRICS_SLIDING_WINDOW_SIZE)
 
   def innerMetricsSize(conf: RssConf): Int = {
     conf.getInt("rss.inner.metrics.size", 4096)
   }
 
-  def masterPrometheusMetricHost(conf: RssConf): String = {
-    conf.get("rss.master.prometheus.metric.host", "0.0.0.0")
-  }
+  def masterPrometheusMetricHost(conf: RssConf): String = conf.get(MASTER_PROMETHEUS_HOST)
 
-  def masterPrometheusMetricPort(conf: RssConf): Int = {
-    conf.getInt("rss.master.prometheus.metric.port", 9098)
-  }
+  def masterPrometheusMetricPort(conf: RssConf): Int = conf.get(MASTER_PROMETHEUS_PORT)
 
-  def workerPrometheusMetricHost(conf: RssConf): String = {
-    conf.get("rss.worker.prometheus.metric.host", "0.0.0.0")
-  }
+  def workerPrometheusMetricHost(conf: RssConf): String = conf.get(WORKER_PROMETHEUS_HOST)
 
-  def workerPrometheusMetricPort(conf: RssConf): Int = {
-    conf.getInt("rss.worker.prometheus.metric.port", 9096)
-  }
+  def workerPrometheusMetricPort(conf: RssConf): Int = conf.get(WORKER_PROMETHEUS_PORT)
 
   def workerRPCPort(conf: RssConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
@@ -949,9 +1275,7 @@ object RssConf extends Logging {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
 
-  def shuffleWriterMode(conf: RssConf): String = {
-    conf.get("rss.shuffle.writer.mode", "hash")
-  }
+  def shuffleWriterMode(conf: RssConf): String = conf.get(SHUFFLE_WRITER_MODE)
 
   def sortPushThreshold(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.sort.push.data.threshold", "64m")
@@ -986,13 +1310,28 @@ object RssConf extends Logging {
     conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
   }
 
-  def deviceMonitorEnabled(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.device.monitor.enabled", true)
-  }
+  val WORKER_DEVICE_MONITOR_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.deviceMonitor.enabled")
+      .withAlternative("rss.device.monitor.enabled")
+      .categories("worker")
+      .doc("When true, worker will monitor device and report to master.")
+      .booleanConf
+      .createWithDefault(true)
 
-  def deviceMonitorCheckList(conf: RssConf): String = {
-    conf.get("rss.device.monitor.checklist", "readwrite,diskusage")
-  }
+  val WORKER_DEVICE_MONITOR_CHECKLIST: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.deviceMonitor.checklist")
+      .withAlternative("rss.device.monitor.checklist")
+      .categories("worker")
+      .doc("Select what the device needs to detect, available items are: " +
+        "iohang, readwrite and diskusage.")
+      .stringConf
+      .transform(_.toLowerCase)
+      .toSequence
+      .createWithDefaultString("readwrite,diskusage")
+
+  def deviceMonitorEnabled(conf: RssConf): Boolean = conf.get(WORKER_DEVICE_MONITOR_ENABLED)
+
+  def deviceMonitorCheckList(conf: RssConf): Seq[String] = conf.get(WORKER_DEVICE_MONITOR_CHECKLIST)
 
   def diskCheckIntervalMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.disk.check.interval", "60s")
@@ -1024,10 +1363,6 @@ object RssConf extends Logging {
 
   def haClientMaxTries(conf: RssConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
-  }
-
-  def haStorageDir(conf: RssConf): String = {
-    conf.get(HA_RATIS_STORAGE_DIR, HA_RATIS_STORAGE_DIR_DEFAULT)
   }
 
   def clusterSlotsUsageLimitPercent(conf: RssConf): Double = {
@@ -1231,46 +1566,4 @@ object RssConf extends Logging {
   def columnarShuffleMaxDictFactor(conf: RssConf): Double = {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
-
-  val HA_RPC_TYPE_KEY: String = "rss.ha.rpc.type"
-  val HA_RPC_TYPE_DEFAULT: String = "NETTY"
-
-  val HA_RATIS_STORAGE_DIR: String = "rss.ha.storage.dir"
-  val HA_RATIS_STORAGE_DIR_DEFAULT: String = "/tmp/ratis"
-  val HA_RATIS_SEGMENT_SIZE_KEY: String = "rss.ha.ratis.segment.size"
-
-  val HA_RATIS_SEGMENT_SIZE_DEFAULT: String = "4MB"
-  val HA_RATIS_SEGMENT_PREALLOCATED_SIZE_KEY: String = "rss.ratis.segment.preallocated.size"
-  val HA_RATIS_SEGMENT_PREALLOCATED_SIZE_DEFAULT: String = "4MB"
-
-  //  Ratis Log Appender configurations
-  val HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS = "rss.ratis.log.appender.queue.num-elements"
-  val HA_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS_DEFAULT = 1024
-  val HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT = "rss.ratis.log.appender.queue.byte-limit"
-  val HA_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT_DEFAULT = "32MB"
-  val HA_RATIS_LOG_PURGE_GAP = "rss.ratis.log.purge.gap"
-  val HA_RATIS_LOG_PURGE_GAP_DEFAULT = 1000000
-
-  //  Ratis server configurations
-  val HA_RATIS_SERVER_REQUEST_TIMEOUT_KEY = "rss.ratis.server.request.timeout"
-  val HA_RATIS_SERVER_REQUEST_TIMEOUT_DEFAULT = "3s"
-  val HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_KEY = "rss.ratis.server.retry.cache.timeout"
-  val HA_RATIS_SERVER_RETRY_CACHE_TIMEOUT_DEFAULT = "600s"
-  val HA_RATIS_MINIMUM_TIMEOUT_KEY = "rss.ratis.minimum.timeout"
-  val HA_RATIS_MINIMUM_TIMEOUT_DEFAULT = "3s"
-
-  //  Ratis Leader Election configurations
-  val HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_KEY = "rss.ratis.server.failure.timeout.duration"
-  val HA_RATIS_SERVER_FAILURE_TIMEOUT_DURATION_DEFAULT = "120s"
-
-  val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_KEY = "rss.ratis.server.role.check.interval"
-  val HA_RATIS_SERVER_ROLE_CHECK_INTERVAL_DEFAULT = "1s"
-
-  // Ratis snapshot configurations
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_KEY = "rss.ha.ratis.snapshot.auto.trigger.enabled"
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED_DEFAULT = true
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_KEY = "rss.ha.ratis.snapshot.auto.trigger.threshold"
-  val HA_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD_DEFAULT = 200000
-  val HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_KEY = "rss.ratis.snapshot.retention.file.num"
-  val HA_RATIS_SNAPSHOT_RETENTION_FILE_NUM_DEFAULT = 3
 }
