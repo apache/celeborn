@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 trait RssNullableColumnBuilder extends RssColumnBuilder {
   protected var nulls: ByteBuffer = _
   protected var nullCount: Int = _
-  private var pos: Int = _
+  var pos: Int = _
 
   abstract override def initialize(
       rowCnt: Int,
