@@ -17,15 +17,14 @@
 
 package org.apache.celeborn.common.util;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 
@@ -156,5 +155,42 @@ public class PbSerDeUtils {
     Map<String, PbResourceConsumption> map = new ConcurrentHashMap<>();
     userResourceConsumption.forEach((k, v) -> map.put(k.toString(), toPbResourceConsumption(v)));
     return map;
+  }
+
+  public static WorkerInfo fromPbWorkerInfo(PbWorkerInfo pbWorkerInfo) {
+    Map<String, DiskInfo> disks = new ConcurrentHashMap<>();
+    if (pbWorkerInfo.getDisksCount() > 0) {
+      for (PbDiskInfo pbDiskInfo : pbWorkerInfo.getDisksList()) {
+        disks.put(pbDiskInfo.getMountPoint(), fromPbDiskInfo(pbDiskInfo));
+      }
+    }
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption =
+        PbSerDeUtils.fromPbUserResourceConsumption(pbWorkerInfo.getUserResourceConsumptionMap());
+
+    return new WorkerInfo(
+        pbWorkerInfo.getHost(),
+        pbWorkerInfo.getRpcPort(),
+        pbWorkerInfo.getPushPort(),
+        pbWorkerInfo.getFetchPort(),
+        pbWorkerInfo.getReplicatePort(),
+        disks,
+        userResourceConsumption,
+        null);
+  }
+
+  public static PbWorkerInfo toPbWorkerInfo(WorkerInfo workerInfo) {
+    Iterable<DiskInfo> diskInfos = workerInfo.diskInfos().values();
+    List<PbDiskInfo> pbDiskInfos = new ArrayList<>();
+    diskInfos.forEach(k -> pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(k)));
+    return PbWorkerInfo.newBuilder()
+        .setHost(workerInfo.host())
+        .setRpcPort(workerInfo.rpcPort())
+        .setFetchPort(workerInfo.fetchPort())
+        .setPushPort(workerInfo.pushPort())
+        .setReplicatePort(workerInfo.replicatePort())
+        .addAllDisks(pbDiskInfos)
+        .putAllUserResourceConsumption(
+            PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption()))
+        .build();
   }
 }

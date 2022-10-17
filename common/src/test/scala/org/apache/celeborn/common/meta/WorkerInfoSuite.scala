@@ -255,8 +255,8 @@ class WorkerInfoSuite extends RssFunSuite {
          |ReplicatePort: 1000
          |SlotsUsed: 0
          |LastHeartbeat: 0
-         |Disks: $placeholder
-         |UserResourceConsumption: $placeholder
+         |Disks: empty
+         |UserResourceConsumption: empty
          |WorkerRef: null
          |""".stripMargin
 
@@ -269,8 +269,8 @@ class WorkerInfoSuite extends RssFunSuite {
         |ReplicatePort: 2000
         |SlotsUsed: 0
         |LastHeartbeat: 0
-        |Disks: null
-        |UserResourceConsumption: null
+        |Disks: empty
+        |UserResourceConsumption: empty
         |WorkerRef: null
         |""".stripMargin
     val exp3 =
@@ -282,8 +282,8 @@ class WorkerInfoSuite extends RssFunSuite {
          |ReplicatePort: 3000
          |SlotsUsed: 0
          |LastHeartbeat: 0
-         |Disks: $placeholder
-         |UserResourceConsumption: null
+         |Disks: empty
+         |UserResourceConsumption: empty
          |WorkerRef: null
          |""".stripMargin
     val exp4 =
