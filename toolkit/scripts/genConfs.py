@@ -90,6 +90,7 @@ def set_rss_confs(conf, replicate=False):
     conf["spark.shuffle.manager"] = "org.apache.spark.shuffle.celeborn.RssShuffleManager"
     conf["spark.serializer"] = "org.apache.spark.serializer.KryoSerializer"
     conf["spark.rss.master.address"] = "master-1-1:9097"
+    conf["spark.celeborn.master.endpoints"] = "master-1-1:9097"
     conf["spark.shuffle.service.enabled"] = "false"
 
     if replicate:
