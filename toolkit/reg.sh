@@ -156,7 +156,7 @@ function runTPCDSSuite() {
     exit -1
   fi
 
-  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess
+  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
   echo -e "finish TPC-DS on ESS \n"
 
   getCelebornDist
@@ -169,8 +169,8 @@ function runTPCDSSuite() {
     exit -1
   fi
 
-  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/celeborn
-  checkTPCDSResult ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess
+  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/celeborn
+  checkTPCDSResult ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
   echo -e "finish TPC-DS on celeborn \n"
 
   echo -e "Run TPC-DS suite on celeborn Duplicate"
@@ -186,8 +186,8 @@ function runTPCDSSuite() {
     exit -1
   fi
 
-  cp -r ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/celeborn-dup
-  checkTPCDSResult ${HIVEBENCH_RESULT_DIR} ${REG_RESULT}/${DATE}/ess
+  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/celeborn-dup
+  checkTPCDSResult ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
   echo -e "finish TPC-DS on celeborn \n"
 
   ${SPARK3_HOME}/sbin/stop-thriftserver.sh
@@ -206,28 +206,28 @@ function singleTPCDS() {
 
   # waiting for the spark thrift server get ready
   sleep 50
-
-  WORKER_INDEX=$(shuf -i1-8 -n1)
-  SLEEP_TIME=$(shuf -i500-800 -n1)
-  # if regression ,kill a worker in a random time between 500s and 800s
-  if [ $1 == "regression" ]; then
-    ssh core-1-${WORKER_INDEX} "sleep ${SLEEP_TIME}s && jps | grep Worker | awk '{print \$1}' | xargs kill -9 " &
-  fi
-
-  for i in $(ls ${HIVEBENCH_QUERY_DIR}/q*.sql); do
-
-    echo $i
-
-    beeline --showStartEndTime=true -u jdbc:hive2://master-1-1:10001/${HIVEBENCH_SCHEMA} -f $i >${HIVEBENCH_QUERY_DIR}/$(basename $i | cut -d . -f1).out 2>/home/hadoop/hive-testbench/spark-queries-tpcds/$(basename $i | cut -d . -f1).err
-
-    if [[ $? -ne 0 ]]; then
-      echo Query ${BASE_NAME} Failed.
-      return -1
-    else
-      echo Query ${BASE_NAME} Finished.
-    fi
-
-  done
+#
+#  WORKER_INDEX=$(shuf -i1-8 -n1)
+#  SLEEP_TIME=$(shuf -i500-800 -n1)
+#  # if regression ,kill a worker in a random time between 500s and 800s
+#  if [ "$1" == "regression" ]; then
+#    ssh core-1-${WORKER_INDEX} "sleep ${SLEEP_TIME}s && jps | grep Worker | awk '{print \$1}' | xargs kill -9 " &
+#  fi
+#
+#  for i in $(ls ${HIVEBENCH_QUERY_DIR}/q*.sql); do
+#
+#    echo $i
+#
+#    beeline --showStartEndTime=true -u jdbc:hive2://master-1-1:10001/${HIVEBENCH_SCHEMA} -f $i >${HIVEBENCH_QUERY_DIR}/$(basename $i | cut -d . -f1).out 2>/home/hadoop/hive-testbench/spark-queries-tpcds/$(basename $i | cut -d . -f1).err
+#
+#    if [[ $? -ne 0 ]]; then
+#      echo Query ${BASE_NAME} Failed.
+#      return -1
+#    else
+#      echo Query ${BASE_NAME} Finished.
+#    fi
+#
+#  done
 
   sleep 10s
   echo -e "assume TPC-DS done."
@@ -283,7 +283,7 @@ function updateCeleborn() {
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${CELEBORN_CLIENT_INSTALL_DIR}/spark3/ > /dev/null 2>&1
   done
 
-  for host in "${HOSTS[@]}"; do
+  for host in "${REG_HOSTS[@]}"; do
     echo -e "kill worker on ${host}"
     ssh ${host} "jps | grep Worker | awk '{print \$1}' | xargs kill -9"
   done
