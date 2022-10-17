@@ -113,6 +113,7 @@ message PbWorkerInfo {
   int32 fetchPort = 4;
   int32 replicatePort = 5;
   repeated PbDiskInfo disks = 6;
+  map<string, PbResourceConsumption> userResourceConsumption = 7;
 }
 
 message PbFileGroup {

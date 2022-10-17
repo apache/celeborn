@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.concurrent.{ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -223,14 +223,8 @@ private[celeborn] class Master(
       val disks = pbRegisterWorker.getDisksList.asScala
         .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
         .toMap.asJava
-      val userResourceConsumption = pbRegisterWorker
-        .getUserResourceConsumptionMap
-        .asScala
-        .map { case (userInfo, resourceConsumption) =>
-          (UserIdentifier(userInfo), resourceConsumption)
-        }
-        .mapValues(PbSerDeUtils.fromPbResourceConsumption)
-        .asJava
+      val userResourceConsumption =
+        PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
 
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
@@ -403,6 +397,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
@@ -432,7 +427,15 @@ private[celeborn] class Master(
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       requestId: String): Unit = {
     val workerToRegister =
-      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
+      new WorkerInfo(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        userResourceConsumption,
+        null)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
@@ -700,6 +703,7 @@ private[celeborn] class Master(
           -1,
           -1,
           new util.HashMap[String, DiskInfo](),
+          new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
           null))
         GetWorkerInfosResponse(StatusCode.FAILED, result.asScala: _*)
     }

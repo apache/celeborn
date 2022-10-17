@@ -37,10 +37,10 @@ class WorkerInfo(
     val fetchPort: Int,
     val replicatePort: Int,
     val diskInfos: util.Map[String, DiskInfo],
+    val userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
-  val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -50,6 +50,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null)
   }
 
@@ -67,6 +68,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       endpoint)
   }
 
@@ -227,15 +229,33 @@ class WorkerInfo(
   }
 
   override def toString(): String = {
+    val (diskInfosString, slots) =
+      if (diskInfos == null || diskInfos.isEmpty) {
+        ("empty", 0)
+      } else if (diskInfos != null) {
+        val str = diskInfos.values().asScala.zipWithIndex.map { case (diskInfo, index) =>
+          s"\n  DiskInfo${index}: ${diskInfo}"
+        }.mkString("")
+        (str, usedSlots)
+      }
+    val userResourceConsumptionString =
+      if (userResourceConsumption == null || userResourceConsumption.isEmpty) {
+        "empty"
+      } else if (userResourceConsumption != null) {
+        userResourceConsumption.asScala.map { case (userIdentifier, resourceConsumption) =>
+          s"\n  UserIdentifier: ${userIdentifier}, ResourceConsumption: ${resourceConsumption}"
+        }.mkString("")
+      }
     s"""
        |Host: $host
        |RpcPort: $rpcPort
        |PushPort: $pushPort
        |FetchPort: $fetchPort
        |ReplicatePort: $replicatePort
-       |SlotsUsed: $usedSlots()
+       |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
-       |Disks: $diskInfos
+       |Disks: $diskInfosString
+       |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint
        |""".stripMargin
   }
@@ -259,40 +279,5 @@ object WorkerInfo {
   def fromUniqueId(id: String): WorkerInfo = {
     val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
-  }
-
-  def fromPbWorkerInfo(pbWorker: PbWorkerInfo): WorkerInfo = {
-    val disks =
-      if (pbWorker.getDisksCount > 0) {
-        pbWorker.getDisksList.asScala
-          .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
-          .toMap.asJava
-      } else {
-        new util.HashMap[String, DiskInfo]()
-      }
-
-    new WorkerInfo(
-      pbWorker.getHost,
-      pbWorker.getRpcPort,
-      pbWorker.getPushPort,
-      pbWorker.getFetchPort,
-      pbWorker.getReplicatePort,
-      disks,
-      null)
-  }
-
-  def toPbWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
-    val disks = workerInfo.diskInfos.asScala.values
-      .map { diskInfo => PbSerDeUtils.toPbDiskInfo(diskInfo) }
-      .asJava
-    PbWorkerInfo
-      .newBuilder()
-      .setHost(workerInfo.host)
-      .setRpcPort(workerInfo.rpcPort)
-      .setFetchPort(workerInfo.fetchPort)
-      .setPushPort(workerInfo.pushPort)
-      .setReplicatePort(workerInfo.replicatePort)
-      .addAllDisks(disks)
-      .build()
   }
 }

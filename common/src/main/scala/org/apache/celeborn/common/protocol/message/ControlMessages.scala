@@ -85,12 +85,8 @@ object ControlMessages extends Logging {
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
         requestId: String): PbRegisterWorker = {
       val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
-      val pbUserResourceConsumption = userResourceConsumption
-        .map { case (userIdentifier, resourceConsumption) =>
-          (userIdentifier.toString, resourceConsumption)
-        }
-        .mapValues(PbSerDeUtils.toPbResourceConsumption)
-        .asJava
+      val pbUserResourceConsumption =
+        PbSerDeUtils.toPbUserResourceConsumption(userResourceConsumption.asJava)
       PbRegisterWorker.newBuilder()
         .setHost(host)
         .setRpcPort(rpcPort)
@@ -434,6 +430,13 @@ object ControlMessages extends Logging {
         hdfsBytesWritten + other.hdfsBytesWritten,
         hdfsFileCount + other.hdfsFileCount)
     }
+
+    override def toString: String = {
+      s"ResourceConsumption(diskBytesWritten: ${Utils.bytesToString(diskBytesWritten)}," +
+        s" diskFileCount: ${diskFileCount}," +
+        s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
+        s" hdfsFileCount: ${hdfsFileCount})"
+    }
   }
 
   // TODO change message type to GeneratedMessageV3
@@ -461,13 +464,8 @@ object ControlMessages extends Logging {
           shuffleKeys,
           requestId) =>
       val pbDisks = disks.map(PbSerDeUtils.toPbDiskInfo).asJava
-      val pbUserResourceConsumption = userResourceConsumption
-        .asScala
-        .map { case (userIdentifier, resourceConsumption) =>
-          (userIdentifier.toString, resourceConsumption)
-        }
-        .mapValues(PbSerDeUtils.toPbResourceConsumption)
-        .asJava
+      val pbUserResourceConsumption =
+        PbSerDeUtils.toPbUserResourceConsumption(userResourceConsumption)
       val payload = PbHeartbeatFromWorker.newBuilder()
         .setHost(host)
         .setRpcPort(rpcPort)
@@ -634,7 +632,7 @@ object ControlMessages extends Logging {
 
     case GetBlacklist(localBlacklist) =>
       val payload = PbGetBlacklist.newBuilder()
-        .addAllLocalBlackList(localBlacklist.asScala.map(WorkerInfo.toPbWorkerInfo)
+        .addAllLocalBlackList(localBlacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo)
           .toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST, payload)
@@ -642,9 +640,9 @@ object ControlMessages extends Logging {
     case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
-      builder.addAllBlacklist(blacklist.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
+      builder.addAllBlacklist(blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo).toList.asJava)
       builder.addAllUnknownWorkers(
-        unknownWorkers.asScala.map(WorkerInfo.toPbWorkerInfo).toList.asJava)
+        unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo).toList.asJava)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST_RESPONSE, payload)
 
@@ -667,7 +665,7 @@ object ControlMessages extends Logging {
 
     case ReportWorkerFailure(failed, requestId) =>
       val payload = PbReportWorkerFailure.newBuilder()
-        .addAllFailed(failed.asScala.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+        .addAllFailed(failed.asScala.map(PbSerDeUtils.toPbWorkerInfo(_)).toList.asJava)
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
@@ -783,7 +781,7 @@ object ControlMessages extends Logging {
     case GetWorkerInfosResponse(status, workerInfos @ _*) =>
       val payload = PbGetWorkerInfosResponse.newBuilder()
         .setStatus(status.getValue)
-        .addAllWorkerInfos(workerInfos.map(WorkerInfo.toPbWorkerInfo(_)).toList.asJava)
+        .addAllWorkerInfos(workerInfos.map(PbSerDeUtils.toPbWorkerInfo(_)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.GET_WORKER_INFO_RESPONSE, payload)
 
@@ -816,15 +814,8 @@ object ControlMessages extends Logging {
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
         val shuffleKeys = new util.HashSet[String]()
-        val userResourceConsumption = pbHeartbeatFromWorker
-          .getUserResourceConsumptionMap
-          .asScala
-          .map { case (userInfo, resourceConsumption) =>
-            (UserIdentifier(userInfo), resourceConsumption)
-          }
-          .mapValues(PbSerDeUtils.fromPbResourceConsumption)
-          .toMap
-          .asJava
+        val userResourceConsumption = PbSerDeUtils.fromPbUserResourceConsumption(
+          pbHeartbeatFromWorker.getUserResourceConsumptionMap)
         val pbDisks = pbHeartbeatFromWorker.getDisksList.asScala.map(PbSerDeUtils.fromPbDiskInfo)
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
           shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
@@ -952,16 +943,16 @@ object ControlMessages extends Logging {
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
         GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
-          .map(WorkerInfo.fromPbWorkerInfo).toList.asJava))
+          .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
         GetBlacklistResponse(
           Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
           pbGetBlacklistResponse.getBlacklistList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava,
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo).toList.asJava)
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
       case CHECK_QUOTA =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
@@ -979,7 +970,7 @@ object ControlMessages extends Logging {
         val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
         ReportWorkerFailure(
           new util.ArrayList[WorkerInfo](pbReportWorkerFailure.getFailedList
-            .asScala.map(WorkerInfo.fromPbWorkerInfo(_)).toList.asJava),
+            .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbReportWorkerFailure.getRequestId)
 
       case REGISTER_WORKER_RESPONSE =>
@@ -1074,7 +1065,7 @@ object ControlMessages extends Logging {
         GetWorkerInfosResponse(
           Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
           pbGetWorkerInfoResponse.getWorkerInfosList.asScala
-            .map(WorkerInfo.fromPbWorkerInfo(_)).toList: _*)
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList: _*)
 
       case THREAD_DUMP =>
         ThreadDump
