@@ -21,13 +21,13 @@ import java.util
 import java.util.{List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.IdentityProvider
@@ -186,23 +186,21 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           override def run(): Unit = {
             try {
               changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
-                requests.synchronized {
-                  handleChangePartitionInBatchExecutors.submit {
-                    new Runnable {
-                      override def run(): Unit = {
-                        // For each partition only need handle one request
-                        val distinctPartitions = requests.asScala.filter { case (partitionId, _) =>
-                          !inBatchPartitions.get(shuffleId).contains(partitionId)
-                        }.map { case (partitionId, request) =>
-                          inBatchPartitions.get(shuffleId).add(partitionId)
-                          request.asScala.toArray.maxBy(_.epoch)
-                        }.toArray
-                        if (distinctPartitions.nonEmpty) {
-                          batchHandleChangePartitions(
-                            distinctPartitions.head.applicationId,
-                            shuffleId,
-                            distinctPartitions)
-                        }
+                handleChangePartitionInBatchExecutors.submit {
+                  new Runnable {
+                    override def run(): Unit = {
+                      // For each partition only need handle one request
+                      val distinctPartitions = requests.asScala.filter { case (partitionId, _) =>
+                        !inBatchPartitions.get(shuffleId).contains(partitionId)
+                      }.map { case (partitionId, request) =>
+                        inBatchPartitions.get(shuffleId).add(partitionId)
+                        request.asScala.toArray.maxBy(_.epoch)
+                      }.toArray
+                      if (distinctPartitions.nonEmpty) {
+                        batchHandleChangePartitions(
+                          distinctPartitions.head.applicationId,
+                          shuffleId,
+                          distinctPartitions)
                       }
                     }
                   }
@@ -582,28 +580,36 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     // check if there exists request for the partition, if do just register
     val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
-    requests.synchronized {
-      if (requests.containsKey(partitionId)) {
-        requests.get(partitionId).add(changePartition)
-        logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
-          s"$partitionId-$oldEpoch exists, register context.")
-        return
+    if (requests.containsKey(partitionId)) {
+      requests.get(partitionId).add(changePartition)
+      logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
+        s"$partitionId-$oldEpoch exists, register context.")
+    } else {
+      val latestLoc = getLatestPartition(shuffleId, partitionId, oldEpoch)
+      if (latestLoc != null) {
+        context.reply(ChangeLocationResponse(StatusCode.SUCCESS, latestLoc))
+        logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
+          s" shuffleId: $shuffleId $latestLoc")
       } else {
-        // If new slot for the partition has been allocated, reply and return.
-        // Else register and allocate for it.
-        getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
-          context.reply(ChangeLocationResponse(StatusCode.SUCCESS, Some(latestLoc)))
-          logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
-            s" shuffleId: $shuffleId $latestLoc")
-          return
+        requests.compute(partitionId,
+          new BiFunction[Integer, util.Set[ChangePartitionRequest], util.Set[ChangePartitionRequest]] {
+            override def apply(t: Integer, u: util.Set[ChangePartitionRequest]): util.Set[ChangePartitionRequest] = {
+              if (u == null) {
+                val set = new util.HashSet[ChangePartitionRequest]()
+                set.add(changePartition)
+                set
+              } else {
+                logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
+                  s"$partitionId-$oldEpoch exists, register context.")
+                u.add(changePartition)
+                u
+              }
+            }
+          })
+        if (!handleChangePartitionInBatch) {
+          batchHandleChangePartitions(applicationId, shuffleId, Array(changePartition))
         }
-        val set = new util.HashSet[ChangePartitionRequest]()
-        set.add(changePartition)
-        requests.put(partitionId, set)
       }
-    }
-    if (!handleChangePartitionInBatch) {
-      batchHandleChangePartitions(applicationId, shuffleId, Array(changePartition))
     }
   }
 
