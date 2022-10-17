@@ -443,7 +443,7 @@ private[deploy] object Worker extends Logging {
     // starting the Worker, we should set it in the parameters and automatically calculate what the
     // address of the Master should be used in the end.
     workerArgs.master.foreach { master =>
-      conf.set("rss.master.address", RpcAddress.fromRssURL(master).toString)
+      conf.set("celeborn.master.endpoints", RpcAddress.fromRssURL(master).toString.replace("rss://", ""))
     }
 
     val worker = new Worker(conf, workerArgs)
