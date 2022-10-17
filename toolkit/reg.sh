@@ -94,6 +94,7 @@ function output_msg() {
 }
 
 function runTerasort() {
+  updateCeleborn
   start=$(($(date +%s%N) / 1000000))
 
   cp ${HIBEN_CONF_DIR}/spark.conf.rss ${HIBEN_CONF_DIR}/spark.conf
@@ -107,6 +108,7 @@ function runTerasort() {
 }
 
 function runManySplits() {
+  updateCeleborn
   start=$(($(date +%s%N) / 1000000))
 
   cp ${HIBEN_CONF_DIR}/spark.conf.split ${HIBEN_CONF_DIR}/spark.conf
@@ -120,6 +122,7 @@ function runManySplits() {
 }
 
 function runSkewJoin() {
+  updateCeleborn
   start=$(($(date +%s%N) / 1000000))
 
   spark-sql --properties-file ${REG_CONF_DIR}/spark.conf -e "select max(fa),max(length(f1)),max(length(f2)),max(length(f3)),max(length(f4)),max(fb),max(length(f6)),max(length(f7)),max(length(f8)),max(length(f9)) from table1 a inner join table2 b on a.fa=b.fb;"
@@ -150,10 +153,12 @@ function runTPCDSSuite() {
   mkdir -p ${REG_RESULT}/${DATE}/
   echo -e "Run TPC-DS suite on ESS"
   switchToESS
+  if [ -z ${CELEBORN_SKIP_TPCDS} ]; then
   singleTPCDS
-  if [[ $? -ne 0 ]]; then
-    echo -e "Run TPC-DS suite on ESS failed"
-    exit -1
+    if [[ $? -ne 0 ]]; then
+      echo -e "Run TPC-DS suite on ESS failed"
+      exit -1
+    fi
   fi
 
   cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
@@ -163,10 +168,12 @@ function runTPCDSSuite() {
   echo -e "Run TPC-DS suite on celeborn"
   switchToCeleborn
   updateCeleborn
+  if [ -z ${CELEBORN_SKIP_TPCDS} ]; then
   singleTPCDS
-  if [[ $? -ne 0 ]]; then
-    echo -e "Run TPC-DS suite on ESS failed"
-    exit -1
+    if [[ $? -ne 0 ]]; then
+      echo -e "Run TPC-DS suite on ESS failed"
+      exit -1
+    fi
   fi
 
   cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/celeborn
@@ -176,14 +183,17 @@ function runTPCDSSuite() {
   echo -e "Run TPC-DS suite on celeborn Duplicate"
   switchToCelebornAndDuplicate
   updateCeleborn
-  if [[ $1 == "regression" ]]; then
-    singleTPCDS $1
-  else
-    singleTPCDS
-  fi
-  if [[ $? -ne 0 ]]; then
-    echo -e "Run TPC-DS suite on ESS failed"
-    exit -1
+
+  if [ -z ${CELEBORN_SKIP_TPCDS} ]; then
+    if [[ $1 == "regression" ]]; then
+      singleTPCDS $1
+    else
+      singleTPCDS
+    fi
+    if [[ $? -ne 0 ]]; then
+      echo -e "Run TPC-DS suite on ESS failed"
+      exit -1
+    fi
   fi
 
   cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/celeborn-dup
@@ -263,10 +273,10 @@ function updateCeleborn() {
   echo -e "restart master node \n"
   export CELEBORN_CONF_DIR=${REG_CONF_DIR}/celeborn
   ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/sbin/stop-master.sh
-  jps | grep Master | awk '{print $1}' | xargs kill -9
+  jps | grep Master | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1
 
-  rm -rf ${CELEBORN_CLIENT_INSTALL_DIR}/spark3/*
-  cp ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${CELEBORN_CLIENT_INSTALL_DIR}/spark3/
+  rm -rf ${CELEBORN_CLIENT_INSTALL_DIR}/*
+  cp ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${CELEBORN_CLIENT_INSTALL_DIR}/
 
   for host in "${REG_HOSTS[@]}"; do
     echo -e "update ${host} \n"
@@ -277,12 +287,12 @@ function updateCeleborn() {
     ssh ${host} "rm -rf /mnt/disk3/hadoop/rss-worker/shuffle_data/*"
     ssh ${host} "rm -rf /mnt/disk4/hadoop/rss-worker/shuffle_data/*"
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/ ${host}:~/ > /dev/null 2>&1
-    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${CELEBORN_CLIENT_INSTALL_DIR}/spark3/ > /dev/null 2>&1
+    scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${CELEBORN_CLIENT_INSTALL_DIR}/ > /dev/null 2>&1
   done
 
   for host in "${REG_HOSTS[@]}"; do
     echo -e "kill worker on ${host}"
-    ssh ${host} "jps | grep Worker | awk '{print \$1}' | xargs kill -9"
+    ssh ${host} "jps | grep Worker | awk '{print \$1}' | xargs kill -9" > /dev/null 2>&1
   done
 
   ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/sbin/start-master.sh
