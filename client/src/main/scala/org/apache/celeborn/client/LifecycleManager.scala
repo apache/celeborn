@@ -592,16 +592,23 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
           s" shuffleId: $shuffleId $latestLoc")
       } else {
-        requests.compute(partitionId,
-          new BiFunction[Integer, util.Set[ChangePartitionRequest], util.Set[ChangePartitionRequest]] {
-            override def apply(t: Integer, u: util.Set[ChangePartitionRequest]): util.Set[ChangePartitionRequest] = {
+        requests.compute(
+          partitionId,
+          new BiFunction[
+            Integer,
+            util.Set[ChangePartitionRequest],
+            util.Set[ChangePartitionRequest]] {
+            override def apply(
+                t: Integer,
+                u: util.Set[ChangePartitionRequest]): util.Set[ChangePartitionRequest] = {
               if (u == null) {
                 val set = new util.HashSet[ChangePartitionRequest]()
                 set.add(changePartition)
                 set
               } else {
-                logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
-                  s"$partitionId-$oldEpoch exists, register context.")
+                logTrace(
+                  s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
+                    s"$partitionId-$oldEpoch exists, register context.")
                 u.add(changePartition)
                 u
               }
