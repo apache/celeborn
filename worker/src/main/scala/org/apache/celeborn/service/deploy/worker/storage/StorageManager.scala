@@ -193,6 +193,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   private def reloadAndCleanFileInfos(db: DB): Unit = {
     if (db != null) {
+      val cache = new ConcurrentHashMap[String, UserIdentifier]()
       val itr = db.iterator
       itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
       while (itr.hasNext) {
@@ -201,7 +202,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
-            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue)
+            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
             logDebug(s"Reload DB: ${shuffleKey} -> ${files}")
             fileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)

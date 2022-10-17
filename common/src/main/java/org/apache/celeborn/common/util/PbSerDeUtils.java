@@ -103,11 +103,11 @@ public class PbSerDeUtils {
     return builder.build();
   }
 
-  public static ConcurrentHashMap<String, FileInfo> fromPbFileInfoMap(byte[] data)
+  public static ConcurrentHashMap<String, FileInfo> fromPbFileInfoMap(
+      byte[] data, ConcurrentHashMap<String, UserIdentifier> cache)
       throws InvalidProtocolBufferException {
     PbFileInfoMap pbFileInfoMap = PbFileInfoMap.parseFrom(data);
     ConcurrentHashMap<String, FileInfo> fileInfoMap = new ConcurrentHashMap<>();
-    ConcurrentHashMap<String, UserIdentifier> cache = new ConcurrentHashMap<>();
     for (Map.Entry<String, PbFileInfo> entry : pbFileInfoMap.getValuesMap().entrySet()) {
       FileInfo fileInfo;
       PbUserIdentifier pbUserIdentifier = entry.getValue().getUserIdentifier();
