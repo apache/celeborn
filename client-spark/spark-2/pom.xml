@@ -115,6 +115,10 @@
               <pattern>io.netty</pattern>
               <shadedPattern>org.apache.celeborn.io.netty</shadedPattern>
             </relocation>
+            <relocation>
+              <pattern>org.apache.commons</pattern>
+              <shadedPattern>org.apache.celeborn.org.apache.commons</shadedPattern>
+            </relocation>
           </relocations>
           <artifactSet>
             <includes>
@@ -123,6 +127,7 @@
               <include>com.google.protobuf:protobuf-java</include>
               <include>com.google.guava:guava</include>
               <include>io.netty:*</include>
+              <include>org.apache.commons:commons-lang3</include>
             </includes>
           </artifactSet>
           <filters>
