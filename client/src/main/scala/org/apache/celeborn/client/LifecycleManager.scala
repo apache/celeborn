@@ -28,6 +28,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.IdentityProvider
