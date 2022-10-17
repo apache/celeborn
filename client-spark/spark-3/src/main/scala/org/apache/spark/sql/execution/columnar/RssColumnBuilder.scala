@@ -130,6 +130,185 @@ class RssCompactDecimalColumnBuilder(dataType: DecimalType)
 class RssDecimalColumnBuilder(dataType: DecimalType)
   extends RssComplexColumnBuilder(new RssDecimalColumnStats(dataType), RSS_LARGE_DECIMAL(dataType))
 
+class RssBooleanCodeGenColumnBuilder
+  extends RssNativeColumnBuilder(new RssBooleanColumnStats, RSS_BOOLEAN) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_BOOLEAN.actualSize(row, ordinal))
+      RSS_BOOLEAN.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssByteCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssByteColumnStats, RSS_BYTE) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_BYTE.actualSize(row, ordinal))
+      RSS_BYTE.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssShortCodeGenColumnBuilder
+  extends RssNativeColumnBuilder(new RssShortColumnStats, RSS_SHORT) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_SHORT.actualSize(row, ordinal))
+      RSS_SHORT.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssIntCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssIntColumnStats, RSS_INT) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_INT.actualSize(row, ordinal))
+      RSS_INT.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssLongCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssLongColumnStats, RSS_LONG) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_LONG.actualSize(row, ordinal))
+      RSS_LONG.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssFloatCodeGenColumnBuilder
+  extends RssNativeColumnBuilder(new RssFloatColumnStats, RSS_FLOAT) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_FLOAT.actualSize(row, ordinal))
+      RSS_FLOAT.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssDoubleCodeGenColumnBuilder
+  extends RssNativeColumnBuilder(new RssDoubleColumnStats, RSS_DOUBLE) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_DOUBLE.actualSize(row, ordinal))
+      RSS_DOUBLE.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssStringCodeGenColumnBuilder
+  extends RssNativeColumnBuilder(new RssStringColumnStats, RSS_STRING) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_STRING.actualSize(row, ordinal))
+      RSS_STRING.append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssCompactDecimalCodeGenColumnBuilder(dataType: DecimalType)
+  extends RssNativeColumnBuilder(
+    new RssDecimalColumnStats(dataType),
+    RSS_COMPACT_DECIMAL(dataType)) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_COMPACT_DECIMAL(dataType).actualSize(row, ordinal))
+      RSS_COMPACT_DECIMAL(dataType).append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssCompactMiniDecimalCodeGenColumnBuilder(dataType: DecimalType)
+  extends RssNativeColumnBuilder(
+    new RssDecimalColumnStats(dataType),
+    RSS_COMPACT_MINI_DECIMAL(dataType)) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_COMPACT_MINI_DECIMAL(dataType).actualSize(row, ordinal))
+      RSS_COMPACT_MINI_DECIMAL(dataType).append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
+class RssDecimalCodeGenColumnBuilder(dataType: DecimalType)
+  extends RssComplexColumnBuilder(
+    new RssDecimalColumnStats(dataType),
+    RSS_LARGE_DECIMAL(dataType)) {
+  override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
+    columnStats.gatherStats(row, ordinal)
+    if (row.isNullAt(ordinal)) {
+      nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
+      nulls.putInt(pos)
+      nullCount += 1
+    } else {
+      buffer = ensureFreeSpace(buffer, RSS_LARGE_DECIMAL(dataType).actualSize(row, ordinal))
+      RSS_LARGE_DECIMAL(dataType).append(row, ordinal, buffer)
+    }
+    pos += 1
+  }
+}
+
 object RssColumnBuilder {
   val MAX_BATCH_SIZE_IN_BYTE: Long = 4 * 1024 * 1024L
 
