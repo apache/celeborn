@@ -1,0 +1,45 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Celeborn Regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      regression:
+        description: "regression"
+        required: true
+        default: "default-regression"
+
+jobs:
+  regression:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build
+        run: ./dev/make-distribution.sh -Pspark-3.2 && rm -rf /home/hadoop/celeborn-toolkit/dist/* && mv celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
+
+      - name: Regression
+        run: /home/hadoop/celeborn-toolkit/reg.sh regression
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark result
+          path: /home/hadoop/celeborn-toolkit/result/
