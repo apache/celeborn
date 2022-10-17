@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 /*
 In general, the config name should be a noun that describes its basic purpose. It's
 recommended to add prefix to the config name to make the scope clearer. For example,
-`rss.worker.timeout` clearly indicates that this config is for the worker.
+`celeborn.worker.storage.dirs` clearly indicates that this config is for the worker.
 
 A config name can have multiple prefixes that are structured, which is similar to a
 qualified Java class name. Each prefix behaves like a namespace. We should only create

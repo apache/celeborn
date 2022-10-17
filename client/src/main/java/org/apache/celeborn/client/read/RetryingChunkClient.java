@@ -84,7 +84,7 @@ public class RetryingChunkClient {
     this.callback = callback;
     this.retryWaitMs = transportConf.ioRetryWaitTimeMs();
 
-    long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
+    long timeoutMs = RssConf.fetchTimeoutMs(conf);
 
     if (location == null) {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");

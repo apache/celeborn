@@ -44,8 +44,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private val lifecycleHost = Utils.localHostName
 
-  private val RemoveShuffleDelayMs = RssConf.removeShuffleDelayMs(conf)
-  private val GetBlacklistDelayMs = RssConf.getBlacklistDelayMs(conf)
+  private val RemoveShuffleDelayMs = RssConf.shuffleExpiredCheckIntervalMs(conf)
+  private val GetBlacklistDelayMs = RssConf.workerExcludedCheckIntervalMs(conf)
   private val ShouldReplicate = RssConf.pushReplicateEnabled(conf)
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
@@ -114,7 +114,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private var getBlacklist: ScheduledFuture[_] = _
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
-  private val heartbeatIntervalMs = RssConf.applicationHeatbeatIntervalMs(conf)
+  private val heartbeatIntervalMs = RssConf.appHeartbeatIntervalMs(conf)
   private val heartbeatThread = ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
   private val responseCheckerThread =

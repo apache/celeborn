@@ -56,7 +56,7 @@ public class WorkerPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    maxInFlight = RssConf.fetchChunkMaxReqsInFlight(conf);
+    maxInFlight = RssConf.fetchMaxReqsInFlight(conf);
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
     ChunkReceivedCallback callback =

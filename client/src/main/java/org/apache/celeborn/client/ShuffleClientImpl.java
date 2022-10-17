@@ -125,7 +125,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = RssConf.registerShuffleMaxRetry(conf);
     registerShuffleRetryWait = RssConf.registerShuffleRetryWait(conf);
-    maxInFlight = RssConf.pushDataMaxReqsInFlight(conf);
+    maxInFlight = RssConf.pushMaxReqsInFlight(conf);
     pushBufferSize = RssConf.pushBufferMaxSize(conf);
 
     // init rpc env and master endpointRef
