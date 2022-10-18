@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
 
 import io.netty.buffer.ByteBuf;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,8 +154,12 @@ public abstract class RssInputStream extends InputStream {
       if (endMapIndex == Integer.MAX_VALUE) {
         return false;
       }
+      RoaringBitmap bitmap = location.getMapIdBitMap();
+      if (bitmap == null && location.getPeer() != null) {
+        bitmap = location.getPeer().getMapIdBitMap();
+      }
       for (int i = startMapIndex; i < endMapIndex; i++) {
-        if (location.getMapIdBitMap().contains(i)) {
+        if (bitmap.contains(i)) {
           return false;
         }
       }
