@@ -29,6 +29,7 @@ import scala.util.Random
 
 import com.google.common.cache.{Cache, CacheBuilder}
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.IdentityProvider
@@ -78,7 +79,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     .concurrencyLevel(rpcCacheConcurrentLevel)
     .expireAfterWrite(rpcCacheExpireTimeMs, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
-    .build().asInstanceOf[Cache[Int,ByteBuffer]]
+    .build().asInstanceOf[Cache[Int, ByteBuffer]]
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
