@@ -585,10 +585,11 @@ object RssConf extends Logging {
     buildConf("celeborn.push.buffer.max.size")
       .withAlternative("rss.push.data.buffer.size")
       .categories("client")
-      .doc("Max size of reducer partition buffer memory. The pushed data will be buffered in " +
-        "memory before sending to Celeborn worker. For performance consideration keep this buffer " +
-        "size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each " +
-        "task will consume up to `64KiB * 2000 = 125MiB` heap memory.")
+      .doc("Max size of reducer partition buffer memory for shuffle hash writer. The pushed " +
+        "data will be buffered in memory before sending to Celeborn worker. For performance " +
+        "consideration keep this buffer size higher than 32K. Example: If reducer amount is " +
+        "2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` " +
+        "heap memory.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64k")
 
@@ -612,43 +613,136 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(32)
 
+  val FETCH_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.fetch.timeout")
+      .withAlternative("rss.fetch.chunk.timeout")
+      .categories("client")
+      .doc("Timeout for a task to fetch chunk.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  val FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
+    buildConf("celeborn.fetch.maxReqsInFlight")
+      .withAlternative("rss.fetch.chunk.maxReqsInFlight")
+      .categories("client")
+      .doc("Amount of in-flight chunk fetch request.")
+      .intConf
+      .createWithDefault(3)
+
+  val CLIENT_RPC_MAX_PARALLELISM: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.maxParallelism")
+      .withAlternative("rss.rpc.max.parallelism")
+      .categories("client")
+      .doc("Max parallelism of client on sending RPC requests.")
+      .intConf
+      .createWithDefault(1024)
+
+  val APPLICATION_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.application.heartbeat.timeout")
+      .withAlternative("rss.application.timeout")
+      .categories("master")
+      .doc("Application heartbeat timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.application.heartbeat.interval")
+      .withAlternative("rss.application.heartbeatInterval")
+      .categories("client")
+      .doc("Interval for client to send heartbeat message to master.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
+
+  val SHUFFLE_EXPIRED_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.expired.interval")
+      .withAlternative("rss.remove.shuffle.delay")
+      .categories("client")
+      .doc("Interval for client to check expired shuffles.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
+
+  val WORKER_EXCLUDED_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.excluded.interval")
+      .withAlternative("rss.get.blacklist.delay")
+      .categories("client")
+      .doc("Interval for client to refresh excluded worker list.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.chuck.size")
+      .withAlternative("rss.chunk.size")
+      .categories("client", "worker")
+      .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
+        "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8m")
+
+  val SHUFFLE_REGISTER_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.register.maxRetries")
+      .withAlternative("rss.register.shuffle.max.retry")
+      .categories("client")
+      .doc("Max retry times for client to register shuffle.")
+      .intConf
+      .createWithDefault(3)
+
+  val SHUFFLE_REGISTER_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.register.retryWait")
+      .withAlternative("rss.register.shuffle.retry.wait")
+      .categories("client")
+      .doc("Wait time before next retry if register shuffle failed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
+
+  val RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.slot.reserve.maxRetries")
+      .withAlternative("rss.reserve.slots.max.retry")
+      .categories("client")
+      .doc("Max retry times for client to reserve slots.")
+      .intConf
+      .createWithDefault(3)
+
+  val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.slot.reserve.retryWait")
+      .withAlternative("rss.reserve.slots.retry.wait")
+      .categories("client")
+      .doc("Wait time before next retry if reserve slots failed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
+
   def pushReplicateEnabled(conf: RssConf): Boolean = conf.get(PUSH_REPLICATE_ENABLED)
 
   def pushBufferInitialSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_INITIAL_SIZE).toInt
 
   def pushBufferMaxSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_MAX_SIZE).toInt
 
-  def pushDataQueueCapacity(conf: RssConf): Int = conf.get(PUSH_QUEUE_CAPACITY)
+  def pushQueueCapacity(conf: RssConf): Int = conf.get(PUSH_QUEUE_CAPACITY)
 
-  def pushDataMaxReqsInFlight(conf: RssConf): Int = conf.get(PUSH_MAX_REQS_IN_FLIGHT)
+  def pushMaxReqsInFlight(conf: RssConf): Int = conf.get(PUSH_MAX_REQS_IN_FLIGHT)
 
-  def fetchChunkTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.fetch.chunk.timeout", "120s")
-  }
+  def fetchTimeoutMs(conf: RssConf): Long = conf.get(FETCH_TIMEOUT)
 
-  def fetchChunkMaxReqsInFlight(conf: RssConf): Int = {
-    conf.getInt("rss.fetch.chunk.maxReqsInFlight", 3)
-  }
+  def fetchMaxReqsInFlight(conf: RssConf): Int = conf.get(FETCH_MAX_REQS_IN_FLIGHT)
 
-  def workerTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.timeout", "120s")
-  }
+  def rpcMaxParallelism(conf: RssConf): Int = conf.get(CLIENT_RPC_MAX_PARALLELISM)
 
-  def applicationTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.application.timeout", "120s")
-  }
+  def appHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(APPLICATION_HEARTBEAT_TIMEOUT)
 
-  def applicationHeatbeatIntervalMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.application.heartbeatInterval", "10s")
-  }
+  def appHeartbeatIntervalMs(conf: RssConf): Long = conf.get(APPLICATION_HEARTBEAT_INTERVAL)
 
-  def removeShuffleDelayMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.remove.shuffle.delay", "60s")
-  }
+  def shuffleExpiredCheckIntervalMs(conf: RssConf): Long = conf.get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
 
-  def getBlacklistDelayMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.get.blacklist.delay", "30s")
-  }
+  def workerExcludedCheckIntervalMs(conf: RssConf): Long = conf.get(WORKER_EXCLUDED_INTERVAL)
+
+  def shuffleChunkSize(conf: RssConf): Long = conf.get(SHUFFLE_CHUCK_SIZE)
+
+  def registerShuffleMaxRetry(conf: RssConf): Int = conf.get(SHUFFLE_REGISTER_MAX_RETRIES)
+
+  def registerShuffleRetryWait(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
+
+  def reserveSlotsMaxRetry(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
+
+  def reserveSlotsRetryWait(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
@@ -925,6 +1019,7 @@ object RssConf extends Logging {
   }
 
   def haMasterRatisRpcType(conf: RssConf): String = conf.get(HA_MASTER_RATIS_RPC_TYPE)
+
   def haMasterRatisStorageDir(conf: RssConf): String = conf.get(HA_MASTER_RATIS_STORAGE_DIR)
 
   def haMasterRatisLogSegmentSizeMax(conf: RssConf): Long =
@@ -965,8 +1060,17 @@ object RssConf extends Logging {
 
   def haMasterRatisSnapshotAutoTriggerThreshold(conf: RssConf): Long =
     conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
+
   def haMasterRatisSnapshotRetentionFileNum(conf: RssConf): Int =
     conf.get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+
+  val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.heartbeat.timeout")
+      .withAlternative("rss.worker.timeout")
+      .categories("master", "worker")
+      .doc("Worker heartbeat timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
   val WORKER_REPLICATE_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.replicate.threads")
@@ -989,7 +1093,7 @@ object RssConf extends Logging {
       .withAlternative("rss.worker.base.dirs")
       .categories("worker")
       .doc("Directory list to store shuffle data. Storage size limit can be set for each " +
-        "directory. For the sake of performance, there should be no more than 2 directories " +
+        "flush thread. For the sake of performance, there should be no more than 2 directories " +
         "on the same disk partition if you are using HDD. There can be 4 or more directories " +
         "can run on the same disk partition if you are using SSD. For example: " +
         "dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]")
@@ -1005,35 +1109,13 @@ object RssConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
 
+  def workerHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(WORKER_HEARTBEAT_TIMEOUT)
+
   def workerReplicateThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREADS)
 
   def workerCommitThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREADS)
 
   def workerFlushBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSH_BUFFER_SIZE)
-
-  def chunkSize(conf: RssConf): Long = {
-    conf.getSizeAsBytes("rss.chunk.size", "8m")
-  }
-
-  def rpcMaxParallelism(conf: RssConf): Int = {
-    conf.getInt("rss.rpc.max.parallelism", 1024)
-  }
-
-  def registerShuffleMaxRetry(conf: RssConf): Int = {
-    conf.getInt("rss.register.shuffle.max.retry", 3)
-  }
-
-  def registerShuffleRetryWait(conf: RssConf): Long = {
-    conf.getTimeAsSeconds("rss.register.shuffle.retry.wait", "3s")
-  }
-
-  def reserveSlotsMaxRetry(conf: RssConf): Int = {
-    conf.getInt("rss.reserve.slots.max.retry", 3)
-  }
-
-  def reserveSlotsRetryWait(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.reserve.slots.retry.wait", "3s")
-  }
 
   def flushTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.flush.timeout", "120s")

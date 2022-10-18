@@ -191,7 +191,7 @@ private[celeborn] class Worker(
   val timer = new HashedWheelTimer()
 
   // Configs
-  private val HEARTBEAT_MILLIS = RssConf.workerTimeoutMs(conf) / 4
+  private val HEARTBEAT_MILLIS = RssConf.workerHeartbeatTimeoutMs(conf) / 4
   private val REPLICATE_FAST_FAIL_DURATION = RssConf.replicateFastFailDurationMs(conf)
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]

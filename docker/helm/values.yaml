@@ -53,9 +53,9 @@ celeborn:
   rss.stage.end.timeout: 120s
   celeborn.worker.metrics.prometheus.port: 9096
   rss.rpc.io.clientThreads: 64
-  rss.application.timeout: 120s
+  celeborn.application.heartbeat.timeout: 120s
   rss.rpc.dispatcher.numThreads: 4
-  rss.worker.timeout: 120s
+  celeborn.worker.heartbeat.timeout: 120s
   celeborn.ha.master.ratis.raft.server.storage.dir: /mnt/rss_ratis/
 
 environments:
