@@ -1649,4 +1649,17 @@ object RssConf extends Logging {
   def columnarShuffleMaxDictFactor(conf: RssConf): Double = {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
+
+  def rpcCacheSize(conf: RssConf): Int = {
+    conf.getInt("rss.rpc.cache.size", 256)
+  }
+
+  def rpcCacheConcurrentLevel(conf: RssConf): Int = {
+    conf.getInt("rss.rpc.cache.concurrent.level", 128)
+  }
+
+  def rpcCacheExpireTimeMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.rpc.cache.expire", "15s")
+  }
+
 }
