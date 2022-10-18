@@ -41,5 +41,5 @@ jobs:
       - name: Upload Result
         uses: actions/upload-artifact@v3
         with:
-          name: benchmark result
+          name: regression result
           path: /home/hadoop/celeborn-toolkit/result/

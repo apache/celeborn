@@ -22,6 +22,10 @@ REG_HOME="$(
   pwd
 )"
 REG_HOSTS=("core-1-1" "core-1-2" "core-1-3" "core-1-4" "core-1-5" "core-1-6" "core-1-7" "core-1-8")
+if [[ -n ${REG_CUSTOM_REG_HOSTS} ]];then
+  echo "using custom hosts"
+  REG_HOSTS=${REG_CUSTOM_REG_HOSTS}
+fi
 REG_CONF_DIR=${REG_HOME}/conf
 REG_TOOLS=${REG_HOME}/tools
 REG_SCRIPTS=${REG_HOME}/scripts
@@ -46,6 +50,8 @@ SPARK3_HOME=/opt/apps/SPARK3/spark3-current
 loglevel=1
 
 CELEBORN_DIST=""
+REG_CURRENT_RUNNING_DATE=$(date +%Y%m%d%H%M%S)
+ESS_RESULT=/home/hadoop/ess
 
 function log() {
   local msg
@@ -97,6 +103,10 @@ function runTerasort() {
   updateCeleborn
   start=$(($(date +%s%N) / 1000000))
 
+  if [ "$1" == "regression" ]; then
+    killOneWorkerRandomly
+  fi
+
   cp ${HIBEN_CONF_DIR}/spark.conf.rss ${HIBEN_CONF_DIR}/spark.conf
   ${HIBEN_DIR}/bin/workloads/micro/terasort/spark/run.sh
 
@@ -125,8 +135,11 @@ function runSkewJoin() {
   updateCeleborn
   start=$(($(date +%s%N) / 1000000))
 
-  spark-sql --properties-file ${REG_CONF_DIR}/spark.conf -e "select max(fa),max(length(f1)),max(length(f2)),max(length(f3)),max(length(f4)),max(fb),max(length(f6)),max(length(f7)),max(length(f8)),max(length(f9)) from table1 a inner join table2 b on a.fa=b.fb;"
+  if [ "$1" == "regression" ]; then
+    killOneWorkerRandomly
+  fi
 
+  spark-sql --properties-file ${REG_CONF_DIR}/spark-skewjoin.conf -e "select max(fa),max(length(f1)),max(length(f2)),max(length(f3)),max(length(f4)),max(fb),max(length(f6)),max(length(f7)),max(length(f8)),max(length(f9)) from table1 a inner join table2 b on a.fa=b.fb;"
 
   end=$(($(date +%s%N) / 1000000))
   duration=$(((end - start) / 1000))
@@ -147,10 +160,8 @@ function switchToCelebornAndDuplicate() {
   cp ${REG_CONF_DIR}/spark-rss-dup.conf ${REG_CONF_DIR}/spark.conf
 }
 
-function runTPCDSSuite() {
-  DATE=$(date +%Y%m%d%H%M%S)
-  echo -e "Run TPC-DS Suite at ${DATE}"
-  mkdir -p ${REG_RESULT}/${DATE}/
+function runTPCDSOnESS() {
+  echo -e "Run TPC-DS Suite at ${REG_CURRENT_RUNNING_DATE}"
   echo -e "Run TPC-DS suite on ESS"
   switchToESS
   if [ -z ${CELEBORN_SKIP_TPCDS} ]; then
@@ -160,31 +171,33 @@ function runTPCDSSuite() {
       exit -1
     fi
   fi
-
-  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
+  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}/ess
   echo -e "finish TPC-DS on ESS \n"
+}
 
-  getCelebornDist
+function runTPCDSOnCelebornWithoutReplication() {
   echo -e "Run TPC-DS suite on celeborn"
   switchToCeleborn
   updateCeleborn
-  if [ -z ${CELEBORN_SKIP_TPCDS} ]; then
-  singleTPCDS
+  if [[ -z ${CELEBORN_SKIP_TPCDS} ]]; then
+    singleTPCDS
     if [[ $? -ne 0 ]]; then
       echo -e "Run TPC-DS suite on ESS failed"
       exit -1
     fi
   fi
 
-  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/celeborn
-  checkTPCDSResult ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
+  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}/celeborn
+  checkTPCDSResult ${HIVEBENCH_QUERY_DIR} ${ESS_RESULT}
   echo -e "finish TPC-DS on celeborn \n"
+}
 
+function runTPCDSOnCelebornWithReplication() {
   echo -e "Run TPC-DS suite on celeborn Duplicate"
   switchToCelebornAndDuplicate
   updateCeleborn
 
-  if [ -z ${CELEBORN_SKIP_TPCDS} ]; then
+  if [[ -z ${CELEBORN_SKIP_TPCDS} ]]; then
     if [[ $1 == "regression" ]]; then
       singleTPCDS $1
     else
@@ -196,11 +209,34 @@ function runTPCDSSuite() {
     fi
   fi
 
-  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/celeborn-dup
-  checkTPCDSResult ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${DATE}/ess
+  cp -r ${HIVEBENCH_QUERY_DIR} ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}/celeborn-dup
+  checkTPCDSResult ${HIVEBENCH_QUERY_DIR} ${ESS_RESULT}
   echo -e "finish TPC-DS on celeborn \n"
+}
+
+function runTPCDSSuite() {
+  mkdir -p ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}/
+  if [[ -n ${CELEBORN_RUN_ESS} ]]; then
+    runTPCDSOnESS
+  fi
+
+  getCelebornDist
+  # only run TPC-DS on Celeborn with one replication in benchmark scenario
+  if [[ $1 != "regression" ]]; then
+    runTPCDSOnCelebornWithoutReplication
+  fi
+
+  runTPCDSOnCelebornWithReplication $1
 
   ${SPARK3_HOME}/sbin/stop-thriftserver.sh
+}
+
+function killOneWorkerRandomly() {
+  WORKER_INDEX=$(shuf -i1-8 -n1)
+  SLEEP_TIME=$(shuf -i500-800 -n1)
+  # if regression ,kill a worker in a random time between 500s and 800s
+  echo -e "Will kill worker core-1-${WORKER_INDEX} in ${SLEEP_TIME} seconds"
+  ssh core-1-${WORKER_INDEX} "sleep ${SLEEP_TIME}s && jps | grep Worker | awk '{print \$1}' | xargs kill -9 " &
 }
 
 function singleTPCDS() {
@@ -217,11 +253,8 @@ function singleTPCDS() {
   # waiting for the spark thrift server get ready
   sleep 50
 
-  WORKER_INDEX=$(shuf -i1-8 -n1)
-  SLEEP_TIME=$(shuf -i500-800 -n1)
-  # if regression ,kill a worker in a random time between 500s and 800s
   if [ "$1" == "regression" ]; then
-    ssh core-1-${WORKER_INDEX} "sleep ${SLEEP_TIME}s && jps | grep Worker | awk '{print \$1}' | xargs kill -9 " &
+    killOneWorkerRandomly
   fi
 
   for i in $(ls ${HIVEBENCH_QUERY_DIR}/q*.sql); do
@@ -260,6 +293,7 @@ function checkTPCDSResult() {
       echo " Failed ========="
       exit -1
     fi
+    echo " success "
 
   done
 }
@@ -368,7 +402,7 @@ function cleanSparkEventDir() {
   rm -rf /tmp/spark-events/*
 }
 
-echo -e "start at $(date)"
+echo -e "start at ${REG_CURRENT_RUNNING_DATE}"
 cleanSparkEventDir
 rm -rf ${REG_RESULT}
 case $1 in
@@ -378,8 +412,8 @@ case $1 in
 
 "regression")
   runTPCDSSuite regression
-  runTerasort
-  runSkewJoin
+  runTerasort regression
+  runSkewJoin regression
   ;;
 
 "benchmark")
@@ -389,5 +423,8 @@ case $1 in
   runManySplits
   ;;
 esac
+
+zip ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}.zip -r ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}
+rm -rf ${REG_RESULT}/${REG_CURRENT_RUNNING_DATE}
 
 echo -e "done at $(date)"
