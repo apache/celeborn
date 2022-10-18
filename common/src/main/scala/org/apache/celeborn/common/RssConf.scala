@@ -1095,7 +1095,7 @@ object RssConf extends Logging {
       .doc("Directory list to store shuffle data. It's recommended to configure one directory " +
         "on each disk. Storage size limit can be set for each directory. For the sake of " +
         "performance, there should be no more than 2 flush threads " +
-        "on the same disk partition if you are using HDD. There can be 8 or more flush threads " +
+        "on the same disk partition if you are using HDD, and should be 8 or more flush threads " +
         "on the same disk partition if you are using SSD. For example: " +
         "dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]")
       .stringConf
