@@ -27,9 +27,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-import com.google.common.cache.CacheBuilder
+import com.google.common.cache.{Cache, CacheBuilder}
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.IdentityProvider
@@ -75,11 +74,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
-  private val rpcCache = CacheBuilder.newBuilder()
+  private val rpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrentLevel)
     .expireAfterWrite(rpcCacheExpireTimeMs, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
-    .build[Int, ByteBuffer]()
+    .build().asInstanceOf[Cache[Int,ByteBuffer]]
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
