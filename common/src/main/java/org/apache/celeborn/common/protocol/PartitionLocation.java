@@ -277,11 +277,11 @@ public class PartitionLocation implements Serializable {
       peerAddr = peer.hostAndPorts();
     }
     return "PartitionLocation["
-        + "id-epoch:"
+        + "\n  id-epoch:"
         + id
         + "-"
         + epoch
-        + ", host-rpcPort-pushPort-fetchPort-replicatePort:"
+        + "\n  host-rpcPort-pushPort-fetchPort-replicatePort:"
         + host
         + "-"
         + rpcPort
@@ -291,14 +291,13 @@ public class PartitionLocation implements Serializable {
         + fetchPort
         + "-"
         + replicatePort
-        + ", mode:"
+        + "\n  mode:"
         + mode
-        + ", peer:("
+        + "\n  peer:("
         + peerAddr
-        + ")"
-        + ", storage hint:"
+        + ")\n  storage hint:"
         + storageInfo
-        + ", mapIdBitMap:"
+        + "\n  mapIdBitMap:"
         + mapIdBitMap
         + "]";
   }

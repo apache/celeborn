@@ -198,17 +198,29 @@ public class PartitionLocationSuiteJ {
             bitmap);
 
     String exp1 =
-        "PartitionLocation[id-epoch:0-0, host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4, " +
-                "mode:MASTER, peer:(empty), storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', " +
-                "finalResult=false, filePath=null}, mapIdBitMap:{}]";
+        "PartitionLocation[\n"
+            + "  id-epoch:0-0\n"
+            + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
+            + "  mode:MASTER\n"
+            + "  peer:(empty)\n"
+            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}\n"
+            + "  mapIdBitMap:{}]";
     String exp2 =
-        "PartitionLocation[id-epoch:0-0, host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4, " +
-                "mode:MASTER, peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4), storage hint:" +
-                "StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}, mapIdBitMap:{}]";
+        "PartitionLocation[\n"
+            + "  id-epoch:0-0\n"
+            + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
+            + "  mode:MASTER\n"
+            + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
+            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}\n"
+            + "  mapIdBitMap:{}]";
     String exp3 =
-        "PartitionLocation[id-epoch:0-0, host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4, " +
-                "mode:MASTER, peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4), storage hint:" +
-                "StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}, mapIdBitMap:{1,2,3}]";
+        "PartitionLocation[\n"
+            + "  id-epoch:0-0\n"
+            + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
+            + "  mode:MASTER\n"
+            + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
+            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}\n"
+            + "  mapIdBitMap:{1,2,3}]";
     System.out.println(location1);
     System.out.println(location2);
     System.out.println(location3);
