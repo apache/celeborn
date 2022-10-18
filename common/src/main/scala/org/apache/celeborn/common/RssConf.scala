@@ -1092,10 +1092,11 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.storage.dirs")
       .withAlternative("rss.worker.base.dirs")
       .categories("worker")
-      .doc("Directory list to store shuffle data. Storage size limit can be set for each " +
-        "flush thread. For the sake of performance, there should be no more than 2 directories " +
-        "on the same disk partition if you are using HDD. There can be 4 or more directories " +
-        "can run on the same disk partition if you are using SSD. For example: " +
+      .doc("Directory list to store shuffle data. It's recommended to configure one directory " +
+        "on each disk. Storage size limit can be set for each directory. For the sake of " +
+        "performance, there should be no more than 2 flush threads " +
+        "on the same disk partition if you are using HDD, and should be 8 or more flush threads " +
+        "on the same disk partition if you are using SSD. For example: " +
         "dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]")
       .stringConf
       .toSequence
