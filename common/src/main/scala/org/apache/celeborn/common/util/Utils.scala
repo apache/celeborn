@@ -818,9 +818,9 @@ object Utils extends Logging {
       val workerInfo =
         new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
       val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
-        .getMasterPartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
+        .getMasterPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
       val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
-        .getSlavePartitionsList.asScala.map(PartitionLocation.fromPbPartitionLocation).asJava)
+        .getSlavePartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
       slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
     })
     slots
@@ -830,8 +830,8 @@ object Utils extends Logging {
       : util.Map[String, PbWorkerResource] = {
     workerResource.asScala.map(item => {
       val uniqueId = item._1.toUniqueId()
-      val masterPartitions = item._2._1.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
-      val slavePartitions = item._2._2.asScala.map(PartitionLocation.toPbPartitionLocation).asJava
+      val masterPartitions = item._2._1.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+      val slavePartitions = item._2._2.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val pbWorkerResource = PbWorkerResource.newBuilder()
         .addAllMasterPartitions(masterPartitions)
         .addAllSlavePartitions(slavePartitions).build()

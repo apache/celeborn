@@ -22,7 +22,6 @@ import java.io.Serializable;
 import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.util.Utils;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -58,8 +57,8 @@ public class PartitionLocation implements Serializable {
   private int replicatePort;
   private Mode mode;
   private PartitionLocation peer;
-  private StorageInfo storageInfo = new StorageInfo();
-  private RoaringBitmap mapIdBitMap = null;
+  private StorageInfo storageInfo;
+  private RoaringBitmap mapIdBitMap;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -72,6 +71,7 @@ public class PartitionLocation implements Serializable {
     this.mode = loc.mode;
     this.peer = loc.peer;
     this.storageInfo = loc.storageInfo;
+    this.mapIdBitMap = loc.mapIdBitMap;
   }
 
   public PartitionLocation(
@@ -187,7 +187,16 @@ public class PartitionLocation implements Serializable {
   }
 
   public String hostAndPorts() {
-    return host + ":" + rpcPort + ":" + pushPort + ":" + fetchPort;
+    return "host-rpcPort-pushPort-fetchPort-replicatePort:"
+        + host
+        + "-"
+        + rpcPort
+        + "-"
+        + pushPort
+        + "-"
+        + fetchPort
+        + "-"
+        + replicatePort;
   }
 
   public String hostAndPushPort() {
@@ -263,30 +272,34 @@ public class PartitionLocation implements Serializable {
 
   @Override
   public String toString() {
-    String peerAddr = "";
+    String peerAddr = "empty";
     if (peer != null) {
       peerAddr = peer.hostAndPorts();
     }
     return "PartitionLocation["
+        + "id-epoch:"
         + id
         + "-"
         + epoch
-        + " "
+        + ", host-rpcPort-pushPort-fetchPort-replicatePort:"
         + host
-        + ":"
+        + "-"
         + rpcPort
-        + ":"
+        + "-"
         + pushPort
-        + ":"
+        + "-"
         + fetchPort
-        + ":"
+        + "-"
         + replicatePort
-        + " Mode: "
+        + ", mode:"
         + mode
-        + " peer: "
+        + ", peer:("
         + peerAddr
-        + " storage hint:"
+        + ")"
+        + ", storage hint:"
         + storageInfo
+        + ", mapIdBitMap:"
+        + mapIdBitMap
         + "]";
   }
 
@@ -300,88 +313,5 @@ public class PartitionLocation implements Serializable {
 
   public void setMapIdBitMap(RoaringBitmap mapIdBitMap) {
     this.mapIdBitMap = mapIdBitMap;
-  }
-
-  public static PartitionLocation fromPbPartitionLocation(PbPartitionLocation pbLoc) {
-    Mode mode = Mode.MASTER;
-    if (pbLoc.getMode() == PbPartitionLocation.Mode.Slave) {
-      mode = Mode.SLAVE;
-    }
-
-    PartitionLocation partitionLocation =
-        new PartitionLocation(
-            pbLoc.getId(),
-            pbLoc.getEpoch(),
-            pbLoc.getHost(),
-            pbLoc.getRpcPort(),
-            pbLoc.getPushPort(),
-            pbLoc.getFetchPort(),
-            pbLoc.getReplicatePort(),
-            mode,
-            null,
-            StorageInfo.fromPb(pbLoc.getStorageInfo()),
-            Utils.byteStringToRoaringBitmap(pbLoc.getMapIdBitmap()));
-    if (pbLoc.hasPeer()) {
-      PbPartitionLocation peerPb = pbLoc.getPeer();
-      Mode peerMode = Mode.MASTER;
-      if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
-        peerMode = Mode.SLAVE;
-      }
-      PartitionLocation peerLocation =
-          new PartitionLocation(
-              peerPb.getId(),
-              peerPb.getEpoch(),
-              peerPb.getHost(),
-              peerPb.getRpcPort(),
-              peerPb.getPushPort(),
-              peerPb.getFetchPort(),
-              peerPb.getReplicatePort(),
-              peerMode,
-              partitionLocation,
-              StorageInfo.fromPb(peerPb.getStorageInfo()),
-              Utils.byteStringToRoaringBitmap(peerPb.getMapIdBitmap()));
-      partitionLocation.setPeer(peerLocation);
-    }
-
-    return partitionLocation;
-  }
-
-  public static PbPartitionLocation toPbPartitionLocation(PartitionLocation location) {
-    PbPartitionLocation.Builder builder = PbPartitionLocation.newBuilder();
-    if (location.mode == Mode.MASTER) {
-      builder.setMode(PbPartitionLocation.Mode.Master);
-    } else {
-      builder.setMode(PbPartitionLocation.Mode.Slave);
-    }
-    builder.setHost(location.getHost());
-    builder.setEpoch(location.getEpoch());
-    builder.setId(location.getId());
-    builder.setRpcPort(location.getRpcPort());
-    builder.setPushPort(location.getPushPort());
-    builder.setFetchPort(location.getFetchPort());
-    builder.setReplicatePort(location.getReplicatePort());
-    builder.setStorageInfo(StorageInfo.toPb(location.storageInfo));
-    builder.setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap()));
-
-    if (location.getPeer() != null) {
-      PbPartitionLocation.Builder peerBuilder = PbPartitionLocation.newBuilder();
-      if (location.getPeer().mode == Mode.MASTER) {
-        peerBuilder.setMode(PbPartitionLocation.Mode.Master);
-      } else {
-        peerBuilder.setMode(PbPartitionLocation.Mode.Slave);
-      }
-      peerBuilder.setHost(location.getPeer().getHost());
-      peerBuilder.setEpoch(location.getPeer().getEpoch());
-      peerBuilder.setId(location.getPeer().getId());
-      peerBuilder.setRpcPort(location.getPeer().getRpcPort());
-      peerBuilder.setPushPort(location.getPeer().getPushPort());
-      peerBuilder.setFetchPort(location.getPeer().getFetchPort());
-      peerBuilder.setReplicatePort(location.getPeer().getReplicatePort());
-      peerBuilder.setStorageInfo(StorageInfo.toPb(location.getPeer().getStorageInfo()));
-      peerBuilder.setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap()));
-      builder.setPeer(peerBuilder.build());
-    }
-
-    return builder.build();
   }
 }

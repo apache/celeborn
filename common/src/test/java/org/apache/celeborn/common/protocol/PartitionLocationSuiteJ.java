@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.protocol;
 
 import org.junit.Test;
+import org.roaringbitmap.RoaringBitmap;
 
 public class PartitionLocationSuiteJ {
 
@@ -167,6 +168,54 @@ public class PartitionLocationSuiteJ {
         new PartitionLocation(
             partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
+  }
+
+  @Test
+  public void testToStringOutput() {
+    PartitionLocation location1 =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+    PartitionLocation location2 =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+    StorageInfo storageInfo = new StorageInfo(StorageInfo.Type.MEMORY, "/mnt/disk/0");
+    RoaringBitmap bitmap = new RoaringBitmap();
+    bitmap.add(1);
+    bitmap.add(2);
+    bitmap.add(3);
+    PartitionLocation location3 =
+        new PartitionLocation(
+            partitionId,
+            epoch,
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            mode,
+            peer,
+            storageInfo,
+            bitmap);
+
+    String exp1 =
+        "PartitionLocation[id-epoch:0-0, host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4, " +
+                "mode:MASTER, peer:(empty), storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', " +
+                "finalResult=false, filePath=null}, mapIdBitMap:{}]";
+    String exp2 =
+        "PartitionLocation[id-epoch:0-0, host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4, " +
+                "mode:MASTER, peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4), storage hint:" +
+                "StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}, mapIdBitMap:{}]";
+    String exp3 =
+        "PartitionLocation[id-epoch:0-0, host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4, " +
+                "mode:MASTER, peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4), storage hint:" +
+                "StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}, mapIdBitMap:{1,2,3}]";
+    System.out.println(location1);
+    System.out.println(location2);
+    System.out.println(location3);
+
+    assert exp1.equals(location1.toString());
+    assert exp2.equals(location2.toString());
+    assert exp3.equals(location3.toString());
   }
 
   private void checkEqual(

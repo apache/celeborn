@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
 
@@ -307,7 +307,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       val attemptId = pb.getAttemptId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition = PartitionLocation.fromPbPartitionLocation(pb.getOldPartition)
+      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
         s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
@@ -328,7 +328,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       val shuffleId = pb.getShuffleId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition = PartitionLocation.fromPbPartitionLocation(pb.getOldPartition)
+      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
       handleChangePartitionLocation(
