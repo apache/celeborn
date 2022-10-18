@@ -270,7 +270,7 @@ class WorkerInfo(
   }
 
   override def hashCode(): Int = {
-    Objects.hashCode(host, rpcPort, pushPort, fetchPort)
+    Objects.hashCode(host, rpcPort, pushPort, fetchPort, replicatePort)
   }
 }
 
