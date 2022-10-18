@@ -953,7 +953,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
           slavePartition.setStorageInfo(committedSlaveStorageInfos.get(id))
-          slavePartition.setMapIdBitMap(committedMapIdBitmap.get(id))
           val masterPartition = committedPartitions.get(id)
           if (masterPartition ne null) {
             masterPartition.setPeer(slavePartition)
@@ -961,6 +960,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           } else {
             logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
               s"use slave $slavePartition.")
+            slavePartition.setMapIdBitMap(committedMapIdBitmap.get(id))
             committedPartitions.put(id, slavePartition)
           }
         }
