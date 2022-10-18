@@ -140,6 +140,7 @@ class TypedConfigBuilder[T](
       stringConverter,
       parent._doc,
       parent._public,
+      parent._categories,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -163,6 +164,7 @@ class TypedConfigBuilder[T](
           stringConverter,
           parent._doc,
           parent._public,
+          parent._categories,
           parent._version)
         parent._onCreate.foreach(_(entry))
         entry
@@ -181,6 +183,7 @@ class TypedConfigBuilder[T](
       stringConverter,
       parent._doc,
       parent._public,
+      parent._categories,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -201,6 +204,7 @@ class TypedConfigBuilder[T](
       stringConverter,
       parent._doc,
       parent._public,
+      parent._categories,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -308,6 +312,7 @@ case class ConfigBuilder(key: String) {
       _alternatives,
       _doc,
       _public,
+      _categories,
       _version,
       fallback)
     _onCreate.foreach(_(entry))
