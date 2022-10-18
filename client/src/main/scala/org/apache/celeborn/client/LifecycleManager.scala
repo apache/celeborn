@@ -587,7 +587,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         s"$partitionId-$oldEpoch exists, register context.")
     } else {
       val latestLoc = getLatestPartition(shuffleId, partitionId, oldEpoch)
-      if (latestLoc != null) {
+      if (latestLoc.isDefined) {
         context.reply(ChangeLocationResponse(StatusCode.SUCCESS, latestLoc))
         logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
           s" shuffleId: $shuffleId $latestLoc")
