@@ -86,7 +86,7 @@ class ConfigurationSuite extends AnyFunSuite {
       .foreach { entry =>
         val seq = Seq(
           s"${entry.key}",
-          s"${entry.defaultValueString}",
+          s"`${entry.defaultValueString}`",
           s"${entry.doc}",
           s"${entry.version}")
         output += seq.mkString("| ", " | ", " | ")
