@@ -30,5 +30,5 @@ license: |
 | celeborn.worker.metrics.prometheus.host | 0.0.0.0 |  |  | 
 | celeborn.worker.metrics.prometheus.port | 9096 |  |  | 
 | celeborn.worker.replicate.threads | 64 | Thread number of worker to replicate shuffle data. |  | 
-| celeborn.worker.storage.dirs | <undefined> | Directory list to store shuffle data. Storage size limit can be set for each flush thread. For the sake of performance, there should be no more than 2 directories on the same disk partition if you are using HDD. There can be 4 or more directories can run on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |  | 
+| celeborn.worker.storage.dirs | <undefined> | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |  | 
 <!--end-include-->
