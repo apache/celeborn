@@ -30,7 +30,6 @@ import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf.{deviceMonitorCheckList, diskCheckIntervalMs}
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.common.util.Utils._
@@ -62,7 +61,7 @@ class LocalDeviceMonitor(
     }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-    val sysBlockDir = RssConf.sysBlockDir(rssConf)
+    val sysBlockDir = rssConf.sysBlockDir
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -181,10 +180,10 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = diskCheckIntervalMs(rssConf)
+  val diskCheckInterval = rssConf.diskCheckIntervalMs
 
   // we should choose what the device needs to detect
-  val monitorCheckList = deviceMonitorCheckList(rssConf)
+  val monitorCheckList = rssConf.deviceMonitorCheckList
   val checkIoHang = monitorCheckList.contains("iohang")
   val checkReadWrite = monitorCheckList.contains("readwrite")
   val checkDiskUsage = monitorCheckList.contains("diskusage")
@@ -293,7 +292,7 @@ object DeviceMonitor {
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo]): DeviceMonitor = {
     try {
-      if (RssConf.deviceMonitorEnabled(rssConf)) {
+      if (rssConf.deviceMonitorEnabled) {
         val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, deviceInfos, diskInfos)
         monitor.init()
         logger.info("Device monitor init success")
@@ -321,7 +320,7 @@ object DeviceMonitor {
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskMinimumReserveSize(rssConf) / 1024 / 1024 / 1024
+      val status = freeSpace.toLong < rssConf.diskMinimumReserveSize / 1024 / 1024 / 1024
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")

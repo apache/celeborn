@@ -62,8 +62,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     pushClientFactory = worker.pushClientFactory
     registered = worker.registered
     workerInfo = worker.workerInfo
-    diskMinimumReserveSize = RssConf.diskMinimumReserveSize(worker.conf)
-    partitionSplitMinimumSize = RssConf.partitionSplitMinimumSize(worker.conf)
+    diskMinimumReserveSize = worker.conf.diskMinimumReserveSize
+    partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
 
     logInfo(s"diskMinimumReserveSize $diskMinimumReserveSize")
   }

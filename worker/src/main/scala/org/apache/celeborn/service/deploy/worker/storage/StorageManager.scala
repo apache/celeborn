@@ -53,7 +53,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
-      RssConf.workerBaseDirs(conf).map { case (workdir, maxSpace, flusherThread, storageType) =>
+      conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>
         (new File(workdir, RssConf.workingDirName(conf)), maxSpace, flusherThread, storageType)
       }
 
@@ -103,8 +103,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           diskInfo.threadCount,
           diskInfo.mountPoint,
-          RssConf.flushAvgTimeWindow(conf),
-          RssConf.flushAvgTimeMinimumCount(conf),
+          conf.flushAvgTimeWindow,
+          conf.flushAvgTimeMinimumCount,
           diskInfo.storageType)
         flushers.put(diskInfo.mountPoint, flusher)
       }
@@ -117,7 +117,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   deviceMonitor.startCheck()
 
-  val hdfsDir = RssConf.hdfsDir(conf)
+  val hdfsDir = conf.hdfsDir
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher =
@@ -128,9 +128,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
       Some(new HdfsFlusher(
         workerSource,
-        RssConf.hdfsFlusherThreadCount(conf),
-        RssConf.flushAvgTimeWindow(conf),
-        RssConf.flushAvgTimeMinimumCount(conf)))
+        conf.hdfsFlusherThreadCount,
+        conf.flushAvgTimeWindow,
+        conf.flushAvgTimeMinimumCount))
     } else {
       None
     }
@@ -260,7 +260,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
+    while (retryCount < conf.createFileWriterRetryCount) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
@@ -522,7 +522,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         diskOperators.size()) { entry =>
         ThreadUtils.shutdown(
           entry._2,
-          RssConf.workerDiskFlusherShutdownTimeoutMs(conf).milliseconds)
+          conf.workerDiskFlusherShutdownTimeoutMs.milliseconds)
       }
     }
     storageScheduler.shutdownNow()

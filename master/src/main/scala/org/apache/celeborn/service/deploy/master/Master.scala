@@ -102,7 +102,7 @@ private[celeborn] class Master(
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
-  private def minimumUsableSize = RssConf.diskMinimumReserveSize(conf)
+  private def minimumUsableSize = conf.diskMinimumReserveSize()
 
   private def diskGroups = RssConf.diskGroups(conf)
 

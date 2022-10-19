@@ -398,7 +398,7 @@ private[deploy] class Controller(
 
     if (future != null) {
       val result = new AtomicReference[CompletableFuture[Unit]]()
-      val commitFilesTimeout = RssConf.commitFilesTimeout(conf)
+      val commitFilesTimeout = conf.commitFilesTimeout()
 
       val timeout = timer.newTimeout(
         new TimerTask {
