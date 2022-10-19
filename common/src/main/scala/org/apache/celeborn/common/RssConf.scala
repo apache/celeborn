@@ -441,7 +441,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     get(HDFS_DIR).map {
       hdfsDir =>
         if (!Utils.isHdfsPath(hdfsDir)) {
-          log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
+          log.error(s"${HDFS_DIR.key} configuration is wrong $hdfsDir. Disable HDFS support.")
           ""
         } else {
           hdfsDir
@@ -773,8 +773,8 @@ object RssConf extends Logging {
       .createWithDefault(3)
 
   val SHUFFLE_REGISTER_RETRY_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.register.retry.timeout")
-      .withAlternative("rss.register.shuffle.retry.timeout")
+    buildConf("celeborn.shuffle.register.retryWait")
+      .withAlternative("rss.register.shuffle.retry.wait")
       .categories("client")
       .doc("Wait time before next retry if register shuffle failed.")
       .timeConf(TimeUnit.MILLISECONDS)
@@ -1281,7 +1281,6 @@ object RssConf extends Logging {
       .doc("The minimum flush count to enter a sliding window" +
         " to calculate statistics about flushed time and count.")
       .version("0.2.0")
-      .internal
       .intConf
       .createWithDefault(20)
 
@@ -1526,7 +1525,7 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.storage.base.dir.prefix")
       .withAlternative("rss.worker.base.dir.prefix")
       .categories("worker")
-      .doc("Base directory for Celeborn worker to write if \"base.dir\" is not set.")
+      .doc("Base directory for Celeborn worker to write if \'base.dir\' is not set.")
       .stringConf
       .createWithDefault("/mnt/disk")
 
@@ -1534,8 +1533,8 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.storage.base.dir.number")
       .withAlternative("rss.worker.base.dir.number")
       .categories("worker")
-      .doc("How many directories will be create if \"base.dir\" is not set." +
-        "The directory name is a combination of \"dir.prefix\" " +
+      .doc("How many directories will be create if \'base.dir\' is not set. " +
+        "The directory name is a combination of \'dir.prefix\' " +
         "and from zero to \"dir.number\" step by one")
       .intConf
       .createWithDefault(16)
