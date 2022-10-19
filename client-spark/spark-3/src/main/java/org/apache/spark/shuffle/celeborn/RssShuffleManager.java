@@ -54,7 +54,7 @@ public class RssShuffleManager implements ShuffleManager {
     this.conf = conf;
     this.rssConf = SparkUtils.fromSparkConf(conf);
     this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
-    this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(conf);
+    this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(rssConf);
   }
 
   private boolean isDriver() {

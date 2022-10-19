@@ -15,19 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn
+package org.apache.celeborn.common.quota
 
-import org.apache.spark.ShuffleDependency
-import org.apache.spark.shuffle.BaseShuffleHandle
+import org.apache.celeborn.common.util.Utils
 
-import org.apache.celeborn.common.identity.UserIdentifier
+case class ResourceConsumption(
+    diskBytesWritten: Long,
+    diskFileCount: Long,
+    hdfsBytesWritten: Long,
+    hdfsFileCount: Long) {
 
-class RssShuffleHandle[K, V, C](
-    val newAppId: String,
-    val rssMetaServiceHost: String,
-    val rssMetaServicePort: Int,
-    val userIdentifier: UserIdentifier,
-    shuffleId: Int,
-    val numMappers: Int,
-    dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, dependency)
+  def add(other: ResourceConsumption): ResourceConsumption = {
+    ResourceConsumption(
+      diskBytesWritten + other.diskBytesWritten,
+      diskFileCount + other.diskFileCount,
+      hdfsBytesWritten + other.hdfsBytesWritten,
+      hdfsFileCount + other.hdfsFileCount)
+  }
+
+  override def toString: String = {
+    s"ResourceConsumption(diskBytesWritten: ${Utils.bytesToString(diskBytesWritten)}," +
+      s" diskFileCount: ${diskFileCount}," +
+      s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
+      s" hdfsFileCount: ${hdfsFileCount})"
+  }
+}

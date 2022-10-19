@@ -41,6 +41,7 @@ import org.apache.celeborn.client.write.DataBatches;
 import org.apache.celeborn.client.write.PushState;
 import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;

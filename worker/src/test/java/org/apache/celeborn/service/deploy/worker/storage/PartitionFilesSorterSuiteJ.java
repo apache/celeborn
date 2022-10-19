@@ -36,9 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.MemoryTracker;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -159,8 +159,8 @@ public class PartitionFilesSorterSuiteJ {
     }
     File recoverPath = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "recover_path");
     RssConf conf = new RssConf();
-    conf.set("rss.worker.graceful.shutdown", "true");
-    conf.set("rss.worker.recoverPath", recoverPath.getPath());
+    conf.set("celeborn.worker.graceful.shutdown.enabled", "true");
+    conf.set("celeborn.worker.graceful.shutdown.recoverPath", recoverPath.getPath());
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     partitionFilesSorter.initSortedShuffleFiles("application-1-1");

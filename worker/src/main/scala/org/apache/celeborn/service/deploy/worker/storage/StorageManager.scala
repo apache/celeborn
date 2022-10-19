@@ -36,12 +36,13 @@ import org.iq80.leveldb.DB
 
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.MemoryTracker.MemoryTrackerListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
+import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
@@ -170,9 +171,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  if (RssConf.workerGracefulShutdown(conf)) {
+  if (conf.workerGracefulShutdown) {
     try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
+      val recoverFile = new File(conf.workerRecoverPath, RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
     } catch {
@@ -181,7 +182,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         this.db = null
     }
   }
-  cleanupExpiredAppDirs(System.currentTimeMillis(), RssConf.workerGracefulShutdown(conf))
+  cleanupExpiredAppDirs(System.currentTimeMillis(), conf.workerGracefulShutdown)
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +

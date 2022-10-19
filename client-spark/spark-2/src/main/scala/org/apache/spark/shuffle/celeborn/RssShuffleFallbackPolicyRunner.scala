@@ -17,15 +17,11 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import org.apache.spark.SparkConf
-
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.internal.Logging
 
-class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
-
-  private lazy val rssConf = SparkUtils.fromSparkConf(sparkConf)
+class RssShuffleFallbackPolicyRunner(rssConf: RssConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||

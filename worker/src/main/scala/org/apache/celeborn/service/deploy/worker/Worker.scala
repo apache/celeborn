@@ -69,7 +69,7 @@ private[celeborn] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
-  private val gracefulShutdown = RssConf.workerGracefulShutdown(conf)
+  private val gracefulShutdown = conf.workerGracefulShutdown
   assert(
     !gracefulShutdown || (gracefulShutdown &&
       RssConf.workerRPCPort(conf) != 0 && RssConf.fetchServerPort(conf) != 0 &&
@@ -422,8 +422,8 @@ private[celeborn] class Worker(
         logInfo("Shutdown hook called.")
         shutdown.set(true)
         if (gracefulShutdown) {
-          val interval = RssConf.checkSlotsFinishedInterval(conf)
-          val timeout = RssConf.checkSlotsFinishedTimeoutMs(conf)
+          val interval = conf.checkSlotsFinishedInterval
+          val timeout = conf.checkSlotsFinishedTimeoutMs
           var waitTimes = 0
 
           def waitTime: Long = waitTimes * interval

@@ -29,6 +29,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem

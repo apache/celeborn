@@ -75,8 +75,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.DummyShuffleClient;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.util.JavaUtils;
-import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.util.Utils;
 
 public class RssShuffleWriterSuiteJ {
@@ -91,8 +91,7 @@ public class RssShuffleWriterSuiteJ {
   private final String host = "host";
   private final int port = 0;
 
-  private final ControlMessages.UserIdentifier userIdentifier =
-      new ControlMessages.UserIdentifier("mock", "mock");
+  private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int shuffleId = 0;
   private final int numMaps = 10;

@@ -155,7 +155,7 @@ public final class ShutdownHookManager {
   }
 
   static long getShutdownTimeout(RssConf conf) {
-    long duration = RssConf.shutdownTimeoutMs(conf);
+    long duration = conf.shutdownTimeoutMs();
     if (duration < TIMEOUT_MINIMUM) {
       duration = TIMEOUT_MINIMUM;
     }

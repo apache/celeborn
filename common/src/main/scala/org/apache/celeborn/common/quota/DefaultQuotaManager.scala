@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 import org.yaml.snakeyaml.Yaml
 
 import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.Utils
 
 class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
