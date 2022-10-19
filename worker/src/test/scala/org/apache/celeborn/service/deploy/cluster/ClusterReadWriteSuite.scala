@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 
 import org.apache.commons.lang3.RandomStringUtils
+import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -98,7 +99,7 @@ class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with Bef
 
       assert(LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4 === readBytes.length)
       val targetArr = Array.concat(DATA1, DATA2, DATA3, DATA4)
-      assert(targetArr === readBytes)
+      Assert.assertArrayEquals(targetArr, readBytes)
 
       Thread.sleep(5000L)
       shuffleClient.shutDown()
