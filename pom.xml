@@ -99,7 +99,7 @@
     <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>3.4.0</maven.plugin.shade.version>
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
-    <maven.plugin.surefire.version>2.22.0</maven.plugin.surefire.version>
+    <maven.plugin.surefire.version>3.0.0-M7</maven.plugin.surefire.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>
