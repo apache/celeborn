@@ -362,6 +362,14 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
         throw new IllegalArgumentException(s"Illegal value for config key $key: ${e.getMessage}", e)
     }
   }
+
+  def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
+  def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
+  def checkSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
+  def checkSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
+  def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
+  def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_CLOSE_AWAIT_TIME)
+  def workerDiskFlusherShutdownTimeoutMs: Long = get(WORKER_DISK_FLUSHER_SHUTDOWN_TIMEOUT)
 }
 
 object RssConf extends Logging {
@@ -1566,33 +1574,64 @@ object RssConf extends Logging {
     }
   }
 
-  def checkSlotsFinishedInterval(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.checkSlots.interval", "1s")
-  }
+  val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.gracefulShutdown.enabled")
+      .withAlternative("rss.worker.graceful.shutdown")
+      .categories("worker")
+      .doc("When true, during worker shutdown, the worker will wait for all released slots " +
+        "to be committed or destroyed in time of `rss.worker.checkSlots.timeout` " +
+        "and wait sorting partition files in time of `rss.worker.partitionSorterCloseAwaitTime`.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def checkSlotsFinishedTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.checkSlots.timeout", "480s")
-  }
+  val WORKER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.gracefulShutdownTimeout")
+      .withAlternative("rss.worker.shutdown.timeout")
+      .categories("worker")
+      .doc("The worker's graceful shutdown time.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
 
-  def workerGracefulShutdown(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.worker.graceful.shutdown", false)
-  }
+  val WORKER_CHECK_SLOTS_FINISHED_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.checkSlotsFinishedInterval")
+      .withAlternative("rss.worker.checkSlots.interval")
+      .categories("worker")
+      .doc("The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
-  def shutdownTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.shutdown.timeout", "600s")
-  }
+  val WORKER_CHECK_SLOTS_FINISHED_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.checkSlotsFinishedTimeout")
+      .withAlternative("rss.worker.checkSlots.timeout")
+      .categories("worker")
+      .doc("The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("480s")
 
-  def workerRecoverPath(conf: RssConf): String = {
-    conf.get("rss.worker.recoverPath", s"${System.getProperty("java.io.tmpdir")}/recover")
-  }
+  val WORKER_RECOVER_PATH: ConfigEntry[String] =
+    buildConf("celeborn.worker.recoverPath")
+      .withAlternative("rss.worker.recoverPath")
+      .categories("worker")
+      .doc("The path to store levelDB.")
+      .stringConf
+      .transform(_.replace("/tmp", System.getProperty("java.io.tmpdir")))
+      .createWithDefault(s"/tmp/recover")
 
-  def partitionSorterCloseAwaitTimeMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
-  }
+  val PARTITION_SORTER_CLOSE_AWAIT_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.worker.partitionSorterCloseAwaitTime")
+      .withAlternative("rss.worker.partitionSorterCloseAwaitTime")
+      .categories("worker")
+      .doc("The wait time of waiting for sorting partition files during worker graceful shutdown.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
-  def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.diskFlusherShutdownTimeoutMs", "3000ms")
-  }
+  val WORKER_DISK_FLUSHER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.diskFlusherShutdownTimeout")
+      .withAlternative("rss.worker.diskFlusherShutdownTimeoutMs")
+      .categories("worker")
+      .doc("The timeout to wait for diskOperators to execute remaining jobs before being shutdown immediately.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")

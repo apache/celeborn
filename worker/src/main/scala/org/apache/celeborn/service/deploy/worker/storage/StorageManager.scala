@@ -170,9 +170,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  if (RssConf.workerGracefulShutdown(conf)) {
+  if (conf.workerGracefulShutdown) {
     try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
+      val recoverFile = new File(conf.workerRecoverPath, RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
     } catch {
@@ -181,7 +181,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         this.db = null
     }
   }
-  cleanupExpiredAppDirs(System.currentTimeMillis(), RssConf.workerGracefulShutdown(conf))
+  cleanupExpiredAppDirs(System.currentTimeMillis(), conf.workerGracefulShutdown)
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
@@ -522,7 +522,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         diskOperators.size()) { entry =>
         ThreadUtils.shutdown(
           entry._2,
-          RssConf.workerDiskFlusherShutdownTimeoutMs(conf).milliseconds)
+          conf.workerDiskFlusherShutdownTimeoutMs.milliseconds)
       }
     }
     storageScheduler.shutdownNow()
