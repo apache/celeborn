@@ -30,7 +30,8 @@ import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
 import org.apache.celeborn.RssFunSuite
 import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
+import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEndpointRef, RpcEnv, RpcTimeout}
 import org.apache.celeborn.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
 import org.apache.celeborn.common.util.ThreadUtils

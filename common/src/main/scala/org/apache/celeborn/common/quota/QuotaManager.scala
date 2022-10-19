@@ -19,8 +19,8 @@ package org.apache.celeborn.common.quota
 import java.util.concurrent.ConcurrentHashMap
 
 import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
 
 abstract class QuotaManager(conf: RssConf) extends Logging {
 

@@ -41,6 +41,7 @@ import org.junit.Test;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec;
 import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;

@@ -28,6 +28,7 @@ import scala.util.Random
 import org.apache.celeborn.common.RssConf
 import org.apache.celeborn.common.RssConf.haEnabled
 import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem

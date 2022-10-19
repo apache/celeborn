@@ -17,31 +17,30 @@
 
 package org.apache.celeborn.common.identity
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.exception.RssException
 import org.apache.celeborn.common.internal.Logging
 
-abstract class IdentityProvider {
-  def provide(): UserIdentifier
+case class UserIdentifier(tenantId: String, name: String) {
+  assert(
+    tenantId != null && tenantId.nonEmpty,
+    "UserIdentifier's tenantId should not be null or empty.")
+  assert(name != null && name.nonEmpty, "UserIdentifier's name should not be null or empty.")
+
+  override def toString: String = {
+    s"`$tenantId`.`$name`"
+  }
 }
 
-object IdentityProvider extends Logging {
-  val DEFAULT_TENANT_ID = "default"
+object UserIdentifier extends Logging {
+  val USER_IDENTIFIER = "^\\`(.+)\\`\\.\\`(.+)\\`$".r
 
-  def instantiate(conf: RssConf): IdentityProvider = {
-    val className = RssConf.identityProviderClass(conf)
-    logDebug(s"Creating identity provider $className")
-    val clazz = Class.forName(
-      className,
-      true,
-      Thread.currentThread().getContextClassLoader).asInstanceOf[Class[IdentityProvider]]
-    try {
-      val ctor = clazz.getDeclaredConstructor()
-      logDebug("Using (String, String, Boolean) constructor")
-      ctor.newInstance()
-    } catch {
-      case e: NoSuchMethodException =>
-        logError(s"Falling to instantiate identity provider $className", e)
-        throw e
+  def apply(userIdentifier: String): UserIdentifier = {
+    if (USER_IDENTIFIER.findPrefixOf(userIdentifier).isDefined) {
+      val USER_IDENTIFIER(tenantId, name) = userIdentifier
+      UserIdentifier(tenantId, name)
+    } else {
+      logError(s"Failed to parse user identifier: $userIdentifier")
+      throw new RssException(s"Failed to parse user identifier: ${userIdentifier}")
     }
   }
 }

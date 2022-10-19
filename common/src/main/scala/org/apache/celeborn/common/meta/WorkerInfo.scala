@@ -23,12 +23,11 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.PbWorkerInfo
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
+import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
-import org.apache.celeborn.common.util.PbSerDeUtils
 
 class WorkerInfo(
     val host: String,

@@ -20,7 +20,7 @@ package org.apache.celeborn.common.quota
 import org.junit.Assert.assertEquals
 
 import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
+import org.apache.celeborn.common.identity.UserIdentifier
 
 class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
 

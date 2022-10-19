@@ -17,8 +17,9 @@
 
 package org.apache.celeborn.common.quota
 
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ResourceConsumption, UserIdentifier}
+import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption
 import org.apache.celeborn.common.util.Utils
 
 case class Quota(

@@ -20,7 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.shuffle.BaseShuffleHandle
 
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
+import org.apache.celeborn.common.identity.UserIdentifier
 
 class RssShuffleHandle[K, V, C](
     val newAppId: String,

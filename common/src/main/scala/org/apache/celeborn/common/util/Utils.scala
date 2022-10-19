@@ -48,7 +48,7 @@ import org.apache.celeborn.common.network.util.{ConfigProvider, JavaUtils, Trans
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.PbWorkerResource
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{UserIdentifier, WorkerResource}
+import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
 object Utils extends Logging {
 
