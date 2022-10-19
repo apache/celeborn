@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 
 import org.roaringbitmap.RoaringBitmap
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
@@ -392,31 +392,6 @@ object ControlMessages extends Logging {
   case object ThreadDump extends Message
 
   case class ThreadDumpResponse(threadDump: String) extends Message
-
-  case class UserIdentifier(tenantId: String, name: String) extends Message {
-    assert(
-      tenantId != null && tenantId.nonEmpty,
-      "UserIdentifier's tenantId should not be null or empty.")
-    assert(name != null && name.nonEmpty, "UserIdentifier's name should not be null or empty.")
-
-    override def toString: String = {
-      s"`$tenantId`.`$name`"
-    }
-  }
-
-  object UserIdentifier {
-    val USER_IDENTIFIER = "^\\`(.+)\\`\\.\\`(.+)\\`$".r
-
-    def apply(userIdentifier: String): UserIdentifier = {
-      if (USER_IDENTIFIER.findPrefixOf(userIdentifier).isDefined) {
-        val USER_IDENTIFIER(tenantId, name) = userIdentifier
-        UserIdentifier(tenantId, name)
-      } else {
-        logError(s"Failed to parse user identifier: $userIdentifier")
-        throw new RssException(s"Failed to parse user identifier: ${userIdentifier}")
-      }
-    }
-  }
 
   case class ResourceConsumption(
       diskBytesWritten: Long,
