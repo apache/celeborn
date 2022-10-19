@@ -46,8 +46,8 @@ license: |
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 
 | celeborn.worker.replicate.threads | `64` | Thread number of worker to replicate shuffle data. |  | 
 | celeborn.worker.shuffle.commit.timeout | `120s` | Timeout for a Celeborn worker to commit a shuffle. | 0.2.0 | 
-| celeborn.worker.storage.base.dir.number | `16` | How many directories will be create if 'base.dir' is not set. The directory name is a combination of 'dir.prefix' and from zero to "dir.number" step by one |  | 
-| celeborn.worker.storage.base.dir.prefix | `/mnt/disk` | Base directory for Celeborn worker to write if "base.dir" is not set. |  | 
+| celeborn.worker.storage.base.dir.number | `16` | How many directories will be create if 'base.dir' is not set. The directory name is a combination of 'dir.prefix' and from zero to "dir.number" step by one. No sub directory will be created. |  | 
+| celeborn.worker.storage.base.dir.prefix | `/mnt/disk` | Base directory for Celeborn worker to write if 'base.dir' is not set. |  | 
 | celeborn.worker.storage.dirs | `<undefined>` | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |  | 
 | celeborn.worker.writer.close.timeout | `120s` | Timeout for a file writer to close | 0.2.0 | 
 | celeborn.worker.writer.create.maxAttempts | `3` | Retry count for a file writer to create if its creation was failed. |  | 

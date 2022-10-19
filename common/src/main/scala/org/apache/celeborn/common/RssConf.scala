@@ -1535,7 +1535,8 @@ object RssConf extends Logging {
       .categories("worker")
       .doc("How many directories will be create if \'base.dir\' is not set. " +
         "The directory name is a combination of \'dir.prefix\' " +
-        "and from zero to \"dir.number\" step by one")
+        "and from zero to \"dir.number\" step by one. " +
+        "No sub directory will be created.")
       .intConf
       .createWithDefault(16)
 
