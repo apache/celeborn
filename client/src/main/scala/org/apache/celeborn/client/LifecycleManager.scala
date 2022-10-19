@@ -634,25 +634,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
           }
           // Here one partition id can be remove more than once,
           // so need to filter null result before reply.
-          location -> requestsMap.remove(location.getId).asScala.toList
+          location -> Option(requestsMap.remove(location.getId))
         }
-      }.filter(_._2 != null).foreach { case (newLocation, requests) =>
-        requests.foreach(_.context.reply(ChangeLocationResponse(
-          StatusCode.SUCCESS,
-          Option(newLocation))))
+      }.foreach { case (newLocation, requests) =>
+        val response = ChangeLocationResponse(StatusCode.SUCCESS, Option(newLocation))
+        requests.map(_.asScala.toList.foreach(_.context.reply(response)))
       }
     }
 
     // remove together to reduce lock time
     def replyFailure(response: PbChangeLocationResponse): Unit = {
       requestsMap.synchronized {
-        changePartitions.flatMap { changePartition =>
+        changePartitions.map { changePartition =>
           if (handleChangePartitionInBatch) {
             inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
           }
-          requestsMap.remove(changePartition.partitionId).asScala.toList
+          Option(requestsMap.remove(changePartition.partitionId))
         }
-      }.foreach(_.context.reply(response))
+      }.foreach { requests =>
+        requests.map(_.asScala.toList.foreach(_.context.reply(response)))
+      }
     }
 
     val candidates = workersNotBlacklisted(shuffleId)
