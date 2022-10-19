@@ -68,7 +68,7 @@ public final class FileWriter implements DeviceObserver {
   private final long chunkSize;
   private final long timeoutMs;
 
-  private final long flushBufferSize;
+  private final long flusherBufferSize;
 
   private final DeviceMonitor deviceMonitor;
   private final AbstractSource source; // metrics
@@ -111,7 +111,7 @@ public final class FileWriter implements DeviceObserver {
     this.nextBoundary = this.chunkSize;
     this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
     this.splitThreshold = splitThreshold;
-    this.flushBufferSize = RssConf.workerFlushBufferSize(rssConf);
+    this.flusherBufferSize = RssConf.workerFlusherBufferSize(rssConf);
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
@@ -212,7 +212,7 @@ public final class FileWriter implements DeviceObserver {
         mapIdBitMap.add(mapId);
       }
       if (flushBuffer.readableBytes() != 0
-          && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
+          && flushBuffer.readableBytes() + numBytes >= this.flusherBufferSize) {
         flush(false);
         takeBuffer();
       }

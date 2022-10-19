@@ -1102,8 +1102,8 @@ object RssConf extends Logging {
       .toSequence
       .createOptional
 
-  val WORKER_FLUSH_BUFFER_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.worker.flush.buffer.size")
+  val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.buffer.size")
       .withAlternative("rss.worker.flush.buffer.size")
       .categories("worker")
       .doc("Size of buffer used by a single flusher.")
@@ -1116,15 +1116,27 @@ object RssConf extends Logging {
 
   def workerCommitThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREADS)
 
-  def workerFlushBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSH_BUFFER_SIZE)
+  def workerFlusherBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSHER_BUFFER_SIZE)
 
-  def flushTimeout(conf: RssConf): Long = {
-    conf.getTimeAsSeconds("rss.flush.timeout", "120s")
-  }
+  val WORKER_COMMIT_FILES_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.commit.files.timeout")
+      .withAlternative("rss.flush.timeout")
+      .categories("worker")
+      .doc("Timeout for commit file to complete.")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("120s")
 
-  def fileWriterTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.filewriter.timeout", "120s")
-  }
+  val WORKER_FILEWRITE_CLOSE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.filewriter.close.timeout")
+      .withAlternative("rss.filewriter.timeout")
+      .categories("worker")
+      .doc("Timeout for a file writer to close")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  def commitFilesTimeout(conf: RssConf): Long = conf.get(WORKER_COMMIT_FILES_TIMEOUT)
+
+  def fileWriterTimeoutMs(conf: RssConf): Long = conf.get(WORKER_FILEWRITE_CLOSE_TIMEOUT)
 
   def appExpireDurationMs(conf: RssConf): Long = {
     conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
@@ -1180,17 +1192,45 @@ object RssConf extends Logging {
     }
   }
 
-  def HDDFlusherThread(conf: RssConf): Int = {
-    conf.getInt("rss.flusher.hdd.thread.count", 1)
-  }
+  val WORKER_FLUSHER_HDD_THREAD_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.hdd.thread.count")
+      .withAlternative("rss.flusher.hdd.thread.count")
+      .categories("worker")
+      .doc("Flusher's thread count used for write data to HDD disks.")
+      .intConf
+      .createWithDefault(1)
 
-  def SSDFlusherThread(conf: RssConf): Int = {
-    conf.getInt("rss.flusher.ssd.thread.count", 8)
-  }
+  val WORKER_FLUSHER_SSD_THREAD_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.ssd.thread.count")
+      .withAlternative("rss.flusher.hdd.thread.count")
+      .categories("worker")
+      .doc("Flusher's thread count used for write data to SSD disks.")
+      .intConf
+      .createWithDefault(8)
 
-  def diskMinimumReserveSize(conf: RssConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.disk.minimum.reserve.size", "5G"))
-  }
+  val WORKER_FLUSHER_HDFS_THREAD_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.hdfs.thread.count")
+      .withAlternative("rss.worker.hdfs.flusher.thread.count")
+      .categories("worker")
+      .doc("Flusher's thread count used for write data to HDFS.")
+      .intConf
+      .createWithDefault(4)
+
+  val WORKER_DISK_RESERVATION: ConfigEntry[Long] =
+    buildConf("celeborn.worker.disk.reservation")
+      .withAlternative("rss.disk.minimum.reserve.size")
+      .categories("worker")
+      .doc("Celeborn worker reserved space for each disk.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("5G")
+
+  def HDDFlusherThread(conf: RssConf): Int = conf.get(WORKER_FLUSHER_HDD_THREAD_COUNT)
+
+  def SSDFlusherThread(conf: RssConf): Int = conf.get(WORKER_FLUSHER_SSD_THREAD_COUNT)
+
+  def hdfsFlusherThreadCount(conf: RssConf): Int = conf.get(WORKER_FLUSHER_HDFS_THREAD_COUNT)
+
+  def diskMinimumReserveSize(conf: RssConf): Long = conf.get(WORKER_DISK_RESERVATION)
 
   /**
    * @return This configuration is a guidance for load-aware slot allocation algorithm. This value
@@ -1412,25 +1452,38 @@ object RssConf extends Logging {
       .toSequence
       .createWithDefaultString("readwrite,diskusage")
 
+  val WORKER_DISK_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.diskmonitor.check.interval")
+      .withAlternative("rss.disk.check.interval")
+      .categories("worker")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
+
   def deviceMonitorEnabled(conf: RssConf): Boolean = conf.get(WORKER_DEVICE_MONITOR_ENABLED)
 
   def deviceMonitorCheckList(conf: RssConf): Seq[String] = conf.get(WORKER_DEVICE_MONITOR_CHECKLIST)
 
-  def diskCheckIntervalMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.disk.check.interval", "60s")
-  }
+  def diskCheckIntervalMs(conf: RssConf): Long = conf.get(WORKER_DISK_CHECK_INTERVAL)
 
-  def slowFlushIntervalMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.slow.flush.interval", "10s")
-  }
+  val WORKER_DISKMONITOR_SYS_BLOCKDIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.diskmonitor.sys.block.dir")
+      .withAlternative("rss.sys.block.dir")
+      .categories("worker")
+      .doc("The directory where linux file block information is stored.")
+      .stringConf
+      .createWithDefault("/sys/block")
 
-  def sysBlockDir(conf: RssConf): String = {
-    conf.get("rss.sys.block.dir", "/sys/block")
-  }
+  val WORKER_FILEWRITER_CREATION_RETRY: ConfigEntry[Int] =
+    buildConf("celeborn.worker.filewriter.creation.retry")
+      .withAlternative("rss.create.file.writer.retry.count")
+      .categories("worker")
+      .doc("Retry count for a file writer to create if its creation was failed.")
+      .intConf
+      .createWithDefault(3)
 
-  def createFileWriterRetryCount(conf: RssConf): Int = {
-    conf.getInt("rss.create.file.writer.retry.count", 3)
-  }
+  def sysBlockDir(conf: RssConf): String = conf.get(WORKER_DISKMONITOR_SYS_BLOCKDIR)
+
+  def createFileWriterRetryCount(conf: RssConf): Int = conf.get(WORKER_FILEWRITER_CREATION_RETRY)
 
   def workerStatusCheckTimeout(conf: RssConf): Long = {
     conf.getTimeAsSeconds("rss.worker.status.check.timeout", "30s")
@@ -1590,8 +1643,16 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
+  val WORKER_LUSHER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.graceful.shutdown.timeout")
+      .withAlternative("rss.worker.diskFlusherShutdownTimeoutMs")
+      .categories("worker")
+      .doc("Timeout for a flusher to shutdown gracefully.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
+
   def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long = {
-    conf.getTimeAsMs("rss.worker.diskFlusherShutdownTimeoutMs", "3000ms")
+    conf.get(WORKER_LUSHER_GRACEFUL_SHUTDOWN_TIMEOUT)
   }
 
   def offerSlotsAlgorithm(conf: RssConf): String = {
@@ -1604,26 +1665,48 @@ object RssConf extends Logging {
     algorithm
   }
 
+  val WORKER_FLUSHER_AVG_WINDOW_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.avg.window.count")
+      .withAlternative("rss.flusher.avg.time.window")
+      .categories("worker")
+      .doc("The count of windows used for calculate statistics about flushed time and count.")
+      .intConf
+      .createWithDefault(20)
+
   def flushAvgTimeWindow(conf: RssConf): Int = {
-    conf.getInt("rss.flusher.avg.time.window", 20);
+    conf.get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
   }
+
+  val WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.window.minimum.flush.count")
+      .withAlternative("rss.flusher.avg.time.minimum.count")
+      .categories("worker")
+      .doc("Minimum flush data count for a valid window.")
+      .intConf
+      .createWithDefault(1000)
 
   def flushAvgTimeMinimumCount(conf: RssConf): Int = {
-    conf.getInt("rss.flusher.avg.time.minimum.count", 1000);
+    conf.get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
   }
+
+  val HDFS_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.hdfs.dir")
+      .withAlternative("rss.worker.hdfs.dir")
+      .categories("worker", "client")
+      .doc("Hdfs dir configuration for Celeborn to access HDFS.")
+      .stringConf
+      .createOptional
 
   def hdfsDir(conf: RssConf): String = {
-    val hdfsDir = conf.get("rss.worker.hdfs.dir", "")
-    if (hdfsDir.nonEmpty && !Utils.isHdfsPath(hdfsDir)) {
-      log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
-      ""
-    } else {
-      hdfsDir
-    }
-  }
-
-  def hdfsFlusherThreadCount(conf: RssConf): Int = {
-    conf.getInt("rss.worker.hdfs.flusher.thread.count", 4)
+    conf.get(HDFS_DIR).map {
+      hdfsDir =>
+        if (!Utils.isHdfsPath(hdfsDir)) {
+          log.error(s"rss.worker.hdfs.dir configuration is wrong $hdfsDir. Disable hdfs support.")
+          ""
+        } else {
+          hdfsDir
+        }
+    }.getOrElse("")
   }
 
   def rangeReadFilterEnabled(conf: RssConf): Boolean = {

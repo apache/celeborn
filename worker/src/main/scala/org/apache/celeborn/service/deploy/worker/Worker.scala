@@ -455,7 +455,7 @@ private[deploy] object Worker extends Logging {
     // address of the Master should be used in the end.
     workerArgs.master.foreach { master =>
       conf.set(
-        "celeborn.master.endpoints",
+        MASTER_ENDPOINTS.key,
         RpcAddress.fromRssURL(master).toString.replace("rss://", ""))
     }
 
