@@ -24,6 +24,7 @@ case class ResourceConsumption(
     diskFileCount: Long,
     hdfsBytesWritten: Long,
     hdfsFileCount: Long) {
+  
   def add(other: ResourceConsumption): ResourceConsumption = {
     ResourceConsumption(
       diskBytesWritten + other.diskBytesWritten,
