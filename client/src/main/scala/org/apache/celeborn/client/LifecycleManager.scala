@@ -1210,8 +1210,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       candidates: List[WorkerInfo],
       slots: WorkerResource): Boolean = {
     var requestSlots = slots
-    val maxRetryTimes = RssConf.reserveSlotsMaxRetry(conf)
-    val retryWaitInterval = RssConf.reserveSlotsRetryWait(conf)
+    val maxRetryTimes = RssConf.reserveSlotsMaxTimeout(conf)
+    val retryWaitInterval = RssConf.reserveSlotsRetryTimeout(conf)
     var retryTimes = 1
     var noAvailableSlots = false
     var success = false
