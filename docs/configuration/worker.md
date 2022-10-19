@@ -26,6 +26,13 @@ license: |
 | celeborn.worker.deviceMonitor.checklist | `readwrite,diskusage` | Select what the device needs to detect, available items are: iohang, readwrite and diskusage. |  | 
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
 | celeborn.worker.flush.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
+| celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | `480s` | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.flusher.shutdownTimeout | `3s` | The timeout to wait for diskOperators to execute remaining jobs before being shutdown immediately. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | `120s` | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.recoverPath | `<tmp>/recover` | The path to store levelDB. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.timeout | `600s` | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 

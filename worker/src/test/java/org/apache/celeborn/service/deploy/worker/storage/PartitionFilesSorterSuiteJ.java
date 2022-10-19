@@ -159,8 +159,8 @@ public class PartitionFilesSorterSuiteJ {
     }
     File recoverPath = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "recover_path");
     RssConf conf = new RssConf();
-    conf.set("rss.worker.graceful.shutdown", "true");
-    conf.set("rss.worker.recoverPath", recoverPath.getPath());
+    conf.set("celeborn.worker.graceful.shutdown.enabled", "true");
+    conf.set("celeborn.worker.graceful.shutdown.recoverPath", recoverPath.getPath());
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     partitionFilesSorter.initSortedShuffleFiles("application-1-1");
