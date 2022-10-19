@@ -54,7 +54,7 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.MetricsSystem;
 import org.apache.celeborn.common.metrics.source.RPCSource;
@@ -84,7 +84,7 @@ public class FileWriterSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
 
-  private static final RssConf RSS_CONF = new RssConf();
+  private static final CelebornConf RSS_CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;

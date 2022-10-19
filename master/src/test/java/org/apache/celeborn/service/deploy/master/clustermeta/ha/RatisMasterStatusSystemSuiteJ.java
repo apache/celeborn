@@ -31,7 +31,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -54,7 +54,7 @@ public class RatisMasterStatusSystemSuiteJ {
 
   private static RpcEndpointRef dummyRef =
       new NettyRpcEndpointRef(
-          new RssConf(), RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
+          new CelebornConf(), RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
 
   protected static RpcEnv mockRpcEnv = Mockito.mock(RpcEnv.class);
   protected static RpcEndpointRef mockRpcEndpoint = Mockito.mock(RpcEndpointRef.class);
@@ -65,27 +65,27 @@ public class RatisMasterStatusSystemSuiteJ {
         .thenReturn(mockRpcEndpoint);
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
 
-    STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new RssConf());
-    STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new RssConf());
-    STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new RssConf());
+    STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+    STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+    STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
 
     MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
     MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
     MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3);
 
-    RssConf conf1 = new RssConf();
+    CelebornConf conf1 = new CelebornConf();
     File tmpDir1 = File.createTempFile("rss-ratis1", "for-test-only");
     tmpDir1.delete();
     tmpDir1.mkdirs();
     conf1.set("celeborn.ha.master.ratis.raft.server.storage.dir", tmpDir1.getAbsolutePath());
 
-    RssConf conf2 = new RssConf();
+    CelebornConf conf2 = new CelebornConf();
     File tmpDir2 = File.createTempFile("rss-ratis2", "for-test-only");
     tmpDir2.delete();
     tmpDir2.mkdirs();
     conf2.set("celeborn.ha.master.ratis.raft.server.storage.dir", tmpDir2.getAbsolutePath());
 
-    RssConf conf3 = new RssConf();
+    CelebornConf conf3 = new CelebornConf();
     File tmpDir3 = File.createTempFile("rss-ratis3", "for-test-only");
     tmpDir3.delete();
     tmpDir3.mkdirs();

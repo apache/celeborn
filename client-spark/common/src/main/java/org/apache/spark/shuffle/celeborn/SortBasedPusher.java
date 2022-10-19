@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
 
 public class SortBasedPusher extends MemoryConsumer {
@@ -60,7 +60,7 @@ public class SortBasedPusher extends MemoryConsumer {
   long taskAttemptId;
   int numMappers;
   int numPartitions;
-  RssConf conf;
+  CelebornConf conf;
   Consumer<Integer> afterPush;
   LongAdder[] mapStatusLengths;
 
@@ -74,7 +74,7 @@ public class SortBasedPusher extends MemoryConsumer {
       long taskAttemptId,
       int numMappers,
       int numPartitions,
-      RssConf conf,
+      CelebornConf conf,
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws IOException {
@@ -110,8 +110,8 @@ public class SortBasedPusher extends MemoryConsumer {
             afterPush,
             mapStatusLengths);
 
-    pushBufferSize = RssConf.pushBufferMaxSize(conf);
-    PushThreshold = RssConf.sortPushThreshold(conf);
+    pushBufferSize = CelebornConf.pushBufferMaxSize(conf);
+    PushThreshold = CelebornConf.sortPushThreshold(conf);
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
   }

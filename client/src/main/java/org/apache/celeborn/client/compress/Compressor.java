@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.client.compress;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 public interface Compressor {
 
@@ -36,14 +36,14 @@ public interface Compressor {
     buf[off++] = (byte) (i >>> 24);
   }
 
-  static Compressor getCompressor(RssConf conf) {
-    String codec = RssConf.compressionCodec(conf);
-    int blockSize = RssConf.pushBufferMaxSize(conf);
+  static Compressor getCompressor(CelebornConf conf) {
+    String codec = CelebornConf.compressionCodec(conf);
+    int blockSize = CelebornConf.pushBufferMaxSize(conf);
     switch (codec) {
       case "lz4":
         return new RssLz4Compressor(blockSize);
       case "zstd":
-        int zstdLevel = RssConf.zstdCompressLevel(conf);
+        int zstdLevel = CelebornConf.zstdCompressLevel(conf);
         return new RssZstdCompressor(blockSize, zstdLevel);
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);

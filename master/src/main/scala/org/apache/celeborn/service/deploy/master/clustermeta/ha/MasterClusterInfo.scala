@@ -26,8 +26,8 @@ import scala.util.{Failure, Success, Try}
 
 import org.apache.ratis.util.NetUtils
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf._
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 
 case class MasterClusterInfo(
@@ -37,16 +37,16 @@ case class MasterClusterInfo(
 object MasterClusterInfo extends Logging {
 
   @throws[IllegalArgumentException]
-  def loadHAConfig(conf: RssConf): MasterClusterInfo = {
+  def loadHAConfig(conf: CelebornConf): MasterClusterInfo = {
     val localNodeIdOpt = haMasterNodeId(conf)
     val clusterNodeIds = haMasterNodeIds(conf)
 
     val masterNodes = clusterNodeIds.map { nodeId =>
-      val ratisHost = RssConf.haMasterRatisHost(conf, nodeId)
-      val ratisPort = RssConf.haMasterRatisPort(conf, nodeId)
+      val ratisHost = CelebornConf.haMasterRatisHost(conf, nodeId)
+      val ratisPort = CelebornConf.haMasterRatisPort(conf, nodeId)
       val ratisAddr = createSocketAddr(ratisHost, ratisPort)
-      val rpcHost = RssConf.haMasterNodeHost(conf, nodeId)
-      val rpcPort = RssConf.haMasterNodePort(conf, nodeId)
+      val rpcHost = CelebornConf.haMasterNodeHost(conf, nodeId)
+      val rpcPort = CelebornConf.haMasterNodePort(conf, nodeId)
       val rpcAddr = createSocketAddr(rpcHost, rpcPort)
       MasterNode(nodeId, ratisAddr, rpcAddr)
     }

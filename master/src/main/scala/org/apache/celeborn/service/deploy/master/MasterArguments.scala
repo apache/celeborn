@@ -19,12 +19,12 @@ package org.apache.celeborn.service.deploy.master
 
 import scala.annotation.tailrec
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf._
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.util.{IntParam, Utils}
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.MasterClusterInfo
 
-class MasterArguments(args: Array[String], conf: RssConf) {
+class MasterArguments(args: Array[String], conf: CelebornConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None

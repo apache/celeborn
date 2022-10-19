@@ -32,7 +32,7 @@ import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
@@ -97,7 +97,7 @@ public final class FileWriter implements DeviceObserver {
       FileInfo fileInfo,
       Flusher flusher,
       AbstractSource workerSource,
-      RssConf conf,
+      CelebornConf conf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
@@ -107,11 +107,11 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.chunkSize = RssConf.shuffleChunkSize(conf);
+    this.chunkSize = CelebornConf.shuffleChunkSize(conf);
     this.nextBoundary = this.chunkSize;
     this.timeoutMs = conf.fileWriterTimeoutMs();
     this.splitThreshold = splitThreshold;
-    this.flusherBufferSize = RssConf.workerFlusherBufferSize(conf);
+    this.flusherBufferSize = CelebornConf.workerFlusherBufferSize(conf);
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;

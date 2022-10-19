@@ -19,7 +19,7 @@ package org.apache.celeborn.common.internal.config
 
 import java.util.{Map => JMap}
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 
 /**
  * A source of configuration values.
@@ -55,7 +55,7 @@ class RssConfigProvider(conf: JMap[String, String]) extends ConfigProvider {
 
   override def get(key: String): Option[String] = {
     if (key.startsWith("celeborn.") || key.startsWith("rss.")) {
-      Option(conf.get(key)).orElse(RssConf.getDeprecatedConfig(key, conf))
+      Option(conf.get(key)).orElse(CelebornConf.getDeprecatedConfig(key, conf))
     } else {
       None
     }

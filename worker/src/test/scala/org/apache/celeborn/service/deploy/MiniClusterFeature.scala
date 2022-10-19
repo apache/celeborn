@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.RpcEnv
 import org.apache.celeborn.common.util.Utils
@@ -45,7 +45,7 @@ trait MiniClusterFeature extends Logging {
   }
 
   protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv) = {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set("celeborn.metrics.enabled", "false")
     val prometheusPort = masterPrometheusPort.getAndIncrement()
     conf.set("celeborn.master.metrics.prometheus.port", s"$prometheusPort")
@@ -64,7 +64,7 @@ trait MiniClusterFeature extends Logging {
 
   protected def createWorker(map: Map[String, String] = null): (Worker, RpcEnv) = {
     logInfo("start create worker for mini cluster")
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.dirs", createTmpDir())
     conf.set("celeborn.worker.deviceMonitor.enabled", "false")
     conf.set("celeborn.push.buffer.size", "256K")

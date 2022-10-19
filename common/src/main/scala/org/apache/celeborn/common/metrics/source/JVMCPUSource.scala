@@ -24,9 +24,9 @@ import scala.util.control.NonFatal
 
 import com.codahale.metrics.Gauge
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 
-class JVMCPUSource(conf: RssConf, role: String) extends AbstractSource(conf, role) {
+class JVMCPUSource(conf: CelebornConf, role: String) extends AbstractSource(conf, role) {
   override val sourceName = "CPU"
 
   import JVMCPUSource._

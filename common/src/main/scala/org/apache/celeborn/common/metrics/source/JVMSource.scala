@@ -24,9 +24,9 @@ import scala.collection.JavaConverters._
 import com.codahale.metrics.Gauge
 import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet, MemoryUsageGaugeSet}
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 
-class JVMSource(conf: RssConf, role: String) extends AbstractSource(conf, role) {
+class JVMSource(conf: CelebornConf, role: String) extends AbstractSource(conf, role) {
   override val sourceName = "JVM"
 
   // all of metrics of GCMetricSet and BufferPoolMetricSet are Gauge

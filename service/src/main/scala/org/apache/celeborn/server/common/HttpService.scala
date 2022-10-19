@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
 
@@ -53,18 +53,18 @@ abstract class HttpService extends Service with Logging {
   private def prometheusHost(): String = {
     serviceName match {
       case Service.MASTER =>
-        RssConf.masterPrometheusMetricHost(conf)
+        CelebornConf.masterPrometheusMetricHost(conf)
       case Service.WORKER =>
-        RssConf.workerPrometheusMetricHost(conf)
+        CelebornConf.workerPrometheusMetricHost(conf)
     }
   }
 
   private def prometheusPort(): Int = {
     serviceName match {
       case Service.MASTER =>
-        RssConf.masterPrometheusMetricPort(conf)
+        CelebornConf.masterPrometheusMetricPort(conf)
       case Service.WORKER =>
-        RssConf.workerPrometheusMetricPort(conf)
+        CelebornConf.workerPrometheusMetricPort(conf)
     }
   }
 

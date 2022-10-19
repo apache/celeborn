@@ -46,7 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 @Private
 public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -93,7 +93,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       String appId,
       int numMappers,
       TaskContext taskContext,
-      RssConf conf,
+      CelebornConf conf,
       ShuffleClient client)
       throws IOException {
     this.mapId = taskContext.partitionId();
@@ -118,7 +118,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.mapStatusRecords = new long[numPartitions];
     tmpRecords = new long[numPartitions];
 
-    pushBufferSize = RssConf.pushBufferMaxSize(conf);
+    pushBufferSize = CelebornConf.pushBufferMaxSize(conf);
 
     sortBasedPusher =
         new SortBasedPusher(

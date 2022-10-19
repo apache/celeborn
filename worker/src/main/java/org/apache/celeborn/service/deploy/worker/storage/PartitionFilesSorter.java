@@ -49,7 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.server.MemoryTracker;
@@ -99,19 +99,20 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           120);
   private final Thread fileSorterSchedulerThread;
 
-  public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
-    this.sortTimeout = RssConf.partitionSortTimeout(conf);
-    this.fetchChunkSize = RssConf.shuffleChunkSize(conf);
-    this.initialReserveSingleSortMemory = RssConf.initialReserveSingleSortMemory(conf);
-    this.partitionSorterShutdownAwaitTime = RssConf.partitionSorterCloseAwaitTimeMs(conf);
+  public PartitionFilesSorter(
+      MemoryTracker memoryTracker, CelebornConf conf, AbstractSource source) {
+    this.sortTimeout = CelebornConf.partitionSortTimeout(conf);
+    this.fetchChunkSize = CelebornConf.shuffleChunkSize(conf);
+    this.initialReserveSingleSortMemory = CelebornConf.initialReserveSingleSortMemory(conf);
+    this.partitionSorterShutdownAwaitTime = CelebornConf.partitionSorterCloseAwaitTimeMs(conf);
     this.source = source;
     this.memoryTracker = memoryTracker;
-    this.gracefulShutdown = RssConf.workerGracefulShutdown(conf);
+    this.gracefulShutdown = CelebornConf.workerGracefulShutdown(conf);
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (gracefulShutdown) {
       try {
-        String recoverPath = RssConf.workerRecoverPath(conf);
+        String recoverPath = CelebornConf.workerRecoverPath(conf);
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);

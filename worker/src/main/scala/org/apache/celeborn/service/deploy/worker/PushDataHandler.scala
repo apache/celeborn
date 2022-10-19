@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}

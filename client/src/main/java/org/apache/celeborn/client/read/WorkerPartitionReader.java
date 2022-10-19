@@ -27,7 +27,7 @@ import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -49,14 +49,14 @@ public class WorkerPartitionReader implements PartitionReader {
   private boolean closed = false;
 
   WorkerPartitionReader(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    maxInFlight = RssConf.fetchMaxReqsInFlight(conf);
+    maxInFlight = CelebornConf.fetchMaxReqsInFlight(conf);
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
     ChunkReceivedCallback callback =

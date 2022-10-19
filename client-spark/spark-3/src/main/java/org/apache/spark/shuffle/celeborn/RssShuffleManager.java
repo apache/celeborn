@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 public class RssShuffleManager implements ShuffleManager {
 
@@ -39,7 +39,7 @@ public class RssShuffleManager implements ShuffleManager {
       "org.apache.spark.shuffle.sort.SortShuffleManager";
 
   private final SparkConf sparkConf;
-  private final RssConf conf;
+  private final CelebornConf conf;
   private final int cores;
   private String newAppId;
 
@@ -158,15 +158,15 @@ public class RssShuffleManager implements ShuffleManager {
         ShuffleClient client =
             ShuffleClient.get(
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), conf, h.userIdentifier());
-        if ("sort".equals(RssConf.shuffleWriterMode(conf))) {
+        if ("sort".equals(CelebornConf.shuffleWriterMode(conf))) {
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMappers(), context, conf, client, metrics);
-        } else if ("hash".equals(RssConf.shuffleWriterMode(conf))) {
+        } else if ("hash".equals(CelebornConf.shuffleWriterMode(conf))) {
           return new HashBasedShuffleWriter<>(
               h, context, conf, client, metrics, SendBufferPool.get(cores));
         } else {
           throw new UnsupportedOperationException(
-              "Unrecognized shuffle write mode!" + RssConf.shuffleWriterMode(conf));
+              "Unrecognized shuffle write mode!" + CelebornConf.shuffleWriterMode(conf));
         }
       } else {
         return sortShuffleManager().getWriter(handle, mapId, context, metrics);

@@ -25,8 +25,8 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf.haEnabled
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.haEnabled
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
@@ -43,7 +43,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaMan
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 
 private[celeborn] class Master(
-    override val conf: RssConf,
+    override val conf: CelebornConf,
     val masterArgs: MasterArguments)
   extends HttpService with RpcEndpoint with Logging {
 
@@ -93,8 +93,8 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val WorkerTimeoutMs = RssConf.workerHeartbeatTimeoutMs(conf)
-  private val ApplicationTimeoutMs = RssConf.appHeartbeatTimeoutMs(conf)
+  private val WorkerTimeoutMs = CelebornConf.workerHeartbeatTimeoutMs(conf)
+  private val ApplicationTimeoutMs = CelebornConf.appHeartbeatTimeoutMs(conf)
 
   private val quotaManager = QuotaManager.instantiate(conf)
 
@@ -104,12 +104,12 @@ private[celeborn] class Master(
 
   private def minimumUsableSize = conf.diskMinimumReserveSize
 
-  private def diskGroups = RssConf.diskGroups(conf)
+  private def diskGroups = CelebornConf.diskGroups(conf)
 
-  private def diskGroupGradient = RssConf.diskGroupGradient(conf)
+  private def diskGroupGradient = CelebornConf.diskGroupGradient(conf)
 
-  private val partitionSizeUpdateInitialDelay = RssConf.partitionSizeUpdaterInitialDelay(conf)
-  private val partitionSizeUpdateInterval = RssConf.partitionSizeUpdateInterval(conf)
+  private val partitionSizeUpdateInitialDelay = CelebornConf.partitionSizeUpdaterInitialDelay(conf)
+  private val partitionSizeUpdateInterval = CelebornConf.partitionSizeUpdateInterval(conf)
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
   partitionSizeUpdateService.scheduleAtFixedRate(
@@ -122,7 +122,7 @@ private[celeborn] class Master(
     partitionSizeUpdateInitialDelay,
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val offerSlotsAlgorithm = RssConf.offerSlotsAlgorithm(conf)
+  private val offerSlotsAlgorithm = CelebornConf.offerSlotsAlgorithm(conf)
 
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
@@ -529,7 +529,7 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val extraSlotsSize = Math.min(RssConf.offerSlotsExtraSize(conf), workersNotSelected.size)
+    val extraSlotsSize = Math.min(CelebornConf.offerSlotsExtraSize(conf), workersNotSelected.size)
     if (extraSlotsSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to extraSlotsSize).foreach(_ => {
@@ -753,7 +753,7 @@ private[celeborn] class Master(
 
 private[deploy] object Master extends Logging {
   def main(args: Array[String]): Unit = {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
     master.initialize()

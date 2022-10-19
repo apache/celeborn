@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.util.Utils
 
@@ -46,7 +46,7 @@ import org.apache.celeborn.common.util.Utils
  */
 class ConfigurationSuite extends AnyFunSuite {
 
-  val confEntries: Seq[ConfigEntry[_]] = RssConf.confEntries.values.asScala.toSeq
+  val confEntries: Seq[ConfigEntry[_]] = CelebornConf.confEntries.values.asScala.toSeq
 
   val confMarkdownDir: Path = Paths
     .get(Utils.getCodeSourceLocation(getClass).split("common/target").head)

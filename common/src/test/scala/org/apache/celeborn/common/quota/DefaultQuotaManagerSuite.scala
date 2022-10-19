@@ -19,13 +19,13 @@ package org.apache.celeborn.common.quota
 
 import org.junit.Assert.assertEquals
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
 
 class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
 
   override def beforeAll(): Unit = {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set("rss.quota.configuration.path", getTestResourceFile("test-quota.yaml").getPath)
     quotaManager = QuotaManager.instantiate(conf)
   }

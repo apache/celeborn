@@ -25,7 +25,7 @@ import scala.util.Random
 
 import com.codahale.metrics._
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.{ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
@@ -38,17 +38,17 @@ case class NamedHistogram(name: String, histogram: Histogram)
 
 case class NamedTimer(name: String, timer: Timer)
 
-abstract class AbstractSource(conf: RssConf, role: String)
+abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
   override val metricRegistry = new MetricRegistry()
 
-  val slidingWindowSize: Int = RssConf.metricsSlidingWindowSize(conf)
+  val slidingWindowSize: Int = CelebornConf.metricsSlidingWindowSize(conf)
 
-  val sampleRate: Double = RssConf.metricsSampleRate(conf)
+  val sampleRate: Double = CelebornConf.metricsSampleRate(conf)
 
-  val samplePerfCritical: Boolean = RssConf.metricsSamplePerfCritical(conf)
+  val samplePerfCritical: Boolean = CelebornConf.metricsSamplePerfCritical(conf)
 
-  final val InnerMetricsSize = RssConf.innerMetricsSize(conf)
+  final val InnerMetricsSize = CelebornConf.innerMetricsSize(conf)
 
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 

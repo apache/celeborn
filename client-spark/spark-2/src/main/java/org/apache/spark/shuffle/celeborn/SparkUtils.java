@@ -34,7 +34,7 @@ import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
 
 public class SparkUtils {
@@ -97,14 +97,14 @@ public class SparkUtils {
   }
 
   /** make rss conf from spark conf */
-  public static RssConf fromSparkConf(SparkConf conf) {
-    RssConf tmpRssConf = new RssConf();
-    for (Tuple2<String, String> kv : conf.getAll()) {
+  public static CelebornConf fromSparkConf(SparkConf sparkConf) {
+    CelebornConf conf = new CelebornConf();
+    for (Tuple2<String, String> kv : sparkConf.getAll()) {
       if (kv._1.startsWith("spark.celeborn.") || kv._1.startsWith("spark.rss.")) {
-        tmpRssConf.set(kv._1.substring("spark.".length()), kv._2);
+        conf.set(kv._1.substring("spark.".length()), kv._2);
       }
     }
-    return tmpRssConf;
+    return conf;
   }
 
   public static String genNewAppId(SparkContext context) {

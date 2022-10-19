@@ -31,7 +31,7 @@ import scala.util.control.NonFatal
 
 import com.google.common.base.Throwables
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.TransportContext
@@ -45,7 +45,7 @@ import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInst
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
 
 class NettyRpcEnv(
-    val conf: RssConf,
+    val conf: CelebornConf,
     javaSerializerInstance: JavaSerializerInstance,
     host: String,
     numUsableCores: Int) extends RpcEnv(conf) with Logging {
@@ -397,7 +397,7 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
  * @param nettyEnv The RpcEnv associated with this ref.
  */
 class NettyRpcEndpointRef(
-    @transient private val conf: RssConf,
+    @transient private val conf: CelebornConf,
     private val endpointAddress: RpcEndpointAddress,
     @transient @volatile private var nettyEnv: NettyRpcEnv)
   extends RpcEndpointRef(conf) {

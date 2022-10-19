@@ -34,7 +34,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.RssException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
@@ -46,7 +46,7 @@ import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
 
-final private[worker] class StorageManager(conf: RssConf, workerSource: AbstractSource)
+final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
@@ -54,7 +54,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
       conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>
-        (new File(workdir, RssConf.workingDirName(conf)), maxSpace, flusherThread, storageType)
+        (new File(workdir, CelebornConf.workingDirName(conf)), maxSpace, flusherThread, storageType)
       }
 
     if (workingDirInfos.size <= 0) {
@@ -170,9 +170,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
   private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  if (RssConf.workerGracefulShutdown(conf)) {
+  if (CelebornConf.workerGracefulShutdown(conf)) {
     try {
-      val recoverFile = new File(RssConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
+      val recoverFile = new File(CelebornConf.workerRecoverPath(conf), RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
     } catch {
@@ -181,7 +181,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         this.db = null
     }
   }
-  cleanupExpiredAppDirs(System.currentTimeMillis(), RssConf.workerGracefulShutdown(conf))
+  cleanupExpiredAppDirs(System.currentTimeMillis(), CelebornConf.workerGracefulShutdown(conf))
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
@@ -276,7 +276,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir =
-          new Path(new Path(hdfsDir, RssConf.workingDirName(conf)), s"$appId/$shuffleId")
+          new Path(new Path(hdfsDir, CelebornConf.workingDirName(conf)), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
         val hdfsWriter = new FileWriter(
@@ -374,7 +374,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  private val noneEmptyDirExpireDurationMs = RssConf.appExpireDurationMs(conf)
+  private val noneEmptyDirExpireDurationMs = CelebornConf.appExpireDurationMs(conf)
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -416,7 +416,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
 
     if (hdfsFs != null) {
-      val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
+      val hdfsWorkPath = new Path(hdfsDir, CelebornConf.workingDirName(conf))
       if (hdfsFs.exists(hdfsWorkPath)) {
         val iter = hdfsFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
@@ -464,9 +464,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   private def checkIfWorkingDirCleaned: Boolean = {
     var retryTimes = 0
-    val awaitTimeout = RssConf.checkFileCleanTimeoutMs(conf)
+    val awaitTimeout = CelebornConf.checkFileCleanTimeoutMs(conf)
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
-    while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+    while (retryTimes < CelebornConf.checkFileCleanRetryTimes(conf)) {
       val localCleaned =
         !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists { diskInfo =>
           diskInfo.dirs.exists {
@@ -480,7 +480,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
       val hdfsCleaned = hdfsFs match {
         case hdfs: FileSystem =>
-          val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
+          val hdfsWorkPath = new Path(hdfsDir, CelebornConf.workingDirName(conf))
           // hdfs path not exist when first time initialize
           if (hdfs.exists(hdfsWorkPath)) {
             !hdfs.listFiles(hdfsWorkPath, false).hasNext
@@ -495,7 +495,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         return true
       }
       retryTimes += 1
-      if (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+      if (retryTimes < CelebornConf.checkFileCleanRetryTimes(conf)) {
         logInfo(s"Working directory's files have not been cleaned up completely, " +
           s"will start ${retryTimes + 1}th attempt after ${awaitTimeout} milliseconds.")
       }

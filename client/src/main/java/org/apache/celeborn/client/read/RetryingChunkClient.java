@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -63,7 +63,7 @@ public class RetryingChunkClient {
   private volatile int numTries = 0;
 
   public RetryingChunkClient(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       ChunkReceivedCallback callback,
@@ -72,7 +72,7 @@ public class RetryingChunkClient {
   }
 
   public RetryingChunkClient(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       ChunkReceivedCallback callback,
@@ -84,7 +84,7 @@ public class RetryingChunkClient {
     this.callback = callback;
     this.retryWaitMs = transportConf.ioRetryWaitTimeMs();
 
-    long timeoutMs = RssConf.fetchTimeoutMs(conf);
+    long timeoutMs = CelebornConf.fetchTimeoutMs(conf);
 
     if (location == null) {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");

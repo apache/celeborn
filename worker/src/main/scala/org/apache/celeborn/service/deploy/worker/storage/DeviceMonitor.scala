@@ -29,7 +29,7 @@ import scala.io.Source
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.common.util.Utils._
@@ -48,7 +48,7 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-    conf: RssConf,
+    conf: CelebornConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
     diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
@@ -287,7 +287,7 @@ object DeviceMonitor {
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
   def createDeviceMonitor(
-      conf: RssConf,
+      conf: CelebornConf,
       deviceObserver: DeviceObserver,
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo]): DeviceMonitor = {
@@ -313,7 +313,7 @@ object DeviceMonitor {
    * @param diskRootPath disk root path
    * @return true if high disk usage
    */
-  def highDiskUsage(conf: RssConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(conf: CelebornConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
       val totalSpace = usage(usage.length - 5)
@@ -328,7 +328,7 @@ object DeviceMonitor {
       status
     })(false)(
       deviceCheckThreadPool,
-      RssConf.workerStatusCheckTimeout(conf),
+      CelebornConf.workerStatusCheckTimeout(conf),
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
@@ -338,7 +338,7 @@ object DeviceMonitor {
    * @param dataDir one of shuffle data dirs in mount disk
    * @return true if disk has read-write problem
    */
-  def readWriteError(conf: RssConf, dataDir: File): Boolean = {
+  def readWriteError(conf: CelebornConf, dataDir: File): Boolean = {
     if (null == dataDir || !dataDir.isDirectory) {
       return false
     }
@@ -373,7 +373,7 @@ object DeviceMonitor {
       }
     })(false)(
       deviceCheckThreadPool,
-      RssConf.workerStatusCheckTimeout(conf),
+      CelebornConf.workerStatusCheckTimeout(conf),
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 

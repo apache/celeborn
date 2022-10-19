@@ -22,7 +22,7 @@ import java.util.regex.PatternSyntaxException
 
 import scala.util.matching.Regex
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.util.{ByteUnit, JavaUtils}
 import org.apache.celeborn.common.util.Utils
 
@@ -85,7 +85,7 @@ private object ConfigHelpers {
  * used, e.g., for validation) and creating the final envConfig entry.
  *
  * One of the methods that return a [[ConfigEntry]] must be called to create a envConfig entry that
- * can be used with [[RssConf]].
+ * can be used with [[CelebornConf]].
  */
 class TypedConfigBuilder[T](
     val parent: ConfigBuilder,

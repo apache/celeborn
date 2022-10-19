@@ -18,13 +18,13 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.RssConf.masterEndpoints
+import org.apache.celeborn.common.CelebornConf.masterEndpoints
 import org.apache.celeborn.common.util.Utils
 
-class RssConfSuite extends RssFunSuite {
+class CelebornConfSuite extends RssFunSuite {
 
   test("celeborn.master.endpoints support multi nodes") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
       .set("celeborn.master.endpoints", "localhost1:9097,localhost2:9097")
     val endpoints = masterEndpoints(conf)
     assert(endpoints.length == 2)
@@ -33,7 +33,7 @@ class RssConfSuite extends RssFunSuite {
   }
 
   test("basedir test") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
     val parsedDirs = conf.workerBaseDirs
@@ -43,7 +43,7 @@ class RssConfSuite extends RssFunSuite {
   }
 
   test("basedir test2") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g")
     val parsedDirs = conf.workerBaseDirs
@@ -53,7 +53,7 @@ class RssConfSuite extends RssFunSuite {
   }
 
   test("basedir test3") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
     val parsedDirs = conf.workerBaseDirs
     assert(parsedDirs.size == 1)
@@ -62,7 +62,7 @@ class RssConfSuite extends RssFunSuite {
   }
 
   test("basedir test4") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set(
       "celeborn.worker.storage.dirs",
       "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3," +
@@ -79,25 +79,25 @@ class RssConfSuite extends RssFunSuite {
   }
 
   test("zstd level") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set("rss.client.compression.zstd.level", "-100")
-    assert(RssConf.zstdCompressLevel(conf) == -5)
+    assert(CelebornConf.zstdCompressLevel(conf) == -5)
     conf.set("rss.client.compression.zstd.level", "-5")
-    assert(RssConf.zstdCompressLevel(conf) == -5)
+    assert(CelebornConf.zstdCompressLevel(conf) == -5)
     conf.set("rss.client.compression.zstd.level", "0")
-    assert(RssConf.zstdCompressLevel(conf) == 0)
+    assert(CelebornConf.zstdCompressLevel(conf) == 0)
     conf.set("rss.client.compression.zstd.level", "22")
-    assert(RssConf.zstdCompressLevel(conf) == 22)
+    assert(CelebornConf.zstdCompressLevel(conf) == 22)
     conf.set("rss.client.compression.zstd.level", "100")
-    assert(RssConf.zstdCompressLevel(conf) == 22)
+    assert(CelebornConf.zstdCompressLevel(conf) == 22)
   }
 
   test("replace <localhost> placeholder") {
-    val conf = new RssConf()
-    val replacedHost = RssConf.masterHost(conf)
+    val conf = new CelebornConf()
+    val replacedHost = CelebornConf.masterHost(conf)
     assert(!replacedHost.contains("<localhost>"))
     assert(replacedHost === Utils.localHostName)
-    val replacedHosts = RssConf.masterEndpoints(conf)
+    val replacedHosts = CelebornConf.masterEndpoints(conf)
     replacedHosts.foreach { replacedHost =>
       assert(!replacedHost.contains("<localhost>"))
       assert(replacedHost contains Utils.localHostName)
@@ -105,10 +105,10 @@ class RssConfSuite extends RssFunSuite {
   }
 
   test("extract masterNodeIds") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
       .set("celeborn.ha.master.node.1.host", "clb-1")
       .set("celeborn.ha.master.node.2.host", "clb-1")
       .set("celeborn.ha.master.node.3.host", "clb-1")
-    assert(RssConf.haMasterNodeIds(conf).sorted === Array("1", "2", "3"))
+    assert(CelebornConf.haMasterNodeIds(conf).sorted === Array("1", "2", "3"))
   }
 }

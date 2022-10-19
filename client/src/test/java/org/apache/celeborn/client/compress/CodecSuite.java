@@ -23,13 +23,13 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 public class CodecSuite {
 
   @Test
   public void testLz4Codec() {
-    int blockSize = RssConf.pushBufferMaxSize(new RssConf());
+    int blockSize = CelebornConf.pushBufferMaxSize(new CelebornConf());
     RssLz4Compressor rssLz4Compressor = new RssLz4Compressor(blockSize);
     byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
     int oriLength = data.length;
@@ -49,7 +49,7 @@ public class CodecSuite {
   public void testZstdCodec() {
     for (int level = -5; level <= 22; level++) {
       System.out.println("level is " + level);
-      int blockSize = RssConf.pushBufferMaxSize(new RssConf());
+      int blockSize = CelebornConf.pushBufferMaxSize(new CelebornConf());
       RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(blockSize, level);
       byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
       int oriLength = data.length;

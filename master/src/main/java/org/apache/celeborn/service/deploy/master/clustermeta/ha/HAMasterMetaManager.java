@@ -25,7 +25,7 @@ import com.google.protobuf.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -43,10 +43,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   protected HARaftServer ratisServer;
 
-  public HAMasterMetaManager(RpcEnv rpcEnv, RssConf conf) {
+  public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
-    this.defaultPartitionSize = RssConf.initialPartitionSize(conf);
+    this.defaultPartitionSize = CelebornConf.initialPartitionSize(conf);
     this.estimatedPartitionSize = defaultPartitionSize;
   }
 

@@ -17,12 +17,12 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
 import org.apache.celeborn.common.protocol.{PbRegisterWorker, PbUnregisterShuffle}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 
-class RPCSource(conf: RssConf, role: String) extends AbstractSource(conf, role) {
+class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, role) {
   override val sourceName = "rpc"
 
   import RPCSource._

@@ -17,19 +17,19 @@
 
 package org.apache.celeborn.server.common
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 
 abstract class Service extends Logging {
   def serviceName: String
 
-  def conf: RssConf
+  def conf: CelebornConf
 
   def metricsSystem: MetricsSystem
 
   def initialize(): Unit = {
-    if (RssConf.metricsSystemEnable(conf)) {
+    if (CelebornConf.metricsSystemEnable(conf)) {
       logInfo(s"Metrics system enabled.")
       metricsSystem.start()
     }

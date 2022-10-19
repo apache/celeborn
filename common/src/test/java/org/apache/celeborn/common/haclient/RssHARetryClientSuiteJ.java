@@ -36,7 +36,7 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.RssException;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplication;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromWorker;
@@ -51,7 +51,7 @@ public class RssHARetryClientSuiteJ {
 
   private final String masterHost = "localhost";
   private final int masterPort = 9097;
-  private final RssConf conf = new RssConf(false);
+  private final CelebornConf conf = new CelebornConf(false);
   private final OneWayMessageResponse$ response = OneWayMessageResponse$.MODULE$;
   private final HeartbeatResponse mockResponse = Mockito.mock(HeartbeatResponse.class);
 
@@ -68,7 +68,7 @@ public class RssHARetryClientSuiteJ {
   @Test
   public void testSendOneWayMessageWithoutHA() throws Exception {
     final SettableFuture<Boolean> success = SettableFuture.create();
-    final RssConf conf = prepareForRssConfWithoutHA();
+    final CelebornConf conf = prepareForRssConfWithoutHA();
 
     prepareForEndpointRefWithoutRetry(
         () -> {
@@ -94,7 +94,7 @@ public class RssHARetryClientSuiteJ {
   public void testSendOneWayMessageWithoutHAWithRetry() throws Exception {
     final AtomicInteger numTries = new AtomicInteger(0);
     final SettableFuture<Boolean> success = SettableFuture.create();
-    final RssConf conf = prepareForRssConfWithoutHA();
+    final CelebornConf conf = prepareForRssConfWithoutHA();
 
     prepareForEndpointRefWithRetry(
         numTries,
@@ -120,7 +120,7 @@ public class RssHARetryClientSuiteJ {
 
   @Test
   public void testSendOneWayMessageWithHA() throws Exception {
-    final RssConf conf = prepareForRssConfWithHA();
+    final CelebornConf conf = prepareForRssConfWithHA();
 
     final SettableFuture<Boolean> success = SettableFuture.create();
 
@@ -145,7 +145,7 @@ public class RssHARetryClientSuiteJ {
 
   @Test
   public void testSendMessageWithoutHA() {
-    final RssConf conf = prepareForRssConfWithoutHA();
+    final CelebornConf conf = prepareForRssConfWithoutHA();
 
     prepareForEndpointRefWithoutRetry(() -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
@@ -167,7 +167,7 @@ public class RssHARetryClientSuiteJ {
   @Test
   public void testSendMessageWithoutHAWithRetry() {
     final AtomicInteger numTries = new AtomicInteger(0);
-    final RssConf conf = prepareForRssConfWithoutHA();
+    final CelebornConf conf = prepareForRssConfWithoutHA();
 
     prepareForEndpointRefWithRetry(numTries, () -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
@@ -189,7 +189,7 @@ public class RssHARetryClientSuiteJ {
 
   @Test
   public void testSendMessageWithHA() {
-    final RssConf conf = prepareForRssConfWithHA();
+    final CelebornConf conf = prepareForRssConfWithHA();
 
     prepareForRpcEnvWithHA(() -> Future$.MODULE$.successful(mockResponse));
 
@@ -218,7 +218,7 @@ public class RssHARetryClientSuiteJ {
   }
 
   private void checkOneMasterDownInHA(Exception causedByException) {
-    final RssConf conf = prepareForRssConfWithHA();
+    final CelebornConf conf = prepareForRssConfWithHA();
 
     final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
     final RpcEndpointRef master3 = Mockito.mock(RpcEndpointRef.class);
@@ -358,13 +358,13 @@ public class RssHARetryClientSuiteJ {
         .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
   }
 
-  private RssConf prepareForRssConfWithoutHA() {
+  private CelebornConf prepareForRssConfWithoutHA() {
     return conf.clone()
         .set("celeborn.ha.enabled", "false")
         .set("celeborn.master.endpoints", masterHost + ":" + masterPort);
   }
 
-  private RssConf prepareForRssConfWithHA() {
+  private CelebornConf prepareForRssConfWithHA() {
     return conf.clone()
         .set("celeborn.ha.enabled", "true")
         .set("celeborn.master.endpoints", "host1:9097,host2:9097,host3:9097")
