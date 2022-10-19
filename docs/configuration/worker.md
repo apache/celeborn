@@ -29,8 +29,8 @@ license: |
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
 | celeborn.worker.diskFlusherShutdownTimeout | `3s` | The timeout to wait for diskOperators to execute remaining jobs before being shutdown immediately. |  | 
 | celeborn.worker.flush.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
-| celeborn.worker.gracefulShutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed in time of `rss.worker.checkSlots.timeout` and wait sorting partition files in time of `rss.worker.partitionSorterCloseAwaitTime`. |  | 
-| celeborn.worker.gracefulShutdownTimeout | `600s` | The worker's graceful shutdown time. |  | 
+| celeborn.worker.gracefulShutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. |  | 
+| celeborn.worker.gracefulShutdownTimeout | `600s` | The worker's graceful shutdown timeout time. |  | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 

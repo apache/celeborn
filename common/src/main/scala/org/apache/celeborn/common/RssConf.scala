@@ -1579,8 +1579,7 @@ object RssConf extends Logging {
       .withAlternative("rss.worker.graceful.shutdown")
       .categories("worker")
       .doc("When true, during worker shutdown, the worker will wait for all released slots " +
-        "to be committed or destroyed in time of `rss.worker.checkSlots.timeout` " +
-        "and wait sorting partition files in time of `rss.worker.partitionSorterCloseAwaitTime`.")
+        s"to be committed or destroyed.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1588,7 +1587,7 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.gracefulShutdownTimeout")
       .withAlternative("rss.worker.shutdown.timeout")
       .categories("worker")
-      .doc("The worker's graceful shutdown time.")
+      .doc("The worker's graceful shutdown timeout time.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
