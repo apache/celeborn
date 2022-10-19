@@ -349,24 +349,24 @@ private[celeborn] object NettyRpcEnv extends Logging {
 
 private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
 
-  def create(config: RpcEnvConfig): RpcEnv = {
-    val rssConf = config.conf
+  def create(envConfig: RpcEnvConfig): RpcEnv = {
+    val conf = envConfig.conf
     // Use JavaSerializerInstance in multiple threads is safe. However, if we plan to support
     // KryoSerializer in future, we have to use ThreadLocal to store SerializerInstance
     val javaSerializerInstance =
-      new JavaSerializer(rssConf).newInstance().asInstanceOf[JavaSerializerInstance]
+      new JavaSerializer(conf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv =
       new NettyRpcEnv(
-        rssConf,
+        conf,
         javaSerializerInstance,
-        config.advertiseAddress,
-        config.numUsableCores)
+        envConfig.advertiseAddress,
+        envConfig.numUsableCores)
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
-      nettyEnv.startServer(config.bindAddress, actualPort)
+      nettyEnv.startServer(envConfig.bindAddress, actualPort)
       (nettyEnv, nettyEnv.address.port)
     }
     try {
-      Utils.startServiceOnPort(config.port, startNettyRpcEnv, rssConf, config.name)._1
+      Utils.startServiceOnPort(envConfig.port, startNettyRpcEnv, conf, envConfig.name)._1
     } catch {
       case NonFatal(e) =>
         nettyEnv.shutdown()

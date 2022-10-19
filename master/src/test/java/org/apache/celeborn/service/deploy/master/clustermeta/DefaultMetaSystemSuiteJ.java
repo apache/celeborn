@@ -47,7 +47,7 @@ import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 public class DefaultMetaSystemSuiteJ {
 
   private RpcEnv mockRpcEnv = mock(RpcEnv.class);
-  private RssConf rssConf = new RssConf();
+  private RssConf conf = new RssConf();
   private AbstractMetaManager statusSystem;
   private RpcEndpointRef dummyRef =
       new NettyRpcEndpointRef(
@@ -84,7 +84,7 @@ public class DefaultMetaSystemSuiteJ {
   @Before
   public void setUp() throws Exception {
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
-    statusSystem = new SingleMasterMetaManager(mockRpcEnv, rssConf);
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
 
     disks1.clear();
     disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 0));

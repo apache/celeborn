@@ -51,7 +51,7 @@ public class RssHARetryClientSuiteJ {
 
   private final String masterHost = "localhost";
   private final int masterPort = 9097;
-  private final RssConf rssConf = new RssConf(false);
+  private final RssConf conf = new RssConf(false);
   private final OneWayMessageResponse$ response = OneWayMessageResponse$.MODULE$;
   private final HeartbeatResponse mockResponse = Mockito.mock(HeartbeatResponse.class);
 
@@ -60,7 +60,7 @@ public class RssHARetryClientSuiteJ {
 
   @Before
   public void beforeEach() {
-    rssConf.set("rss.rpc.askTimeout", "5s").set("rss.network.timeout", "5s");
+    conf.set("rss.rpc.askTimeout", "5s").set("rss.network.timeout", "5s");
     rpcEnv = Mockito.mock(RpcEnv.class);
     endpointRef = Mockito.mock(RpcEndpointRef.class);
   }
@@ -359,15 +359,13 @@ public class RssHARetryClientSuiteJ {
   }
 
   private RssConf prepareForRssConfWithoutHA() {
-    return rssConf
-        .clone()
+    return conf.clone()
         .set("celeborn.ha.enabled", "false")
         .set("celeborn.master.endpoints", masterHost + ":" + masterPort);
   }
 
   private RssConf prepareForRssConfWithHA() {
-    return rssConf
-        .clone()
+    return conf.clone()
         .set("celeborn.ha.enabled", "true")
         .set("celeborn.master.endpoints", "host1:9097,host2:9097,host3:9097")
         .set("rss.ha.client.maxTries", "5");

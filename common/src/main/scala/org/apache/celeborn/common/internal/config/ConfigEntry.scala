@@ -23,38 +23,38 @@ import java.util.concurrent.ConcurrentHashMap
 //                      The guideline for naming configurations
 // ====================================================================================
 /*
-In general, the config name should be a noun that describes its basic purpose. It's
-recommended to add prefix to the config name to make the scope clearer. For example,
-`celeborn.worker.storage.dirs` clearly indicates that this config is for the worker.
+In general, the envConfig name should be a noun that describes its basic purpose. It's
+recommended to add prefix to the envConfig name to make the scope clearer. For example,
+`celeborn.worker.storage.dirs` clearly indicates that this envConfig is for the worker.
 
-A config name can have multiple prefixes that are structured, which is similar to a
+A envConfig name can have multiple prefixes that are structured, which is similar to a
 qualified Java class name. Each prefix behaves like a namespace. We should only create
 a namespace if it's meaningful and can be shared by multiple configs. For example,
 `buffer.inMemoryThreshold` is preferred over `buffer.in.memory.threshold`.
 
 The followings are best practices of naming configs for some common cases:
-1. When adding configs for a big feature, it's better to create an umbrella config that
+1. When adding configs for a big feature, it's better to create an umbrella envConfig that
    can turn the feature on/off, with a name like `featureName.enabled`. The other configs
    of this feature should be put under the `featureName` namespace. For example:
      - rss.ha.enabled
      - rss.ha.master.hosts
      - rss.ha.client.maxTries
-2. When adding a boolean config, the name should be a verb that describes what
-   happens if this config is set to true, e.g. `rss.worker.closeIdleConnections`.
-3. When adding a config to specify a time duration, it's better to put the time unit
-   in the config name. For example, `featureName.timeoutMs`, which clearly indicates
-   that the time unit is millisecond. The config entry should be created with
+2. When adding a boolean envConfig, the name should be a verb that describes what
+   happens if this envConfig is set to true, e.g. `rss.worker.closeIdleConnections`.
+3. When adding a envConfig to specify a time duration, it's better to put the time unit
+   in the envConfig name. For example, `featureName.timeoutMs`, which clearly indicates
+   that the time unit is millisecond. The envConfig entry should be created with
    `ConfigBuilder#timeConf`, to support time strings like `2 minutes`.
  */
 
 /**
  * An entry contains all meta information for a configuration.
  *
- * When applying variable substitution to config values, only references starting with "rss." are
+ * When applying variable substitution to envConfig values, only references starting with "rss." are
  * considered in the default namespace. For known RSS configuration keys (i.e. those created using
  * `ConfigBuilder`), references will also consider the default value when it exists.
  *
- * Variable expansion is also applied to the default values of config entries that have a default
+ * Variable expansion is also applied to the default values of envConfig entries that have a default
  * value declared as a string.
  *
  * @param key the key for the configuration
@@ -213,7 +213,7 @@ private class ConfigEntryWithDefaultString[T](
 }
 
 /**
- * A config entry that does not have a default value.
+ * A envConfig entry that does not have a default value.
  */
 class OptionalConfigEntry[T](
     key: String,
@@ -246,7 +246,7 @@ class OptionalConfigEntry[T](
 }
 
 /**
- * A config entry whose default value is defined by another config entry.
+ * A envConfig entry whose default value is defined by another envConfig entry.
  */
 class FallbackConfigEntry[T](
     key: String,

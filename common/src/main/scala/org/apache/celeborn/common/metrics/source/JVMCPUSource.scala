@@ -26,7 +26,7 @@ import com.codahale.metrics.Gauge
 
 import org.apache.celeborn.common.RssConf
 
-class JVMCPUSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
+class JVMCPUSource(conf: RssConf, role: String) extends AbstractSource(conf, role) {
   override val sourceName = "CPU"
 
   import JVMCPUSource._

@@ -22,7 +22,7 @@ import org.apache.celeborn.common.network.protocol.{ChunkFetchRequest, PushData,
 import org.apache.celeborn.common.protocol.{PbRegisterWorker, PbUnregisterShuffle}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 
-class RPCSource(rssConf: RssConf, role: String) extends AbstractSource(rssConf, role) {
+class RPCSource(conf: RssConf, role: String) extends AbstractSource(conf, role) {
   override val sourceName = "rpc"
 
   import RPCSource._

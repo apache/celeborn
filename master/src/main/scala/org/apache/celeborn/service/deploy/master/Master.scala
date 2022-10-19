@@ -73,7 +73,7 @@ private[celeborn] class Master(
           if (ioe.getCause.isInstanceOf[BindException]) {
             val msg = s"HA port ${sys.getRatisServer.getRaftPort} of Ratis Server is occupied, " +
               s"Master process will stop. Please refer to configuration doc to modify the HA port " +
-              s"in config file for each node."
+              s"in envConfig file for each node."
             logError(msg, ioe)
             System.exit(1)
           } else {

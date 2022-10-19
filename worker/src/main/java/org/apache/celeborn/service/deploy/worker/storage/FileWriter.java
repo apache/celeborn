@@ -97,7 +97,7 @@ public final class FileWriter implements DeviceObserver {
       FileInfo fileInfo,
       Flusher flusher,
       AbstractSource workerSource,
-      RssConf rssConf,
+      RssConf conf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
@@ -107,11 +107,11 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.chunkSize = RssConf.shuffleChunkSize(rssConf);
+    this.chunkSize = RssConf.shuffleChunkSize(conf);
     this.nextBoundary = this.chunkSize;
-    this.timeoutMs = rssConf.fileWriterTimeoutMs();
+    this.timeoutMs = conf.fileWriterTimeoutMs();
     this.splitThreshold = splitThreshold;
-    this.flusherBufferSize = RssConf.workerFlusherBufferSize(rssConf);
+    this.flusherBufferSize = RssConf.workerFlusherBufferSize(conf);
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;

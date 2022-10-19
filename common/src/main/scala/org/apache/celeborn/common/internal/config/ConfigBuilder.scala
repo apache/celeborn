@@ -81,10 +81,10 @@ private object ConfigHelpers {
 }
 
 /**
- * A type-safe config builder. Provides methods for transforming the input data (which can be
- * used, e.g., for validation) and creating the final config entry.
+ * A type-safe envConfig builder. Provides methods for transforming the input data (which can be
+ * used, e.g., for validation) and creating the final envConfig entry.
  *
- * One of the methods that return a [[ConfigEntry]] must be called to create a config entry that
+ * One of the methods that return a [[ConfigEntry]] must be called to create a envConfig entry that
  * can be used with [[RssConf]].
  */
 class TypedConfigBuilder[T](
@@ -98,12 +98,12 @@ class TypedConfigBuilder[T](
     this(parent, converter, Option[T](_).map(_.toString).orNull)
   }
 
-  /** Apply a transformation to the user-provided values of the config entry. */
+  /** Apply a transformation to the user-provided values of the envConfig entry. */
   def transform(fn: T => T): TypedConfigBuilder[T] = {
     new TypedConfigBuilder(parent, s => fn(converter(s)), stringConverter)
   }
 
-  /** Checks if the user-provided value for the config matches the validator. */
+  /** Checks if the user-provided value for the envConfig matches the validator. */
   def checkValue(validator: T => Boolean, errorMsg: String): TypedConfigBuilder[T] = {
     transform { v =>
       if (!validator(v)) {
@@ -113,7 +113,7 @@ class TypedConfigBuilder[T](
     }
   }
 
-  /** Check that user-provided values for the config match a pre-defined set. */
+  /** Check that user-provided values for the envConfig match a pre-defined set. */
   def checkValues(validValues: Set[T]): TypedConfigBuilder[T] = {
     transform { v =>
       if (!validValues.contains(v)) {
@@ -124,7 +124,7 @@ class TypedConfigBuilder[T](
     }
   }
 
-  /** Turns the config entry into a sequence of values of the underlying type. */
+  /** Turns the envConfig entry into a sequence of values of the underlying type. */
   def toSequence: TypedConfigBuilder[Seq[T]] = {
     new TypedConfigBuilder(parent, stringToSeq(_, converter), seqToString(_, stringConverter))
   }
@@ -251,7 +251,7 @@ case class ConfigBuilder(key: String) {
   }
 
   /**
-   * Registers a callback for when the config entry is finally instantiated. Currently used to
+   * Registers a callback for when the envConfig entry is finally instantiated. Currently used to
    * keep track of configuration entries.
    */
   def onCreate(callback: ConfigEntry[_] => Unit): ConfigBuilder = {

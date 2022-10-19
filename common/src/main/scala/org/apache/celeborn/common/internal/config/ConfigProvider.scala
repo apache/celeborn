@@ -49,7 +49,7 @@ class MapProvider(conf: JMap[String, String]) extends ConfigProvider {
 }
 
 /**
- * A config provider that only reads RSS config keys.
+ * A envConfig provider that only reads RSS envConfig keys.
  */
 class RssConfigProvider(conf: JMap[String, String]) extends ConfigProvider {
 

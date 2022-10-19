@@ -184,17 +184,17 @@ public class SlotsAllocatorSuiteJ {
       boolean shouldReplicate,
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
-    RssConf rssConf = new RssConf();
-    rssConf.set("rss.disk.groups", "2");
-    rssConf.set("rss.disk.group.gradient", "1");
+    RssConf conf = new RssConf();
+    conf.set("rss.disk.groups", "2");
+    conf.set("rss.disk.group.gradient", "1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsLoadAware(
             workers,
             partitionIds,
             shouldReplicate,
             10 * 1024 * 1024 * 1024L,
-            RssConf.diskGroups(rssConf),
-            RssConf.diskGroupGradient(rssConf));
+            RssConf.diskGroups(conf),
+            RssConf.diskGroupGradient(conf));
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(

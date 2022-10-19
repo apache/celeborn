@@ -22,7 +22,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
 
-class WorkerSource(rssConf: RssConf) extends AbstractSource(rssConf, MetricsSystem.ROLE_WORKER) {
+class WorkerSource(conf: RssConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER) {
   override val sourceName = "worker"
 
   import WorkerSource._

@@ -74,7 +74,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numMappers;
   private final int numPartitions;
 
-  private final RssConf rssConf;
+  private final RssConf conf;
   @Nullable private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
@@ -124,7 +124,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = handle.numMappers();
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
-    this.rssConf = conf;
+    this.conf = conf;
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -160,7 +160,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             writeMetrics::incBytesWritten,
             mapStatusLengths);
 
-    if (RssConf.columnarShuffleEnabled(rssConf)) {
+    if (RssConf.columnarShuffleEnabled(this.conf)) {
       this.schema = SparkUtils.getShuffleDependencySchema(dep);
       this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
@@ -207,15 +207,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         RssColumnarBatchBuilder columnBuilders =
             new RssColumnarBatchBuilder(
                 schema,
-                RssConf.columnarShuffleBatchSize(rssConf),
-                RssConf.columnarShuffleMaxDictFactor(rssConf),
-                RssConf.columnarShuffleCompress(rssConf));
+                RssConf.columnarShuffleBatchSize(conf),
+                RssConf.columnarShuffleMaxDictFactor(conf),
+                RssConf.columnarShuffleCompress(conf));
         columnBuilders.newBuilders();
         rssColumnBuilders[partitionId] = columnBuilders;
       }
       rssColumnBuilders[partitionId].writeRow(row);
       if (rssColumnBuilders[partitionId].getTotalSize() > SEND_BUFFER_SIZE
-          || rssColumnBuilders[partitionId].rowCnt() == RssConf.columnarShuffleBatchSize(rssConf)) {
+          || rssColumnBuilders[partitionId].rowCnt() == RssConf.columnarShuffleBatchSize(conf)) {
         byte[] arr = rssColumnBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {

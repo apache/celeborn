@@ -24,10 +24,12 @@ import java.util.NoSuchElementException;
  * Provides a mechanism for constructing a {@link TransportConf} using some sort of configuration.
  */
 public abstract class ConfigProvider {
-  /** Obtains the value of the given config, throws NoSuchElementException if it doesn't exist. */
+  /**
+   * Obtains the value of the given envConfig, throws NoSuchElementException if it doesn't exist.
+   */
   public abstract String get(String name);
 
-  /** Returns all the config values in the provider. */
+  /** Returns all the envConfig values in the provider. */
   public abstract Iterable<Map.Entry<String, String>> getAll();
 
   public String get(String name, String defaultValue) {

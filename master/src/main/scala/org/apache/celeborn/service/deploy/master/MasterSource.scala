@@ -23,8 +23,8 @@ import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.service.deploy.master.MasterSource.OfferSlotsTime
 
-class MasterSource(rssConf: RssConf)
-  extends AbstractSource(rssConf, MetricsSystem.ROLE_MASTER) with Logging {
+class MasterSource(conf: RssConf)
+  extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) with Logging {
   override val sourceName = s"master"
 
   addTimer(OfferSlotsTime)

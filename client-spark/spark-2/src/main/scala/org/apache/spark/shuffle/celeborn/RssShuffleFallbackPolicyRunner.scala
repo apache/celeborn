@@ -25,7 +25,7 @@ import org.apache.celeborn.common.internal.Logging
 
 class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
 
-  private lazy val rssConf = SparkUtils.fromSparkConf(sparkConf)
+  private lazy val conf = SparkUtils.fromSparkConf(sparkConf)
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
@@ -36,7 +36,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * if rss.force.fallback is true, fallback to external shuffle
    * @return return rss.force.fallback
    */
-  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(rssConf)
+  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(conf)
 
   /**
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
@@ -44,7 +44,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * @return return if shuffle partitions bigger than limit
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = RssConf.maxPartitionNumSupported(rssConf)
+    val confNumPartitions = RssConf.maxPartitionNumSupported(conf)
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
       logInfo(s"Shuffle num of partitions: $numPartitions" +
@@ -60,7 +60,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * @return if rss cluster usage of current user's percent is overhead the limit
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
-    if (!RssConf.clusterCheckQuotaEnabled(rssConf)) {
+    if (!RssConf.clusterCheckQuotaEnabled(conf)) {
       return true
     }
 

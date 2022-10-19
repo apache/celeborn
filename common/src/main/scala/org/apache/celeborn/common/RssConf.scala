@@ -357,10 +357,12 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     } catch {
       case e: NumberFormatException =>
         // NumberFormatException doesn't have a constructor that takes a cause for some reason.
-        throw new NumberFormatException(s"Illegal value for config key $key: ${e.getMessage}")
+        throw new NumberFormatException(s"Illegal value for envConfig key $key: ${e.getMessage}")
           .initCause(e)
       case e: IllegalArgumentException =>
-        throw new IllegalArgumentException(s"Illegal value for config key $key: ${e.getMessage}", e)
+        throw new IllegalArgumentException(
+          s"Illegal value for envConfig key $key: ${e.getMessage}",
+          e)
     }
   }
 
@@ -478,9 +480,9 @@ object RssConf extends Logging {
   /**
    * Information about an alternate configuration key that has been deprecated.
    *
-   * @param key         The deprecated config key.
+   * @param key         The deprecated envConfig key.
    * @param version     The version in which the key was deprecated.
-   * @param translation A translation function for converting old config values into new ones.
+   * @param translation A translation function for converting old envConfig values into new ones.
    */
   private case class AlternateConfig(
       key: String,
@@ -490,18 +492,18 @@ object RssConf extends Logging {
   /**
    * Holds information about keys that have been removed.
    *
-   * @param key          The removed config key.
+   * @param key          The removed envConfig key.
    * @param version      The version in which key was removed.
-   * @param defaultValue The default config value. It can be used to notice
-   *                     users that they set non-default value to an already removed config.
-   * @param comment      Additional info regarding to the removed config.
+   * @param defaultValue The default envConfig value. It can be used to notice
+   *                     users that they set non-default value to an already removed envConfig.
+   * @param comment      Additional info regarding to the removed envConfig.
    */
   case class RemovedConfig(key: String, version: String, defaultValue: String, comment: String)
 
   /**
-   * Maps deprecated config keys to information about the deprecation.
+   * Maps deprecated envConfig keys to information about the deprecation.
    *
-   * The extra information is logged as a warning when the config is present in the user's
+   * The extra information is logged as a warning when the envConfig is present in the user's
    * configuration.
    */
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
@@ -512,9 +514,9 @@ object RssConf extends Logging {
   }
 
   /**
-   * The map contains info about removed SQL configs. Keys are SQL config names,
-   * map values contain extra information like the version in which the config was removed,
-   * config's default value and a comment.
+   * The map contains info about removed SQL configs. Keys are SQL envConfig names,
+   * map values contain extra information like the version in which the envConfig was removed,
+   * envConfig's default value and a comment.
    *
    * Please, add a removed configuration property here only when it affects behaviours.
    * By this, it makes migrations to new versions painless.
@@ -530,7 +532,7 @@ object RssConf extends Logging {
   }
 
   /**
-   * Maps a current config key to alternate keys that were used in previous version.
+   * Maps a current envConfig key to alternate keys that were used in previous version.
    *
    * The alternates are used in the order defined in this map. If deprecated configs are
    * present in the user's configuration, a warning is logged.
@@ -541,9 +543,9 @@ object RssConf extends Logging {
 
   /**
    * A view of `configsWithAlternatives` that makes it more efficient to look up deprecated
-   * config keys.
+   * envConfig keys.
    *
-   * Maps the deprecated config name to a 2-tuple (new config name, alternate config info).
+   * Maps the deprecated envConfig name to a 2-tuple (new envConfig name, alternate envConfig info).
    */
   private val allAlternatives: Map[String, (String, AlternateConfig)] = {
     configsWithAlternatives.keys.flatMap { key =>
@@ -552,7 +554,7 @@ object RssConf extends Logging {
   }
 
   /**
-   * Looks for available deprecated keys for the given config option, and return the first
+   * Looks for available deprecated keys for the given envConfig option, and return the first
    * value available.
    */
   def getDeprecatedConfig(key: String, conf: JMap[String, String]): Option[String] = {
@@ -570,13 +572,13 @@ object RssConf extends Logging {
       case RemovedConfig(configName, version, defaultValue, comment) =>
         if (value != defaultValue) {
           throw new IllegalArgumentException(
-            s"The config '$configName' was removed in v$version. $comment")
+            s"The envConfig '$configName' was removed in v$version. $comment")
         }
     }
   }
 
   /**
-   * Logs a warning message if the given config key is deprecated.
+   * Logs a warning message if the given envConfig key is deprecated.
    */
   private def logDeprecationWarning(key: String): Unit = {
     deprecatedConfigs.get(key).foreach { cfg =>

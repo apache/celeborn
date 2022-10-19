@@ -86,7 +86,7 @@ private class MetricsConfig(conf: RssConf) extends Logging {
   }
 
   /**
-   * Loads configuration from a config file. If no config file is provided, try to get file
+   * Loads configuration from a envConfig file. If no envConfig file is provided, try to get file
    * in class path.
    */
   private[this] def loadPropertiesFromFile(path: Option[String]): Unit = {

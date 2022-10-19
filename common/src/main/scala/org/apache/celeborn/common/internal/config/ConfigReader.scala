@@ -27,13 +27,13 @@ private object ConfigReader {
 }
 
 /**
- * A helper class for reading config entries and performing variable substitution.
+ * A helper class for reading envConfig entries and performing variable substitution.
  *
- * If a config value contains variable references of the form "${prefix:variableName}", the
+ * If a envConfig value contains variable references of the form "${prefix:variableName}", the
  * reference will be replaced with the value of the variable depending on the prefix. By default,
  * the following prefixes are handled:
  *
- * - no prefix: use the default config provider
+ * - no prefix: use the default envConfig provider
  * - system: looks for the value in the system properties
  * - env: looks for the value in the environment
  *
@@ -43,7 +43,7 @@ private object ConfigReader {
  *
  * If the reference cannot be resolved, the original string will be retained.
  *
- * @param conf The config provider for the default namespace (no prefix).
+ * @param conf The envConfig provider for the default namespace (no prefix).
  */
 class ConfigReader(conf: ConfigProvider) {
 
@@ -103,8 +103,8 @@ class ConfigReader(conf: ConfigProvider) {
   }
 
   /**
-   * Gets the value of a config from the given `ConfigProvider`. If no value is found for this
-   * config, and the `ConfigEntry` defines this config has default value, return the default value.
+   * Gets the value of a envConfig from the given `ConfigProvider`. If no value is found for this
+   * envConfig, and the `ConfigEntry` defines this envConfig has default value, return the default value.
    */
   private def getOrDefault(conf: ConfigProvider, key: String): Option[String] = {
     conf.get(key).orElse {
