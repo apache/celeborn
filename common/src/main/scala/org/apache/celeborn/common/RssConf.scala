@@ -497,33 +497,33 @@ object RssConf extends Logging {
     }
   }
 
-  private[this] val rssConfEntriesUpdateLock = new Object
+  private[this] val confEntriesUpdateLock = new Object
 
   @volatile
-  private[this] var rssConfEntries: JMap[String, ConfigEntry[_]] = Collections.emptyMap()
+  private[celeborn] var confEntries: JMap[String, ConfigEntry[_]] = Collections.emptyMap()
 
-  private def register(entry: ConfigEntry[_]): Unit = rssConfEntriesUpdateLock.synchronized {
+  private def register(entry: ConfigEntry[_]): Unit = confEntriesUpdateLock.synchronized {
     require(
-      !rssConfEntries.containsKey(entry.key),
+      !confEntries.containsKey(entry.key),
       s"Duplicate RssConfigEntry. ${entry.key} has been registered")
-    val updatedMap = new JHashMap[String, ConfigEntry[_]](rssConfEntries)
+    val updatedMap = new JHashMap[String, ConfigEntry[_]](confEntries)
     updatedMap.put(entry.key, entry)
-    rssConfEntries = updatedMap
+    confEntries = updatedMap
   }
 
   private[celeborn] def unregister(entry: ConfigEntry[_]): Unit =
-    rssConfEntriesUpdateLock.synchronized {
-      val updatedMap = new JHashMap[String, ConfigEntry[_]](rssConfEntries)
+    confEntriesUpdateLock.synchronized {
+      val updatedMap = new JHashMap[String, ConfigEntry[_]](confEntries)
       updatedMap.remove(entry.key)
-      rssConfEntries = updatedMap
+      confEntries = updatedMap
     }
 
   private[celeborn] def getConfigEntry(key: String): ConfigEntry[_] = {
-    rssConfEntries.get(key)
+    confEntries.get(key)
   }
 
   private[celeborn] def getConfigEntries: JCollection[ConfigEntry[_]] = {
-    rssConfEntries.values()
+    confEntries.values()
   }
 
   private[celeborn] def containsConfigEntry(entry: ConfigEntry[_]): Boolean = {
@@ -531,7 +531,7 @@ object RssConf extends Logging {
   }
 
   private[celeborn] def containsConfigKey(key: String): Boolean = {
-    rssConfEntries.containsKey(key)
+    confEntries.containsKey(key)
   }
 
   def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
@@ -1269,7 +1269,7 @@ object RssConf extends Logging {
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
       .withAlternative("rss.metrics.system.enabled")
-      .categories("master", "worker")
+      .categories("master", "worker", "metrics")
       .doc("When true, enable metrics system.")
       .booleanConf
       .createWithDefault(true)
@@ -1277,14 +1277,14 @@ object RssConf extends Logging {
   val METRICS_TIMER_SLIDING_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.metrics.timer.sliding.size")
       .withAlternative("rss.metrics.system.timer.sliding.size")
-      .categories("master", "worker")
+      .categories("master", "worker", "metrics")
       .intConf
       .createWithDefault(4000)
 
   val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
     buildConf("celeborn.metrics.sample.rate")
       .withAlternative("rss.metrics.system.sample.rate")
-      .categories("master", "worker")
+      .categories("master", "worker", "metrics")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0]")
       .createWithDefault(1.0)
@@ -1292,21 +1292,21 @@ object RssConf extends Logging {
   val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.metrics.timer.sliding.window.size")
       .withAlternative("rss.metrics.system.sliding.window.size")
-      .categories("master", "worker")
+      .categories("master", "worker", "metrics")
       .intConf
       .createWithDefault(4096)
 
   val MASTER_PROMETHEUS_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.metrics.prometheus.host")
       .withAlternative("rss.master.prometheus.metric.host")
-      .categories("master")
+      .categories("master", "metrics")
       .stringConf
       .createWithDefault("0.0.0.0")
 
   val MASTER_PROMETHEUS_PORT: ConfigEntry[Int] =
     buildConf("celeborn.master.metrics.prometheus.port")
       .withAlternative("rss.master.prometheus.metric.port")
-      .categories("master")
+      .categories("master", "metrics")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9098)
@@ -1314,14 +1314,14 @@ object RssConf extends Logging {
   val WORKER_PROMETHEUS_HOST: ConfigEntry[String] =
     buildConf("celeborn.worker.metrics.prometheus.host")
       .withAlternative("rss.worker.prometheus.metric.host")
-      .categories("worker")
+      .categories("worker", "metrics")
       .stringConf
       .createWithDefault("0.0.0.0")
 
   val WORKER_PROMETHEUS_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.metrics.prometheus.port")
       .withAlternative("rss.worker.prometheus.metric.port")
-      .categories("worker")
+      .categories("worker", "metrics")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)

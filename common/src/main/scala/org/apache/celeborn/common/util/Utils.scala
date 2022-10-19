@@ -535,6 +535,10 @@ object Utils extends Logging {
     // scalastyle:on classforname
   }
 
+  def getCodeSourceLocation(clazz: Class[_]): String = {
+    new File(clazz.getProtectionDomain.getCodeSource.getLocation.toURI).getPath
+  }
+
   def loadDefaultRssProperties(conf: RssConf, filePath: String = null): String = {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
