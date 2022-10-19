@@ -370,47 +370,28 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def checkSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
   def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
-  def workerDiskFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
-
-  def commitFilesTimeout(): Long = get(WORKER_COMMIT_FILES_TIMEOUT)
-
-  def fileWriterTimeoutMs(): Long = get(WORKER_FILEWRITE_CLOSE_TIMEOUT)
-
-  def HDDFlusherThread(): Int = get(WORKER_FLUSHER_HDD_THREAD_COUNT)
-
-  def SSDFlusherThread(): Int = get(WORKER_FLUSHER_SSD_THREAD_COUNT)
-
-  def hdfsFlusherThreadCount(): Int = get(WORKER_FLUSHER_HDFS_THREAD_COUNT)
-
-  def workerDiskFlusherShutdownTimeoutMs(): Long =
-    get(WORKER_FLUSHER_GRACEFUL_SHUTDOWN_TIMEOUT)
-
-  def flushAvgTimeWindow(): Int = get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
-
-  def flushAvgTimeMinimumCount(): Int =
-    get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
-
-  def diskMinimumReserveSize(): Long = get(WORKER_DISK_RESERVATION)
-
-  def deviceMonitorEnabled(): Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
-
-  def deviceMonitorCheckList(): Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
-
-  def diskCheckIntervalMs(): Long = get(WORKER_DISK_CHECK_INTERVAL)
-
-  def sysBlockDir(): String = get(WORKER_DISKMONITOR_SYS_BLOCKDIR)
-
-  def createFileWriterRetryCount(): Int = get(WORKER_FILEWRITER_CREATION_RETRY)
-
-  def workerBaseDirPrefix(): String = get(WORKER_BASE_DIR_PREFIX)
-
-  def workerBaseDirNumber(): Int = get(WORKER_BASE_DIR_COUNT)
+  def workerDiskFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_GRACEFUL_SHUTDOWN_TIMEOUT)
+  def commitFilesTimeout: Long = get(WORKER_COMMIT_FILES_TIMEOUT)
+  def fileWriterTimeoutMs: Long = get(WORKER_FILEWRITE_CLOSE_TIMEOUT)
+  def HDDFlusherThread: Int = get(WORKER_FLUSHER_HDD_THREAD_COUNT)
+  def SSDFlusherThread: Int = get(WORKER_FLUSHER_SSD_THREAD_COUNT)
+  def hdfsFlusherThreadCount: Int = get(WORKER_FLUSHER_HDFS_THREAD_COUNT)
+  def flushAvgTimeWindow: Int = get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
+  def flushAvgTimeMinimumCount: Int = get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
+  def diskMinimumReserveSize: Long = get(WORKER_DISK_RESERVATION)
+  def deviceMonitorEnabled: Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
+  def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
+  def diskCheckIntervalMs: Long = get(WORKER_DISK_CHECK_INTERVAL)
+  def sysBlockDir: String = get(WORKER_DISKMONITOR_SYS_BLOCKDIR)
+  def createFileWriterRetryCount: Int = get(WORKER_FILEWRITER_CREATION_RETRY)
+  def workerBaseDirPrefix: String = get(WORKER_BASE_DIR_PREFIX)
+  def workerBaseDirNumber: Int = get(WORKER_BASE_DIR_COUNT)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
    */
-  def workerBaseDirs(): Seq[(String, Long, Int, Type)] = {
+  def workerBaseDirs: Seq[(String, Long, Int, Type)] = {
     // I assume there is no disk is bigger than 1 PB in recent days.
     val defaultMaxCapacity = Utils.byteStringAsBytes("1PB")
     get(WORKER_STORAGE_DIRS).map { storageDirs: Seq[String] =>
@@ -447,16 +428,16 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
       val prefix = workerBaseDirPrefix
       val number = workerBaseDirNumber
       (1 to number).map { i =>
-        (s"$prefix$i", defaultMaxCapacity, HDDFlusherThread(), HDD)
+        (s"$prefix$i", defaultMaxCapacity, HDDFlusherThread, HDD)
       }
     }
   }
 
-  def partitionSplitMinimumSize(): Long = {
+  def partitionSplitMinimumSize: Long = {
     getSizeAsBytes("rss.partition.split.minimum.size", "1m")
   }
 
-  def hdfsDir(): String = {
+  def hdfsDir: String = {
     get(HDFS_DIR).map {
       hdfsDir =>
         if (!Utils.isHdfsPath(hdfsDir)) {
@@ -1280,6 +1261,7 @@ object RssConf extends Logging {
       .withAlternative("rss.worker.diskFlusherShutdownTimeoutMs")
       .categories("worker")
       .doc("Timeout for a flusher to shutdown gracefully.")
+      .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
 
