@@ -1618,8 +1618,8 @@ object RssConf extends Logging {
       .doc("The path to store levelDB.")
       .version("0.2.0")
       .stringConf
-      .transform(_.replace("/tmp", System.getProperty("java.io.tmpdir")))
-      .createWithDefault(s"/tmp/recover")
+      .transform(_.replace("<tmp>", System.getProperty("java.io.tmpdir")))
+      .createWithDefault(s"<tmp>/recover")
 
   val PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout")
