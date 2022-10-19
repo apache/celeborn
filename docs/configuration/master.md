@@ -29,7 +29,6 @@ license: |
 | celeborn.master.port | `9097` | Port for master to bind. | 0.2.0 | 
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. |  | 
 | celeborn.metrics.sample.rate | `1.0` |  |  | 
-| celeborn.metrics.timer.sliding.size | `4000` |  |  | 
 | celeborn.metrics.timer.sliding.window.size | `4096` |  |  | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
 <!--end-include-->

@@ -376,8 +376,8 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def HDDFlusherThread: Int = get(WORKER_FLUSHER_HDD_THREAD_COUNT)
   def SSDFlusherThread: Int = get(WORKER_FLUSHER_SSD_THREAD_COUNT)
   def hdfsFlusherThreadCount: Int = get(WORKER_FLUSHER_HDFS_THREAD_COUNT)
-  def flushAvgTimeWindow: Int = get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
-  def flushAvgTimeMinimumCount: Int = get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
+  def flushAvgTimeWindow: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE)
+  def flushAvgTimeMinimumCount: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
   def diskMinimumReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
   def deviceMonitorEnabled: Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
   def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
@@ -1274,20 +1274,23 @@ object RssConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
-  val WORKER_FLUSHER_AVG_WINDOW_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.flusher.avg.window.count")
+  val WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
-      .doc("The count of windows used for calculate statistics about flushed time and count.")
+      .doc("The minimum flush count to enter a sliding window" +
+        " to calculate statistics about flushed time and count.")
       .version("0.2.0")
+      .internal
       .intConf
       .createWithDefault(20)
 
-  val WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.flusher.window.minimum.flush.count")
+  val WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.avgFlushTime.slidingWindow.minCount")
       .withAlternative("rss.flusher.avg.time.minimum.count")
       .categories("worker")
-      .doc("Minimum flush data count for a valid window.")
+      .doc("The minimum flush count to enter a sliding window" +
+        " to calculate statistics about flushed time and count.")
       .version("0.2.0")
       .intConf
       .createWithDefault(1000)
@@ -1366,13 +1369,6 @@ object RssConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val METRICS_TIMER_SLIDING_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.metrics.timer.sliding.size")
-      .withAlternative("rss.metrics.system.timer.sliding.size")
-      .categories("master", "worker", "metrics")
-      .intConf
-      .createWithDefault(4000)
-
   val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
     buildConf("celeborn.metrics.sample.rate")
       .withAlternative("rss.metrics.system.sample.rate")
@@ -1419,8 +1415,6 @@ object RssConf extends Logging {
       .createWithDefault(9096)
 
   def metricsSystemEnable(conf: RssConf): Boolean = conf.get(METRICS_ENABLED)
-
-  def metricsTimerSlidingSize(conf: RssConf): Int = conf.get(METRICS_TIMER_SLIDING_SIZE)
 
   def metricsSampleRate(conf: RssConf): Double = conf.get(METRICS_SAMPLE_RATE)
 

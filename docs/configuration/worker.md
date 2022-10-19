@@ -20,7 +20,6 @@ license: |
 | celeborn.master.endpoints | `<localhost>:9097` | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. |  | 
 | celeborn.metrics.sample.rate | `1.0` |  |  | 
-| celeborn.metrics.timer.sliding.size | `4000` |  |  | 
 | celeborn.metrics.timer.sliding.window.size | `4096` |  |  | 
 | celeborn.shuffle.chuck.size | `8m` | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. |  | 
 | celeborn.worker.base.dir.number | `16` | Base directory count for Celeborn worker to write. |  | 
@@ -33,13 +32,12 @@ license: |
 | celeborn.worker.disk.reserve.size | `5G` | Celeborn worker reserved space for each disk. | 0.2.0 | 
 | celeborn.worker.filewriter.close.timeout | `120s` | Timeout for a file writer to close | 0.2.0 | 
 | celeborn.worker.filewriter.creation.retry | `3` | Retry count for a file writer to create if its creation was failed. |  | 
-| celeborn.worker.flusher.avg.window.count | `20` | The count of windows used for calculate statistics about flushed time and count. | 0.2.0 | 
+| celeborn.worker.flusher.avgFlushTime.slidingWindow.minCount | `1000` | The minimum flush count to enter a sliding window to calculate statistics about flushed time and count. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
 | celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count used for write data to HDD disks. | 0.2.0 | 
 | celeborn.worker.flusher.hdfs.threads | `4` | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
 | celeborn.worker.flusher.shutdown.timeout | `3s` | Timeout for a flusher to shutdown. | 0.2.0 | 
 | celeborn.worker.flusher.ssd.threads | `8` | Flusher's thread count used for write data to SSD disks. | 0.2.0 | 
-| celeborn.worker.flusher.window.minimum.flush.count | `1000` | Minimum flush data count for a valid window. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | `480s` | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
