@@ -309,18 +309,18 @@ object DeviceMonitor {
 
   /**
    * check if the disk is high usage
-   * @param rssConf conf
+   * @param conf conf
    * @param diskRootPath disk root path
    * @return true if high disk usage
    */
-  def highDiskUsage(rssConf: RssConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(conf: RssConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
       val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < rssConf.diskMinimumReserveSize / 1024 / 1024 / 1024
+      val status = freeSpace.toLong < conf.diskMinimumReserveSize / 1024 / 1024 / 1024
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
@@ -328,7 +328,7 @@ object DeviceMonitor {
       status
     })(false)(
       deviceCheckThreadPool,
-      RssConf.workerStatusCheckTimeout(rssConf),
+      RssConf.workerStatusCheckTimeout(conf),
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
