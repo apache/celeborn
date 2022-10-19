@@ -40,7 +40,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.netty.RemoteNettyRpcCallContext
+import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -786,18 +786,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       context.reply(
         GetReducerFileGroupResponse(StatusCode.SHUFFLE_DATA_LOST, Array.empty, Array.empty))
     } else {
-      val cachedMsg = rpcCache.get(
-        shuffleId,
-        new Callable[ByteBuffer]() {
-          override def call(): ByteBuffer = {
-            val returnedMsg = GetReducerFileGroupResponse(
-              StatusCode.SUCCESS,
-              reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
-              shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty))
-            context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
-          }
-        })
-      context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+      if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+        // This branch is for the UTs
+        context.reply(GetReducerFileGroupResponse(
+          StatusCode.SUCCESS,
+          reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+          shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)))
+      } else {
+        val cachedMsg = rpcCache.get(
+          shuffleId,
+          new Callable[ByteBuffer]() {
+            override def call(): ByteBuffer = {
+              val returnedMsg = GetReducerFileGroupResponse(
+                StatusCode.SUCCESS,
+                reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+                shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty))
+              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+            }
+          })
+        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+      }
     }
   }
 
