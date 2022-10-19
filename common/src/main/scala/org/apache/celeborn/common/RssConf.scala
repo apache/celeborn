@@ -370,19 +370,19 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def checkSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
   def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
-  def workerDiskFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_GRACEFUL_SHUTDOWN_TIMEOUT)
-  def commitFilesTimeout: Long = get(WORKER_COMMIT_FILES_TIMEOUT)
+  def workerDiskFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
+  def commitFilesTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def fileWriterTimeoutMs: Long = get(WORKER_FILEWRITE_CLOSE_TIMEOUT)
   def HDDFlusherThread: Int = get(WORKER_FLUSHER_HDD_THREAD_COUNT)
   def SSDFlusherThread: Int = get(WORKER_FLUSHER_SSD_THREAD_COUNT)
   def hdfsFlusherThreadCount: Int = get(WORKER_FLUSHER_HDFS_THREAD_COUNT)
   def flushAvgTimeWindow: Int = get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
   def flushAvgTimeMinimumCount: Int = get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
-  def diskMinimumReserveSize: Long = get(WORKER_DISK_RESERVATION)
+  def diskMinimumReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
   def deviceMonitorEnabled: Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
   def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
   def diskCheckIntervalMs: Long = get(WORKER_DISK_CHECK_INTERVAL)
-  def sysBlockDir: String = get(WORKER_DISKMONITOR_SYS_BLOCKDIR)
+  def sysBlockDir: String = get(WORKER_DEVICEMONITOR_SYS_BLOCKDIR)
   def createFileWriterRetryCount: Int = get(WORKER_FILEWRITER_CREATION_RETRY)
   def workerBaseDirPrefix: String = get(WORKER_BASE_DIR_PREFIX)
   def workerBaseDirNumber: Int = get(WORKER_BASE_DIR_COUNT)
@@ -1203,11 +1203,11 @@ object RssConf extends Logging {
 
   def workerFlusherBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSHER_BUFFER_SIZE)
 
-  val WORKER_COMMIT_FILES_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.commit.files.timeout")
+  val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.shuffle.commit.timeout")
       .withAlternative("rss.flush.timeout")
       .categories("worker")
-      .doc("Timeout for commit file to complete.")
+      .doc("Timeout for a Celeborn worker to commit a shuffle.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("120s")
@@ -1256,17 +1256,17 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(4)
 
-  val WORKER_FLUSHER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.flusher.graceful.shutdown.timeout")
+  val WORKER_FLUSHER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.shutdown.timeout")
       .withAlternative("rss.worker.diskFlusherShutdownTimeoutMs")
       .categories("worker")
-      .doc("Timeout for a flusher to shutdown gracefully.")
+      .doc("Timeout for a flusher to shutdown.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
 
-  val WORKER_DISK_RESERVATION: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disk.reservation")
+  val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.disk.reserve.size")
       .withAlternative("rss.disk.minimum.reserve.size")
       .categories("worker")
       .doc("Celeborn worker reserved space for each disk.")
@@ -1505,14 +1505,15 @@ object RssConf extends Logging {
       .createWithDefaultString("readwrite,diskusage")
 
   val WORKER_DISK_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.diskmonitor.check.interval")
+    buildConf("celeborn.worker.deviceMonitor.check.interval")
       .withAlternative("rss.disk.check.interval")
       .categories("worker")
+      .doc("Intervals between device monitor to check disk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val WORKER_DISKMONITOR_SYS_BLOCKDIR: ConfigEntry[String] =
-    buildConf("celeborn.worker.diskmonitor.sys.block.dir")
+  val WORKER_DEVICEMONITOR_SYS_BLOCKDIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.deviceMonitor.sys.block.dir")
       .withAlternative("rss.sys.block.dir")
       .categories("worker")
       .doc("The directory where linux file block information is stored.")

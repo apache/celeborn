@@ -25,20 +25,19 @@ license: |
 | celeborn.shuffle.chuck.size | `8m` | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. |  | 
 | celeborn.worker.base.dir.number | `16` | Base directory count for Celeborn worker to write. |  | 
 | celeborn.worker.base.dir.prefix | `/mnt/disk` | Base directory for Celeborn worker to write. |  | 
-| celeborn.worker.commit.files.timeout | `120s` | Timeout for commit file to complete. | 0.2.0 | 
 | celeborn.worker.commit.threads | `32` | Thread number of worker to commit shuffle data files asynchronously. |  | 
+| celeborn.worker.deviceMonitor.check.interval | `60s` | Intervals between device monitor to check disk. |  | 
 | celeborn.worker.deviceMonitor.checklist | `readwrite,diskusage` | Select what the device needs to detect, available items are: iohang, readwrite and diskusage. |  | 
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
-| celeborn.worker.disk.reservation | `5G` | Celeborn worker reserved space for each disk. | 0.2.0 | 
-| celeborn.worker.diskmonitor.check.interval | `60s` |  |  | 
-| celeborn.worker.diskmonitor.sys.block.dir | `/sys/block` | The directory where linux file block information is stored. |  | 
+| celeborn.worker.deviceMonitor.sys.block.dir | `/sys/block` | The directory where linux file block information is stored. |  | 
+| celeborn.worker.disk.reserve.size | `5G` | Celeborn worker reserved space for each disk. | 0.2.0 | 
 | celeborn.worker.filewriter.close.timeout | `120s` | Timeout for a file writer to close | 0.2.0 | 
 | celeborn.worker.filewriter.creation.retry | `3` | Retry count for a file writer to create if its creation was failed. |  | 
 | celeborn.worker.flusher.avg.window.count | `20` | The count of windows used for calculate statistics about flushed time and count. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
-| celeborn.worker.flusher.graceful.shutdown.timeout | `3s` | Timeout for a flusher to shutdown gracefully. | 0.2.0 | 
 | celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count used for write data to HDD disks. | 0.2.0 | 
 | celeborn.worker.flusher.hdfs.threads | `4` | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
+| celeborn.worker.flusher.shutdown.timeout | `3s` | Timeout for a flusher to shutdown. | 0.2.0 | 
 | celeborn.worker.flusher.ssd.threads | `8` | Flusher's thread count used for write data to SSD disks. | 0.2.0 | 
 | celeborn.worker.flusher.window.minimum.flush.count | `1000` | Minimum flush data count for a valid window. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
@@ -51,5 +50,6 @@ license: |
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 
 | celeborn.worker.replicate.threads | `64` | Thread number of worker to replicate shuffle data. |  | 
+| celeborn.worker.shuffle.commit.timeout | `120s` | Timeout for a Celeborn worker to commit a shuffle. | 0.2.0 | 
 | celeborn.worker.storage.dirs | `<undefined>` | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |  | 
 <!--end-include-->
