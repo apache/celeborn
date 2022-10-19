@@ -1109,7 +1109,6 @@ object RssConf extends Logging {
       .doc("Size of buffer used by a single flusher.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
-
   def workerHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(WORKER_HEARTBEAT_TIMEOUT)
 
   def workerReplicateThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREADS)
@@ -1216,6 +1215,14 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(4)
 
+  val WORKER_FLUSHER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.graceful.shutdown.timeout")
+      .withAlternative("rss.worker.diskFlusherShutdownTimeoutMs")
+      .categories("worker")
+      .doc("Timeout for a flusher to shutdown gracefully.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
+
   val WORKER_DISK_RESERVATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.disk.reservation")
       .withAlternative("rss.disk.minimum.reserve.size")
@@ -1224,11 +1231,35 @@ object RssConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
+  val WORKER_FLUSHER_AVG_WINDOW_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.avg.window.count")
+      .withAlternative("rss.flusher.avg.time.window")
+      .categories("worker")
+      .doc("The count of windows used for calculate statistics about flushed time and count.")
+      .intConf
+      .createWithDefault(20)
+
+  val WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.window.minimum.flush.count")
+      .withAlternative("rss.flusher.avg.time.minimum.count")
+      .categories("worker")
+      .doc("Minimum flush data count for a valid window.")
+      .intConf
+      .createWithDefault(1000)
+
   def HDDFlusherThread(conf: RssConf): Int = conf.get(WORKER_FLUSHER_HDD_THREAD_COUNT)
 
   def SSDFlusherThread(conf: RssConf): Int = conf.get(WORKER_FLUSHER_SSD_THREAD_COUNT)
 
   def hdfsFlusherThreadCount(conf: RssConf): Int = conf.get(WORKER_FLUSHER_HDFS_THREAD_COUNT)
+
+  def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long =
+    conf.get(WORKER_FLUSHER_GRACEFUL_SHUTDOWN_TIMEOUT)
+
+  def flushAvgTimeWindow(conf: RssConf): Int = conf.get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
+
+  def flushAvgTimeMinimumCount(conf: RssConf): Int =
+    conf.get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
 
   def diskMinimumReserveSize(conf: RssConf): Long = conf.get(WORKER_DISK_RESERVATION)
 
@@ -1643,18 +1674,6 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.worker.partitionSorterCloseAwaitTime", "120s")
   }
 
-  val WORKER_LUSHER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.flusher.graceful.shutdown.timeout")
-      .withAlternative("rss.worker.diskFlusherShutdownTimeoutMs")
-      .categories("worker")
-      .doc("Timeout for a flusher to shutdown gracefully.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("3s")
-
-  def workerDiskFlusherShutdownTimeoutMs(conf: RssConf): Long = {
-    conf.get(WORKER_LUSHER_GRACEFUL_SHUTDOWN_TIMEOUT)
-  }
-
   def offerSlotsAlgorithm(conf: RssConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
@@ -1663,30 +1682,6 @@ object RssConf extends Logging {
       algorithm = "roundrobin"
     }
     algorithm
-  }
-
-  val WORKER_FLUSHER_AVG_WINDOW_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.flusher.avg.window.count")
-      .withAlternative("rss.flusher.avg.time.window")
-      .categories("worker")
-      .doc("The count of windows used for calculate statistics about flushed time and count.")
-      .intConf
-      .createWithDefault(20)
-
-  def flushAvgTimeWindow(conf: RssConf): Int = {
-    conf.get(WORKER_FLUSHER_AVG_WINDOW_COUNT)
-  }
-
-  val WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.flusher.window.minimum.flush.count")
-      .withAlternative("rss.flusher.avg.time.minimum.count")
-      .categories("worker")
-      .doc("Minimum flush data count for a valid window.")
-      .intConf
-      .createWithDefault(1000)
-
-  def flushAvgTimeMinimumCount(conf: RssConf): Int = {
-    conf.get(WORKER_FLUSHER_WINDOW_MINIMUM_FLUSH_COUNT)
   }
 
   val HDFS_DIR: OptionalConfigEntry[String] =
