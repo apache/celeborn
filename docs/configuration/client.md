@@ -19,6 +19,7 @@ license: |
 | celeborn.application.heartbeat.interval | `10s` | Interval for client to send heartbeat message to master. |  | 
 | celeborn.fetch.maxReqsInFlight | `3` | Amount of in-flight chunk fetch request. |  | 
 | celeborn.fetch.timeout | `120s` | Timeout for a task to fetch chunk. |  | 
+| celeborn.hdfs.dir | `<undefined>` | Hdfs dir configuration for Celeborn to access HDFS. |  | 
 | celeborn.master.endpoints | `<localhost>:9097` | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.push.buffer.initial.size | `8k` |  |  | 
 | celeborn.push.buffer.max.size | `64k` | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. |  | 

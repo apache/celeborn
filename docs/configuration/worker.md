@@ -16,16 +16,31 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
+| celeborn.hdfs.dir | `<undefined>` | Hdfs dir configuration for Celeborn to access HDFS. |  | 
 | celeborn.master.endpoints | `<localhost>:9097` | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. |  | 
 | celeborn.metrics.sample.rate | `1.0` |  |  | 
 | celeborn.metrics.timer.sliding.size | `4000` |  |  | 
 | celeborn.metrics.timer.sliding.window.size | `4096` |  |  | 
 | celeborn.shuffle.chuck.size | `8m` | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. |  | 
+| celeborn.worker.base.dir.number | `16` | Base directory count for Celeborn worker to write. |  | 
+| celeborn.worker.base.dir.prefix | `/mnt/disk` | Base directory for Celeborn worker to write. |  | 
+| celeborn.worker.commit.files.timeout | `120s` | Timeout for commit file to complete. | 0.2.0 | 
 | celeborn.worker.commit.threads | `32` | Thread number of worker to commit shuffle data files asynchronously. |  | 
 | celeborn.worker.deviceMonitor.checklist | `readwrite,diskusage` | Select what the device needs to detect, available items are: iohang, readwrite and diskusage. |  | 
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
-| celeborn.worker.flush.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
+| celeborn.worker.disk.reservation | `5G` | Celeborn worker reserved space for each disk. | 0.2.0 | 
+| celeborn.worker.diskmonitor.check.interval | `60s` |  |  | 
+| celeborn.worker.diskmonitor.sys.block.dir | `/sys/block` | The directory where linux file block information is stored. |  | 
+| celeborn.worker.filewriter.close.timeout | `120s` | Timeout for a file writer to close | 0.2.0 | 
+| celeborn.worker.filewriter.creation.retry | `3` | Retry count for a file writer to create if its creation was failed. |  | 
+| celeborn.worker.flusher.avg.window.count | `20` | The count of windows used for calculate statistics about flushed time and count. | 0.2.0 | 
+| celeborn.worker.flusher.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
+| celeborn.worker.flusher.graceful.shutdown.timeout | `3s` | Timeout for a flusher to shutdown gracefully. |  | 
+| celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count used for write data to HDD disks. | 0.2.0 | 
+| celeborn.worker.flusher.hdfs.threads | `4` | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
+| celeborn.worker.flusher.ssd.threads | `8` | Flusher's thread count used for write data to SSD disks. | 0.2.0 | 
+| celeborn.worker.flusher.window.minimum.flush.count | `1000` | Minimum flush data count for a valid window. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 
