@@ -28,7 +28,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.*;
-import org.apache.celeborn.common.protocol.message.ControlMessages.*;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 
 public class PbSerDeUtils {
   public static Set<String> fromPbSortedShuffleFileSet(byte[] data)

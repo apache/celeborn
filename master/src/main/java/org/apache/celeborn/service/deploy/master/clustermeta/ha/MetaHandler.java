@@ -32,7 +32,7 @@ import org.apache.celeborn.common.RssConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;

@@ -30,6 +30,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
+import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
 
 sealed trait Message extends Serializable
@@ -392,27 +393,6 @@ object ControlMessages extends Logging {
   case object ThreadDump extends Message
 
   case class ThreadDumpResponse(threadDump: String) extends Message
-
-  case class ResourceConsumption(
-      diskBytesWritten: Long,
-      diskFileCount: Long,
-      hdfsBytesWritten: Long,
-      hdfsFileCount: Long) {
-    def add(other: ResourceConsumption): ResourceConsumption = {
-      ResourceConsumption(
-        diskBytesWritten + other.diskBytesWritten,
-        diskFileCount + other.diskFileCount,
-        hdfsBytesWritten + other.hdfsBytesWritten,
-        hdfsFileCount + other.hdfsFileCount)
-    }
-
-    override def toString: String = {
-      s"ResourceConsumption(diskBytesWritten: ${Utils.bytesToString(diskBytesWritten)}," +
-        s" diskFileCount: ${diskFileCount}," +
-        s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
-        s" hdfsFileCount: ${hdfsFileCount})"
-    }
-  }
 
   // TODO change message type to GeneratedMessageV3
   def toTransportMessage(message: Any): TransportMessage = message match {

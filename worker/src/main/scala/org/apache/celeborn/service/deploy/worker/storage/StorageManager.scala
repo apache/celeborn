@@ -42,7 +42,7 @@ import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileIn
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.MemoryTracker.MemoryTrackerListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption
+import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs

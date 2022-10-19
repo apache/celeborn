@@ -36,7 +36,7 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
-import org.apache.celeborn.common.quota.QuotaManager
+import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
