@@ -429,15 +429,15 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
         }
         if (flushThread == -1) {
           flushThread = diskType match {
-            case HDD => HDDFlusherThread()
-            case SSD => SSDFlusherThread()
+            case HDD => HDDFlusherThread
+            case SSD => SSDFlusherThread
           }
         }
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      val prefix = workerBaseDirPrefix()
-      val number = workerBaseDirNumber()
+      val prefix = workerBaseDirPrefix
+      val number = workerBaseDirNumber
       (1 to number).map { i =>
         (s"$prefix$i", defaultMaxCapacity, HDDFlusherThread(), HDD)
       }

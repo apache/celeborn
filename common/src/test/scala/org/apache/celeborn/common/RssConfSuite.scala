@@ -36,7 +36,7 @@ class RssConfSuite extends RssFunSuite {
     val conf = new RssConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
-    val parsedDirs = conf.workerBaseDirs()
+    val parsedDirs = conf.workerBaseDirs
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 1)
     assert(parsedDirs.head._2 == defaultMaxUsableSpace)
