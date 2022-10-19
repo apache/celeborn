@@ -24,7 +24,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.Utils;
 
 public class MetaUtil {
