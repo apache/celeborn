@@ -36,11 +36,17 @@ license: |
 | celeborn.worker.filewriter.creation.retry | `3` | Retry count for a file writer to create if its creation was failed. |  | 
 | celeborn.worker.flusher.avg.window.count | `20` | The count of windows used for calculate statistics about flushed time and count. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
-| celeborn.worker.flusher.graceful.shutdown.timeout | `3s` | Timeout for a flusher to shutdown gracefully. |  | 
+| celeborn.worker.flusher.graceful.shutdown.timeout | `3s` | Timeout for a flusher to shutdown gracefully. | 0.2.0 | 
 | celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count used for write data to HDD disks. | 0.2.0 | 
 | celeborn.worker.flusher.hdfs.threads | `4` | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
 | celeborn.worker.flusher.ssd.threads | `8` | Flusher's thread count used for write data to SSD disks. | 0.2.0 | 
 | celeborn.worker.flusher.window.minimum.flush.count | `1000` | Minimum flush data count for a valid window. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | `480s` | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | `120s` | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.recoverPath | `<tmp>/recover` | The path to store levelDB. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.timeout | `600s` | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 
