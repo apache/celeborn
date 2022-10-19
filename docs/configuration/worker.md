@@ -22,20 +22,20 @@ license: |
 | celeborn.metrics.timer.sliding.size | `4000` |  |  | 
 | celeborn.metrics.timer.sliding.window.size | `4096` |  |  | 
 | celeborn.shuffle.chuck.size | `8m` | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. |  | 
-| celeborn.worker.checkSlotsFinishedInterval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown |  | 
-| celeborn.worker.checkSlotsFinishedTimeout | `480s` | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. |  | 
 | celeborn.worker.commit.threads | `32` | Thread number of worker to commit shuffle data files asynchronously. |  | 
 | celeborn.worker.deviceMonitor.checklist | `readwrite,diskusage` | Select what the device needs to detect, available items are: iohang, readwrite and diskusage. |  | 
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
-| celeborn.worker.diskFlusherShutdownTimeout | `3s` | The timeout to wait for diskOperators to execute remaining jobs before being shutdown immediately. |  | 
 | celeborn.worker.flush.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
-| celeborn.worker.gracefulShutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. |  | 
-| celeborn.worker.gracefulShutdownTimeout | `600s` | The worker's graceful shutdown timeout time. |  | 
+| celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | `480s` | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.flusher.shutdownTimeout | `3s` | The timeout to wait for diskOperators to execute remaining jobs before being shutdown immediately. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | `120s` | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.recoverPath | `/tmp/recover` | The path to store levelDB. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.timeout | `600s` | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 
-| celeborn.worker.partitionSorterCloseAwaitTime | `120s` | The wait time of waiting for sorting partition files during worker graceful shutdown. |  | 
-| celeborn.worker.recoverPath | `/tmp/recover` | The path to store levelDB. |  | 
 | celeborn.worker.replicate.threads | `64` | Thread number of worker to replicate shuffle data. |  | 
 | celeborn.worker.storage.dirs | `<undefined>` | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |  | 
 <!--end-include-->
