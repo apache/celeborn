@@ -118,7 +118,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.mapStatusRecords = new long[numPartitions];
     tmpRecords = new long[numPartitions];
 
-    pushBufferMaxSize = MaxMaxconf.pushBufferMaxSize();
+    pushBufferMaxSize = conf.pushBufferMaxSize();
 
     sortBasedPusher =
         new SortBasedPusher(
