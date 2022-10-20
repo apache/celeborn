@@ -48,7 +48,7 @@ abstract class AbstractSource(conf: RssConf, role: String)
 
   val samplePerfCritical: Boolean = RssConf.metricsSamplePerfCritical(conf)
 
-  final val InnerMetricsSize = RssConf.innerMetricsSize(conf)
+  final val innerMetricsSize = RssConf.innerMetricsSize(conf)
 
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
@@ -199,7 +199,7 @@ abstract class AbstractSource(conf: RssConf, role: String)
 
   private def updateInnerMetrics(str: String): Unit = {
     innerMetrics.synchronized {
-      if (innerMetrics.size() >= InnerMetricsSize) {
+      if (innerMetrics.size() >= innerMetricsSize) {
         innerMetrics.remove()
       }
       innerMetrics.offer(str)
