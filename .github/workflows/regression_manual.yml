@@ -15,23 +15,23 @@
 # limitations under the License.
 #
 
-name: Celeborn Regression
+name: Celeborn User Triggered Regression
 
 on:
-  repository_dispatch:
-    types: [ regression ]
+  workflow_dispatch:
+    inputs:
+      regression:
+        description: "regression"
+        required: true
+        default: "default-regression"
 
 jobs:
+
   regression:
     runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.client_payload.pull_request.head.ref }}
-          path: ${{ github.event.repository.name }}
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
 
       - name: Build
         run: ./dev/make-distribution.sh -Pspark-3.2 && rm -rf /home/hadoop/celeborn-toolkit/dist/* && mv celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
