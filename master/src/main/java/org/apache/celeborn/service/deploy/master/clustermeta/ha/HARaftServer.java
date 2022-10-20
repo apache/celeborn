@@ -347,8 +347,7 @@ public class HARaftServer {
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
 
     TimeDuration noLeaderTimeout =
-        TimeDuration.valueOf(
-            conf.haMasterRatisNotificationNoLeaderTimeout(), TimeUnit.SECONDS);
+        TimeDuration.valueOf(conf.haMasterRatisNotificationNoLeaderTimeout(), TimeUnit.SECONDS);
     RaftServerConfigKeys.Notification.setNoLeaderTimeout(properties, noLeaderTimeout);
     TimeDuration slownessTimeout =
         TimeDuration.valueOf(conf.haMasterRatisRpcSlownessTimeout(), TimeUnit.SECONDS);

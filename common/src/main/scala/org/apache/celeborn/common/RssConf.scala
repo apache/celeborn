@@ -364,20 +364,20 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     }
   }
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //                      Master                        //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //                      Worker                        //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //                      Client                        //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
@@ -390,9 +390,9 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //                Address & HA && RATIS               //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
     get(MASTER_ENDPOINTS).toArray.map { endpoint =>
       Utils.parseHostPort(endpoint) match {
@@ -448,23 +448,28 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def haMasterRatisStorageDir: String = get(HA_MASTER_RATIS_STORAGE_DIR)
   def haMasterRatisLogSegmentSizeMax: Long = get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
   def haMasterRatisLogPreallocatedSize: Long = get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
-  def haMasterRatisLogAppenderQueueNumElements: Int = get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
-  def haMasterRatisLogAppenderQueueBytesLimit: Long = get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
+  def haMasterRatisLogAppenderQueueNumElements: Int =
+    get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
+  def haMasterRatisLogAppenderQueueBytesLimit: Long =
+    get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
   def haMasterRatisLogPurgeGap: Int = get(HA_MASTER_RATIS_LOG_PURGE_GAP)
   def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
-  def haMasterRatisNotificationNoLeaderTimeout: Long = get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
+  def haMasterRatisNotificationNoLeaderTimeout: Long =
+    get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
   def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
   def haMasterRatisRoleCheckInterval: Long = get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
-  def haMasterRatisSnapshotAutoTriggerEnabled: Boolean = get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
-  def haMasterRatisSnapshotAutoTriggerThreshold: Long = get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
+  def haMasterRatisSnapshotAutoTriggerEnabled: Boolean =
+    get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
+  def haMasterRatisSnapshotAutoTriggerThreshold: Long =
+    get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //                 Metrics System                     //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
@@ -473,24 +478,24 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                 //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //               Shuffle Client Push                  //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
   def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
   def pushBufferMaxSize: Int = get(PUSH_BUFFER_MAX_SIZE).toInt
   def pushQueueCapacity: Int = get(PUSH_QUEUE_CAPACITY)
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //            GraceFul Shutdown & Recover             //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def checkSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
@@ -499,9 +504,9 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   //                      Flusher                       //
-  ////////////////////////////////////////////////////////
+  // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
