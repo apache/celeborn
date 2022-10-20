@@ -392,7 +392,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
 
   // //////////////////////////////////////////////////////
-  //                Address & HA && RATIS               //
+  //               Address && HA && RATIS               //
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
     get(MASTER_ENDPOINTS).toArray.map { endpoint =>

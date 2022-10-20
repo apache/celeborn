@@ -330,7 +330,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private int getOrUpdateOffset(int partitionId, int serializedRecordSize) throws IOException {
     int offset = sendOffsets[partitionId];
     byte[] buffer = getOrCreateBuffer(partitionId);
-    while ((buffer.length - offset) < serializedRecordSize && buffer.length < PUSH_BUFFER_MAX_SIZE) {
+    while ((buffer.length - offset) < serializedRecordSize
+        && buffer.length < PUSH_BUFFER_MAX_SIZE) {
 
       byte[] newBuffer = new byte[Math.min(buffer.length * 2, PUSH_BUFFER_MAX_SIZE)];
       peakMemoryUsedBytes += newBuffer.length - buffer.length;

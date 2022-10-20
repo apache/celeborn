@@ -115,7 +115,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
-  private val appHeartbeatHandlerThread = ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
+  private val appHeartbeatHandlerThread =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
   private val responseCheckerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
@@ -1422,7 +1423,13 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
     val req =
-      RequestSlots(applicationId, shuffleId, ids, lifecycleHost, pushReplicateEnabled, userIdentifier)
+      RequestSlots(
+        applicationId,
+        shuffleId,
+        ids,
+        lifecycleHost,
+        pushReplicateEnabled,
+        userIdentifier)
     val res = requestRequestSlots(rssHARetryClient, req)
     if (res.status != StatusCode.SUCCESS) {
       requestRequestSlots(rssHARetryClient, req)

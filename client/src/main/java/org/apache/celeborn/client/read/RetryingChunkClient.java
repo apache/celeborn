@@ -90,13 +90,15 @@ public class RetryingChunkClient {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");
     } else {
       Replica main =
-          new Replica(fetchTimeoutMs, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+          new Replica(
+              fetchTimeoutMs, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       PartitionLocation peerLoc = location.getPeer();
       if (peerLoc == null) {
         replicas = new Replica[] {main};
       } else {
         Replica peer =
-            new Replica(fetchTimeoutMs, shuffleKey, peerLoc, clientFactory, startMapIndex, endMapIndex);
+            new Replica(
+                fetchTimeoutMs, shuffleKey, peerLoc, clientFactory, startMapIndex, endMapIndex);
         replicas = new Replica[] {main, peer};
       }
     }
