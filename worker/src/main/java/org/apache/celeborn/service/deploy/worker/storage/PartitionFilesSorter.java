@@ -49,7 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
@@ -99,10 +99,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           120);
   private final Thread fileSorterSchedulerThread;
 
-  public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
-    this.sortTimeout = RssConf.partitionSortTimeout(conf);
+  public PartitionFilesSorter(
+      MemoryTracker memoryTracker, CelebornConf conf, AbstractSource source) {
+    this.sortTimeout = CelebornConf.partitionSortTimeout(conf);
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.initialReserveSingleSortMemory = RssConf.initialReserveSingleSortMemory(conf);
+    this.initialReserveSingleSortMemory = CelebornConf.initialReserveSingleSortMemory(conf);
     this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryTracker = memoryTracker;

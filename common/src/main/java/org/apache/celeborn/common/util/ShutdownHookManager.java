@@ -34,7 +34,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 /**
  * The ShutdownHookManager enables running shutdownHook in a deterministic order, higher priority
@@ -86,7 +86,7 @@ public final class ShutdownHookManager {
                           (ended - started) / 1000.0, timeoutCount));
                   // each of the hooks have executed; now shut down the
                   // executor itself.
-                  shutdownExecutor(new RssConf());
+                  shutdownExecutor(new CelebornConf());
                 }
               });
     } catch (IllegalStateException ex) {
@@ -132,7 +132,7 @@ public final class ShutdownHookManager {
    *
    * @param conf the configuration containing the shutdown timeout setting.
    */
-  private static void shutdownExecutor(final RssConf conf) {
+  private static void shutdownExecutor(final CelebornConf conf) {
     try {
       EXECUTOR.shutdown();
       long shutdownTimeout = getShutdownTimeout(conf);
@@ -154,7 +154,7 @@ public final class ShutdownHookManager {
     return MGR;
   }
 
-  static long getShutdownTimeout(RssConf conf) {
+  static long getShutdownTimeout(CelebornConf conf) {
     long duration = conf.shutdownTimeoutMs();
     if (duration < TIMEOUT_MINIMUM) {
       duration = TIMEOUT_MINIMUM;
@@ -169,7 +169,7 @@ public final class ShutdownHookManager {
     private final TimeUnit unit;
 
     HookEntry(Runnable hook, int priority) {
-      this(hook, priority, getShutdownTimeout(new RssConf()), TIME_UNIT_DEFAULT);
+      this(hook, priority, getShutdownTimeout(new CelebornConf()), TIME_UNIT_DEFAULT);
     }
 
     HookEntry(Runnable hook, int priority, long timeout, TimeUnit unit) {

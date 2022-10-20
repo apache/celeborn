@@ -28,7 +28,7 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class PushState {
@@ -42,7 +42,7 @@ public class PushState {
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
-  public PushState(RssConf conf) {
+  public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
   }
 

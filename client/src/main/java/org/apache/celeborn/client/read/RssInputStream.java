@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Decompressor;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -39,7 +39,7 @@ public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
 
   public static RssInputStream create(
-      RssConf conf,
+      CelebornConf conf,
       TransportClientFactory clientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
@@ -88,7 +88,7 @@ public abstract class RssInputStream extends InputStream {
   private static final class RssInputStreamImpl extends RssInputStream {
     private static final Random RAND = new Random();
 
-    private final RssConf conf;
+    private final CelebornConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
     private final PartitionLocation[] locations;
@@ -118,7 +118,7 @@ public abstract class RssInputStream extends InputStream {
     private final boolean rangeReadFilter;
 
     RssInputStreamImpl(
-        RssConf conf,
+        CelebornConf conf,
         TransportClientFactory clientFactory,
         String shuffleKey,
         PartitionLocation[] locations,
@@ -135,7 +135,7 @@ public abstract class RssInputStream extends InputStream {
       this.attemptNumber = attemptNumber;
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
-      this.rangeReadFilter = RssConf.rangeReadFilterEnabled(conf);
+      this.rangeReadFilter = CelebornConf.rangeReadFilterEnabled(conf);
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.pushBufferMaxSize() + headerLen;

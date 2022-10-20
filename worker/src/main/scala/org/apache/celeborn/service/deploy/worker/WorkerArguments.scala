@@ -19,10 +19,10 @@ package org.apache.celeborn.service.deploy.worker
 
 import scala.annotation.tailrec
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{IntParam, Utils}
 
-class WorkerArguments(args: Array[String], conf: RssConf) {
+class WorkerArguments(args: Array[String], conf: CelebornConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
@@ -36,7 +36,7 @@ class WorkerArguments(args: Array[String], conf: RssConf) {
   // 2nd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
   _host = _host.orElse(Some(Utils.localHostName))
-  _port = _port.orElse(Some(RssConf.workerRPCPort(conf)))
+  _port = _port.orElse(Some(CelebornConf.workerRPCPort(conf)))
 
   if (_host.isEmpty || _port.isEmpty) {
     printUsageAndExit(1)

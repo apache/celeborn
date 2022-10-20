@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.identity
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
 abstract class IdentityProvider {
@@ -27,8 +27,8 @@ abstract class IdentityProvider {
 object IdentityProvider extends Logging {
   val DEFAULT_TENANT_ID = "default"
 
-  def instantiate(conf: RssConf): IdentityProvider = {
-    val className = RssConf.identityProviderClass(conf)
+  def instantiate(conf: CelebornConf): IdentityProvider = {
+    val className = CelebornConf.identityProviderClass(conf)
     logDebug(s"Creating identity provider $className")
     val clazz = Class.forName(
       className,

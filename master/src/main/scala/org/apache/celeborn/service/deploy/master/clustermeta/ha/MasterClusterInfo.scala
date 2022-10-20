@@ -26,8 +26,8 @@ import scala.util.{Failure, Success, Try}
 
 import org.apache.ratis.util.NetUtils
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf._
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 
 case class MasterClusterInfo(
@@ -37,7 +37,7 @@ case class MasterClusterInfo(
 object MasterClusterInfo extends Logging {
 
   @throws[IllegalArgumentException]
-  def loadHAConfig(conf: RssConf): MasterClusterInfo = {
+  def loadHAConfig(conf: CelebornConf): MasterClusterInfo = {
     val localNodeIdOpt = conf.haMasterNodeId
     val clusterNodeIds = conf.haMasterNodeIds
 
