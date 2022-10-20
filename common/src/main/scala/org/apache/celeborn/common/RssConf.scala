@@ -24,7 +24,6 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-import org.apache.celeborn.common.RssConf.log
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -1376,6 +1375,7 @@ object RssConf extends Logging {
       .withAlternative("rss.metrics.system.enabled")
       .categories("master", "worker", "metrics")
       .doc("When true, enable metrics system.")
+      .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
 
@@ -1383,14 +1383,18 @@ object RssConf extends Logging {
     buildConf("celeborn.metrics.sample.rate")
       .withAlternative("rss.metrics.system.sample.rate")
       .categories("master", "worker", "metrics")
+      .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in (0.0, 1.0).")
+      .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0]")
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in (0.0, 1.0)")
       .createWithDefault(1.0)
 
   val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.metrics.timer.sliding.window.size")
       .withAlternative("rss.metrics.system.sliding.window.size")
       .categories("master", "worker", "metrics")
+      .doc("The sliding window size of timer metric.")
+      .version("0.2.0")
       .intConf
       .createWithDefault(4096)
 
@@ -1398,6 +1402,8 @@ object RssConf extends Logging {
     buildConf("celeborn.master.metrics.prometheus.host")
       .withAlternative("rss.master.prometheus.metric.host")
       .categories("master", "metrics")
+      .doc("Master's Prometheus host.")
+      .version("0.2.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
@@ -1405,6 +1411,8 @@ object RssConf extends Logging {
     buildConf("celeborn.master.metrics.prometheus.port")
       .withAlternative("rss.master.prometheus.metric.port")
       .categories("master", "metrics")
+      .doc("Master's Prometheus port.")
+      .version("0.2.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9098)
@@ -1413,6 +1421,8 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.metrics.prometheus.host")
       .withAlternative("rss.worker.prometheus.metric.host")
       .categories("worker", "metrics")
+      .doc("Worker's Prometheus host.")
+      .version("0.2.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
@@ -1420,21 +1430,27 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.metrics.prometheus.port")
       .withAlternative("rss.worker.prometheus.metric.port")
       .categories("worker", "metrics")
+      .doc("Worker's Prometheus port.")
+      .version("0.2.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
   val METRICS_SAMPLE_PERFORMANCE_CRITICAL: ConfigEntry[Boolean] =
-    buildConf("celeborn.metrics.system.sample.perf.critical")
+    buildConf("celeborn.metrics.sample.perf.critical")
       .withAlternative("rss.metrics.system.sample.perf.critical")
       .categories("master", "worker", "metrics")
+      .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
+      .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
 
   val METRICS_INNER_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.metrics.system.inner.size")
+    buildConf("celeborn.metrics.inner.size")
       .withAlternative("rss.inner.metrics.size")
       .categories("master", "worker", "metrics")
+      .doc("The maximum number of metrics which a source can use to generate output strings.")
+      .version("0.2.0")
       .intConf
       .createWithDefault(4096)
 
