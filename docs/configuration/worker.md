@@ -28,12 +28,12 @@ license: |
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
 | celeborn.worker.deviceMonitor.sys.block.dir | `/sys/block` | The directory where linux file block information is stored. |  | 
 | celeborn.worker.disk.reserve.size | `5G` | Celeborn worker reserved space for each disk. | 0.2.0 | 
-| celeborn.worker.flusher.avgFlushTime.slidingWindow.size | `20` | The minimum flush count to enter a sliding window to calculate statistics about flushed time and count. | 0.2.0 | 
+| celeborn.worker.flusher.avgFlushTime.slidingWindow.size | `20` | The size of sliding windows used to calculate statistics about flushed time and count. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
-| celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count used for write data to HDD disks. | 0.2.0 | 
+| celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count per disk used for write data to HDD disks. | 0.2.0 | 
 | celeborn.worker.flusher.hdfs.threads | `4` | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
 | celeborn.worker.flusher.shutdown.timeout | `3s` | Timeout for a flusher to shutdown. | 0.2.0 | 
-| celeborn.worker.flusher.ssd.threads | `8` | Flusher's thread count used for write data to SSD disks. | 0.2.0 | 
+| celeborn.worker.flusher.ssd.threads | `8` | Flusher's thread count per disk used for write data to SSD disks. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | `1s` | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | `480s` | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.enabled | `false` | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
@@ -44,7 +44,7 @@ license: |
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 
 | celeborn.worker.replicate.threads | `64` | Thread number of worker to replicate shuffle data. |  | 
-| celeborn.worker.shuffle.commit.timeout | `120s` | Timeout for a Celeborn worker to commit a shuffle. | 0.2.0 | 
+| celeborn.worker.shuffle.commit.timeout | `120s` | Timeout for a Celeborn worker to commit files of a shuffle. | 0.2.0 | 
 | celeborn.worker.storage.base.dir.number | `16` | How many directories will be create if 'base.dir' is not set. The directory name is a combination of 'dir.prefix' and from zero to "dir.number" step by one. No sub directory will be created. |  | 
 | celeborn.worker.storage.base.dir.prefix | `/mnt/disk` | Base directory for Celeborn worker to write if 'base.dir' is not set. |  | 
 | celeborn.worker.storage.dirs | `<undefined>` | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=] |  | 

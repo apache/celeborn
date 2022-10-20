@@ -261,7 +261,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < conf.createWriterCreateMaxAttempts) {
+    while (retryCount < conf.createWriterMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {

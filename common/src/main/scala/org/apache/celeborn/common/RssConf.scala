@@ -384,7 +384,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
   def diskCheckInterval: Long = get(WORKER_DISK_CHECK_INTERVAL)
   def sysBlockDir: String = get(WORKER_DEVICEMONITOR_SYS_BLOCKDIR)
-  def createWriterCreateMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
+  def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
 
@@ -1208,7 +1208,7 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.shuffle.commit.timeout")
       .withAlternative("rss.flush.timeout")
       .categories("worker")
-      .doc("Timeout for a Celeborn worker to commit a shuffle.")
+      .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("120s")
@@ -1234,7 +1234,7 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.flusher.hdd.threads")
       .withAlternative("rss.flusher.hdd.thread.count")
       .categories("worker")
-      .doc("Flusher's thread count used for write data to HDD disks.")
+      .doc("Flusher's thread count per disk used for write data to HDD disks.")
       .version("0.2.0")
       .intConf
       .createWithDefault(1)
@@ -1243,7 +1243,7 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.flusher.ssd.threads")
       .withAlternative("rss.flusher.hdd.thread.count")
       .categories("worker")
-      .doc("Flusher's thread count used for write data to SSD disks.")
+      .doc("Flusher's thread count per disk used for write data to SSD disks.")
       .version("0.2.0")
       .intConf
       .createWithDefault(8)
@@ -1279,8 +1279,7 @@ object RssConf extends Logging {
     buildConf("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
-      .doc("The minimum flush count to enter a sliding window" +
-        " to calculate statistics about flushed time and count.")
+      .doc("The size of sliding windows used to calculate statistics about flushed time and count.")
       .version("0.2.0")
       .intConf
       .createWithDefault(20)
