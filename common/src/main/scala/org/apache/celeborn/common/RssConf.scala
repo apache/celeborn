@@ -374,6 +374,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
+  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
 
   // //////////////////////////////////////////////////////
   //                      Client                        //
@@ -508,7 +509,6 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   //                      Flusher                       //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
-  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def hddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)

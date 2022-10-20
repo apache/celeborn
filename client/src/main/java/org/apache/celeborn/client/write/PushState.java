@@ -34,7 +34,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public class PushState {
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
 
-  private int pushBufferSize;
+  private int pushBufferMaxSize;
 
   public final AtomicInteger batchId = new AtomicInteger();
   public final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
@@ -43,7 +43,7 @@ public class PushState {
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
   public PushState(RssConf conf) {
-    pushBufferSize = conf.pushBufferMaxSize();
+    pushBufferMaxSize = conf.pushBufferMaxSize();
   }
 
   public void addFuture(int batchId, ChannelFuture future) {
@@ -82,7 +82,7 @@ public class PushState {
   public boolean addBatchData(String addressPair, PartitionLocation loc, int batchId, byte[] body) {
     DataBatches batches = batchesMap.computeIfAbsent(addressPair, (s) -> new DataBatches());
     batches.addDataBatch(loc, batchId, body);
-    return batches.getTotalSize() > pushBufferSize;
+    return batches.getTotalSize() > pushBufferMaxSize;
   }
 
   public DataBatches takeDataBatches(String addressPair) {
