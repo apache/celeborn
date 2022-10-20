@@ -30,7 +30,6 @@ jobs:
         with:
           repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
           ref: ${{ github.event.client_payload.pull_request.head.ref }}
-          path: ${{ github.event.repository.name }}
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
 
       - name: Build
