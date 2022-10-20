@@ -32,8 +32,10 @@ import org.apache.celeborn.common.metrics.sink.{PrometheusHttpRequestHandler, Pr
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.util.Utils
 
-class MetricsSystem(val instance: String, conf: CelebornConf, val servletPath: String)
-  extends Logging {
+class MetricsSystem(
+    val instance: String,
+    conf: CelebornConf,
+    val servletPath: String) extends Logging {
   private[this] val metricsConfig = new MetricsConfig(conf)
 
   private val sinks = new mutable.ArrayBuffer[Sink]
