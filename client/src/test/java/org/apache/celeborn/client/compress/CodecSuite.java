@@ -29,8 +29,8 @@ public class CodecSuite {
 
   @Test
   public void testLz4Codec() {
-    int pushBufferMaxSize = (new RssConf()).pushBufferMaxSize();
-    RssLz4Compressor rssLz4Compressor = new RssLz4Compressor(pushBufferMaxSize);
+    int blockSize = (new RssConf()).pushBufferMaxSize();
+    RssLz4Compressor rssLz4Compressor = new RssLz4Compressor(blockSize);
     byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
     int oriLength = data.length;
     rssLz4Compressor.compress(data, 0, oriLength);
@@ -49,8 +49,8 @@ public class CodecSuite {
   public void testZstdCodec() {
     for (int level = -5; level <= 22; level++) {
       System.out.println("level is " + level);
-      int pushBufferMaxSize = (new RssConf()).pushBufferMaxSize();
-      RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(pushBufferMaxSize, level);
+      int blockSize = (new RssConf()).pushBufferMaxSize();
+      RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(blockSize, level);
       byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
       int oriLength = data.length;
       rssZstdCompressor.compress(data, 0, oriLength);

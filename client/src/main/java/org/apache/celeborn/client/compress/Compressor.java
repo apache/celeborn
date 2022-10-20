@@ -38,13 +38,13 @@ public interface Compressor {
 
   static Compressor getCompressor(RssConf conf) {
     String codec = RssConf.compressionCodec(conf);
-    int pushBufferMaxSize = conf.pushBufferMaxSize();
+    int blockSize = conf.pushBufferMaxSize();
     switch (codec) {
       case "lz4":
-        return new RssLz4Compressor(pushBufferMaxSize);
+        return new RssLz4Compressor(blockSize);
       case "zstd":
         int zstdLevel = RssConf.zstdCompressLevel(conf);
-        return new RssZstdCompressor(pushBufferMaxSize, zstdLevel);
+        return new RssZstdCompressor(blockSize, zstdLevel);
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }
