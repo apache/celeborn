@@ -363,6 +363,139 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     }
   }
 
+  // //////////////////////////////////////////////////////
+  //                      Master                        //
+  // //////////////////////////////////////////////////////
+
+  // //////////////////////////////////////////////////////
+  //                      Worker                        //
+  // //////////////////////////////////////////////////////
+  def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
+  def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
+  def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
+  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
+  //                      Client                        //
+  // //////////////////////////////////////////////////////
+  def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
+  def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
+  def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
+  def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
+  def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
+  def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
+  def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
+  def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
+  def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
+  def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
+  def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
+
+  // //////////////////////////////////////////////////////
+  //               Address && HA && RATIS               //
+  // //////////////////////////////////////////////////////
+  def masterEndpoints: Array[String] =
+    get(MASTER_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
+
+  def masterHost: String = get(MASTER_HOST)
+
+  def masterPort: Int = get(MASTER_PORT)
+
+  def haEnabled: Boolean = get(HA_ENABLED)
+
+  def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
+
+  def haMasterNodeIds: Array[String] = {
+    def extractPrefix(original: String, stop: String): String = {
+      val i = original.indexOf(stop)
+      assert(i >= 0, s"$original does not contain $stop")
+      original.substring(0, i)
+    }
+
+    val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
+    getAllWithPrefix(nodeConfPrefix)
+      .map(_._1)
+      .map(k => extractPrefix(k, "."))
+      .distinct
+  }
+
+  def haMasterNodeHost(nodeId: String): String = {
+    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    get(key, Utils.localHostName)
+  }
+
+  def haMasterNodePort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
+    getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
+  }
+
+  def haMasterRatisHost(nodeId: String): String = {
+    val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
+    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    get(key, get(fallbackKey))
+  }
+
+  def haMasterRatisPort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
+    getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
+  }
+
+  def haMasterRatisRpcType: String = get(HA_MASTER_RATIS_RPC_TYPE)
+  def haMasterRatisStorageDir: String = get(HA_MASTER_RATIS_STORAGE_DIR)
+  def haMasterRatisLogSegmentSizeMax: Long = get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
+  def haMasterRatisLogPreallocatedSize: Long = get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
+  def haMasterRatisLogAppenderQueueNumElements: Int =
+    get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
+  def haMasterRatisLogAppenderQueueBytesLimit: Long =
+    get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
+  def haMasterRatisLogPurgeGap: Int = get(HA_MASTER_RATIS_LOG_PURGE_GAP)
+  def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
+  def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
+  def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
+  def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
+  def haMasterRatisNotificationNoLeaderTimeout: Long =
+    get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
+  def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
+  def haMasterRatisRoleCheckInterval: Long = get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
+  def haMasterRatisSnapshotAutoTriggerEnabled: Boolean =
+    get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
+  def haMasterRatisSnapshotAutoTriggerThreshold: Long =
+    get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
+  def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+
+  // //////////////////////////////////////////////////////
+  //                 Metrics System                     //
+  // //////////////////////////////////////////////////////
+  def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
+  def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
+  def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
+  def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
+  def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
+  def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
+  def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
+
+  // //////////////////////////////////////////////////////
+  //               Shuffle Client Fetch                 //
+  // //////////////////////////////////////////////////////
+  def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
+  def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
+
+  // //////////////////////////////////////////////////////
+  //               Shuffle Client Push                  //
+  // //////////////////////////////////////////////////////
+  def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
+  def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
+  def pushBufferMaxSize: Int = get(PUSH_BUFFER_MAX_SIZE).toInt
+  def pushQueueCapacity: Int = get(PUSH_QUEUE_CAPACITY)
+  def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
+
+  // //////////////////////////////////////////////////////
+  //            GraceFul Shutdown & Recover             //
+  // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def checkSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
@@ -370,7 +503,11 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
-  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
+  //                      Flusher                       //
+  // //////////////////////////////////////////////////////
+  def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def hddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
@@ -805,40 +942,6 @@ object RssConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
 
-  def pushReplicateEnabled(conf: RssConf): Boolean = conf.get(PUSH_REPLICATE_ENABLED)
-
-  def pushBufferInitialSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_INITIAL_SIZE).toInt
-
-  def pushBufferMaxSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_MAX_SIZE).toInt
-
-  def pushQueueCapacity(conf: RssConf): Int = conf.get(PUSH_QUEUE_CAPACITY)
-
-  def pushMaxReqsInFlight(conf: RssConf): Int = conf.get(PUSH_MAX_REQS_IN_FLIGHT)
-
-  def fetchTimeoutMs(conf: RssConf): Long = conf.get(FETCH_TIMEOUT)
-
-  def fetchMaxReqsInFlight(conf: RssConf): Int = conf.get(FETCH_MAX_REQS_IN_FLIGHT)
-
-  def rpcMaxParallelism(conf: RssConf): Int = conf.get(CLIENT_RPC_MAX_PARALLELISM)
-
-  def appHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(APPLICATION_HEARTBEAT_TIMEOUT)
-
-  def appHeartbeatIntervalMs(conf: RssConf): Long = conf.get(APPLICATION_HEARTBEAT_INTERVAL)
-
-  def shuffleExpiredCheckIntervalMs(conf: RssConf): Long = conf.get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
-
-  def workerExcludedCheckIntervalMs(conf: RssConf): Long = conf.get(WORKER_EXCLUDED_INTERVAL)
-
-  def shuffleChunkSize(conf: RssConf): Long = conf.get(SHUFFLE_CHUCK_SIZE)
-
-  def registerShuffleMaxRetry(conf: RssConf): Int = conf.get(SHUFFLE_REGISTER_MAX_RETRIES)
-
-  def registerShuffleRetryWait(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
-
-  def reserveSlotsMaxRetries(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
-
-  def reserveSlotsRetryWait(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
-
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
       .categories("master")
@@ -1063,102 +1166,6 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  def masterEndpoints(conf: RssConf): Array[String] =
-    conf.get(MASTER_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
-        case (host, port) => s"$host:$port"
-      }
-    }
-
-  def masterHost(conf: RssConf): String = conf.get(MASTER_HOST)
-
-  def masterPort(conf: RssConf): Int = conf.get(MASTER_PORT)
-
-  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
-
-  def haMasterNodeId(conf: RssConf): Option[String] = conf.get(HA_MASTER_NODE_ID)
-
-  def haMasterNodeIds(conf: RssConf): Array[String] = {
-    def extractPrefix(original: String, stop: String): String = {
-      val i = original.indexOf(stop)
-      assert(i >= 0, s"$original does not contain $stop")
-      original.substring(0, i)
-    }
-    val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
-    conf.getAllWithPrefix(nodeConfPrefix)
-      .map(_._1)
-      .map(k => extractPrefix(k, "."))
-      .distinct
-  }
-
-  def haMasterNodeHost(conf: RssConf, nodeId: String): String = {
-    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    conf.get(key, Utils.localHostName)
-  }
-
-  def haMasterNodePort(conf: RssConf, nodeId: String): Int = {
-    val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
-    conf.getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
-  }
-
-  def haMasterRatisHost(conf: RssConf, nodeId: String): String = {
-    val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
-    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    conf.get(key, conf.get(fallbackKey))
-  }
-
-  def haMasterRatisPort(conf: RssConf, nodeId: String): Int = {
-    val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
-    conf.getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
-  }
-
-  def haMasterRatisRpcType(conf: RssConf): String = conf.get(HA_MASTER_RATIS_RPC_TYPE)
-
-  def haMasterRatisStorageDir(conf: RssConf): String = conf.get(HA_MASTER_RATIS_STORAGE_DIR)
-
-  def haMasterRatisLogSegmentSizeMax(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
-
-  def haMasterRatisLogPreallocatedSize(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
-
-  def haMasterRatisLogAppenderQueueNumElements(conf: RssConf): Int =
-    conf.get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
-
-  def haMasterRatisLogAppenderQueueBytesLimit(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
-
-  def haMasterRatisLogPurgeGap(conf: RssConf): Int = conf.get(HA_MASTER_RATIS_LOG_PURGE_GAP)
-
-  def haMasterRatisRpcRequestTimeout(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
-
-  def haMasterRatisRetryCacheExpiryTime(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
-
-  def haMasterRatisRpcTimeoutMin(conf: RssConf): Long = conf.get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
-
-  def haMasterRatisRpcTimeoutMax(conf: RssConf): Long = conf.get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
-
-  def haMasterRatisNotificationNoLeaderTimeout(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
-
-  def haMasterRatisRpcSlownessTimeout(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
-
-  def haMasterRatisRoleCheckInterval(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
-
-  def haMasterRatisSnapshotAutoTriggerEnabled(conf: RssConf): Boolean =
-    conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
-
-  def haMasterRatisSnapshotAutoTriggerThreshold(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
-
-  def haMasterRatisSnapshotRetentionFileNum(conf: RssConf): Int =
-    conf.get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
-
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.heartbeat.timeout")
       .withAlternative("rss.worker.timeout")
@@ -1204,13 +1211,6 @@ object RssConf extends Logging {
       .doc("Size of buffer used by a single flusher.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
-  def workerHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(WORKER_HEARTBEAT_TIMEOUT)
-
-  def workerReplicateThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREADS)
-
-  def workerCommitThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREADS)
-
-  def workerFlusherBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSHER_BUFFER_SIZE)
 
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.shuffle.commit.timeout")
@@ -1461,8 +1461,6 @@ object RssConf extends Logging {
   def offerSlotsExtraSize(conf: RssConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
-
-  def shuffleWriterMode(conf: RssConf): String = conf.get(SHUFFLE_WRITER_MODE)
 
   def sortPushThreshold(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.sort.push.data.threshold", "64m")

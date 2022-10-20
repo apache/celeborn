@@ -69,7 +69,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numMappers;
   private final int numPartitions;
 
-  private final long pushBufferSize;
+  private final long pushBufferMaxSize;
   private SortBasedPusher sortBasedPusher;
 
   @Nullable private long peakMemoryUsedBytes = 0;
@@ -121,7 +121,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     tmpRecords = new long[numPartitions];
 
-    pushBufferSize = RssConf.pushBufferMaxSize(conf);
+    pushBufferMaxSize = conf.pushBufferMaxSize();
 
     sortBasedPusher =
         new SortBasedPusher(
@@ -178,7 +178,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(serializedRecordSize);
       }
 
-      if (serializedRecordSize > pushBufferSize) {
+      if (serializedRecordSize > pushBufferMaxSize) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
         Platform.copyMemory(
@@ -213,7 +213,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      if (serializedRecordSize > pushBufferSize) {
+      if (serializedRecordSize > pushBufferMaxSize) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
         long insertStartTime = System.nanoTime();

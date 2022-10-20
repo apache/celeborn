@@ -49,7 +49,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
   private final ShuffleClient rssShuffleClient;
   private final DataPusher dataPusher;
-  private final int pushBufferSize;
+  private final int pushBufferMaxSize;
   private final long PushThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
 
@@ -110,7 +110,7 @@ public class SortBasedPusher extends MemoryConsumer {
             afterPush,
             mapStatusLengths);
 
-    pushBufferSize = RssConf.pushBufferMaxSize(conf);
+    pushBufferMaxSize = conf.pushBufferMaxSize();
     PushThreshold = RssConf.sortPushThreshold(conf);
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
@@ -124,7 +124,7 @@ public class SortBasedPusher extends MemoryConsumer {
     final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
         inMemSorter.getSortedIterator();
 
-    byte[] dataBuf = new byte[pushBufferSize];
+    byte[] dataBuf = new byte[pushBufferMaxSize];
     int offSet = 0;
     int currentPartition = -1;
     while (sortedRecords.hasNext()) {

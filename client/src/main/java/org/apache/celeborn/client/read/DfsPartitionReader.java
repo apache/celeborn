@@ -44,8 +44,8 @@ import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
-  private final int chunkSize;
-  private final int maxInFlight;
+  private final int shuffleChunkSize;
+  private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
@@ -62,19 +62,19 @@ public class DfsPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    chunkSize = (int) RssConf.shuffleChunkSize(conf);
-    maxInFlight = RssConf.fetchMaxReqsInFlight(conf);
+    shuffleChunkSize = (int) conf.shuffleChunkSize();
+    fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
-      long timeoutMs = RssConf.fetchTimeoutMs(conf);
+      long fetchTimeoutMs = conf.fetchTimeoutMs();
       try {
         TransportClient client =
             clientFactory.createClient(location.getHost(), location.getFetchPort());
         OpenStream openBlocks =
             new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
         Message.decode(response);
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {
@@ -100,7 +100,7 @@ public class DfsPartitionReader implements PartitionReader {
               () -> {
                 try {
                   while (!closed && currentChunkIndex.get() < numChunks) {
-                    while (results.size() >= maxInFlight) {
+                    while (results.size() >= fetchMaxReqsInFlight) {
                       Thread.sleep(50);
                     }
                     long offset = chunkOffsets.get(currentChunkIndex.get());
@@ -148,7 +148,7 @@ public class DfsPartitionReader implements PartitionReader {
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
                 startMapIndex,
                 endMapIndex,
-                chunkSize,
+                shuffleChunkSize,
                 ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
     indexInputStream.close();
     return offsets;
