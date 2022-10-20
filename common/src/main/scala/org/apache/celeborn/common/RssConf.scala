@@ -791,7 +791,7 @@ object RssConf extends Logging {
 
   val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.slot.reserve.retryWait")
-      .withAlternative("rss.reserve.slots.retry.timeout")
+      .withAlternative("rss.reserve.slots.retry.wait")
       .categories("client")
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
