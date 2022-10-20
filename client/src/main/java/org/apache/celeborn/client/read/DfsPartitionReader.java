@@ -34,7 +34,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
@@ -55,7 +55,7 @@ public class DfsPartitionReader implements PartitionReader {
   private final AtomicInteger currentChunkIndex = new AtomicInteger(0);
 
   public DfsPartitionReader(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       TransportClientFactory clientFactory,
@@ -120,7 +120,7 @@ public class DfsPartitionReader implements PartitionReader {
     }
   }
 
-  private List<Long> getChunkOffsetsFromUnsortedIndex(RssConf conf, PartitionLocation location)
+  private List<Long> getChunkOffsetsFromUnsortedIndex(CelebornConf conf, PartitionLocation location)
       throws IOException {
     FSDataInputStream indexInputStream =
         ShuffleClient.getHdfsFs(conf)
@@ -135,7 +135,7 @@ public class DfsPartitionReader implements PartitionReader {
   }
 
   private List<Long> getChunkOffsetsFromSortedIndex(
-      RssConf conf, PartitionLocation location, int startMapIndex, int endMapIndex)
+      CelebornConf conf, PartitionLocation location, int startMapIndex, int endMapIndex)
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));

@@ -22,7 +22,7 @@ import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 private[celeborn] class JavaSerializationStream(
@@ -137,11 +137,11 @@ private[celeborn] class JavaSerializerInstance(
  * Spark. It is intended to be used to serialize/de-serialize data within a single
  * Spark application.
  */
-class JavaSerializer(conf: RssConf) extends Serializer with Externalizable {
+class JavaSerializer(conf: CelebornConf) extends Serializer with Externalizable {
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)
   private var extraDebugInfo = conf.getBoolean("spark.serializer.extraDebugInfo", true)
 
-  protected def this() = this(new RssConf()) // For deserialization only
+  protected def this() = this(new CelebornConf()) // For deserialization only
 
   override def newInstance(): SerializerInstance = {
     val classLoader = defaultClassLoader.getOrElse(Thread.currentThread.getContextClassLoader)

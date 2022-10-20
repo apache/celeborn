@@ -28,7 +28,7 @@ import scala.util.Random
 
 import org.roaringbitmap.RoaringBitmap
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
@@ -40,19 +40,19 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
-class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
+class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
 
   private val lifecycleHost = Utils.localHostName
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
   private val workerExcludedCheckIntervalMs = conf.workerExcludedCheckIntervalMs
   private val pushReplicateEnabled = conf.pushReplicateEnabled
-  private val splitThreshold = RssConf.partitionSplitThreshold(conf)
-  private val splitMode = RssConf.partitionSplitMode(conf)
-  private val partitionType = RssConf.partitionType(conf)
-  private val rangeReadFilter = RssConf.rangeReadFilterEnabled(conf)
+  private val splitThreshold = CelebornConf.partitionSplitThreshold(conf)
+  private val splitMode = CelebornConf.partitionSplitMode(conf)
+  private val partitionType = CelebornConf.partitionType(conf)
+  private val rangeReadFilter = CelebornConf.rangeReadFilterEnabled(conf)
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
-  private val stageEndTimeout = RssConf.stageEndTimeout(conf)
+  private val stageEndTimeout = CelebornConf.stageEndTimeout(conf)
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -121,12 +121,12 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val responseCheckerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
 
-  private val handleChangePartitionInBatch = RssConf.batchHandleChangePartitionEnabled(conf)
+  private val handleChangePartitionInBatch = CelebornConf.batchHandleChangePartitionEnabled(conf)
   private val handleChangePartitionInBatchExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "rss-lifecycle-manager-change-partition-executor",
-    RssConf.batchHandleChangePartitionNumThreads(conf))
+    CelebornConf.batchHandleChangePartitionNumThreads(conf))
   private val handleChangePartitionRequestBatchInterval =
-    RssConf.handleChangePartitionRequestBatchInterval(conf)
+    CelebornConf.handleChangePartitionRequestBatchInterval(conf)
   private val handleChangePartitionInBatchSchedulerThread: Option[ScheduledExecutorService] =
     if (handleChangePartitionInBatch) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
@@ -139,7 +139,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.RSS_METASERVICE_SYS,
     lifecycleHost,
-    RssConf.driverMetaServicePort(conf),
+    CelebornConf.driverMetaServicePort(conf),
     conf)
   rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
 

@@ -27,7 +27,7 @@ import org.apache.spark.util.collection.ExternalSorter
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.{MetricsCallback, RssInputStream}
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 
 class RssShuffleReader[K, C](
     handle: RssShuffleHandle[K, _, C],
@@ -36,7 +36,7 @@ class RssShuffleReader[K, C](
     startMapIndex: Int = 0,
     endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
-    conf: RssConf,
+    conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter)
   extends ShuffleReader[K, C] with Logging {
 
@@ -50,7 +50,7 @@ class RssShuffleReader[K, C](
   override def read(): Iterator[Product2[K, C]] = {
 
     var serializerInstance = dep.serializer.newInstance()
-    if (RssConf.columnarShuffleEnabled(conf)) {
+    if (CelebornConf.columnarShuffleEnabled(conf)) {
       val schema = SparkUtils.getShuffleDependencySchema(dep)
       if (RssColumnarBatchBuilder.supportsColumnarType(
           schema)) {
@@ -58,9 +58,9 @@ class RssShuffleReader[K, C](
           dep.serializer.asInstanceOf[UnsafeRowSerializer])
         serializerInstance = new RssColumnarBatchSerializer(
           schema,
-          RssConf.columnarShuffleBatchSize(conf),
-          RssConf.columnarShuffleCompress(conf),
-          RssConf.columnarShuffleOffHeapColumnVectorEnabled(conf),
+          CelebornConf.columnarShuffleBatchSize(conf),
+          CelebornConf.columnarShuffleCompress(conf),
+          CelebornConf.columnarShuffleOffHeapColumnVectorEnabled(conf),
           dataSize).newInstance()
       }
     }

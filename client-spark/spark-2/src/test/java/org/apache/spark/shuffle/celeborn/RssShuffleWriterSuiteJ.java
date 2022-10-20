@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.DummyShuffleClient;
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -156,7 +156,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testEmptyBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf();
+    final CelebornConf conf = new CelebornConf();
     check(0, conf, serializer, true);
     check(0, conf, serializer, false);
   }
@@ -164,7 +164,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testEmptyBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf();
+    final CelebornConf conf = new CelebornConf();
     check(0, conf, serializer, true);
     check(0, conf, serializer, false);
   }
@@ -172,7 +172,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "1024");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "1024");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -180,7 +180,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "1024");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "1024");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -188,7 +188,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecord() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "5");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "5");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -196,7 +196,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "5");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "5");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -204,7 +204,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "128");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }
@@ -212,14 +212,14 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final RssConf conf = new RssConf().set("celeborn.push.buffer.size", "128");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }
 
   private void check(
       final int approximateSize,
-      final RssConf conf,
+      final CelebornConf conf,
       final Serializer serializer,
       final boolean hashWriter)
       throws Exception {
