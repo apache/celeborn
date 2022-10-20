@@ -66,9 +66,9 @@ public final class FileWriter implements DeviceObserver {
   private CompositeByteBuf flushBuffer;
 
   private final long chunkSize;
-  private final long timeoutMs;
+  private final long writerCloseTimeoutMs;
 
-  private final long flushBufferSize;
+  private final long flusherBufferSize;
 
   private final DeviceMonitor deviceMonitor;
   private final AbstractSource source; // metrics
@@ -109,9 +109,9 @@ public final class FileWriter implements DeviceObserver {
     this.flushWorkerIndex = flusher.getWorkerIndex();
     this.chunkSize = RssConf.shuffleChunkSize(rssConf);
     this.nextBoundary = this.chunkSize;
-    this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
+    this.writerCloseTimeoutMs = rssConf.writerCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
-    this.flushBufferSize = RssConf.workerFlushBufferSize(rssConf);
+    this.flusherBufferSize = RssConf.workerFlusherBufferSize(rssConf);
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
@@ -212,7 +212,7 @@ public final class FileWriter implements DeviceObserver {
         mapIdBitMap.add(mapId);
       }
       if (flushBuffer.readableBytes() != 0
-          && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
+          && flushBuffer.readableBytes() + numBytes >= this.flusherBufferSize) {
         flush(false);
         takeBuffer();
       }
@@ -344,7 +344,7 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private void waitOnNoPending(AtomicInteger counter) throws IOException {
-    long waitTime = timeoutMs;
+    long waitTime = writerCloseTimeoutMs;
     while (counter.get() > 0 && waitTime > 0) {
       try {
         notifier.checkException();
@@ -390,7 +390,7 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private void addTask(FlushTask task) throws IOException {
-    if (!flusher.addTask(task, timeoutMs, flushWorkerIndex)) {
+    if (!flusher.addTask(task, writerCloseTimeoutMs, flushWorkerIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
       throw e;

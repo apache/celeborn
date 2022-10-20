@@ -103,7 +103,7 @@ private[celeborn] class Master(
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
-  private def minimumUsableSize = RssConf.diskMinimumReserveSize(conf)
+  private def diskReserveSize = conf.diskReserveSize
 
   private def diskGroups = RssConf.diskGroups(conf)
 
@@ -498,7 +498,7 @@ private[celeborn] class Master(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
-              minimumUsableSize,
+              diskReserveSize,
               diskGroups,
               diskGroupGradient)
           }

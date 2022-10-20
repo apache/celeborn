@@ -36,7 +36,7 @@ class RssConfSuite extends RssFunSuite {
     val conf = new RssConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
-    val parsedDirs = RssConf.workerBaseDirs(conf)
+    val parsedDirs = conf.workerBaseDirs
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 1)
     assert(parsedDirs.head._2 == defaultMaxUsableSpace)
@@ -46,7 +46,7 @@ class RssConfSuite extends RssFunSuite {
     val conf = new RssConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g")
-    val parsedDirs = RssConf.workerBaseDirs(conf)
+    val parsedDirs = conf.workerBaseDirs
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 8)
     assert(parsedDirs.head._2 == 10 * 1024 * 1024 * 1024L)
@@ -55,7 +55,7 @@ class RssConfSuite extends RssFunSuite {
   test("basedir test3") {
     val conf = new RssConf()
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
-    val parsedDirs = RssConf.workerBaseDirs(conf)
+    val parsedDirs = conf.workerBaseDirs
     assert(parsedDirs.size == 1)
     assert(parsedDirs.head._3 == 3)
     assert(parsedDirs.head._2 == 10 * 1024 * 1024 * 1024L)
@@ -67,7 +67,7 @@ class RssConfSuite extends RssFunSuite {
       "celeborn.worker.storage.dirs",
       "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3," +
         "/mnt/disk2:disktype=HDD:capacity=15g:flushthread=7")
-    val parsedDirs = RssConf.workerBaseDirs(conf)
+    val parsedDirs = conf.workerBaseDirs
     assert(parsedDirs.size == 2)
     assert(parsedDirs.head._1 == "/mnt/disk1")
     assert(parsedDirs.head._3 == 3)

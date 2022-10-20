@@ -399,18 +399,18 @@ private[deploy] class Controller(
 
     if (future != null) {
       val result = new AtomicReference[CompletableFuture[Unit]]()
-      val flushTimeout = RssConf.flushTimeout(conf)
+      val shuffleCommitTimeout = conf.shuffleCommitTimeout
 
       val timeout = timer.newTimeout(
         new TimerTask {
           override def run(timeout: Timeout): Unit = {
             if (result.get() != null) {
               result.get().cancel(true)
-              logWarning(s"After waiting $flushTimeout s, cancel all commit file jobs.")
+              logWarning(s"After waiting $shuffleCommitTimeout s, cancel all commit file jobs.")
             }
           }
         },
-        flushTimeout,
+        shuffleCommitTimeout,
         TimeUnit.SECONDS)
 
       result.set(future.handleAsync(
@@ -427,7 +427,7 @@ private[deploy] class Controller(
                   Thread.currentThread().interrupt()
                   throw ie
                 case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $flushTimeout s.")
+                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout s.")
                 case throwable: Throwable =>
                   logError("While handling commitFiles, exception occurs.", throwable)
               }
