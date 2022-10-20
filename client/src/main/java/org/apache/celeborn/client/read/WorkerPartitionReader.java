@@ -45,7 +45,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private final LinkedBlockingQueue<ByteBuf> results;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
-  private final int maxInFlight;
+  private final int fetchMaxReqsInFlight;
   private boolean closed = false;
 
   WorkerPartitionReader(
@@ -56,7 +56,7 @@ public class WorkerPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    maxInFlight = RssConf.fetchMaxReqsInFlight(conf);
+    fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
     ChunkReceivedCallback callback =
@@ -123,8 +123,8 @@ public class WorkerPartitionReader implements PartitionReader {
 
   private void fetchChunks() {
     final int inFlight = chunkIndex - returnedChunks;
-    if (inFlight < maxInFlight) {
-      final int toFetch = Math.min(maxInFlight - inFlight + 1, numChunks - chunkIndex);
+    if (inFlight < fetchMaxReqsInFlight) {
+      final int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
         client.fetchChunk(chunkIndex++);
       }

@@ -183,15 +183,15 @@ private[celeborn] class Worker(
   private var checkFastfailTask: ScheduledFuture[_] = _
   val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
     "worker-replicate-data",
-    RssConf.workerReplicateThreads(conf))
+    conf.workerReplicateThreads)
   val commitThreadPool = ThreadUtils.newDaemonCachedThreadPool(
     "Worker-CommitFiles",
-    RssConf.workerCommitThreads(conf))
+    conf.workerCommitThreads)
   val asyncReplyPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
 
   // Configs
-  private val HEARTBEAT_MILLIS = RssConf.workerHeartbeatTimeoutMs(conf) / 4
+  private val HEARTBEAT_MILLIS = conf.workerHeartbeatTimeoutMs / 4
   private val REPLICATE_FAST_FAIL_DURATION = RssConf.replicateFastFailDurationMs(conf)
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]

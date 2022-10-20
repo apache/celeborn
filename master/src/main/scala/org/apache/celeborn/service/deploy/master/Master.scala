@@ -26,7 +26,6 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf.haEnabled
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -64,7 +63,7 @@ private[celeborn] class Master(
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
   private val statusSystem =
-    if (haEnabled(conf)) {
+    if (conf.haEnabled) {
       val sys = new HAMasterMetaManager(rpcEnv, conf)
       val handler = new MetaHandler(sys)
       try {
@@ -94,8 +93,8 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val WorkerTimeoutMs = RssConf.workerHeartbeatTimeoutMs(conf)
-  private val ApplicationTimeoutMs = RssConf.appHeartbeatTimeoutMs(conf)
+  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeoutMs
+  private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
 
@@ -155,7 +154,7 @@ private[celeborn] class Master(
         }
       },
       0,
-      WorkerTimeoutMs,
+      workerHeartbeatTimeoutMs,
       TimeUnit.MILLISECONDS)
 
     checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
@@ -165,7 +164,7 @@ private[celeborn] class Master(
         }
       },
       0,
-      ApplicationTimeoutMs / 2,
+      appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
   }
 
@@ -309,7 +308,7 @@ private[celeborn] class Master(
     val currentTime = System.currentTimeMillis()
     var ind = 0
     workersSnapShot.asScala.foreach { worker =>
-      if (worker.lastHeartbeat < currentTime - WorkerTimeoutMs
+      if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
@@ -328,7 +327,7 @@ private[celeborn] class Master(
   private def timeoutDeadApplications(): Unit = {
     val currentTime = System.currentTimeMillis()
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - ApplicationTimeoutMs) {
+      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
         val requestId = RssHARetryClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
@@ -723,7 +722,7 @@ private[celeborn] class Master(
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
     val isActive =
-      if (haEnabled(conf)) {
+      if (conf.haEnabled) {
         if (statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.isLeader) {
           1
         } else {

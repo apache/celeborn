@@ -63,7 +63,7 @@ public class RssHARetryClient {
 
   public RssHARetryClient(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
-    this.masterEndpoints = RssConf.masterEndpoints(conf);
+    this.masterEndpoints = conf.masterEndpoints();
     this.maxTries = Math.max(masterEndpoints.length, RssConf.haClientMaxTries(conf));
     this.rpcTimeout = RpcUtils.haClientAskRpcTimeout(conf);
     this.rpcEndpointRef = new AtomicReference<>();

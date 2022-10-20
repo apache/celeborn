@@ -138,7 +138,7 @@ public abstract class RssInputStream extends InputStream {
       this.rangeReadFilter = RssConf.rangeReadFilterEnabled(conf);
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
-      int blockSize = RssConf.pushBufferMaxSize(conf) + headerLen;
+      int blockSize = conf.pushBufferMaxSize() + headerLen;
       compressedBuf = new byte[blockSize];
       decompressedBuf = new byte[blockSize];
 

@@ -83,7 +83,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicInteger sortedFileCount = new AtomicInteger();
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
-  protected final long fetchChunkSize;
+  protected final long shuffleChunkSize;
   protected final long initialReserveSingleSortMemory;
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
@@ -101,7 +101,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
     this.sortTimeout = RssConf.partitionSortTimeout(conf);
-    this.fetchChunkSize = RssConf.shuffleChunkSize(conf);
+    this.shuffleChunkSize = conf.shuffleChunkSize();
     this.initialReserveSingleSortMemory = RssConf.initialReserveSingleSortMemory(conf);
     this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
     this.source = source;
@@ -497,7 +497,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return new FileInfo(
         sortedFilePath,
         ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-            startMapIndex, endMapIndex, fetchChunkSize, indexMap),
+            startMapIndex, endMapIndex, shuffleChunkSize, indexMap),
         userIdentifier);
   }
 

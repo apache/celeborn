@@ -160,15 +160,15 @@ public class RssShuffleManager implements ShuffleManager {
         ShuffleClient client =
             ShuffleClient.get(
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), rssConf, h.userIdentifier());
-        if ("sort".equals(RssConf.shuffleWriterMode(rssConf))) {
+        if ("sort".equals(rssConf.shuffleWriterMode())) {
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMaps(), context, rssConf, client);
-        } else if ("hash".equals(RssConf.shuffleWriterMode(rssConf))) {
+        } else if ("hash".equals(rssConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, mapId, context, rssConf, client, SendBufferPool.get(cores));
         } else {
           throw new UnsupportedOperationException(
-              "Unrecognized shuffle write mode!" + RssConf.shuffleWriterMode(rssConf));
+              "Unrecognized shuffle write mode!" + rssConf.shuffleWriterMode());
         }
       } else {
         return sortShuffleManager().getWriter(handle, mapId, context);

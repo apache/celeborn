@@ -75,7 +75,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWait;
   private final int maxInFlight;
-  private final int pushBufferSize;
+  private final int pushBufferMaxSize;
 
   private final RpcEnv rpcEnv;
 
@@ -124,10 +124,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     super();
     this.conf = conf;
     this.userIdentifier = userIdentifier;
-    registerShuffleMaxRetries = RssConf.registerShuffleMaxRetry(conf);
-    registerShuffleRetryWait = RssConf.registerShuffleRetryWait(conf);
-    maxInFlight = RssConf.pushMaxReqsInFlight(conf);
-    pushBufferSize = RssConf.pushBufferMaxSize(conf);
+    registerShuffleMaxRetries = conf.registerShuffleMaxRetry();
+    registerShuffleRetryWait = conf.registerShuffleRetryWait();
+    maxInFlight = conf.pushMaxReqsInFlight();
+    pushBufferMaxSize = conf.pushBufferMaxSize();
 
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
@@ -801,7 +801,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (!batchesArr.isEmpty()) {
       limitMaxInFlight(mapKey, pushState, maxInFlight);
       Map.Entry<String, DataBatches> entry = batchesArr.get(rand.nextInt(batchesArr.size()));
-      ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferSize);
+      ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
         batchesArr.remove(entry);
       }
