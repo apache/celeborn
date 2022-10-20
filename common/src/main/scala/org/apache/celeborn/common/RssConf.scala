@@ -827,7 +827,7 @@ object RssConf extends Logging {
 
   def registerShuffleRetryWait(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
 
-  def reserveSlotsMaxTimeout(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
+  def reserveSlotsMaxRetries(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
 
   def reserveSlotsRetryWait(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
 
