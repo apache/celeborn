@@ -37,8 +37,8 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
-    val flushAvgTimeWindowSize: Int,
-    val flushAvgTimeMinimumCount: Int) extends Logging {
+    val avgFlushTimeSlidingWindowSize: Int,
+    val avgFlushTimeSlidingWindowMinCount: Int) extends Logging {
   protected lazy val flusherId = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
@@ -46,7 +46,7 @@ abstract private[worker] class Flusher(
   protected var nextWorkerIndex: Int = 0
   protected val flushCount = new LongAdder
   protected val flushTotalTime = new LongAdder
-  protected val avgTimeWindow = new Array[(Long, Long)](flushAvgTimeWindowSize)
+  protected val avgTimeWindow = new Array[(Long, Long)](avgFlushTimeSlidingWindowSize)
   protected var avgTimeWindowCurrentIndex = 0
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
@@ -56,7 +56,7 @@ abstract private[worker] class Flusher(
   init()
 
   private def init(): Unit = {
-    for (i <- 0 until flushAvgTimeWindowSize) {
+    for (i <- 0 until avgFlushTimeSlidingWindowSize) {
       avgTimeWindow(i) = (0L, 0L)
     }
     for (i <- 0 until lastBeginFlushTime.length()) {
@@ -113,9 +113,9 @@ abstract private[worker] class Flusher(
     }
     val currentFlushTime = flushTotalTime.sumThenReset()
     val currentFlushCount = flushCount.sumThenReset()
-    if (currentFlushCount >= flushAvgTimeMinimumCount) {
+    if (currentFlushCount >= avgFlushTimeSlidingWindowMinCount) {
       avgTimeWindow(avgTimeWindowCurrentIndex) = (currentFlushTime, currentFlushCount)
-      avgTimeWindowCurrentIndex = (avgTimeWindowCurrentIndex + 1) % flushAvgTimeWindowSize
+      avgTimeWindowCurrentIndex = (avgTimeWindowCurrentIndex + 1) % avgFlushTimeSlidingWindowSize
     }
 
     var totalFlushTime = 0L
@@ -177,12 +177,12 @@ private[worker] class LocalFlusher(
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
     val mountPoint: String,
-    flushAvgTimeWindowSize: Int,
+    avgFlushTimeSlidingWindowSize: Int,
     flushAvgTimeMinimumCount: Int,
     val diskType: StorageInfo.Type) extends Flusher(
     workerSource,
     threadCount,
-    flushAvgTimeWindowSize,
+    avgFlushTimeSlidingWindowSize,
     flushAvgTimeMinimumCount)
   with DeviceObserver with Logging {
 
@@ -216,13 +216,13 @@ private[worker] class LocalFlusher(
 
 final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
-    threadCount: Int,
+    hdfsFlusherThreads: Int,
     flushAvgTimeWindowSize: Int,
-    flushAvgTimeMinimumCount: Int) extends Flusher(
+    avgFlushTimeSlidingWindowMinCount: Int) extends Flusher(
     workerSource,
-    threadCount,
+    hdfsFlusherThreads,
     flushAvgTimeWindowSize,
-    flushAvgTimeMinimumCount) with Logging {
+    avgFlushTimeSlidingWindowMinCount) with Logging {
 
   override def toString: String = s"HdfsFlusher@$flusherId"
 

@@ -180,13 +180,13 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = rssConf.diskCheckIntervalMs
+  val diskCheckInterval = rssConf.diskCheckInterval
 
   // we should choose what the device needs to detect
-  val monitorCheckList = rssConf.deviceMonitorCheckList
-  val checkIoHang = monitorCheckList.contains("iohang")
-  val checkReadWrite = monitorCheckList.contains("readwrite")
-  val checkDiskUsage = monitorCheckList.contains("diskusage")
+  val deviceMonitorCheckList = rssConf.deviceMonitorCheckList
+  val checkIoHang = deviceMonitorCheckList.contains("iohang")
+  val checkReadWrite = deviceMonitorCheckList.contains("readwrite")
+  val checkDiskUsage = deviceMonitorCheckList.contains("diskusage")
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -320,7 +320,7 @@ object DeviceMonitor {
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < conf.diskMinimumReserveSize / 1024 / 1024 / 1024
+      val status = freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")

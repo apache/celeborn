@@ -370,22 +370,22 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def checkSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
   def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
-  def workerDiskFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
-  def commitFilesTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
-  def writerTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
-  def HDDFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
-  def SSDFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
+  def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
+  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
+  def hddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
+  def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def hdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
-  def flushAvgTimeWindow: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE)
-  def flushAvgTimeMinimumCount: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
-  def diskMinimumReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
+  def avgFlushTimeSlidingWindowSize: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE)
+  def avgFlushTimeSlidingWindowMinCount: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
+  def diskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
   def deviceMonitorEnabled: Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
   def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
-  def diskCheckIntervalMs: Long = get(WORKER_DISK_CHECK_INTERVAL)
+  def diskCheckInterval: Long = get(WORKER_DISK_CHECK_INTERVAL)
   def sysBlockDir: String = get(WORKER_DEVICEMONITOR_SYS_BLOCKDIR)
-  def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
-  def workerBaseDirPrefix: String = get(WORKER_BASE_DIR_PREFIX)
-  def workerBaseDirNumber: Int = get(WORKER_BASE_DIR_COUNT)
+  def createWriterCreateMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
+  def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
+  def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -418,17 +418,17 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
         }
         if (flushThread == -1) {
           flushThread = diskType match {
-            case HDD => HDDFlusherThreads
-            case SSD => SSDFlusherThreads
+            case HDD => hddFlusherThreads
+            case SSD => ssdFlusherThreads
           }
         }
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      val prefix = workerBaseDirPrefix
-      val number = workerBaseDirNumber
+      val prefix = workerStorageBaseDirPrefix
+      val number = workerStorageBaseDirNumber
       (1 to number).map { i =>
-        (s"$prefix$i", defaultMaxCapacity, HDDFlusherThreads, HDD)
+        (s"$prefix$i", defaultMaxCapacity, hddFlusherThreads, HDD)
       }
     }
   }
@@ -824,11 +824,11 @@ object RssConf extends Logging {
 
   def registerShuffleMaxRetry(conf: RssConf): Int = conf.get(SHUFFLE_REGISTER_MAX_RETRIES)
 
-  def registerShuffleRetryTimeout(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
+  def registerShuffleRetryWait(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
 
   def reserveSlotsMaxTimeout(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
 
-  def reserveSlotsRetryTimeout(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
+  def reserveSlotsRetryWait(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
@@ -1522,7 +1522,7 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val WORKER_BASE_DIR_PREFIX: ConfigEntry[String] =
+  val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
     buildConf("celeborn.worker.storage.base.dir.prefix")
       .withAlternative("rss.worker.base.dir.prefix")
       .categories("worker")
@@ -1530,7 +1530,7 @@ object RssConf extends Logging {
       .stringConf
       .createWithDefault("/mnt/disk")
 
-  val WORKER_BASE_DIR_COUNT: ConfigEntry[Int] =
+  val WORKER_STORAGE_BASE_DIR_COUNT: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.base.dir.number")
       .withAlternative("rss.worker.base.dir.number")
       .categories("worker")

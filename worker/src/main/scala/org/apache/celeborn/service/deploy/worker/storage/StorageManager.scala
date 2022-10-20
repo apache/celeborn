@@ -104,8 +104,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           diskInfo.threadCount,
           diskInfo.mountPoint,
-          conf.flushAvgTimeWindow,
-          conf.flushAvgTimeMinimumCount,
+          conf.avgFlushTimeSlidingWindowSize,
+          conf.avgFlushTimeSlidingWindowMinCount,
           diskInfo.storageType)
         flushers.put(diskInfo.mountPoint, flusher)
       }
@@ -130,8 +130,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       Some(new HdfsFlusher(
         workerSource,
         conf.hdfsFlusherThreads,
-        conf.flushAvgTimeWindow,
-        conf.flushAvgTimeMinimumCount))
+        conf.avgFlushTimeSlidingWindowSize,
+        conf.avgFlushTimeSlidingWindowMinCount))
     } else {
       None
     }
@@ -261,7 +261,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < conf.createWriterMaxAttempts) {
+    while (retryCount < conf.createWriterCreateMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
@@ -523,7 +523,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         diskOperators.size()) { entry =>
         ThreadUtils.shutdown(
           entry._2,
-          conf.workerDiskFlusherShutdownTimeoutMs.milliseconds)
+          conf.workerFlusherShutdownTimeoutMs.milliseconds)
       }
     }
     storageScheduler.shutdownNow()

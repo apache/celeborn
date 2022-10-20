@@ -125,7 +125,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     this.conf = conf;
     this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = RssConf.registerShuffleMaxRetry(conf);
-    registerShuffleRetryWait = RssConf.registerShuffleRetryTimeout(conf);
+    registerShuffleRetryWait = RssConf.registerShuffleRetryWait(conf);
     maxInFlight = RssConf.pushMaxReqsInFlight(conf);
     pushBufferSize = RssConf.pushBufferMaxSize(conf);
 
