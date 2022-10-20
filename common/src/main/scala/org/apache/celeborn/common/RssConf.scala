@@ -387,6 +387,15 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def createWriterCreateMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
+  def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
+  def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
+  def metricsSamplePerfCritical: Boolean = get(METRICS_SAMPLE_PERFORMANCE_CRITICAL)
+  def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
+  def innerMetricsSize: Int = get(METRICS_INNER_SIZE)
+  def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
+  def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
+  def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
+  def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -1415,27 +1424,19 @@ object RssConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
-  def metricsSystemEnable(conf: RssConf): Boolean = conf.get(METRICS_ENABLED)
+  val METRICS_SAMPLE_PERFORMANCE_CRITICAL: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.system.sample.perf.critical")
+      .withAlternative("rss.metrics.system.sample.perf.critical")
+      .categories("master", "worker", "metrics")
+      .booleanConf
+      .createWithDefault(false)
 
-  def metricsSampleRate(conf: RssConf): Double = conf.get(METRICS_SAMPLE_RATE)
-
-  def metricsSamplePerfCritical(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.metrics.system.sample.perf.critical", false)
-  }
-
-  def metricsSlidingWindowSize(conf: RssConf): Int = conf.get(METRICS_SLIDING_WINDOW_SIZE)
-
-  def innerMetricsSize(conf: RssConf): Int = {
-    conf.getInt("rss.inner.metrics.size", 4096)
-  }
-
-  def masterPrometheusMetricHost(conf: RssConf): String = conf.get(MASTER_PROMETHEUS_HOST)
-
-  def masterPrometheusMetricPort(conf: RssConf): Int = conf.get(MASTER_PROMETHEUS_PORT)
-
-  def workerPrometheusMetricHost(conf: RssConf): String = conf.get(WORKER_PROMETHEUS_HOST)
-
-  def workerPrometheusMetricPort(conf: RssConf): Int = conf.get(WORKER_PROMETHEUS_PORT)
+  val METRICS_INNER_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.system.inner.size")
+      .withAlternative("rss.inner.metrics.size")
+      .categories("master", "worker", "metrics")
+      .intConf
+      .createWithDefault(4096)
 
   def workerRPCPort(conf: RssConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)

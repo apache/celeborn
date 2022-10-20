@@ -38,17 +38,17 @@ case class NamedHistogram(name: String, histogram: Histogram)
 
 case class NamedTimer(name: String, timer: Timer)
 
-abstract class AbstractSource(rssConf: RssConf, role: String)
+abstract class AbstractSource(conf: RssConf, role: String)
   extends Source with Logging {
   override val metricRegistry = new MetricRegistry()
 
-  val slidingWindowSize: Int = RssConf.metricsSlidingWindowSize(rssConf)
+  val slidingWindowSize: Int = conf.metricsSlidingWindowSize
 
-  val sampleRate: Double = RssConf.metricsSampleRate(rssConf)
+  val sampleRate: Double = conf.metricsSampleRate
 
-  val samplePerfCritical: Boolean = RssConf.metricsSamplePerfCritical(rssConf)
+  val samplePerfCritical: Boolean = conf.metricsSamplePerfCritical
 
-  final val InnerMetricsSize = RssConf.innerMetricsSize(rssConf)
+  final val innerMetricsSize = conf.innerMetricsSize
 
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
@@ -199,7 +199,7 @@ abstract class AbstractSource(rssConf: RssConf, role: String)
 
   private def updateInnerMetrics(str: String): Unit = {
     innerMetrics.synchronized {
-      if (innerMetrics.size() >= InnerMetricsSize) {
+      if (innerMetrics.size() >= innerMetricsSize) {
         innerMetrics.remove()
       }
       innerMetrics.offer(str)
