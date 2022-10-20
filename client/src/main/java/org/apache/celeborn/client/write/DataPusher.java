@@ -65,13 +65,13 @@ public class DataPusher {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws IOException {
-    final int capacity = conf.pushQueueCapacity();
+    final int pushQueueCapacity = conf.pushQueueCapacity();
     final int pushBufferMaxSize = conf.pushBufferMaxSize();
 
-    idleQueue = new LinkedBlockingQueue<>(capacity);
-    workingQueue = new LinkedBlockingQueue<>(capacity);
+    idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
+    workingQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
 
-    for (int i = 0; i < capacity; i++) {
+    for (int i = 0; i < pushQueueCapacity; i++) {
       try {
         idleQueue.put(new PushTask(pushBufferMaxSize));
       } catch (InterruptedException e) {

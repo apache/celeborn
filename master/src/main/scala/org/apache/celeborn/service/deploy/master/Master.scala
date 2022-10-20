@@ -93,8 +93,8 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val WorkerTimeoutMs = conf.workerHeartbeatTimeoutMs
-  private val ApplicationTimeoutMs = conf.appHeartbeatTimeoutMs
+  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeoutMs
+  private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
 
@@ -154,7 +154,7 @@ private[celeborn] class Master(
         }
       },
       0,
-      WorkerTimeoutMs,
+      workerHeartbeatTimeoutMs,
       TimeUnit.MILLISECONDS)
 
     checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
@@ -164,7 +164,7 @@ private[celeborn] class Master(
         }
       },
       0,
-      ApplicationTimeoutMs / 2,
+      appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
   }
 
@@ -308,7 +308,7 @@ private[celeborn] class Master(
     val currentTime = System.currentTimeMillis()
     var ind = 0
     workersSnapShot.asScala.foreach { worker =>
-      if (worker.lastHeartbeat < currentTime - WorkerTimeoutMs
+      if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
@@ -327,7 +327,7 @@ private[celeborn] class Master(
   private def timeoutDeadApplications(): Unit = {
     val currentTime = System.currentTimeMillis()
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - ApplicationTimeoutMs) {
+      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
         val requestId = RssHARetryClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))

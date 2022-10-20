@@ -84,19 +84,19 @@ public class RetryingChunkClient {
     this.callback = callback;
     this.retryWaitMs = transportConf.ioRetryWaitTimeMs();
 
-    long timeoutMs = conf.fetchTimeoutMs();
+    long fetchTimeoutMs = conf.fetchTimeoutMs();
 
     if (location == null) {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");
     } else {
       Replica main =
-          new Replica(timeoutMs, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+          new Replica(fetchTimeoutMs, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       PartitionLocation peerLoc = location.getPeer();
       if (peerLoc == null) {
         replicas = new Replica[] {main};
       } else {
         Replica peer =
-            new Replica(timeoutMs, shuffleKey, peerLoc, clientFactory, startMapIndex, endMapIndex);
+            new Replica(fetchTimeoutMs, shuffleKey, peerLoc, clientFactory, startMapIndex, endMapIndex);
         replicas = new Replica[] {main, peer};
       }
     }

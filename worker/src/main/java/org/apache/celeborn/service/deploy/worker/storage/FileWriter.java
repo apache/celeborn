@@ -65,7 +65,7 @@ public final class FileWriter implements DeviceObserver {
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
-  private final long chunkSize;
+  private final long shuffleChunkSize;
   private final long writerCloseTimeoutMs;
 
   private final long flusherBufferSize;
@@ -107,8 +107,8 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.chunkSize = rssConf.shuffleChunkSize();
-    this.nextBoundary = this.chunkSize;
+    this.shuffleChunkSize = rssConf.shuffleChunkSize();
+    this.nextBoundary = this.shuffleChunkSize;
     this.writerCloseTimeoutMs = rssConf.writerCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
     this.flusherBufferSize = rssConf.workerFlusherBufferSize();
@@ -164,7 +164,7 @@ public final class FileWriter implements DeviceObserver {
   private void maybeSetChunkOffsets(boolean forceSet) {
     if (bytesFlushed >= nextBoundary || forceSet) {
       fileInfo.addChunkOffset(bytesFlushed);
-      nextBoundary = bytesFlushed + chunkSize;
+      nextBoundary = bytesFlushed + shuffleChunkSize;
     }
   }
 

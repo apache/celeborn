@@ -42,9 +42,9 @@ abstract class AbstractSource(conf: RssConf, role: String)
   extends Source with Logging {
   override val metricRegistry = new MetricRegistry()
 
-  val slidingWindowSize: Int = conf.metricsSlidingWindowSize
+  val metricsSlidingWindowSize: Int = conf.metricsSlidingWindowSize
 
-  val sampleRate: Double = conf.metricsSampleRate
+  val metricsSampleRate: Double = conf.metricsSampleRate
 
   val samplePerfCritical: Boolean = RssConf.metricsSamplePerfCritical(conf)
 
@@ -52,7 +52,7 @@ abstract class AbstractSource(conf: RssConf, role: String)
 
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
-  val timerSupplier = new TimerSupplier(slidingWindowSize)
+  val timerSupplier = new TimerSupplier(metricsSlidingWindowSize)
 
   val metricsCleaner: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"worker-metrics-cleaner")
@@ -102,12 +102,12 @@ abstract class AbstractSource(conf: RssConf, role: String)
   }
 
   def needSample(): Boolean = {
-    if (sampleRate >= 1) {
+    if (metricsSampleRate >= 1) {
       true
-    } else if (sampleRate <= 0) {
+    } else if (metricsSampleRate <= 0) {
       false
     } else {
-      Random.nextDouble() <= sampleRate
+      Random.nextDouble() <= metricsSampleRate
     }
   }
 
@@ -153,7 +153,7 @@ abstract class AbstractSource(conf: RssConf, role: String)
       startTime match {
         case Some(t) =>
           namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
-          if (namedTimer.timer.getCount % slidingWindowSize == 0) {
+          if (namedTimer.timer.getCount % metricsSlidingWindowSize == 0) {
             recordTimer(namedTimer)
           }
         case None =>
