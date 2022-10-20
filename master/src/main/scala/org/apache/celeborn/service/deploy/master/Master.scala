@@ -26,7 +26,6 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf.haEnabled
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -64,7 +63,7 @@ private[celeborn] class Master(
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
   private val statusSystem =
-    if (haEnabled(conf)) {
+    if (conf.haEnabled) {
       val sys = new HAMasterMetaManager(rpcEnv, conf)
       val handler = new MetaHandler(sys)
       try {
@@ -94,8 +93,8 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val WorkerTimeoutMs = RssConf.workerHeartbeatTimeoutMs(conf)
-  private val ApplicationTimeoutMs = RssConf.appHeartbeatTimeoutMs(conf)
+  private val WorkerTimeoutMs = conf.workerHeartbeatTimeoutMs
+  private val ApplicationTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
 
@@ -723,7 +722,7 @@ private[celeborn] class Master(
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
     val isActive =
-      if (haEnabled(conf)) {
+      if (conf.haEnabled) {
         if (statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.isLeader) {
           1
         } else {

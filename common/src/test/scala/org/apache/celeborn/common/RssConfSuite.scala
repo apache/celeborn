@@ -18,7 +18,6 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.RssConf.masterEndpoints
 import org.apache.celeborn.common.util.Utils
 
 class RssConfSuite extends RssFunSuite {
@@ -26,7 +25,7 @@ class RssConfSuite extends RssFunSuite {
   test("celeborn.master.endpoints support multi nodes") {
     val conf = new RssConf()
       .set("celeborn.master.endpoints", "localhost1:9097,localhost2:9097")
-    val endpoints = masterEndpoints(conf)
+    val endpoints = conf.masterEndpoints
     assert(endpoints.length == 2)
     assert(endpoints(0) == "localhost1:9097")
     assert(endpoints(1) == "localhost2:9097")
@@ -94,10 +93,10 @@ class RssConfSuite extends RssFunSuite {
 
   test("replace <localhost> placeholder") {
     val conf = new RssConf()
-    val replacedHost = RssConf.masterHost(conf)
+    val replacedHost = conf.masterHost
     assert(!replacedHost.contains("<localhost>"))
     assert(replacedHost === Utils.localHostName)
-    val replacedHosts = RssConf.masterEndpoints(conf)
+    val replacedHosts = conf.masterEndpoints
     replacedHosts.foreach { replacedHost =>
       assert(!replacedHost.contains("<localhost>"))
       assert(replacedHost contains Utils.localHostName)
@@ -109,6 +108,6 @@ class RssConfSuite extends RssFunSuite {
       .set("celeborn.ha.master.node.1.host", "clb-1")
       .set("celeborn.ha.master.node.2.host", "clb-1")
       .set("celeborn.ha.master.node.3.host", "clb-1")
-    assert(RssConf.haMasterNodeIds(conf).sorted === Array("1", "2", "3"))
+    assert(conf.haMasterNodeIds.sorted === Array("1", "2", "3"))
   }
 }

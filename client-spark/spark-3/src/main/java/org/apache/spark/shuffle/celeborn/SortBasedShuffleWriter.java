@@ -121,7 +121,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     tmpRecords = new long[numPartitions];
 
-    pushBufferSize = RssConf.pushBufferMaxSize(conf);
+    pushBufferSize = conf.pushBufferMaxSize();
 
     sortBasedPusher =
         new SortBasedPusher(

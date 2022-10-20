@@ -130,8 +130,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     mapStatusRecords = new long[numPartitions];
     tmpRecords = new long[numPartitions];
 
-    SEND_BUFFER_INIT_SIZE = RssConf.pushBufferInitialSize(conf);
-    SEND_BUFFER_SIZE = RssConf.pushBufferMaxSize(conf);
+    SEND_BUFFER_INIT_SIZE = conf.pushBufferInitialSize();
+    SEND_BUFFER_SIZE = conf.pushBufferMaxSize();
 
     this.sendBufferPool = sendBufferPool;
     sendBuffers = sendBufferPool.acquireBuffer(numPartitions);

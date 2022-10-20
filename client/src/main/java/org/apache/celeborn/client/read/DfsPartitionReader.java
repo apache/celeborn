@@ -62,13 +62,13 @@ public class DfsPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    chunkSize = (int) RssConf.shuffleChunkSize(conf);
-    maxInFlight = RssConf.fetchMaxReqsInFlight(conf);
+    chunkSize = (int) conf.shuffleChunkSize();
+    maxInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
-      long timeoutMs = RssConf.fetchTimeoutMs(conf);
+      long timeoutMs = conf.fetchTimeoutMs();
       try {
         TransportClient client =
             clientFactory.createClient(location.getHost(), location.getFetchPort());

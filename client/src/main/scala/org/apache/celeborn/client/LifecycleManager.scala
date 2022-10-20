@@ -44,9 +44,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private val lifecycleHost = Utils.localHostName
 
-  private val RemoveShuffleDelayMs = RssConf.shuffleExpiredCheckIntervalMs(conf)
-  private val GetBlacklistDelayMs = RssConf.workerExcludedCheckIntervalMs(conf)
-  private val ShouldReplicate = RssConf.pushReplicateEnabled(conf)
+  private val RemoveShuffleDelayMs = conf.shuffleExpiredCheckIntervalMs
+  private val GetBlacklistDelayMs = conf.workerExcludedCheckIntervalMs
+  private val ShouldReplicate = conf.pushReplicateEnabled
   private val splitThreshold = RssConf.partitionSplitThreshold(conf)
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val partitionType = RssConf.partitionType(conf)
@@ -114,7 +114,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private var getBlacklist: ScheduledFuture[_] = _
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
-  private val heartbeatIntervalMs = RssConf.appHeartbeatIntervalMs(conf)
+  private val heartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val heartbeatThread = ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
   private val responseCheckerThread =
@@ -430,7 +430,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val connectFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
     // Second, for each worker, try to initialize the endpoint.
-    val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
+    val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
@@ -822,7 +822,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     val currentShuffleFileCount = new LongAdder
     val commitFileStartTime = System.nanoTime()
 
-    val parallelism = Math.min(workerSnapshots(shuffleId).size(), RssConf.rpcMaxParallelism(conf))
+    val parallelism = Math.min(workerSnapshots(shuffleId).size(), conf.rpcMaxParallelism)
     ThreadUtils.parmap(
       allocatedWorkers.asScala.to,
       "CommitFiles",
@@ -1054,7 +1054,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
     val reserveSlotFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
-    val parallelism = Math.min(Math.max(1, slots.size()), RssConf.rpcMaxParallelism(conf))
+    val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
         val res = requestReserveSlots(
@@ -1210,8 +1210,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       candidates: List[WorkerInfo],
       slots: WorkerResource): Boolean = {
     var requestSlots = slots
-    val maxRetryTimes = RssConf.reserveSlotsMaxRetries(conf)
-    val retryWaitInterval = RssConf.reserveSlotsRetryWait(conf)
+    val maxRetryTimes = conf.reserveSlotsMaxRetries
+    val retryWaitInterval = conf.reserveSlotsRetryWait
     var retryTimes = 1
     var noAvailableSlots = false
     var success = false

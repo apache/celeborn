@@ -65,8 +65,8 @@ public class DataPusher {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws IOException {
-    final int capacity = RssConf.pushQueueCapacity(conf);
-    final int bufferSize = RssConf.pushBufferMaxSize(conf);
+    final int capacity = conf.pushQueueCapacity();
+    final int bufferSize = conf.pushBufferMaxSize();
 
     idleQueue = new LinkedBlockingQueue<>(capacity);
     workingQueue = new LinkedBlockingQueue<>(capacity);
