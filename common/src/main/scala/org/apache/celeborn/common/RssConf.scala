@@ -954,22 +954,6 @@ object RssConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9097)
 
-  def metricsSamplePerfCritical(conf: RssConf): Boolean = {
-    conf.getBoolean("rss.metrics.system.sample.perf.critical", false)
-  }
-
-  def innerMetricsSize(conf: RssConf): Int = {
-    conf.getInt("rss.inner.metrics.size", 4096)
-  }
-
-  def workerRPCPort(conf: RssConf): Int = {
-    conf.getInt("rss.worker.rpc.port", 0)
-  }
-
-  def offerSlotsExtraSize(conf: RssConf): Int = {
-    conf.getInt("rss.offer.slots.extra.size", 2)
-  }
-
   val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
     .withAlternative("rss.ha.enabled")
     .categories("master")
@@ -1430,6 +1414,22 @@ object RssConf extends Logging {
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
+
+  def metricsSamplePerfCritical(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.metrics.system.sample.perf.critical", false)
+  }
+
+  def innerMetricsSize(conf: RssConf): Int = {
+    conf.getInt("rss.inner.metrics.size", 4096)
+  }
+
+  def workerRPCPort(conf: RssConf): Int = {
+    conf.getInt("rss.worker.rpc.port", 0)
+  }
+
+  def offerSlotsExtraSize(conf: RssConf): Int = {
+    conf.getInt("rss.offer.slots.extra.size", 2)
+  }
 
   def sortPushThreshold(conf: RssConf): Long = {
     conf.getSizeAsBytes("rss.sort.push.data.threshold", "64m")
