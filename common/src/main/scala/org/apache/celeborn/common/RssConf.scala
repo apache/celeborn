@@ -772,7 +772,7 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val SHUFFLE_REGISTER_RETRY_TIMEOUT: ConfigEntry[Long] =
+  val SHUFFLE_REGISTER_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.register.retryWait")
       .withAlternative("rss.register.shuffle.retry.wait")
       .categories("client")
@@ -788,8 +788,8 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val RESERVE_SLOTS_RETRY_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.slot.reserve.retry.timeout")
+  val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.slot.reserve.retryWait")
       .withAlternative("rss.reserve.slots.retry.timeout")
       .categories("client")
       .doc("Wait time before next retry if reserve slots failed.")
@@ -824,11 +824,11 @@ object RssConf extends Logging {
 
   def registerShuffleMaxRetry(conf: RssConf): Int = conf.get(SHUFFLE_REGISTER_MAX_RETRIES)
 
-  def registerShuffleRetryTimeout(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_TIMEOUT)
+  def registerShuffleRetryTimeout(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
 
   def reserveSlotsMaxTimeout(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
 
-  def reserveSlotsRetryTimeout(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_TIMEOUT)
+  def reserveSlotsRetryTimeout(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
@@ -1291,6 +1291,7 @@ object RssConf extends Logging {
       .doc("The minimum flush count to enter a sliding window" +
         " to calculate statistics about flushed time and count.")
       .version("0.2.0")
+      .internal
       .intConf
       .createWithDefault(1000)
 

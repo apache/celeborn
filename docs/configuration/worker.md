@@ -28,7 +28,6 @@ license: |
 | celeborn.worker.deviceMonitor.enabled | `true` | When true, worker will monitor device and report to master. |  | 
 | celeborn.worker.deviceMonitor.sys.block.dir | `/sys/block` | The directory where linux file block information is stored. |  | 
 | celeborn.worker.disk.reserve.size | `5G` | Celeborn worker reserved space for each disk. | 0.2.0 | 
-| celeborn.worker.flusher.avgFlushTime.slidingWindow.minCount | `1000` | The minimum flush count to enter a sliding window to calculate statistics about flushed time and count. | 0.2.0 | 
 | celeborn.worker.flusher.avgFlushTime.slidingWindow.size | `20` | The minimum flush count to enter a sliding window to calculate statistics about flushed time and count. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | `256k` | Size of buffer used by a single flusher. |  | 
 | celeborn.worker.flusher.hdd.threads | `1` | Flusher's thread count used for write data to HDD disks. | 0.2.0 | 
