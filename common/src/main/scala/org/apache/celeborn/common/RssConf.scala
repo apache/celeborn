@@ -477,6 +477,8 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
   def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
+  def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
+  def metricsCapacity: Int = get(METRICS_CAPACITY)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                 //
@@ -523,15 +525,6 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def createWriterCreateMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
-  def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
-  def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
-  def metricsSamplePerfCritical: Boolean = get(METRICS_SAMPLE_PERFORMANCE_CRITICAL)
-  def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
-  def innerMetricsSize: Int = get(METRICS_INNER_SIZE)
-  def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
-  def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
-  def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
-  def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -1436,8 +1429,8 @@ object RssConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
-  val METRICS_SAMPLE_PERFORMANCE_CRITICAL: ConfigEntry[Boolean] =
-    buildConf("celeborn.metrics.sample.perf.critical")
+  val METRICS_COLLECT_CRITICAL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.collect.critical.enabled")
       .withAlternative("rss.metrics.system.sample.perf.critical")
       .categories("master", "worker", "metrics")
       .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
@@ -1445,8 +1438,8 @@ object RssConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val METRICS_INNER_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.metrics.inner.size")
+  val METRICS_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.capacity")
       .withAlternative("rss.inner.metrics.size")
       .categories("master", "worker", "metrics")
       .doc("The maximum number of metrics which a source can use to generate output strings.")
