@@ -377,7 +377,8 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def hdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
   def avgFlushTimeSlidingWindowSize: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE)
-  def avgFlushTimeSlidingWindowMinCount: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
+  def avgFlushTimeSlidingWindowMinCount: Int =
+    get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
   def diskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
   def deviceMonitorEnabled: Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
   def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
