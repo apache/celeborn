@@ -53,7 +53,7 @@ import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -103,7 +103,7 @@ public class HARaftServer {
    */
   private HARaftServer(
       MetaHandler metaHandler,
-      RssConf conf,
+      CelebornConf conf,
       RaftPeerId localRaftPeerId,
       InetSocketAddress ratisAddr,
       String rpcEndpoint,
@@ -148,7 +148,7 @@ public class HARaftServer {
   }
 
   public static HARaftServer newMasterRatisServer(
-      MetaHandler metaHandler, RssConf conf, MasterNode localNode, List<MasterNode> peerNodes)
+      MetaHandler metaHandler, CelebornConf conf, MasterNode localNode, List<MasterNode> peerNodes)
       throws IOException {
     String nodeId = localNode.nodeId();
     RaftPeerId localRaftPeerId = RaftPeerId.getRaftPeerId(nodeId);
@@ -285,7 +285,7 @@ public class HARaftServer {
     }
   }
 
-  private RaftProperties newRaftProperties(RssConf conf) {
+  private RaftProperties newRaftProperties(CelebornConf conf) {
     final RaftProperties properties = new RaftProperties();
     // Set RPC type
     final String rpcType = conf.haMasterRatisRpcType();

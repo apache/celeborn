@@ -39,7 +39,7 @@ import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.client.write.DataBatches;
 import org.apache.celeborn.client.write.PushState;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
@@ -68,7 +68,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private static final Random rand = new Random();
 
-  private final RssConf conf;
+  private final CelebornConf conf;
 
   private final UserIdentifier userIdentifier;
 
@@ -120,7 +120,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
-  public ShuffleClientImpl(RssConf conf, UserIdentifier userIdentifier) {
+  public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier) {
     super();
     this.conf = conf;
     this.userIdentifier = userIdentifier;
@@ -133,16 +133,16 @@ public class ShuffleClientImpl extends ShuffleClient {
     rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
 
     TransportConf dataTransportConf =
-        Utils.fromRssConf(
+        Utils.fromCelebornConf(
             conf, TransportModuleConstants.DATA_MODULE, conf.getInt("rss.data.io.threads", 8));
     TransportContext context =
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
     dataClientFactory = context.createClientFactory();
 
-    int retryThreadNum = RssConf.pushDataRetryThreadNum(conf);
+    int retryThreadNum = CelebornConf.pushDataRetryThreadNum(conf);
     pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
 
-    int splitPoolSize = RssConf.clientSplitPoolSize(conf);
+    int splitPoolSize = CelebornConf.clientSplitPoolSize(conf);
     partitionSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
   }
 
@@ -312,8 +312,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches = pushState.inFlightBatches;
-    long timeoutMs = RssConf.limitInFlightTimeoutMs(conf);
-    long delta = RssConf.limitInFlightSleepDeltaMs(conf);
+    long timeoutMs = CelebornConf.limitInFlightTimeoutMs(conf);
+    long delta = CelebornConf.limitInFlightSleepDeltaMs(conf);
     long times = timeoutMs / delta;
     try {
       while (times > 0) {

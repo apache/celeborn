@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 @Private
 public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -74,7 +74,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numMappers;
   private final int numPartitions;
 
-  private final RssConf rssConf;
+  private final CelebornConf conf;
   @Nullable private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
@@ -108,7 +108,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public HashBasedShuffleWriter(
       RssShuffleHandle<K, V, C> handle,
       TaskContext taskContext,
-      RssConf conf,
+      CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
       SendBufferPool sendBufferPool)
@@ -124,7 +124,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = handle.numMappers();
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
-    this.rssConf = conf;
+    this.conf = conf;
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -160,7 +160,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             writeMetrics::incBytesWritten,
             mapStatusLengths);
 
-    if (RssConf.columnarShuffleEnabled(rssConf)) {
+    if (CelebornConf.columnarShuffleEnabled(this.conf)) {
       this.schema = SparkUtils.getShuffleDependencySchema(dep);
       this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
@@ -207,15 +207,16 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         RssColumnarBatchBuilder columnBuilders =
             new RssColumnarBatchBuilder(
                 schema,
-                RssConf.columnarShuffleBatchSize(rssConf),
-                RssConf.columnarShuffleMaxDictFactor(rssConf),
-                RssConf.columnarShuffleCompress(rssConf));
+                CelebornConf.columnarShuffleBatchSize(conf),
+                CelebornConf.columnarShuffleMaxDictFactor(conf),
+                CelebornConf.columnarShuffleCompress(conf));
         columnBuilders.newBuilders();
         rssColumnBuilders[partitionId] = columnBuilders;
       }
       rssColumnBuilders[partitionId].writeRow(row);
       if (rssColumnBuilders[partitionId].getTotalSize() > PUSH_BUFFER_MAX_SIZE
-          || rssColumnBuilders[partitionId].rowCnt() == RssConf.columnarShuffleBatchSize(rssConf)) {
+          || rssColumnBuilders[partitionId].rowCnt()
+              == CelebornConf.columnarShuffleBatchSize(conf)) {
         byte[] arr = rssColumnBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {

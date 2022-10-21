@@ -22,7 +22,7 @@ import java.util.concurrent.TimeoutException
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 /**
@@ -86,7 +86,7 @@ private[celeborn] object RpcTimeout {
    * @param timeoutProp property key for the timeout in seconds
    * @throws NoSuchElementException if property is not set
    */
-  def apply(conf: RssConf, timeoutProp: String): RpcTimeout = {
+  def apply(conf: CelebornConf, timeoutProp: String): RpcTimeout = {
     val timeout = { conf.getTimeAsSeconds(timeoutProp).seconds }
     new RpcTimeout(timeout, timeoutProp)
   }
@@ -100,7 +100,7 @@ private[celeborn] object RpcTimeout {
    * @param timeoutProp property key for the timeout in seconds
    * @param defaultValue default timeout value in seconds if property not found
    */
-  def apply(conf: RssConf, timeoutProp: String, defaultValue: String): RpcTimeout = {
+  def apply(conf: CelebornConf, timeoutProp: String, defaultValue: String): RpcTimeout = {
     val timeout = { conf.getTimeAsSeconds(timeoutProp, defaultValue).seconds }
     new RpcTimeout(timeout, timeoutProp)
   }
@@ -115,7 +115,7 @@ private[celeborn] object RpcTimeout {
    * @param timeoutPropList prioritized list of property keys for the timeout in seconds
    * @param defaultValue default timeout value in seconds if no properties found
    */
-  def apply(conf: RssConf, timeoutPropList: Seq[String], defaultValue: String): RpcTimeout = {
+  def apply(conf: CelebornConf, timeoutPropList: Seq[String], defaultValue: String): RpcTimeout = {
     require(timeoutPropList.nonEmpty)
 
     // Find the first set property or use the default value with the first property

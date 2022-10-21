@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 @Private
 public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -102,7 +102,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       RssShuffleHandle<K, V, C> handle,
       int mapId,
       TaskContext taskContext,
-      RssConf conf,
+      CelebornConf conf,
       ShuffleClient client,
       SendBufferPool sendBufferPool)
       throws IOException {

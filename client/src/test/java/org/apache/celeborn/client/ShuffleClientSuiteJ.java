@@ -40,7 +40,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -97,7 +97,7 @@ public class ShuffleClientSuiteJ {
   @Test
   public void testPushData() throws IOException, InterruptedException {
     for (CompressionCodec codec : CompressionCodec.values()) {
-      RssConf conf = setupEnv(codec);
+      CelebornConf conf = setupEnv(codec);
 
       int pushDataLen =
           shuffleClient.pushData(
@@ -123,7 +123,7 @@ public class ShuffleClientSuiteJ {
   @Test
   public void testMergeData() throws IOException, InterruptedException {
     for (CompressionCodec codec : CompressionCodec.values()) {
-      RssConf conf = setupEnv(codec);
+      CelebornConf conf = setupEnv(codec);
 
       int mergeSize =
           shuffleClient.mergeData(
@@ -190,8 +190,8 @@ public class ShuffleClientSuiteJ {
     return ia.getHostName();
   }
 
-  private RssConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
-    RssConf conf = new RssConf();
+  private CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
+    CelebornConf conf = new CelebornConf();
     conf.set("rss.client.compression.codec", codec.name());
     conf.set("rss.pushdata.retry.thread.num", "1");
     conf.set("celeborn.push.buffer.size", "1K");

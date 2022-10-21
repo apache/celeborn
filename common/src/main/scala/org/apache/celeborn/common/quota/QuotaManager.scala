@@ -18,11 +18,11 @@ package org.apache.celeborn.common.quota
 
 import java.util.concurrent.ConcurrentHashMap
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 
-abstract class QuotaManager(conf: RssConf) extends Logging {
+abstract class QuotaManager(conf: CelebornConf) extends Logging {
 
   val userQuotas: ConcurrentHashMap[UserIdentifier, Quota] =
     new ConcurrentHashMap[UserIdentifier, Quota]()
@@ -43,15 +43,15 @@ abstract class QuotaManager(conf: RssConf) extends Logging {
 }
 
 object QuotaManager extends Logging {
-  def instantiate(conf: RssConf): QuotaManager = {
-    val className = RssConf.quotaManagerClass(conf)
+  def instantiate(conf: CelebornConf): QuotaManager = {
+    val className = CelebornConf.quotaManagerClass(conf)
     logDebug(s"Creating quota manager $className")
     val clazz = Class.forName(
       className,
       true,
       Thread.currentThread().getContextClassLoader).asInstanceOf[Class[QuotaManager]]
     try {
-      val ctor = clazz.getDeclaredConstructor(classOf[RssConf])
+      val ctor = clazz.getDeclaredConstructor(classOf[CelebornConf])
       val quotaManager = ctor.newInstance(conf)
       quotaManager.initialize()
       quotaManager
