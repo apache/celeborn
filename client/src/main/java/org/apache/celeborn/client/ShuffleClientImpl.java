@@ -1136,9 +1136,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode cause;
     if (StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage().equals(message)) {
       cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
-    } else if (StatusCode.PUSH_DATA_FAIL_MAIN.getMessage().equals(message)
+    } else if (StatusCode.PUSH_DATA_FAIL_MASTER.getMessage().equals(message)
         || connectFail(message)) {
-      cause = StatusCode.PUSH_DATA_FAIL_MAIN;
+      cause = StatusCode.PUSH_DATA_FAIL_MASTER;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }

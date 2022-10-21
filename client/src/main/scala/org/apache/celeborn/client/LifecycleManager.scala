@@ -499,7 +499,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
-    if (cause == StatusCode.PUSH_DATA_FAIL_MAIN && oldPartition != null) {
+    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
       val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
         .find(_.equals(tmpWorker))
