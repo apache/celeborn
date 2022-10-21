@@ -29,7 +29,7 @@ license: |
 | celeborn.master.port | `9097` | Port for master to bind. | 0.2.0 | 
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. | 0.2.0 | 
 | celeborn.metrics.capacity | `4096` | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 | 
-| celeborn.metrics.collect.critical.enabled | `false` | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 | 
+| celeborn.metrics.collectCritical.enabled | `false` | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 | 
 | celeborn.metrics.sample.rate | `1.0` | It controls if Celeborn collect timer metrics for some operations. Its value should be in (0.0, 1.0). | 0.2.0 | 
 | celeborn.metrics.timer.sliding.window.size | `4096` | The sliding window size of timer metric. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 

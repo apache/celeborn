@@ -1430,7 +1430,7 @@ object CelebornConf extends Logging {
       .createWithDefault(9096)
 
   val METRICS_COLLECT_CRITICAL_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.metrics.collect.critical.enabled")
+    buildConf("celeborn.metrics.collectCritical.enabled")
       .withAlternative("rss.metrics.system.sample.perf.critical")
       .categories("master", "worker", "metrics")
       .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
