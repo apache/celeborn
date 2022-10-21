@@ -204,7 +204,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
       val message =
         if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MAIN.getMessage()
+          StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
@@ -356,7 +356,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         s" has Exception $exception")
       val message =
         if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MAIN.getMessage()
+          StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }

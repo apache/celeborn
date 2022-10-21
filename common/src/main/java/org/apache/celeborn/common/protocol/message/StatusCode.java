@@ -42,7 +42,7 @@ public enum StatusCode {
   // push data fail causes
   PUSH_DATA_FAIL_NON_CRITICAL_CAUSE(17),
   PUSH_DATA_FAIL_SLAVE(18),
-  PUSH_DATA_FAIL_MAIN(19),
+  PUSH_DATA_FAIL_MASTER(19),
   PUSH_DATA_FAIL_PARTITION_NOT_FOUND(20),
 
   HARD_SPLIT(21),
@@ -64,8 +64,8 @@ public enum StatusCode {
 
   public String getMessage() {
     String msg = "";
-    if (value == PUSH_DATA_FAIL_MAIN.getValue()) {
-      msg = "PushDataFailMain";
+    if (value == PUSH_DATA_FAIL_MASTER.getValue()) {
+      msg = "PushDataFailMaster";
     } else if (value == PUSH_DATA_FAIL_SLAVE.getValue()) {
       msg = "PushDataFailSlave";
     } else if (value == PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.getValue()) {

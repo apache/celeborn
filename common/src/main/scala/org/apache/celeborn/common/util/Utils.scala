@@ -906,7 +906,7 @@ object Utils extends Logging {
       case 18 =>
         StatusCode.PUSH_DATA_FAIL_SLAVE
       case 19 =>
-        StatusCode.PUSH_DATA_FAIL_MAIN
+        StatusCode.PUSH_DATA_FAIL_MASTER
       case 20 =>
         StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
       case 21 =>
