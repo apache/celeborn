@@ -26,8 +26,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with BeforeAndAfterAll {
@@ -47,7 +47,7 @@ class ClusterReadWriteSuite extends AnyFunSuite with MiniClusterFeature with Bef
     test(s"test MiniCluster - $codec") {
       val APP = "app-1"
 
-      val clientConf = new RssConf()
+      val clientConf = new CelebornConf()
         .set("celeborn.master.endpoints", s"localhost:$masterPort")
         .set("rss.client.compression.codec", codec.name)
         .set("celeborn.push.replicate.enabled", "true")

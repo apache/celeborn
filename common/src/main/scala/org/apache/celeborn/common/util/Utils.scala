@@ -39,7 +39,7 @@ import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.RssException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
@@ -48,7 +48,7 @@ import org.apache.celeborn.common.network.util.{ConfigProvider, JavaUtils, Trans
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.PbWorkerResource
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{UserIdentifier, WorkerResource}
+import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
 object Utils extends Logging {
 
@@ -244,7 +244,7 @@ object Utils extends Logging {
   def startServiceOnPort[T](
       startPort: Int,
       startService: Int => (T, Int),
-      conf: RssConf,
+      conf: CelebornConf,
       serviceName: String = ""): (T, Int) = {
 
     require(
@@ -252,7 +252,7 @@ object Utils extends Logging {
       "startPort should be between 1024 and 65535 (inclusive), or 0 for a random free port.")
 
     val serviceString = if (serviceName.isEmpty) "" else s" '$serviceName'"
-    val maxRetries = RssConf.masterPortMaxRetry(conf)
+    val maxRetries = CelebornConf.masterPortMaxRetry(conf)
     for (offset <- 0 to maxRetries) {
       // Do not increment port if startPort is 0, which is treated as a special port
       val tryPort =
@@ -486,7 +486,10 @@ object Utils extends Logging {
 
   private val MAX_DEFAULT_NETTY_THREADS = 64
 
-  def fromRssConf(_conf: RssConf, module: String, numUsableCores: Int = 0): TransportConf = {
+  def fromCelebornConf(
+      _conf: CelebornConf,
+      module: String,
+      numUsableCores: Int = 0): TransportConf = {
     val conf = _conf.clone
 
     // Specify thread configuration based on our JVM's allocation of cores (rather than necessarily
@@ -535,7 +538,11 @@ object Utils extends Logging {
     // scalastyle:on classforname
   }
 
-  def loadDefaultRssProperties(conf: RssConf, filePath: String = null): String = {
+  def getCodeSourceLocation(clazz: Class[_]): String = {
+    new File(clazz.getProtectionDomain.getCodeSource.getLocation.toURI).getPath
+  }
+
+  def loadDefaultRssProperties(conf: CelebornConf, filePath: String = null): String = {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
       getPropertiesFromFile(confFile).filter { case (k, v) =>

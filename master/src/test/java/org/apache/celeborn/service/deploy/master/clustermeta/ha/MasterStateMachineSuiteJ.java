@@ -36,11 +36,11 @@ import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
@@ -173,7 +173,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
   @Test
   public void testObjSerde() throws IOException {
-    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null, new RssConf());
+    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null, new CelebornConf());
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
     Map<String, DiskInfo> disks1 = new HashMap<>();

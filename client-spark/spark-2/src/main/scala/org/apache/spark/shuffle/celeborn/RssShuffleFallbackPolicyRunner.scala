@@ -17,15 +17,11 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import org.apache.spark.SparkConf
-
 import org.apache.celeborn.client.LifecycleManager
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
-class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
-
-  private lazy val rssConf = SparkUtils.fromSparkConf(sparkConf)
+class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
@@ -36,7 +32,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * if rss.force.fallback is true, fallback to external shuffle
    * @return return rss.force.fallback
    */
-  def applyForceFallbackPolicy(): Boolean = RssConf.forceFallback(rssConf)
+  def applyForceFallbackPolicy(): Boolean = CelebornConf.forceFallback(conf)
 
   /**
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
@@ -44,7 +40,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * @return return if shuffle partitions bigger than limit
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = RssConf.maxPartitionNumSupported(rssConf)
+    val confNumPartitions = CelebornConf.maxPartitionNumSupported(conf)
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
       logInfo(s"Shuffle num of partitions: $numPartitions" +
@@ -60,7 +56,7 @@ class RssShuffleFallbackPolicyRunner(sparkConf: SparkConf) extends Logging {
    * @return if rss cluster usage of current user's percent is overhead the limit
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
-    if (!RssConf.clusterCheckQuotaEnabled(rssConf)) {
+    if (!CelebornConf.clusterCheckQuotaEnabled(conf)) {
       return true
     }
 

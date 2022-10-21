@@ -15,13 +15,16 @@
 # limitations under the License.
 #
 
-site_name: Celeborn
-repo_name: alibaba/celeborn
-repo_url: https://github.com/alibaba/celeborn
+site_name: Apache Celeborn (Incubating)
+repo_name: apache/incubating-celeborn
+repo_url: https://github.com/apache/incubating-celeborn
 
 plugins:
   - search
   - macros
+  - include-markdown:
+      opening_tag: "{!"
+      closing_tag: "!}"
 
 theme:
   name: material
@@ -48,6 +51,6 @@ extra:
 nav:
   - Home: index.md
   - Configuration:
-      - configuration.md
+      - configuration/index.md
   - Contributor:
       - Docs and Website: contrib/docs_and_website.md

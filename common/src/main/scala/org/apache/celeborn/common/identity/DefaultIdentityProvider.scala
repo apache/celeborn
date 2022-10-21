@@ -19,11 +19,8 @@ package org.apache.celeborn.common.identity
 
 import org.apache.hadoop.security.UserGroupInformation
 
-import org.apache.celeborn.common.protocol.message.ControlMessages
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
-
 class DefaultIdentityProvider extends IdentityProvider {
-  override def provide(): ControlMessages.UserIdentifier = {
+  override def provide(): UserIdentifier = {
     UserIdentifier(
       IdentityProvider.DEFAULT_TENANT_ID,
       UserGroupInformation.getCurrentUser.getShortUserName)

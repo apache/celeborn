@@ -35,10 +35,10 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.MemoryTracker;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -123,7 +123,7 @@ public class PartitionFilesSorterSuiteJ {
   @Test
   public void testSmallFile() throws InterruptedException, IOException {
     prepare(false);
-    RssConf conf = new RssConf();
+    CelebornConf conf = new CelebornConf();
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info =
@@ -139,7 +139,7 @@ public class PartitionFilesSorterSuiteJ {
   @Ignore
   public void testLargeFile() throws InterruptedException, IOException {
     prepare(true);
-    RssConf conf = new RssConf();
+    CelebornConf conf = new CelebornConf();
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info =
@@ -158,9 +158,9 @@ public class PartitionFilesSorterSuiteJ {
       return;
     }
     File recoverPath = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "recover_path");
-    RssConf conf = new RssConf();
-    conf.set("rss.worker.graceful.shutdown", "true");
-    conf.set("rss.worker.recoverPath", recoverPath.getPath());
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.worker.graceful.shutdown.enabled", "true");
+    conf.set("celeborn.worker.graceful.shutdown.recoverPath", recoverPath.getPath());
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     partitionFilesSorter.initSortedShuffleFiles("application-1-1");

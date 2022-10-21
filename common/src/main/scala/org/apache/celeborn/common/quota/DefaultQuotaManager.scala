@@ -23,11 +23,11 @@ import scala.collection.JavaConverters._
 
 import org.yaml.snakeyaml.Yaml
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.Utils
 
-class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
+class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
 
   override def refresh(): Unit = {
     // Not support refresh
@@ -35,7 +35,7 @@ class DefaultQuotaManager(conf: RssConf) extends QuotaManager(conf) {
 
   override def initialize(): Unit = {
     Option(
-      RssConf.quotaConfigurationPath(conf)
+      CelebornConf.quotaConfigurationPath(conf)
         .getOrElse(Utils.getDefaultQuotaConfigurationFile()))
       .foreach { quotaConfPath =>
         val stream = new FileInputStream(new File(quotaConfPath))

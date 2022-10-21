@@ -22,7 +22,7 @@ import java.util.regex.PatternSyntaxException
 
 import scala.util.matching.Regex
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.util.{ByteUnit, JavaUtils}
 import org.apache.celeborn.common.util.Utils
 
@@ -85,7 +85,7 @@ private object ConfigHelpers {
  * used, e.g., for validation) and creating the final config entry.
  *
  * One of the methods that return a [[ConfigEntry]] must be called to create a config entry that
- * can be used with [[RssConf]].
+ * can be used with [[CelebornConf]].
  */
 class TypedConfigBuilder[T](
     val parent: ConfigBuilder,
@@ -140,6 +140,7 @@ class TypedConfigBuilder[T](
       stringConverter,
       parent._doc,
       parent._public,
+      parent._categories,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -163,6 +164,7 @@ class TypedConfigBuilder[T](
           stringConverter,
           parent._doc,
           parent._public,
+          parent._categories,
           parent._version)
         parent._onCreate.foreach(_(entry))
         entry
@@ -181,6 +183,7 @@ class TypedConfigBuilder[T](
       stringConverter,
       parent._doc,
       parent._public,
+      parent._categories,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -201,6 +204,7 @@ class TypedConfigBuilder[T](
       stringConverter,
       parent._doc,
       parent._public,
+      parent._categories,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -308,6 +312,7 @@ case class ConfigBuilder(key: String) {
       _alternatives,
       _doc,
       _public,
+      _categories,
       _version,
       fallback)
     _onCreate.foreach(_(entry))

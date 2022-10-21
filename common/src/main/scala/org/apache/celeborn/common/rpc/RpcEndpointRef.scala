@@ -20,14 +20,14 @@ package org.apache.celeborn.common.rpc
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.RpcUtils
 
 /**
  * A reference for a remote [[RpcEndpoint]]. [[RpcEndpointRef]] is thread-safe.
  */
-abstract class RpcEndpointRef(conf: RssConf)
+abstract class RpcEndpointRef(conf: CelebornConf)
   extends Serializable with Logging {
 
   private[this] val defaultAskTimeout = RpcUtils.askRpcTimeout(conf)

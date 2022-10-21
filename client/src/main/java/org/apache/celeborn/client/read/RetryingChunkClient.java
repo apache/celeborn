@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -63,7 +63,7 @@ public class RetryingChunkClient {
   private volatile int numTries = 0;
 
   public RetryingChunkClient(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       ChunkReceivedCallback callback,
@@ -72,31 +72,34 @@ public class RetryingChunkClient {
   }
 
   public RetryingChunkClient(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       ChunkReceivedCallback callback,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex) {
-    TransportConf transportConf = Utils.fromRssConf(conf, TransportModuleConstants.DATA_MODULE, 0);
+    TransportConf transportConf =
+        Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
 
     this.callback = callback;
     this.retryWaitMs = transportConf.ioRetryWaitTimeMs();
 
-    long timeoutMs = RssConf.fetchTimeoutMs(conf);
+    long fetchTimeoutMs = conf.fetchTimeoutMs();
 
     if (location == null) {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");
     } else {
       Replica main =
-          new Replica(timeoutMs, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+          new Replica(
+              fetchTimeoutMs, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       PartitionLocation peerLoc = location.getPeer();
       if (peerLoc == null) {
         replicas = new Replica[] {main};
       } else {
         Replica peer =
-            new Replica(timeoutMs, shuffleKey, peerLoc, clientFactory, startMapIndex, endMapIndex);
+            new Replica(
+                fetchTimeoutMs, shuffleKey, peerLoc, clientFactory, startMapIndex, endMapIndex);
         replicas = new Replica[] {main, peer};
       }
     }
