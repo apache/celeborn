@@ -31,7 +31,7 @@ import scala.util.control.NonFatal
 
 import com.google.common.base.Throwables
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.TransportContext
@@ -45,12 +45,12 @@ import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInst
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
 
 class NettyRpcEnv(
-    val conf: RssConf,
+    val conf: CelebornConf,
     javaSerializerInstance: JavaSerializerInstance,
     host: String,
     numUsableCores: Int) extends RpcEnv(conf) with Logging {
 
-  private[celeborn] val transportConf = Utils.fromRssConf(
+  private[celeborn] val transportConf = Utils.fromCelebornConf(
     conf.clone,
     TransportModuleConstants.RPC_MODULE,
     conf.getInt("rss.rpc.io.threads", numUsableCores))
@@ -350,14 +350,14 @@ private[celeborn] object NettyRpcEnv extends Logging {
 private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
 
   def create(config: RpcEnvConfig): RpcEnv = {
-    val rssConf = config.conf
+    val conf = config.conf
     // Use JavaSerializerInstance in multiple threads is safe. However, if we plan to support
     // KryoSerializer in future, we have to use ThreadLocal to store SerializerInstance
     val javaSerializerInstance =
-      new JavaSerializer(rssConf).newInstance().asInstanceOf[JavaSerializerInstance]
+      new JavaSerializer(conf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv =
       new NettyRpcEnv(
-        rssConf,
+        conf,
         javaSerializerInstance,
         config.advertiseAddress,
         config.numUsableCores)
@@ -366,7 +366,7 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
       (nettyEnv, nettyEnv.address.port)
     }
     try {
-      Utils.startServiceOnPort(config.port, startNettyRpcEnv, rssConf, config.name)._1
+      Utils.startServiceOnPort(config.port, startNettyRpcEnv, conf, config.name)._1
     } catch {
       case NonFatal(e) =>
         nettyEnv.shutdown()
@@ -397,7 +397,7 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
  * @param nettyEnv The RpcEnv associated with this ref.
  */
 class NettyRpcEndpointRef(
-    @transient private val conf: RssConf,
+    @transient private val conf: CelebornConf,
     private val endpointAddress: RpcEndpointAddress,
     @transient @volatile private var nettyEnv: NettyRpcEnv)
   extends RpcEndpointRef(conf) {

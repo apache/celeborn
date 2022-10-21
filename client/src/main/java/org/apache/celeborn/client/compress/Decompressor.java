@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.client.compress;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 public interface Decompressor {
 
@@ -32,8 +32,8 @@ public interface Decompressor {
         | ((buf[i + 3] & 0xFF) << 24);
   }
 
-  static Decompressor getDecompressor(RssConf conf) {
-    String codec = RssConf.compressionCodec(conf);
+  static Decompressor getDecompressor(CelebornConf conf) {
+    String codec = CelebornConf.compressionCodec(conf);
     switch (codec) {
       case "lz4":
         return new RssLz4Decompressor();
@@ -44,8 +44,8 @@ public interface Decompressor {
     }
   }
 
-  static int getCompressionHeaderLength(RssConf conf) {
-    String codec = RssConf.compressionCodec(conf);
+  static int getCompressionHeaderLength(CelebornConf conf) {
+    String codec = CelebornConf.compressionCodec(conf);
     switch (codec) {
       case "lz4":
         return RssLz4Trait.HEADER_LENGTH;

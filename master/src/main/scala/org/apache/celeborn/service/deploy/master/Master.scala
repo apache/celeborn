@@ -25,8 +25,7 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf.haEnabled
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -44,7 +43,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaMan
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 
 private[celeborn] class Master(
-    override val conf: RssConf,
+    override val conf: CelebornConf,
     val masterArgs: MasterArguments)
   extends HttpService with RpcEndpoint with Logging {
 
@@ -64,7 +63,7 @@ private[celeborn] class Master(
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
   private val statusSystem =
-    if (haEnabled(conf)) {
+    if (conf.haEnabled) {
       val sys = new HAMasterMetaManager(rpcEnv, conf)
       val handler = new MetaHandler(sys)
       try {
@@ -94,8 +93,8 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val WorkerTimeoutMs = RssConf.workerHeartbeatTimeoutMs(conf)
-  private val ApplicationTimeoutMs = RssConf.appHeartbeatTimeoutMs(conf)
+  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeoutMs
+  private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
 
@@ -103,14 +102,14 @@ private[celeborn] class Master(
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
 
-  private def minimumUsableSize = RssConf.diskMinimumReserveSize(conf)
+  private def diskReserveSize = conf.diskReserveSize
 
-  private def diskGroups = RssConf.diskGroups(conf)
+  private def diskGroups = CelebornConf.diskGroups(conf)
 
-  private def diskGroupGradient = RssConf.diskGroupGradient(conf)
+  private def diskGroupGradient = CelebornConf.diskGroupGradient(conf)
 
-  private val partitionSizeUpdateInitialDelay = RssConf.partitionSizeUpdaterInitialDelay(conf)
-  private val partitionSizeUpdateInterval = RssConf.partitionSizeUpdateInterval(conf)
+  private val partitionSizeUpdateInitialDelay = CelebornConf.partitionSizeUpdaterInitialDelay(conf)
+  private val partitionSizeUpdateInterval = CelebornConf.partitionSizeUpdateInterval(conf)
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
   partitionSizeUpdateService.scheduleAtFixedRate(
@@ -123,7 +122,7 @@ private[celeborn] class Master(
     partitionSizeUpdateInitialDelay,
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val offerSlotsAlgorithm = RssConf.offerSlotsAlgorithm(conf)
+  private val offerSlotsAlgorithm = CelebornConf.offerSlotsAlgorithm(conf)
 
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
@@ -155,7 +154,7 @@ private[celeborn] class Master(
         }
       },
       0,
-      WorkerTimeoutMs,
+      workerHeartbeatTimeoutMs,
       TimeUnit.MILLISECONDS)
 
     checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
@@ -165,7 +164,7 @@ private[celeborn] class Master(
         }
       },
       0,
-      ApplicationTimeoutMs / 2,
+      appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
   }
 
@@ -309,7 +308,7 @@ private[celeborn] class Master(
     val currentTime = System.currentTimeMillis()
     var ind = 0
     workersSnapShot.asScala.foreach { worker =>
-      if (worker.lastHeartbeat < currentTime - WorkerTimeoutMs
+      if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
@@ -328,7 +327,7 @@ private[celeborn] class Master(
   private def timeoutDeadApplications(): Unit = {
     val currentTime = System.currentTimeMillis()
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - ApplicationTimeoutMs) {
+      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
         val requestId = RssHARetryClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
@@ -498,7 +497,7 @@ private[celeborn] class Master(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
-              minimumUsableSize,
+              diskReserveSize,
               diskGroups,
               diskGroupGradient)
           }
@@ -530,7 +529,7 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val extraSlotsSize = Math.min(RssConf.offerSlotsExtraSize(conf), workersNotSelected.size)
+    val extraSlotsSize = Math.min(CelebornConf.offerSlotsExtraSize(conf), workersNotSelected.size)
     if (extraSlotsSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to extraSlotsSize).foreach(_ => {
@@ -723,7 +722,7 @@ private[celeborn] class Master(
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
     val isActive =
-      if (haEnabled(conf)) {
+      if (conf.haEnabled) {
         if (statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.isLeader) {
           1
         } else {
@@ -754,7 +753,7 @@ private[celeborn] class Master(
 
 private[deploy] object Master extends Logging {
   def main(args: Array[String]): Unit = {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
     master.initialize()

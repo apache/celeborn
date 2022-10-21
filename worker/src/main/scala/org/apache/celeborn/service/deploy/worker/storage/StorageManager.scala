@@ -34,7 +34,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.RssException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -47,15 +47,15 @@ import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
 
-final private[worker] class StorageManager(conf: RssConf, workerSource: AbstractSource)
+final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
-      RssConf.workerBaseDirs(conf).map { case (workdir, maxSpace, flusherThread, storageType) =>
-        (new File(workdir, RssConf.workingDirName(conf)), maxSpace, flusherThread, storageType)
+      conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>
+        (new File(workdir, CelebornConf.workingDirName(conf)), maxSpace, flusherThread, storageType)
       }
 
     if (workingDirInfos.size <= 0) {
@@ -104,8 +104,8 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
           deviceMonitor,
           diskInfo.threadCount,
           diskInfo.mountPoint,
-          RssConf.flushAvgTimeWindow(conf),
-          RssConf.flushAvgTimeMinimumCount(conf),
+          conf.avgFlushTimeSlidingWindowSize,
+          conf.avgFlushTimeSlidingWindowMinCount,
           diskInfo.storageType)
         flushers.put(diskInfo.mountPoint, flusher)
       }
@@ -118,7 +118,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   deviceMonitor.startCheck()
 
-  val hdfsDir = RssConf.hdfsDir(conf)
+  val hdfsDir = conf.hdfsDir
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher =
@@ -129,9 +129,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
       Some(new HdfsFlusher(
         workerSource,
-        RssConf.hdfsFlusherThreadCount(conf),
-        RssConf.flushAvgTimeWindow(conf),
-        RssConf.flushAvgTimeMinimumCount(conf)))
+        conf.hdfsFlusherThreads,
+        conf.avgFlushTimeSlidingWindowSize,
+        conf.avgFlushTimeSlidingWindowMinCount))
     } else {
       None
     }
@@ -261,7 +261,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < RssConf.createFileWriterRetryCount(conf)) {
+    while (retryCount < conf.createWriterCreateMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
@@ -277,7 +277,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir =
-          new Path(new Path(hdfsDir, RssConf.workingDirName(conf)), s"$appId/$shuffleId")
+          new Path(new Path(hdfsDir, CelebornConf.workingDirName(conf)), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
         val hdfsWriter = new FileWriter(
@@ -375,7 +375,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
   }
 
-  private val noneEmptyDirExpireDurationMs = RssConf.appExpireDurationMs(conf)
+  private val noneEmptyDirExpireDurationMs = CelebornConf.appExpireDurationMs(conf)
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -417,7 +417,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     }
 
     if (hdfsFs != null) {
-      val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
+      val hdfsWorkPath = new Path(hdfsDir, CelebornConf.workingDirName(conf))
       if (hdfsFs.exists(hdfsWorkPath)) {
         val iter = hdfsFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
@@ -465,9 +465,9 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
   private def checkIfWorkingDirCleaned: Boolean = {
     var retryTimes = 0
-    val awaitTimeout = RssConf.checkFileCleanTimeoutMs(conf)
+    val awaitTimeout = CelebornConf.checkFileCleanTimeoutMs(conf)
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
-    while (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+    while (retryTimes < CelebornConf.checkFileCleanRetryTimes(conf)) {
       val localCleaned =
         !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists { diskInfo =>
           diskInfo.dirs.exists {
@@ -481,7 +481,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
 
       val hdfsCleaned = hdfsFs match {
         case hdfs: FileSystem =>
-          val hdfsWorkPath = new Path(hdfsDir, RssConf.workingDirName(conf))
+          val hdfsWorkPath = new Path(hdfsDir, CelebornConf.workingDirName(conf))
           // hdfs path not exist when first time initialize
           if (hdfs.exists(hdfsWorkPath)) {
             !hdfs.listFiles(hdfsWorkPath, false).hasNext
@@ -496,7 +496,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         return true
       }
       retryTimes += 1
-      if (retryTimes < RssConf.checkFileCleanRetryTimes(conf)) {
+      if (retryTimes < CelebornConf.checkFileCleanRetryTimes(conf)) {
         logInfo(s"Working directory's files have not been cleaned up completely, " +
           s"will start ${retryTimes + 1}th attempt after ${awaitTimeout} milliseconds.")
       }
@@ -523,7 +523,7 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
         diskOperators.size()) { entry =>
         ThreadUtils.shutdown(
           entry._2,
-          conf.workerDiskFlusherShutdownTimeoutMs.milliseconds)
+          conf.workerFlusherShutdownTimeoutMs.milliseconds)
       }
     }
     storageScheduler.shutdownNow()

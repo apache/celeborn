@@ -28,7 +28,7 @@ import scala.collection.JavaConverters._
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -42,7 +42,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
-    val conf: RssConf,
+    val conf: CelebornConf,
     val metricsSystem: MetricsSystem)
   extends RpcEndpoint with Logging {
 
@@ -54,7 +54,7 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
-  val minimumPartitionSizeForEstimation = RssConf.minimumPartitionSizeForEstimation(conf)
+  val minimumPartitionSizeForEstimation = CelebornConf.minimumPartitionSizeForEstimation(conf)
   var shutdown: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
@@ -399,18 +399,18 @@ private[deploy] class Controller(
 
     if (future != null) {
       val result = new AtomicReference[CompletableFuture[Unit]]()
-      val flushTimeout = RssConf.flushTimeout(conf)
+      val shuffleCommitTimeout = conf.shuffleCommitTimeout
 
       val timeout = timer.newTimeout(
         new TimerTask {
           override def run(timeout: Timeout): Unit = {
             if (result.get() != null) {
               result.get().cancel(true)
-              logWarning(s"After waiting $flushTimeout s, cancel all commit file jobs.")
+              logWarning(s"After waiting $shuffleCommitTimeout s, cancel all commit file jobs.")
             }
           }
         },
-        flushTimeout,
+        shuffleCommitTimeout,
         TimeUnit.SECONDS)
 
       result.set(future.handleAsync(
@@ -427,7 +427,7 @@ private[deploy] class Controller(
                   Thread.currentThread().interrupt()
                   throw ie
                 case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $flushTimeout s.")
+                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout s.")
                 case throwable: Throwable =>
                   logError("While handling commitFiles, exception occurs.", throwable)
               }

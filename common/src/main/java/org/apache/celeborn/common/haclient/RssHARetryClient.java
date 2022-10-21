@@ -37,7 +37,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.RpcNameConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessageResponse$;
 import org.apache.celeborn.common.protocol.message.MasterRequestMessage;
@@ -61,10 +61,10 @@ public class RssHARetryClient {
   private final AtomicReference<RpcEndpointRef> rpcEndpointRef;
   private final ExecutorService oneWayMessageSender;
 
-  public RssHARetryClient(RpcEnv rpcEnv, RssConf conf) {
+  public RssHARetryClient(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
-    this.masterEndpoints = RssConf.masterEndpoints(conf);
-    this.maxTries = Math.max(masterEndpoints.length, RssConf.haClientMaxTries(conf));
+    this.masterEndpoints = conf.masterEndpoints();
+    this.maxTries = Math.max(masterEndpoints.length, CelebornConf.haClientMaxTries(conf));
     this.rpcTimeout = RpcUtils.haClientAskRpcTimeout(conf);
     this.rpcEndpointRef = new AtomicReference<>();
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");

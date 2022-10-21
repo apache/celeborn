@@ -27,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 public class DataPusher {
   private final long WAIT_TIME_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
@@ -60,20 +60,20 @@ public class DataPusher {
       long taskId,
       int numMappers,
       int numPartitions,
-      RssConf conf,
+      CelebornConf conf,
       ShuffleClient client,
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws IOException {
-    final int capacity = RssConf.pushQueueCapacity(conf);
-    final int bufferSize = RssConf.pushBufferMaxSize(conf);
+    final int pushQueueCapacity = conf.pushQueueCapacity();
+    final int pushBufferMaxSize = conf.pushBufferMaxSize();
 
-    idleQueue = new LinkedBlockingQueue<>(capacity);
-    workingQueue = new LinkedBlockingQueue<>(capacity);
+    idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
+    workingQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
 
-    for (int i = 0; i < capacity; i++) {
+    for (int i = 0; i < pushQueueCapacity; i++) {
       try {
-        idleQueue.put(new PushTask(bufferSize));
+        idleQueue.put(new PushTask(pushBufferMaxSize));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IOException(e);

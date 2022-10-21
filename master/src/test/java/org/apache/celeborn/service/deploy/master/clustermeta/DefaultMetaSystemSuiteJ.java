@@ -33,7 +33,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -47,11 +47,11 @@ import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 public class DefaultMetaSystemSuiteJ {
 
   private RpcEnv mockRpcEnv = mock(RpcEnv.class);
-  private RssConf rssConf = new RssConf();
+  private CelebornConf conf = new CelebornConf();
   private AbstractMetaManager statusSystem;
   private RpcEndpointRef dummyRef =
       new NettyRpcEndpointRef(
-          new RssConf(), RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
+          new CelebornConf(), RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
   private AtomicLong callerId = new AtomicLong();
 
   private static String HOSTNAME1 = "host1";
@@ -84,7 +84,7 @@ public class DefaultMetaSystemSuiteJ {
   @Before
   public void setUp() throws Exception {
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
-    statusSystem = new SingleMasterMetaManager(mockRpcEnv, rssConf);
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
 
     disks1.clear();
     disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 0));

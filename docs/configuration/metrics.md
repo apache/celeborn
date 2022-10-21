@@ -20,7 +20,6 @@ license: |
 | celeborn.master.metrics.prometheus.port | `9098` |  |  | 
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. |  | 
 | celeborn.metrics.sample.rate | `1.0` |  |  | 
-| celeborn.metrics.timer.sliding.size | `4000` |  |  | 
 | celeborn.metrics.timer.sliding.window.size | `4096` |  |  | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` |  |  | 
 | celeborn.worker.metrics.prometheus.port | `9096` |  |  | 

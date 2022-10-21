@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
 class MasterSuite extends AnyFunSuite
@@ -35,7 +35,7 @@ class MasterSuite extends AnyFunSuite
   }
 
   test("test single node startup functionality") {
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     conf.set("celeborn.ha.enabled", "false")
     conf.set("celeborn.ha.master.ratis.raft.server.storage.dir", getTmpDir())
     conf.set("celeborn.worker.storage.dirs", getTmpDir())

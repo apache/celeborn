@@ -32,7 +32,7 @@ import scala.Tuple2;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -184,17 +184,17 @@ public class SlotsAllocatorSuiteJ {
       boolean shouldReplicate,
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
-    RssConf rssConf = new RssConf();
-    rssConf.set("rss.disk.groups", "2");
-    rssConf.set("rss.disk.group.gradient", "1");
+    CelebornConf conf = new CelebornConf();
+    conf.set("rss.disk.groups", "2");
+    conf.set("rss.disk.group.gradient", "1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsLoadAware(
             workers,
             partitionIds,
             shouldReplicate,
             10 * 1024 * 1024 * 1024L,
-            RssConf.diskGroups(rssConf),
-            RssConf.diskGroupGradient(rssConf));
+            CelebornConf.diskGroups(conf),
+            CelebornConf.diskGroupGradient(conf));
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(

@@ -29,8 +29,7 @@ import scala.io.Source
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
-import org.apache.celeborn.common.RssConf
-import org.apache.celeborn.common.RssConf.{deviceMonitorCheckList, diskCheckIntervalMs}
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.common.util.Utils._
@@ -49,7 +48,7 @@ trait DeviceMonitor {
 object EmptyDeviceMonitor extends DeviceMonitor
 
 class LocalDeviceMonitor(
-    rssConf: RssConf,
+    conf: CelebornConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
     diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
@@ -62,7 +61,7 @@ class LocalDeviceMonitor(
     }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-    val sysBlockDir = RssConf.sysBlockDir(rssConf)
+    val sysBlockDir = conf.sysBlockDir
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -181,13 +180,13 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = diskCheckIntervalMs(rssConf)
+  val diskCheckInterval = conf.diskCheckInterval
 
   // we should choose what the device needs to detect
-  val monitorCheckList = deviceMonitorCheckList(rssConf)
-  val checkIoHang = monitorCheckList.contains("iohang")
-  val checkReadWrite = monitorCheckList.contains("readwrite")
-  val checkDiskUsage = monitorCheckList.contains("diskusage")
+  val deviceMonitorCheckList = conf.deviceMonitorCheckList
+  val checkIoHang = deviceMonitorCheckList.contains("iohang")
+  val checkReadWrite = deviceMonitorCheckList.contains("readwrite")
+  val checkDiskUsage = deviceMonitorCheckList.contains("diskusage")
   private val diskChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-disk-checker")
 
@@ -219,11 +218,11 @@ class LocalDeviceMonitor(
                 device.notifyObserversOnError(mountPoints, DiskStatus.IO_HANG)
               } else {
                 device.diskInfos.values().asScala.foreach { case diskInfo =>
-                  if (checkDiskUsage && DeviceMonitor.highDiskUsage(rssConf, diskInfo.mountPoint)) {
+                  if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo.mountPoint)) {
                     logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                     device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                   } else if (checkReadWrite &&
-                    DeviceMonitor.readWriteError(rssConf, diskInfo.dirs.head)) {
+                    DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
                     logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                     // We think that if one dir in device has read-write problem, if possible all
                     // dirs in this device have the problem
@@ -288,13 +287,13 @@ object DeviceMonitor {
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
   def createDeviceMonitor(
-      rssConf: RssConf,
+      conf: CelebornConf,
       deviceObserver: DeviceObserver,
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo]): DeviceMonitor = {
     try {
-      if (RssConf.deviceMonitorEnabled(rssConf)) {
-        val monitor = new LocalDeviceMonitor(rssConf, deviceObserver, deviceInfos, diskInfos)
+      if (conf.deviceMonitorEnabled) {
+        val monitor = new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos)
         monitor.init()
         logger.info("Device monitor init success")
         monitor
@@ -310,18 +309,18 @@ object DeviceMonitor {
 
   /**
    * check if the disk is high usage
-   * @param rssConf conf
+   * @param conf conf
    * @param diskRootPath disk root path
    * @return true if high disk usage
    */
-  def highDiskUsage(rssConf: RssConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(conf: CelebornConf, diskRootPath: String): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
       val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < RssConf.diskMinimumReserveSize(rssConf) / 1024 / 1024 / 1024
+      val status = freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024
       if (status) {
         logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent}")
@@ -329,17 +328,17 @@ object DeviceMonitor {
       status
     })(false)(
       deviceCheckThreadPool,
-      RssConf.workerStatusCheckTimeout(rssConf),
+      CelebornConf.workerStatusCheckTimeout(conf),
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
   /**
    * check if the data dir has read-write problem
-   * @param rssConf conf
+   * @param conf conf
    * @param dataDir one of shuffle data dirs in mount disk
    * @return true if disk has read-write problem
    */
-  def readWriteError(rssConf: RssConf, dataDir: File): Boolean = {
+  def readWriteError(conf: CelebornConf, dataDir: File): Boolean = {
     if (null == dataDir || !dataDir.isDirectory) {
       return false
     }
@@ -374,7 +373,7 @@ object DeviceMonitor {
       }
     })(false)(
       deviceCheckThreadPool,
-      RssConf.workerStatusCheckTimeout(rssConf),
+      CelebornConf.workerStatusCheckTimeout(conf),
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 
