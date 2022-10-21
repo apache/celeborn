@@ -46,9 +46,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val metricsSampleRate: Double = conf.metricsSampleRate
 
-  val samplePerfCritical: Boolean = CelebornConf.metricsSamplePerfCritical(conf)
+  val metricsCollectCriticalEnabled: Boolean = conf.metricsCollectCriticalEnabled
 
-  final val innerMetricsSize = CelebornConf.innerMetricsSize(conf)
+  final val metricsCapacity = conf.metricsCapacity
 
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
@@ -199,7 +199,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   private def updateInnerMetrics(str: String): Unit = {
     innerMetrics.synchronized {
-      if (innerMetrics.size() >= innerMetricsSize) {
+      if (innerMetrics.size() >= metricsCapacity) {
         innerMetrics.remove()
       }
       innerMetrics.offer(str)

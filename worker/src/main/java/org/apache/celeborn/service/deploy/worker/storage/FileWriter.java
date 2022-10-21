@@ -368,7 +368,7 @@ public final class FileWriter implements DeviceObserver {
     // metrics start
     String metricsName = null;
     String fileAbsPath = null;
-    if (source.samplePerfCritical()) {
+    if (source.metricsCollectCriticalEnabled()) {
       metricsName = WorkerSource.TakeBufferTime();
       fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
@@ -378,7 +378,7 @@ public final class FileWriter implements DeviceObserver {
     flushBuffer = flusher.takeBuffer();
 
     // metrics end
-    if (source.samplePerfCritical()) {
+    if (source.metricsCollectCriticalEnabled()) {
       source.stopTimer(metricsName, fileAbsPath);
     }
 
