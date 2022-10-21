@@ -26,7 +26,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.client.compress.Compressor.CompressionCodec
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -44,11 +44,16 @@ class ClusterReadWriteTestWithZSTD extends AnyFunSuite with MiniClusterFeature
     setUpMiniCluster(masterConf, workerConf)
   }
 
+  override def afterAll(): Unit = {
+    println("test done")
+    sys.exit(0)
+  }
+
   test(s"test MiniCluster With ZSTD") {
     val codec = CompressionCodec.ZSTD
     val APP = "app-1"
 
-    val clientConf = new RssConf()
+    val clientConf = new CelebornConf()
       .set("celeborn.master.endpoints", s"localhost:$masterPort")
       .set("rss.client.compression.codec", codec.name)
       .set("celeborn.push.replicate.enabled", "true")
@@ -104,5 +109,8 @@ class ClusterReadWriteTestWithZSTD extends AnyFunSuite with MiniClusterFeature
     Thread.sleep(5000L)
     shuffleClient.shutDown()
     lifecycleManager.rpcEnv.shutdown()
+
+    logInfo("test done")
   }
+
 }

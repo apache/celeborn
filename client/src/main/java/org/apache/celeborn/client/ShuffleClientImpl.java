@@ -1100,7 +1100,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
-    compressorThreadLocal.remove();
     logger.warn("Shuffle client has been shutdown!");
   }
 
