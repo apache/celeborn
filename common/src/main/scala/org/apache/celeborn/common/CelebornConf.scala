@@ -473,12 +473,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
+  def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
+  def metricsCapacity: Int = get(METRICS_CAPACITY)
   def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
   def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
   def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
-  def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
-  def metricsCapacity: Int = get(METRICS_CAPACITY)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                 //
@@ -1376,10 +1376,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.sample.rate")
       .withAlternative("rss.metrics.system.sample.rate")
       .categories("master", "worker", "metrics")
-      .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in (0.0, 1.0).")
+      .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0].")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in (0.0, 1.0)")
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0]")
       .createWithDefault(1.0)
 
   val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
@@ -1387,6 +1387,24 @@ object CelebornConf extends Logging {
       .withAlternative("rss.metrics.system.sliding.window.size")
       .categories("master", "worker", "metrics")
       .doc("The sliding window size of timer metric.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(4096)
+
+  val METRICS_COLLECT_CRITICAL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.collectCritical.enabled")
+      .withAlternative("rss.metrics.system.sample.perf.critical")
+      .categories("master", "worker", "metrics")
+      .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val METRICS_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.capacity")
+      .withAlternative("rss.inner.metrics.size")
+      .categories("master", "worker", "metrics")
+      .doc("The maximum number of metrics which a source can use to generate output strings.")
       .version("0.2.0")
       .intConf
       .createWithDefault(4096)
@@ -1428,24 +1446,6 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
-
-  val METRICS_COLLECT_CRITICAL_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.metrics.collectCritical.enabled")
-      .withAlternative("rss.metrics.system.sample.perf.critical")
-      .categories("master", "worker", "metrics")
-      .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
-      .version("0.2.0")
-      .booleanConf
-      .createWithDefault(false)
-
-  val METRICS_CAPACITY: ConfigEntry[Int] =
-    buildConf("celeborn.metrics.capacity")
-      .withAlternative("rss.inner.metrics.size")
-      .categories("master", "worker", "metrics")
-      .doc("The maximum number of metrics which a source can use to generate output strings.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(4096)
 
   def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
