@@ -32,7 +32,7 @@ import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
@@ -65,10 +65,10 @@ public final class FileWriter implements DeviceObserver {
   private final int flushWorkerIndex;
   private CompositeByteBuf flushBuffer;
 
-  private final long chunkSize;
-  private final long timeoutMs;
+  private final long shuffleChunkSize;
+  private final long writerCloseTimeoutMs;
 
-  private final long flushBufferSize;
+  private final long flusherBufferSize;
 
   private final DeviceMonitor deviceMonitor;
   private final AbstractSource source; // metrics
@@ -97,7 +97,7 @@ public final class FileWriter implements DeviceObserver {
       FileInfo fileInfo,
       Flusher flusher,
       AbstractSource workerSource,
-      RssConf rssConf,
+      CelebornConf conf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
@@ -107,11 +107,11 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.chunkSize = RssConf.shuffleChunkSize(rssConf);
-    this.nextBoundary = this.chunkSize;
-    this.timeoutMs = RssConf.fileWriterTimeoutMs(rssConf);
+    this.shuffleChunkSize = conf.shuffleChunkSize();
+    this.nextBoundary = this.shuffleChunkSize;
+    this.writerCloseTimeoutMs = conf.writerCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
-    this.flushBufferSize = RssConf.workerFlushBufferSize(rssConf);
+    this.flusherBufferSize = conf.workerFlusherBufferSize();
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
@@ -164,7 +164,7 @@ public final class FileWriter implements DeviceObserver {
   private void maybeSetChunkOffsets(boolean forceSet) {
     if (bytesFlushed >= nextBoundary || forceSet) {
       fileInfo.addChunkOffset(bytesFlushed);
-      nextBoundary = bytesFlushed + chunkSize;
+      nextBoundary = bytesFlushed + shuffleChunkSize;
     }
   }
 
@@ -212,7 +212,7 @@ public final class FileWriter implements DeviceObserver {
         mapIdBitMap.add(mapId);
       }
       if (flushBuffer.readableBytes() != 0
-          && flushBuffer.readableBytes() + numBytes >= this.flushBufferSize) {
+          && flushBuffer.readableBytes() + numBytes >= this.flusherBufferSize) {
         flush(false);
         takeBuffer();
       }
@@ -344,7 +344,7 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private void waitOnNoPending(AtomicInteger counter) throws IOException {
-    long waitTime = timeoutMs;
+    long waitTime = writerCloseTimeoutMs;
     while (counter.get() > 0 && waitTime > 0) {
       try {
         notifier.checkException();
@@ -368,7 +368,7 @@ public final class FileWriter implements DeviceObserver {
     // metrics start
     String metricsName = null;
     String fileAbsPath = null;
-    if (source.samplePerfCritical()) {
+    if (source.metricsCollectCriticalEnabled()) {
       metricsName = WorkerSource.TakeBufferTime();
       fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
@@ -378,7 +378,7 @@ public final class FileWriter implements DeviceObserver {
     flushBuffer = flusher.takeBuffer();
 
     // metrics end
-    if (source.samplePerfCritical()) {
+    if (source.metricsCollectCriticalEnabled()) {
       source.stopTimer(metricsName, fileAbsPath);
     }
 
@@ -390,7 +390,7 @@ public final class FileWriter implements DeviceObserver {
   }
 
   private void addTask(FlushTask task) throws IOException {
-    if (!flusher.addTask(task, timeoutMs, flushWorkerIndex)) {
+    if (!flusher.addTask(task, writerCloseTimeoutMs, flushWorkerIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
       throw e;

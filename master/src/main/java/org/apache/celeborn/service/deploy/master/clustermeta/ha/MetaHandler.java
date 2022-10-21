@@ -28,11 +28,11 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -46,7 +46,7 @@ public class MetaHandler {
     this.metaSystem = metaSystem;
   }
 
-  public void setUpMasterRatisServer(RssConf conf, MasterClusterInfo masterClusterInfo)
+  public void setUpMasterRatisServer(CelebornConf conf, MasterClusterInfo masterClusterInfo)
       throws IOException {
     metaSystem.setRatisServer(
         HARaftServer.newMasterRatisServer(

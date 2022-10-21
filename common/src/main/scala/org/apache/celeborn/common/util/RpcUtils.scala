@@ -17,39 +17,39 @@
 
 package org.apache.celeborn.common.util
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.rpc.RpcTimeout
 
 private[celeborn] object RpcUtils {
 
   /** Returns the configured number of times to retry connecting */
-  def numRetries(conf: RssConf): Int = {
+  def numRetries(conf: CelebornConf): Int = {
     conf.getInt("rss.rpc.numRetries", 3)
   }
 
   /** Returns the configured number of milliseconds to wait on each retry */
-  def retryWaitMs(conf: RssConf): Long = {
+  def retryWaitMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.rpc.retry.wait", "3s")
   }
 
-  def haClientAskRpcTimeout(conf: RssConf): RpcTimeout = {
+  def haClientAskRpcTimeout(conf: CelebornConf): RpcTimeout = {
     RpcTimeout(conf, Seq("rss.haclient.rpc.askTimeout", "rss.network.timeout"), "30s")
   }
 
   /** Returns the default Spark timeout to use for RPC ask operations. */
-  def askRpcTimeout(conf: RssConf): RpcTimeout = {
+  def askRpcTimeout(conf: CelebornConf): RpcTimeout = {
     RpcTimeout(conf, Seq("rss.rpc.askTimeout", "rss.network.timeout"), "240s")
   }
 
   /** Returns the default Spark timeout to use for RPC remote endpoint lookup. */
-  def lookupRpcTimeout(conf: RssConf): RpcTimeout = {
+  def lookupRpcTimeout(conf: CelebornConf): RpcTimeout = {
     RpcTimeout(conf, Seq("rss.rpc.lookupTimeout", "rss.network.timeout"), "30s")
   }
 
   private val MAX_MESSAGE_SIZE_IN_MB = Int.MaxValue / 1024 / 1024
 
   /** Returns the configured max message size for messages in bytes. */
-  def maxMessageSizeBytes(conf: RssConf): Int = {
+  def maxMessageSizeBytes(conf: CelebornConf): Int = {
     val maxSizeInMB = conf.getInt("rss.rpc.message.maxSize", 128)
     if (maxSizeInMB > MAX_MESSAGE_SIZE_IN_MB) {
       throw new IllegalArgumentException(

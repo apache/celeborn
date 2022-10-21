@@ -24,14 +24,14 @@ import java.util.UUID;
 import org.junit.After;
 import org.junit.Before;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 public class RatisBaseSuiteJ {
   HARaftServer ratisServer;
 
   @Before
   public void init() throws Exception {
-    RssConf conf = new RssConf();
+    CelebornConf conf = new CelebornConf();
     HAMasterMetaManager metaSystem = new HAMasterMetaManager(null, conf);
     MetaHandler handler = new MetaHandler(metaSystem);
     File tmpDir1 = File.createTempFile("rss-ratis-tmp", "for-test-only");

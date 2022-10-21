@@ -21,7 +21,7 @@ import java.io.File
 import java.util.{ArrayList => jArrayList}
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.collection.JavaConverters.{bufferAsJavaListConverter, _}
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import org.junit.Assert.assertEquals
@@ -29,7 +29,7 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils
@@ -63,8 +63,8 @@ class DeviceMonitorSuite extends AnyFunSuite {
   dirs.addAll(workingDir3.asJava)
   dirs.addAll(workingDir4.asJava)
 
-  val rssConf = new RssConf()
-  rssConf.set("rss.disk.check.interval", "3600s")
+  val conf = new CelebornConf()
+  conf.set("rss.disk.check.interval", "3600s")
 
   val storageManager = mock[DeviceObserver]
   var (deviceInfos, diskInfos, workingDirDiskInfos): (
@@ -81,7 +81,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
     diskInfos = tdiskInfos
   }
   val deviceMonitor =
-    new LocalDeviceMonitor(rssConf, storageManager, deviceInfos, diskInfos)
+    new LocalDeviceMonitor(conf, storageManager, deviceInfos, diskInfos)
 
   val vdaDeviceInfo = new DeviceInfo("vda")
   val vdbDeviceInfo = new DeviceInfo("vdb")

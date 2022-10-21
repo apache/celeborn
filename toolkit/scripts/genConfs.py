@@ -80,10 +80,17 @@ def set_common_spark_confs(conf):
     conf["spark.sql.adaptive.skewJoin.enabled"] = "true"
     conf["spark.shuffle.service.enabled"] = "true"
     conf["spark.sql.adaptive.localShuffleReader.enabled"] = "false"
-    conf["spark.sql.adaptive.coalescePartitions.initialPartitionNum"] = "2048"
+    conf["spark.sql.adaptive.coalescePartitions.initialPartitionNum"] = "4096"
     conf["spark.sql.hive.forceRpadString"] = "true"
     if "spark.eventLog.dir" in spark_default_conf:
         conf["spark.eventLog.dir"] = spark_default_conf["spark.eventLog.dir"]
+
+
+def set_skew_join_confs(conf):
+    conf["spark.sql.adaptive.autoBroadcastJoinThreshold"] = "-1"
+    conf["spark.sql.adaptive.skewJoin.enabled"] = "true"
+    conf["spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes"] = "32m"
+    conf["spark.sql.autoBroadcastJoinThreshold"] = "-1"
 
 
 def set_rss_confs(conf, replicate=False):
@@ -122,6 +129,15 @@ def save_rss_dup_conf(dir):
     save_confs(rssdup, nconf)
 
 
+def save_skewjoin_spark_confs(dir):
+    rssdup = open(dir + "/spark-skewjoin.conf", "w")
+    nconf = thrift_server_conf.copy()
+    set_common_spark_confs(nconf)
+    set_skew_join_confs(nconf)
+    set_rss_confs(nconf, True)
+    save_confs(rssdup, nconf)
+
+
 def update_spark_confs(target_dir):
     print("Generated configuration output path:" + target_dir)
     print("generate new spark confs")
@@ -130,6 +146,7 @@ def update_spark_confs(target_dir):
     save_ess_conf(target_dir)
     save_rss_conf(target_dir)
     save_rss_dup_conf(target_dir)
+    save_skewjoin_spark_confs(target_dir)
 
 
 def merge_two_dicts(x, y):

@@ -20,11 +20,11 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.protocol.message.ControlMessages;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.Utils;
 
 public class MetaUtil {
@@ -92,7 +92,7 @@ public class MetaUtil {
                   v.getDiskFileCount(),
                   v.getHdfsBytesWritten(),
                   v.getHdfsFileCount());
-          map.put(ControlMessages.UserIdentifier$.MODULE$.apply(k), resourceConsumption);
+          map.put(UserIdentifier$.MODULE$.apply(k), resourceConsumption);
         });
     return map;
   }

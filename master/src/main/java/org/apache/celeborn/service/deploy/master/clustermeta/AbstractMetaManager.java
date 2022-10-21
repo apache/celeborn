@@ -32,11 +32,11 @@ import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.protocol.message.ControlMessages.ResourceConsumption;
-import org.apache.celeborn.common.protocol.message.ControlMessages.UserIdentifier;
+import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.Utils;
@@ -55,7 +55,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
   protected RpcEnv rpcEnv;
-  protected RssConf conf;
+  protected CelebornConf conf;
 
   public long defaultPartitionSize;
   public long estimatedPartitionSize;
