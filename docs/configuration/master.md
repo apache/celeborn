@@ -16,8 +16,8 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.application.heartbeat.timeout | `120s` | Application heartbeat timeout. |  | 
-| celeborn.ha.enabled | `false` | When true, master nodes run as Raft cluster mode. | 0.1.0 | 
+| celeborn.application.heartbeat.timeout | `120s` | Application heartbeat timeout. | 0.2.0 | 
+| celeborn.ha.enabled | `false` | When true, master nodes run as Raft cluster mode. | 0.2.0 | 
 | celeborn.ha.master.node.<id>.host | `<required>` | Host to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.ha.master.node.<id>.port | `9097` | Port to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.ha.master.node.<id>.ratis.port | `9872` | Ratis port to bind of master node <id> in HA mode. | 0.2.0 | 
@@ -32,5 +32,5 @@ license: |
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. | 0.2.0 | 
 | celeborn.metrics.sample.rate | `1.0` | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
 | celeborn.metrics.timer.sliding.window.size | `4096` | The sliding window size of timer metric. | 0.2.0 | 
-| celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. |  | 
+| celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. | 0.2.0 | 
 <!--end-include-->
