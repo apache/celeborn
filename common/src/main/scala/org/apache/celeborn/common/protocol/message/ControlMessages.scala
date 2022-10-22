@@ -137,7 +137,7 @@ object ControlMessages extends Logging {
       PbRegisterShuffleResponse.newBuilder()
         .setStatus(status.getValue)
         .addAllPartitionLocations(
-          partitionLocations.map(PartitionLocation.toPbPartitionLocation).toSeq.asJava)
+          partitionLocations.map(PbSerDeUtils.toPbPartitionLocation).toSeq.asJava)
         .build()
   }
 
@@ -184,7 +184,7 @@ object ControlMessages extends Logging {
         .setAttemptId(attemptId)
         .setPartitionId(partitionId)
         .setEpoch(epoch)
-        .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+        .setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
         .setStatus(cause.getValue)
         .build()
   }
@@ -201,7 +201,7 @@ object ControlMessages extends Logging {
         .setShuffleId(shuffleId)
         .setPartitionId(partitionId)
         .setEpoch(epoch)
-        .setOldPartition(PartitionLocation.toPbPartitionLocation(oldPartition))
+        .setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
         .build()
   }
 
@@ -212,7 +212,7 @@ object ControlMessages extends Logging {
       val builder = PbChangeLocationResponse.newBuilder()
       builder.setStatus(status.getValue)
       partitionLocationOpt.foreach { partitionLocation =>
-        builder.setLocation(PartitionLocation.toPbPartitionLocation(partitionLocation))
+        builder.setLocation(PbSerDeUtils.toPbPartitionLocation(partitionLocation))
       }
       builder.build()
     }
@@ -532,7 +532,7 @@ object ControlMessages extends Logging {
       builder.addAllFileGroup(
         fileGroup.map { arr =>
           PbFileGroup.newBuilder().addAllLocations(arr
-            .map(PartitionLocation.toPbPartitionLocation).toIterable.asJava).build()
+            .map(PbSerDeUtils.toPbPartitionLocation).toIterable.asJava).build()
         }
           .toIterable
           .asJava)
@@ -647,9 +647,9 @@ object ControlMessages extends Logging {
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
         .addAllMasterLocations(masterLocations.asScala
-          .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+          .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
         .addAllSlaveLocations(slaveLocations.asScala
-          .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
+          .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
         .setSplitThreshold(splitThreshold)
         .setSplitMode(splitMode.getValue)
         .setPartitionType(partType.getValue)
@@ -726,7 +726,7 @@ object ControlMessages extends Logging {
     case SlaveLostResponse(status, slaveLocation) =>
       val payload = PbSlaveLostResponse.newBuilder()
         .setStatus(status.getValue)
-        .setSlaveLocation(PartitionLocation.toPbPartitionLocation(slaveLocation))
+        .setSlaveLocation(PbSerDeUtils.toPbPartitionLocation(slaveLocation))
         .build().toByteArray
       new TransportMessage(MessageType.SLAVE_LOST_RESPONSE, payload)
 
@@ -865,7 +865,7 @@ object ControlMessages extends Logging {
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
         val fileGroup = pbGetReducerFileGroupResponse.getFileGroupList.asScala.map { fg =>
-          fg.getLocationsList.asScala.map(PartitionLocation.fromPbPartitionLocation).toArray
+          fg.getLocationsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).toArray
         }.toArray
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
         GetReducerFileGroupResponse(
@@ -944,9 +944,9 @@ object ControlMessages extends Logging {
           pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
           new util.ArrayList[PartitionLocation](pbReserveSlots.getMasterLocationsList.asScala
-            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
+            .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
           new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
-            .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
+            .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
           Utils.toPartitionType(pbReserveSlots.getPartitionType),
@@ -1010,7 +1010,7 @@ object ControlMessages extends Logging {
         val pbSlaveLostResponse = PbSlaveLostResponse.parseFrom(message.getPayload)
         SlaveLostResponse(
           Utils.toStatusCode(pbSlaveLostResponse.getStatus),
-          PartitionLocation.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
+          PbSerDeUtils.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
 
       case GET_WORKER_INFO =>
         GetWorkerInfos

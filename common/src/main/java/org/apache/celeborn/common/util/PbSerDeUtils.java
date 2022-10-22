@@ -28,6 +28,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.*;
+import org.apache.celeborn.common.protocol.PartitionLocation.Mode;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 
 public class PbSerDeUtils {
@@ -203,5 +204,88 @@ public class PbSerDeUtils {
         .putAllUserResourceConsumption(
             PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption()))
         .build();
+  }
+
+  public static PartitionLocation fromPbPartitionLocation(PbPartitionLocation pbLoc) {
+    Mode mode = Mode.MASTER;
+    if (pbLoc.getMode() == PbPartitionLocation.Mode.Slave) {
+      mode = Mode.SLAVE;
+    }
+
+    PartitionLocation partitionLocation =
+        new PartitionLocation(
+            pbLoc.getId(),
+            pbLoc.getEpoch(),
+            pbLoc.getHost(),
+            pbLoc.getRpcPort(),
+            pbLoc.getPushPort(),
+            pbLoc.getFetchPort(),
+            pbLoc.getReplicatePort(),
+            mode,
+            null,
+            StorageInfo.fromPb(pbLoc.getStorageInfo()),
+            Utils.byteStringToRoaringBitmap(pbLoc.getMapIdBitmap()));
+    if (pbLoc.hasPeer()) {
+      PbPartitionLocation peerPb = pbLoc.getPeer();
+      Mode peerMode = Mode.MASTER;
+      if (peerPb.getMode() == PbPartitionLocation.Mode.Slave) {
+        peerMode = Mode.SLAVE;
+      }
+      PartitionLocation peerLocation =
+          new PartitionLocation(
+              peerPb.getId(),
+              peerPb.getEpoch(),
+              peerPb.getHost(),
+              peerPb.getRpcPort(),
+              peerPb.getPushPort(),
+              peerPb.getFetchPort(),
+              peerPb.getReplicatePort(),
+              peerMode,
+              partitionLocation,
+              StorageInfo.fromPb(peerPb.getStorageInfo()),
+              Utils.byteStringToRoaringBitmap(peerPb.getMapIdBitmap()));
+      partitionLocation.setPeer(peerLocation);
+    }
+
+    return partitionLocation;
+  }
+
+  public static PbPartitionLocation toPbPartitionLocation(PartitionLocation location) {
+    PbPartitionLocation.Builder builder = PbPartitionLocation.newBuilder();
+    if (location.getMode() == Mode.MASTER) {
+      builder.setMode(PbPartitionLocation.Mode.Master);
+    } else {
+      builder.setMode(PbPartitionLocation.Mode.Slave);
+    }
+    builder.setHost(location.getHost());
+    builder.setEpoch(location.getEpoch());
+    builder.setId(location.getId());
+    builder.setRpcPort(location.getRpcPort());
+    builder.setPushPort(location.getPushPort());
+    builder.setFetchPort(location.getFetchPort());
+    builder.setReplicatePort(location.getReplicatePort());
+    builder.setStorageInfo(StorageInfo.toPb(location.getStorageInfo()));
+    builder.setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap()));
+
+    if (location.getPeer() != null) {
+      PbPartitionLocation.Builder peerBuilder = PbPartitionLocation.newBuilder();
+      if (location.getPeer().getMode() == Mode.MASTER) {
+        peerBuilder.setMode(PbPartitionLocation.Mode.Master);
+      } else {
+        peerBuilder.setMode(PbPartitionLocation.Mode.Slave);
+      }
+      peerBuilder.setHost(location.getPeer().getHost());
+      peerBuilder.setEpoch(location.getPeer().getEpoch());
+      peerBuilder.setId(location.getPeer().getId());
+      peerBuilder.setRpcPort(location.getPeer().getRpcPort());
+      peerBuilder.setPushPort(location.getPeer().getPushPort());
+      peerBuilder.setFetchPort(location.getPeer().getFetchPort());
+      peerBuilder.setReplicatePort(location.getPeer().getReplicatePort());
+      peerBuilder.setStorageInfo(StorageInfo.toPb(location.getPeer().getStorageInfo()));
+      peerBuilder.setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap()));
+      builder.setPeer(peerBuilder.build());
+    }
+
+    return builder.build();
   }
 }

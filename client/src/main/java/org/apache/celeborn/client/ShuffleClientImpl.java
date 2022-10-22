@@ -58,6 +58,7 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -269,8 +270,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
             PartitionLocation partitionLoc =
-                PartitionLocation.fromPbPartitionLocation(
-                    response.getPartitionLocationsList().get(i));
+                PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
@@ -413,7 +413,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // per partitionKey only serve single PartitionLocation in Client Cache.
       StatusCode respStatus = Utils.toStatusCode(response.getStatus());
       if (StatusCode.SUCCESS.equals(respStatus)) {
-        map.put(partitionId, PartitionLocation.fromPbPartitionLocation(response.getLocation()));
+        map.put(partitionId, PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
         return true;
       } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapKey);
