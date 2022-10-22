@@ -21,7 +21,7 @@ import java.io.File
 
 import scala.concurrent.Future
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 import org.apache.celeborn.common.util.RpcUtils
@@ -36,7 +36,7 @@ object RpcEnv {
       name: String,
       host: String,
       port: Int,
-      conf: RssConf): RpcEnv = {
+      conf: CelebornConf): RpcEnv = {
     create(name, host, host, port, conf, 0)
   }
 
@@ -45,7 +45,7 @@ object RpcEnv {
       bindAddress: String,
       advertiseAddress: String,
       port: Int,
-      conf: RssConf,
+      conf: CelebornConf,
       numUsableCores: Int): RpcEnv = {
     val config = RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port, numUsableCores)
     new NettyRpcEnvFactory().create(config)
@@ -61,7 +61,7 @@ object RpcEnv {
  *
  * [[RpcEnv]] also provides some methods to retrieve [[RpcEndpointRef]]s given name or uri.
  */
-abstract class RpcEnv(conf: RssConf) {
+abstract class RpcEnv(conf: CelebornConf) {
 
   private[celeborn] val defaultLookupTimeout = RpcUtils.lookupRpcTimeout(conf)
 
@@ -176,7 +176,7 @@ private[celeborn] trait RpcEnvFileServer {
 }
 
 private[celeborn] case class RpcEnvConfig(
-    conf: RssConf,
+    conf: CelebornConf,
     name: String,
     bindAddress: String,
     advertiseAddress: String,

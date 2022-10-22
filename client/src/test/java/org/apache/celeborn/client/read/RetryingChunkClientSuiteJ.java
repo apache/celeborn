@@ -50,7 +50,7 @@ import io.netty.channel.Channel;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -345,7 +345,7 @@ public class RetryingChunkClientSuiteJ {
   private static RetryingChunkClient performInteractions(
       Map<Integer, List<Object>> interactions, ChunkReceivedCallback callback)
       throws IOException, InterruptedException {
-    RssConf conf = new RssConf();
+    CelebornConf conf = new CelebornConf();
     conf.set("rss.data.io.maxRetries", "1");
     conf.set("rss.data.io.retryWait", "0");
 

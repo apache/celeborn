@@ -34,7 +34,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
@@ -44,8 +44,8 @@ import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
-  private final int chunkSize;
-  private final int maxInFlight;
+  private final int shuffleChunkSize;
+  private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
@@ -55,26 +55,26 @@ public class DfsPartitionReader implements PartitionReader {
   private final AtomicInteger currentChunkIndex = new AtomicInteger(0);
 
   public DfsPartitionReader(
-      RssConf conf,
+      CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    chunkSize = (int) RssConf.shuffleChunkSize(conf);
-    maxInFlight = RssConf.fetchMaxReqsInFlight(conf);
+    shuffleChunkSize = (int) conf.shuffleChunkSize();
+    fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
-      long timeoutMs = RssConf.fetchTimeoutMs(conf);
+      long fetchTimeoutMs = conf.fetchTimeoutMs();
       try {
         TransportClient client =
             clientFactory.createClient(location.getHost(), location.getFetchPort());
         OpenStream openBlocks =
             new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
         Message.decode(response);
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {
@@ -100,7 +100,7 @@ public class DfsPartitionReader implements PartitionReader {
               () -> {
                 try {
                   while (!closed && currentChunkIndex.get() < numChunks) {
-                    while (results.size() >= maxInFlight) {
+                    while (results.size() >= fetchMaxReqsInFlight) {
                       Thread.sleep(50);
                     }
                     long offset = chunkOffsets.get(currentChunkIndex.get());
@@ -120,7 +120,7 @@ public class DfsPartitionReader implements PartitionReader {
     }
   }
 
-  private List<Long> getChunkOffsetsFromUnsortedIndex(RssConf conf, PartitionLocation location)
+  private List<Long> getChunkOffsetsFromUnsortedIndex(CelebornConf conf, PartitionLocation location)
       throws IOException {
     FSDataInputStream indexInputStream =
         ShuffleClient.getHdfsFs(conf)
@@ -135,7 +135,7 @@ public class DfsPartitionReader implements PartitionReader {
   }
 
   private List<Long> getChunkOffsetsFromSortedIndex(
-      RssConf conf, PartitionLocation location, int startMapIndex, int endMapIndex)
+      CelebornConf conf, PartitionLocation location, int startMapIndex, int endMapIndex)
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
@@ -148,7 +148,7 @@ public class DfsPartitionReader implements PartitionReader {
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
                 startMapIndex,
                 endMapIndex,
-                chunkSize,
+                shuffleChunkSize,
                 ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
     indexInputStream.close();
     return offsets;

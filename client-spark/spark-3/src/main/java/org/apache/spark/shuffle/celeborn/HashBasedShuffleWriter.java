@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 
 @Private
 public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -61,8 +61,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private static final ClassTag<Object> OBJECT_CLASS_TAG = ClassTag$.MODULE$.Object();
   private static final int DEFAULT_INITIAL_SER_BUFFER_SIZE = 1024 * 1024;
 
-  private final int SEND_BUFFER_INIT_SIZE;
-  private final int SEND_BUFFER_SIZE;
+  private final int PUSH_BUFFER_INIT_SIZE;
+  private final int PUSH_BUFFER_MAX_SIZE;
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
@@ -74,7 +74,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numMappers;
   private final int numPartitions;
 
-  private final RssConf rssConf;
+  private final CelebornConf conf;
   @Nullable private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
@@ -108,7 +108,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public HashBasedShuffleWriter(
       RssShuffleHandle<K, V, C> handle,
       TaskContext taskContext,
-      RssConf conf,
+      CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
       SendBufferPool sendBufferPool)
@@ -124,7 +124,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = handle.numMappers();
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
-    this.rssConf = conf;
+    this.conf = conf;
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -135,8 +135,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     tmpRecords = new long[numPartitions];
 
-    SEND_BUFFER_INIT_SIZE = RssConf.pushBufferInitialSize(conf);
-    SEND_BUFFER_SIZE = RssConf.pushBufferMaxSize(conf);
+    PUSH_BUFFER_INIT_SIZE = conf.pushBufferInitialSize();
+    PUSH_BUFFER_MAX_SIZE = conf.pushBufferMaxSize();
 
     this.sendBufferPool = sendBufferPool;
     sendBuffers = sendBufferPool.acquireBuffer(numPartitions);
@@ -160,7 +160,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             writeMetrics::incBytesWritten,
             mapStatusLengths);
 
-    if (RssConf.columnarShuffleEnabled(rssConf)) {
+    if (CelebornConf.columnarShuffleEnabled(this.conf)) {
       this.schema = SparkUtils.getShuffleDependencySchema(dep);
       this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
@@ -207,15 +207,16 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         RssColumnarBatchBuilder columnBuilders =
             new RssColumnarBatchBuilder(
                 schema,
-                RssConf.columnarShuffleBatchSize(rssConf),
-                RssConf.columnarShuffleMaxDictFactor(rssConf),
-                RssConf.columnarShuffleCompress(rssConf));
+                CelebornConf.columnarShuffleBatchSize(conf),
+                CelebornConf.columnarShuffleMaxDictFactor(conf),
+                CelebornConf.columnarShuffleCompress(conf));
         columnBuilders.newBuilders();
         rssColumnBuilders[partitionId] = columnBuilders;
       }
       rssColumnBuilders[partitionId].writeRow(row);
-      if (rssColumnBuilders[partitionId].getTotalSize() > SEND_BUFFER_SIZE
-          || rssColumnBuilders[partitionId].rowCnt() == RssConf.columnarShuffleBatchSize(rssConf)) {
+      if (rssColumnBuilders[partitionId].getTotalSize() > PUSH_BUFFER_MAX_SIZE
+          || rssColumnBuilders[partitionId].rowCnt()
+              == CelebornConf.columnarShuffleBatchSize(conf)) {
         byte[] arr = rssColumnBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {
@@ -244,7 +245,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(rowSize);
       }
 
-      if (serializedRecordSize > SEND_BUFFER_SIZE) {
+      if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
         Platform.copyMemory(
@@ -285,7 +286,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      if (serializedRecordSize > SEND_BUFFER_SIZE) {
+      if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
         int offset = getOrUpdateOffset(partitionId, serializedRecordSize);
@@ -300,9 +301,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private byte[] getOrCreateBuffer(int partitionId) {
     byte[] buffer = sendBuffers[partitionId];
     if (buffer == null) {
-      buffer = new byte[SEND_BUFFER_INIT_SIZE];
+      buffer = new byte[PUSH_BUFFER_INIT_SIZE];
       sendBuffers[partitionId] = buffer;
-      peakMemoryUsedBytes += SEND_BUFFER_INIT_SIZE;
+      peakMemoryUsedBytes += PUSH_BUFFER_INIT_SIZE;
     }
     return buffer;
   }
@@ -330,9 +331,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private int getOrUpdateOffset(int partitionId, int serializedRecordSize) throws IOException {
     int offset = sendOffsets[partitionId];
     byte[] buffer = getOrCreateBuffer(partitionId);
-    while ((buffer.length - offset) < serializedRecordSize && buffer.length < SEND_BUFFER_SIZE) {
+    while ((buffer.length - offset) < serializedRecordSize
+        && buffer.length < PUSH_BUFFER_MAX_SIZE) {
 
-      byte[] newBuffer = new byte[Math.min(buffer.length * 2, SEND_BUFFER_SIZE)];
+      byte[] newBuffer = new byte[Math.min(buffer.length * 2, PUSH_BUFFER_MAX_SIZE)];
       peakMemoryUsedBytes += newBuffer.length - buffer.length;
       System.arraycopy(buffer, 0, newBuffer, 0, offset);
       sendBuffers[partitionId] = newBuffer;

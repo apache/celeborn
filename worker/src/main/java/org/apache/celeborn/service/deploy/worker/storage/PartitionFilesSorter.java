@@ -49,7 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
@@ -83,7 +83,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicInteger sortedFileCount = new AtomicInteger();
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
-  protected final long fetchChunkSize;
+  protected final long shuffleChunkSize;
   protected final long initialReserveSingleSortMemory;
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
@@ -99,10 +99,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           120);
   private final Thread fileSorterSchedulerThread;
 
-  public PartitionFilesSorter(MemoryTracker memoryTracker, RssConf conf, AbstractSource source) {
-    this.sortTimeout = RssConf.partitionSortTimeout(conf);
-    this.fetchChunkSize = RssConf.shuffleChunkSize(conf);
-    this.initialReserveSingleSortMemory = RssConf.initialReserveSingleSortMemory(conf);
+  public PartitionFilesSorter(
+      MemoryTracker memoryTracker, CelebornConf conf, AbstractSource source) {
+    this.sortTimeout = CelebornConf.partitionSortTimeout(conf);
+    this.shuffleChunkSize = conf.shuffleChunkSize();
+    this.initialReserveSingleSortMemory = CelebornConf.initialReserveSingleSortMemory(conf);
     this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryTracker = memoryTracker;
@@ -497,7 +498,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return new FileInfo(
         sortedFilePath,
         ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-            startMapIndex, endMapIndex, fetchChunkSize, indexMap),
+            startMapIndex, endMapIndex, shuffleChunkSize, indexMap),
         userIdentifier);
   }
 

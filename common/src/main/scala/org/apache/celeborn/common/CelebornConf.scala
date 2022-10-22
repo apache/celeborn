@@ -24,7 +24,6 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-import org.apache.celeborn.common.RssConf.log
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -35,17 +34,17 @@ import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
 import org.apache.celeborn.common.util.Utils
 
-class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
+class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
-  import RssConf._
+  import CelebornConf._
 
-  /** Create a RssConf that loads defaults from system properties and the classpath */
+  /** Create a CelebornConf that loads defaults from system properties and the classpath */
   def this() = this(true)
 
   private val settings = new ConcurrentHashMap[String, String]()
 
   @transient private lazy val reader: ConfigReader = {
-    val _reader = new ConfigReader(new RssConfigProvider(settings))
+    val _reader = new ConfigReader(new CelebornConfigProvider(settings))
     _reader.bindEnv(new ConfigProvider {
       override def get(key: String): Option[String] = Option(getenv(key))
     })
@@ -66,11 +65,11 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   }
 
   /** Set a configuration variable. */
-  def set(key: String, value: String): RssConf = {
+  def set(key: String, value: String): CelebornConf = {
     set(key, value, false)
   }
 
-  private[celeborn] def set(key: String, value: String, silent: Boolean): RssConf = {
+  private[celeborn] def set(key: String, value: String, silent: Boolean): CelebornConf = {
     if (key == null) {
       throw new NullPointerException("null key")
     }
@@ -85,24 +84,24 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     this
   }
 
-  def set[T](entry: ConfigEntry[T], value: T): RssConf = {
+  def set[T](entry: ConfigEntry[T], value: T): CelebornConf = {
     set(entry.key, entry.stringConverter(value))
     this
   }
 
-  def set[T](entry: OptionalConfigEntry[T], value: T): RssConf = {
+  def set[T](entry: OptionalConfigEntry[T], value: T): CelebornConf = {
     set(entry.key, entry.rawStringConverter(value))
     this
   }
 
   /** Set multiple parameters together */
-  def setAll(settings: Traversable[(String, String)]): RssConf = {
+  def setAll(settings: Traversable[(String, String)]): CelebornConf = {
     settings.foreach { case (k, v) => set(k, v) }
     this
   }
 
   /** Set a parameter if it isn't already configured */
-  def setIfMissing(key: String, value: String): RssConf = {
+  def setIfMissing(key: String, value: String): CelebornConf = {
     requireDefaultValueOfRemovedConf(key, value)
     if (settings.putIfAbsent(key, value) == null) {
       logDeprecationWarning(key)
@@ -110,21 +109,21 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     this
   }
 
-  def setIfMissing[T](entry: ConfigEntry[T], value: T): RssConf = {
+  def setIfMissing[T](entry: ConfigEntry[T], value: T): CelebornConf = {
     setIfMissing(entry.key, entry.stringConverter(value))
   }
 
-  def setIfMissing[T](entry: OptionalConfigEntry[T], value: T): RssConf = {
+  def setIfMissing[T](entry: OptionalConfigEntry[T], value: T): CelebornConf = {
     setIfMissing(entry.key, entry.rawStringConverter(value))
   }
 
   /** Remove a parameter from the configuration */
-  def unset(key: String): RssConf = {
+  def unset(key: String): CelebornConf = {
     settings.remove(key)
     this
   }
 
-  def unset(entry: ConfigEntry[_]): RssConf = {
+  def unset(entry: ConfigEntry[_]): CelebornConf = {
     unset(entry.key)
   }
 
@@ -332,8 +331,8 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   private[celeborn] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
 
   /** Copy this object */
-  override def clone: RssConf = {
-    val cloned = new RssConf(false)
+  override def clone: CelebornConf = {
+    val cloned = new CelebornConf(false)
     settings.entrySet().asScala.foreach { e =>
       cloned.set(e.getKey, e.getValue, true)
     }
@@ -364,6 +363,139 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
     }
   }
 
+  // //////////////////////////////////////////////////////
+  //                      Master                        //
+  // //////////////////////////////////////////////////////
+
+  // //////////////////////////////////////////////////////
+  //                      Worker                        //
+  // //////////////////////////////////////////////////////
+  def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
+  def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
+  def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
+  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
+  //                      Client                        //
+  // //////////////////////////////////////////////////////
+  def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
+  def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
+  def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
+  def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
+  def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
+  def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
+  def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
+  def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
+  def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
+  def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
+  def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
+
+  // //////////////////////////////////////////////////////
+  //               Address && HA && RATIS               //
+  // //////////////////////////////////////////////////////
+  def masterEndpoints: Array[String] =
+    get(MASTER_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
+
+  def masterHost: String = get(MASTER_HOST)
+
+  def masterPort: Int = get(MASTER_PORT)
+
+  def haEnabled: Boolean = get(HA_ENABLED)
+
+  def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
+
+  def haMasterNodeIds: Array[String] = {
+    def extractPrefix(original: String, stop: String): String = {
+      val i = original.indexOf(stop)
+      assert(i >= 0, s"$original does not contain $stop")
+      original.substring(0, i)
+    }
+
+    val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
+    getAllWithPrefix(nodeConfPrefix)
+      .map(_._1)
+      .map(k => extractPrefix(k, "."))
+      .distinct
+  }
+
+  def haMasterNodeHost(nodeId: String): String = {
+    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    get(key, Utils.localHostName)
+  }
+
+  def haMasterNodePort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
+    getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
+  }
+
+  def haMasterRatisHost(nodeId: String): String = {
+    val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
+    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    get(key, get(fallbackKey))
+  }
+
+  def haMasterRatisPort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
+    getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
+  }
+
+  def haMasterRatisRpcType: String = get(HA_MASTER_RATIS_RPC_TYPE)
+  def haMasterRatisStorageDir: String = get(HA_MASTER_RATIS_STORAGE_DIR)
+  def haMasterRatisLogSegmentSizeMax: Long = get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
+  def haMasterRatisLogPreallocatedSize: Long = get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
+  def haMasterRatisLogAppenderQueueNumElements: Int =
+    get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
+  def haMasterRatisLogAppenderQueueBytesLimit: Long =
+    get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
+  def haMasterRatisLogPurgeGap: Int = get(HA_MASTER_RATIS_LOG_PURGE_GAP)
+  def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
+  def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
+  def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
+  def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
+  def haMasterRatisNotificationNoLeaderTimeout: Long =
+    get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
+  def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
+  def haMasterRatisRoleCheckInterval: Long = get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
+  def haMasterRatisSnapshotAutoTriggerEnabled: Boolean =
+    get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
+  def haMasterRatisSnapshotAutoTriggerThreshold: Long =
+    get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
+  def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+
+  // //////////////////////////////////////////////////////
+  //                 Metrics System                     //
+  // //////////////////////////////////////////////////////
+  def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
+  def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
+  def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
+  def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
+  def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
+  def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
+  def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
+
+  // //////////////////////////////////////////////////////
+  //               Shuffle Client Fetch                 //
+  // //////////////////////////////////////////////////////
+  def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
+  def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
+
+  // //////////////////////////////////////////////////////
+  //               Shuffle Client Push                  //
+  // //////////////////////////////////////////////////////
+  def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
+  def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
+  def pushBufferMaxSize: Int = get(PUSH_BUFFER_MAX_SIZE).toInt
+  def pushQueueCapacity: Int = get(PUSH_QUEUE_CAPACITY)
+  def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
+
+  // //////////////////////////////////////////////////////
+  //            GraceFul Shutdown & Recover             //
+  // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def checkSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
@@ -371,7 +503,11 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
-  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
+  //                      Flusher                       //
+  // //////////////////////////////////////////////////////
+  def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def hddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
@@ -451,7 +587,7 @@ class RssConf(loadDefaults: Boolean) extends Cloneable with Logging with Seriali
   }
 }
 
-object RssConf extends Logging {
+object CelebornConf extends Logging {
 
   /**
    * Holds information about keys that have been deprecated and do not have a replacement.
@@ -592,7 +728,7 @@ object RssConf extends Logging {
   private def register(entry: ConfigEntry[_]): Unit = confEntriesUpdateLock.synchronized {
     require(
       !confEntries.containsKey(entry.key),
-      s"Duplicate RssConfigEntry. ${entry.key} has been registered")
+      s"Duplicate CelebornConfigEntry. ${entry.key} has been registered")
     val updatedMap = new JHashMap[String, ConfigEntry[_]](confEntries)
     updatedMap.put(entry.key, entry)
     confEntries = updatedMap
@@ -796,40 +932,6 @@ object RssConf extends Logging {
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
-
-  def pushReplicateEnabled(conf: RssConf): Boolean = conf.get(PUSH_REPLICATE_ENABLED)
-
-  def pushBufferInitialSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_INITIAL_SIZE).toInt
-
-  def pushBufferMaxSize(conf: RssConf): Int = conf.get(PUSH_BUFFER_MAX_SIZE).toInt
-
-  def pushQueueCapacity(conf: RssConf): Int = conf.get(PUSH_QUEUE_CAPACITY)
-
-  def pushMaxReqsInFlight(conf: RssConf): Int = conf.get(PUSH_MAX_REQS_IN_FLIGHT)
-
-  def fetchTimeoutMs(conf: RssConf): Long = conf.get(FETCH_TIMEOUT)
-
-  def fetchMaxReqsInFlight(conf: RssConf): Int = conf.get(FETCH_MAX_REQS_IN_FLIGHT)
-
-  def rpcMaxParallelism(conf: RssConf): Int = conf.get(CLIENT_RPC_MAX_PARALLELISM)
-
-  def appHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(APPLICATION_HEARTBEAT_TIMEOUT)
-
-  def appHeartbeatIntervalMs(conf: RssConf): Long = conf.get(APPLICATION_HEARTBEAT_INTERVAL)
-
-  def shuffleExpiredCheckIntervalMs(conf: RssConf): Long = conf.get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
-
-  def workerExcludedCheckIntervalMs(conf: RssConf): Long = conf.get(WORKER_EXCLUDED_INTERVAL)
-
-  def shuffleChunkSize(conf: RssConf): Long = conf.get(SHUFFLE_CHUCK_SIZE)
-
-  def registerShuffleMaxRetry(conf: RssConf): Int = conf.get(SHUFFLE_REGISTER_MAX_RETRIES)
-
-  def registerShuffleRetryWait(conf: RssConf): Long = conf.get(SHUFFLE_REGISTER_RETRY_WAIT)
-
-  def reserveSlotsMaxRetries(conf: RssConf): Int = conf.get(RESERVE_SLOTS_MAX_RETRIES)
-
-  def reserveSlotsRetryWait(conf: RssConf): Long = conf.get(RESERVE_SLOTS_RETRY_WAIT)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
@@ -1055,102 +1157,6 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  def masterEndpoints(conf: RssConf): Array[String] =
-    conf.get(MASTER_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
-        case (host, port) => s"$host:$port"
-      }
-    }
-
-  def masterHost(conf: RssConf): String = conf.get(MASTER_HOST)
-
-  def masterPort(conf: RssConf): Int = conf.get(MASTER_PORT)
-
-  def haEnabled(conf: RssConf): Boolean = conf.get(HA_ENABLED)
-
-  def haMasterNodeId(conf: RssConf): Option[String] = conf.get(HA_MASTER_NODE_ID)
-
-  def haMasterNodeIds(conf: RssConf): Array[String] = {
-    def extractPrefix(original: String, stop: String): String = {
-      val i = original.indexOf(stop)
-      assert(i >= 0, s"$original does not contain $stop")
-      original.substring(0, i)
-    }
-    val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
-    conf.getAllWithPrefix(nodeConfPrefix)
-      .map(_._1)
-      .map(k => extractPrefix(k, "."))
-      .distinct
-  }
-
-  def haMasterNodeHost(conf: RssConf, nodeId: String): String = {
-    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    conf.get(key, Utils.localHostName)
-  }
-
-  def haMasterNodePort(conf: RssConf, nodeId: String): Int = {
-    val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
-    conf.getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
-  }
-
-  def haMasterRatisHost(conf: RssConf, nodeId: String): String = {
-    val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
-    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    conf.get(key, conf.get(fallbackKey))
-  }
-
-  def haMasterRatisPort(conf: RssConf, nodeId: String): Int = {
-    val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
-    conf.getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
-  }
-
-  def haMasterRatisRpcType(conf: RssConf): String = conf.get(HA_MASTER_RATIS_RPC_TYPE)
-
-  def haMasterRatisStorageDir(conf: RssConf): String = conf.get(HA_MASTER_RATIS_STORAGE_DIR)
-
-  def haMasterRatisLogSegmentSizeMax(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
-
-  def haMasterRatisLogPreallocatedSize(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
-
-  def haMasterRatisLogAppenderQueueNumElements(conf: RssConf): Int =
-    conf.get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
-
-  def haMasterRatisLogAppenderQueueBytesLimit(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
-
-  def haMasterRatisLogPurgeGap(conf: RssConf): Int = conf.get(HA_MASTER_RATIS_LOG_PURGE_GAP)
-
-  def haMasterRatisRpcRequestTimeout(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
-
-  def haMasterRatisRetryCacheExpiryTime(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
-
-  def haMasterRatisRpcTimeoutMin(conf: RssConf): Long = conf.get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
-
-  def haMasterRatisRpcTimeoutMax(conf: RssConf): Long = conf.get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
-
-  def haMasterRatisNotificationNoLeaderTimeout(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
-
-  def haMasterRatisRpcSlownessTimeout(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
-
-  def haMasterRatisRoleCheckInterval(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
-
-  def haMasterRatisSnapshotAutoTriggerEnabled(conf: RssConf): Boolean =
-    conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
-
-  def haMasterRatisSnapshotAutoTriggerThreshold(conf: RssConf): Long =
-    conf.get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
-
-  def haMasterRatisSnapshotRetentionFileNum(conf: RssConf): Int =
-    conf.get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
-
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.heartbeat.timeout")
       .withAlternative("rss.worker.timeout")
@@ -1196,13 +1202,6 @@ object RssConf extends Logging {
       .doc("Size of buffer used by a single flusher.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
-  def workerHeartbeatTimeoutMs(conf: RssConf): Long = conf.get(WORKER_HEARTBEAT_TIMEOUT)
-
-  def workerReplicateThreads(conf: RssConf): Int = conf.get(WORKER_REPLICATE_THREADS)
-
-  def workerCommitThreads(conf: RssConf): Int = conf.get(WORKER_COMMIT_THREADS)
-
-  def workerFlusherBufferSize(conf: RssConf): Long = conf.get(WORKER_FLUSHER_BUFFER_SIZE)
 
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.shuffle.commit.timeout")
@@ -1222,11 +1221,11 @@ object RssConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
-  def appExpireDurationMs(conf: RssConf): Long = {
+  def appExpireDurationMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
   }
 
-  def workingDirName(conf: RssConf): String = {
+  def workingDirName(conf: CelebornConf): String = {
     conf.get("rss.worker.workingDirName", "hadoop/rss-worker/shuffle_data")
   }
 
@@ -1299,63 +1298,63 @@ object RssConf extends Logging {
    * @return This configuration is a guidance for load-aware slot allocation algorithm. This value
    *         is control how many disk groups will be created.
    */
-  def diskGroups(conf: RssConf): Int = {
+  def diskGroups(conf: CelebornConf): Int = {
     conf.getInt("rss.disk.groups", 5)
   }
 
-  def diskGroupGradient(conf: RssConf): Double = {
+  def diskGroupGradient(conf: CelebornConf): Double = {
     conf.getDouble("rss.disk.group.gradient", 0.1)
   }
 
-  def initialPartitionSize(conf: RssConf): Long = {
+  def initialPartitionSize(conf: CelebornConf): Long = {
     Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
   }
 
-  def minimumPartitionSizeForEstimation(conf: RssConf): Long = {
+  def minimumPartitionSizeForEstimation(conf: CelebornConf): Long = {
     Utils.byteStringAsBytes(conf.get("rss.minimum.estimate.partition.size", "8m"))
   }
 
-  def partitionSizeUpdaterInitialDelay(conf: RssConf): Long = {
+  def partitionSizeUpdaterInitialDelay(conf: CelebornConf): Long = {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.initial.delay", "5m"))
   }
 
-  def partitionSizeUpdateInterval(conf: RssConf): Long = {
+  def partitionSizeUpdateInterval(conf: CelebornConf): Long = {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
   }
 
-  def stageEndTimeout(conf: RssConf): Long = {
+  def stageEndTimeout(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.stage.end.timeout", "240s")
   }
 
-  def limitInFlightTimeoutMs(conf: RssConf): Long = {
+  def limitInFlightTimeoutMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.limit.inflight.timeout", "240s")
   }
 
-  def limitInFlightSleepDeltaMs(conf: RssConf): Long = {
+  def limitInFlightSleepDeltaMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.limit.inflight.sleep.delta", "50ms")
   }
 
-  def pushServerPort(conf: RssConf): Int = {
+  def pushServerPort(conf: CelebornConf): Int = {
     conf.getInt("rss.pushserver.port", 0)
   }
 
-  def fetchServerPort(conf: RssConf): Int = {
+  def fetchServerPort(conf: CelebornConf): Int = {
     conf.getInt("rss.fetchserver.port", 0)
   }
 
-  def replicateServerPort(conf: RssConf): Int = {
+  def replicateServerPort(conf: CelebornConf): Int = {
     conf.getInt("rss.replicateserver.port", 0)
   }
 
-  def registerWorkerTimeoutMs(conf: RssConf): Long = {
+  def registerWorkerTimeoutMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.register.worker.timeout", "180s")
   }
 
-  def masterPortMaxRetry(conf: RssConf): Int = {
+  def masterPortMaxRetry(conf: CelebornConf): Int = {
     conf.getInt("rss.master.port.maxretry", 1)
   }
 
-  def pushDataRetryThreadNum(conf: RssConf): Int = {
+  def pushDataRetryThreadNum(conf: CelebornConf): Int = {
     conf.getInt(
       "rss.pushdata.retry.thread.num",
       Math.max(8, Runtime.getRuntime.availableProcessors()))
@@ -1414,43 +1413,27 @@ object RssConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
-  def metricsSystemEnable(conf: RssConf): Boolean = conf.get(METRICS_ENABLED)
-
-  def metricsSampleRate(conf: RssConf): Double = conf.get(METRICS_SAMPLE_RATE)
-
-  def metricsSamplePerfCritical(conf: RssConf): Boolean = {
+  def metricsSamplePerfCritical(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.metrics.system.sample.perf.critical", false)
   }
 
-  def metricsSlidingWindowSize(conf: RssConf): Int = conf.get(METRICS_SLIDING_WINDOW_SIZE)
-
-  def innerMetricsSize(conf: RssConf): Int = {
+  def innerMetricsSize(conf: CelebornConf): Int = {
     conf.getInt("rss.inner.metrics.size", 4096)
   }
 
-  def masterPrometheusMetricHost(conf: RssConf): String = conf.get(MASTER_PROMETHEUS_HOST)
-
-  def masterPrometheusMetricPort(conf: RssConf): Int = conf.get(MASTER_PROMETHEUS_PORT)
-
-  def workerPrometheusMetricHost(conf: RssConf): String = conf.get(WORKER_PROMETHEUS_HOST)
-
-  def workerPrometheusMetricPort(conf: RssConf): Int = conf.get(WORKER_PROMETHEUS_PORT)
-
-  def workerRPCPort(conf: RssConf): Int = {
+  def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
   }
 
-  def offerSlotsExtraSize(conf: RssConf): Int = {
+  def offerSlotsExtraSize(conf: CelebornConf): Int = {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
 
-  def shuffleWriterMode(conf: RssConf): String = conf.get(SHUFFLE_WRITER_MODE)
-
-  def sortPushThreshold(conf: RssConf): Long = {
+  def sortPushThreshold(conf: CelebornConf): Long = {
     conf.getSizeAsBytes("rss.sort.push.data.threshold", "64m")
   }
 
-  def driverMetaServicePort(conf: RssConf): Int = {
+  def driverMetaServicePort(conf: CelebornConf): Int = {
     val port = conf.getInt("rss.driver.metaService.port", 0)
     if (port != 0) {
       logWarning("The user specifies the port used by the LifecycleManager on the Driver, and its" +
@@ -1459,23 +1442,23 @@ object RssConf extends Logging {
     port
   }
 
-  def closeIdleConnections(conf: RssConf): Boolean = {
+  def closeIdleConnections(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = false)
   }
 
-  def replicateFastFailDurationMs(conf: RssConf): Long = {
+  def replicateFastFailDurationMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.replicate.fastfail.duration", "60s")
   }
 
-  def maxPartitionNumSupported(conf: RssConf): Long = {
+  def maxPartitionNumSupported(conf: CelebornConf): Long = {
     conf.getInt("rss.max.partition.number", 500000)
   }
 
-  def forceFallback(conf: RssConf): Boolean = {
+  def forceFallback(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.force.fallback", false)
   }
 
-  def clusterCheckQuotaEnabled(conf: RssConf): Boolean = {
+  def clusterCheckQuotaEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
   }
 
@@ -1541,55 +1524,55 @@ object RssConf extends Logging {
       .intConf
       .createWithDefault(16)
 
-  def workerStatusCheckTimeout(conf: RssConf): Long = {
+  def workerStatusCheckTimeout(conf: CelebornConf): Long = {
     conf.getTimeAsSeconds("rss.worker.status.check.timeout", "30s")
   }
 
-  def checkFileCleanRetryTimes(conf: RssConf): Int = {
+  def checkFileCleanRetryTimes(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.checkFileCleanRetryTimes", 3)
   }
 
-  def checkFileCleanTimeoutMs(conf: RssConf): Long = {
+  def checkFileCleanTimeoutMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
   }
 
-  def haClientMaxTries(conf: RssConf): Int = {
+  def haClientMaxTries(conf: CelebornConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
   }
 
-  def clusterSlotsUsageLimitPercent(conf: RssConf): Double = {
+  def clusterSlotsUsageLimitPercent(conf: CelebornConf): Double = {
     conf.getDouble("rss.slots.usage.overload.percent", 0.95)
   }
 
-  def identityProviderClass(conf: RssConf): String = {
+  def identityProviderClass(conf: CelebornConf): String = {
     conf.get("rss.identity.provider", classOf[DefaultIdentityProvider].getName)
   }
 
-  def quotaManagerClass(conf: RssConf): String = {
+  def quotaManagerClass(conf: CelebornConf): String = {
     conf.get("rss.quota.manager", classOf[DefaultQuotaManager].getName)
   }
 
-  def quotaConfigurationPath(conf: RssConf): Option[String] = {
+  def quotaConfigurationPath(conf: CelebornConf): Option[String] = {
     conf.getOption("rss.quota.configuration.path")
   }
 
-  def partitionSplitThreshold(conf: RssConf): Long = {
+  def partitionSplitThreshold(conf: CelebornConf): Long = {
     conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
   }
 
-  def batchHandleChangePartitionEnabled(conf: RssConf): Boolean = {
+  def batchHandleChangePartitionEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.change.partition.batch.enabled", false)
   }
 
-  def batchHandleChangePartitionNumThreads(conf: RssConf): Int = {
+  def batchHandleChangePartitionNumThreads(conf: CelebornConf): Int = {
     conf.getInt("rss.change.partition.numThreads", 8)
   }
 
-  def handleChangePartitionRequestBatchInterval(conf: RssConf): Long = {
+  def handleChangePartitionRequestBatchInterval(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.change.partition.batchInterval", "100ms")
   }
 
-  def partitionSplitMode(conf: RssConf): PartitionSplitMode = {
+  def partitionSplitMode(conf: CelebornConf): PartitionSplitMode = {
     val modeStr = conf.get("rss.partition.split.mode", "soft")
     modeStr match {
       case "soft" => PartitionSplitMode.SOFT
@@ -1600,7 +1583,7 @@ object RssConf extends Logging {
     }
   }
 
-  def partitionType(conf: RssConf): PartitionType = {
+  def partitionType(conf: CelebornConf): PartitionType = {
     val typeStr = conf.get("rss.partition.type", "reduce")
     typeStr match {
       case "reduce" => PartitionType.REDUCE_PARTITION
@@ -1612,55 +1595,55 @@ object RssConf extends Logging {
     }
   }
 
-  def clientSplitPoolSize(conf: RssConf): Int = {
+  def clientSplitPoolSize(conf: CelebornConf): Int = {
     conf.getInt("rss.client.split.pool.size", 8)
   }
 
   // Support 2 type codecs: lz4 and zstd
-  def compressionCodec(conf: RssConf): String = {
+  def compressionCodec(conf: CelebornConf): String = {
     conf.get("rss.client.compression.codec", "lz4").toLowerCase
   }
 
-  def zstdCompressLevel(conf: RssConf): Int = {
+  def zstdCompressLevel(conf: CelebornConf): Int = {
     val level = conf.getInt("rss.client.compression.zstd.level", 1)
     val zstdMinLevel = -5
     val zstdMaxLevel = 22
     Math.min(Math.max(Math.max(level, zstdMinLevel), Math.min(level, zstdMaxLevel)), zstdMaxLevel)
   }
 
-  def partitionSortTimeout(conf: RssConf): Long = {
+  def partitionSortTimeout(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
 
-  def partitionSortMaxMemoryRatio(conf: RssConf): Double = {
+  def partitionSortMaxMemoryRatio(conf: CelebornConf): Double = {
     conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
   }
 
-  def workerPausePushDataRatio(conf: RssConf): Double = {
+  def workerPausePushDataRatio(conf: CelebornConf): Double = {
     conf.getDouble("rss.pause.pushdata.memory.ratio", 0.85)
   }
 
-  def workerPauseRepcaliteRatio(conf: RssConf): Double = {
+  def workerPauseRepcaliteRatio(conf: CelebornConf): Double = {
     conf.getDouble("rss.pause.replicate.memory.ratio", 0.95)
   }
 
-  def workerResumeRatio(conf: RssConf): Double = {
+  def workerResumeRatio(conf: CelebornConf): Double = {
     conf.getDouble("rss.resume.memory.ratio", 0.5)
   }
 
-  def initialReserveSingleSortMemory(conf: RssConf): Long = {
+  def initialReserveSingleSortMemory(conf: CelebornConf): Long = {
     conf.getSizeAsBytes("rss.worker.initialReserveSingleSortMemory", "1mb")
   }
 
-  def workerDirectMemoryPressureCheckIntervalMs(conf: RssConf): Int = {
+  def workerDirectMemoryPressureCheckIntervalMs(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.memory.check.interval", 10)
   }
 
-  def workerDirectMemoryReportIntervalSecond(conf: RssConf): Int = {
+  def workerDirectMemoryReportIntervalSecond(conf: CelebornConf): Int = {
     Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval", "10s")).toInt
   }
 
-  def defaultStorageType(conf: RssConf): StorageInfo.Type = {
+  def defaultStorageType(conf: CelebornConf): StorageInfo.Type = {
     val default = StorageInfo.Type.MEMORY
     val hintStr = conf.get("rss.storage.type", "memory").toUpperCase
     if (StorageInfo.Type.values().mkString.toUpperCase.contains(hintStr)) {
@@ -1730,7 +1713,7 @@ object RssConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
-  def offerSlotsAlgorithm(conf: RssConf): String = {
+  def offerSlotsAlgorithm(conf: CelebornConf): String = {
     var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
     if (algorithm != "loadaware" && algorithm != "roundrobin") {
       logWarning(s"Config rss.offer.slots.algorithm is wrong ${algorithm}." +
@@ -1748,27 +1731,27 @@ object RssConf extends Logging {
       .stringConf
       .createOptional
 
-  def rangeReadFilterEnabled(conf: RssConf): Boolean = {
+  def rangeReadFilterEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.range.read.filter.enabled", false)
   }
 
-  def columnarShuffleEnabled(conf: RssConf): Boolean = {
+  def columnarShuffleEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)
   }
 
-  def columnarShuffleCompress(conf: RssConf): Boolean = {
+  def columnarShuffleCompress(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.columnar.shuffle.encoding.enabled", defaultValue = false)
   }
 
-  def columnarShuffleBatchSize(conf: RssConf): Int = {
+  def columnarShuffleBatchSize(conf: CelebornConf): Int = {
     conf.getInt("rss.columnar.shuffle.batch.size", 10000)
   }
 
-  def columnarShuffleOffHeapColumnVectorEnabled(conf: RssConf): Boolean = {
+  def columnarShuffleOffHeapColumnVectorEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.columnar.shuffle.offheap.vector.enabled", false)
   }
 
-  def columnarShuffleMaxDictFactor(conf: RssConf): Double = {
+  def columnarShuffleMaxDictFactor(conf: CelebornConf): Double = {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
 }

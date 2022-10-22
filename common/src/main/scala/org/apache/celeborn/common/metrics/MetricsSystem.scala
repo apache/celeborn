@@ -26,13 +26,16 @@ import scala.util.matching.Regex
 
 import com.codahale.metrics.{Metric, MetricFilter, MetricRegistry}
 
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.sink.{PrometheusHttpRequestHandler, PrometheusServlet, Sink}
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.util.Utils
 
-class MetricsSystem(val instance: String, conf: RssConf, val servletPath: String) extends Logging {
+class MetricsSystem(
+    val instance: String,
+    conf: CelebornConf,
+    val servletPath: String) extends Logging {
   private[this] val metricsConfig = new MetricsConfig(conf)
 
   private val sinks = new mutable.ArrayBuffer[Sink]
@@ -166,7 +169,10 @@ object MetricsSystem {
     }
   }
 
-  def createMetricsSystem(instance: String, conf: RssConf, servletPath: String): MetricsSystem = {
+  def createMetricsSystem(
+      instance: String,
+      conf: CelebornConf,
+      servletPath: String): MetricsSystem = {
     new MetricsSystem(instance, conf, servletPath)
   }
 }

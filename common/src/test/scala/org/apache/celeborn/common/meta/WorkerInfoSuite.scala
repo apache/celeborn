@@ -29,7 +29,7 @@ import scala.reflect.ClassTag
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEndpointRef, RpcEnv, RpcTimeout}
@@ -194,7 +194,7 @@ class WorkerInfoSuite extends RssFunSuite {
   }
 
   test("WorkerInfo equals when endpoint different") {
-    val mockEndpoint = new RpcEndpointRef(new RssConf()) {
+    val mockEndpoint = new RpcEndpointRef(new CelebornConf()) {
 
       override def address: RpcAddress = ???
 
@@ -231,7 +231,7 @@ class WorkerInfoSuite extends RssFunSuite {
     userResourceConsumption.put(
       UserIdentifier("tenant1", "name1"),
       ResourceConsumption(20971520, 1, 52428800, 1))
-    val conf = new RssConf()
+    val conf = new CelebornConf()
     val endpointAddress = new RpcEndpointAddress(new RpcAddress("localhost", 12345), "mockRpc")
     val rpcEnv = RpcEnv.create("mockEnv", "localhost", "localhost", 12345, conf, 64)
     val rpcEndpointRef =

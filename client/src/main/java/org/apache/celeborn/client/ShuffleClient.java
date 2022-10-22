@@ -23,7 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.celeborn.client.read.RssInputStream;
-import org.apache.celeborn.common.RssConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
@@ -46,7 +46,7 @@ public abstract class ShuffleClient implements Cloneable {
   protected ShuffleClient() {}
 
   public static ShuffleClient get(
-      RpcEndpointRef driverRef, RssConf rssConf, UserIdentifier userIdentifier) {
+      RpcEndpointRef driverRef, CelebornConf conf, UserIdentifier userIdentifier) {
     if (null == _instance || !initFinished) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -55,12 +55,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(rssConf, userIdentifier);
+          _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(rssConf, userIdentifier);
+          _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         }
@@ -70,7 +70,7 @@ public abstract class ShuffleClient implements Cloneable {
   }
 
   public static ShuffleClient get(
-      String driverHost, int port, RssConf conf, UserIdentifier userIdentifier) {
+      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
     if (null == _instance || !initFinished) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -93,7 +93,7 @@ public abstract class ShuffleClient implements Cloneable {
     return _instance;
   }
 
-  public static FileSystem getHdfsFs(RssConf conf) {
+  public static FileSystem getHdfsFs(CelebornConf conf) {
     if (null == hdfsFs) {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {

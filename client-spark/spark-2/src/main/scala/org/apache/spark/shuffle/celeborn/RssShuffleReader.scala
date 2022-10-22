@@ -26,7 +26,7 @@ import org.apache.spark.util.collection.ExternalSorter
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.client.read.RssInputStream
-import org.apache.celeborn.common.RssConf
+import org.apache.celeborn.common.CelebornConf
 
 class RssShuffleReader[K, C](
     handle: RssShuffleHandle[K, _, C],
@@ -35,7 +35,7 @@ class RssShuffleReader[K, C](
     startMapIndex: Int = 0,
     endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
-    conf: RssConf)
+    conf: CelebornConf)
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
