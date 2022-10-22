@@ -449,7 +449,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
     val reserveSlotsSuccess =
-      reserveSlotsWithRetry(applicationId, shuffleId, candidatesWorkers.asScala.toList, slots, false)
+      reserveSlotsWithRetry(
+        applicationId,
+        shuffleId,
+        candidatesWorkers.asScala.toList,
+        slots,
+        false)
 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
