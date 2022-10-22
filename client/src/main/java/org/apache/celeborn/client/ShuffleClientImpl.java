@@ -479,7 +479,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             mapId,
             attemptId,
             partitionId,
-            0,
+            -1,
             null,
             StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
       throw new IOException(
