@@ -472,18 +472,20 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     // get location
-    if (!map.containsKey(partitionId)
-        && !revive(
-            applicationId,
-            shuffleId,
-            mapId,
-            attemptId,
-            partitionId,
-            0,
-            null,
-            StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
-      throw new IOException(
-          "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
+    if (!map.containsKey(partitionId)) {
+      logger.warn("It should never reach here!");
+      if (!revive(
+          applicationId,
+          shuffleId,
+          mapId,
+          attemptId,
+          partitionId,
+          -1,
+          null,
+          StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
+        throw new IOException(
+            "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
+      }
     }
 
     if (mapperEnded(shuffleId, mapId, attemptId)) {
