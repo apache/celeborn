@@ -19,7 +19,7 @@ name: Celeborn Regression
 
 on:
   repository_dispatch:
-    types: [ regression ]
+    types: [ regression-command ]
 
 jobs:
   regression:
