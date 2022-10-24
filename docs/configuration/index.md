@@ -31,15 +31,15 @@ Celeborn workers tend to improve performance by using off-heap buffers.
 Off-heap memory requirement can be estimated as below:
 
 ```
-numDirs = `celeborn.worker.storage.dirs`      # the amount of directory will be used by Celeborn storage
-bufferSize = `rss.worker.flush.buffer.size`   # the amount of memory will be used by a single flush buffer 
+numDirs = `celeborn.worker.storage.dirs`             # the amount of directory will be used by Celeborn storage
+bufferSize = `celeborn.worker.flusher.buffer.size`   # the amount of memory will be used by a single flush buffer 
 off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
 ```
 
 For example, if an Celeborn worker has 10 storage directories or disks and the buffer size is set to 256 KiB.
 The necessary off-heap memory is 10 GiB.
 
-NetWork memory will be consumed when netty reads from a TPC channel, there will need some extra
+Network memory will be consumed when netty reads from a TPC channel, there will need some extra
 memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
 
 ## All Configurations
@@ -119,7 +119,7 @@ If `celeborn.worker.flush.buffer.size` is 256 KB, we can have total slots up to 
 to support workers recovering reading existing shuffle data after worker restart,
 during worker shutdown, workers should store the meta about reading shuffle partition files in LevelDB,
 and restore the meta after restarting workers, also workers should keep a stable service port to support
-`ShuffleClient` retry reading data. Users should set `rss.worker.graceful.shutdown` to `true` and
+`ShuffleClient` retry reading data. Users should set `celeborn.worker.graceful.shutdown.enabled` to `true` and
 set below service port with stable port to support worker recover status.
 ```
 rss.worker.rpc.port
