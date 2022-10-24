@@ -518,11 +518,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def avgFlushTimeSlidingWindowMinCount: Int =
     get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
   def diskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
-  def deviceMonitorEnabled: Boolean = get(WORKER_DEVICE_MONITOR_ENABLED)
-  def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
-  def diskCheckInterval: Long = get(WORKER_DISK_CHECK_INTERVAL)
-  def sysBlockDir: String = get(WORKER_DEVICEMONITOR_SYS_BLOCKDIR)
-  def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
+  def diskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
+  def diskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
+  def diskMonitorCheckInterval: Long = get(WORKER_DISK_MONITOR_CHECK_INTERVAL)
+  def diskMonitorSysBlockDir: String = get(WORKER_DISK_MONITOR_SYS_BLOCK_DIR)
+  def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
 
@@ -1233,10 +1233,10 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.base.dir.number")
       .categories("worker")
       .version("0.2.0")
-      .doc(s"How many directories will be create if `${WORKER_STORAGE_DIRS.key}` is not set. " +
+      .doc(s"How many directories will be used if `${WORKER_STORAGE_DIRS.key}` is not set. " +
         s"The directory name is a combination of `${WORKER_STORAGE_BASE_DIR_PREFIX.key}` " +
-        "and from zero to `celeborn.worker.storage.baseDir.number` step by one. " +
-        "No sub directory will be created.")
+        "and from one(inclusive) to `celeborn.worker.storage.baseDir.number`(inclusive) " +
+        "step by one.")
       .intConf
       .createWithDefault(16)
 
@@ -1531,8 +1531,8 @@ object CelebornConf extends Logging {
     conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
   }
 
-  val WORKER_DEVICE_MONITOR_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.deviceMonitor.enabled")
+  val WORKER_DISK_MONITOR_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.monitor.disk.enabled")
       .withAlternative("rss.device.monitor.enabled")
       .categories("worker")
       .version("0.2.0")
@@ -1540,20 +1540,20 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val WORKER_DEVICE_MONITOR_CHECKLIST: ConfigEntry[Seq[String]] =
-    buildConf("celeborn.worker.deviceMonitor.checklist")
+  val WORKER_DISK_MONITOR_CHECKLIST: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.monitor.disk.checklist")
       .withAlternative("rss.device.monitor.checklist")
       .categories("worker")
       .version("0.2.0")
-      .doc("Select what the device needs to detect, available items are: " +
+      .doc("Monitor type for disk, available items are: " +
         "iohang, readwrite and diskusage.")
       .stringConf
       .transform(_.toLowerCase)
       .toSequence
       .createWithDefaultString("readwrite,diskusage")
 
-  val WORKER_DISK_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.deviceMonitor.checkInterval")
+  val WORKER_DISK_MONITOR_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.monitor.disk.checkInterval")
       .withAlternative("rss.disk.check.interval")
       .categories("worker")
       .version("0.2.0")
@@ -1561,8 +1561,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val WORKER_DEVICEMONITOR_SYS_BLOCKDIR: ConfigEntry[String] =
-    buildConf("celeborn.worker.deviceMonitor.sys.block.dir")
+  val WORKER_DISK_MONITOR_SYS_BLOCK_DIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.monitor.disk.sys.block.dir")
       .withAlternative("rss.sys.block.dir")
       .categories("worker")
       .version("0.2.0")
@@ -1570,7 +1570,7 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault("/sys/block")
 
-  val WORKER_WRITER_CREATE_MAXATTEMPTS: ConfigEntry[Int] =
+  val WORKER_WRITER_CREATE_MAX_ATTEMPTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.create.maxAttempts")
       .withAlternative("rss.create.file.writer.retry.count")
       .categories("worker")
