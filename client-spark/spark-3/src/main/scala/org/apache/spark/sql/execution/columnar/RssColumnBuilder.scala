@@ -28,7 +28,10 @@ trait RssColumnBuilder {
   /**
    * Initializes with an approximate lower bound on the expected number of elements in this column.
    */
-  def initialize(rowCnt: Int, columnName: String = "", useCompression: Boolean = false): Unit
+  def initialize(
+      rowCnt: Int,
+      columnName: String = "",
+      dictionaryEncodingEnabled: Boolean = false): Unit
 
   /**
    * Appends `row(ordinal)` to the column builder.
@@ -60,7 +63,7 @@ class RssBasicColumnBuilder[JvmType](
   override def initialize(
       rowCnt: Int,
       columnName: String = "",
-      useCompression: Boolean = false): Unit = {
+      dictionaryEncodingEnabled: Boolean = false): Unit = {
 
     this.columnName = columnName
 
@@ -332,7 +335,7 @@ object RssColumnBuilder {
       dataType: DataType,
       rowCnt: Int,
       columnName: String,
-      useCompression: Boolean,
+      dictionaryEncodingEnabled: Boolean,
       encoder: Encoder[_ <: AtomicType]): RssColumnBuilder = {
     val builder: RssColumnBuilder = dataType match {
       case NullType => new RssNullColumnBuilder
@@ -362,7 +365,7 @@ object RssColumnBuilder {
         throw new Exception(s"not support type: $other")
     }
 
-    builder.initialize(rowCnt, columnName, useCompression)
+    builder.initialize(rowCnt, columnName, dictionaryEncodingEnabled)
     builder
   }
 }

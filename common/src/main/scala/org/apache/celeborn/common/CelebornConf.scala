@@ -616,7 +616,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                 Columnar Shuffle                    //
   // //////////////////////////////////////////////////////
   def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
-  def columnarShuffleCompressionCodec: String = get(COLUMNAR_SHUFFLE_COMPRESSION_CODEC)
+  def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICT_ENABLED)
   def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
   def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
   def columnarShuffleMaxDictFactor: Double = get(COLUMNAR_SHUFFLE_MAX_DICT_FACTOR)
@@ -1897,15 +1897,20 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val COLUMNAR_SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
-    buildConf("celeborn.columnar.shuffle.compression.codec")
+  val COLUMNAR_SHUFFLE_DICT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.dictionary.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
-      .doc("Compression codec used for columnar-based shuffle data. Available options: none.")
-      .stringConf
-      .transform(_.toLowerCase)
-      .checkValue(v => Set("none").contains(v), "available options: none.")
-      .createWithDefault("none")
+      .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_MAX_DICT_FACTOR: ConfigEntry[Double] =
+    buildConf("rss.columnar.shuffle.maxDictionaryFactor")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doubleConf
+      .createWithDefault(0.3)
 
   val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.columnar.shuffle.batch.size")
@@ -1923,12 +1928,4 @@ object CelebornConf extends Logging {
       .doc("Whether to use off heap columnar vector.")
       .booleanConf
       .createWithDefault(false)
-
-  val COLUMNAR_SHUFFLE_MAX_DICT_FACTOR: ConfigEntry[Double] = {
-    buildConf("rss.columnar.shuffle.maxDictFactor")
-      .categories("columnar-shuffle")
-      .version("0.2.0")
-      .doubleConf
-      .createWithDefault(0.3)
-  }
 }

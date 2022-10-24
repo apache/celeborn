@@ -59,7 +59,7 @@ class RssShuffleReader[K, C](
         serializerInstance = new RssColumnarBatchSerializer(
           schema,
           conf.columnarShuffleBatchSize,
-          conf.columnarShuffleCompressionCodec,
+          conf.columnarShuffleDictionaryEnabled,
           conf.columnarShuffleOffHeapEnabled,
           dataSize).newInstance()
       }
