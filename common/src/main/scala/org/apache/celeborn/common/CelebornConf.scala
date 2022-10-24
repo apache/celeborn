@@ -1906,7 +1906,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_MAX_DICT_FACTOR: ConfigEntry[Double] =
-    buildConf("rss.columnar.shuffle.maxDictionaryFactor")
+    buildConf("celeborn.columnar.shuffle.maxDictionaryFactor")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doubleConf
