@@ -29,13 +29,13 @@ trait RssNullableColumnBuilder extends RssColumnBuilder {
   abstract override def initialize(
       rowCnt: Int,
       columnName: String,
-      dictionaryEncodingEnabled: Boolean): Unit = {
+      dictionaryEnabled: Boolean): Unit = {
 
     nulls = ByteBuffer.allocate(1024)
     nulls.order(ByteOrder.nativeOrder())
     pos = 0
     nullCount = 0
-    super.initialize(rowCnt, columnName, dictionaryEncodingEnabled)
+    super.initialize(rowCnt, columnName, dictionaryEnabled)
   }
 
   abstract override def appendFrom(row: InternalRow, ordinal: Int): Unit = {

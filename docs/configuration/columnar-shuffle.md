@@ -21,7 +21,7 @@ license: |
 | --- | ------- | ----------- | ----- |
 | celeborn.columnar.offHeap.enabled | false | Whether to use off heap columnar vector. | 0.2.0 | 
 | celeborn.columnar.shuffle.batch.size | 10000 | Vector batch size for columnar shuffle. | 0.2.0 | 
-| celeborn.columnar.shuffle.dictionary.enabled | false | Whether to use dictionary encoding for columnar-based shuffle data. | 0.2.0 | 
 | celeborn.columnar.shuffle.enabled | false | Whether to enable columnar-based shuffle. | 0.2.0 | 
-| celeborn.columnar.shuffle.maxDictionaryFactor | 0.3 |  | 0.2.0 | 
+| celeborn.columnar.shuffle.encoding.dictionary.enabled | false | Whether to use dictionary encoding for columnar-based shuffle data. | 0.2.0 | 
+| celeborn.columnar.shuffle.encoding.dictionary.maxFactor | 0.3 | Max factor for dictionary size. The max dictionary size is `min(32.0 KB, celeborn.columnar.shuffle.batch.size * celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`. | 0.2.0 | 
 <!--end-include-->

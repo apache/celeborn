@@ -208,7 +208,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             new RssColumnarBatchBuilder(
                 schema,
                 conf.columnarShuffleBatchSize(),
-                conf.columnarShuffleMaxDictFactor(),
+                conf.columnarShuffleDictionaryMaxFactor(),
                 conf.columnarShuffleDictionaryEnabled());
         columnBuilders.newBuilders();
         rssColumnBuilders[partitionId] = columnBuilders;

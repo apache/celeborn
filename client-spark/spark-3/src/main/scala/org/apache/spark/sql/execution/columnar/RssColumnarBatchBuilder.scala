@@ -25,7 +25,7 @@ class RssColumnarBatchBuilder(
     schema: StructType,
     batchSize: Int = 0,
     maxDictFactor: Double,
-    dictionaryEncodingEnabled: Boolean = false) extends RssBatchBuilder {
+    dictionaryEnabled: Boolean = false) extends RssBatchBuilder {
   var rowCnt = 0
 
   val typeConversion: PartialFunction[DataType, NativeRssColumnType[_ <: AtomicType]] = {
@@ -47,7 +47,7 @@ class RssColumnarBatchBuilder(
     if (nativeColumnType == null) {
       null
     } else {
-      if (dictionaryEncodingEnabled && RssDictionaryEncoding.supports(nativeColumnType)) {
+      if (dictionaryEnabled && RssDictionaryEncoding.supports(nativeColumnType)) {
         RssDictionaryEncoding.MAX_DICT_SIZE =
           Math.min(Short.MaxValue, batchSize * maxDictFactor).toShort
         RssDictionaryEncoding.encoder(nativeColumnType)
@@ -74,7 +74,7 @@ class RssColumnarBatchBuilder(
         attribute.dataType,
         batchSize,
         attribute.name,
-        dictionaryEncodingEnabled,
+        dictionaryEnabled,
         encodersArr(i))
     }.toArray
   }

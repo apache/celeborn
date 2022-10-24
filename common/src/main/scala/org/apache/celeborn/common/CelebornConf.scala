@@ -616,10 +616,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                 Columnar Shuffle                    //
   // //////////////////////////////////////////////////////
   def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
-  def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICT_ENABLED)
   def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
   def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
-  def columnarShuffleMaxDictFactor: Double = get(COLUMNAR_SHUFFLE_MAX_DICT_FACTOR)
+  def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
+  def columnarShuffleDictionaryMaxFactor: Double =
+    get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR)
 }
 
 object CelebornConf extends Logging {
@@ -1897,21 +1898,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val COLUMNAR_SHUFFLE_DICT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.dictionary.enabled")
-      .categories("columnar-shuffle")
-      .version("0.2.0")
-      .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val COLUMNAR_SHUFFLE_MAX_DICT_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.columnar.shuffle.maxDictionaryFactor")
-      .categories("columnar-shuffle")
-      .version("0.2.0")
-      .doubleConf
-      .createWithDefault(0.3)
-
   val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.columnar.shuffle.batch.size")
       .categories("columnar-shuffle")
@@ -1928,4 +1914,22 @@ object CelebornConf extends Logging {
       .doc("Whether to use off heap columnar vector.")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.encoding.dictionary.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Max factor for dictionary size. The max dictionary size is " +
+        s"`min(${Utils.bytesToString(Short.MaxValue)}, ${COLUMNAR_SHUFFLE_BATCH_SIZE.key} * " +
+        s"celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`.")
+      .doubleConf
+      .createWithDefault(0.3)
 }
