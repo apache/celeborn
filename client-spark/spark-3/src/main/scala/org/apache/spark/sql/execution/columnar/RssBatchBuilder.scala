@@ -23,6 +23,8 @@ abstract class RssBatchBuilder {
 
   def newBuilders(): Unit
 
+  def buildColumnBytes(): Array[Byte]
+
   def writeRow(row: InternalRow): Unit
 
   def getRowCnt(): Int
