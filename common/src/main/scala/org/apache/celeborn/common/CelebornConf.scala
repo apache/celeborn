@@ -381,16 +381,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleForceFallback: Boolean = get(SHUFFLE_FORCE_FALLBACK)
   def maxPartitionNumSupported: Long = get(MAX_PARTITION_NUM)
-  def shuffleMetaServicePort: Int = {
-    get(SHUFFLE_META_SERVICE_PORT) match {
-      case port if port == 0 =>
-        logWarning(
-          "The user specifies the port used by the LifecycleManager on the Driver, and its" +
-            s" values is $port, which may cause port conflicts and startup failure.")
-        port
-      case port => port
-    }
-  }
+  def shuffleMetaServicePort: Int = get(SHUFFLE_META_SERVICE_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
@@ -518,11 +509,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushBufferMaxSize: Int = get(PUSH_BUFFER_MAX_SIZE).toInt
   def pushQueueCapacity: Int = get(PUSH_QUEUE_CAPACITY)
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
-  def pushDataRetryThreadNum: Int = get(PUSH_RETRY_NUM_THREADS)
+  def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT)
   def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
-  def pushSplitPartitionNumThreads: Int = get(PUSH_SPLIT_PARTITION_NUM_THREADS)
+  def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
 
   // //////////////////////////////////////////////////////
   //            GraceFul Shutdown & Recover             //
@@ -1424,8 +1415,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
 
-  val PUSH_RETRY_NUM_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.push.retry.numThread")
+  val PUSH_RETRY_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.push.retry.threads")
       .withAlternative("rss.pushdata.retry.thread.num")
       .categories("client")
       .doc("Sleep interval when check netty in-flight requests to be done.")
@@ -1433,8 +1424,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(Math.max(8, Runtime.getRuntime.availableProcessors()))
 
-  val PUSH_SPLIT_PARTITION_NUM_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.push.splitPartition.numThreads")
+  val PUSH_SPLIT_PARTITION_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.push.splitPartition.threads")
       .withAlternative("rss.client.split.pool.size")
       .categories("client")
       .doc("Thread number to process shuffle split request in shuffle client.")
@@ -1588,6 +1579,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Port used by the LifecycleManager on the Driver.")
       .intConf
+      .checkValue((port: Int) => {
+        if (port == 0) {
+          logWarning(
+            "The user specifies the port used by the LifecycleManager on the Driver, and its" +
+              s" values is $port, which may cause port conflicts and startup failure.")
+        }
+        true
+      }, "")
       .createWithDefault(0)
 
   def clusterCheckQuotaEnabled(conf: CelebornConf): Boolean = {
