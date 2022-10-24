@@ -1739,12 +1739,15 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.compression.zstd.level")
       .withAlternative("rss.client.compression.zstd.level")
       .categories("client")
-      .doc("Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory.")
+      .doc("Compression level for Zstd compression codec, its value should be an integer " +
+        "between -5 and 22. Increasing the compression level will result in better compression " +
+        "at the expense of more CPU and memory.")
       .version("0.2.0")
       .intConf
       .checkValue(
         value => value >= -5 && value <= 22,
-        s"Invalid compression zstd compress level, compression level for Zstd compression codec should be an integer between -5 and 22..")
+        s"Invalid compression zstd compress level, compression level for " +
+          s"Zstd compression codec should be an integer between -5 and 22.")
       .createWithDefault(1)
 
   def partitionSortTimeout(conf: CelebornConf): Long = {
