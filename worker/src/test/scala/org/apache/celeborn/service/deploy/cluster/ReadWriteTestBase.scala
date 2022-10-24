@@ -38,7 +38,7 @@ trait ReadWriteTestBase extends Logging {
 
     val clientConf = new CelebornConf()
       .set("celeborn.master.endpoints", s"localhost:$masterPort")
-      .set("rss.client.compression.codec", codec.name)
+      .set("celeborn.shuffle.compression.codec", codec.name)
       .set("celeborn.push.replicate.enabled", "true")
       .set("celeborn.push.buffer.size", "256K")
     val lifecycleManager = new LifecycleManager(APP, clientConf)
