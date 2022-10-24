@@ -79,20 +79,24 @@ class CelebornConfSuite extends RssFunSuite {
 
   test("zstd level") {
     val conf = new CelebornConf()
-    conf.set("rss.client.compression.zstd.level", "-100")
-    assert(conf.shuffleCompressionZstdCompressLevel == -5)
-    conf.set("rss.client.compression.zstd.level", "-5")
-    assert(conf.shuffleCompressionZstdCompressLevel == -5)
-    conf.set("rss.client.compression.zstd.level", "0")
-    assert(conf.shuffleCompressionZstdCompressLevel == 0)
-    conf.set("rss.client.compression.zstd.level", "22")
-    assert(conf.shuffleCompressionZstdCompressLevel == 22)
-    val error = intercept[IllegalArgumentException] {
-      conf.set("rss.client.compression.zstd.level", "100")
+    val error1 = intercept[IllegalArgumentException] {
+      conf.set("celeborn.shuffle.compression.zstd.level", "-100")
+      assert(conf.shuffleCompressionZstdCompressLevel == -100)
     }.getMessage
-    assert(error.contains("'-100' in celeborn.shuffle.compression.zstd.level is invalid. " +
-      "Invalid compression zstd compress level, compression level for Zstd compression codec " +
-      "should be an integer between -5 and 22."))
+    assert(error1.contains("'-100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+      "Compression level for Zstd compression codec should be an integer between -5 and 22."))
+    conf.set("celeborn.shuffle.compression.zstd.level", "-5")
+    assert(conf.shuffleCompressionZstdCompressLevel == -5)
+    conf.set("celeborn.shuffle.compression.zstd.level", "0")
+    assert(conf.shuffleCompressionZstdCompressLevel == 0)
+    conf.set("celeborn.shuffle.compression.zstd.level", "22")
+    assert(conf.shuffleCompressionZstdCompressLevel == 22)
+    val error2 = intercept[IllegalArgumentException] {
+      conf.set("celeborn.shuffle.compression.zstd.level", "100")
+      assert(conf.shuffleCompressionZstdCompressLevel == 100)
+    }.getMessage
+    assert(error2.contains("'100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+      "Compression level for Zstd compression codec should be an integer between -5 and 22."))
   }
 
   test("replace <localhost> placeholder") {

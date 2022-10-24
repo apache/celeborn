@@ -1747,8 +1747,7 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(
         value => value >= -5 && value <= 22,
-        s"Invalid compression zstd compress level, compression level for " +
-          s"Zstd compression codec should be an integer between -5 and 22.")
+        s"Compression level for Zstd compression codec should be an integer between -5 and 22.")
       .createWithDefault(1)
 
   def partitionSortTimeout(conf: CelebornConf): Long = {
