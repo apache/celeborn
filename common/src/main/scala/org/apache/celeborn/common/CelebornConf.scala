@@ -520,7 +520,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
 
   // //////////////////////////////////////////////////////
-  //            GraceFul Shutdown & Recover              //
+  //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
