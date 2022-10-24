@@ -42,8 +42,8 @@ license: |
 | celeborn.shuffle.register.maxRetries | 3 | Max retry times for client to register shuffle. | 0.2.0 | 
 | celeborn.shuffle.register.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.2.0 | 
 | celeborn.shuffle.writer.mode | hash | Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. | 0.2.0 | 
-| celeborn.slot.reserve.maxRetries | 3 | Max retry times for client to reserve slots. | 0.2.0 | 
-| celeborn.slot.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
+| celeborn.slots.reserve.maxRetries | 3 | Max retry times for client to reserve slots. | 0.2.0 | 
+| celeborn.slots.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.worker.excluded.checkInterval | 30s | Interval for client to refresh excluded worker list. | 0.2.0 | 
 <!--end-include-->
