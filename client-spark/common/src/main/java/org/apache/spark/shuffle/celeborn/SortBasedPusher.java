@@ -50,7 +50,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final ShuffleClient rssShuffleClient;
   private final DataPusher dataPusher;
   private final int pushBufferMaxSize;
-  private final long sortPushMemoryThreshold;
+  private final long pushSortMemoryThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
 
   String appId;
@@ -111,7 +111,7 @@ public class SortBasedPusher extends MemoryConsumer {
             mapStatusLengths);
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
-    sortPushMemoryThreshold = conf.sortPushMemoryThreshold();
+    pushSortMemoryThreshold = conf.pushSortMemoryThreshold();
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
   }
@@ -181,7 +181,7 @@ public class SortBasedPusher extends MemoryConsumer {
       Object recordBase, long recordOffset, int recordSize, int partitionId, boolean copySize)
       throws IOException {
 
-    if (getUsed() > sortPushMemoryThreshold
+    if (getUsed() > pushSortMemoryThreshold
         && pageCursor + Utils.byteStringAsBytes("8k")
             > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(

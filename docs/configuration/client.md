@@ -28,6 +28,7 @@ license: |
 | celeborn.push.queue.capacity | 512 | Push buffer queue size for a task. The maximum memory is `celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, default: 64KiB * 512 = 32MiB | 0.2.0 | 
 | celeborn.push.replicate.enabled | true | When true, Celeborn worker will replicate shuffle data to another Celeborn worker asynchronously to ensure the pushed shuffle data won't be lost after the node failure. | 0.2.0 | 
 | celeborn.push.retry.threads | 8 | Thread number to process shuffle re-send push data requests. | 0.2.0 | 
+| celeborn.push.sortMemory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.push.stageEnd.timeout | 240s | Timeout for StageEnd. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
@@ -43,7 +44,6 @@ license: |
 | celeborn.shuffle.writer.mode | hash | Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. | 0.2.0 | 
 | celeborn.slot.reserve.maxRetries | 3 | Max retry times for client to reserve slots. | 0.2.0 | 
 | celeborn.slot.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
-| celeborn.sort.push.memory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.worker.excluded.checkInterval | 30s | Interval for client to refresh excluded worker list. | 0.2.0 | 
 <!--end-include-->
