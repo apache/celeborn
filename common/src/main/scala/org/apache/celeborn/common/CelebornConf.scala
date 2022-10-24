@@ -403,6 +403,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
+  //               Shuffle Compression                  //
+  // //////////////////////////////////////////////////////
+  def shuffleCompressionCodec: String = get(SHUFFLE_COMPRESSION_CODEC)
+  def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
+
+  // //////////////////////////////////////////////////////
   //               Address && HA && RATIS               //
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
@@ -1714,20 +1720,32 @@ object CelebornConf extends Logging {
       .stringConf
       .checkValue(
         value => Seq("reduce", "map", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
-        s"Invalid split mode, Celeborn only support partition type of (reduce, map, mapgroup)")
+        s"Invalid split mode, Celeborn only support partition type of (reduce, map, mapgroup).")
       .createWithDefault("reduce")
 
-  // Support 2 type codecs: lz4 and zstd
-  def compressionCodec(conf: CelebornConf): String = {
-    conf.get("rss.client.compression.codec", "lz4").toLowerCase
-  }
+  val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.compression.codec")
+      .withAlternative("rss.client.compression.codec")
+      .categories("client")
+      .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
+      .version("0.2.0")
+      .stringConf
+      .checkValue(
+        value => Seq("lz4", "zstd", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
+        s"Invalid compression codec, Celeborn only support compression codec of (lz4, zstd).")
+      .createWithDefault("lz4")
 
-  def zstdCompressLevel(conf: CelebornConf): Int = {
-    val level = conf.getInt("rss.client.compression.zstd.level", 1)
-    val zstdMinLevel = -5
-    val zstdMaxLevel = 22
-    Math.min(Math.max(Math.max(level, zstdMinLevel), Math.min(level, zstdMaxLevel)), zstdMaxLevel)
-  }
+  val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.compression.zstd.level")
+      .withAlternative("rss.client.compression.zstd.level")
+      .categories("client")
+      .doc("Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory.")
+      .version("0.2.0")
+      .intConf
+      .checkValue(
+        value => value >= -5 && value <= 22,
+        s"Invalid compression zstd compress level, compression level for Zstd compression codec should be an integer between -5 and 22..")
+      .createWithDefault(1)
 
   def partitionSortTimeout(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
