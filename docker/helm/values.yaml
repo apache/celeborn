@@ -42,7 +42,7 @@ celeborn:
   celeborn.worker.storage.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
   celeborn.push.replicate.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
-  celeborn.worker.deviceMonitor.enabled: false
+  celeborn.worker.monitor.disk.enabled: false
   rss.rpc.io.serverThreads: 64
   rss.worker.fetch.chunk.size: 8m
   rss.rpc.io.numConnectionsPerPeer: 8
