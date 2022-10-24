@@ -18,7 +18,7 @@
 package org.apache.celeborn.common
 
 import java.io.IOException
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Map => JMap}
+import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -381,7 +381,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
-  def shuffleMetaServicePort: Int = get(SHUFFLE_META_SERVICE_PORT)
+  def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
@@ -398,10 +398,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       case "reduce" => PartitionType.REDUCE_PARTITION
       case "map" => PartitionType.MAP_PARTITION
       case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
-      case _ =>
-        logWarning(
-          s"Invalid split mode ${get(SHUFFLE_PARTITION_TYPE)}, use ReducePartition by default")
-        PartitionType.REDUCE_PARTITION
+      case _ => PartitionType.REDUCE_PARTITION
     }
   }
 
@@ -1582,8 +1579,8 @@ object CelebornConf extends Logging {
       .longConf
       .createWithDefault(500000)
 
-  val SHUFFLE_META_SERVICE_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.metaService.port")
+  val SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.manager.port")
       .withAlternative("rss.driver.metaService.port")
       .categories("client")
       .version("0.2.0")
@@ -1712,9 +1709,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.partition.type")
       .withAlternative("rss.partition.type")
       .categories("client")
-      .doc("")
+      .doc("Type of shuffle's partition.")
       .version("0.2.0")
       .stringConf
+      .checkValue(
+        value => Seq("reduce", "map", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
+        s"Invalid split mode, Celeborn only support partition type of (reduce, map, mapgroup)")
       .createWithDefault("reduce")
 
   // Support 2 type codecs: lz4 and zstd

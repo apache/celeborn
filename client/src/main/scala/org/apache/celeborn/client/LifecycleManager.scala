@@ -139,7 +139,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.RSS_METASERVICE_SYS,
     lifecycleHost,
-    conf.shuffleMetaServicePort,
+    conf.shuffleManagerPort,
     conf)
   rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
 

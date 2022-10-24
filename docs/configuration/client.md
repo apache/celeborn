@@ -35,8 +35,8 @@ license: |
 | celeborn.shuffle.expired.checkInterval | 60s | Interval for client to check expired shuffles. | 0.2.0 | 
 | celeborn.shuffle.forceFallback.enabled | false | Whether force fallback shuffle to Spark's default. | 0.2.0 | 
 | celeborn.shuffle.forceFallback.numPartitionsThreshold | 500000 | Celeborn will only accept shuffle of partition number lower than this configuration value. | 0.2.0 | 
-| celeborn.shuffle.metaService.port | 0 | Port used by the LifecycleManager on the Driver. | 0.2.0 | 
-| celeborn.shuffle.partition.type | reduce |  | 0.2.0 | 
+| celeborn.shuffle.manager.port | 0 | Port used by the LifecycleManager on the Driver. | 0.2.0 | 
+| celeborn.shuffle.partition.type | reduce | Type of shuffle's partition. | 0.2.0 | 
 | celeborn.shuffle.rangeReadFilter.enabled | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | 
 | celeborn.shuffle.register.maxRetries | 3 | Max retry times for client to register shuffle. | 0.2.0 | 
 | celeborn.shuffle.register.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.2.0 | 
