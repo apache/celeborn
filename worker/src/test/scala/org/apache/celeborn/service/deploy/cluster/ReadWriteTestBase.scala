@@ -33,8 +33,7 @@ import org.apache.celeborn.common.internal.Logging
 trait ReadWriteTestBase extends Logging {
   val masterPort = 19097
 
-  def testReadWriteByCode(compressionCodec: CompressionCodec): Unit = {
-    val codec = CompressionCodec.LZ4
+  def testReadWriteByCode(codec: CompressionCodec): Unit = {
     val APP = "app-1"
 
     val clientConf = new CelebornConf()

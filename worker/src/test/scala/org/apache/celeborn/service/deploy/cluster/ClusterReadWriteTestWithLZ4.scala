@@ -48,8 +48,8 @@ class ClusterReadWriteTestWithLZ4 extends AnyFunSuite with MiniClusterFeature
     sys.exit(0)
   }
 
-  test(s"test MiniCluster With ZSTD") {
-    testReadWriteByCode(CompressionCodec.ZSTD)
+  test(s"test MiniCluster With LZ4") {
+    testReadWriteByCode(CompressionCodec.LZ4)
   }
 
 }
