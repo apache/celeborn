@@ -1422,7 +1422,6 @@ object CelebornConf extends Logging {
       .doc("Thread number to process shuffle re-send push data requests.")
       .version("0.2.0")
       .intConf
-      .transform(_ => Math.max(8, Runtime.getRuntime.availableProcessors()))
       .createWithDefault(8)
 
   val PUSH_SPLIT_PARTITION_THREADS: ConfigEntry[Int] =
