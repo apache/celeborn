@@ -935,7 +935,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.slot.reserve.maxRetries")
+    buildConf("celeborn.slots.reserve.maxRetries")
       .withAlternative("rss.reserve.slots.max.retry")
       .categories("client")
       .version("0.2.0")
@@ -944,7 +944,7 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.slot.reserve.retryWait")
+    buildConf("celeborn.slots.reserve.retryWait")
       .withAlternative("rss.reserve.slots.retry.wait")
       .categories("client")
       .version("0.2.0")
