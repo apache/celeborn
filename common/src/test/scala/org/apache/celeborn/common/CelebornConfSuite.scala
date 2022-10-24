@@ -80,15 +80,15 @@ class CelebornConfSuite extends RssFunSuite {
   test("zstd level") {
     val conf = new CelebornConf()
     conf.set("rss.client.compression.zstd.level", "-100")
-    assert(CelebornConf.zstdCompressLevel(conf) == -5)
+    assert(conf.shuffleCompressionZstdCompressLevel == -5)
     conf.set("rss.client.compression.zstd.level", "-5")
-    assert(CelebornConf.zstdCompressLevel(conf) == -5)
+    assert(conf.shuffleCompressionZstdCompressLevel == -5)
     conf.set("rss.client.compression.zstd.level", "0")
-    assert(CelebornConf.zstdCompressLevel(conf) == 0)
+    assert(conf.shuffleCompressionZstdCompressLevel == 0)
     conf.set("rss.client.compression.zstd.level", "22")
-    assert(CelebornConf.zstdCompressLevel(conf) == 22)
+    assert(conf.shuffleCompressionZstdCompressLevel == 22)
     conf.set("rss.client.compression.zstd.level", "100")
-    assert(CelebornConf.zstdCompressLevel(conf) == 22)
+    assert(conf.shuffleCompressionZstdCompressLevel == 22)
   }
 
   test("replace <localhost> placeholder") {

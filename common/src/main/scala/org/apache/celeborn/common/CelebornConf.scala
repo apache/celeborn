@@ -1731,7 +1731,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .checkValue(
-        value => Seq("lz4", "zstd", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
+        value => Seq("lz4", "zstd").contains(value.toLowerCase(Locale.ROOT)),
         s"Invalid compression codec, Celeborn only support compression codec of (lz4, zstd).")
       .createWithDefault("lz4")
 
