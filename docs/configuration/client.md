@@ -27,14 +27,14 @@ license: |
 | celeborn.push.maxReqsInFlight | 32 | Amount of Netty in-flight requests. The maximum memory is `celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib | 0.2.0 | 
 | celeborn.push.queue.capacity | 512 | Push buffer queue size for a task. The maximum memory is `celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, default: 64KiB * 512 = 32MiB | 0.2.0 | 
 | celeborn.push.replicate.enabled | true | When true, Celeborn worker will replicate shuffle data to another Celeborn worker asynchronously to ensure the pushed shuffle data won't be lost after the node failure. | 0.2.0 | 
-| celeborn.push.retry.numThread | 16 | Sleep interval when check netty in-flight requests to be done. | 0.2.0 | 
-| celeborn.push.splitPartition.numThreads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
+| celeborn.push.retry.threads | 16 | Sleep interval when check netty in-flight requests to be done. | 0.2.0 | 
+| celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.push.stageEnd.timeout | 240s | Timeout for StageEnd. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
 | celeborn.shuffle.chuck.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
 | celeborn.shuffle.expired.checkInterval | 60s | Interval for client to check expired shuffles. | 0.2.0 | 
-| celeborn.shuffle.force.fallback | false | Whether force fallback shuffle to Spark's default. | 0.2.0 | 
-| celeborn.shuffle.max.partition.number | 500000 | Celeborn will only accept shuffle of partition number lower than this configuration value. | 0.2.0 | 
+| celeborn.shuffle.forceFallback.enabled | false | Whether force fallback shuffle to Spark's default. | 0.2.0 | 
+| celeborn.shuffle.forceFallback.numPartitionsThreshold | 500000 | Celeborn will only accept shuffle of partition number lower than this configuration value. | 0.2.0 | 
 | celeborn.shuffle.metaService.port | 0 | Port used by the LifecycleManager on the Driver. | 0.2.0 | 
 | celeborn.shuffle.partition.type | reduce |  | 0.2.0 | 
 | celeborn.shuffle.rangeReadFilter.enabled | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | 

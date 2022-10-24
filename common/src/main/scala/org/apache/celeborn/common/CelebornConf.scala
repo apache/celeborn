@@ -379,8 +379,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Client                        //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
-  def shuffleForceFallback: Boolean = get(SHUFFLE_FORCE_FALLBACK)
-  def maxPartitionNumSupported: Long = get(MAX_PARTITION_NUM)
+  def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
+  def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleMetaServicePort: Int = get(SHUFFLE_META_SERVICE_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
@@ -1553,8 +1553,8 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.replicate.fastfail.duration", "60s")
   }
 
-  val SHUFFLE_FORCE_FALLBACK: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.force.fallback")
+  val SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.forceFallback.enabled")
       .withAlternative("rss.force.fallback")
       .categories("client")
       .version("0.2.0")
@@ -1562,8 +1562,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val MAX_PARTITION_NUM: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.max.partition.number")
+  val SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.forceFallback.numPartitionsThreshold")
       .withAlternative("rss.max.partition.number")
       .categories("client")
       .version("0.2.0")
