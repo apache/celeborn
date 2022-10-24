@@ -56,9 +56,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rangeReadFilter = CelebornConf.rangeReadFilterEnabled(conf)
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = CelebornConf.stageEndTimeout(conf)
-  private val rpcCacheSize = RssConf.rpcCacheSize(conf)
-  private val rpcCacheConcurrentLevel = RssConf.rpcCacheConcurrentLevel(conf)
-  private val rpcCacheExpireTimeMs = RssConf.rpcCacheExpireTimeMs(conf)
+  private val rpcCacheSize = CelebornConf.rpcCacheSize(conf)
+  private val rpcCacheConcurrentLevel = CelebornConf.rpcCacheConcurrentLevel(conf)
+  private val rpcCacheExpireTimeMs = CelebornConf.rpcCacheExpireTimeMs(conf)
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
