@@ -1780,15 +1780,15 @@ object CelebornConf extends Logging {
     conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
   }
 
-  def rpcCacheSize(conf: RssConf): Int = {
+  def rpcCacheSize(conf: CelebornConf): Int = {
     conf.getInt("rss.rpc.cache.size", 256)
   }
 
-  def rpcCacheConcurrentLevel(conf: RssConf): Int = {
+  def rpcCacheConcurrentLevel(conf: CelebornConf): Int = {
     conf.getInt("rss.rpc.cache.concurrent.level", 128)
   }
 
-  def rpcCacheExpireTimeMs(conf: RssConf): Long = {
+  def rpcCacheExpireTimeMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.rpc.cache.expire", "15s")
   }
 
