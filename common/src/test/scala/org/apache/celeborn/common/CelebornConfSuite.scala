@@ -87,8 +87,12 @@ class CelebornConfSuite extends RssFunSuite {
     assert(conf.shuffleCompressionZstdCompressLevel == 0)
     conf.set("rss.client.compression.zstd.level", "22")
     assert(conf.shuffleCompressionZstdCompressLevel == 22)
-    conf.set("rss.client.compression.zstd.level", "100")
-    assert(conf.shuffleCompressionZstdCompressLevel == 22)
+    val error = intercept[IllegalArgumentException] {
+      conf.set("rss.client.compression.zstd.level", "100")
+    }.getMessage
+    assert(error.contains("'-100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+      "Invalid compression zstd compress level, compression level for Zstd compression codec " +
+      "should be an integer between -5 and 22."))
   }
 
   test("replace <localhost> placeholder") {
