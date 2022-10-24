@@ -512,6 +512,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
+  def partitionSplitMode: PartitionSplitMode = {
+    get(PARTITION_SPLIT_MODE) match {
+      case "hard" => PartitionSplitMode.HARD
+      case _ => PartitionSplitMode.SOFT
+    }
+  }
+  def partitionSplitThreshold: Long = get(PARTITION_SPLIT_THRESHOLD)
+  def batchHandleChangePartitionEnabled: Boolean = get(BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
+  def batchHandleChangePartitionNumThreads: Int = get(BATCH_HANDLE_CHANGE_PARTITION_THREADS)
+  def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //            GraceFul Shutdown & Recover             //
@@ -1440,6 +1450,55 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(8)
 
+  val PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.partitionSplit.threshold")
+      .withAlternative("rss.partition.split.threshold")
+      .categories("client")
+      .doc("Shuffle file size threshold, if file size exceeds this, trigger split.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("256m")
+
+  val PARTITION_SPLIT_MODE: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.partitionSplit.mode")
+      .withAlternative("rss.partition.split.mode")
+      .categories("client")
+      .doc("soft, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold.")
+      .version("0.2.0")
+      .stringConf
+      .checkValue(
+        value => Seq("soft", "hard").contains(value.toLowerCase(Locale.ROOT)),
+        s"Invalid split mode, Celeborn only support partition type of (soft, hard)")
+      .createWithDefault("reduce")
+
+  val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")
+      .withAlternative("rss.partition.split.threshold")
+      .categories("client")
+      .doc("When true, Celeborn support handle change partition request in batch.")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.batchHandleChangePartition.threads")
+      .withAlternative("rss.change.partition.numThreads")
+      .categories("client")
+      .doc("Threads number for LifecycleManager to handle change partition request in batch.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(8)
+
+  val BATCH_HANDLE_CHANGE_PARTITION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.batchHandleChangePartition.interval")
+      .withAlternative("rss.change.partition.numThreads")
+      .categories("client")
+      .doc(
+        "Batch handling interval for LifecycleManager handle change partition requests in batch.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
+
   def pushServerPort(conf: CelebornConf): Int = {
     conf.getInt("rss.pushserver.port", 0)
   }
@@ -1678,33 +1737,6 @@ object CelebornConf extends Logging {
     conf.getOption("rss.quota.configuration.path")
   }
 
-  def partitionSplitThreshold(conf: CelebornConf): Long = {
-    conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
-  }
-
-  def batchHandleChangePartitionEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.change.partition.batch.enabled", false)
-  }
-
-  def batchHandleChangePartitionNumThreads(conf: CelebornConf): Int = {
-    conf.getInt("rss.change.partition.numThreads", 8)
-  }
-
-  def handleChangePartitionRequestBatchInterval(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.change.partition.batchInterval", "100ms")
-  }
-
-  def partitionSplitMode(conf: CelebornConf): PartitionSplitMode = {
-    val modeStr = conf.get("rss.partition.split.mode", "soft")
-    modeStr match {
-      case "soft" => PartitionSplitMode.SOFT
-      case "hard" => PartitionSplitMode.HARD
-      case _ =>
-        logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
-        PartitionSplitMode.SOFT
-    }
-  }
-
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
     buildConf("celeborn.shuffle.partition.type")
       .withAlternative("rss.partition.type")
@@ -1714,7 +1746,7 @@ object CelebornConf extends Logging {
       .stringConf
       .checkValue(
         value => Seq("reduce", "map", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
-        s"Invalid split mode, Celeborn only support partition type of (reduce, map, mapgroup)")
+        s"Invalid partition type, Celeborn only support partition type of (reduce, map, mapgroup)")
       .createWithDefault("reduce")
 
   // Support 2 type codecs: lz4 and zstd
