@@ -50,7 +50,7 @@ class RssShuffleReader[K, C](
   override def read(): Iterator[Product2[K, C]] = {
 
     var serializerInstance = dep.serializer.newInstance()
-    if (CelebornConf.columnarShuffleEnabled(conf)) {
+    if (conf.columnarShuffleEnabled) {
       val schema = SparkUtils.getShuffleDependencySchema(dep)
       if (RssColumnarBatchBuilder.supportsColumnarType(
           schema)) {
@@ -58,9 +58,9 @@ class RssShuffleReader[K, C](
           dep.serializer.asInstanceOf[UnsafeRowSerializer])
         serializerInstance = new RssColumnarBatchSerializer(
           schema,
-          CelebornConf.columnarShuffleBatchSize(conf),
-          CelebornConf.columnarShuffleCompress(conf),
-          CelebornConf.columnarShuffleOffHeapColumnVectorEnabled(conf),
+          conf.columnarShuffleBatchSize,
+          conf.columnarShuffleCompressionCodec,
+          conf.columnarShuffleOffHeapEnabled,
           dataSize).newInstance()
       }
     }

@@ -160,7 +160,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             writeMetrics::incBytesWritten,
             mapStatusLengths);
 
-    if (CelebornConf.columnarShuffleEnabled(this.conf)) {
+    if (conf.columnarShuffleEnabled) {
       this.schema = SparkUtils.getShuffleDependencySchema(dep);
       this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
@@ -207,16 +207,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         RssColumnarBatchBuilder columnBuilders =
             new RssColumnarBatchBuilder(
                 schema,
-                CelebornConf.columnarShuffleBatchSize(conf),
-                CelebornConf.columnarShuffleMaxDictFactor(conf),
-                CelebornConf.columnarShuffleCompress(conf));
+                conf.columnarShuffleBatchSize,
+                conf.columnarShuffleMaxDictFactor,
+                conf.columnarShuffleCompress);
         columnBuilders.newBuilders();
         rssColumnBuilders[partitionId] = columnBuilders;
       }
       rssColumnBuilders[partitionId].writeRow(row);
       if (rssColumnBuilders[partitionId].getTotalSize() > PUSH_BUFFER_MAX_SIZE
-          || rssColumnBuilders[partitionId].rowCnt()
-              == CelebornConf.columnarShuffleBatchSize(conf)) {
+          || rssColumnBuilders[partitionId].rowCnt() == conf.columnarShuffleBatchSize) {
         byte[] arr = rssColumnBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {

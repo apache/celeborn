@@ -611,6 +611,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         }
     }.getOrElse("")
   }
+
+  // //////////////////////////////////////////////////////
+  //                 Columnar Shuffle                    //
+  // //////////////////////////////////////////////////////
+  def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
+
+  def columnarShuffleCompressionCodec: String = get(COLUMNAR_SHUFFLE_COMPRESSION_CODEC)
+
+  def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
+
+  def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
+
+  def columnarShuffleMaxDictFactor: Double = get(COLUMNAR_SHUFFLE_MAX_DICT_FACTOR)
 }
 
 object CelebornConf extends Logging {
@@ -1880,23 +1893,46 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  def columnarShuffleEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)
-  }
+  val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to enable columnar-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def columnarShuffleCompress(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.encoding.enabled", defaultValue = false)
-  }
+  val COLUMNAR_SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
+    buildConf("celeborn.columnar.shuffle.compression.codec")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Compression codec used for columnar-based shuffle data. Available options: none.")
+      .stringConf
+      .transform(_.toLowerCase)
+      .checkValue(v => Set("none").contains(v), "available options: none.")
+      .createWithDefault("none")
 
-  def columnarShuffleBatchSize(conf: CelebornConf): Int = {
-    conf.getInt("rss.columnar.shuffle.batch.size", 10000)
-  }
+  val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.columnar.shuffle.batch.size")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Vector batch size for columnar shuffle.")
+      .intConf
+      .checkValue(v => v > 0, "value must be positive")
+      .createWithDefault(10000)
 
-  def columnarShuffleOffHeapColumnVectorEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.offheap.vector.enabled", false)
-  }
+  val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.offHeap.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use off heap columnar vector.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def columnarShuffleMaxDictFactor(conf: CelebornConf): Double = {
-    conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
+  val COLUMNAR_SHUFFLE_MAX_DICT_FACTOR: ConfigEntry[Double] = {
+    buildConf("rss.columnar.shuffle.maxDictFactor")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doubleConf
+      .createWithDefault(0.3)
   }
 }
