@@ -49,10 +49,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   private val splitThreshold = CelebornConf.partitionSplitThreshold(conf)
   private val splitMode = CelebornConf.partitionSplitMode(conf)
-  private val partitionType = CelebornConf.partitionType(conf)
-  private val rangeReadFilter = CelebornConf.rangeReadFilterEnabled(conf)
+  private val partitionType = conf.shufflePartitionType
+  private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
-  private val stageEndTimeout = CelebornConf.stageEndTimeout(conf)
+  private val stageEndTimeout = conf.pushStageEndTimeout
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -139,7 +139,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.RSS_METASERVICE_SYS,
     lifecycleHost,
-    CelebornConf.driverMetaServicePort(conf),
+    conf.shuffleManagerPort,
     conf)
   rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
 
