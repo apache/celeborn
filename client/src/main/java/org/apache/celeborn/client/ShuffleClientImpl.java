@@ -146,7 +146,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     int pushSplitPartitionThreads = conf.pushSplitPartitionThreads();
     partitionSplitPool =
-        ThreadUtils.newDaemonCachedThreadPool("celeborn-shuffle-split", pushSplitPartitionThreads, 60);
+        ThreadUtils.newDaemonCachedThreadPool(
+            "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
   }
 
   private void submitRetryPushData(

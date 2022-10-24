@@ -1579,14 +1579,16 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Port used by the LifecycleManager on the Driver.")
       .intConf
-      .checkValue((port: Int) => {
-        if (port == 0) {
-          logWarning(
-            "The user specifies the port used by the LifecycleManager on the Driver, and its" +
-              s" values is $port, which may cause port conflicts and startup failure.")
-        }
-        true
-      }, "")
+      .checkValue(
+        (port: Int) => {
+          if (port == 0) {
+            logWarning(
+              "The user specifies the port used by the LifecycleManager on the Driver, and its" +
+                s" values is $port, which may cause port conflicts and startup failure.")
+          }
+          true
+        },
+        "")
       .createWithDefault(0)
 
   def clusterCheckQuotaEnabled(conf: CelebornConf): Boolean = {
