@@ -142,11 +142,11 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     int pushDataRetryThreadNum = conf.pushDataRetryThreadNum();
     pushDataRetryPool =
-        ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", pushDataRetryThreadNum, 60);
+        ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreadNum, 60);
 
     int pushSplitPartitionNumThreads = conf.pushSplitPartitionNumThreads();
     partitionSplitPool =
-        ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", pushSplitPartitionNumThreads, 60);
+        ThreadUtils.newDaemonCachedThreadPool("celeborn-shuffle-split", pushSplitPartitionNumThreads, 60);
   }
 
   private void submitRetryPushData(
