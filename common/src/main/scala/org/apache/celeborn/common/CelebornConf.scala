@@ -473,6 +473,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
+  def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
+  def metricsCapacity: Int = get(METRICS_CAPACITY)
   def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
   def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
   def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
@@ -520,7 +522,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def deviceMonitorCheckList: Seq[String] = get(WORKER_DEVICE_MONITOR_CHECKLIST)
   def diskCheckInterval: Long = get(WORKER_DISK_CHECK_INTERVAL)
   def sysBlockDir: String = get(WORKER_DEVICEMONITOR_SYS_BLOCKDIR)
-  def createWriterCreateMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
+  def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAXATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
 
@@ -1207,7 +1209,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.shuffle.commit.timeout")
       .withAlternative("rss.flush.timeout")
       .categories("worker")
-      .doc("Timeout for a Celeborn worker to commit a shuffle.")
+      .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("120s")
@@ -1233,7 +1235,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.hdd.threads")
       .withAlternative("rss.flusher.hdd.thread.count")
       .categories("worker")
-      .doc("Flusher's thread count used for write data to HDD disks.")
+      .doc("Flusher's thread count per disk used for write data to HDD disks.")
       .version("0.2.0")
       .intConf
       .createWithDefault(1)
@@ -1242,7 +1244,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.ssd.threads")
       .withAlternative("rss.flusher.hdd.thread.count")
       .categories("worker")
-      .doc("Flusher's thread count used for write data to SSD disks.")
+      .doc("Flusher's thread count per disk used for write data to SSD disks.")
       .version("0.2.0")
       .intConf
       .createWithDefault(8)
@@ -1278,8 +1280,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
-      .doc("The minimum flush count to enter a sliding window" +
-        " to calculate statistics about flushed time and count.")
+      .doc("The size of sliding windows used to calculate statistics about flushed time and count.")
       .version("0.2.0")
       .intConf
       .createWithDefault(20)
@@ -1366,6 +1367,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.metrics.system.enabled")
       .categories("master", "worker", "metrics")
       .doc("When true, enable metrics system.")
+      .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
 
@@ -1373,6 +1375,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.sample.rate")
       .withAlternative("rss.metrics.system.sample.rate")
       .categories("master", "worker", "metrics")
+      .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0].")
+      .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0]")
       .createWithDefault(1.0)
@@ -1381,6 +1385,26 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.timer.sliding.window.size")
       .withAlternative("rss.metrics.system.sliding.window.size")
       .categories("master", "worker", "metrics")
+      .doc("The sliding window size of timer metric.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(4096)
+
+  val METRICS_COLLECT_CRITICAL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.collectCritical.enabled")
+      .withAlternative("rss.metrics.system.sample.perf.critical")
+      .categories("master", "worker", "metrics")
+      .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val METRICS_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.capacity")
+      .withAlternative("rss.inner.metrics.size")
+      .categories("master", "worker", "metrics")
+      .doc("The maximum number of metrics which a source can use to generate output strings.")
+      .version("0.2.0")
       .intConf
       .createWithDefault(4096)
 
@@ -1388,6 +1412,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.metrics.prometheus.host")
       .withAlternative("rss.master.prometheus.metric.host")
       .categories("master", "metrics")
+      .doc("Master's Prometheus host.")
+      .version("0.2.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
@@ -1395,6 +1421,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.metrics.prometheus.port")
       .withAlternative("rss.master.prometheus.metric.port")
       .categories("master", "metrics")
+      .doc("Master's Prometheus port.")
+      .version("0.2.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9098)
@@ -1403,6 +1431,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.metrics.prometheus.host")
       .withAlternative("rss.worker.prometheus.metric.host")
       .categories("worker", "metrics")
+      .doc("Worker's Prometheus host.")
+      .version("0.2.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
@@ -1410,17 +1440,11 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.metrics.prometheus.port")
       .withAlternative("rss.worker.prometheus.metric.port")
       .categories("worker", "metrics")
+      .doc("Worker's Prometheus port.")
+      .version("0.2.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
-
-  def metricsSamplePerfCritical(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.metrics.system.sample.perf.critical", false)
-  }
-
-  def innerMetricsSize(conf: CelebornConf): Int = {
-    conf.getInt("rss.inner.metrics.size", 4096)
-  }
 
   def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
