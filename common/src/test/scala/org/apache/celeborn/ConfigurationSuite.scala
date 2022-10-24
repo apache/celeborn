@@ -58,6 +58,10 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("client")
   }
 
+  test("docs - configuration/columnar-shuffle.md") {
+    generateConfigurationMarkdown("columnar-shuffle")
+  }
+
   test("docs - configuration/master.md") {
     generateConfigurationMarkdown("master")
   }
