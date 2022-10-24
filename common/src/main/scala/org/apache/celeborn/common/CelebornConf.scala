@@ -1591,7 +1591,7 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(
         (port: Int) => {
-          if (port == 0) {
+          if (port != 0) {
             logWarning(
               "The user specifies the port used by the LifecycleManager on the Driver, and its" +
                 s" values is $port, which may cause port conflicts and startup failure.")
