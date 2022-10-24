@@ -29,13 +29,13 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   }
 
   /**
-   * if rss.force.fallback is true, fallback to external shuffle
-   * @return return rss.force.fallback
+   * if celeborn.shuffle.forceFallback.enabled is true, fallback to external shuffle
+   * @return return celeborn.shuffle.forceFallback.enabled
    */
   def applyForceFallbackPolicy(): Boolean = conf.shuffleForceFallbackEnabled
 
   /**
-   * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
+   * if shuffle partitions > celeborn.shuffle.forceFallback.numPartitionsThreshold, fallback to external shuffle
    * @param numPartitions shuffle partitions
    * @return return if shuffle partitions bigger than limit
    */

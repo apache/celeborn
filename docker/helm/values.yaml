@@ -50,7 +50,7 @@ celeborn:
   celeborn.metrics.enabled: true
   rss.push.io.threads: 32
   rss.fetch.io.threads: 32
-  rss.stage.end.timeout: 120s
+  celeborn.push.stageEnd.timeout: 120s
   celeborn.worker.metrics.prometheus.port: 9096
   rss.rpc.io.clientThreads: 64
   celeborn.application.heartbeat.timeout: 120s
