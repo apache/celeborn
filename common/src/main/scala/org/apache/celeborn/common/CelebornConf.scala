@@ -1419,7 +1419,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.push.retry.threads")
       .withAlternative("rss.pushdata.retry.thread.num")
       .categories("client")
-      .doc("Sleep interval when check netty in-flight requests to be done.")
+      .doc("Thread number to process shuffle re-send push data requests.")
       .version("0.2.0")
       .intConf
       .createWithDefault(Math.max(8, Runtime.getRuntime.availableProcessors()))
