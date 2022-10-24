@@ -513,7 +513,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
   def partitionSplitMode: PartitionSplitMode = {
-    get(PARTITION_SPLIT_MODE) match {
+    get(PARTITION_SPLIT_MODE).toLowerCase(Locale.ROOT) match {
       case "hard" => PartitionSplitMode.HARD
       case _ => PartitionSplitMode.SOFT
     }
@@ -1469,11 +1469,11 @@ object CelebornConf extends Logging {
       .checkValue(
         value => Seq("soft", "hard").contains(value.toLowerCase(Locale.ROOT)),
         s"Invalid split mode, Celeborn only support partition type of (soft, hard)")
-      .createWithDefault("reduce")
+      .createWithDefault("soft")
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")
-      .withAlternative("rss.partition.split.threshold")
+      .withAlternative("rss.change.partition.batch.enabled")
       .categories("client")
       .doc("When true, Celeborn support handle change partition request in batch.")
       .version("0.2.0")
@@ -1491,7 +1491,7 @@ object CelebornConf extends Logging {
 
   val BATCH_HANDLE_CHANGE_PARTITION_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.batchHandleChangePartition.interval")
-      .withAlternative("rss.change.partition.numThreads")
+      .withAlternative("rss.change.partition.batchInterval")
       .categories("client")
       .doc(
         "Batch handling interval for LifecycleManager handle change partition requests in batch.")
