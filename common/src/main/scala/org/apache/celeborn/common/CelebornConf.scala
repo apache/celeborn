@@ -364,11 +364,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
-  //                      Master                        //
+  //                      Master                         //
   // //////////////////////////////////////////////////////
 
   // //////////////////////////////////////////////////////
-  //                      Worker                        //
+  //                      Worker                         //
   // //////////////////////////////////////////////////////
   def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
@@ -376,7 +376,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
 
   // //////////////////////////////////////////////////////
-  //                      Client                        //
+  //                      Client                         //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -403,13 +403,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Compression                  //
+  //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
   def shuffleCompressionCodec: String = get(SHUFFLE_COMPRESSION_CODEC)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
-  //               Address && HA && RATIS               //
+  //               Address && HA && RATIS                //
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
     get(MASTER_ENDPOINTS).toArray.map { endpoint =>
@@ -486,7 +486,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
 
   // //////////////////////////////////////////////////////
-  //                 Metrics System                     //
+  //                 Metrics System                      //
   // //////////////////////////////////////////////////////
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
@@ -499,13 +499,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Fetch                 //
+  //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Push                  //
+  //               Shuffle Client Push                   //
   // //////////////////////////////////////////////////////
   def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
   def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
@@ -520,7 +520,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
 
   // //////////////////////////////////////////////////////
-  //            GraceFul Shutdown & Recover             //
+  //            GraceFul Shutdown & Recover              //
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
@@ -531,7 +531,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
   // //////////////////////////////////////////////////////
-  //                      Flusher                       //
+  //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
@@ -616,13 +616,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                 Columnar Shuffle                    //
   // //////////////////////////////////////////////////////
   def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
-
   def columnarShuffleCompressionCodec: String = get(COLUMNAR_SHUFFLE_COMPRESSION_CODEC)
-
   def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
-
   def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
-
   def columnarShuffleMaxDictFactor: Double = get(COLUMNAR_SHUFFLE_MAX_DICT_FACTOR)
 }
 
