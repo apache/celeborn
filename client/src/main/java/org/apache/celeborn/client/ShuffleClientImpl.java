@@ -140,11 +140,13 @@ public class ShuffleClientImpl extends ShuffleClient {
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
     dataClientFactory = context.createClientFactory();
 
-    int retryThreadNum = CelebornConf.pushDataRetryThreadNum(conf);
-    pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
+    int pushDataRetryThreadNum = conf.pushDataRetryThreadNum();
+    pushDataRetryPool =
+        ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", pushDataRetryThreadNum, 60);
 
-    int splitPoolSize = CelebornConf.clientSplitPoolSize(conf);
-    partitionSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
+    int pushSplitPartitionNumThreads = conf.pushSplitPartitionNumThreads();
+    partitionSplitPool =
+        ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", pushSplitPartitionNumThreads, 60);
   }
 
   private void submitRetryPushData(
@@ -312,8 +314,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches = pushState.inFlightBatches;
-    long timeoutMs = CelebornConf.limitInFlightTimeoutMs(conf);
-    long delta = CelebornConf.limitInFlightSleepDeltaMs(conf);
+    long timeoutMs = conf.pushLimitInFlightTimeoutMs();
+    long delta = conf.pushLimitInFlightSleepDeltaMs();
     long times = timeoutMs / delta;
     try {
       while (times > 0) {

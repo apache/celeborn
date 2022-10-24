@@ -135,7 +135,7 @@ public abstract class RssInputStream extends InputStream {
       this.attemptNumber = attemptNumber;
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
-      this.rangeReadFilter = CelebornConf.rangeReadFilterEnabled(conf);
+      this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.pushBufferMaxSize() + headerLen;

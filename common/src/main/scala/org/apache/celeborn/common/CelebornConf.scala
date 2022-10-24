@@ -379,6 +379,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Client                        //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
+  def shuffleForceFallback: Boolean = get(SHUFFLE_FORCE_FALLBACK)
+  def maxPartitionNumSupported: Long = get(MAX_PARTITION_NUM)
+  def shuffleMetaServicePort: Int = {
+    get(SHUFFLE_META_SERVICE_PORT) match {
+      case port if port == 0 =>
+        logWarning(
+          "The user specifies the port used by the LifecycleManager on the Driver, and its" +
+            s" values is $port, which may cause port conflicts and startup failure.")
+        port
+      case port => port
+    }
+  }
   def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
@@ -389,6 +401,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
+  def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
+  def shufflePartitionType: PartitionType = {
+    get(SHUFFLE_PARTITION_TYPE) match {
+      case "reduce" => PartitionType.REDUCE_PARTITION
+      case "map" => PartitionType.MAP_PARTITION
+      case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
+      case _ =>
+        logWarning(
+          s"Invalid split mode ${get(SHUFFLE_PARTITION_TYPE)}, use ReducePartition by default")
+        PartitionType.REDUCE_PARTITION
+    }
+  }
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS               //
@@ -494,6 +518,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushBufferMaxSize: Int = get(PUSH_BUFFER_MAX_SIZE).toInt
   def pushQueueCapacity: Int = get(PUSH_QUEUE_CAPACITY)
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
+  def pushDataRetryThreadNum: Int = get(PUSH_RETRY_NUM_THREADS)
+  def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT)
+  def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
+  def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
+  def pushSplitPartitionNumThreads: Int = get(PUSH_SPLIT_PARTITION_NUM_THREADS)
 
   // //////////////////////////////////////////////////////
   //            GraceFul Shutdown & Recover             //
@@ -1368,17 +1397,50 @@ object CelebornConf extends Logging {
     Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
   }
 
-  def stageEndTimeout(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.stage.end.timeout", "240s")
-  }
+  val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.stageEnd.timeout")
+      .withAlternative("rss.stage.end.timeout")
+      .categories("client")
+      .doc("Timeout for StageEnd.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("240s")
 
-  def limitInFlightTimeoutMs(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.limit.inflight.timeout", "240s")
-  }
+  val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.limit.inFlight.timeout")
+      .withAlternative("rss.limit.inflight.timeout")
+      .categories("client")
+      .doc("Timeout for netty in-flight requests to be done.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("240s")
 
-  def limitInFlightSleepDeltaMs(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.limit.inflight.sleep.delta", "50ms")
-  }
+  val PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.push.limit.inFlight.sleepInterval")
+      .withAlternative("rss.limit.inflight.sleep.delta")
+      .categories("client")
+      .doc("Sleep interval when check netty in-flight requests to be done.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("50ms")
+
+  val PUSH_RETRY_NUM_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.push.retry.numThread")
+      .withAlternative("rss.pushdata.retry.thread.num")
+      .categories("client")
+      .doc("Sleep interval when check netty in-flight requests to be done.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(Math.max(8, Runtime.getRuntime.availableProcessors()))
+
+  val PUSH_SPLIT_PARTITION_NUM_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.push.splitPartition.numThreads")
+      .withAlternative("rss.client.split.pool.size")
+      .categories("client")
+      .doc("Thread number to process shuffle split request in shuffle client.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(8)
 
   def pushServerPort(conf: CelebornConf): Int = {
     conf.getInt("rss.pushserver.port", 0)
@@ -1398,12 +1460,6 @@ object CelebornConf extends Logging {
 
   def masterPortMaxRetry(conf: CelebornConf): Int = {
     conf.getInt("rss.master.port.maxretry", 1)
-  }
-
-  def pushDataRetryThreadNum(conf: CelebornConf): Int = {
-    conf.getInt(
-      "rss.pushdata.retry.thread.num",
-      Math.max(8, Runtime.getRuntime.availableProcessors()))
   }
 
   val METRICS_ENABLED: ConfigEntry[Boolean] =
@@ -1498,19 +1554,6 @@ object CelebornConf extends Logging {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
 
-  def sortPushThreshold(conf: CelebornConf): Long = {
-    conf.getSizeAsBytes("rss.sort.push.data.threshold", "64m")
-  }
-
-  def driverMetaServicePort(conf: CelebornConf): Int = {
-    val port = conf.getInt("rss.driver.metaService.port", 0)
-    if (port != 0) {
-      logWarning("The user specifies the port used by the LifecycleManager on the Driver, and its" +
-        s" values is $port, which may cause port conflicts and startup failure.")
-    }
-    port
-  }
-
   def closeIdleConnections(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = false)
   }
@@ -1519,13 +1562,33 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.replicate.fastfail.duration", "60s")
   }
 
-  def maxPartitionNumSupported(conf: CelebornConf): Long = {
-    conf.getInt("rss.max.partition.number", 500000)
-  }
+  val SHUFFLE_FORCE_FALLBACK: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.force.fallback")
+      .withAlternative("rss.force.fallback")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Whether force fallback shuffle to Spark's default.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def forceFallback(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.force.fallback", false)
-  }
+  val MAX_PARTITION_NUM: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.max.partition.number")
+      .withAlternative("rss.max.partition.number")
+      .categories("client")
+      .version("0.2.0")
+      .doc(
+        "Celeborn will only accept shuffle of partition number lower than this configuration value.")
+      .longConf
+      .createWithDefault(500000)
+
+  val SHUFFLE_META_SERVICE_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.metaService.port")
+      .withAlternative("rss.driver.metaService.port")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Port used by the LifecycleManager on the Driver.")
+      .intConf
+      .createWithDefault(0)
 
   def clusterCheckQuotaEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
@@ -1595,10 +1658,6 @@ object CelebornConf extends Logging {
     conf.getInt("rss.ha.client.maxTries", 15)
   }
 
-  def clusterSlotsUsageLimitPercent(conf: CelebornConf): Double = {
-    conf.getDouble("rss.slots.usage.overload.percent", 0.95)
-  }
-
   def identityProviderClass(conf: CelebornConf): String = {
     conf.get("rss.identity.provider", classOf[DefaultIdentityProvider].getName)
   }
@@ -1638,21 +1697,14 @@ object CelebornConf extends Logging {
     }
   }
 
-  def partitionType(conf: CelebornConf): PartitionType = {
-    val typeStr = conf.get("rss.partition.type", "reduce")
-    typeStr match {
-      case "reduce" => PartitionType.REDUCE_PARTITION
-      case "map" => PartitionType.MAP_PARTITION
-      case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
-      case _ =>
-        logWarning(s"Invalid split mode $typeStr, use ReducePartition by default")
-        PartitionType.REDUCE_PARTITION
-    }
-  }
-
-  def clientSplitPoolSize(conf: CelebornConf): Int = {
-    conf.getInt("rss.client.split.pool.size", 8)
-  }
+  val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.partition.type")
+      .withAlternative("rss.partition.type")
+      .categories("client")
+      .doc("")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault("reduce")
 
   // Support 2 type codecs: lz4 and zstd
   def compressionCodec(conf: CelebornConf): String = {
@@ -1787,9 +1839,14 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
-  def rangeReadFilterEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.range.read.filter.enabled", false)
-  }
+  val SHUFFLE_RANGE_READ_FILTER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.rangeReadFilter.enabled")
+      .withAlternative("rss.range.read.filter.enabled")
+      .categories("client")
+      .version("0.2.0")
+      .doc("If a spark application have skewed partition, this value can set to true to improve performance.")
+      .booleanConf
+      .createWithDefault(false)
 
   def columnarShuffleEnabled(conf: CelebornConf): Boolean = {
     conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)

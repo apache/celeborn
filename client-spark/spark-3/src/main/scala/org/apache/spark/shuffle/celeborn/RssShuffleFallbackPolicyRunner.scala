@@ -32,7 +32,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * if rss.force.fallback is true, fallback to external shuffle
    * @return return rss.force.fallback
    */
-  def applyForceFallbackPolicy(): Boolean = CelebornConf.forceFallback(conf)
+  def applyForceFallbackPolicy(): Boolean = conf.shuffleForceFallback
 
   /**
    * if shuffle partitions > rss.max.partition.number, fallback to external shuffle
@@ -40,7 +40,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return return if shuffle partitions bigger than limit
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = CelebornConf.maxPartitionNumSupported(conf)
+    val confNumPartitions = conf.maxPartitionNumSupported
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
       logInfo(s"Shuffle num of partitions: $numPartitions" +
