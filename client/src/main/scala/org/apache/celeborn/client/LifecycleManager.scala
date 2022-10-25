@@ -56,9 +56,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = conf.pushStageEndTimeout
-  private val rpcCacheSize = CelebornConf.rpcCacheSize(conf)
-  private val rpcCacheConcurrentLevel = CelebornConf.rpcCacheConcurrentLevel(conf)
-  private val rpcCacheExpireTimeMs = CelebornConf.rpcCacheExpireTimeMs(conf)
+  private val rpcCacheSize = conf.rpcCacheSize
+  private val rpcCacheConcurrentLevel = conf.rpcCacheConcurrentLevel
+  private val rpcCacheExpireMs = conf.rpcCacheExpire
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -75,9 +75,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
-  private val rpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrentLevel)
-    .expireAfterWrite(rpcCacheExpireTimeMs, TimeUnit.MILLISECONDS)
+    .expireAfterWrite(rpcCacheExpireMs, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
@@ -800,7 +800,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
           shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)))
       } else {
-        val cachedMsg = rpcCache.get(
+        val cachedMsg = getReducerFileGroupRpcCache.get(
           shuffleId,
           new Callable[ByteBuffer]() {
             override def call(): ByteBuffer = {
