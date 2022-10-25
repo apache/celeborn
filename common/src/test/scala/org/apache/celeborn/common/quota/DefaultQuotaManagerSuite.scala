@@ -26,7 +26,9 @@ class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
 
   override def beforeAll(): Unit = {
     val conf = new CelebornConf()
-    conf.set("rss.quota.configuration.path", getTestResourceFile("test-quota.yaml").getPath)
+    conf.set(
+      "celeborn.shuffle.quota.configuration.path",
+      getTestResourceFile("test-quota.yaml").getPath)
     quotaManager = QuotaManager.instantiate(conf)
   }
 

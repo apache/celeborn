@@ -28,7 +28,7 @@ object IdentityProvider extends Logging {
   val DEFAULT_TENANT_ID = "default"
 
   def instantiate(conf: CelebornConf): IdentityProvider = {
-    val className = CelebornConf.identityProviderClass(conf)
+    val className = conf.identityProviderClass
     logDebug(s"Creating identity provider $className")
     val clazz = Class.forName(
       className,

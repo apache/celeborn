@@ -500,6 +500,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   // //////////////////////////////////////////////////////
+  //                      Quota                         //
+  // //////////////////////////////////////////////////////
+  def clusterCheckQuotaEnabled: Boolean = get(SHUFFLE_CHECK_QUOTA_ENABLED)
+  def identityProviderClass: String = get(SHUFFLE_IDENTITY_PROVIDER)
+  def quotaManagerClass: String = get(SHUFFLE_QUOTA_MANAGER)
+  def quotaConfigurationPath: Option[String] = get(SHUFFLE_QUOTA_CONFIGURATION_PATH)
+
+  // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                 //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
@@ -1615,6 +1623,42 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
+  val SHUFFLE_CHECK_QUOTA_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.checkQuota.enabled")
+      .withAlternative("rss.cluster.checkQuota.enabled")
+      .categories("quota")
+      .doc("")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
+
+  val SHUFFLE_IDENTITY_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.identity.provider")
+      .withAlternative("rss.identity.provider")
+      .categories("quota")
+      .doc("Identity provider class name. Default value use `DefaultIdentityProvider`, " +
+        "return `UserIdentifier` with default tenant id and username from `UserGroupInformation`. ")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault(classOf[DefaultIdentityProvider].getName)
+
+  val SHUFFLE_QUOTA_MANAGER: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.quota.manager")
+      .withAlternative("rss.quota.manager")
+      .categories("quota")
+      .doc("")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault(classOf[DefaultQuotaManager].getName)
+
+  val SHUFFLE_QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.shuffle.quota.configuration.path")
+      .withAlternative("rss.quota.configuration.path")
+      .categories("quota")
+      .doc("")
+      .version("0.2.0")
+      .stringConf
+      .createOptional
   def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
   }
@@ -1668,10 +1712,6 @@ object CelebornConf extends Logging {
         },
         "")
       .createWithDefault(0)
-
-  def clusterCheckQuotaEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
-  }
 
   val WORKER_DISK_MONITOR_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.monitor.disk.enabled")
@@ -1735,18 +1775,6 @@ object CelebornConf extends Logging {
 
   def haClientMaxTries(conf: CelebornConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
-  }
-
-  def identityProviderClass(conf: CelebornConf): String = {
-    conf.get("rss.identity.provider", classOf[DefaultIdentityProvider].getName)
-  }
-
-  def quotaManagerClass(conf: CelebornConf): String = {
-    conf.get("rss.quota.manager", classOf[DefaultQuotaManager].getName)
-  }
-
-  def quotaConfigurationPath(conf: CelebornConf): Option[String] = {
-    conf.getOption("rss.quota.configuration.path")
   }
 
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =

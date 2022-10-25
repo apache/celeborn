@@ -44,7 +44,7 @@ abstract class QuotaManager(conf: CelebornConf) extends Logging {
 
 object QuotaManager extends Logging {
   def instantiate(conf: CelebornConf): QuotaManager = {
-    val className = CelebornConf.quotaManagerClass(conf)
+    val className = conf.quotaManagerClass
     logDebug(s"Creating quota manager $className")
     val clazz = Class.forName(
       className,
