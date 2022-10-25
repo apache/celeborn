@@ -532,6 +532,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionEnabled: Boolean = get(BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionNumThreads: Int = get(BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
+  def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
+  def rpcCacheConcurrentLevel: Int = get(RPC_CACHE_CONCURRENT_LEVEL)
+  def rpcCacheExpire: Long = get(RPC_CACHE_EXPIRE)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1971,4 +1974,31 @@ object CelebornConf extends Logging {
         s"celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`.")
       .doubleConf
       .createWithDefault(0.3)
+
+  val RPC_CACHE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.rpcCache.Size")
+      .categories("client")
+      .withAlternative("rss.rpc.cache.size")
+      .version("0.2.0")
+      .doc("The max cache items count for rpc cache.")
+      .intConf
+      .createWithDefault(256)
+
+  val RPC_CACHE_CONCURRENT_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.rpcCache.concurrent.level")
+      .categories("client")
+      .withAlternative("rss.rpc.cache.concurrent.level")
+      .version("0.2.0")
+      .doc("The number of write locks to update rpc cache.")
+      .intConf
+      .createWithDefault(32)
+
+  val RPC_CACHE_EXPIRE: ConfigEntry[Long] =
+    buildConf("celeborn.rpcCache.expire")
+      .categories("client")
+      .withAlternative("rss.rpc.cache.expire")
+      .version("0.2.0")
+      .doc("The time before a cache item is removed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("15s")
 }
