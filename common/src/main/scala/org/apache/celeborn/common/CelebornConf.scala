@@ -370,7 +370,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haClientMaxTries: Int = get(HA_CLIENT_MAX_RETRIES)
 
   // //////////////////////////////////////////////////////
-  //                      Master                        //
+  //                      Master                         //
   // //////////////////////////////////////////////////////
   def diskGroups: Int = get(DISK_GROUP)
   def diskGroupGradient: Double = get(DISK_GROUP_GRADIENT)
@@ -378,7 +378,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def offerSlotsAlgorithm: String = get(MASTER_OFFER_SLOTS_ALGORITM)
 
   // //////////////////////////////////////////////////////
-  //                      Worker                        //
+  //                      Worker                         //
   // //////////////////////////////////////////////////////
   def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
@@ -386,7 +386,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
 
   // //////////////////////////////////////////////////////
-  //                      Client                        //
+  //                      Client                         //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -414,13 +414,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Compression                  //
+  //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
   def shuffleCompressionCodec: String = get(SHUFFLE_COMPRESSION_CODEC)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
-  //               Address && HA && RATIS               //
+  //               Address && HA && RATIS                //
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
     get(MASTER_ENDPOINTS).toArray.map { endpoint =>
@@ -497,7 +497,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
 
   // //////////////////////////////////////////////////////
-  //                 Metrics System                     //
+  //                 Metrics System                      //
   // //////////////////////////////////////////////////////
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
@@ -510,13 +510,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Fetch                 //
+  //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Push                  //
+  //               Shuffle Client Push                   //
   // //////////////////////////////////////////////////////
   def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
   def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
@@ -544,7 +544,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
 
   // //////////////////////////////////////////////////////
-  //            GraceFul Shutdown & Recover             //
+  //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
@@ -555,7 +555,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
   // //////////////////////////////////////////////////////
-  //                      Flusher                       //
+  //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
@@ -635,6 +635,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         }
     }.getOrElse("")
   }
+
+  // //////////////////////////////////////////////////////
+  //                 Columnar Shuffle                    //
+  // //////////////////////////////////////////////////////
+  def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
+  def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
+  def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
+  def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
+  def columnarShuffleDictionaryMaxFactor: Double =
+    get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR)
 }
 
 object CelebornConf extends Logging {
@@ -1955,23 +1965,46 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  def columnarShuffleEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)
-  }
+  val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to enable columnar-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def columnarShuffleCompress(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.encoding.enabled", defaultValue = false)
-  }
+  val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.columnar.shuffle.batch.size")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Vector batch size for columnar shuffle.")
+      .intConf
+      .checkValue(v => v > 0, "value must be positive")
+      .createWithDefault(10000)
 
-  def columnarShuffleBatchSize(conf: CelebornConf): Int = {
-    conf.getInt("rss.columnar.shuffle.batch.size", 10000)
-  }
+  val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.offHeap.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use off heap columnar vector.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def columnarShuffleOffHeapColumnVectorEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.offheap.vector.enabled", false)
-  }
+  val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.encoding.dictionary.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def columnarShuffleMaxDictFactor(conf: CelebornConf): Double = {
-    conf.getDouble("rss.columnar.shuffle.max.dict.factor", 0.3)
-  }
+  val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Max factor for dictionary size. The max dictionary size is " +
+        s"`min(${Utils.bytesToString(Short.MaxValue)}, ${COLUMNAR_SHUFFLE_BATCH_SIZE.key} * " +
+        s"celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`.")
+      .doubleConf
+      .createWithDefault(0.3)
 }

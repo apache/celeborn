@@ -35,14 +35,14 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 class RssColumnarBatchSerializer(
     schema: StructType,
     columnBatchSize: Int,
-    useCompression: Boolean,
+    encodingEnabled: Boolean,
     offHeapColumnVectorEnabled: Boolean,
     dataSize: SQLMetric = null) extends Serializer with Serializable {
   override def newInstance(): SerializerInstance =
     new RssColumnarBatchSerializerInstance(
       schema,
       columnBatchSize,
-      useCompression,
+      encodingEnabled,
       offHeapColumnVectorEnabled,
       dataSize)
   override def supportsRelocationOfSerializedObjects: Boolean = true
@@ -51,7 +51,7 @@ class RssColumnarBatchSerializer(
 private class RssColumnarBatchSerializerInstance(
     schema: StructType,
     columnBatchSize: Int,
-    useCompression: Boolean,
+    encodingEnabled: Boolean,
     offHeapColumnVectorEnabled: Boolean,
     dataSize: SQLMetric) extends SerializerInstance {
 
