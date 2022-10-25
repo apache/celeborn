@@ -192,7 +192,7 @@ public class ShuffleClientSuiteJ {
 
   private CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
-    conf.set("rss.client.compression.codec", codec.name());
+    conf.set("celeborn.shuffle.compression.codec", codec.name());
     conf.set("celeborn.push.retry.threads", "1");
     conf.set("celeborn.push.buffer.size", "1K");
     shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
