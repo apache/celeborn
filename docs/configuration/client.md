@@ -36,7 +36,7 @@ license: |
 | celeborn.push.stageEnd.timeout | 240s | Timeout for StageEnd. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
 | celeborn.rpcCache.Size | 256 | The max cache items count for rpc cache. | 0.2.0 | 
-| celeborn.rpcCache.concurrent.level | 256 | The number of write locks to update rpc cache. | 0.2.0 | 
+| celeborn.rpcCache.concurrent.level | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
 | celeborn.rpcCache.expire | 15s | The time before a cache item is removed. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.enabled | false | When true, LifecycleManager will handle change partition request in batch. Otherwise, LifecycleManager will process the requests one by one | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.interval | 100ms | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.2.0 | 
