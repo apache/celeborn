@@ -18,11 +18,13 @@
 package org.apache.celeborn.common
 
 import java.io.IOException
-import java.util.{Collections, Locale, Collection => JCollection, HashMap => JHashMap, Map => JMap}
+import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
+
+import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
@@ -33,7 +35,6 @@ import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
 import org.apache.celeborn.common.util.Utils
-import org.apache.hadoop.security.UserGroupInformation
 
 class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
