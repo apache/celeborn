@@ -398,7 +398,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       case "reduce" => PartitionType.REDUCE_PARTITION
       case "map" => PartitionType.MAP_PARTITION
       case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
-      case _ => PartitionType.REDUCE_PARTITION
+      case unknown =>
+        throw new IllegalArgumentException(s"Celeborn don't support partition type `$unknown`")
     }
   }
 
@@ -519,9 +520,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
   def partitionSplitMode: PartitionSplitMode = {
-    get(PARTITION_SPLIT_MODE).toLowerCase(Locale.ROOT) match {
+    get(PARTITION_SPLIT_MODE) match {
+      case "solf" => PartitionSplitMode.SOFT
       case "hard" => PartitionSplitMode.HARD
-      case _ => PartitionSplitMode.SOFT
+      case unknown =>
+        throw new IllegalArgumentException(
+          s"Celeborn don't support partition split mode `$unknown`")
     }
   }
   def partitionSplitThreshold: Long = get(PARTITION_SPLIT_THRESHOLD)
@@ -1463,25 +1467,28 @@ object CelebornConf extends Logging {
       .doc("Shuffle file size threshold, if file size exceeds this, trigger split.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("256m")
+      .createWithDefaultString("1G")
 
   val PARTITION_SPLIT_MODE: ConfigEntry[String] =
     buildConf("celeborn.shuffle.partitionSplit.mode")
       .withAlternative("rss.partition.split.mode")
       .categories("client")
-      .doc("soft, the shuffle file size might be larger than split threshold ; hard, the shuffle file size will be limited to split threshold.")
+      .doc("soft: the shuffle file size might be larger than split threshold. " +
+        "hard: the shuffle file size will be limited to split threshold.")
       .version("0.2.0")
       .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
       .checkValue(
-        value => Seq("soft", "hard").contains(value.toLowerCase(Locale.ROOT)),
-        s"Invalid split mode, Celeborn only support partition type of (soft, hard)")
+        Seq("soft", "hard").contains(_),
+        s"Celeborn only support partition type of (soft, hard)")
       .createWithDefault("soft")
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")
       .withAlternative("rss.change.partition.batch.enabled")
       .categories("client")
-      .doc("When true, Celeborn support handle change partition request in batch.")
+      .doc("When true, LifecycleManager will handle change partition request in batch. " +
+        "Otherwise, LifecycleManager will process the requests one by one")
       .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
@@ -1499,8 +1506,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.batchHandleChangePartition.interval")
       .withAlternative("rss.change.partition.batchInterval")
       .categories("client")
-      .doc(
-        "Batch handling interval for LifecycleManager handle change partition requests in batch.")
+      .doc("Interval for LifecycleManager to schedule handling change partition requests in batch.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("100ms")
@@ -1750,9 +1756,10 @@ object CelebornConf extends Logging {
       .doc("Type of shuffle's partition.")
       .version("0.2.0")
       .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
       .checkValue(
-        value => Seq("reduce", "map", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
-        s"Invalid partition type, Celeborn only support partition type of (reduce, map, mapgroup)")
+        Seq("reduce", "map", "mapgroup").contains(_),
+        s"Celeborn only support partition type of (reduce, map, mapgroup)")
       .createWithDefault("reduce")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
