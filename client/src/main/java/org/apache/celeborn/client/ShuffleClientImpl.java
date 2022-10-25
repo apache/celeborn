@@ -58,6 +58,7 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -139,11 +140,14 @@ public class ShuffleClientImpl extends ShuffleClient {
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
     dataClientFactory = context.createClientFactory();
 
-    int retryThreadNum = CelebornConf.pushDataRetryThreadNum(conf);
-    pushDataRetryPool = ThreadUtils.newDaemonCachedThreadPool("Retry-Sender", retryThreadNum, 60);
+    int pushDataRetryThreads = conf.pushRetryThreads();
+    pushDataRetryPool =
+        ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreads, 60);
 
-    int splitPoolSize = CelebornConf.clientSplitPoolSize(conf);
-    partitionSplitPool = ThreadUtils.newDaemonCachedThreadPool("Shuffle-Split", splitPoolSize, 60);
+    int pushSplitPartitionThreads = conf.pushSplitPartitionThreads();
+    partitionSplitPool =
+        ThreadUtils.newDaemonCachedThreadPool(
+            "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
   }
 
   private void submitRetryPushData(
@@ -269,8 +273,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
             PartitionLocation partitionLoc =
-                PartitionLocation.fromPbPartitionLocation(
-                    response.getPartitionLocationsList().get(i));
+                PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
@@ -312,8 +315,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches = pushState.inFlightBatches;
-    long timeoutMs = CelebornConf.limitInFlightTimeoutMs(conf);
-    long delta = CelebornConf.limitInFlightSleepDeltaMs(conf);
+    long timeoutMs = conf.pushLimitInFlightTimeoutMs();
+    long delta = conf.pushLimitInFlightSleepDeltaMs();
     long times = timeoutMs / delta;
     try {
       while (times > 0) {
@@ -413,7 +416,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // per partitionKey only serve single PartitionLocation in Client Cache.
       StatusCode respStatus = Utils.toStatusCode(response.getStatus());
       if (StatusCode.SUCCESS.equals(respStatus)) {
-        map.put(partitionId, PartitionLocation.fromPbPartitionLocation(response.getLocation()));
+        map.put(partitionId, PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
         return true;
       } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapKey);
@@ -472,18 +475,20 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     // get location
-    if (!map.containsKey(partitionId)
-        && !revive(
-            applicationId,
-            shuffleId,
-            mapId,
-            attemptId,
-            partitionId,
-            0,
-            null,
-            StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
-      throw new IOException(
-          "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
+    if (!map.containsKey(partitionId)) {
+      logger.warn("It should never reach here!");
+      if (!revive(
+          applicationId,
+          shuffleId,
+          mapId,
+          attemptId,
+          partitionId,
+          -1,
+          null,
+          StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
+        throw new IOException(
+            "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
+      }
     }
 
     if (mapperEnded(shuffleId, mapId, attemptId)) {
@@ -1136,9 +1141,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode cause;
     if (StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage().equals(message)) {
       cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
-    } else if (StatusCode.PUSH_DATA_FAIL_MAIN.getMessage().equals(message)
+    } else if (StatusCode.PUSH_DATA_FAIL_MASTER.getMessage().equals(message)
         || connectFail(message)) {
-      cause = StatusCode.PUSH_DATA_FAIL_MAIN;
+      cause = StatusCode.PUSH_DATA_FAIL_MASTER;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }

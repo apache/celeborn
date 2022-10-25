@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
 
@@ -49,10 +49,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   private val splitThreshold = CelebornConf.partitionSplitThreshold(conf)
   private val splitMode = CelebornConf.partitionSplitMode(conf)
-  private val partitionType = CelebornConf.partitionType(conf)
-  private val rangeReadFilter = CelebornConf.rangeReadFilterEnabled(conf)
+  private val partitionType = conf.shufflePartitionType
+  private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
-  private val stageEndTimeout = CelebornConf.stageEndTimeout(conf)
+  private val stageEndTimeout = conf.pushStageEndTimeout
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -139,7 +139,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.RSS_METASERVICE_SYS,
     lifecycleHost,
-    CelebornConf.driverMetaServicePort(conf),
+    conf.shuffleManagerPort,
     conf)
   rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
 
@@ -308,7 +308,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val attemptId = pb.getAttemptId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition = PartitionLocation.fromPbPartitionLocation(pb.getOldPartition)
+      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
         s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
@@ -329,7 +329,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val shuffleId = pb.getShuffleId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition = PartitionLocation.fromPbPartitionLocation(pb.getOldPartition)
+      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
       handleChangePartitionLocation(
@@ -449,7 +449,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
     val reserveSlotsSuccess =
-      reserveSlotsWithRetry(applicationId, shuffleId, candidatesWorkers.asScala.toList, slots)
+      reserveSlotsWithRetry(
+        applicationId,
+        shuffleId,
+        candidatesWorkers.asScala.toList,
+        slots,
+        false)
 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
@@ -499,7 +504,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new util.ArrayList[WorkerInfo]()
-    if (cause == StatusCode.PUSH_DATA_FAIL_MAIN && oldPartition != null) {
+    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
       val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
         .find(_.equals(tmpWorker))
@@ -1209,7 +1214,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       candidates: List[WorkerInfo],
-      slots: WorkerResource): Boolean = {
+      slots: WorkerResource,
+      updateEpoch: Boolean = true): Boolean = {
     var requestSlots = slots
     val reserveSlotsMaxRetries = conf.reserveSlotsMaxRetries
     val reserveSlotsRetryWait = conf.reserveSlotsRetryWait
@@ -1251,7 +1257,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             // duplicated with existing partition locations.
             requestSlots = reallocateSlotsFromCandidates(
               failedPartitionLocations.values.toList,
-              retryCandidates.asScala.toList)
+              retryCandidates.asScala.toList,
+              updateEpoch)
             requestSlots.asScala.foreach { case (workerInfo, (retryMasterLocs, retrySlaveLocs)) =>
               val (masterPartitionLocations, slavePartitionLocations) =
                 slots.computeIfAbsent(workerInfo, newLocationFunc)
@@ -1296,11 +1303,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       id: Int,
       oldEpochId: Int,
       candidates: List[WorkerInfo],
-      slots: WorkerResource): Unit = {
+      slots: WorkerResource,
+      updateEpoch: Boolean = true): Unit = {
     val masterIndex = Random.nextInt(candidates.size)
     val masterLocation = new PartitionLocation(
       id,
-      oldEpochId + 1,
+      if (updateEpoch) oldEpochId + 1 else oldEpochId,
       candidates(masterIndex).host,
       candidates(masterIndex).rpcPort,
       candidates(masterIndex).pushPort,
@@ -1312,7 +1320,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val slaveIndex = (masterIndex + 1) % candidates.size
       val slaveLocation = new PartitionLocation(
         id,
-        oldEpochId + 1,
+        if (updateEpoch) oldEpochId + 1 else oldEpochId,
         candidates(slaveIndex).host,
         candidates(slaveIndex).rpcPort,
         candidates(slaveIndex).pushPort,
@@ -1341,10 +1349,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private def reallocateSlotsFromCandidates(
       oldPartitions: List[PartitionLocation],
-      candidates: List[WorkerInfo]): WorkerResource = {
+      candidates: List[WorkerInfo],
+      updateEpoch: Boolean = true): WorkerResource = {
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
-      allocateFromCandidates(partition.getId, partition.getEpoch, candidates, slots)
+      allocateFromCandidates(partition.getId, partition.getEpoch, candidates, slots, updateEpoch)
     }
     slots
   }

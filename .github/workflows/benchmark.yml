@@ -19,7 +19,7 @@ name: Celeborn Benchmark
 
 on:
   repository_dispatch:
-    types: [ benchmark ]
+    types: [ benchmark-command ]
 
 jobs:
   regression:

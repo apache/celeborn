@@ -25,7 +25,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbChangeLocationResponse, PbPartitionSplit}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcEndpointRef
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
 
 object ShuffleClientHelper extends Logging {
   def sendShuffleSplitAsync(
@@ -40,7 +40,7 @@ object ShuffleClientHelper extends Logging {
       case Success(resp) =>
         val respStatus = Utils.toStatusCode(resp.getStatus)
         if (respStatus == StatusCode.SUCCESS) {
-          shuffleLocs.put(partitionId, PartitionLocation.fromPbPartitionLocation(resp.getLocation))
+          shuffleLocs.put(partitionId, PbSerDeUtils.fromPbPartitionLocation(resp.getLocation))
         } else {
           logInfo(s"split failed for $respStatus, " +
             s"shuffle file can be larger than expected, try split again");

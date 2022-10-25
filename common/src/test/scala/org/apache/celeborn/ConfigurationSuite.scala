@@ -85,8 +85,8 @@ class ConfigurationSuite extends AnyFunSuite {
       .sortBy(_.key)
       .foreach { entry =>
         val seq = Seq(
-          s"${entry.key}",
-          s"`${entry.defaultValueString}`",
+          s"${escape(entry.key)}",
+          s"${escape(entry.defaultValueString)}",
           s"${entry.doc}",
           s"${entry.version}")
         output += seq.mkString("| ", " | ", " | ")
@@ -95,6 +95,10 @@ class ConfigurationSuite extends AnyFunSuite {
 
     verifyOutput(markdown, output)
   }
+
+  def escape(s: String): String = s
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
 
   def appendLicenseHeader(output: ArrayBuffer[String]): Unit = {
     output += "---"

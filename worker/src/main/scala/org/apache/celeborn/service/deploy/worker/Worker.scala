@@ -30,6 +30,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.exception.RssException
 import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
@@ -38,6 +39,7 @@ import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.server.{ChannelsLimiter, MemoryTracker}
 import org.apache.celeborn.common.protocol.{PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
+import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -154,7 +156,8 @@ private[celeborn] class Worker(
   }
 
   // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
-  val userResourceConsumption = storageManager.userResourceConsumptionSnapshot().asJava
+  val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption](
+    storageManager.userResourceConsumptionSnapshot().asJava)
 
   val workerInfo =
     new WorkerInfo(

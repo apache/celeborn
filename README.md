@@ -99,8 +99,8 @@ celeborn.master.port 9097
 celeborn.metrics.enabled true
 celeborn.worker.flush.buffer.size 256k
 celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
-# If your hosts have disk raid or use lvm, set celeborn.worker.deviceMonitor.enabled to false
-celeborn.worker.deviceMonitor.enabled false
+# If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
+celeborn.worker.monitor.disk.enabled false
 ```   
 
 EXAMPLE: HA cluster
@@ -126,8 +126,8 @@ celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 celeborn.metrics.enabled true
 celeborn.worker.flush.buffer.size 256k
 celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
-# If your hosts have disk raid or use lvm, set celeborn.worker.deviceMonitor.enabled to false
-celeborn.worker.deviceMonitor.enabled false
+# If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
+celeborn.worker.monitor.disk.enabled false
 ```
 4. Copy Celeborn and configurations to all nodes
 5. Start Celeborn master
