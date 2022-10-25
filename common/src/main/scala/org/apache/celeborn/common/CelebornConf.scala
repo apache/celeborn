@@ -533,7 +533,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionNumThreads: Int = get(BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
-  def rpcCacheConcurrentLevel: Int = get(RPC_CACHE_CONCURRENT_LEVEL)
+  def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
 
   // //////////////////////////////////////////////////////
@@ -1984,8 +1984,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(256)
 
-  val RPC_CACHE_CONCURRENT_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.cache.concurrentLevel")
+  val RPC_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.cache.concurrencyLevel")
       .categories("client")
       .withAlternative("rss.rpc.cache.concurrent.level")
       .version("0.2.0")
