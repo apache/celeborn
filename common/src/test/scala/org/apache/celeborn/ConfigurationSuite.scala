@@ -58,6 +58,10 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("client")
   }
 
+  test("docs - configuration/columnar-shuffle.md") {
+    generateConfigurationMarkdown("columnar-shuffle")
+  }
+
   test("docs - configuration/master.md") {
     generateConfigurationMarkdown("master")
   }
@@ -107,9 +111,12 @@ class ConfigurationSuite extends AnyFunSuite {
   def appendLicenseHeader(output: ArrayBuffer[String]): Unit = {
     output += "---"
     output += "license: |"
-    output += "  Licensed under the Apache License, Version 2.0 (the \"License\");"
-    output += "  you may not use this file except in compliance with the License."
-    output += "  You may obtain a copy of the License at"
+    output += "  Licensed to the Apache Software Foundation (ASF) under one or more"
+    output += "  contributor license agreements.  See the NOTICE file distributed with"
+    output += "  this work for additional information regarding copyright ownership."
+    output += "  The ASF licenses this file to You under the Apache License, Version 2.0"
+    output += "  (the \"License\"); you may not use this file except in compliance with"
+    output += "  the License.  You may obtain a copy of the License at"
     output += "  "
     output += "      https://www.apache.org/licenses/LICENSE-2.0"
     output += "  "

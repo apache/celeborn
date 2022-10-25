@@ -52,6 +52,14 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
+### Columnar Shuffle
+
+{!
+include-markdown "./columnar-shuffle.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
 ### Master
 
 {!
