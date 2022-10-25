@@ -29,4 +29,6 @@ RUN set -ex && \
     rm -rf /var/cache/apt/* && \
     mkdir -p /opt/
 
-ADD celeborn-${celeborn_version}-bin.tgz /opt/
+ADD apache-celeborn-${celeborn_version}-bin.tgz /opt/
+
+RUN ln -s /opt/apache-celeborn-${celeborn_version}-bin /opt/celeborn

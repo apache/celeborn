@@ -69,9 +69,9 @@ function log() {
 
 function getCelebornDist() {
   cd ${REG_CELEBORN_DIST}
-  tar xf celeborn*.tgz
-  rm -rf ./celeborn*.tgz
-  CELEBORN_DIST="$(basename `cd celeborn* && pwd`)"
+  tar xf apache-celeborn*.tgz
+  rm -rf ./apache-celeborn*.tgz
+  CELEBORN_DIST="$(basename `cd apache-celeborn* && pwd`)"
   cd -
 }
 
