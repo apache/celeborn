@@ -508,13 +508,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def quotaConfigurationPath: Option[String] = get(SHUFFLE_QUOTA_CONFIGURATION_PATH)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Fetch                 //
+  //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Push                  //
+  //               Shuffle Client Push                   //
   // //////////////////////////////////////////////////////
   def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
   def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
