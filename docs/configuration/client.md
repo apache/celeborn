@@ -34,10 +34,10 @@ license: |
 | celeborn.push.sortMemory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.push.stageEnd.timeout | 240s | Timeout for StageEnd. | 0.2.0 | 
+| celeborn.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
+| celeborn.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.2.0 | 
+| celeborn.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
-| celeborn.rpcCache.Size | 256 | The max cache items count for rpc cache. | 0.2.0 | 
-| celeborn.rpcCache.concurrent.level | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
-| celeborn.rpcCache.expire | 15s | The time before a cache item is removed. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.enabled | false | When true, LifecycleManager will handle change partition request in batch. Otherwise, LifecycleManager will process the requests one by one | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.interval | 100ms | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.threads | 8 | Threads number for LifecycleManager to handle change partition request in batch. | 0.2.0 | 

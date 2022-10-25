@@ -57,8 +57,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = conf.pushStageEndTimeout
   private val rpcCacheSize = conf.rpcCacheSize
-  private val rpcCacheConcurrentLevel = conf.rpcCacheConcurrentLevel
-  private val rpcCacheExpireMs = conf.rpcCacheExpire
+  private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
+  private val rpcCacheExpireTime = conf.rpcCacheExpireTime
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -76,8 +76,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
   private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
-    .concurrencyLevel(rpcCacheConcurrentLevel)
-    .expireAfterWrite(rpcCacheExpireMs, TimeUnit.MILLISECONDS)
+    .concurrencyLevel(rpcCacheConcurrencyLevel)
+    .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =

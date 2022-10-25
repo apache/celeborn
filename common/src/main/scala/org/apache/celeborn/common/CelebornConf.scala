@@ -533,8 +533,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionNumThreads: Int = get(BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
-  def rpcCacheConcurrentLevel: Int = get(RPC_CACHE_CONCURRENT_LEVEL)
-  def rpcCacheExpire: Long = get(RPC_CACHE_EXPIRE)
+  def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
+  def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1976,7 +1976,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.3)
 
   val RPC_CACHE_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.rpcCache.Size")
+    buildConf("celeborn.rpc.cache.size")
       .categories("client")
       .withAlternative("rss.rpc.cache.size")
       .version("0.2.0")
@@ -1984,8 +1984,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(256)
 
-  val RPC_CACHE_CONCURRENT_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.rpcCache.concurrent.level")
+  val RPC_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.cache.concurrencyLevel")
       .categories("client")
       .withAlternative("rss.rpc.cache.concurrent.level")
       .version("0.2.0")
@@ -1993,8 +1993,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(32)
 
-  val RPC_CACHE_EXPIRE: ConfigEntry[Long] =
-    buildConf("celeborn.rpcCache.expire")
+  val RPC_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.cache.expireTime")
       .categories("client")
       .withAlternative("rss.rpc.cache.expire")
       .version("0.2.0")
