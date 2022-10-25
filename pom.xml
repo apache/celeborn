@@ -23,12 +23,13 @@
 
   <groupId>com.aliyun.emr</groupId>
   <artifactId>remote-shuffle-service</artifactId>
-  <version>0.1.3</version>
+  <version>${project.version}</version>
   <packaging>pom</packaging>
 
   <name>Aliyun E-MapReduce Shuffle Service Project Parent POM</name>
 
   <properties>
+    <project.version>0.1.4</project.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>

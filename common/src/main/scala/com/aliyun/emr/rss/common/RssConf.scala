@@ -823,6 +823,18 @@ object RssConf extends Logging {
     conf.getBoolean("rss.range.read.filter.enabled", false)
   }
 
+  def rpcCacheSize(conf: RssConf): Int = {
+    conf.getInt("rss.rpc.cache.size", 256)
+  }
+
+  def rpcCacheConcurrentLevel(conf: RssConf): Int = {
+    conf.getInt("rss.rpc.cache.concurrent.level", 32)
+  }
+
+  def rpcCacheExpireTimeMs(conf: RssConf): Long = {
+    conf.getTimeAsMs("rss.rpc.cache.expire", "15s")
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

@@ -55,8 +55,8 @@ private[rss] class LocalNettyRpcCallContext(
  * A [[RpcCallContext]] that will call [[RpcResponseCallback]] to send the reply back.
  */
 private[rss] class RemoteNettyRpcCallContext(
-    nettyEnv: NettyRpcEnv,
-    callback: RpcResponseCallback,
+    val nettyEnv: NettyRpcEnv,
+    val callback: RpcResponseCallback,
     senderAddress: RpcAddress)
   extends NettyRpcCallContext(senderAddress) {
 

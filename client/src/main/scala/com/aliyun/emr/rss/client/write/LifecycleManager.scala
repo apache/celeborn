@@ -17,15 +17,16 @@
 
 package com.aliyun.emr.rss.client.write
 
+import java.nio.ByteBuffer
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
+import com.google.common.cache.{Cache, CacheBuilder}
 import io.netty.util.internal.ConcurrentSet
 import org.roaringbitmap.RoaringBitmap
 
@@ -38,7 +39,7 @@ import com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.protocol.message.StatusCode
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
+import com.aliyun.emr.rss.common.rpc.netty.{LocalNettyRpcCallContext, NettyRpcEndpointRef, NettyRpcEnv, RemoteNettyRpcCallContext}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint with Logging {
@@ -52,6 +53,9 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   private val splitMode = RssConf.partitionSplitMode(conf)
   private val storageHint = RssConf.storageHint(conf)
   private val rangeReadFilter = RssConf.rangeReadFilterEnabled(conf)
+  private val rpcCacheSize = RssConf.rpcCacheSize(conf)
+  private val rpcCacheConcurrentLevel = RssConf.rpcCacheConcurrentLevel(conf)
+  private val rpcCacheExpireMs = RssConf.rpcCacheExpireTimeMs(conf)
 
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
 
@@ -67,6 +71,11 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
   // shuffle id -> (partitionId -> newest PartitionLocation)
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+    .concurrencyLevel(rpcCacheConcurrentLevel)
+    .expireAfterWrite(rpcCacheExpireMs, TimeUnit.MILLISECONDS)
+    .maximumSize(rpcCacheSize)
+    .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
   val newMapFunc =
     new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
@@ -582,12 +591,26 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
     if (dataLostShuffleSet.contains(shuffleId)) {
       context.reply(GetReducerFileGroupResponse(StatusCode.Failed, null, null))
     } else {
-      val shuffleFileGroup = reducerFileGroupsMap.get(shuffleId)
-      context.reply(GetReducerFileGroupResponse(
-        StatusCode.Success,
-        shuffleFileGroup,
-        shuffleMapperAttempts.get(shuffleId)
-      ))
+      if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+        // This branch is for the UTs
+        context.reply(GetReducerFileGroupResponse(
+          StatusCode.Success,
+          reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+          shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)))
+      } else {
+        val cachedMsg = getReducerFileGroupRpcCache.get(
+          shuffleId,
+          new Callable[ByteBuffer]() {
+            override def call(): ByteBuffer = {
+              val returnedMsg = GetReducerFileGroupResponse(
+                StatusCode.Success,
+                reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+                shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty))
+              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+            }
+          })
+        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+      }
     }
   }
 
@@ -708,7 +731,6 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       }
       committedSlaveIds.asScala.foreach { id =>
         val slavePartition = slavePartMap.get(id)
-        slavePartition.setMapIdBitMap(committedMapIdBitmap.get(id))
         val masterPartition = committedPartitions.get(id)
         if (masterPartition ne null) {
           masterPartition.setPeer(slavePartition)
@@ -716,6 +738,7 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
         } else {
           logWarning(s"Shuffle $shuffleId partition $id: master lost, " +
             s"use slave $slavePartition.")
+          slavePartition.setMapIdBitMap(committedMapIdBitmap.get(id))
           committedPartitions.put(id, slavePartition)
         }
       }

@@ -18,7 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.worker
 
 import java.io.IOException
-import java.util.{ArrayList => jArrayList, List => jList, HashMap => jHashMap}
+import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction

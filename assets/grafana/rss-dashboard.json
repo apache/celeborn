@@ -1,12 +1,39 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.5.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -17,14 +44,15 @@
           "tags": [],
           "type": "dashboard"
         },
-        "type": "dashboard"
+        "type": "dashboard",
+        "datasource": "${DS_PROMETHEUS}"
       }
     ]
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -39,10 +67,6 @@
       "id": 38,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -81,8 +105,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -113,22 +136,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_WorkerCount_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_WorkerCount_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -167,8 +184,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -199,22 +215,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_OverloadWorkerCount_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_OverloadWorkerCount_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -253,8 +263,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -285,22 +294,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_BlacklistedWorkerCount_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_BlacklistedWorkerCount_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -339,8 +342,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -371,16 +373,14 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_RegisteredShuffleCount_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_RegisteredShuffleCount_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         }
       ],
       "title": "Overall",
@@ -397,10 +397,6 @@
       "id": 28,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -439,8 +435,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -471,22 +466,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_TotalSlots_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_TotalSlots_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -525,8 +514,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -557,22 +545,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SlotsUsed_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SlotsUsed_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -611,8 +593,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -643,22 +624,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SlotsAvailable_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SlotsAvailable_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -697,8 +672,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -730,22 +704,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_MasterPushDataTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_MasterPushDataTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -784,8 +752,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -817,22 +784,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_MasterPushDataTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_MasterPushDataTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -871,8 +832,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -904,22 +864,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SlavePushDataTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SlavePushDataTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -958,8 +912,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -991,22 +944,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SlavePushDataTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SlavePushDataTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1045,8 +992,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1078,22 +1024,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_ReserveSlotsTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_ReserveSlotsTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1132,8 +1072,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1165,22 +1104,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_ReserveSlotsTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_ReserveSlotsTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1219,8 +1152,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1252,22 +1184,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_CommitFilesTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_CommitFilesTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1306,8 +1232,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1339,22 +1264,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_CommitFilesTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_CommitFilesTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1393,8 +1312,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1425,16 +1343,14 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_PushDataFailCount_Count",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_PushDataFailCount_Count",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         }
       ],
       "title": "worker",
@@ -1451,10 +1367,6 @@
       "id": 12,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1493,8 +1405,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1526,22 +1437,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_FetchChunkTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_FetchChunkTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1580,8 +1485,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1613,22 +1517,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_FetchChunkTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_FetchChunkTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1667,8 +1565,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1700,22 +1597,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_OpenStreamTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_OpenStreamTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1754,8 +1645,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1787,16 +1677,14 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_OpenStreamTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_OpenStreamTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         }
       ],
       "title": "FetchRelatives",
@@ -1813,10 +1701,6 @@
       "id": 10,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1855,8 +1739,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1888,22 +1771,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_ReserveSlotsTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_ReserveSlotsTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1942,8 +1819,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1975,22 +1851,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_ReserveSlotsTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_ReserveSlotsTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2029,8 +1899,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2062,22 +1931,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_TakeBufferTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_TakeBufferTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2116,8 +1979,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2149,22 +2011,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_TakeBufferTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_TakeBufferTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2203,8 +2059,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2236,22 +2091,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_FlushDataTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_FlushDataTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2290,8 +2139,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2323,16 +2171,14 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_FlushDataTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_FlushDataTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         }
       ],
       "title": "FlushDataRelatives",
@@ -2349,10 +2195,6 @@
       "id": 8,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2391,8 +2233,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2424,22 +2265,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_NettyMemory_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_NettyMemory_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2478,8 +2313,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2511,22 +2345,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_DiskBuffer_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_DiskBuffer_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2565,8 +2393,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2598,22 +2425,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_push_server_usedDirectMemory_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_push_server_usedDirectMemory_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2652,8 +2473,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2685,22 +2505,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_fetch_server_usedDirectMemory_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_fetch_server_usedDirectMemory_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2739,8 +2553,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2771,22 +2584,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_PausePushData_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_PausePushData_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2825,8 +2632,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2857,16 +2663,14 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_PausePushDataAndReplicate_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_PausePushDataAndReplicate_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         }
       ],
       "title": "MemoryRelatives",
@@ -2883,10 +2687,6 @@
       "id": 50,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2925,8 +2725,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2958,22 +2757,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SortTime_Mean",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SortTime_Mean",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3012,8 +2805,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3045,22 +2837,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SortTime_Max",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SortTime_Max",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3099,8 +2885,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3131,22 +2916,16 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SortingFiles_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SortingFiles_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "z1lSI_Qnk"
-          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3185,8 +2964,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3218,16 +2996,14 @@
           },
           "targets": [
             {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "z1lSI_Qnk"
-              },
               "expr": "metrics_SortMemory_Value",
-              "refId": "A"
+              "refId": "A",
+              "datasource": "${DS_PROMETHEUS}"
             }
           ],
           "title": "metrics_SortMemory_Value",
-          "type": "timeseries"
+          "type": "timeseries",
+          "datasource": "${DS_PROMETHEUS}"
         }
       ],
       "title": "SortRelatives",
@@ -3247,8 +3023,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "RSS",
-  "uid": "U_qgru_7z",
-  "version": 20,
+  "title": "343RSS",
+  "uid": "U_qgru_7z1345342",
+  "version": 1,
   "weekStart": ""
 }

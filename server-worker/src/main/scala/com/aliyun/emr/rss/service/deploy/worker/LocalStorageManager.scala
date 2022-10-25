@@ -346,7 +346,7 @@ private[worker] final class LocalStorageManager(
 
   @throws[IOException]
   def createWriter(appId: String, shuffleId: Int, location: PartitionLocation,
-    splitThreshold: Long, splitMode: PartitionSplitMode,rangeReadFilter: Boolean): FileWriter = {
+    splitThreshold: Long, splitMode: PartitionSplitMode, rangeReadFilter: Boolean): FileWriter = {
     if (!hasAvailableWorkingDirs()) {
       throw new IOException("No available working dirs!")
     }
