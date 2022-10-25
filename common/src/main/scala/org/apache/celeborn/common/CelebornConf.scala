@@ -838,6 +838,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.push.buffer.initial.size")
       .withAlternative("rss.push.data.buffer.initial.size")
       .categories("client")
+      .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8k")
 
@@ -999,8 +1000,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.port")
       .withAlternative("rss.master.port")
       .categories("master")
-      .doc("Port for master to bind.")
       .version("0.2.0")
+      .doc("Port for master to bind.")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9097)
@@ -1008,8 +1009,8 @@ object CelebornConf extends Logging {
   val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
     .withAlternative("rss.ha.enabled")
     .categories("master")
-    .doc("When true, master nodes run as Raft cluster mode.")
     .version("0.2.0")
+    .doc("When true, master nodes run as Raft cluster mode.")
     .booleanConf
     .createWithDefault(false)
 
