@@ -500,13 +500,21 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Fetch                 //
+  //                      Quota                         //
+  // //////////////////////////////////////////////////////
+  def clusterCheckQuotaEnabled: Boolean = get(SHUFFLE_CHECK_QUOTA_ENABLED)
+  def identityProviderClass: String = get(SHUFFLE_IDENTITY_PROVIDER)
+  def quotaManagerClass: String = get(SHUFFLE_QUOTA_MANAGER)
+  def quotaConfigurationPath: Option[String] = get(SHUFFLE_QUOTA_CONFIGURATION_PATH)
+
+  // //////////////////////////////////////////////////////
+  //               Shuffle Client Fetch                //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Push                  //
+  //               Shuffle Client Push                 //
   // //////////////////////////////////////////////////////
   def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
   def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
