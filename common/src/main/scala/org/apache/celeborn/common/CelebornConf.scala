@@ -1427,7 +1427,7 @@ object CelebornConf extends Logging {
       .doc("")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValue(Seq("roundrobin", "loadawre").contains(_), "")
+      .checkValue(Seq("roundrobin", "loadaware").contains(_), "")
       .createWithDefault("roundrobin")
 
   def initialPartitionSize(conf: CelebornConf): Long = {
