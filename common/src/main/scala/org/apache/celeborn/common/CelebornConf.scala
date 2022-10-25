@@ -504,7 +504,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Quota                         //
   // //////////////////////////////////////////////////////
-  def clusterCheckQuotaEnabled: Boolean = get(SHUFFLE_CHECK_QUOTA_ENABLED)
+  def checkQuotaEnabled: Boolean = get(SHUFFLE_CHECK_QUOTA_ENABLED)
   def identityProviderClass: String = get(SHUFFLE_IDENTITY_PROVIDER)
   def quotaManagerClass: String = get(SHUFFLE_QUOTA_MANAGER)
   def quotaConfigurationPath: Option[String] = get(SHUFFLE_QUOTA_CONFIGURATION_PATH)

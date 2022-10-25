@@ -56,7 +56,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return if rss cluster have available space for current user.
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
-    if (!conf.clusterCheckQuotaEnabled) {
+    if (!conf.checkQuotaEnabled) {
       return true
     }
 
