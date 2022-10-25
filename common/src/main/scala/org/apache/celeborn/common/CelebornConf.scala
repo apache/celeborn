@@ -1985,7 +1985,7 @@ object CelebornConf extends Logging {
       .createWithDefault(256)
 
   val RPC_CACHE_CONCURRENT_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.cache.concurrent.level")
+    buildConf("celeborn.rpc.cache.concurrentLevel")
       .categories("client")
       .withAlternative("rss.rpc.cache.concurrent.level")
       .version("0.2.0")
