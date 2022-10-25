@@ -1669,6 +1669,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .createOptional
+
   def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
   }
