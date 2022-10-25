@@ -37,13 +37,13 @@ public interface Compressor {
   }
 
   static Compressor getCompressor(CelebornConf conf) {
-    String codec = CelebornConf.compressionCodec(conf);
+    String codec = conf.shuffleCompressionCodec();
     int blockSize = conf.pushBufferMaxSize();
     switch (codec) {
       case "lz4":
         return new RssLz4Compressor(blockSize);
       case "zstd":
-        int zstdLevel = CelebornConf.zstdCompressLevel(conf);
+        int zstdLevel = conf.shuffleCompressionZstdCompressLevel();
         return new RssZstdCompressor(blockSize, zstdLevel);
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);

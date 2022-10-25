@@ -61,7 +61,7 @@ class LocalDeviceMonitor(
     }
     val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-    val sysBlockDir = conf.sysBlockDir
+    val sysBlockDir = conf.diskMonitorSysBlockDir
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
@@ -180,10 +180,10 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = conf.diskCheckInterval
+  val diskCheckInterval = conf.diskMonitorCheckInterval
 
   // we should choose what the device needs to detect
-  val deviceMonitorCheckList = conf.deviceMonitorCheckList
+  val deviceMonitorCheckList = conf.diskMonitorCheckList
   val checkIoHang = deviceMonitorCheckList.contains("iohang")
   val checkReadWrite = deviceMonitorCheckList.contains("readwrite")
   val checkDiskUsage = deviceMonitorCheckList.contains("diskusage")
@@ -292,7 +292,7 @@ object DeviceMonitor {
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo]): DeviceMonitor = {
     try {
-      if (conf.deviceMonitorEnabled) {
+      if (conf.diskMonitorEnabled) {
         val monitor = new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos)
         monitor.init()
         logger.info("Device monitor init success")

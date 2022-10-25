@@ -125,8 +125,8 @@ private[deploy] class Controller(
       context: RpcCallContext,
       applicationId: String,
       shuffleId: Int,
-      masterLocations: jList[PartitionLocation],
-      slaveLocations: jList[PartitionLocation],
+      requestMasterLocs: jList[PartitionLocation],
+      requestSlaveLocs: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
@@ -146,71 +146,86 @@ private[deploy] class Controller(
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
-    val masterPartitions = new jArrayList[PartitionLocation]()
+    val masterLocs = new jArrayList[PartitionLocation]()
     try {
-      for (ind <- 0 until masterLocations.size()) {
-        val location = masterLocations.get(ind)
-        val writer = storageManager.createWriter(
-          applicationId,
-          shuffleId,
-          location,
-          splitThreshold,
-          splitMode,
-          partitionType,
-          rangeReadFileter,
-          userIdentifier)
-        masterPartitions.add(new WorkingPartition(location, writer))
+      for (ind <- 0 until requestMasterLocs.size()) {
+        var location = partitionLocationInfo.getMasterLocation(
+          shuffleKey,
+          requestMasterLocs.get(ind).getUniqueId)
+        if (location == null) {
+          location = requestMasterLocs.get(ind)
+          val writer = storageManager.createWriter(
+            applicationId,
+            shuffleId,
+            location,
+            splitThreshold,
+            splitMode,
+            partitionType,
+            rangeReadFileter,
+            userIdentifier)
+          masterLocs.add(new WorkingPartition(location, writer))
+        } else {
+          masterLocs.add(location)
+        }
       }
     } catch {
       case e: Exception =>
         logError(s"CreateWriter for $shuffleKey failed.", e)
     }
-    if (masterPartitions.size() < masterLocations.size()) {
+    if (masterLocs.size() < requestMasterLocs.size()) {
       val msg = s"Not all master partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
-      masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
+      masterLocs.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
-    val slavePartitions = new jArrayList[PartitionLocation]()
+    val slaveLocs = new jArrayList[PartitionLocation]()
     try {
-      for (ind <- 0 until slaveLocations.size()) {
-        val location = slaveLocations.get(ind)
-        val writer = storageManager.createWriter(
-          applicationId,
-          shuffleId,
-          location,
-          splitThreshold,
-          splitMode,
-          partitionType,
-          rangeReadFileter,
-          userIdentifier)
-        slavePartitions.add(new WorkingPartition(location, writer))
+      for (ind <- 0 until requestSlaveLocs.size()) {
+        var location =
+          partitionLocationInfo.getSlaveLocation(
+            shuffleKey,
+            requestSlaveLocs.get(ind).getUniqueId)
+        if (location == null) {
+          location = requestSlaveLocs.get(ind)
+          val writer = storageManager.createWriter(
+            applicationId,
+            shuffleId,
+            location,
+            splitThreshold,
+            splitMode,
+            partitionType,
+            rangeReadFileter,
+            userIdentifier)
+          slaveLocs.add(new WorkingPartition(location, writer))
+        } else {
+          slaveLocs.add(location)
+        }
       }
     } catch {
       case e: Exception =>
         logError(s"CreateWriter for $shuffleKey failed.", e)
     }
-    if (slavePartitions.size() < slaveLocations.size()) {
+    if (slaveLocs.size() < requestSlaveLocs.size()) {
       val msg = s"Not all slave partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
-      masterPartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
-      slavePartitions.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
+      masterLocs.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
+      slaveLocs.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
     // reserve success, update status
-    partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
-    partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
+    partitionLocationInfo.addMasterPartitions(shuffleKey, masterLocs)
+    partitionLocationInfo.addSlavePartitions(shuffleKey, slaveLocs)
 
-    workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
+    workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(requestMasterLocs, requestSlaveLocs))
 
-    logInfo(s"Reserved ${masterPartitions.size()} master location" +
-      s" and ${slavePartitions.size()} slave location for $shuffleKey ")
+    logInfo(s"Reserved ${masterLocs.size()} master location" +
+      s" and ${slaveLocs.size()} slave location for $shuffleKey ")
     if (log.isDebugEnabled()) {
-      logDebug(s"master: $masterPartitions\nslave: $slavePartitions.")
+      logDebug(s"master: $masterLocs\nslave: $slaveLocs.")
     }
     context.reply(ReserveSlotsResponse(StatusCode.SUCCESS))
   }
