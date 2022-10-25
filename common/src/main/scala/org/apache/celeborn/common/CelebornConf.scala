@@ -567,6 +567,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
 
+  // //////////////////////////////////////////////////////
+  //                  Memory Tracker                    //
+  // //////////////////////////////////////////////////////
+  def workerDirectMemoryRatioToPauseReceive: Double = get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE)
+  def workerDirectMemoryRatioToPauseReplicate: Double =
+    get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE)
+  def workerDirectMemoryRatioToResume: Double = get(WORKER_DIRECT_MEMORY_RATIO_RESUME)
+  def partitionSorterDirectMemoryRatioThreshold: Double =
+    get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
+  def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
+  def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
+
   /**
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
@@ -844,7 +856,6 @@ object CelebornConf extends Logging {
     buildConf("celeborn.push.replicate.enabled")
       .withAlternative("rss.push.data.replicate")
       .categories("client")
-      .version("0.2.0")
       .doc("When true, Celeborn worker will replicate shuffle data to another Celeborn worker " +
         "asynchronously to ensure the pushed shuffle data won't be lost after the node failure.")
       .version("0.2.0")
@@ -1560,7 +1571,7 @@ object CelebornConf extends Logging {
       .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0].")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0]")
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(1.0)
 
   val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
@@ -1806,32 +1817,67 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
 
-  def partitionSortMaxMemoryRatio(conf: CelebornConf): Double = {
-    conf.getDouble("rss.partition.sort.memory.max.ratio", 0.1)
-  }
+  val PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
+    buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
+      .withAlternative("rss.partition.sort.memory.max.ratio")
+      .categories("worker")
+      .doc("Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition " +
+        "sorter memory, partition sorter will stop sorting.")
+      .version("0.2.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .createWithDefault(0.1)
 
-  def workerPausePushDataRatio(conf: CelebornConf): Double = {
-    conf.getDouble("rss.pause.pushdata.memory.ratio", 0.85)
-  }
+  val WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioToPauseReceive")
+      .withAlternative("rss.pause.pushdata.memory.ratio")
+      .categories("worker")
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients.")
+      .version("0.2.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .createWithDefault(0.85)
 
-  def workerPauseRepcaliteRatio(conf: CelebornConf): Double = {
-    conf.getDouble("rss.pause.replicate.memory.ratio", 0.95)
-  }
+  val WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioToPauseReplicate")
+      .withAlternative("rss.pause.replicate.memory.ratio")
+      .categories("worker")
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers.")
+      .version("0.2.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .createWithDefault(0.95)
 
-  def workerResumeRatio(conf: CelebornConf): Double = {
-    conf.getDouble("rss.resume.memory.ratio", 0.5)
-  }
+  val WORKER_DIRECT_MEMORY_RATIO_RESUME: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioToResume")
+      .withAlternative("rss.resume.memory.ratio")
+      .categories("worker")
+      .doc("If direct memory usage is less than this limit, worker will resume.")
+      .version("0.2.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .createWithDefault(0.5)
+
+  val WORKER_DIRECT_MEMORY_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memory.checkInterval")
+      .withAlternative("rss.worker.memory.check.interval")
+      .categories("worker")
+      .doc("Interval of worker direct memory checking.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10ms")
+
+  val WORKER_DIRECT_MEMORY_REPORT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memory.reportInterval")
+      .withAlternative("rss.worker.memory.report.interval")
+      .categories("worker")
+      .doc("Interval of worker direct memory tracker reporting to log.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
 
   def initialReserveSingleSortMemory(conf: CelebornConf): Long = {
     conf.getSizeAsBytes("rss.worker.initialReserveSingleSortMemory", "1mb")
-  }
-
-  def workerDirectMemoryPressureCheckIntervalMs(conf: CelebornConf): Int = {
-    conf.getInt("rss.worker.memory.check.interval", 10)
-  }
-
-  def workerDirectMemoryReportIntervalSecond(conf: CelebornConf): Int = {
-    Utils.timeStringAsSeconds(conf.get("rss.worker.memory.report.interval", "10s")).toInt
   }
 
   def defaultStorageType(conf: CelebornConf): StorageInfo.Type = {

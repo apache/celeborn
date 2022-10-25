@@ -69,8 +69,8 @@ public class MemoryTracker {
       double pauseReplicateRatio,
       double resumeRatio,
       double maxSortRatio,
-      int checkInterval,
-      int reportInterval) {
+      long checkInterval,
+      long reportInterval) {
     if (_INSTANCE == null) {
       _INSTANCE =
           new MemoryTracker(
@@ -99,8 +99,8 @@ public class MemoryTracker {
       double pauseReplicateRatio,
       double resumeRatio,
       double maxSortMemRatio,
-      int checkInterval,
-      int reportInterval) {
+      long checkInterval,
+      long reportInterval) {
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
