@@ -1991,7 +1991,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("The number of write locks to update rpc cache.")
       .intConf
-      .createWithDefault(256)
+      .createWithDefault(32)
 
   val RPC_CACHE_EXPIRE: ConfigEntry[Long] =
     buildConf("celeborn.rpcCache.expire")
