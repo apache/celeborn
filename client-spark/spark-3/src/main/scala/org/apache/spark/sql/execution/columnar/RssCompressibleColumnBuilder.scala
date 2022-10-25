@@ -38,8 +38,8 @@ trait RssCompressibleColumnBuilder[T <: AtomicType]
   abstract override def initialize(
       rowCnt: Int,
       columnName: String,
-      dictionaryEnabled: Boolean): Unit = {
-    super.initialize(rowCnt, columnName, dictionaryEnabled)
+      encodingEnabled: Boolean): Unit = {
+    super.initialize(rowCnt, columnName, encodingEnabled)
   }
 
   // The various compression schemes, while saving memory use, cause all of the data within
