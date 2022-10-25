@@ -530,9 +530,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                  Memory Tracker                    //
   // //////////////////////////////////////////////////////
   def workerPausePushDataRatio: Double = get(WORKER_PAUSE_PUSH_DATA_RATIO)
-  def workerPauseReplicateRatio: Double = get(WORKER_PAUSE_REPLICATE_RATIO)
+  def workerPauseReplicateRatio: Double = get(WORKER_PAUSE_REPLICATE_DATA_RATIO)
   def workerResumeRatio: Double = get(WORKER_RESUME_RATIO)
-  def partitionSortMaxMemoryRatio: Double = get(PARTITION_SORT_MAX_MEMORY_RATIO)
+  def partitionSortMaxMemoryRatio: Double = get(PARTITION_SORTER_MAX_MEMORY_RATIO)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
 
@@ -1680,8 +1680,8 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
 
-  val PARTITION_SORT_MAX_MEMORY_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.partition.sort.memory.maxRatio")
+  val PARTITION_SORTER_MAX_MEMORY_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.partition.sorter.memory.maxRatio")
       .withAlternative("rss.partition.sort.memory.max.ratio")
       .categories("worker")
       .doc("Max ratio of sort memory.")
@@ -1691,7 +1691,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.1)
 
   val WORKER_PAUSE_PUSH_DATA_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.pause.pushdata.memory.ratio")
+    buildConf("celeborn.worker.memory.pause.pushData.ratio")
       .withAlternative("rss.pause.pushdata.memory.ratio")
       .categories("worker")
       .doc("If direct memory usage reach this limit, worker will stop receive from executor.")
@@ -1700,8 +1700,8 @@ object CelebornConf extends Logging {
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.85)
 
-  val WORKER_PAUSE_REPLICATE_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.pause.replicate.memory.ratio")
+  val WORKER_PAUSE_REPLICATE_DATA_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.worker.memory.pause.replicateData.ratio")
       .withAlternative("rss.pause.replicate.memory.ratio")
       .categories("worker")
       .doc("If direct memory usage reach  this limit, worker will stop receive from executor and other worker.")
@@ -1711,7 +1711,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.95)
 
   val WORKER_RESUME_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.resume.memory.ratio")
+    buildConf("celeborn.worker.memory.resume.ratio")
       .withAlternative("rss.resume.memory.ratio")
       .categories("worker")
       .doc("If direct memory usage is less than this  limit, worker will resume receive.")

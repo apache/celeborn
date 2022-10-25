@@ -22,10 +22,7 @@ license: |
 | celeborn.metrics.enabled | `true` | When true, enable metrics system. | 0.2.0 | 
 | celeborn.metrics.sample.rate | `1.0` | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
 | celeborn.metrics.timer.sliding.window.size | `4096` | The sliding window size of timer metric. | 0.2.0 | 
-| celeborn.partition.sort.memory.maxRatio | `0.1` | Max ratio of sort memory. | 0.2.0 | 
-| celeborn.pause.pushdata.memory.ratio | `0.85` | If direct memory usage reach this limit, worker will stop receive from executor. | 0.2.0 | 
-| celeborn.pause.replicate.memory.ratio | `0.95` | If direct memory usage reach  this limit, worker will stop receive from executor and other worker. | 0.2.0 | 
-| celeborn.resume.memory.ratio | `0.5` | If direct memory usage is less than this  limit, worker will resume receive. | 0.2.0 | 
+| celeborn.partition.sorter.memory.maxRatio | `0.1` | Max ratio of sort memory. | 0.2.0 | 
 | celeborn.shuffle.chuck.size | `8m` | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | `<undefined>` | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.worker.commit.threads | `32` | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
@@ -48,7 +45,10 @@ license: |
 | celeborn.worker.graceful.shutdown.timeout | `600s` | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | `120s` | Worker heartbeat timeout. | 0.2.0 | 
 | celeborn.worker.memory.check.interval | `10ms` | Worker direct memory check interval, its timeunit is millisecond. | 0.2.0 | 
+| celeborn.worker.memory.pause.pushData.ratio | `0.85` | If direct memory usage reach this limit, worker will stop receive from executor. | 0.2.0 | 
+| celeborn.worker.memory.pause.replicateData.ratio | `0.95` | If direct memory usage reach  this limit, worker will stop receive from executor and other worker. | 0.2.0 | 
 | celeborn.worker.memory.report.interval | `10s` | Worker direct memory tracker report interval, its timeunit is second. | 0.2.0 | 
+| celeborn.worker.memory.resume.ratio | `0.5` | If direct memory usage is less than this  limit, worker will resume receive. | 0.2.0 | 
 | celeborn.worker.metrics.prometheus.host | `0.0.0.0` | Worker's Prometheus host. | 0.2.0 | 
 | celeborn.worker.metrics.prometheus.port | `9096` | Worker's Prometheus port. | 0.2.0 | 
 | celeborn.worker.replicate.threads | `64` | Thread number of worker to replicate shuffle data. | 0.2.0 | 
