@@ -88,10 +88,10 @@ private[celeborn] class Worker(
   val storageManager = new StorageManager(conf, workerSource)
 
   val memoryTracker = MemoryTracker.initialize(
-    conf.workerPausePushDataDirectMemoryRatio,
-    conf.workerPauseReplicateDataDirectMemoryRatio,
-    conf.workerResumeDirectMemoryRatio,
-    conf.partitionSorterDirectMemoryMaxRatio,
+    conf.workerDirectMemoryRatioToPauseReceive,
+    conf.workerDirectMemoryRatioToPauseReplicate,
+    conf.workerDirectMemoryRatioToResume,
+    conf.partitionSorterDirectMemoryRatioThreshold,
     conf.workerDirectMemoryPressureCheckIntervalMs,
     conf.workerDirectMemoryReportIntervalSecond)
   memoryTracker.registerMemoryListener(storageManager)

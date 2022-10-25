@@ -553,11 +553,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                  Memory Tracker                    //
   // //////////////////////////////////////////////////////
-  def workerPausePushDataDirectMemoryRatio: Double = get(WORKER_PAUSE_PUSH_DATA_DIRECT_MEMORY_RATIO)
-  def workerPauseReplicateDataDirectMemoryRatio: Double =
-    get(WORKER_PAUSE_REPLICATE_DATA_DIRECT_MEMORY_RATIO)
-  def workerResumeDirectMemoryRatio: Double = get(WORKER_RESUME_DIRECT_MEMORY_RATIO)
-  def partitionSorterDirectMemoryMaxRatio: Double = get(PARTITION_SORTER_DIRECT_MEMORY_MAX_RATIO)
+  def workerDirectMemoryRatioToPauseReceive: Double = get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE)
+  def workerDirectMemoryRatioToPauseReplicate: Double =
+    get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE)
+  def workerDirectMemoryRatioToResume: Double = get(WORKER_DIRECT_MEMORY_RATIO_RESUME)
+  def partitionSorterDirectMemoryRatioThreshold: Double =
+    get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
 
@@ -1764,8 +1765,8 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
   }
 
-  val PARTITION_SORTER_DIRECT_MEMORY_MAX_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.partitionSorter.directMemory.maxRatio")
+  val PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
+    buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
       .withAlternative("rss.partition.sort.memory.max.ratio")
       .categories("worker")
       .doc("Max ratio of sort memory.")
@@ -1774,50 +1775,50 @@ object CelebornConf extends Logging {
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.1)
 
-  val WORKER_PAUSE_PUSH_DATA_DIRECT_MEMORY_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.worker.pausePushData.directMemory.ratio")
+  val WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioToPauseReceive")
       .withAlternative("rss.pause.pushdata.memory.ratio")
       .categories("worker")
-      .doc("If direct memory usage reach this limit, worker will stop receive from executor.")
+      .doc("If direct memory usage reaches this limit, worker will stop to receive from executor.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.85)
 
-  val WORKER_PAUSE_REPLICATE_DATA_DIRECT_MEMORY_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.worker.pauseReplicateData.directMemory.ratio")
+  val WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioToPauseReplicate")
       .withAlternative("rss.pause.replicate.memory.ratio")
       .categories("worker")
-      .doc("If direct memory usage reach  this limit, worker will stop receive from executor and other worker.")
+      .doc("If direct memory usage reaches this limit, worker will stop to receive from executor and other worker.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.95)
 
-  val WORKER_RESUME_DIRECT_MEMORY_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.worker.resume.directMemory.ratio")
+  val WORKER_DIRECT_MEMORY_RATIO_RESUME: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioToResume")
       .withAlternative("rss.resume.memory.ratio")
       .categories("worker")
-      .doc("If direct memory usage is less than this  limit, worker will resume receive.")
+      .doc("If direct memory usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.5)
 
   val WORKER_DIRECT_MEMORY_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.memory.check.interval")
+    buildConf("celeborn.worker.memory.checkInterval")
       .withAlternative("rss.worker.memory.check.interval")
       .categories("worker")
-      .doc("Worker direct memory check interval, its timeunit is millisecond.")
+      .doc("Worker direct memory checking interval.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10ms")
 
   val WORKER_DIRECT_MEMORY_REPORT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.memory.report.interval")
+    buildConf("celeborn.worker.memory.reportInterval")
       .withAlternative("rss.worker.memory.report.interval")
       .categories("worker")
-      .doc("Worker direct memory tracker report interval, its timeunit is second.")
+      .doc("Worker direct memory tracker reporting to log interval.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
