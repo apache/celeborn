@@ -364,11 +364,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
-  //                      Master                        //
+  //                      Master                         //
   // //////////////////////////////////////////////////////
 
   // //////////////////////////////////////////////////////
-  //                      Worker                        //
+  //                      Worker                         //
   // //////////////////////////////////////////////////////
   def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
@@ -376,7 +376,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
 
   // //////////////////////////////////////////////////////
-  //                      Client                        //
+  //                      Client                         //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -398,18 +398,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       case "reduce" => PartitionType.REDUCE_PARTITION
       case "map" => PartitionType.MAP_PARTITION
       case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
-      case _ => PartitionType.REDUCE_PARTITION
+      case unknown =>
+        throw new IllegalArgumentException(s"Celeborn don't support partition type `$unknown`")
     }
   }
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Compression                  //
+  //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
   def shuffleCompressionCodec: String = get(SHUFFLE_COMPRESSION_CODEC)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
-  //               Address && HA && RATIS               //
+  //               Address && HA && RATIS                //
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
     get(MASTER_ENDPOINTS).toArray.map { endpoint =>
@@ -486,7 +487,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
 
   // //////////////////////////////////////////////////////
-  //                 Metrics System                     //
+  //                 Metrics System                      //
   // //////////////////////////////////////////////////////
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
@@ -499,13 +500,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Fetch                 //
+  //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
 
   // //////////////////////////////////////////////////////
-  //               Shuffle Client Push                  //
+  //               Shuffle Client Push                   //
   // //////////////////////////////////////////////////////
   def pushReplicateEnabled: Boolean = get(PUSH_REPLICATE_ENABLED)
   def pushBufferInitialSize: Int = get(PUSH_BUFFER_INITIAL_SIZE).toInt
@@ -518,9 +519,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
+  def partitionSplitMode: PartitionSplitMode = {
+    get(PARTITION_SPLIT_MODE) match {
+      case "soft" => PartitionSplitMode.SOFT
+      case "hard" => PartitionSplitMode.HARD
+      case unknown =>
+        throw new IllegalArgumentException(
+          s"Celeborn don't support partition split mode `$unknown`")
+    }
+  }
+  def partitionSplitThreshold: Long = get(PARTITION_SPLIT_THRESHOLD)
+  def batchHandleChangePartitionEnabled: Boolean = get(BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
+  def batchHandleChangePartitionNumThreads: Int = get(BATCH_HANDLE_CHANGE_PARTITION_THREADS)
+  def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
 
   // //////////////////////////////////////////////////////
-  //            GraceFul Shutdown & Recover             //
+  //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
@@ -531,7 +545,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
   // //////////////////////////////////////////////////////
-  //                      Flusher                       //
+  //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def writerCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
@@ -611,6 +625,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         }
     }.getOrElse("")
   }
+
+  // //////////////////////////////////////////////////////
+  //                 Columnar Shuffle                    //
+  // //////////////////////////////////////////////////////
+  def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
+  def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
+  def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
+  def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
+  def columnarShuffleDictionaryMaxFactor: Double =
+    get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR)
 }
 
 object CelebornConf extends Logging {
@@ -1446,6 +1470,57 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(8)
 
+  val PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.partitionSplit.threshold")
+      .withAlternative("rss.partition.split.threshold")
+      .categories("client")
+      .doc("Shuffle file size threshold, if file size exceeds this, trigger split.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1G")
+
+  val PARTITION_SPLIT_MODE: ConfigEntry[String] =
+    buildConf("celeborn.shuffle.partitionSplit.mode")
+      .withAlternative("rss.partition.split.mode")
+      .categories("client")
+      .doc("soft: the shuffle file size might be larger than split threshold. " +
+        "hard: the shuffle file size will be limited to split threshold.")
+      .version("0.2.0")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValue(
+        Seq("soft", "hard").contains(_),
+        s"Celeborn only support partition type of (soft, hard)")
+      .createWithDefault("soft")
+
+  val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")
+      .withAlternative("rss.change.partition.batch.enabled")
+      .categories("client")
+      .doc("When true, LifecycleManager will handle change partition request in batch. " +
+        "Otherwise, LifecycleManager will process the requests one by one")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.batchHandleChangePartition.threads")
+      .withAlternative("rss.change.partition.numThreads")
+      .categories("client")
+      .doc("Threads number for LifecycleManager to handle change partition request in batch.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(8)
+
+  val BATCH_HANDLE_CHANGE_PARTITION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.batchHandleChangePartition.interval")
+      .withAlternative("rss.change.partition.batchInterval")
+      .categories("client")
+      .doc("Interval for LifecycleManager to schedule handling change partition requests in batch.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
+
   def pushServerPort(conf: CelebornConf): Int = {
     conf.getInt("rss.pushserver.port", 0)
   }
@@ -1684,33 +1759,6 @@ object CelebornConf extends Logging {
     conf.getOption("rss.quota.configuration.path")
   }
 
-  def partitionSplitThreshold(conf: CelebornConf): Long = {
-    conf.getSizeAsBytes("rss.partition.split.threshold", "256m")
-  }
-
-  def batchHandleChangePartitionEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.change.partition.batch.enabled", false)
-  }
-
-  def batchHandleChangePartitionNumThreads(conf: CelebornConf): Int = {
-    conf.getInt("rss.change.partition.numThreads", 8)
-  }
-
-  def handleChangePartitionRequestBatchInterval(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.change.partition.batchInterval", "100ms")
-  }
-
-  def partitionSplitMode(conf: CelebornConf): PartitionSplitMode = {
-    val modeStr = conf.get("rss.partition.split.mode", "soft")
-    modeStr match {
-      case "soft" => PartitionSplitMode.SOFT
-      case "hard" => PartitionSplitMode.HARD
-      case _ =>
-        logWarning(s"Invalid split mode ${modeStr}, use soft mode by default")
-        PartitionSplitMode.SOFT
-    }
-  }
-
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
     buildConf("celeborn.shuffle.partition.type")
       .withAlternative("rss.partition.type")
@@ -1718,9 +1766,10 @@ object CelebornConf extends Logging {
       .doc("Type of shuffle's partition.")
       .version("0.2.0")
       .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
       .checkValue(
-        value => Seq("reduce", "map", "mapgroup").contains(value.toLowerCase(Locale.ROOT)),
-        s"Invalid split mode, Celeborn only support partition type of (reduce, map, mapgroup).")
+        Seq("reduce", "map", "mapgroup").contains(_),
+        s"Celeborn only support partition type of (reduce, map, mapgroup)")
       .createWithDefault("reduce")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
@@ -1880,14 +1929,48 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  def columnarShuffleEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.enabled", defaultValue = false)
-  }
+  val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to enable columnar-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 
-  def columnarShuffleCompress(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.columnar.shuffle.encoding.enabled", defaultValue = false)
-  }
+  val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.columnar.shuffle.batch.size")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Vector batch size for columnar shuffle.")
+      .intConf
+      .checkValue(v => v > 0, "value must be positive")
+      .createWithDefault(10000)
 
+  val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.offHeap.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use off heap columnar vector.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.encoding.dictionary.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Max factor for dictionary size. The max dictionary size is " +
+        s"`min(${Utils.bytesToString(Short.MaxValue)}, ${COLUMNAR_SHUFFLE_BATCH_SIZE.key} * " +
+        s"celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`.")
+      .doubleConf
+      .createWithDefault(0.3)
   def columnarShuffleBatchSize(conf: CelebornConf): Int = {
     conf.getInt("rss.columnar.shuffle.batch.size", 10000)
   }

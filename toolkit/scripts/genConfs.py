@@ -174,7 +174,7 @@ def update_hibench_confs(hiben_conf_dir):
     normal_hibench_spark_conf_file_path = hibench_spark_conf_file + ".rss"
     save_confs(open(normal_hibench_spark_conf_file_path, "w"), new_hibench_spark_conf)
     splits_hibench_spark_conf_file_path = hibench_spark_conf_file + ".split"
-    new_hibench_spark_conf["spark.rss.partition.split.threshold"] = "16m"
+    new_hibench_spark_conf["spark.celeborn.shuffle.partitionSplit.threshold"] = "16m"
     save_confs(open(splits_hibench_spark_conf_file_path, "w"), new_hibench_spark_conf)
 
 

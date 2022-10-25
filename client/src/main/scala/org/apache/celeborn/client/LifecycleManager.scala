@@ -50,8 +50,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
   private val workerExcludedCheckIntervalMs = conf.workerExcludedCheckIntervalMs
   private val pushReplicateEnabled = conf.pushReplicateEnabled
-  private val splitThreshold = CelebornConf.partitionSplitThreshold(conf)
-  private val splitMode = CelebornConf.partitionSplitMode(conf)
+  private val partitionSplitThreshold = conf.partitionSplitThreshold
+  private val partitionSplitMode = conf.partitionSplitMode
   private val partitionType = conf.shufflePartitionType
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
@@ -131,14 +131,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val responseCheckerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
 
-  private val handleChangePartitionInBatch = CelebornConf.batchHandleChangePartitionEnabled(conf)
-  private val handleChangePartitionInBatchExecutors = ThreadUtils.newDaemonCachedThreadPool(
+  private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
+  private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "rss-lifecycle-manager-change-partition-executor",
-    CelebornConf.batchHandleChangePartitionNumThreads(conf))
-  private val handleChangePartitionRequestBatchInterval =
-    CelebornConf.handleChangePartitionRequestBatchInterval(conf)
-  private val handleChangePartitionInBatchSchedulerThread: Option[ScheduledExecutorService] =
-    if (handleChangePartitionInBatch) {
+    conf.batchHandleChangePartitionNumThreads)
+  private val batchHandleChangePartitionRequestInterval =
+    conf.batchHandleChangePartitionRequestInterval
+  private val batchHandleChangePartitionSchedulerThread: Option[ScheduledExecutorService] =
+    if (batchHandleChangePartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "rss-lifecycle-manager-change-partition-scheduler"))
     } else {
@@ -191,14 +191,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       appHeartbeatIntervalMs,
       TimeUnit.MILLISECONDS)
 
-    handleChangePartitionInBatchSchedulerThread.foreach {
+    batchHandleChangePartitionSchedulerThread.foreach {
       _.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = {
             try {
               changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
                 requests.synchronized {
-                  handleChangePartitionInBatchExecutors.submit {
+                  batchHandleChangePartitionExecutors.submit {
                     new Runnable {
                       override def run(): Unit = {
                         // For each partition only need handle one request
@@ -227,7 +227,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           }
         },
         0,
-        handleChangePartitionRequestBatchInterval,
+        batchHandleChangePartitionRequestInterval,
         TimeUnit.MILLISECONDS)
     }
   }
@@ -618,7 +618,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         requests.put(partitionId, set)
       }
     }
-    if (!handleChangePartitionInBatch) {
+    if (!batchHandleChangePartitionEnabled) {
       batchHandleChangePartitions(applicationId, shuffleId, Array(changePartition))
     }
   }
@@ -645,7 +645,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     def replySuccess(locations: Array[PartitionLocation]): Unit = {
       requestsMap.synchronized {
         locations.map { location =>
-          if (handleChangePartitionInBatch) {
+          if (batchHandleChangePartitionEnabled) {
             inBatchPartitions.get(shuffleId).remove(location.getId)
           }
           // Here one partition id can be remove more than once,
@@ -662,7 +662,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     def replyFailure(response: PbChangeLocationResponse): Unit = {
       requestsMap.synchronized {
         changePartitions.map { changePartition =>
-          if (handleChangePartitionInBatch) {
+          if (batchHandleChangePartitionEnabled) {
             inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
           }
           Option(requestsMap.remove(changePartition.partitionId))
@@ -1096,8 +1096,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             shuffleId,
             masterLocations,
             slaveLocations,
-            splitThreshold,
-            splitMode,
+            partitionSplitThreshold,
+            partitionSplitMode,
             partitionType,
             rangeReadFilter,
             userIdentifier))
