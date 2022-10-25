@@ -1976,7 +1976,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.3)
 
   val RPC_CACHE_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.cache.Size")
+    buildConf("celeborn.rpc.cache.size")
       .categories("client")
       .withAlternative("rss.rpc.cache.size")
       .version("0.2.0")
@@ -1994,7 +1994,7 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val RPC_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.cache.expiretime")
+    buildConf("celeborn.rpc.cache.expireTime")
       .categories("client")
       .withAlternative("rss.rpc.cache.expire")
       .version("0.2.0")
