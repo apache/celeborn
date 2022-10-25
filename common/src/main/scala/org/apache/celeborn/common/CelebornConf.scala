@@ -1769,7 +1769,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
       .withAlternative("rss.partition.sort.memory.max.ratio")
       .categories("worker")
-      .doc("Max ratio of sort memory.")
+      .doc("Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition " +
+        "sorter memory, partition sorter will stop sorting.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
@@ -1779,7 +1780,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.directMemoryRatioToPauseReceive")
       .withAlternative("rss.pause.pushdata.memory.ratio")
       .categories("worker")
-      .doc("If direct memory usage reaches this limit, worker will stop to receive from executor.")
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
@@ -1789,7 +1790,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.directMemoryRatioToPauseReplicate")
       .withAlternative("rss.pause.replicate.memory.ratio")
       .categories("worker")
-      .doc("If direct memory usage reaches this limit, worker will stop to receive from executor and other worker.")
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
@@ -1809,7 +1810,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.memory.checkInterval")
       .withAlternative("rss.worker.memory.check.interval")
       .categories("worker")
-      .doc("Worker direct memory checking interval.")
+      .doc("Interval of worker direct memory checking.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10ms")
@@ -1818,7 +1819,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.memory.reportInterval")
       .withAlternative("rss.worker.memory.report.interval")
       .categories("worker")
-      .doc("Worker direct memory tracker reporting to log interval.")
+      .doc("Interval of worker direct memory tracker reporting to log.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
