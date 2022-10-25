@@ -521,7 +521,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
   def partitionSplitMode: PartitionSplitMode = {
     get(PARTITION_SPLIT_MODE) match {
-      case "solf" => PartitionSplitMode.SOFT
+      case "soft" => PartitionSplitMode.SOFT
       case "hard" => PartitionSplitMode.HARD
       case unknown =>
         throw new IllegalArgumentException(
