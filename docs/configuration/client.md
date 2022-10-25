@@ -36,6 +36,8 @@ license: |
 | celeborn.shuffle.batchHandleChangePartition.interval | 100ms | Batch handling interval for LifecycleManager handle change partition requests in batch. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.threads | 8 | Threads number for LifecycleManager to handle change partition request in batch. | 0.2.0 | 
 | celeborn.shuffle.chuck.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
+| celeborn.shuffle.compression.codec | lz4 | The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`. | 0.2.0 | 
+| celeborn.shuffle.compression.zstd.level | 1 | Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory. | 0.2.0 | 
 | celeborn.shuffle.expired.checkInterval | 60s | Interval for client to check expired shuffles. | 0.2.0 | 
 | celeborn.shuffle.forceFallback.enabled | false | Whether force fallback shuffle to Spark's default. | 0.2.0 | 
 | celeborn.shuffle.forceFallback.numPartitionsThreshold | 500000 | Celeborn will only accept shuffle of partition number lower than this configuration value. | 0.2.0 | 

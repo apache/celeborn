@@ -69,7 +69,7 @@ class SkewJoinSuite extends AnyFunSuite
         .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.parquet.compression.codec", "gzip")
-        .set("rss.client.compression.codec", codec.name)
+        .set("spark.celeborn.shuffle.compression.codec", codec.name)
 
       enableRss(sparkConf)
 

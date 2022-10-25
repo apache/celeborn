@@ -79,16 +79,24 @@ class CelebornConfSuite extends RssFunSuite {
 
   test("zstd level") {
     val conf = new CelebornConf()
-    conf.set("rss.client.compression.zstd.level", "-100")
-    assert(CelebornConf.zstdCompressLevel(conf) == -5)
-    conf.set("rss.client.compression.zstd.level", "-5")
-    assert(CelebornConf.zstdCompressLevel(conf) == -5)
-    conf.set("rss.client.compression.zstd.level", "0")
-    assert(CelebornConf.zstdCompressLevel(conf) == 0)
-    conf.set("rss.client.compression.zstd.level", "22")
-    assert(CelebornConf.zstdCompressLevel(conf) == 22)
-    conf.set("rss.client.compression.zstd.level", "100")
-    assert(CelebornConf.zstdCompressLevel(conf) == 22)
+    val error1 = intercept[IllegalArgumentException] {
+      conf.set("celeborn.shuffle.compression.zstd.level", "-100")
+      assert(conf.shuffleCompressionZstdCompressLevel == -100)
+    }.getMessage
+    assert(error1.contains("'-100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+      "Compression level for Zstd compression codec should be an integer between -5 and 22."))
+    conf.set("celeborn.shuffle.compression.zstd.level", "-5")
+    assert(conf.shuffleCompressionZstdCompressLevel == -5)
+    conf.set("celeborn.shuffle.compression.zstd.level", "0")
+    assert(conf.shuffleCompressionZstdCompressLevel == 0)
+    conf.set("celeborn.shuffle.compression.zstd.level", "22")
+    assert(conf.shuffleCompressionZstdCompressLevel == 22)
+    val error2 = intercept[IllegalArgumentException] {
+      conf.set("celeborn.shuffle.compression.zstd.level", "100")
+      assert(conf.shuffleCompressionZstdCompressLevel == 100)
+    }.getMessage
+    assert(error2.contains("'100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+      "Compression level for Zstd compression codec should be an integer between -5 and 22."))
   }
 
   test("replace <localhost> placeholder") {

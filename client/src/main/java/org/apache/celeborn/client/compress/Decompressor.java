@@ -33,7 +33,7 @@ public interface Decompressor {
   }
 
   static Decompressor getDecompressor(CelebornConf conf) {
-    String codec = CelebornConf.compressionCodec(conf);
+    String codec = conf.shuffleCompressionCodec();
     switch (codec) {
       case "lz4":
         return new RssLz4Decompressor();
@@ -45,7 +45,7 @@ public interface Decompressor {
   }
 
   static int getCompressionHeaderLength(CelebornConf conf) {
-    String codec = CelebornConf.compressionCodec(conf);
+    String codec = conf.shuffleCompressionCodec();
     switch (codec) {
       case "lz4":
         return RssLz4Trait.HEADER_LENGTH;
