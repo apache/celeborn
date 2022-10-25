@@ -364,8 +364,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
+  //                      Common                        //
+  // //////////////////////////////////////////////////////
+  def portMaxRetries: Int = get(PORT_MAX_RETRY)
+  def haClientMaxTries: Int = get(HA_CLIENT_MAX_RETRIES)
+
+  // //////////////////////////////////////////////////////
   //                      Master                        //
   // //////////////////////////////////////////////////////
+  def diskGroups: Int = get(DISK_GROUP)
+  def diskGroupGradient: Double = get(DISK_GROUP_GRADIENT)
+  def offerSlotsExtraSize: Int = get(MASTER_OFFER_SLOTS_EXTRA_SIZE)
+  def offerSlotsAlgorithm: String = get(MASTER_OFFER_SLOTS_ALGORITM)
 
   // //////////////////////////////////////////////////////
   //                      Worker                        //
@@ -1378,17 +1388,47 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1000)
 
-  /**
-   * @return This configuration is a guidance for load-aware slot allocation algorithm. This value
-   *         is control how many disk groups will be created.
-   */
-  def diskGroups(conf: CelebornConf): Int = {
-    conf.getInt("rss.disk.groups", 5)
-  }
+  val DISK_GROUP: ConfigEntry[Int] =
+    buildConf("celeborn.disk.group")
+      .withAlternative("rss.disk.groups")
+      .categories("master")
+      .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
+        "This value is control how many disk groups will be created.")
+      .version("0.2.0")
+      .internal
+      .intConf
+      .createWithDefault(5)
 
-  def diskGroupGradient(conf: CelebornConf): Double = {
-    conf.getDouble("rss.disk.group.gradient", 0.1)
-  }
+  val DISK_GROUP_GRADIENT: ConfigEntry[Double] =
+    buildConf("celeborn.disk.group.gradient")
+      .withAlternative("rss.disk.groups.gradient")
+      .categories("master")
+      .doc("This value means how many more workload will be placed into a faster disk group " +
+        "than a slower group.")
+      .version("0.2.0")
+      .internal
+      .doubleConf
+      .createWithDefault(0.1)
+
+  val MASTER_OFFER_SLOTS_EXTRA_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.master.offerSlots.extraSize")
+      .withAlternative("rss.offer.slots.extra.size")
+      .categories("master")
+      .version("0.2.0")
+      .doc("")
+      .intConf
+      .createWithDefault(2)
+
+  val MASTER_OFFER_SLOTS_ALGORITM: ConfigEntry[String] =
+    buildConf("celeborn.master.offerSlots.algorithm")
+      .withAlternative("rss.offer.slots.algorithm")
+      .categories("master")
+      .version("0.2.0")
+      .doc("")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValue(Seq("roundrobin", "loadawre").contains(_), "")
+      .createWithDefault("roundrobin")
 
   def initialPartitionSize(conf: CelebornConf): Long = {
     Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
@@ -1527,9 +1567,23 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.register.worker.timeout", "180s")
   }
 
-  def masterPortMaxRetry(conf: CelebornConf): Int = {
-    conf.getInt("rss.master.port.maxretry", 1)
-  }
+  val PORT_MAX_RETRY: ConfigEntry[Int] =
+    buildConf("celeborn.port.maxRetries")
+      .withAlternative("rss.master.port.maxretry")
+      .categories("master", "worker", "client")
+      .doc("When port is occupied,we will retry for max retry times.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(1)
+
+  val HA_CLIENT_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.ha.client.maxRetries")
+      .withAlternative("rss.ha.client.maxTries")
+      .categories("client", "worker")
+      .doc("Max retry times for client to connect master endpoint")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(15)
 
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
@@ -1617,10 +1671,6 @@ object CelebornConf extends Logging {
 
   def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
-  }
-
-  def offerSlotsExtraSize(conf: CelebornConf): Int = {
-    conf.getInt("rss.offer.slots.extra.size", 2)
   }
 
   def closeIdleConnections(conf: CelebornConf): Boolean = {
@@ -1731,10 +1781,6 @@ object CelebornConf extends Logging {
 
   def checkFileCleanTimeoutMs(conf: CelebornConf): Long = {
     conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
-  }
-
-  def haClientMaxTries(conf: CelebornConf): Int = {
-    conf.getInt("rss.ha.client.maxTries", 15)
   }
 
   def identityProviderClass(conf: CelebornConf): String = {
@@ -1890,16 +1936,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
-
-  def offerSlotsAlgorithm(conf: CelebornConf): String = {
-    var algorithm = conf.get("rss.offer.slots.algorithm", "roundrobin")
-    if (algorithm != "loadaware" && algorithm != "roundrobin") {
-      logWarning(s"Config rss.offer.slots.algorithm is wrong ${algorithm}." +
-        s" Use default roundrobin")
-      algorithm = "roundrobin"
-    }
-    algorithm
-  }
 
   val HDFS_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.hdfs.dir")

@@ -104,9 +104,9 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.diskReserveSize
 
-  private def diskGroups = CelebornConf.diskGroups(conf)
+  private def diskGroups = conf.diskGroups
 
-  private def diskGroupGradient = CelebornConf.diskGroupGradient(conf)
+  private def diskGroupGradient = conf.diskGroupGradient
 
   private val partitionSizeUpdateInitialDelay = CelebornConf.partitionSizeUpdaterInitialDelay(conf)
   private val partitionSizeUpdateInterval = CelebornConf.partitionSizeUpdateInterval(conf)
@@ -122,7 +122,7 @@ private[celeborn] class Master(
     partitionSizeUpdateInitialDelay,
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val offerSlotsAlgorithm = CelebornConf.offerSlotsAlgorithm(conf)
+  private val offerSlotsAlgorithm = conf.offerSlotsAlgorithm
 
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
@@ -529,16 +529,16 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val extraSlotsSize = Math.min(CelebornConf.offerSlotsExtraSize(conf), workersNotSelected.size)
-    if (extraSlotsSize > 0) {
+    val offerSlotsExtraSize = Math.min(conf.offerSlotsExtraSize, workersNotSelected.size)
+    if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
-      (1 to extraSlotsSize).foreach(_ => {
+      (1 to offerSlotsExtraSize).foreach(_ => {
         slots.put(
           workersNotSelected(index),
           (new util.ArrayList[PartitionLocation](), new util.ArrayList[PartitionLocation]()))
         index = (index + 1) % workersNotSelected.size
       })
-      logInfo(s"Offered extra $extraSlotsSize slots for $shuffleKey")
+      logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
     }
 
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))

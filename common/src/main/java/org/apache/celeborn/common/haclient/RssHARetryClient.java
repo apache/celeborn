@@ -54,7 +54,7 @@ public class RssHARetryClient {
 
   private final RpcEnv rpcEnv;
   private final String[] masterEndpoints;
-  private final int maxTries;
+  private final int maxRetries;
 
   private final RpcTimeout rpcTimeout;
 
@@ -64,7 +64,7 @@ public class RssHARetryClient {
   public RssHARetryClient(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.masterEndpoints = conf.masterEndpoints();
-    this.maxTries = Math.max(masterEndpoints.length, CelebornConf.haClientMaxTries(conf));
+    this.maxRetries = Math.max(masterEndpoints.length, conf.haClientMaxTries());
     this.rpcTimeout = RpcUtils.haClientAskRpcTimeout(conf);
     this.rpcEndpointRef = new AtomicReference<>();
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");
@@ -144,7 +144,7 @@ public class RssHARetryClient {
     AtomicInteger currentMasterIdx = new AtomicInteger(0);
 
     long sleepLimitTime = 2000; // 2s
-    while (numTries < maxTries && shouldRetry) {
+    while (numTries < maxRetries && shouldRetry) {
       try {
         endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
         Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
@@ -161,7 +161,7 @@ public class RssHARetryClient {
       }
     }
 
-    LOG.error("Send rpc with failure, has tried {}, max try {}!", numTries, maxTries, throwable);
+    LOG.error("Send rpc with failure, has tried {}, max try {}!", numTries, maxRetries, throwable);
     throw throwable;
   }
 
