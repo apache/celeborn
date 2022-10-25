@@ -18,13 +18,13 @@
 package org.apache.celeborn.common
 
 import java.io.IOException
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
+import java.util.{Collections, Locale, Collection => JCollection, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-import org.apache.celeborn.common.identity.DefaultIdentityProvider
+import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
@@ -33,6 +33,7 @@ import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
 import org.apache.celeborn.common.util.Utils
+import org.apache.hadoop.security.UserGroupInformation
 
 class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
@@ -1637,7 +1638,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.checkQuota.enabled")
       .withAlternative("rss.cluster.checkQuota.enabled")
       .categories("quota")
-      .doc("")
+      .doc("When true, before registering shuffle, LifecycleManager should check " +
+        "if current user have enough quota space, if cluster don't have enough " +
+        "quota space for current user, fallback to Spark's default shuffle")
       .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
@@ -1646,8 +1649,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.identity.provider")
       .withAlternative("rss.identity.provider")
       .categories("quota")
-      .doc("Identity provider class name. Default value use `DefaultIdentityProvider`, " +
-        "return `UserIdentifier` with default tenant id and username from `UserGroupInformation`. ")
+      .doc(s"IdentityProvider class name. Default class is " +
+        s"`${classOf[DefaultIdentityProvider].getName}`, return `${classOf[UserIdentifier].getName}` " +
+        s"with default tenant id and username from `${classOf[UserGroupInformation].getName}`. ")
       .version("0.2.0")
       .stringConf
       .createWithDefault(classOf[DefaultIdentityProvider].getName)
@@ -1656,7 +1660,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.quota.manager")
       .withAlternative("rss.quota.manager")
       .categories("quota")
-      .doc("")
+      .doc(s"QuotaManger class name. Default class is `${classOf[DefaultQuotaManager].getName}`.")
       .version("0.2.0")
       .stringConf
       .createWithDefault(classOf[DefaultQuotaManager].getName)
@@ -1665,7 +1669,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.quota.configuration.path")
       .withAlternative("rss.quota.configuration.path")
       .categories("quota")
-      .doc("")
+      .doc("Quota configuration file path.")
       .version("0.2.0")
       .stringConf
       .createOptional

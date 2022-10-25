@@ -19,8 +19,8 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.shuffle.checkQuota.enabled | true |  | 0.2.0 | 
-| celeborn.shuffle.identity.provider | org.apache.celeborn.common.identity.DefaultIdentityProvider | Identity provider class name. Default value use `DefaultIdentityProvider`, return `UserIdentifier` with default tenant id and username from `UserGroupInformation`.  | 0.2.0 | 
-| celeborn.shuffle.quota.configuration.path | &lt;undefined&gt; |  | 0.2.0 | 
-| celeborn.shuffle.quota.manager | org.apache.celeborn.common.quota.DefaultQuotaManager |  | 0.2.0 | 
+| celeborn.shuffle.checkQuota.enabled | true | When true, before registering shuffle, LifecycleManager should check if current user have enough quota space, if cluster don't have enough quota space for current user, fallback to Spark's default shuffle | 0.2.0 | 
+| celeborn.shuffle.identity.provider | org.apache.celeborn.common.identity.DefaultIdentityProvider | IdentityProvider class name. Default class is `org.apache.celeborn.common.identity.DefaultIdentityProvider`, return `org.apache.celeborn.common.identity.UserIdentifier` with default tenant id and username from `org.apache.hadoop.security.UserGroupInformation`.  | 0.2.0 | 
+| celeborn.shuffle.quota.configuration.path | &lt;undefined&gt; | Quota configuration file path. | 0.2.0 | 
+| celeborn.shuffle.quota.manager | org.apache.celeborn.common.quota.DefaultQuotaManager | QuotaManger class name. Default class is `org.apache.celeborn.common.quota.DefaultQuotaManager`. | 0.2.0 | 
 <!--end-include-->
