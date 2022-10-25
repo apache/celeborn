@@ -534,7 +534,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionRequestInterval: Long = get(BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrentLevel: Int = get(RPC_CACHE_CONCURRENT_LEVEL)
-  def rpcCacheExpire: Long = get(RPC_CACHE_EXPIRE)
+  def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1976,7 +1976,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.3)
 
   val RPC_CACHE_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.rpcCache.Size")
+    buildConf("celeborn.rpc.cache.Size")
       .categories("client")
       .withAlternative("rss.rpc.cache.size")
       .version("0.2.0")
@@ -1985,7 +1985,7 @@ object CelebornConf extends Logging {
       .createWithDefault(256)
 
   val RPC_CACHE_CONCURRENT_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.rpcCache.concurrent.level")
+    buildConf("celeborn.rpc.cache.concurrent.level")
       .categories("client")
       .withAlternative("rss.rpc.cache.concurrent.level")
       .version("0.2.0")
@@ -1993,8 +1993,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(32)
 
-  val RPC_CACHE_EXPIRE: ConfigEntry[Long] =
-    buildConf("celeborn.rpcCache.expire")
+  val RPC_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.cache.expiretime")
       .categories("client")
       .withAlternative("rss.rpc.cache.expire")
       .version("0.2.0")
