@@ -40,7 +40,8 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 
-class LifecycleManager(appId: String, val conf: CelebornConf, val numCores: Int) extends RpcEndpoint with Logging {
+class LifecycleManager(appId: String, val conf: CelebornConf, val numCores: Int) extends RpcEndpoint
+  with Logging {
 
   private val lifecycleHost = Utils.localHostName
 

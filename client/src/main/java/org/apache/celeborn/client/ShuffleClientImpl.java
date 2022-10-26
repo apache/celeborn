@@ -131,7 +131,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushBufferMaxSize = conf.pushBufferMaxSize();
 
     // init rpc env and master endpointRef
-    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), Utils.localHostName(),0, conf, numCores);
+    rpcEnv =
+        RpcEnv.create(
+            "ShuffleClient", Utils.localHostName(), Utils.localHostName(), 0, conf, numCores);
 
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(
