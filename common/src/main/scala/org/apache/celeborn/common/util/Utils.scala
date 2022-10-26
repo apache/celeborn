@@ -252,7 +252,7 @@ object Utils extends Logging {
       "startPort should be between 1024 and 65535 (inclusive), or 0 for a random free port.")
 
     val serviceString = if (serviceName.isEmpty) "" else s" '$serviceName'"
-    val maxRetries = CelebornConf.masterPortMaxRetry(conf)
+    val maxRetries = conf.portMaxRetries
     for (offset <- 0 to maxRetries) {
       // Do not increment port if startPort is 0, which is treated as a special port
       val tryPort =
