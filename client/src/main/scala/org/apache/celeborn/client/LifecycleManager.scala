@@ -592,7 +592,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       return
     }
 
-    if(stageEndShuffleSet.contains(shuffleId)) {
+    if (stageEndShuffleSet.contains(shuffleId)) {
       logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
       context.reply(ChangeLocationResponse(StatusCode.STAGE_ENDED, None))
       return
