@@ -40,7 +40,8 @@ public class RssShuffleManager implements ShuffleManager {
 
   private final SparkConf conf;
   private final CelebornConf celebornConf;
-  private final int cores;
+  private final int executorCores;
+  private final int driverCores;
   private String newAppId;
 
   private LifecycleManager lifecycleManager;
@@ -53,7 +54,8 @@ public class RssShuffleManager implements ShuffleManager {
   public RssShuffleManager(SparkConf conf) {
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
-    this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+    this.executorCores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+    this.driverCores = conf.getInt("spark.driver.cores", 0);
     this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(celebornConf);
   }
 
@@ -81,10 +83,10 @@ public class RssShuffleManager implements ShuffleManager {
     if (isDriver() && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
-          lifecycleManager = new LifecycleManager(appId, celebornConf);
+          lifecycleManager = new LifecycleManager(appId, celebornConf, driverCores);
           rssShuffleClient =
               ShuffleClient.get(
-                  lifecycleManager.self(), celebornConf, lifecycleManager.getUserIdentifier());
+                  lifecycleManager.self(), celebornConf, lifecycleManager.getUserIdentifier(), driverCores);
         }
       }
     }
@@ -157,13 +159,13 @@ public class RssShuffleManager implements ShuffleManager {
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
             ShuffleClient.get(
-                h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
+                h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier(), executorCores);
         if ("sort".equals(celebornConf.shuffleWriterMode())) {
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMappers(), context, celebornConf, client, metrics);
         } else if ("hash".equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
-              h, context, celebornConf, client, metrics, SendBufferPool.get(cores));
+              h, context, celebornConf, client, metrics, SendBufferPool.get(executorCores));
         } else {
           throw new UnsupportedOperationException(
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
@@ -196,7 +198,8 @@ public class RssShuffleManager implements ShuffleManager {
           endMapIndex,
           context,
           celebornConf,
-          metrics);
+          metrics,
+          executorCores);
     }
     return SparkUtils.invokeGetReaderMethod(
         sortShuffleManagerName,
@@ -222,7 +225,8 @@ public class RssShuffleManager implements ShuffleManager {
       @SuppressWarnings("unchecked")
       RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
       return new RssShuffleReader<>(
-          h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, celebornConf, metrics);
+          h, startPartition, endPartition, 0, Integer.MAX_VALUE, context,
+              celebornConf, metrics, executorCores);
     }
     return SparkUtils.invokeGetReaderMethod(
         sortShuffleManagerName,
@@ -256,6 +260,7 @@ public class RssShuffleManager implements ShuffleManager {
         endMapIndex,
         context,
         celebornConf,
-        metrics);
+        metrics,
+        executorCores);
   }
 }

@@ -121,7 +121,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
-  public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier) {
+  public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier, int numCores) {
     super();
     this.conf = conf;
     this.userIdentifier = userIdentifier;
@@ -131,7 +131,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushBufferMaxSize = conf.pushBufferMaxSize();
 
     // init rpc env and master endpointRef
-    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
+    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), Utils.localHostName(),0, conf, numCores);
 
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(

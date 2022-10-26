@@ -37,7 +37,8 @@ class RssShuffleReader[K, C](
     endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
     conf: CelebornConf,
-    metrics: ShuffleReadMetricsReporter)
+    metrics: ShuffleReadMetricsReporter,
+    numCores: Int)
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
@@ -45,7 +46,8 @@ class RssShuffleReader[K, C](
     handle.rssMetaServiceHost,
     handle.rssMetaServicePort,
     conf,
-    handle.userIdentifier)
+    handle.userIdentifier,
+    numCores)
 
   override def read(): Iterator[Product2[K, C]] = {
 

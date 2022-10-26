@@ -40,7 +40,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 
-class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
+class LifecycleManager(appId: String, val conf: CelebornConf, val numCores: Int) extends RpcEndpoint with Logging {
 
   private val lifecycleHost = Utils.localHostName
 
@@ -139,8 +139,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.RSS_METASERVICE_SYS,
     lifecycleHost,
+    lifecycleHost,
     conf.shuffleManagerPort,
-    conf)
+    conf,
+    numCores)
   rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")

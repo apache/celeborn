@@ -46,7 +46,7 @@ public abstract class ShuffleClient implements Cloneable {
   protected ShuffleClient() {}
 
   public static ShuffleClient get(
-      RpcEndpointRef driverRef, CelebornConf conf, UserIdentifier userIdentifier) {
+      RpcEndpointRef driverRef, CelebornConf conf, UserIdentifier userIdentifier, int numCores) {
     if (null == _instance || !initFinished) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -55,12 +55,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = new ShuffleClientImpl(conf, userIdentifier, numCores);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = new ShuffleClientImpl(conf, userIdentifier, numCores);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         }
@@ -70,7 +70,7 @@ public abstract class ShuffleClient implements Cloneable {
   }
 
   public static ShuffleClient get(
-      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
+      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier, int numCores) {
     if (null == _instance || !initFinished) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -79,12 +79,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = new ShuffleClientImpl(conf, userIdentifier, numCores);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = new ShuffleClientImpl(conf, userIdentifier, numCores);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         }

@@ -41,8 +41,8 @@ trait ReadWriteTestBase extends Logging {
       .set("rss.client.compression.codec", codec.name)
       .set("celeborn.push.replicate.enabled", "true")
       .set("celeborn.push.buffer.size", "256K")
-    val lifecycleManager = new LifecycleManager(APP, clientConf)
-    val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"))
+    val lifecycleManager = new LifecycleManager(APP, clientConf, 0)
+    val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"), 0)
     shuffleClient.setupMetaServiceRef(lifecycleManager.self)
 
     val STR1 = RandomStringUtils.random(1024)
