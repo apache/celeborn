@@ -1448,7 +1448,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.offer.slots.extra.size")
       .categories("master")
       .version("0.2.0")
-      .doc("Extra slots size when master assign slots.")
+      .doc("Extra slots number when master assign slots.")
       .intConf
       .createWithDefault(2)
 
