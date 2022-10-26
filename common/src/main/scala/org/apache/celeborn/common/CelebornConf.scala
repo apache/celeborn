@@ -504,10 +504,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Quota                         //
   // //////////////////////////////////////////////////////
-  def checkQuotaEnabled: Boolean = get(SHUFFLE_CHECK_QUOTA_ENABLED)
-  def identityProviderClass: String = get(SHUFFLE_IDENTITY_PROVIDER)
-  def quotaManagerClass: String = get(SHUFFLE_QUOTA_MANAGER)
-  def quotaConfigurationPath: Option[String] = get(SHUFFLE_QUOTA_CONFIGURATION_PATH)
+  def checkQuotaEnabled: Boolean = get(CHECK_QUOTA_ENABLED)
+  def identityProviderClass: String = get(IDENTITY_PROVIDER)
+  def quotaManagerClass: String = get(QUOTA_MANAGER)
+  def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -1635,8 +1635,8 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
-  val SHUFFLE_CHECK_QUOTA_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.checkQuota.enabled")
+  val CHECK_QUOTA_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.checkQuota.enabled")
       .withAlternative("rss.cluster.checkQuota.enabled")
       .categories("quota")
       .doc("When true, before registering shuffle, LifecycleManager should check " +
@@ -1646,8 +1646,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SHUFFLE_IDENTITY_PROVIDER: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.identity.provider")
+  val IDENTITY_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.quota.identity.provider")
       .withAlternative("rss.identity.provider")
       .categories("quota")
       .doc(s"IdentityProvider class name. Default class is " +
@@ -1657,8 +1657,8 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault(classOf[DefaultIdentityProvider].getName)
 
-  val SHUFFLE_QUOTA_MANAGER: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.quota.manager")
+  val QUOTA_MANAGER: ConfigEntry[String] =
+    buildConf("celeborn.quota.manager")
       .withAlternative("rss.quota.manager")
       .categories("quota")
       .doc(s"QuotaManger class name. Default class is `${classOf[DefaultQuotaManager].getName}`.")
@@ -1666,8 +1666,8 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault(classOf[DefaultQuotaManager].getName)
 
-  val SHUFFLE_QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
-    buildConf("celeborn.shuffle.quota.configuration.path")
+  val QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.quota.configuration.path")
       .withAlternative("rss.quota.configuration.path")
       .categories("quota")
       .doc("Quota configuration file path.")
