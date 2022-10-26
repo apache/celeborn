@@ -36,9 +36,7 @@ license: |
 | celeborn.metrics.sample.rate | 1.0 | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | The sliding window size of timer metric. | 0.2.0 | 
 | celeborn.port.maxRetries | 1 | When port is occupied,we will retry for max retry times. | 0.2.0 | 
-| celeborn.slots.assign.extraSlots | 2 | Extra slots size when master assign slots. | 0.2.0 |
+| celeborn.slots.assign.extraSlots | 2 | Extra slots size when master assign slots. | 0.2.0 | 
 | celeborn.slots.assign.policy | roundrobin | Policy for master to assign slots. | 0.2.0 | 
-| celeborn.slots.assign.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.2.0 |
-| celeborn.slots.assign.loadAware.numDiskGroups | 5 | This configuration is a guidance for load-aware slot allocation algorithm. This value is control how many disk groups will be created. | 0.2.0 |
 | celeborn.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 <!--end-include-->
