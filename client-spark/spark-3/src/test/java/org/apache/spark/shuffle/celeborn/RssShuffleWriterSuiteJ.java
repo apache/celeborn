@@ -115,7 +115,7 @@ public class RssShuffleWriterSuiteJ {
 
   @BeforeClass
   public static void beforeAll() {
-    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss_test");
+    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn_test");
   }
 
   @AfterClass

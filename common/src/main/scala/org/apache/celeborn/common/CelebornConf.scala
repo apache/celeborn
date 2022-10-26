@@ -22,6 +22,7 @@ import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, L
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.util.Try
 
 import org.apache.hadoop.security.UserGroupInformation
@@ -34,6 +35,7 @@ import org.apache.celeborn.common.protocol.{PartitionSplitMode, PartitionType, S
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
+import org.apache.celeborn.common.rpc.RpcTimeout
 import org.apache.celeborn.common.util.Utils
 
 class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
@@ -366,10 +368,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   // //////////////////////////////////////////////////////
-  //                      Common                        //
+  //                      Network                        //
   // //////////////////////////////////////////////////////
   def portMaxRetries: Int = get(PORT_MAX_RETRY)
-  def haClientMaxTries: Int = get(HA_CLIENT_MAX_RETRIES)
+  def networkTimeout: RpcTimeout =
+    new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
+  def rpcConnectThreads: Int = get(RPC_CONNECT_THREADS)
+  def rpcLookupTimeout: RpcTimeout =
+    new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
+  def rpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
+  def clientRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(CLIENT_RPC_ASK_TIMEOUT).milli, CLIENT_RPC_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
   //                      Master                         //
@@ -412,6 +422,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Client                         //
   // //////////////////////////////////////////////////////
+  def clientMaxTries: Int = get(CLIENT_MAX_RETRIES)
   def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
@@ -866,6 +877,198 @@ object CelebornConf extends Logging {
 
   def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
 
+  val NETWORK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.network.timeout")
+      .withAlternative("rss.network.timeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc("Default timeout for network operations.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("240s")
+
+  val NETWORK_CONNECT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.network.connect.timeout")
+      .withAlternative("rss.network.connect.timeout")
+      .categories("network")
+      .doc("Default socket connect timeout.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
+
+  val RPC_CONNECT_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.connect.threads")
+      .categories("network")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(64)
+
+  val RPC_LOOKUP_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.lookupTimeout")
+      .withAlternative("rss.rpc.lookupTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc("Timeout for RPC lookup operations.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.askTimeout")
+      .withAlternative("rss.rpc.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc("Timeout for RPC ask operations.")
+      .fallbackConf(NETWORK_TIMEOUT)
+
+  val CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.askTimeout")
+      .withAlternative("rss.haclient.rpc.askTimeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout for client RPC ask operations.")
+      .fallbackConf(NETWORK_TIMEOUT)
+
+  val NETWORK_IO_MODE: ConfigEntry[String] =
+    buildConf("celeborn.<module>.io.mode")
+      .categories("network")
+      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL.")
+      .stringConf
+      .transform(_.toUpperCase)
+      .checkValue(v => Seq("NIO", "EPOLL").contains(v), "available options: NIO, EPOLL.")
+      .createWithDefault("NIO")
+
+  val NETWORK_IO_DECODER_MODE: ConfigEntry[String] =
+    buildConf("celeborn.<module>.decoder.mode")
+      .categories("network")
+      .doc("Netty TransportFrameDecoder implementation, available options: default, supplier.")
+      .stringConf
+      .transform(_.toLowerCase)
+      .checkValue(
+        v => Seq("default", "supplier").contains(v),
+        "available options: default, supplier.")
+      .createWithDefault("default")
+
+  val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.io.preferDirectBufs")
+      .categories("network")
+      .doc("If true, we will prefer allocating off-heap byte buffers within Netty.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val NETWORK_IO_CONNECT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.connectTimeout")
+      .categories("network")
+      .doc("Socket connect timeout.")
+      .fallbackConf(NETWORK_CONNECT_TIMEOUT)
+
+  val NETWORK_IO_CONNECTION_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.connectionTimeout")
+      .categories("network")
+      .doc("Connection active timeout.")
+      .fallbackConf(NETWORK_TIMEOUT)
+
+  val NETWORK_IO_NUM_CONNECTIONS_PER_PEER: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.io.numConnectionsPerPeer")
+      .categories("network")
+      .doc("Number of concurrent connections between two nodes for fetching data.")
+      .intConf
+      .createWithDefault(8)
+
+  val NETWORK_IO_BACKLOG: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.io.backLog")
+      .categories("network")
+      .doc(
+        "Requested maximum length of the queue of incoming connections. Default -1 for no backlog.")
+      .intConf
+      .createWithDefault(-1)
+
+  val NETWORK_IO_SERVER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.io.serverThreads")
+      .categories("network")
+      .doc("Number of threads used in the server thread pool. Default to 0, which is 2x#cores.")
+      .intConf
+      .createWithDefault(0)
+
+  val NETWORK_IO_CLIENT_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.io.clientThreads")
+      .categories("network")
+      .doc("Number of threads used in the client thread pool. Default to 0, which is 2x#cores.")
+      .intConf
+      .createWithDefault(0)
+
+  val NETWORK_IO_RECEIVE_BUFFER: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.receiveBuffer")
+      .categories("network")
+      .doc("Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer " +
+        "should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps " +
+        "buffer size should be ~ 1.25MB.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(-1)
+
+  val NETWORK_IO_SEND_BUFFER: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.sendBuffer")
+      .categories("network")
+      .doc("Send buffer size (SO_SNDBUF).")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(-1)
+
+  val NETWORK_IO_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.io.maxRetries")
+      .categories("network")
+      .doc(
+        "Max number of times we will try IO exceptions (such as connection timeouts) per request. " +
+          "If set to 0, we will not do any retries.")
+      .intConf
+      .createWithDefault(3)
+
+  val NETWORK_IO_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.retryWait")
+      .categories("network")
+      .doc("Time that we will wait in order to perform a retry after an IOException. " +
+        "Only relevant if maxIORetries > 0.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val NETWORK_IO_LAZY_FD: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.io.lazyFD")
+      .categories("network")
+      .doc("Whether to initialize FileDescriptor lazily or not. If true, file descriptors are created only " +
+        "when data is going to be transferred. This can reduce the number of open files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val NETWORK_VERBOSE_METRICS: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.io.enableVerboseMetrics")
+      .categories("network")
+      .doc("Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty " +
+        "PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val STORAGE_MEMORY_MAP_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.storage.memoryMapThreshold")
+      .withAlternative("rss.storage.memoryMapThreshold")
+      .internal
+      .doc("Minimum size of a block that we should start using memory map rather than reading in through " +
+        "normal IO operations. This prevents Spark from memory mapping very small blocks. In general, " +
+        "memory mapping has high overhead for blocks close to or below the page size of the OS.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("2m")
+
+  val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.maxChunksBeingTransferred")
+      .withAlternative("rss.shuffle.maxChunksBeingTransferred")
+      .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
+        "that new incoming connections will be closed when the max number is hit. The client will retry " +
+        "according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and " +
+        "`celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
       .categories("client", "worker")
@@ -882,7 +1085,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString(s"<localhost>:9097")
 
   val SHUFFLE_WRITER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.writer.mode")
+    buildConf("celeborn.shuffle.writer")
       .withAlternative("rss.shuffle.writer.mode")
       .categories("client")
       .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
@@ -1747,14 +1950,14 @@ object CelebornConf extends Logging {
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
       .withAlternative("rss.master.port.maxretry")
-      .categories("master", "worker", "client")
+      .categories("network")
       .doc("When port is occupied, we will retry for max retry times.")
       .version("0.2.0")
       .intConf
       .createWithDefault(1)
 
-  val HA_CLIENT_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.ha.client.maxRetries")
+  val CLIENT_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.client.maxRetries")
       .withAlternative("rss.ha.client.maxTries")
       .categories("client", "worker")
       .doc("Max retry times for client to connect master endpoint")

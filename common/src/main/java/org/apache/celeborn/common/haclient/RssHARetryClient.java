@@ -46,7 +46,6 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.RpcTimeout;
-import org.apache.celeborn.common.util.RpcUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 public class RssHARetryClient {
@@ -64,8 +63,8 @@ public class RssHARetryClient {
   public RssHARetryClient(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.masterEndpoints = conf.masterEndpoints();
-    this.maxRetries = Math.max(masterEndpoints.length, conf.haClientMaxTries());
-    this.rpcTimeout = RpcUtils.haClientAskRpcTimeout(conf);
+    this.maxRetries = Math.max(masterEndpoints.length, conf.clientMaxTries());
+    this.rpcTimeout = conf.clientRpcAskTimeout();
     this.rpcEndpointRef = new AtomicReference<>();
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");
   }

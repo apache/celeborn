@@ -24,7 +24,6 @@ import scala.concurrent.Future
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
-import org.apache.celeborn.common.util.RpcUtils
 
 /**
  * A RpcEnv implementation must have a [[RpcEnvFactory]] implementation with an empty constructor
@@ -63,7 +62,7 @@ object RpcEnv {
  */
 abstract class RpcEnv(conf: CelebornConf) {
 
-  private[celeborn] val defaultLookupTimeout = RpcUtils.lookupRpcTimeout(conf)
+  private[celeborn] val defaultLookupTimeout = conf.rpcLookupTimeout
 
   /**
    * Return RpcEndpointRef of the registered [[RpcEndpoint]]. Will be used to implement

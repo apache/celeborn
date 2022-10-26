@@ -66,7 +66,7 @@ public class RequestTimeoutIntegrationSuiteJ {
   @Before
   public void setUp() throws Exception {
     Map<String, String> configMap = new HashMap<>();
-    configMap.put("rss.shuffle.io.connectionTimeout", "2s");
+    configMap.put("celeborn.shuffle.io.connectionTimeout", "2s");
     conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
 
     defaultManager =

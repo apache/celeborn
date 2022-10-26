@@ -84,7 +84,7 @@ public class FileWriterSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
 
-  private static final CelebornConf RSS_CONF = new CelebornConf();
+  private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
@@ -104,8 +104,8 @@ public class FileWriterSuiteJ {
 
   @BeforeClass
   public static void beforeAll() {
-    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
-    RSS_CONF.set("rss.worker.fetch.chunk.size", "1k");
+    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
+    CONF.set("celeborn.shuffle.chuck.size", "1k");
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(
@@ -140,7 +140,7 @@ public class FileWriterSuiteJ {
 
           @Override
           public RPCSource rpcSource() {
-            return new RPCSource(RSS_CONF, MetricsSystem.ROLE_WORKER());
+            return new RPCSource(CONF, MetricsSystem.ROLE_WORKER());
           }
 
           @Override
@@ -245,7 +245,7 @@ public class FileWriterSuiteJ {
             new FileInfo(file, userIdentifier),
             localFlusher,
             source,
-            RSS_CONF,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
@@ -290,7 +290,7 @@ public class FileWriterSuiteJ {
             new FileInfo(file, userIdentifier),
             localFlusher,
             source,
-            RSS_CONF,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
@@ -344,7 +344,7 @@ public class FileWriterSuiteJ {
             fileInfo,
             localFlusher,
             source,
-            RSS_CONF,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
