@@ -12,7 +12,7 @@ docker build -f docker/Dockerfile --build-arg celeborn_version=0.1.0 -t ${your-r
 
 You can use `--build-arg celeborn_version` to indicates the version of Celeborn currently in use, default value is 0.1.1.
 
-Make sure you have already built Celeborn, the target file 'celeborn-${project.version}-bin.tgz' is in ${CELEBORN_HOME}.
+Make sure you have already built Celeborn, the target file 'apache-celeborn-${project.version}-bin.tgz' is in ${CELEBORN_HOME}.
 
 ## Deploy Celeborn with helm
 

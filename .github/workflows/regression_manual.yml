@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build
-        run: ./dev/make-distribution.sh -Pspark-3.2 && rm -rf /home/hadoop/celeborn-toolkit/dist/* && mv celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
+        run: ./dev/make-distribution.sh -Pspark-3.2 && rm -rf /home/hadoop/celeborn-toolkit/dist/* && mv apache-celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
 
       - name: Regression
         run: /home/hadoop/celeborn-toolkit/reg.sh regression

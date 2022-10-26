@@ -63,7 +63,9 @@ rss-*-bin*
 emr-*.tgz
 emr-*-bin*
 celeborn-*.tgz
+apache-celeborn-*.tgz
 celeborn-*-bin*
+apache-celeborn-*-bin*
 src_managed/
 target/
 unit-tests.log

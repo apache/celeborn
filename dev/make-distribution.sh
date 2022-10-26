@@ -115,7 +115,7 @@ SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
 
 echo "Celeborn version is $VERSION"
 
-echo "Making celeborn-$VERSION-$NAME.tgz"
+echo "Making apache-celeborn-$VERSION-$NAME.tgz"
 
 # Build uber fat JAR
 cd "$PROJECT_DIR"
@@ -158,9 +158,9 @@ mkdir "$DIST_DIR/docker"
 cp "$PROJECT_DIR/docker/Dockerfile" "$DIST_DIR/docker"
 cp -r "$PROJECT_DIR/docker/helm" "$DIST_DIR/docker"
 
-TARDIR_NAME="celeborn-$VERSION-$NAME"
+TARDIR_NAME="apache-celeborn-$VERSION-$NAME"
 TARDIR="$PROJECT_DIR/$TARDIR_NAME"
 rm -rf "$TARDIR"
 cp -r "$DIST_DIR" "$TARDIR"
-tar czf "celeborn-$VERSION-$NAME.tgz" -C "$PROJECT_DIR" "$TARDIR_NAME"
+tar czf "apache-celeborn-$VERSION-$NAME.tgz" -C "$PROJECT_DIR" "$TARDIR_NAME"
 rm -rf "$TARDIR"

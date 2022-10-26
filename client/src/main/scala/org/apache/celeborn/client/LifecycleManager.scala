@@ -17,15 +17,17 @@
 
 package org.apache.celeborn.client
 
+import java.nio.ByteBuffer
 import java.util
 import java.util.{List => JList}
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
+import com.google.common.cache.{Cache, CacheBuilder}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -38,6 +40,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
+import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 
 class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
@@ -53,6 +56,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = conf.pushStageEndTimeout
+  private val rpcCacheSize = conf.rpcCacheSize
+  private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
+  private val rpcCacheExpireTime = conf.rpcCacheExpireTime
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -69,7 +75,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
-
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+    .concurrencyLevel(rpcCacheConcurrencyLevel)
+    .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(rpcCacheSize)
+    .build().asInstanceOf[Cache[Int, ByteBuffer]]
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
@@ -783,10 +793,26 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(
         GetReducerFileGroupResponse(StatusCode.SHUFFLE_DATA_LOST, Array.empty, Array.empty))
     } else {
-      context.reply(GetReducerFileGroupResponse(
-        StatusCode.SUCCESS,
-        reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
-        shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)))
+      if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+        // This branch is for the UTs
+        context.reply(GetReducerFileGroupResponse(
+          StatusCode.SUCCESS,
+          reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+          shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)))
+      } else {
+        val cachedMsg = getReducerFileGroupRpcCache.get(
+          shuffleId,
+          new Callable[ByteBuffer]() {
+            override def call(): ByteBuffer = {
+              val returnedMsg = GetReducerFileGroupResponse(
+                StatusCode.SUCCESS,
+                reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+                shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty))
+              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+            }
+          })
+        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+      }
     }
   }
 

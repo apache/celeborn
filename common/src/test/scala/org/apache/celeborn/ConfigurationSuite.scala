@@ -70,6 +70,10 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("worker")
   }
 
+  test("docs - configuration/quota.md") {
+    generateConfigurationMarkdown("quota")
+  }
+
   test("docs - configuration/metrics.md") {
     generateConfigurationMarkdown("metrics")
   }
