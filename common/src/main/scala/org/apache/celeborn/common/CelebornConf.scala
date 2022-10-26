@@ -1636,7 +1636,7 @@ object CelebornConf extends Logging {
       .createWithDefault(9096)
 
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.checkQuota.enabled")
+    buildConf("celeborn.quota.enabled")
       .withAlternative("rss.cluster.checkQuota.enabled")
       .categories("quota")
       .doc("When true, before registering shuffle, LifecycleManager should check " +
