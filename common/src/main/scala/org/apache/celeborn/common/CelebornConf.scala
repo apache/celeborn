@@ -504,8 +504,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Quota                         //
   // //////////////////////////////////////////////////////
-  def checkQuotaEnabled: Boolean = get(CHECK_QUOTA_ENABLED)
-  def identityProviderClass: String = get(IDENTITY_PROVIDER)
+  def quotaEnabled: Boolean = get(QUOTA_ENABLED)
+  def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
   def quotaManagerClass: String = get(QUOTA_MANAGER)
   def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
 
@@ -1635,7 +1635,7 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
-  val CHECK_QUOTA_ENABLED: ConfigEntry[Boolean] =
+  val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.checkQuota.enabled")
       .withAlternative("rss.cluster.checkQuota.enabled")
       .categories("quota")
@@ -1646,7 +1646,7 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val IDENTITY_PROVIDER: ConfigEntry[String] =
+  val QUOTA_IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.provider")
       .withAlternative("rss.identity.provider")
       .categories("quota")

@@ -56,7 +56,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return if rss cluster usage of current user's percent is overhead the limit
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
-    if (!conf.checkQuotaEnabled) {
+    if (!conf.quotaEnabled) {
       return true
     }
 
