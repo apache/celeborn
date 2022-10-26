@@ -74,8 +74,8 @@ private[celeborn] class Worker(
   private val gracefulShutdown = conf.workerGracefulShutdown
   assert(
     !gracefulShutdown || (gracefulShutdown &&
-      CelebornConf.workerRPCPort(conf) != 0 && CelebornConf.fetchServerPort(conf) != 0 &&
-      CelebornConf.pushServerPort(conf) != 0 && CelebornConf.replicateServerPort(conf) != 0),
+      conf.workerRPCPort != 0 && conf.workerFetchServerPort != 0 &&
+      conf.workerPushServerPort != 0 && conf.workerReplicateServerPort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
 
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_WORKER)
@@ -103,7 +103,7 @@ private[celeborn] class Worker(
 
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
-    val closeIdleConnections = CelebornConf.closeIdleConnections(conf)
+    val closeIdleConnections = conf.closeIdleConnections
     val numThreads = conf.getInt("rss.push.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
@@ -111,13 +111,13 @@ private[celeborn] class Worker(
     val transportContext: TransportContext =
       new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
     (
-      transportContext.createServer(CelebornConf.pushServerPort(conf)),
+      transportContext.createServer(conf.workerPushServerPort),
       transportContext.createClientFactory())
   }
 
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
-    val closeIdleConnections = CelebornConf.closeIdleConnections(conf)
+    val closeIdleConnections = conf.closeIdleConnections
     val numThreads =
       conf.getInt("rss.replicate.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf =
@@ -125,19 +125,19 @@ private[celeborn] class Worker(
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
     val transportContext: TransportContext =
       new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
-    transportContext.createServer(CelebornConf.replicateServerPort(conf))
+    transportContext.createServer(conf.workerReplicateServerPort)
   }
 
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
-    val closeIdleConnections = CelebornConf.closeIdleConnections(conf)
+    val closeIdleConnections = conf.closeIdleConnections
     val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
       new TransportContext(transportConf, fetchHandler, closeIdleConnections)
-    transportContext.createServer(CelebornConf.fetchServerPort(conf))
+    transportContext.createServer(conf.workerFetchServerPort)
   }
 
   private val pushPort = pushServer.getPort
@@ -196,8 +196,8 @@ private[celeborn] class Worker(
   val timer = new HashedWheelTimer()
 
   // Configs
-  private val HEARTBEAT_MILLIS = conf.workerHeartbeatTimeoutMs / 4
-  private val REPLICATE_FAST_FAIL_DURATION = CelebornConf.replicateFastFailDurationMs(conf)
+  private val HEARTBEAT_MILLIS = conf.workerHeartbeatTimeout / 4
+  private val REPLICATE_FAST_FAIL_DURATION = conf.replicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: Thread = _
@@ -346,7 +346,7 @@ private[celeborn] class Worker(
   }
 
   private def registerWithMaster(): Unit = {
-    var registerTimeout = CelebornConf.registerWorkerTimeoutMs(conf)
+    var registerTimeout = conf.registerWorkerTimeout
     val interval = 2000
     while (registerTimeout > 0) {
       val resp =
