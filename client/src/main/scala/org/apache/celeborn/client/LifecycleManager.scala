@@ -586,6 +586,17 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldEpoch: Int,
       oldPartition: PartitionLocation,
       cause: Option[StatusCode] = None): Unit = {
+    if (!registeredShuffle.contains(shuffleId)) {
+      logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
+      context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      return
+    }
+
+    if(stageEndShuffleSet.contains(shuffleId)) {
+      logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
+      context.reply(ChangeLocationResponse(StatusCode.STAGE_ENDED, None))
+      return
+    }
 
     val changePartition = ChangePartitionRequest(
       context,
@@ -917,16 +928,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
 
-    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
-    // release resources and clear worker info
-    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
-      partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
-    }
-    requestReleaseSlots(
-      rssHARetryClient,
-      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
-
     def hasCommitFailedIds: Boolean = {
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       if (!pushReplicateEnabled && failedMasterPartitionIds.size() != 0) {
@@ -1027,6 +1028,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       stageEndShuffleSet.add(shuffleId)
     }
     inProcessStageEndShuffleSet.remove(shuffleId)
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
+    // release resources and clear worker info
+    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
+      partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
+      partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
+    }
+    requestReleaseSlots(
+      rssHARetryClient,
+      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
   }
 
   private def handleUnregisterShuffle(
