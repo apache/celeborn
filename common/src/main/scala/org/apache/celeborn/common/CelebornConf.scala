@@ -374,10 +374,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
-  def diskGroups: Int = get(DISK_GROUP)
-  def diskGroupGradient: Double = get(DISK_GROUP_GRADIENT)
-  def offerSlotsExtraSize: Int = get(MASTER_OFFER_SLOTS_EXTRA_SIZE)
-  def offerSlotsAlgorithm: String = get(MASTER_OFFER_SLOTS_ALGORITM)
+  def slotsAssignLoadAwareDiskGroupNum: Int = get(SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_NUM)
+  def slotsAssignLoadAwareDiskGroupGradient: Double =
+    get(SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_GRADIENT)
+  def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
+  def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -1422,8 +1423,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1000)
 
-  val DISK_GROUP: ConfigEntry[Int] =
-    buildConf("celeborn.disk.group")
+  val SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_NUM: ConfigEntry[Int] =
+    buildConf("celeborn.slots.assign.loadAware.numDiskGroups")
       .withAlternative("rss.disk.groups")
       .categories("master")
       .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
@@ -1433,8 +1434,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val DISK_GROUP_GRADIENT: ConfigEntry[Double] =
-    buildConf("celeborn.disk.group.gradient")
+  val SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_GRADIENT: ConfigEntry[Double] =
+    buildConf("celeborn.slots.assign.loadAware.diskGroupGradient")
       .withAlternative("rss.disk.groups.gradient")
       .categories("master")
       .doc("This value means how many more workload will be placed into a faster disk group " +
@@ -1444,21 +1445,21 @@ object CelebornConf extends Logging {
       .doubleConf
       .createWithDefault(0.1)
 
-  val MASTER_OFFER_SLOTS_EXTRA_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.master.offerSlots.extraSize")
+  val SLOTS_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
+    buildConf("celeborn.slots.assign.extraSlots")
       .withAlternative("rss.offer.slots.extra.size")
       .categories("master")
       .version("0.2.0")
-      .doc("")
+      .doc("Extra slots size when master assign slots.")
       .intConf
       .createWithDefault(2)
 
-  val MASTER_OFFER_SLOTS_ALGORITM: ConfigEntry[String] =
-    buildConf("celeborn.master.offerSlots.algorithm")
+  val SLOTS_ASSIGN_POLICY: ConfigEntry[String] =
+    buildConf("celeborn.slots.assign.policy")
       .withAlternative("rss.offer.slots.algorithm")
       .categories("master")
       .version("0.2.0")
-      .doc("")
+      .doc("Policy for master to assign slots.")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValue(Seq("roundrobin", "loadaware").contains(_), "")

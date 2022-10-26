@@ -104,9 +104,9 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.diskReserveSize
 
-  private def diskGroups = conf.diskGroups
+  private def slotsAssignLoadAwareDiskGroupNum = conf.slotsAssignLoadAwareDiskGroupNum
 
-  private def diskGroupGradient = conf.diskGroupGradient
+  private def slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
 
   private val partitionSizeUpdateInitialDelay = CelebornConf.partitionSizeUpdaterInitialDelay(conf)
   private val partitionSizeUpdateInterval = CelebornConf.partitionSizeUpdateInterval(conf)
@@ -122,7 +122,7 @@ private[celeborn] class Master(
     partitionSizeUpdateInitialDelay,
     partitionSizeUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val offerSlotsAlgorithm = conf.offerSlotsAlgorithm
+  private val slotsAssignPolicy = conf.slotsAssignPolicy
 
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
@@ -487,7 +487,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (offerSlotsAlgorithm == "roundrobin") {
+          if (slotsAssignPolicy == "roundrobin") {
             SlotsAllocator.offerSlotsRoundRobin(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
@@ -498,8 +498,8 @@ private[celeborn] class Master(
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               diskReserveSize,
-              diskGroups,
-              diskGroupGradient)
+              slotsAssignLoadAwareDiskGroupNum,
+              slotsAssignLoadAwareDiskGroupGradient)
           }
         }
       }
@@ -529,7 +529,7 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val offerSlotsExtraSize = Math.min(conf.offerSlotsExtraSize, workersNotSelected.size)
+    val offerSlotsExtraSize = Math.min(conf.slotsAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to offerSlotsExtraSize).foreach(_ => {
