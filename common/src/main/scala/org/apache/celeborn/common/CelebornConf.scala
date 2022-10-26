@@ -374,9 +374,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
-  def slotsAssignLoadAwareDiskGroupNum: Int = get(SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_NUM)
+  def slotsAssignLoadAwareDiskGroupNum: Int = get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def slotsAssignLoadAwareDiskGroupGradient: Double =
-    get(SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_GRADIENT)
+    get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
 
@@ -1423,7 +1423,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1000)
 
-  val SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_NUM: ConfigEntry[Int] =
+  val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
     buildConf("celeborn.slots.assign.loadAware.numDiskGroups")
       .withAlternative("rss.disk.groups")
       .categories("master")
@@ -1433,7 +1433,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val SLOTS_ASSIGN_LOAD_AWARE_DISK_GROUP_GRADIENT: ConfigEntry[Double] =
+  val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT: ConfigEntry[Double] =
     buildConf("celeborn.slots.assign.loadAware.diskGroupGradient")
       .withAlternative("rss.disk.groups.gradient")
       .categories("master")
@@ -1457,7 +1457,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.offer.slots.algorithm")
       .categories("master")
       .version("0.2.0")
-      .doc("Policy for master to assign slots.")
+      .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware.")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValue(Seq("roundrobin", "loadaware").contains(_), "")
@@ -1604,7 +1604,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.port.maxRetries")
       .withAlternative("rss.master.port.maxretry")
       .categories("master", "worker", "client")
-      .doc("When port is occupied,we will retry for max retry times.")
+      .doc("When port is occupied, we will retry for max retry times.")
       .version("0.2.0")
       .intConf
       .createWithDefault(1)
