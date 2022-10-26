@@ -46,8 +46,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
-    this.defaultPartitionSize = CelebornConf.initialPartitionSize(conf);
-    this.estimatedPartitionSize = defaultPartitionSize;
+    this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
+    this.estimatedPartitionSize = initialEstimatedPartitionSize;
   }
 
   public HARaftServer getRatisServer() {

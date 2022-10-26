@@ -40,5 +40,9 @@ license: |
 | celeborn.slots.assign.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.2.0 | 
 | celeborn.slots.assign.loadAware.numDiskGroups | 5 | This configuration is a guidance for load-aware slot allocation algorithm. This value is control how many disk groups will be created. | 0.2.0 | 
 | celeborn.slots.assign.policy | roundrobin | Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. | 0.2.0 | 
+| celeborn.worker.estimatedPartitionSize.update.initialDelay | 5m |  | 0.2.0 | 
+| celeborn.worker.estimatedPartitionSize.update.interval | 10m |  | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
+| celeborn.worker.initialEstimatedPartitionSize | 64mb | Initial estimated partition size, default is 64m, and it will change according to runtime stats. | 0.2.0 | 
+| celeborn.worker.minimumEstimatedPartitionSize | 8mb | Ignore partition size smaller than this configuration for partition size estimation. | 0.2.0 | 
 <!--end-include-->

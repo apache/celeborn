@@ -379,6 +379,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
+  def initialEstimatedPartitionSize: Long = get(INITIAL_ESTIMATED_PARTITION_SIZE)
+  def minimumEstimatedPartitionSize: Long = get(MINIMUM_ESTIMATED_PARTITION_SIZE)
+  def estimatedPartitionSizeUpdaterInitialDelay: Long = get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
+  def estimatedPartitionSizeUpdateInterval: Long = get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -387,6 +391,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def partitionSortTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
+  def initialReserveSingleSortMemory: Long = get(INIT_SINGLE_PARTITION_SORTER_RESERVE_MEMORY)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -1286,6 +1292,33 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(32)
 
+  val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.shuffle.commit.timeout")
+      .withAlternative("rss.flush.timeout")
+      .categories("worker")
+      .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("120s")
+
+  val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.partitionSorter.sort.timeout")
+      .withAlternative("rss.partition.sort.timeout")
+      .categories("worker")
+      .doc("Timeout for a shuffle file to sort.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("220s")
+
+  val INIT_SINGLE_PARTITION_SORTER_RESERVE_MEMORY: ConfigEntry[Long] =
+    buildConf("celeborn.worker.partitionSorter.initialReserveSingleSortMemory")
+      .withAlternative("rss.worker.initialReserveSingleSortMemory")
+      .categories("worker")
+      .doc("Initial reserve memory when sorting a shuffle file off-heap.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1mb")
+
   val WORKER_STORAGE_DIRS: OptionalConfigEntry[Seq[String]] =
     buildConf("celeborn.worker.storage.dirs")
       .withAlternative("rss.worker.base.dirs")
@@ -1331,15 +1364,6 @@ object CelebornConf extends Logging {
       .doc("Size of buffer used by a single flusher.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
-
-  val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.shuffle.commit.timeout")
-      .withAlternative("rss.flush.timeout")
-      .categories("worker")
-      .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("120s")
 
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")
@@ -1463,21 +1487,42 @@ object CelebornConf extends Logging {
       .checkValue(Seq("roundrobin", "loadaware").contains(_), "")
       .createWithDefault("roundrobin")
 
-  def initialPartitionSize(conf: CelebornConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.initial.partition.size", "64m"))
-  }
 
-  def minimumPartitionSizeForEstimation(conf: CelebornConf): Long = {
-    Utils.byteStringAsBytes(conf.get("rss.minimum.estimate.partition.size", "8m"))
-  }
+  val INITIAL_ESTIMATED_PARTITION_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.initialEstimatedPartitionSize")
+      .withAlternative("rss.initial.partition.size")
+      .categories("master")
+      .doc("Initial estimated partition size, default is 64m, and it will change according to runtime stats.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64mb")
 
-  def partitionSizeUpdaterInitialDelay(conf: CelebornConf): Long = {
-    Utils.timeStringAsMs(conf.get("rss.partition.size.update.initial.delay", "5m"))
-  }
+  val MINIMUM_ESTIMATED_PARTITION_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.minimumEstimatedPartitionSize")
+      .withAlternative("rss.minimum.estimate.partition.size")
+      .categories("master")
+      .doc("Ignore partition size smaller than this configuration for partition size estimation.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8mb")
 
-  def partitionSizeUpdateInterval(conf: CelebornConf): Long = {
-    Utils.timeStringAsMs(conf.get("rss.partition.size.update.interval", "10m"))
-  }
+  val ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
+    buildConf("celeborn.worker.estimatedPartitionSize.update.initialDelay")
+      .withAlternative("rss.partition.size.update.initial.delay")
+      .categories("master")
+      .doc("Initial delay time before start updating estimated partition size.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5m")
+
+  val ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.estimatedPartitionSize.update.interval")
+      .withAlternative("rss.partition.size.update.interval")
+      .categories("master")
+      .doc("Interval of updating estimated partition size.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10m")
 
   val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.stageEnd.timeout")
@@ -1852,10 +1897,6 @@ object CelebornConf extends Logging {
     conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
   }
 
-  def haClientMaxTries(conf: CelebornConf): Int = {
-    conf.getInt("rss.ha.client.maxTries", 15)
-  }
-
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
     buildConf("celeborn.shuffle.partition.type")
       .withAlternative("rss.partition.type")
@@ -1895,10 +1936,6 @@ object CelebornConf extends Logging {
         value => value >= -5 && value <= 22,
         s"Compression level for Zstd compression codec should be an integer between -5 and 22.")
       .createWithDefault(1)
-
-  def partitionSortTimeout(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.partition.sort.timeout", "220s")
-  }
 
   val PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
@@ -1958,21 +1995,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
-
-  def initialReserveSingleSortMemory(conf: CelebornConf): Long = {
-    conf.getSizeAsBytes("rss.worker.initialReserveSingleSortMemory", "1mb")
-  }
-
-  def defaultStorageType(conf: CelebornConf): StorageInfo.Type = {
-    val default = StorageInfo.Type.MEMORY
-    val hintStr = conf.get("rss.storage.type", "memory").toUpperCase
-    if (StorageInfo.Type.values().mkString.toUpperCase.contains(hintStr)) {
-      logWarning(s"storage hint is invalid ${hintStr}")
-      StorageInfo.Type.valueOf(hintStr)
-    } else {
-      default
-    }
-  }
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")

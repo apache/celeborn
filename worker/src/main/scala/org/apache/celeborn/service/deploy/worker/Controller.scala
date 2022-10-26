@@ -54,7 +54,7 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
-  val minimumPartitionSizeForEstimation = CelebornConf.minimumPartitionSizeForEstimation(conf)
+  val minimumEstimatedPartitionSize = conf.minimumEstimatedPartitionSize
   var shutdown: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
@@ -268,7 +268,7 @@ private[deploy] class Controller(
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
                     }
                   }
-                  if (bytes >= minimumPartitionSizeForEstimation) {
+                  if (bytes >= minimumEstimatedPartitionSize) {
                     partitionSizeList.add(bytes)
                   }
                   committedIds.add(uniqueId)
