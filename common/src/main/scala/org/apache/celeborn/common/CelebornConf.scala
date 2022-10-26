@@ -24,7 +24,9 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-import org.apache.celeborn.common.identity.DefaultIdentityProvider
+import org.apache.hadoop.security.UserGroupInformation
+
+import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
@@ -498,6 +500,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
   def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
+
+  // //////////////////////////////////////////////////////
+  //                      Quota                         //
+  // //////////////////////////////////////////////////////
+  def quotaEnabled: Boolean = get(QUOTA_ENABLED)
+  def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
+  def quotaManagerClass: String = get(QUOTA_MANAGER)
+  def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -1639,6 +1649,46 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
 
+  val QUOTA_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.quota.enabled")
+      .withAlternative("rss.cluster.checkQuota.enabled")
+      .categories("quota")
+      .doc("When true, before registering shuffle, LifecycleManager should check " +
+        "if current user have enough quota space, if cluster don't have enough " +
+        "quota space for current user, fallback to Spark's default shuffle")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
+
+  val QUOTA_IDENTITY_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.quota.identity.provider")
+      .withAlternative("rss.identity.provider")
+      .categories("quota")
+      .doc(s"IdentityProvider class name. Default class is " +
+        s"`${classOf[DefaultIdentityProvider].getName}`, return `${classOf[UserIdentifier].getName}` " +
+        s"with default tenant id and username from `${classOf[UserGroupInformation].getName}`. ")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault(classOf[DefaultIdentityProvider].getName)
+
+  val QUOTA_MANAGER: ConfigEntry[String] =
+    buildConf("celeborn.quota.manager")
+      .withAlternative("rss.quota.manager")
+      .categories("quota")
+      .doc(s"QuotaManger class name. Default class is `${classOf[DefaultQuotaManager].getName}`.")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault(classOf[DefaultQuotaManager].getName)
+
+  val QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.quota.configuration.path")
+      .withAlternative("rss.quota.configuration.path")
+      .categories("quota")
+      .doc("Quota configuration file path.")
+      .version("0.2.0")
+      .stringConf
+      .createOptional
+
   def workerRPCPort(conf: CelebornConf): Int = {
     conf.getInt("rss.worker.rpc.port", 0)
   }
@@ -1692,10 +1742,6 @@ object CelebornConf extends Logging {
         },
         "")
       .createWithDefault(0)
-
-  def clusterCheckQuotaEnabled(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.cluster.checkQuota.enabled", defaultValue = true)
-  }
 
   val WORKER_DISK_MONITOR_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.monitor.disk.enabled")
@@ -1759,18 +1805,6 @@ object CelebornConf extends Logging {
 
   def haClientMaxTries(conf: CelebornConf): Int = {
     conf.getInt("rss.ha.client.maxTries", 15)
-  }
-
-  def identityProviderClass(conf: CelebornConf): String = {
-    conf.get("rss.identity.provider", classOf[DefaultIdentityProvider].getName)
-  }
-
-  def quotaManagerClass(conf: CelebornConf): String = {
-    conf.get("rss.quota.manager", classOf[DefaultQuotaManager].getName)
-  }
-
-  def quotaConfigurationPath(conf: CelebornConf): Option[String] = {
-    conf.getOption("rss.quota.configuration.path")
   }
 
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
