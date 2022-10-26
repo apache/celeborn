@@ -1430,7 +1430,6 @@ object CelebornConf extends Logging {
       .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
         "This value is control how many disk groups will be created.")
       .version("0.2.0")
-      .internal
       .intConf
       .createWithDefault(5)
 
@@ -1441,7 +1440,6 @@ object CelebornConf extends Logging {
       .doc("This value means how many more workload will be placed into a faster disk group " +
         "than a slower group.")
       .version("0.2.0")
-      .internal
       .doubleConf
       .createWithDefault(0.1)
 
