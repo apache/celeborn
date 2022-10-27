@@ -93,7 +93,7 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeoutMs
+  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)

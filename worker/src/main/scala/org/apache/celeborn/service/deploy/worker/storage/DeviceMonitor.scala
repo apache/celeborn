@@ -328,7 +328,7 @@ object DeviceMonitor {
       status
     })(false)(
       deviceCheckThreadPool,
-      CelebornConf.workerStatusCheckTimeout(conf),
+      conf.workerDeviceStatusCheckTimeout,
       s"Disk: $diskRootPath Usage Check Timeout")
   }
 
@@ -373,7 +373,7 @@ object DeviceMonitor {
       }
     })(false)(
       deviceCheckThreadPool,
-      CelebornConf.workerStatusCheckTimeout(conf),
+      conf.workerDeviceStatusCheckTimeout,
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 

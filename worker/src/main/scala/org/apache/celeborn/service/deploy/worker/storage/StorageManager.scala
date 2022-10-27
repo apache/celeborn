@@ -55,7 +55,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
       conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>
-        (new File(workdir, CelebornConf.workingDirName(conf)), maxSpace, flusherThread, storageType)
+        (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
     if (workingDirInfos.size <= 0) {
@@ -277,7 +277,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir =
-          new Path(new Path(hdfsDir, CelebornConf.workingDirName(conf)), s"$appId/$shuffleId")
+          new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
         val hdfsWriter = new FileWriter(
@@ -377,7 +377,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  private val noneEmptyDirExpireDurationMs = CelebornConf.appExpireDurationMs(conf)
+  private val noneEmptyDirExpireDurationMs = conf.workerNonEmptyDirExpireDuration
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -419,7 +419,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
     if (hdfsFs != null) {
-      val hdfsWorkPath = new Path(hdfsDir, CelebornConf.workingDirName(conf))
+      val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
       if (hdfsFs.exists(hdfsWorkPath)) {
         val iter = hdfsFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
@@ -467,9 +467,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def checkIfWorkingDirCleaned: Boolean = {
     var retryTimes = 0
-    val awaitTimeout = CelebornConf.checkFileCleanTimeoutMs(conf)
+    val workerCheckFileCleanTimeout = conf.workerCheckFileCleanTimeout
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
-    while (retryTimes < CelebornConf.checkFileCleanRetryTimes(conf)) {
+    while (retryTimes < conf.workerCheckFileCleanMaxRetries) {
       val localCleaned =
         !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists { diskInfo =>
           diskInfo.dirs.exists {
@@ -483,7 +483,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
       val hdfsCleaned = hdfsFs match {
         case hdfs: FileSystem =>
-          val hdfsWorkPath = new Path(hdfsDir, CelebornConf.workingDirName(conf))
+          val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
           // hdfs path not exist when first time initialize
           if (hdfs.exists(hdfsWorkPath)) {
             !hdfs.listFiles(hdfsWorkPath, false).hasNext
@@ -498,11 +498,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         return true
       }
       retryTimes += 1
-      if (retryTimes < CelebornConf.checkFileCleanRetryTimes(conf)) {
+      if (retryTimes < conf.workerCheckFileCleanMaxRetries) {
         logInfo(s"Working directory's files have not been cleaned up completely, " +
-          s"will start ${retryTimes + 1}th attempt after ${awaitTimeout} milliseconds.")
+          s"will start ${retryTimes + 1}th attempt after ${workerCheckFileCleanTimeout} milliseconds.")
       }
-      Thread.sleep(awaitTimeout)
+      Thread.sleep(workerCheckFileCleanTimeout)
     }
     false
   }
