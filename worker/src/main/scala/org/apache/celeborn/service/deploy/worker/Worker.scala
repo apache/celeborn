@@ -74,8 +74,8 @@ private[celeborn] class Worker(
   private val gracefulShutdown = conf.workerGracefulShutdown
   assert(
     !gracefulShutdown || (gracefulShutdown &&
-      conf.workerRPCPort != 0 && conf.workerFetchServerPort != 0 &&
-      conf.workerPushServerPort != 0 && conf.workerReplicateServerPort != 0),
+      conf.workerRPCPort != 0 && conf.workerFetchPort != 0 &&
+      conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
 
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_WORKER)
@@ -111,7 +111,7 @@ private[celeborn] class Worker(
     val transportContext: TransportContext =
       new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
     (
-      transportContext.createServer(conf.workerPushServerPort),
+      transportContext.createServer(conf.workerPushPort),
       transportContext.createClientFactory())
   }
 
@@ -125,7 +125,7 @@ private[celeborn] class Worker(
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
     val transportContext: TransportContext =
       new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
-    transportContext.createServer(conf.workerReplicateServerPort)
+    transportContext.createServer(conf.workerReplicatePort)
   }
 
   var fetchHandler: FetchHandler = _
@@ -137,7 +137,7 @@ private[celeborn] class Worker(
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
       new TransportContext(transportConf, fetchHandler, closeIdleConnections)
-    transportContext.createServer(conf.workerFetchServerPort)
+    transportContext.createServer(conf.workerFetchPort)
   }
 
   private val pushPort = pushServer.getPort

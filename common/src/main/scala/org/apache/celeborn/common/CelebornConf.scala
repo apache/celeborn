@@ -384,9 +384,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Worker                         //
   // //////////////////////////////////////////////////////
   def workerRPCPort: Int = get(WORKER_RPC_PORT)
-  def workerPushServerPort: Int = get(WORKER_PUSH_PORT)
-  def workerFetchServerPort: Int = get(WORKER_FETCH_PORT)
-  def workerReplicateServerPort: Int = get(WORKER_REPLICATE_PORT)
+  def workerPushPort: Int = get(WORKER_PUSH_PORT)
+  def workerFetchPort: Int = get(WORKER_FETCH_PORT)
+  def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def nonEmptyDirExpireDuration: Long = get(NON_EMPTY_DIR_EXPIRE_DURATION)
   def workingDirName: String = get(WORKING_DIR_NAME)
