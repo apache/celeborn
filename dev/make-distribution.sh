@@ -147,7 +147,7 @@ cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DI
 cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/master-jars/"
 cp "$PROJECT_DIR"/worker/target/celeborn-worker_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/worker-jars/"
 cp "$PROJECT_DIR"/worker/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/worker-jars/"
-cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}_$SCALA_VERSION-$VERSION-shaded.jar "$DIST_DIR/spark/"
+cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
 
 # Copy other things
 mkdir "$DIST_DIR/conf"

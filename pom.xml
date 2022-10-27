@@ -656,7 +656,7 @@
               <phase>package</phase>
               <configuration>
                 <minimizeJar>false</minimizeJar>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
+                <shadedArtifactAttached>false</shadedArtifactAttached>
               </configuration>
             </execution>
           </executions>
@@ -834,6 +834,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-2</module>
+        <module>client-spark/spark-2-shaded</module>
       </modules>
       <properties>
         <jackson.version>2.6.7</jackson.version>
@@ -863,6 +864,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-shaded</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -892,6 +894,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-shaded</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -922,6 +925,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-shaded</module>
       </modules>
       <properties>
         <jackson.version>2.12.3</jackson.version>
@@ -951,6 +955,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-shaded</module>
       </modules>
       <properties>
         <jackson.version>2.13.3</jackson.version>
