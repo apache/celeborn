@@ -54,7 +54,7 @@ private[deploy] class Controller(
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
-  val minimumEstimatedPartitionSize = conf.minimumEstimatedPartitionSize
+  val minPartitionSizeForEstimation = conf.minPartitionSizeForEstimation
   var shutdown: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
@@ -268,7 +268,7 @@ private[deploy] class Controller(
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
                     }
                   }
-                  if (bytes >= minimumEstimatedPartitionSize) {
+                  if (bytes >= minPartitionSizeForEstimation) {
                     partitionSizeList.add(bytes)
                   }
                   committedIds.add(uniqueId)

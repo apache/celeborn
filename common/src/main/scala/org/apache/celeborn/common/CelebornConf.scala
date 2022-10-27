@@ -379,11 +379,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
-  def initialEstimatedPartitionSize: Long = get(INITIAL_PARTITION_SIZE_FOR_ESTIMATION)
-  def minimumEstimatedPartitionSize: Long = get(MINIMUM_PARTITION_SIZE_FOR_ESTIMATED)
-  def estimatedPartitionSizeUpdaterInitialDelay: Long =
+  def initialPartitionSizeForEstimation: Long = get(INITIAL_PARTITION_SIZE_FOR_ESTIMATION)
+  def minPartitionSizeForEstimation: Long = get(MINIMUM_PARTITION_SIZE_FOR_ESTIMATED)
+  def partitionSizeForEstimationUpdaterInitialDelay: Long =
     get(PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INITIAL_DELAY)
-  def estimatedPartitionSizeUpdateInterval: Long =
+  def partitionSizeForEstimationUpdateInterval: Long =
     get(PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INTERVAL)
 
   // //////////////////////////////////////////////////////

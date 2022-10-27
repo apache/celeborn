@@ -36,8 +36,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   public SingleMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
-    this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
-    this.estimatedPartitionSize = initialEstimatedPartitionSize;
+    this.initialPartitionSizeForEstimation = conf.initialPartitionSizeForEstimation();
+    this.estimatedPartitionSize = initialPartitionSizeForEstimation;
   }
 
   @Override

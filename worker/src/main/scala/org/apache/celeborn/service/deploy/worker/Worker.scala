@@ -232,7 +232,7 @@ private[celeborn] class Worker(
         replicatePort,
         workerInfo.updateThenGetDiskInfos(
           diskInfos.map { disk => disk.mountPoint -> disk }.toMap.asJava,
-          conf.initialEstimatedPartitionSize).values().asScala.toSeq,
+          conf.initialPartitionSizeForEstimation).values().asScala.toSeq,
         workerInfo.updateThenGetUserResourceConsumption(
           storageManager.userResourceConsumptionSnapshot().asJava),
         shuffleKeys),
