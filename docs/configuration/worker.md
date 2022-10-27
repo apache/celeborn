@@ -56,7 +56,7 @@ license: |
 | celeborn.worker.monitor.disk.enabled | true | When true, worker will monitor device and report to master. | 0.2.0 | 
 | celeborn.worker.monitor.disk.sys.block.dir | /sys/block | The directory where linux file block information is stored. | 0.2.0 | 
 | celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 | 
-| celeborn.worker.partitionSorter.initialReserveSingleSortMemory | 1mb | Initial reserve memory when sorting a shuffle file off-heap. | 0.2.0 | 
+| celeborn.worker.partitionSorter.reservedMemoryPerPartition | 1mb | Initial reserve memory when sorting a shuffle file off-heap. | 0.2.0 | 
 | celeborn.worker.partitionSorter.sort.timeout | 220s | Timeout for a shuffle file to sort. | 0.2.0 | 
 | celeborn.worker.replicate.threads | 64 | Thread number of worker to replicate shuffle data. | 0.2.0 | 
 | celeborn.worker.shuffle.commit.timeout | 120s | Timeout for a Celeborn worker to commit files of a shuffle. | 0.2.0 | 

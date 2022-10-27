@@ -393,7 +393,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def partitionSortTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
-  def initialReserveSingleSortMemory: Long = get(INIT_SINGLE_PARTITION_SORTER_RESERVE_MEMORY)
+  def reserveMemoryPerPartition: Long = get(PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -1311,8 +1311,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("220s")
 
-  val INIT_SINGLE_PARTITION_SORTER_RESERVE_MEMORY: ConfigEntry[Long] =
-    buildConf("celeborn.worker.partitionSorter.initialReserveSingleSortMemory")
+  val PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY: ConfigEntry[Long] =
+    buildConf("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .withAlternative("rss.worker.initialReserveSingleSortMemory")
       .categories("worker")
       .doc("Initial reserve memory when sorting a shuffle file off-heap.")
