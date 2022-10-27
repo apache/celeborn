@@ -492,7 +492,7 @@ object ControlMessages extends Logging {
         .setStatus(status.getValue)
       if (!workerResource.isEmpty) {
         builder.putAllWorkerResource(
-          Utils.convertWorkerResourceToPbWorkerResource(workerResource))
+          PbSerDeUtils.toPbWorkerResource(workerResource))
       }
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS_RESPONSE, payload)
@@ -833,7 +833,7 @@ object ControlMessages extends Logging {
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
         RequestSlotsResponse(
           Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
-          Utils.convertPbWorkerResourceToWorkerResource(
+          PbSerDeUtils.fromPbWorkerResource(
             pbRequestSlotsResponse.getWorkerResourceMap))
 
       case REVIVE =>
