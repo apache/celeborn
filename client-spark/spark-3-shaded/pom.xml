@@ -62,7 +62,6 @@
           </relocations>
           <artifactSet>
             <includes>
-              <!-- Include here the dependencies you want to be packed in your fat jar -->
               <include>org.apache.celeborn:*</include>
               <include>com.google.protobuf:protobuf-java</include>
               <include>com.google.guava:guava</include>
