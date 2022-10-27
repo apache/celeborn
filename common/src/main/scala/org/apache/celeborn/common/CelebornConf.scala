@@ -393,8 +393,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
   def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
-  def partitionSortTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
-  def reserveMemoryPerPartition: Long = get(PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY)
+  def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
+  def partitionSorterReserveMemoryPerPartition: Long =
+    get(PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //

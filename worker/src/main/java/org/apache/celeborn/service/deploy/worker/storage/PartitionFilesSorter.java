@@ -101,9 +101,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(
       MemoryTracker memoryTracker, CelebornConf conf, AbstractSource source) {
-    this.sortTimeout = conf.partitionSortTimeout();
+    this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.reserveMemoryPerPartition = conf.reserveMemoryPerPartition();
+    this.reserveMemoryPerPartition = conf.partitionSorterReserveMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryTracker = memoryTracker;
