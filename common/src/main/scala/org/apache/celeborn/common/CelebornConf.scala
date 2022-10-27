@@ -388,17 +388,17 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
   def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
-  def nonEmptyDirExpireDuration: Long = get(NON_EMPTY_DIR_EXPIRE_DURATION)
-  def workingDirName: String = get(WORKING_DIR_NAME)
-  def closeIdleConnections: Boolean = get(CLOSE_IDLE_CONNECTIONS)
-  def replicateFastFailDuration: Long = get(REPLICATE_FAST_FAIL_DURATION)
+  def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
+  def workerWorkingDirName: String = get(WORKER_WORKING_DIR_NAME)
+  def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
+  def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
   def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
-  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -1316,7 +1316,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val NON_EMPTY_DIR_EXPIRE_DURATION: ConfigEntry[Long] =
+  val WORKER_NON_EMPTY_DIR_EXPIRE_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.noneEmptyDirExpireDuration")
       .withAlternative("rss.expire.nonEmptyDir.duration")
       .categories("worker")
@@ -1325,7 +1325,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1d")
 
-  val WORKING_DIR_NAME: ConfigEntry[String] =
+  val WORKER_WORKING_DIR_NAME: ConfigEntry[String] =
     buildConf("celeborn.worker.workingDirName")
       .withAlternative("rss.worker.workingDirName")
       .categories("worker")
@@ -1334,7 +1334,7 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault("hadoop/rss-worker/shuffle_data")
 
-  val CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
+  val WORKER_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.closeIdleConnections")
       .withAlternative("rss.worker.closeIdleConnections")
       .categories("worker")
@@ -1343,7 +1343,7 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
+  val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .withAlternative("rss.replicate.fastfail.duration")
       .categories("worker")

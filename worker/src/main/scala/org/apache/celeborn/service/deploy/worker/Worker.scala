@@ -103,7 +103,7 @@ private[celeborn] class Worker(
 
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
-    val closeIdleConnections = conf.closeIdleConnections
+    val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.getInt("rss.push.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
@@ -117,7 +117,7 @@ private[celeborn] class Worker(
 
   val replicateHandler = new PushDataHandler()
   private val replicateServer = {
-    val closeIdleConnections = conf.closeIdleConnections
+    val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
       conf.getInt("rss.replicate.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf =
@@ -130,7 +130,7 @@ private[celeborn] class Worker(
 
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
-    val closeIdleConnections = conf.closeIdleConnections
+    val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
@@ -197,7 +197,7 @@ private[celeborn] class Worker(
 
   // Configs
   private val HEARTBEAT_MILLIS = conf.workerHeartbeatTimeout / 4
-  private val REPLICATE_FAST_FAIL_DURATION = conf.replicateFastFailDuration
+  private val REPLICATE_FAST_FAIL_DURATION = conf.workerReplicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: Thread = _
