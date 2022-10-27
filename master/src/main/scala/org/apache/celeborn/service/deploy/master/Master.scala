@@ -108,7 +108,8 @@ private[celeborn] class Master(
 
   private def slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
 
-  private val estimatedPartitionSizeUpdaterInitialDelay = conf.estimatedPartitionSizeUpdaterInitialDelay
+  private val estimatedPartitionSizeUpdaterInitialDelay =
+    conf.estimatedPartitionSizeUpdaterInitialDelay
   private val estimatedPartitionSizeUpdateInterval = conf.estimatedPartitionSizeUpdateInterval
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
