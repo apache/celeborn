@@ -303,10 +303,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val file = new File(shuffleDir, fileName)
         try {
           shuffleDir.mkdirs()
-          val createFileSuccess = file.createNewFile()
-          if (!createFileSuccess) {
-            throw new RssException("create app shuffle data dir or file failed!" +
-              s"${file.getAbsolutePath}")
+          if (file.exists()) {
+            throw new RssException(s"Shuffle data file ${file.getAbsolutePath} already exists.")
+          } else {
+            val createFileSuccess = file.createNewFile()
+            if (!createFileSuccess) {
+              throw new RssException(s"Create shuffle data file ${file.getAbsolutePath} failed!")
+            }
           }
           val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier)
           val fileWriter = new FileWriter(
@@ -332,8 +335,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         } catch {
           case t: Throwable =>
             logError(
-              s"Create FileWriter in path $file of mount $mountPoint failed, " +
-                s"report to DeviceMonitor",
+              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint failed, report to DeviceMonitor",
               t)
             exception = new IOException(t)
             deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)
