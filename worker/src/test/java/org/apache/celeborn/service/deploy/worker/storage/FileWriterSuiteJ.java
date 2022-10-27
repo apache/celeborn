@@ -70,7 +70,6 @@ import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.MemoryTracker;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.JavaUtils;
-import org.apache.celeborn.common.network.util.MapConfigProvider;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -99,8 +98,7 @@ public class FileWriterSuiteJ {
   private static int numChunks;
   private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
-  private static final TransportConf transConf =
-      new TransportConf("shuffle", MapConfigProvider.EMPTY);
+  private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
 
   @BeforeClass
   public static void beforeAll() {

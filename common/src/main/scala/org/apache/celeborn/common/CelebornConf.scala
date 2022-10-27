@@ -381,6 +381,91 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientRpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(CLIENT_RPC_ASK_TIMEOUT).milli, CLIENT_RPC_ASK_TIMEOUT.key)
 
+  def networkIoMode(module: String): String = {
+    val key = NETWORK_IO_MODE.key.replace("<module>", module)
+    get(key, NETWORK_IO_MODE.defaultValue.get)
+  }
+
+  def networkIoPreferDirectBufs(module: String): Boolean = {
+    val key = NETWORK_IO_PREFER_DIRECT_BUFS.key.replace("<module>", module)
+    getBoolean(key, NETWORK_IO_PREFER_DIRECT_BUFS.defaultValue.get)
+  }
+
+  def networkIoConnectTimeoutMs(module: String): Int = {
+    val key = NETWORK_IO_CONNECT_TIMEOUT.key.replace("<module>", module)
+    getLong(key, NETWORK_CONNECT_TIMEOUT.defaultValue.get).toInt
+  }
+
+  def networkIoConnectionTimeoutMs(module: String): Int = {
+    val key = NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", module)
+    getLong(key, NETWORK_TIMEOUT.defaultValue.get).toInt
+  }
+
+  def networkIoNumConnectionsPerPeer(module: String): Int = {
+    val key = NETWORK_IO_NUM_CONNECTIONS_PER_PEER.key.replace("<module>", module)
+    getInt(key, NETWORK_IO_NUM_CONNECTIONS_PER_PEER.defaultValue.get)
+  }
+
+  def networkIoBacklog(module: String): Int = {
+    val key = NETWORK_IO_BACKLOG.key.replace("<module>", module)
+    getInt(key, NETWORK_IO_BACKLOG.defaultValue.get)
+  }
+
+  def networkIoServerThreads(module: String): Int = {
+    val key = NETWORK_IO_SERVER_THREADS.key.replace("<module>", module)
+    getInt(key, NETWORK_IO_SERVER_THREADS.defaultValue.get)
+  }
+
+  def networkIoClientThreads(module: String): Int = {
+    val key = NETWORK_IO_CLIENT_THREADS.key.replace("<module>", module)
+    getInt(key, NETWORK_IO_CLIENT_THREADS.defaultValue.get)
+  }
+
+  def networkIoReceiveBuf(module: String): Int = {
+    val key = NETWORK_IO_RECEIVE_BUFFER.key.replace("<module>", module)
+    getLong(key, NETWORK_IO_RECEIVE_BUFFER.defaultValue.get).toInt
+  }
+
+  def networkIoSendBuf(module: String): Int = {
+    val key = NETWORK_IO_SEND_BUFFER.key.replace("<module>", module)
+    getLong(key, NETWORK_IO_SEND_BUFFER.defaultValue.get).toInt
+  }
+
+  def networkIoMaxRetries(module: String): Int = {
+    val key = NETWORK_IO_MAX_RETRIES.key.replace("<module>", module)
+    getInt(key, NETWORK_IO_MAX_RETRIES.defaultValue.get)
+  }
+
+  def networkIoRetryWaitMs(module: String): Int = {
+    val key = NETWORK_IO_RETRY_WAIT.key.replace("<module>", module)
+    getLong(key, NETWORK_IO_RETRY_WAIT.defaultValue.get).toInt
+  }
+
+  def networkIoMemoryMapBytes(module: String): Int = {
+    val key = STORAGE_MEMORY_MAP_THRESHOLD.key.replace("<module>", module)
+    getLong(key, STORAGE_MEMORY_MAP_THRESHOLD.defaultValue.get).toInt
+  }
+
+  def networkIoLazyFileDescriptor(module: String): Boolean = {
+    val key = NETWORK_IO_LAZY_FD.key.replace("<module>", module)
+    getBoolean(key, NETWORK_IO_LAZY_FD.defaultValue.get)
+  }
+
+  def networkIoVerboseMetrics(module: String): Boolean = {
+    val key = NETWORK_VERBOSE_METRICS.key.replace("<module>", module)
+    getBoolean(key, NETWORK_VERBOSE_METRICS.defaultValue.get)
+  }
+
+  def networkIoMaxChunksBeingTransferred(module: String): Long = {
+    val key = MAX_CHUNKS_BEING_TRANSFERRED.key.replace("<module>", module)
+    getLong(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValue.get)
+  }
+
+  def networkIoDecoderMode(module: String): String = {
+    val key = NETWORK_IO_DECODER_MODE.key.replace("<module>", module)
+    get(key, NETWORK_IO_DECODER_MODE.defaultValue.get)
+  }
+
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////

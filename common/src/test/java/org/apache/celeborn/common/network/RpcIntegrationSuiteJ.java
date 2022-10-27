@@ -32,6 +32,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -40,7 +41,6 @@ import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.JavaUtils;
-import org.apache.celeborn.common.network.util.MapConfigProvider;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 public class RpcIntegrationSuiteJ {
@@ -53,7 +53,7 @@ public class RpcIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
+    conf = new TransportConf("shuffle", new CelebornConf());
     testData = new StreamTestHelper();
     handler =
         new BaseMessageHandler() {
