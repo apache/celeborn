@@ -586,17 +586,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldEpoch: Int,
       oldPartition: PartitionLocation,
       cause: Option[StatusCode] = None): Unit = {
-    if (!registeredShuffle.contains(shuffleId)) {
-      logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
-      context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
-      return
-    }
-
-    if (stageEndShuffleSet.contains(shuffleId)) {
-      logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
-      context.reply(ChangeLocationResponse(StatusCode.STAGE_ENDED, None))
-      return
-    }
 
     val changePartition = ChangePartitionRequest(
       context,
@@ -693,6 +682,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // PartitionSplit all contains oldPartition
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(changePartitions.toList, candidates)
+
+    if (!registeredShuffle.contains(shuffleId)) {
+      logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
+      replyFailure(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      return
+    }
+
+    if (stageEndShuffleSet.contains(shuffleId)) {
+      logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
+      replyFailure(ChangeLocationResponse(StatusCode.STAGE_ENDED, None))
+      return
+    }
 
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
