@@ -389,7 +389,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
-  def workerWorkingDirName: String = get(WORKER_WORKING_DIR_NAME)
+  def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
   def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
@@ -1325,8 +1325,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1d")
 
-  val WORKER_WORKING_DIR_NAME: ConfigEntry[String] =
-    buildConf("celeborn.worker.workingDirName")
+  val WORKER_WORKING_DIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.workingDir")
       .withAlternative("rss.worker.workingDirName")
       .categories("worker")
       .doc("Worker's working dir path name.")
@@ -1347,13 +1347,13 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .withAlternative("rss.replicate.fastfail.duration")
       .categories("worker")
-      .doc("If a relicate request not replied during the duration, worker will mark the replicate data request as failed.")
+      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
   val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disks.check.timeout")
+    buildConf("celeborn.worker.disk.check.timeout")
       .withAlternative("rss.worker.status.check.timeout")
       .categories("worker")
       .doc("Timeout time for worker check device status.")
@@ -1362,7 +1362,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.worker.disks.checkFileClean.maxRetries")
+    buildConf("celeborn.worker.disk.checkFileClean.maxRetries")
       .withAlternative("rss.worker.checkFileCleanRetryTimes")
       .categories("worker")
       .doc("The number of retries for a worker to check if the working directory is cleaned up before registering with the master.")
@@ -1371,7 +1371,7 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val WORKER_CHECK_FILE_CLEAN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disks.checkFileClean.timeout")
+    buildConf("celeborn.worker.disk.checkFileClean.timeout")
       .withAlternative("rss.worker.checkFileCleanTimeoutMs")
       .categories("worker")
       .doc("The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master.")

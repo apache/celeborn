@@ -55,7 +55,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
       conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>
-        (new File(workdir, conf.workerWorkingDirName), maxSpace, flusherThread, storageType)
+        (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
     if (workingDirInfos.size <= 0) {
@@ -277,7 +277,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
       if (dirs.isEmpty) {
         val shuffleDir =
-          new Path(new Path(hdfsDir, conf.workerWorkingDirName), s"$appId/$shuffleId")
+          new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
         val hdfsWriter = new FileWriter(
@@ -417,7 +417,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
     if (hdfsFs != null) {
-      val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDirName)
+      val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
       if (hdfsFs.exists(hdfsWorkPath)) {
         val iter = hdfsFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
@@ -481,7 +481,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
       val hdfsCleaned = hdfsFs match {
         case hdfs: FileSystem =>
-          val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDirName)
+          val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
           // hdfs path not exist when first time initialize
           if (hdfs.exists(hdfsWorkPath)) {
             !hdfs.listFiles(hdfsWorkPath, false).hasNext
