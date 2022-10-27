@@ -93,7 +93,7 @@ private[celeborn] class Master(
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
-  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeoutMs
+  private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
@@ -104,12 +104,14 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.diskReserveSize
 
-  private def diskGroups = CelebornConf.diskGroups(conf)
+  private def slotsAssignLoadAwareDiskGroupNum = conf.slotsAssignLoadAwareDiskGroupNum
 
-  private def diskGroupGradient = CelebornConf.diskGroupGradient(conf)
+  private def slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
 
-  private val partitionSizeUpdateInitialDelay = CelebornConf.partitionSizeUpdaterInitialDelay(conf)
-  private val partitionSizeUpdateInterval = CelebornConf.partitionSizeUpdateInterval(conf)
+  private val estimatedPartitionSizeUpdaterInitialDelay =
+    conf.estimatedPartitionSizeUpdaterInitialDelay
+  private val estimatedPartitionSizeForEstimationUpdateInterval =
+    conf.estimatedPartitionSizeForEstimationUpdateInterval
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
   partitionSizeUpdateService.scheduleAtFixedRate(
@@ -119,10 +121,10 @@ private[celeborn] class Master(
         logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
       }
     },
-    partitionSizeUpdateInitialDelay,
-    partitionSizeUpdateInterval,
+    estimatedPartitionSizeUpdaterInitialDelay,
+    estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val offerSlotsAlgorithm = CelebornConf.offerSlotsAlgorithm(conf)
+  private val slotsAssignPolicy = conf.slotsAssignPolicy
 
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
@@ -487,7 +489,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (offerSlotsAlgorithm == "roundrobin") {
+          if (slotsAssignPolicy == "roundrobin") {
             SlotsAllocator.offerSlotsRoundRobin(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
@@ -498,8 +500,8 @@ private[celeborn] class Master(
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               diskReserveSize,
-              diskGroups,
-              diskGroupGradient)
+              slotsAssignLoadAwareDiskGroupNum,
+              slotsAssignLoadAwareDiskGroupGradient)
           }
         }
       }
@@ -529,16 +531,16 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val extraSlotsSize = Math.min(CelebornConf.offerSlotsExtraSize(conf), workersNotSelected.size)
-    if (extraSlotsSize > 0) {
+    val offerSlotsExtraSize = Math.min(conf.slotsAssignExtraSlots, workersNotSelected.size)
+    if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
-      (1 to extraSlotsSize).foreach(_ => {
+      (1 to offerSlotsExtraSize).foreach(_ => {
         slots.put(
           workersNotSelected(index),
           (new util.ArrayList[PartitionLocation](), new util.ArrayList[PartitionLocation]()))
         index = (index + 1) % workersNotSelected.size
       })
-      logInfo(s"Offered extra $extraSlotsSize slots for $shuffleKey")
+      logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
     }
 
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))

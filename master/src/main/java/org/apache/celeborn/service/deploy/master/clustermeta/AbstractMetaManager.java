@@ -57,7 +57,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   protected RpcEnv rpcEnv;
   protected CelebornConf conf;
 
-  public long defaultPartitionSize;
+  public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
@@ -369,7 +369,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     if (tmpFileCount != 0) {
       estimatedPartitionSize = tmpTotalWritten / tmpFileCount;
     } else {
-      estimatedPartitionSize = defaultPartitionSize;
+      estimatedPartitionSize = initialEstimatedPartitionSize;
     }
     LOG.warn(
         "Rss cluster estimated partition size changed from {} to {}",

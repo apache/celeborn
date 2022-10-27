@@ -38,7 +38,7 @@ The followings are best practices of naming configs for some common cases:
    of this feature should be put under the `featureName` namespace. For example:
      - rss.ha.enabled
      - rss.ha.master.hosts
-     - rss.ha.client.maxTries
+     - celeborn.ha.client.maxRetries
 2. When adding a boolean config, the name should be a verb that describes what
    happens if this config is set to true, e.g. `rss.worker.closeIdleConnections`.
 3. When adding a config to specify a time duration, it's better to put the time unit

@@ -193,8 +193,8 @@ public class SlotsAllocatorSuiteJ {
             partitionIds,
             shouldReplicate,
             10 * 1024 * 1024 * 1024L,
-            CelebornConf.diskGroups(conf),
-            CelebornConf.diskGroupGradient(conf));
+            conf.slotsAssignLoadAwareDiskGroupNum(),
+            conf.slotsAssignLoadAwareDiskGroupGradient());
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(

@@ -34,9 +34,7 @@ class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
   }
 
   override def initialize(): Unit = {
-    Option(
-      CelebornConf.quotaConfigurationPath(conf)
-        .getOrElse(Utils.getDefaultQuotaConfigurationFile()))
+    Option(conf.quotaConfigurationPath.getOrElse(Utils.getDefaultQuotaConfigurationFile()))
       .foreach { quotaConfPath =>
         val stream = new FileInputStream(new File(quotaConfPath))
         val yaml = new Yaml()

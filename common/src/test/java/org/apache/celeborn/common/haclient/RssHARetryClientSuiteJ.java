@@ -368,6 +368,6 @@ public class RssHARetryClientSuiteJ {
     return conf.clone()
         .set("celeborn.ha.enabled", "true")
         .set("celeborn.master.endpoints", "host1:9097,host2:9097,host3:9097")
-        .set("rss.ha.client.maxTries", "5");
+        .set("celeborn.ha.client.maxRetries", "5");
   }
 }
