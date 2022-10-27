@@ -20,7 +20,7 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.&lt;module&gt;.decoder.mode | default | Netty TransportFrameDecoder implementation, available options: default, supplier. |  | 
-| celeborn.&lt;module&gt;.io.backLog | -1 | Requested maximum length of the queue of incoming connections. Default -1 for no backlog. |  | 
+| celeborn.&lt;module&gt;.io.backLog | 0 | Requested maximum length of the queue of incoming connections. Default 0 for no backlog. |  | 
 | celeborn.&lt;module&gt;.io.clientThreads | 0 | Number of threads used in the client thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.&lt;module&gt;.io.connectTimeout | &lt;value of celeborn.network.connect.timeout&gt; | Socket connect timeout. |  | 
 | celeborn.&lt;module&gt;.io.connectionTimeout | &lt;value of celeborn.network.timeout&gt; | Connection active timeout. |  | 
@@ -30,9 +30,9 @@ license: |
 | celeborn.&lt;module&gt;.io.mode | NIO | Netty EventLoopGroup backend, available options: NIO, EPOLL. |  | 
 | celeborn.&lt;module&gt;.io.numConnectionsPerPeer | 8 | Number of concurrent connections between two nodes for fetching data. |  | 
 | celeborn.&lt;module&gt;.io.preferDirectBufs | false | If true, we will prefer allocating off-heap byte buffers within Netty. |  | 
-| celeborn.&lt;module&gt;.io.receiveBuffer | -1b | Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps buffer size should be ~ 1.25MB. | 0.2.0 | 
+| celeborn.&lt;module&gt;.io.receiveBuffer | 0b | Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps buffer size should be ~ 1.25MB. | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.retryWait | 5s | Time that we will wait in order to perform a retry after an IOException. Only relevant if maxIORetries > 0. | 0.2.0 | 
-| celeborn.&lt;module&gt;.io.sendBuffer | -1b | Send buffer size (SO_SNDBUF). | 0.2.0 | 
+| celeborn.&lt;module&gt;.io.sendBuffer | 0b | Send buffer size (SO_SNDBUF). | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.serverThreads | 0 | Number of threads used in the server thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.network.connect.timeout | 10s | Default socket connect timeout. | 0.2.0 | 
 | celeborn.network.timeout | 240s | Default timeout for network operations. | 0.2.0 | 

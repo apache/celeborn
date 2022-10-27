@@ -1062,9 +1062,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.backLog")
       .categories("network")
       .doc(
-        "Requested maximum length of the queue of incoming connections. Default -1 for no backlog.")
+        "Requested maximum length of the queue of incoming connections. Default 0 for no backlog.")
       .intConf
-      .createWithDefault(-1)
+      .createWithDefault(0)
 
   val NETWORK_IO_SERVER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.<module>.io.serverThreads")
@@ -1088,7 +1088,7 @@ object CelebornConf extends Logging {
         "buffer size should be ~ 1.25MB.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefault(-1)
+      .createWithDefault(0)
 
   val NETWORK_IO_SEND_BUFFER: ConfigEntry[Long] =
     buildConf("celeborn.<module>.io.sendBuffer")
@@ -1096,7 +1096,7 @@ object CelebornConf extends Logging {
       .doc("Send buffer size (SO_SNDBUF).")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefault(-1)
+      .createWithDefault(0)
 
   val NETWORK_IO_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.<module>.io.maxRetries")

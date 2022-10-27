@@ -66,7 +66,7 @@ public class TransportClientFactorySuiteJ {
 
     CelebornConf _conf = new CelebornConf();
     _conf.set("celeborn.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
-    TransportConf conf = new TransportConf("shuffle", new CelebornConf());
+    TransportConf conf = new TransportConf("shuffle", _conf);
 
     BaseMessageHandler handler = new BaseMessageHandler();
     TransportContext context = new TransportContext(conf, handler);
