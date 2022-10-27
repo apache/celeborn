@@ -84,7 +84,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
-  protected final long reserveMemoryPerPartition;
+  protected final long reservedMemoryPerPartition;
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
@@ -103,7 +103,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       MemoryTracker memoryTracker, CelebornConf conf, AbstractSource source) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.reserveMemoryPerPartition = conf.partitionSorterReserveMemoryPerPartition();
+    this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryTracker = memoryTracker;
@@ -130,7 +130,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               try {
                 while (!shutdown) {
                   FileSorter task = shuffleSortTaskDeque.take();
-                  memoryTracker.reserveSortMemory(reserveMemoryPerPartition);
+                  memoryTracker.reserveSortMemory(reservedMemoryPerPartition);
                   while (!memoryTracker.sortMemoryReady()) {
                     Thread.sleep(20);
                   }
@@ -553,7 +553,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
         int batchHeaderLen = 16;
-        int reserveMemory = (int) reserveMemoryPerPartition;
+        int reserveMemory = (int) reservedMemoryPerPartition;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
         ByteBuffer paddingBuf = ByteBuffer.allocateDirect(reserveMemory);
 

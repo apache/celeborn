@@ -406,8 +406,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(SHUFFLE_MIN_PARTITION_SIZE_TO_ESTIMATE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
-  def partitionSorterReserveMemoryPerPartition: Long =
-    get(PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY)
+  def partitionSorterReservedMemoryPerPartition: Long =
+    get(PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -1433,7 +1433,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("220s")
 
-  val PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY: ConfigEntry[Long] =
+  val PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
     buildConf("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .withAlternative("rss.worker.initialReserveSingleSortMemory")
       .categories("worker")
