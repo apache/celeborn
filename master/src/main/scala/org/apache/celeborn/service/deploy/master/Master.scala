@@ -108,8 +108,10 @@ private[celeborn] class Master(
 
   private def slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
 
-  private val partitionSizeUpdateInitialDelay = CelebornConf.partitionSizeUpdaterInitialDelay(conf)
-  private val partitionSizeUpdateInterval = CelebornConf.partitionSizeUpdateInterval(conf)
+  private val estimatedPartitionSizeUpdaterInitialDelay =
+    conf.estimatedPartitionSizeUpdaterInitialDelay
+  private val estimatedPartitionSizeForEstimationUpdateInterval =
+    conf.estimatedPartitionSizeForEstimationUpdateInterval
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
   partitionSizeUpdateService.scheduleAtFixedRate(
@@ -119,8 +121,8 @@ private[celeborn] class Master(
         logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
       }
     },
-    partitionSizeUpdateInitialDelay,
-    partitionSizeUpdateInterval,
+    estimatedPartitionSizeUpdaterInitialDelay,
+    estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.slotsAssignPolicy
 
