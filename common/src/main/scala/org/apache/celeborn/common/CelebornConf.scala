@@ -393,12 +393,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoConnectTimeoutMs(module: String): Int = {
     val key = NETWORK_IO_CONNECT_TIMEOUT.key.replace("<module>", module)
-    getLong(key, NETWORK_CONNECT_TIMEOUT.defaultValue.get).toInt
+    getTimeAsMs(key, NETWORK_CONNECT_TIMEOUT.defaultValueString).toInt
   }
 
   def networkIoConnectionTimeoutMs(module: String): Int = {
     val key = NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", module)
-    getLong(key, NETWORK_TIMEOUT.defaultValue.get).toInt
+    getTimeAsMs(key, NETWORK_TIMEOUT.defaultValueString).toInt
   }
 
   def networkIoNumConnectionsPerPeer(module: String): Int = {
@@ -423,12 +423,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoReceiveBuf(module: String): Int = {
     val key = NETWORK_IO_RECEIVE_BUFFER.key.replace("<module>", module)
-    getLong(key, NETWORK_IO_RECEIVE_BUFFER.defaultValue.get).toInt
+    getSizeAsBytes(key, NETWORK_IO_RECEIVE_BUFFER.defaultValueString).toInt
   }
 
   def networkIoSendBuf(module: String): Int = {
     val key = NETWORK_IO_SEND_BUFFER.key.replace("<module>", module)
-    getLong(key, NETWORK_IO_SEND_BUFFER.defaultValue.get).toInt
+    getSizeAsBytes(key, NETWORK_IO_SEND_BUFFER.defaultValueString).toInt
   }
 
   def networkIoMaxRetries(module: String): Int = {
@@ -438,12 +438,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoRetryWaitMs(module: String): Int = {
     val key = NETWORK_IO_RETRY_WAIT.key.replace("<module>", module)
-    getLong(key, NETWORK_IO_RETRY_WAIT.defaultValue.get).toInt
+    getTimeAsMs(key, NETWORK_IO_RETRY_WAIT.defaultValueString).toInt
   }
 
   def networkIoMemoryMapBytes(module: String): Int = {
     val key = STORAGE_MEMORY_MAP_THRESHOLD.key.replace("<module>", module)
-    getLong(key, STORAGE_MEMORY_MAP_THRESHOLD.defaultValue.get).toInt
+    getSizeAsBytes(key, STORAGE_MEMORY_MAP_THRESHOLD.defaultValueString).toInt
   }
 
   def networkIoLazyFileDescriptor(module: String): Boolean = {
@@ -458,7 +458,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoMaxChunksBeingTransferred(module: String): Long = {
     val key = MAX_CHUNKS_BEING_TRANSFERRED.key.replace("<module>", module)
-    getLong(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValue.get)
+    getSizeAsBytes(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValueString)
   }
 
   def networkIoDecoderMode(module: String): String = {

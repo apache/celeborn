@@ -64,8 +64,8 @@ public class TransportClientFactorySuiteJ {
   private void testClientReuse(int maxConnections, boolean concurrent)
       throws IOException, InterruptedException {
 
-    Map<String, String> configMap = new HashMap<>();
-    configMap.put("rss.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
+    CelebornConf _conf = new CelebornConf();
+    _conf.set("celeborn.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
 
     BaseMessageHandler handler = new BaseMessageHandler();
