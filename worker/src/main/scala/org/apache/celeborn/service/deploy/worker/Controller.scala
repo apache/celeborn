@@ -414,7 +414,7 @@ private[deploy] class Controller(
 
     if (future != null) {
       val result = new AtomicReference[CompletableFuture[Unit]]()
-      val shuffleCommitTimeout = conf.shuffleCommitTimeout
+      val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
       val timeout = timer.newTimeout(
         new TimerTask {

@@ -389,10 +389,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Worker                         //
   // //////////////////////////////////////////////////////
-  def workerHeartbeatTimeoutMs: Long = get(WORKER_HEARTBEAT_TIMEOUT)
+  def workerRPCPort: Int = get(WORKER_RPC_PORT)
+  def workerPushPort: Int = get(WORKER_PUSH_PORT)
+  def workerFetchPort: Int = get(WORKER_FETCH_PORT)
+  def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
+  def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
+  def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
+  def workerWorkingDir: String = get(WORKER_WORKING_DIR)
+  def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
+  def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
+  def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
+  def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
+  def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
+  def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
-  def shuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReserveMemoryPerPartition: Long =
     get(PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY)
@@ -1268,6 +1280,114 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
+  val WORKER_RPC_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.rpc.port")
+      .withAlternative("rss.worker.rpc.port")
+      .categories("worker")
+      .doc("Server port for Worker to receive RPC request.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(0)
+
+  val WORKER_PUSH_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.push.port")
+      .withAlternative("rss.push.port")
+      .categories("worker")
+      .doc("Server port for Worker to receive push data request from ShuffleClient.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(0)
+
+  val WORKER_FETCH_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.fetch.port")
+      .withAlternative("rss.fetchserver.port")
+      .categories("worker")
+      .doc("Server port for Worker to receive fetch data request from ShuffleClient.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(0)
+
+  val WORKER_REPLICATE_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.replicate.port")
+      .withAlternative("rss.replicateserver.port")
+      .categories("worker")
+      .doc("Server port for Worker to receive replicate data request from other Workers.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(0)
+
+  val WORKER_REGISTER_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.register.timeout")
+      .withAlternative("rss.register.worker.timeout")
+      .categories("worker")
+      .doc("Worker register timeout.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("180s")
+
+  val WORKER_NON_EMPTY_DIR_EXPIRE_DURATION: ConfigEntry[Long] =
+    buildConf("celeborn.worker.noneEmptyDirExpireDuration")
+      .withAlternative("rss.expire.nonEmptyDir.duration")
+      .categories("worker")
+      .doc("If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1d")
+
+  val WORKER_WORKING_DIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.workingDir")
+      .withAlternative("rss.worker.workingDirName")
+      .categories("worker")
+      .doc("Worker's working dir path name.")
+      .version("0.2.0")
+      .stringConf
+      .createWithDefault("hadoop/rss-worker/shuffle_data")
+
+  val WORKER_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.closeIdleConnections")
+      .withAlternative("rss.worker.closeIdleConnections")
+      .categories("worker")
+      .doc("Whether worker will close idle connections.")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
+    buildConf("celeborn.worker.replicate.fastFail.duration")
+      .withAlternative("rss.replicate.fastfail.duration")
+      .categories("worker")
+      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
+
+  val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.disk.check.timeout")
+      .withAlternative("rss.worker.status.check.timeout")
+      .categories("worker")
+      .doc("Timeout time for worker check device status.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.worker.disk.checkFileClean.maxRetries")
+      .withAlternative("rss.worker.checkFileCleanRetryTimes")
+      .categories("worker")
+      .doc("The number of retries for a worker to check if the working directory is cleaned up before registering with the master.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(3)
+
+  val WORKER_CHECK_FILE_CLEAN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.disk.checkFileClean.timeout")
+      .withAlternative("rss.worker.checkFileCleanTimeoutMs")
+      .categories("worker")
+      .doc("The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1000ms")
+
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.heartbeat.timeout")
       .withAlternative("rss.worker.timeout")
@@ -1376,14 +1496,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
-
-  def appExpireDurationMs(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.expire.nonEmptyDir.duration", "1d")
-  }
-
-  def workingDirName(conf: CelebornConf): String = {
-    conf.get("rss.worker.workingDirName", "hadoop/rss-worker/shuffle_data")
-  }
 
   val WORKER_FLUSHER_HDD_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.hdd.threads")
@@ -1632,22 +1744,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("100ms")
 
-  def pushServerPort(conf: CelebornConf): Int = {
-    conf.getInt("rss.pushserver.port", 0)
-  }
-
-  def fetchServerPort(conf: CelebornConf): Int = {
-    conf.getInt("rss.fetchserver.port", 0)
-  }
-
-  def replicateServerPort(conf: CelebornConf): Int = {
-    conf.getInt("rss.replicateserver.port", 0)
-  }
-
-  def registerWorkerTimeoutMs(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.register.worker.timeout", "180s")
-  }
-
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
       .withAlternative("rss.master.port.maxretry")
@@ -1790,18 +1886,6 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
-  def workerRPCPort(conf: CelebornConf): Int = {
-    conf.getInt("rss.worker.rpc.port", 0)
-  }
-
-  def closeIdleConnections(conf: CelebornConf): Boolean = {
-    conf.getBoolean("rss.worker.closeIdleConnections", defaultValue = false)
-  }
-
-  def replicateFastFailDurationMs(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.replicate.fastfail.duration", "60s")
-  }
-
   val SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.shuffle.forceFallback.enabled")
       .withAlternative("rss.force.fallback")
@@ -1887,18 +1971,6 @@ object CelebornConf extends Logging {
       .doc("Retry count for a file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(3)
-
-  def workerStatusCheckTimeout(conf: CelebornConf): Long = {
-    conf.getTimeAsSeconds("rss.worker.status.check.timeout", "30s")
-  }
-
-  def checkFileCleanRetryTimes(conf: CelebornConf): Int = {
-    conf.getInt("rss.worker.checkFileCleanRetryTimes", 3)
-  }
-
-  def checkFileCleanTimeoutMs(conf: CelebornConf): Long = {
-    conf.getTimeAsMs("rss.worker.checkFileCleanTimeoutMs", "1000ms")
-  }
 
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
     buildConf("celeborn.shuffle.partition.type")
