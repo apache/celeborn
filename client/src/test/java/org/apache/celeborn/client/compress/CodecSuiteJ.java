@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 
-public class CodecSuite {
+public class CodecSuiteJ {
 
   @Test
   public void testLz4Codec() {
@@ -48,7 +48,6 @@ public class CodecSuite {
   @Test
   public void testZstdCodec() {
     for (int level = -5; level <= 22; level++) {
-      System.out.println("level is " + level);
       int blockSize = (new CelebornConf()).pushBufferMaxSize();
       RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(blockSize, level);
       byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
