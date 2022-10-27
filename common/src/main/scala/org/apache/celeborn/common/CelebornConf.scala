@@ -483,10 +483,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Worker                         //
   // //////////////////////////////////////////////////////
-  def workerRPCPort: Int = get(WORKER_RPC_PORT)
+  def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
   def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
+  def workerPushIoThreads: Option[Int] = get(WORKER_PUSH_IO_THREADS)
+  def workerFetchIoThreads: Option[Int] = get(WORKER_FETCH_IO_THREADS)
+  def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
@@ -1135,6 +1138,7 @@ object CelebornConf extends Logging {
   val STORAGE_MEMORY_MAP_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.storage.memoryMapThreshold")
       .withAlternative("rss.storage.memoryMapThreshold")
+      .categories("network")
       .internal
       .doc("Minimum size of a block that we should start using memory map rather than reading in through " +
         "normal IO operations. This prevents Spark from memory mapping very small blocks. In general, " +
@@ -1146,6 +1150,7 @@ object CelebornConf extends Logging {
   val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.maxChunksBeingTransferred")
       .withAlternative("rss.shuffle.maxChunksBeingTransferred")
+      .categories("network")
       .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
         "that new incoming connections will be closed when the max number is hit. The client will retry " +
         "according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and " +
@@ -1568,6 +1573,43 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
+  val WORKER_STORAGE_DIRS: OptionalConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.storage.dirs")
+      .withAlternative("rss.worker.base.dirs")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Directory list to store shuffle data. It's recommended to configure one directory " +
+        "on each disk. Storage size limit can be set for each directory. For the sake of " +
+        "performance, there should be no more than 2 flush threads " +
+        "on the same disk partition if you are using HDD, and should be 8 or more flush threads " +
+        "on the same disk partition if you are using SSD. For example: " +
+        "`dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]`")
+      .stringConf
+      .toSequence
+      .createOptional
+
+  val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
+    buildConf("celeborn.worker.storage.baseDir.prefix")
+      .withAlternative("rss.worker.base.dir.prefix")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Base directory for Celeborn worker to write if " +
+        s"`${WORKER_STORAGE_DIRS.key}` is not set.")
+      .stringConf
+      .createWithDefault("/mnt/disk")
+
+  val WORKER_STORAGE_BASE_DIR_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.storage.baseDir.number")
+      .withAlternative("rss.worker.base.dir.number")
+      .categories("worker")
+      .version("0.2.0")
+      .doc(s"How many directories will be used if `${WORKER_STORAGE_DIRS.key}` is not set. " +
+        s"The directory name is a combination of `${WORKER_STORAGE_BASE_DIR_PREFIX.key}` " +
+        "and from one(inclusive) to `celeborn.worker.storage.baseDir.number`(inclusive) " +
+        "step by one.")
+      .intConf
+      .createWithDefault(16)
+
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
       .withAlternative("rss.worker.rpc.port")
@@ -1603,6 +1645,36 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .intConf
       .createWithDefault(0)
+
+  val WORKER_PUSH_IO_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.push.io.threads")
+      .withAlternative("rss.push.io.threads")
+      .categories("worker")
+      .doc("Netty IO thread number of worker to handle client push data. " +
+        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+      .version("0.2.0")
+      .intConf
+      .createOptional
+
+  val WORKER_FETCH_IO_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.fetch.io.threads")
+      .withAlternative("rss.fetch.io.threads")
+      .categories("worker")
+      .doc("Netty IO thread number of worker to handle client fetch data. " +
+        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+      .version("0.2.0")
+      .intConf
+      .createOptional
+
+  val WORKER_REPLICATE_IO_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.replicate.io.threads")
+      .withAlternative("rss.replicate.io.threads")
+      .categories("worker")
+      .doc("Netty IO thread number of worker to replicate shuffle data. " +
+        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+      .version("0.2.0")
+      .intConf
+      .createOptional
 
   val WORKER_REGISTER_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.register.timeout")
@@ -1729,43 +1801,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1mb")
-
-  val WORKER_STORAGE_DIRS: OptionalConfigEntry[Seq[String]] =
-    buildConf("celeborn.worker.storage.dirs")
-      .withAlternative("rss.worker.base.dirs")
-      .categories("worker")
-      .version("0.2.0")
-      .doc("Directory list to store shuffle data. It's recommended to configure one directory " +
-        "on each disk. Storage size limit can be set for each directory. For the sake of " +
-        "performance, there should be no more than 2 flush threads " +
-        "on the same disk partition if you are using HDD, and should be 8 or more flush threads " +
-        "on the same disk partition if you are using SSD. For example: " +
-        "`dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]`")
-      .stringConf
-      .toSequence
-      .createOptional
-
-  val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
-    buildConf("celeborn.worker.storage.baseDir.prefix")
-      .withAlternative("rss.worker.base.dir.prefix")
-      .categories("worker")
-      .version("0.2.0")
-      .doc("Base directory for Celeborn worker to write if " +
-        s"`${WORKER_STORAGE_DIRS.key}` is not set.")
-      .stringConf
-      .createWithDefault("/mnt/disk")
-
-  val WORKER_STORAGE_BASE_DIR_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.storage.baseDir.number")
-      .withAlternative("rss.worker.base.dir.number")
-      .categories("worker")
-      .version("0.2.0")
-      .doc(s"How many directories will be used if `${WORKER_STORAGE_DIRS.key}` is not set. " +
-        s"The directory name is a combination of `${WORKER_STORAGE_BASE_DIR_PREFIX.key}` " +
-        "and from one(inclusive) to `celeborn.worker.storage.baseDir.number`(inclusive) " +
-        "step by one.")
-      .intConf
-      .createWithDefault(16)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")

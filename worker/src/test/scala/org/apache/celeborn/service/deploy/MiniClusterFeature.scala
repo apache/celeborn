@@ -71,8 +71,8 @@ trait MiniClusterFeature extends Logging {
     conf.set(
       "celeborn.worker.metrics.prometheus.port",
       s"${workerPrometheusPort.incrementAndGet()}")
-    conf.set("rss.fetch.io.threads", "4")
-    conf.set("rss.push.io.threads", "4")
+    conf.set("celeborn.fetch.io.threads", "4")
+    conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
     }

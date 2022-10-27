@@ -74,7 +74,7 @@ private[celeborn] class Worker(
   private val gracefulShutdown = conf.workerGracefulShutdown
   assert(
     !gracefulShutdown || (gracefulShutdown &&
-      conf.workerRPCPort != 0 && conf.workerFetchPort != 0 &&
+      conf.workerRpcPort != 0 && conf.workerFetchPort != 0 &&
       conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
 
@@ -104,7 +104,7 @@ private[celeborn] class Worker(
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
-    val numThreads = conf.getInt("rss.push.io.threads", storageManager.disksSnapshot().size * 2)
+    val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
@@ -119,7 +119,7 @@ private[celeborn] class Worker(
   private val replicateServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
-      conf.getInt("rss.replicate.io.threads", storageManager.disksSnapshot().size * 2)
+      conf.workerReplicateIoThreads.getOrElse(storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.REPLICATE_MODULE, numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
@@ -131,7 +131,7 @@ private[celeborn] class Worker(
   var fetchHandler: FetchHandler = _
   private val fetchServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
-    val numThreads = conf.getInt("rss.fetch.io.threads", storageManager.disksSnapshot().size * 2)
+    val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.disksSnapshot().size * 2)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)

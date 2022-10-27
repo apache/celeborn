@@ -36,7 +36,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   // 2nd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
   _host = _host.orElse(Some(Utils.localHostName))
-  _port = _port.orElse(Some(conf.workerRPCPort))
+  _port = _port.orElse(Some(conf.workerRpcPort))
 
   if (_host.isEmpty || _port.isEmpty) {
     printUsageAndExit(1)
