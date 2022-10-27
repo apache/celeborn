@@ -683,6 +683,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(changePartitions.toList, candidates)
 
+    if (!registeredShuffle.contains(shuffleId)) {
+      logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
+      replyFailure(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      return
+    }
+
+    if (stageEndShuffleSet.contains(shuffleId)) {
+      logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
+      replyFailure(ChangeLocationResponse(StatusCode.STAGE_ENDED, None))
+      return
+    }
+
     if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
       replyFailure(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
@@ -917,16 +929,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
 
-    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
-    // release resources and clear worker info
-    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
-      partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
-    }
-    requestReleaseSlots(
-      rssHARetryClient,
-      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
-
     def hasCommitFailedIds: Boolean = {
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       if (!pushReplicateEnabled && failedMasterPartitionIds.size() != 0) {
@@ -1027,6 +1029,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       stageEndShuffleSet.add(shuffleId)
     }
     inProcessStageEndShuffleSet.remove(shuffleId)
+    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
+    // release resources and clear worker info
+    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
+      partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
+      partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
+    }
+    requestReleaseSlots(
+      rssHARetryClient,
+      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
   }
 
   private def handleUnregisterShuffle(
