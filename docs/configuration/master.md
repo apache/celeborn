@@ -27,12 +27,8 @@ license: |
 | celeborn.ha.master.ratis.raft.rpc.type | netty | RPC type for Ratis, available options: netty, grpc. | 0.2.0 | 
 | celeborn.ha.master.ratis.raft.server.storage.dir | /tmp/ratis |  | 0.2.0 | 
 | celeborn.master.host | &lt;localhost&gt; | Hostname for master to bind. | 0.2.0 | 
-| celeborn.master.initialPartitionSizeForEstimated | 64mb | Initial partition size for estimation, it will change according to runtime stats. | 0.2.0 | 
 | celeborn.master.metrics.prometheus.host | 0.0.0.0 | Master's Prometheus host. | 0.2.0 | 
 | celeborn.master.metrics.prometheus.port | 9098 | Master's Prometheus port. | 0.2.0 | 
-| celeborn.master.minPartitionSizeForEstimation | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.2.0 | 
-| celeborn.master.partitionSizeForEstimation.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.2.0 | 
-| celeborn.master.partitionSizeForEstimation.update.interval | 10min | Interval of updating partition size for estimation. | 0.2.0 | 
 | celeborn.master.port | 9097 | Port for master to bind. | 0.2.0 | 
 | celeborn.metrics.capacity | 4096 | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 | 
 | celeborn.metrics.collectPerfCritical.enabled | false | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 | 
@@ -40,6 +36,9 @@ license: |
 | celeborn.metrics.sample.rate | 1.0 | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | The sliding window size of timer metric. | 0.2.0 | 
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
+| celeborn.shuffle.estimatedPartitionSize.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.2.0 | 
+| celeborn.shuffle.estimatedPartitionSize.update.interval | 10min | Interval of updating partition size for estimation. | 0.2.0 | 
+| celeborn.shuffle.initialEstimatedPartitionSize | 64mb | Initial partition size for estimation, it will change according to runtime stats. | 0.2.0 | 
 | celeborn.slots.assign.extraSlots | 2 | Extra slots number when master assign slots. | 0.2.0 | 
 | celeborn.slots.assign.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.2.0 | 
 | celeborn.slots.assign.loadAware.numDiskGroups | 5 | This configuration is a guidance for load-aware slot allocation algorithm. This value is control how many disk groups will be created. | 0.2.0 | 

@@ -379,12 +379,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
-  def initialPartitionSizeForEstimation: Long = get(INITIAL_PARTITION_SIZE_FOR_ESTIMATION)
-  def minPartitionSizeForEstimation: Long = get(MINIMUM_PARTITION_SIZE_FOR_ESTIMATED)
-  def partitionSizeForEstimationUpdaterInitialDelay: Long =
-    get(PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INITIAL_DELAY)
-  def partitionSizeForEstimationUpdateInterval: Long =
-    get(PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INTERVAL)
+  def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE)
+  def estimatedPartitionSizeUpdaterInitialDelay: Long =
+    get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
+  def estimatedPartitionSizeForEstimationUpdateInterval: Long =
+    get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -405,6 +404,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def minPartitionSizeToEstimate: Long = get(SHUFFLE_MIN_PARTITION_SIZE_TO_ESTIMATE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReserveMemoryPerPartition: Long =
     get(PARTITION_SORTER_PER_PARTITION_RESERVE_MEMORY)
@@ -1602,8 +1602,8 @@ object CelebornConf extends Logging {
       .checkValue(Seq("roundrobin", "loadaware").contains(_), "")
       .createWithDefault("roundrobin")
 
-  val INITIAL_PARTITION_SIZE_FOR_ESTIMATION: ConfigEntry[Long] =
-    buildConf("celeborn.master.initialPartitionSizeForEstimated")
+  val SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.initialEstimatedPartitionSize")
       .withAlternative("rss.initial.partition.size")
       .categories("master")
       .doc("Initial partition size for estimation, it will change according to runtime stats.")
@@ -1611,18 +1611,18 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
-  val MINIMUM_PARTITION_SIZE_FOR_ESTIMATED: ConfigEntry[Long] =
-    buildConf("celeborn.master.minPartitionSizeForEstimation")
+  val SHUFFLE_MIN_PARTITION_SIZE_TO_ESTIMATE: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.minPartitionSizeToEstimate")
       .withAlternative("rss.minimum.estimate.partition.size")
-      .categories("master")
+      .categories("worker")
       .doc(
         "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8mb")
 
-  val PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
-    buildConf("celeborn.master.partitionSizeForEstimation.update.initialDelay")
+  val SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.estimatedPartitionSize.update.initialDelay")
       .withAlternative("rss.partition.size.update.initial.delay")
       .categories("master")
       .doc("Initial delay time before start updating partition size for estimation.")
@@ -1630,8 +1630,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5min")
 
-  val PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.master.partitionSizeForEstimation.update.interval")
+  val SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.estimatedPartitionSize.update.interval")
       .withAlternative("rss.partition.size.update.interval")
       .categories("master")
       .doc("Interval of updating partition size for estimation.")
