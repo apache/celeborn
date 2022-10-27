@@ -379,11 +379,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
-  def initialEstimatedPartitionSize: Long = get(INITIAL_ESTIMATED_PARTITION_SIZE)
-  def minimumEstimatedPartitionSize: Long = get(MINIMUM_ESTIMATED_PARTITION_SIZE)
+  def initialEstimatedPartitionSize: Long = get(INITIAL_PARTITION_SIZE_FOR_ESTIMATION)
+  def minimumEstimatedPartitionSize: Long = get(MINIMUM_PARTITION_SIZE_FOR_ESTIMATED)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
-    get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
-  def estimatedPartitionSizeUpdateInterval: Long = get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
+    get(PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INITIAL_DELAY)
+  def estimatedPartitionSizeUpdateInterval: Long =
+    get(PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -1488,38 +1489,39 @@ object CelebornConf extends Logging {
       .checkValue(Seq("roundrobin", "loadaware").contains(_), "")
       .createWithDefault("roundrobin")
 
-  val INITIAL_ESTIMATED_PARTITION_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.worker.initialEstimatedPartitionSize")
+  val INITIAL_PARTITION_SIZE_FOR_ESTIMATION: ConfigEntry[Long] =
+    buildConf("celeborn.master.initialPartitionSizeForEstimated")
       .withAlternative("rss.initial.partition.size")
       .categories("master")
-      .doc("Initial estimated partition size, it will change according to runtime stats.")
+      .doc("Initial partition size for estimation, it will change according to runtime stats.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
-  val MINIMUM_ESTIMATED_PARTITION_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.worker.minEstimatedPartitionSize")
+  val MINIMUM_PARTITION_SIZE_FOR_ESTIMATED: ConfigEntry[Long] =
+    buildConf("celeborn.master.minPartitionSizeForEstimation")
       .withAlternative("rss.minimum.estimate.partition.size")
       .categories("master")
-      .doc("Ignore partition size smaller than this configuration for partition size estimation.")
+      .doc(
+        "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8mb")
 
-  val ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
-    buildConf("celeborn.worker.estimatedPartitionSize.update.initialDelay")
+  val PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
+    buildConf("celeborn.master.partitionSizeForEstimation.update.initialDelay")
       .withAlternative("rss.partition.size.update.initial.delay")
       .categories("master")
-      .doc("Initial delay time before start updating estimated partition size.")
+      .doc("Initial delay time before start updating partition size for estimation.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5min")
 
-  val ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.estimatedPartitionSize.update.interval")
+  val PARTITION_SIZE_FOR_ESITIMATION_UPDATE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.master.partitionSizeForEstimation.update.interval")
       .withAlternative("rss.partition.size.update.interval")
       .categories("master")
-      .doc("Interval of updating estimated partition size.")
+      .doc("Interval of updating partition size for estimation.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
