@@ -21,6 +21,7 @@ import org.apache.celeborn.common.meta.DiskStatus
 
 trait DeviceObserver {
   def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {}
+  def notifyNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit = {}
   def notifyHealthy(mountPoint: String): Unit = {}
   def notifyHighDiskUsage(mountPoint: String): Unit = {}
 }

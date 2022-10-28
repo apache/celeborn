@@ -441,4 +441,7 @@ public final class FileWriter implements DeviceObserver {
 
   @Override
   public void notifyHighDiskUsage(String mountPoint) {}
+
+  @Override
+  public void notifyNonCriticalError(String mountPoint, DiskStatus diskStatus) {}
 }

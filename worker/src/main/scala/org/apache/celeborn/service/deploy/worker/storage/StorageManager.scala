@@ -147,12 +147,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   override def notifyHealthy(mountPoint: String): Unit = this.synchronized {
+    val dir = new File(mountPoint)
+    workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
     if (!diskOperators.containsKey(mountPoint)) {
       diskOperators.put(
         mountPoint,
         ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${mountPoint}", 1))
     }
   }
+
+  override def notifyNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit =
+    this.synchronized {
+      if (diskStatus == DiskStatus.READ_OR_WRITE_FAILURE) {
+        val dir = new File(mountPoint)
+        // TODO: don't destroy exist fileWriter, but will remain fileWriter cause memory leak or other issue?
+        // And do we need to also clean the diskOperators here?
+        workingDirWriters.remove(dir)
+      }
+    }
 
   private val counter = new AtomicInteger()
   private val counterOperator = new IntUnaryOperator() {
@@ -335,22 +347,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           return fileWriter
         } catch {
           case fe: FileAlreadyExistsException =>
-            logError(s"Target file ${file.getAbsolutePath} of fileWriter already exists.")
-            exception = new IOException(fe)
-            deviceMonitor.reportNonCriticalError(mountPoint, fe)
-          case rsse: RssException =>
-            logError(
-              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint failed, report to DeviceMonitor",
-              rsse)
-            exception = new IOException(rsse)
-            deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)
+            logError("Failed to create fileWriter because of existed file", fe)
           case t: Throwable =>
             logError(
-              s"Unexpected exception when creating FileWriter for ${file.getAbsolutePath} of " +
-                s"mount $mountPoint failed, report to DeviceMonitor",
+              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint " +
+                s"failed, report to DeviceMonitor",
               t)
             exception = new IOException(t)
-            deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)
+            deviceMonitor.reportNonCriticalError(
+              mountPoint,
+              exception,
+              DiskStatus.READ_OR_WRITE_FAILURE)
         }
       }
       retryCount += 1

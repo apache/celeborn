@@ -42,7 +42,7 @@ trait DeviceMonitor {
   // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
-  def reportNonCriticalError(mountPoint: String, e: IOException): Unit = {}
+  def reportNonCriticalError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
@@ -93,6 +93,13 @@ class LocalDeviceMonitor(
             ob.notifyError(mountPoint, diskStatus)
           }
         })
+      }
+
+    def notifyObserversOnNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit =
+      this.synchronized {
+        diskInfos.get(mountPoint).setStatus(diskStatus)
+        val tmpObservers = new util.HashSet[DeviceObserver](observers)
+        tmpObservers.asScala.foreach(ob => ob.notifyNonCriticalError(mountPoint, diskStatus))
       }
 
     def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
@@ -277,11 +284,13 @@ class LocalDeviceMonitor(
     }
   }
 
-  override def reportNonCriticalError(mountPoint: String, e: IOException): Unit = {
-    logger.error(s"Receive non-critical exception, disk $mountPoint, $e")
-    if (e.getCause.isInstanceOf[FileAlreadyExistsException]) {
-      // TODO: do something or just ignore this request?
-    }
+  override def reportNonCriticalError(
+      mountPoint: String,
+      e: IOException,
+      diskStatus: DiskStatus): Unit = {
+    logger.error(s"Receive non-critical exception, disk: $mountPoint, $e")
+    observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
+      .notifyObserversOnNonCriticalError(mountPoint, diskStatus)
   }
 
   override def close(): Unit = {
