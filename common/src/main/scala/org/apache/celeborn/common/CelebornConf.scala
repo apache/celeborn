@@ -31,7 +31,7 @@ import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentif
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
-import org.apache.celeborn.common.protocol.{PartitionSplitMode, PartitionType, StorageInfo}
+import org.apache.celeborn.common.protocol.{PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
