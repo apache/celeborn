@@ -60,7 +60,7 @@ public class TransportConf {
     return conf.networkIoNumConnectionsPerPeer(module);
   }
 
-  /** Requested maximum length of the queue of incoming connections. Default -1 for no backlog. */
+  /** Requested maximum length of the queue of incoming connections. Default 0 for no backlog. */
   public int backLog() {
     return conf.networkIoBacklog(module);
   }
@@ -107,7 +107,7 @@ public class TransportConf {
 
   /**
    * Minimum size of a block that we should start using memory map rather than reading in through
-   * normal IO operations. This prevents Spark from memory mapping very small blocks. In general,
+   * normal IO operations. This prevents Celeborn from memory mapping very small blocks. In general,
    * memory mapping has high overhead for blocks close to or below the page size of the OS.
    */
   public int memoryMapBytes() {

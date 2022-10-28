@@ -1021,7 +1021,7 @@ object CelebornConf extends Logging {
       .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL.")
       .stringConf
       .transform(_.toUpperCase)
-      .checkValue(v => Seq("NIO", "EPOLL").contains(v), "available options: NIO, EPOLL.")
+      .checkValues(Set("NIO", "EPOLL"))
       .createWithDefault("NIO")
 
   val NETWORK_IO_DECODER_MODE: ConfigEntry[String] =
@@ -1030,9 +1030,7 @@ object CelebornConf extends Logging {
       .doc("Netty TransportFrameDecoder implementation, available options: default, supplier.")
       .stringConf
       .transform(_.toLowerCase)
-      .checkValue(
-        v => Seq("default", "supplier").contains(v),
-        "available options: default, supplier.")
+      .checkValues(Set("default", "supplier"))
       .createWithDefault("default")
 
   val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =
@@ -1040,7 +1038,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("If true, we will prefer allocating off-heap byte buffers within Netty.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val NETWORK_IO_CONNECT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.<module>.io.connectTimeout")
@@ -1057,7 +1055,7 @@ object CelebornConf extends Logging {
   val NETWORK_IO_NUM_CONNECTIONS_PER_PEER: ConfigEntry[Int] =
     buildConf("celeborn.<module>.io.numConnectionsPerPeer")
       .categories("network")
-      .doc("Number of concurrent connections between two nodes for fetching data.")
+      .doc("Number of concurrent connections between two nodes.")
       .intConf
       .createWithDefault(8)
 
@@ -1141,7 +1139,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .internal
       .doc("Minimum size of a block that we should start using memory map rather than reading in through " +
-        "normal IO operations. This prevents Spark from memory mapping very small blocks. In general, " +
+        "normal IO operations. This prevents Celeborn from memory mapping very small blocks. In general, " +
         "memory mapping has high overhead for blocks close to or below the page size of the OS.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
@@ -1184,7 +1182,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .transform(_.toLowerCase)
-      .checkValue(v => v == "hash" || v == "sort", "invalid value, options: 'hash', 'sort'")
+      .checkValues(Set("hash", "sort"))
       .createWithDefault("hash")
 
   val PUSH_REPLICATE_ENABLED: ConfigEntry[Boolean] =
@@ -1429,7 +1427,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .transform(_.toLowerCase)
-      .checkValue(v => v == "netty" || v == "grpc", "illegal value, available options: netty, grpc")
+      .checkValues(Set("netty", "grpc"))
       .createWithDefault("netty")
 
   val HA_MASTER_RATIS_STORAGE_DIR: ConfigEntry[String] =
@@ -1922,7 +1920,7 @@ object CelebornConf extends Logging {
       .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware.")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValue(Seq("roundrobin", "loadaware").contains(_), "")
+      .checkValues(Set("roundrobin", "loadaware"))
       .createWithDefault("roundrobin")
 
   val SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE: ConfigEntry[Long] =
@@ -2034,9 +2032,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValue(
-        Seq("soft", "hard").contains(_),
-        s"Celeborn only support partition type of (soft, hard)")
+      .checkValues(Set("soft", "hard"))
       .createWithDefault("soft")
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
@@ -2303,9 +2299,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValue(
-        Seq("reduce", "map", "mapgroup").contains(_),
-        s"Celeborn only support partition type of (reduce, map, mapgroup)")
+      .checkValues(Set("reduce", "map", "mapgroup"))
       .createWithDefault("reduce")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
@@ -2316,9 +2310,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValue(
-        value => Seq("lz4", "zstd").contains(value),
-        s"Invalid compression codec, Celeborn only support compression codec of (lz4, zstd).")
+      .checkValues(Set("lz4", "zstd"))
       .createWithDefault("lz4")
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
