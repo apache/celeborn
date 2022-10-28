@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
@@ -304,7 +304,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         try {
           shuffleDir.mkdirs()
           if (file.exists()) {
-            throw new RssException(s"Shuffle data file ${file.getAbsolutePath} already exists.")
+            throw new FileAlreadyExistsException(
+              s"Shuffle data file ${file.getAbsolutePath} already exists.")
           } else {
             val createFileSuccess = file.createNewFile()
             if (!createFileSuccess) {
@@ -333,9 +334,20 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
           return fileWriter
         } catch {
-          case t: Throwable =>
+          case fe: FileAlreadyExistsException =>
+            logError(s"Target file ${file.getAbsolutePath} of fileWriter already exists.")
+            exception = new IOException(fe)
+            deviceMonitor.report
+          case rsse: RssException =>
             logError(
               s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint failed, report to DeviceMonitor",
+              rsse)
+            exception = new IOException(rsse)
+            deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)
+          case t: Throwable =>
+            logError(
+              s"Unexpected exception when creating FileWriter for ${file.getAbsolutePath} of " +
+                s"mount $mountPoint failed, report to DeviceMonitor",
               t)
             exception = new IOException(t)
             deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)

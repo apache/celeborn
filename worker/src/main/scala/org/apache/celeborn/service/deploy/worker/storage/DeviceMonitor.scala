@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io._
 import java.nio.charset.Charset
+import java.nio.file.FileAlreadyExistsException
 import java.util
 import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
@@ -41,6 +42,7 @@ trait DeviceMonitor {
   // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
+  def reportNonCriticalError(mountPoint: String, e: IOException): Unit = {}
   def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
@@ -272,6 +274,13 @@ class LocalDeviceMonitor(
     if (diskInfos.containsKey(mountPoint)) {
       observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
         .notifyObserversOnError(List(mountPoint), diskStatus)
+    }
+  }
+
+  override def reportNonCriticalError(mountPoint: String, e: IOException): Unit = {
+    logger.error(s"Receive non-critical exception, disk $mountPoint, $e")
+    if (e.getCause.isInstanceOf[FileAlreadyExistsException]) {
+      // TODO: do something or just ignore this request?
     }
   }
 
