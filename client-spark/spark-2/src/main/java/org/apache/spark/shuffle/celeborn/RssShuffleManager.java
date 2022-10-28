@@ -164,7 +164,7 @@ public class RssShuffleManager implements ShuffleManager {
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMaps(), context, celebornConf, client);
-        } else if (ShuffleMode.HASH..equals(celebornConf.shuffleWriterMode())) {
+        } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, mapId, context, celebornConf, client, SendBufferPool.get(cores));
         } else {
