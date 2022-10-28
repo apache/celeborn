@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.ShuffleMode;
 
 public class RssShuffleManager implements ShuffleManager {
 
@@ -158,10 +159,10 @@ public class RssShuffleManager implements ShuffleManager {
         ShuffleClient client =
             ShuffleClient.get(
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
-        if ("sort".equals(celebornConf.shuffleWriterMode())) {
+        if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMappers(), context, celebornConf, client, metrics);
-        } else if ("hash".equals(celebornConf.shuffleWriterMode())) {
+        } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, context, celebornConf, client, metrics, SendBufferPool.get(cores));
         } else {
