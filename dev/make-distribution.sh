@@ -26,7 +26,7 @@ DIST_DIR="$PROJECT_DIR/dist"
 NAME="bin"
 
 function exit_with_usage {
-  echo "make-distribution.sh - tool for making binary distributions of Remote Shuffle Service"
+  echo "make-distribution.sh - tool for making binary distributions of Celeborn"
   echo ""
   echo "usage:"
   cl_options="[--name <custom_name>]"
