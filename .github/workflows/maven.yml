@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build_rss_on_spark:
+  build_celeborn_on_spark:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
