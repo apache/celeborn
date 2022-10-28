@@ -1,7 +1,7 @@
 # This workflow will build a Java project with Maven
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
 
-name: Remote Shuffle Service CI
+name: Celeborn CI
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build_rss_on_spark:
+  build_celeborn_on_spark:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
