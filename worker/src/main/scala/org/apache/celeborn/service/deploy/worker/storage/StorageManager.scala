@@ -337,7 +337,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           case fe: FileAlreadyExistsException =>
             logError(s"Target file ${file.getAbsolutePath} of fileWriter already exists.")
             exception = new IOException(fe)
-            deviceMonitor.report
+            deviceMonitor.reportNonCriticalError(mountPoint, fe)
           case rsse: RssException =>
             logError(
               s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint failed, report to DeviceMonitor",
