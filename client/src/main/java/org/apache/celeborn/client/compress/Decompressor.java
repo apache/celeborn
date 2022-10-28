@@ -18,6 +18,8 @@
 package org.apache.celeborn.client.compress;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.CompressionCodec;
+import org.apache.celeborn.common.protocol.CompressionCodec.*;
 
 public interface Decompressor {
 
@@ -33,11 +35,11 @@ public interface Decompressor {
   }
 
   static Decompressor getDecompressor(CelebornConf conf) {
-    String codec = conf.shuffleCompressionCodec();
+    CompressionCodec codec = conf.shuffleCompressionCodec();
     switch (codec) {
-      case "lz4":
+      case LZ4:
         return new RssLz4Decompressor();
-      case "zstd":
+      case ZSTD:
         return new RssZstdDecompressor();
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);
@@ -45,11 +47,11 @@ public interface Decompressor {
   }
 
   static int getCompressionHeaderLength(CelebornConf conf) {
-    String codec = conf.shuffleCompressionCodec();
+    CompressionCodec codec = conf.shuffleCompressionCodec();
     switch (codec) {
-      case "lz4":
+      case LZ4:
         return RssLz4Trait.HEADER_LENGTH;
-      case "zstd":
+      case ZSTD:
         return RssZstdTrait.HEADER_LENGTH;
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);

@@ -412,8 +412,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // First, request to get allocated slots from Master
     val ids = new util.ArrayList[Integer]
     val numPartitions: Int = partitionType match {
-      case PartitionType.REDUCE_PARTITION => numReducers
-      case PartitionType.MAP_PARTITION => numMappers
+      case PartitionType.REDUCE => numReducers
+      case PartitionType.MAP => numMappers
     }
     (0 until numPartitions).foreach(idx => ids.add(new Integer(idx)))
     val res = requestSlotsWithRetry(applicationId, shuffleId, ids)

@@ -17,18 +17,7 @@
 
 package org.apache.celeborn.common.protocol;
 
-public enum PartitionType {
-  REDUCE(0),
-  MAP(1),
-  MAPGROUP(2);
-
-  private final int value;
-
-  PartitionType(int value) {
-    this.value = value;
-  }
-
-  public int getValue() {
-    return value;
-  }
+public enum SlotsAssignPolicy {
+  ROUNDROBIN,
+  LOADAWARE;
 }

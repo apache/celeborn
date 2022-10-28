@@ -25,7 +25,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.client.compress.Compressor.CompressionCodec
+import org.apache.celeborn.common.protocol.CompressionCodec
 import org.apache.celeborn.common.util.Utils
 
 class SkewJoinSuite extends AnyFunSuite

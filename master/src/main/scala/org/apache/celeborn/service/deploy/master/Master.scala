@@ -489,7 +489,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == "roundrobin") {
+          if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
             SlotsAllocator.offerSlotsRoundRobin(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
