@@ -22,7 +22,6 @@ import scala.reflect.ClassTag
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.RpcUtils
 
 /**
  * A reference for a remote [[RpcEndpoint]]. [[RpcEndpointRef]] is thread-safe.
@@ -30,7 +29,7 @@ import org.apache.celeborn.common.util.RpcUtils
 abstract class RpcEndpointRef(conf: CelebornConf)
   extends Serializable with Logging {
 
-  private[this] val defaultAskTimeout = RpcUtils.askRpcTimeout(conf)
+  private[this] val defaultAskTimeout = conf.rpcAskTimeout
 
   /**
    * return the address for the [[RpcEndpointRef]]

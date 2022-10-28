@@ -30,6 +30,7 @@ import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.WORKER_DISK_MONITOR_CHECK_INTERVAL
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils
@@ -64,7 +65,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
   dirs.addAll(workingDir4.asJava)
 
   val conf = new CelebornConf()
-  conf.set("rss.disk.check.interval", "3600s")
+  conf.set(WORKER_DISK_MONITOR_CHECK_INTERVAL.key, "3600s")
 
   val storageManager = mock[DeviceObserver]
   var (deviceInfos, diskInfos, workingDirDiskInfos): (

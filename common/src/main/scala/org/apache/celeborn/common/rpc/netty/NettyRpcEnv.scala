@@ -73,7 +73,7 @@ class NettyRpcEnv(
   // to implement non-blocking send/ask.
   private[celeborn] val clientConnectionExecutor = ThreadUtils.newDaemonCachedThreadPool(
     "netty-rpc-connection",
-    conf.getInt("spark.rpc.connect.threads", 64))
+    conf.rpcConnectThreads)
 
   @volatile private var server: TransportServer = _
 

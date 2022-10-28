@@ -32,6 +32,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
@@ -45,7 +46,6 @@ import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.StreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
-import org.apache.celeborn.common.network.util.MapConfigProvider;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 public class ChunkFetchIntegrationSuiteJ {
@@ -84,7 +84,7 @@ public class ChunkFetchIntegrationSuiteJ {
       Closeables.close(fp, shouldSuppressIOException);
     }
 
-    final TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
+    final TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
 
     streamManager =

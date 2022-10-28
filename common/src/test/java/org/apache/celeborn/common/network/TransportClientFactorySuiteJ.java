@@ -27,13 +27,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
-import org.apache.celeborn.common.network.util.ConfigProvider;
 import org.apache.celeborn.common.network.util.JavaUtils;
-import org.apache.celeborn.common.network.util.MapConfigProvider;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 public class TransportClientFactorySuiteJ {
@@ -43,7 +42,7 @@ public class TransportClientFactorySuiteJ {
 
   @Before
   public void setUp() {
-    TransportConf conf = new TransportConf("shuffle", MapConfigProvider.EMPTY);
+    TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     BaseMessageHandler handler = new BaseMessageHandler();
     context = new TransportContext(conf, handler);
     server1 = context.createServer();
@@ -65,9 +64,9 @@ public class TransportClientFactorySuiteJ {
   private void testClientReuse(int maxConnections, boolean concurrent)
       throws IOException, InterruptedException {
 
-    Map<String, String> configMap = new HashMap<>();
-    configMap.put("rss.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
-    TransportConf conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
+    CelebornConf _conf = new CelebornConf();
+    _conf.set("celeborn.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
+    TransportConf conf = new TransportConf("shuffle", _conf);
 
     BaseMessageHandler handler = new BaseMessageHandler();
     TransportContext context = new TransportContext(conf, handler);
@@ -175,30 +174,9 @@ public class TransportClientFactorySuiteJ {
 
   @Test
   public void closeIdleConnectionForRequestTimeOut() throws IOException, InterruptedException {
-    TransportConf conf =
-        new TransportConf(
-            "shuffle",
-            new ConfigProvider() {
-
-              @Override
-              public String get(String name) {
-                if ("rss.shuffle.io.connectionTimeout".equals(name)) {
-                  // We should make sure there is enough time for us to observe the channel is
-                  // active
-                  return "1s";
-                }
-                String value = System.getProperty(name);
-                if (value == null) {
-                  throw new NoSuchElementException(name);
-                }
-                return value;
-              }
-
-              @Override
-              public Iterable<Map.Entry<String, String>> getAll() {
-                throw new UnsupportedOperationException();
-              }
-            });
+    CelebornConf _conf = new CelebornConf();
+    _conf.set("celeborn.shuffle.io.connectionTimeout", "1s");
+    TransportConf conf = new TransportConf("shuffle", _conf);
     TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
     try (TransportClientFactory factory = context.createClientFactory()) {
       TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());

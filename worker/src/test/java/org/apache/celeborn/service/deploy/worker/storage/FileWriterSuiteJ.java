@@ -70,7 +70,6 @@ import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.MemoryTracker;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.JavaUtils;
-import org.apache.celeborn.common.network.util.MapConfigProvider;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -84,7 +83,7 @@ public class FileWriterSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileWriterSuiteJ.class);
 
-  private static final CelebornConf RSS_CONF = new CelebornConf();
+  private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
   public static final PartitionType partitionType = PartitionType.REDUCE_PARTITION;
@@ -99,13 +98,12 @@ public class FileWriterSuiteJ {
   private static int numChunks;
   private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
-  private static final TransportConf transConf =
-      new TransportConf("shuffle", MapConfigProvider.EMPTY);
+  private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
 
   @BeforeClass
   public static void beforeAll() {
-    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "rss");
-    RSS_CONF.set("rss.worker.fetch.chunk.size", "1k");
+    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
+    CONF.set("celeborn.shuffle.chuck.size", "1k");
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(
@@ -140,7 +138,7 @@ public class FileWriterSuiteJ {
 
           @Override
           public RPCSource rpcSource() {
-            return new RPCSource(RSS_CONF, MetricsSystem.ROLE_WORKER());
+            return new RPCSource(CONF, MetricsSystem.ROLE_WORKER());
           }
 
           @Override
@@ -245,7 +243,7 @@ public class FileWriterSuiteJ {
             new FileInfo(file, userIdentifier),
             localFlusher,
             source,
-            RSS_CONF,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
@@ -290,7 +288,7 @@ public class FileWriterSuiteJ {
             new FileInfo(file, userIdentifier),
             localFlusher,
             source,
-            RSS_CONF,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
@@ -344,7 +342,7 @@ public class FileWriterSuiteJ {
             fileInfo,
             localFlusher,
             source,
-            RSS_CONF,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,

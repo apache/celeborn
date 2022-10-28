@@ -17,66 +17,18 @@
 
 package org.apache.celeborn.common.network.util;
 
-import java.util.Locale;
-
-import com.google.common.primitives.Ints;
+import org.apache.celeborn.common.CelebornConf;
 
 /** A central location that tracks all the settings we expose to users. */
 public class TransportConf {
 
-  private final String RSS_NETWORK_IO_MODE_KEY;
-  private final String RSS_NETWORK_IO_PREFERDIRECTBUFS_KEY;
-  private final String RSS_NETWORK_IO_CONNECTTIMEOUT_KEY;
-  private final String RSS_NETWORK_IO_CONNECTIONTIMEOUT_KEY;
-  private final String RSS_NETWORK_IO_BACKLOG_KEY;
-  private final String RSS_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY;
-  private final String RSS_NETWORK_IO_SERVERTHREADS_KEY;
-  private final String RSS_NETWORK_IO_CLIENTTHREADS_KEY;
-  private final String RSS_NETWORK_IO_RECEIVEBUFFER_KEY;
-  private final String RSS_NETWORK_IO_SENDBUFFER_KEY;
-  private final String RSS_NETWORK_SASL_TIMEOUT_KEY;
-  private final String RSS_NETWORK_IO_MAXRETRIES_KEY;
-  private final String RSS_NETWORK_IO_RETRYWAIT_KEY;
-  private final String RSS_NETWORK_IO_LAZYFD_KEY;
-  private final String RSS_NETWORK_VERBOSE_METRICS;
-  // "default", "supplier"
-  private final String RSS_NETWORK_IO_DECODER_MODE;
-
-  private final ConfigProvider conf;
+  private final CelebornConf conf;
 
   private final String module;
 
-  public TransportConf(String module, ConfigProvider conf) {
+  public TransportConf(String module, CelebornConf conf) {
     this.module = module;
     this.conf = conf;
-    RSS_NETWORK_IO_MODE_KEY = getConfKey("io.mode");
-    RSS_NETWORK_IO_PREFERDIRECTBUFS_KEY = getConfKey("io.preferDirectBufs");
-    RSS_NETWORK_IO_CONNECTTIMEOUT_KEY = getConfKey("io.connectTimeout");
-    RSS_NETWORK_IO_CONNECTIONTIMEOUT_KEY = getConfKey("io.connectionTimeout");
-    RSS_NETWORK_IO_BACKLOG_KEY = getConfKey("io.backLog");
-    RSS_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY = getConfKey("io.numConnectionsPerPeer");
-    RSS_NETWORK_IO_SERVERTHREADS_KEY = getConfKey("io.serverThreads");
-    RSS_NETWORK_IO_CLIENTTHREADS_KEY = getConfKey("io.clientThreads");
-    RSS_NETWORK_IO_RECEIVEBUFFER_KEY = getConfKey("io.receiveBuffer");
-    RSS_NETWORK_IO_SENDBUFFER_KEY = getConfKey("io.sendBuffer");
-    RSS_NETWORK_SASL_TIMEOUT_KEY = getConfKey("sasl.timeout");
-    RSS_NETWORK_IO_MAXRETRIES_KEY = getConfKey("io.maxRetries");
-    RSS_NETWORK_IO_RETRYWAIT_KEY = getConfKey("io.retryWait");
-    RSS_NETWORK_IO_LAZYFD_KEY = getConfKey("io.lazyFD");
-    RSS_NETWORK_VERBOSE_METRICS = getConfKey("io.enableVerboseMetrics");
-    RSS_NETWORK_IO_DECODER_MODE = getConfKey("io.decoder.mode");
-  }
-
-  public int getInt(String name, int defaultValue) {
-    return conf.getInt(name, defaultValue);
-  }
-
-  public String get(String name, String defaultValue) {
-    return conf.get(name, defaultValue);
-  }
-
-  private String getConfKey(String suffix) {
-    return "rss." + module + "." + suffix;
   }
 
   public String getModuleName() {
@@ -85,54 +37,42 @@ public class TransportConf {
 
   /** IO mode: nio or epoll */
   public String ioMode() {
-    return conf.get(RSS_NETWORK_IO_MODE_KEY, "NIO").toUpperCase(Locale.ROOT);
+    return conf.networkIoMode(module);
   }
 
   /** If true, we will prefer allocating off-heap byte buffers within Netty. */
   public boolean preferDirectBufs() {
-    return conf.getBoolean(RSS_NETWORK_IO_PREFERDIRECTBUFS_KEY, true);
+    return conf.networkIoPreferDirectBufs(module);
   }
 
   /** Connect timeout in milliseconds. Default 10 secs. */
   public int connectTimeoutMs() {
-    long defaultConnectTimeoutS =
-        JavaUtils.timeStringAsSec(conf.get("rss.network.connect.timeout", "10s"));
-    long defaultTimeoutMs =
-        JavaUtils.timeStringAsSec(
-                conf.get(RSS_NETWORK_IO_CONNECTTIMEOUT_KEY, defaultConnectTimeoutS + "s"))
-            * 1000;
-    return (int) defaultTimeoutMs;
+    return conf.networkIoConnectTimeoutMs(module);
   }
 
   /** Connection active timeout in milliseconds. Default 240 secs. */
   public int connectionTimeoutMs() {
-    long defaultNetworkTimeoutS =
-        JavaUtils.timeStringAsSec(conf.get("rss.network.timeout", "240s"));
-    long defaultTimeoutMs =
-        JavaUtils.timeStringAsSec(
-                conf.get(RSS_NETWORK_IO_CONNECTIONTIMEOUT_KEY, defaultNetworkTimeoutS + "s"))
-            * 1000;
-    return (int) defaultTimeoutMs;
+    return conf.networkIoConnectionTimeoutMs(module);
   }
 
   /** Number of concurrent connections between two nodes for fetching data. */
   public int numConnectionsPerPeer() {
-    return conf.getInt(RSS_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY, 8);
+    return conf.networkIoNumConnectionsPerPeer(module);
   }
 
-  /** Requested maximum length of the queue of incoming connections. Default -1 for no backlog. */
+  /** Requested maximum length of the queue of incoming connections. Default 0 for no backlog. */
   public int backLog() {
-    return conf.getInt(RSS_NETWORK_IO_BACKLOG_KEY, -1);
+    return conf.networkIoBacklog(module);
   }
 
   /** Number of threads used in the server thread pool. Default to 0, which is 2x#cores. */
   public int serverThreads() {
-    return conf.getInt(RSS_NETWORK_IO_SERVERTHREADS_KEY, 0);
+    return conf.networkIoServerThreads(module);
   }
 
   /** Number of threads used in the client thread pool. Default to 0, which is 2x#cores. */
   public int clientThreads() {
-    return conf.getInt(RSS_NETWORK_IO_CLIENTTHREADS_KEY, 0);
+    return conf.networkIoClientThreads(module);
   }
 
   /**
@@ -141,21 +81,12 @@ public class TransportConf {
    * buffer size should be ~ 1.25MB
    */
   public int receiveBuf() {
-    return conf.getInt(RSS_NETWORK_IO_RECEIVEBUFFER_KEY, -1);
+    return conf.networkIoReceiveBuf(module);
   }
 
   /** Send buffer size (SO_SNDBUF). */
   public int sendBuf() {
-    return conf.getInt(RSS_NETWORK_IO_SENDBUFFER_KEY, -1);
-  }
-
-  /** Timeout for a single round trip of auth message exchange, in milliseconds. */
-  public int authRTTimeoutMs() {
-    return (int)
-            JavaUtils.timeStringAsSec(
-                conf.get(
-                    "rss.network.auth.rpcTimeout", conf.get(RSS_NETWORK_SASL_TIMEOUT_KEY, "30s")))
-        * 1000;
+    return conf.networkIoSendBuf(module);
   }
 
   /**
@@ -163,7 +94,7 @@ public class TransportConf {
    * to 0, we will not do any retries.
    */
   public int maxIORetries() {
-    return conf.getInt(RSS_NETWORK_IO_MAXRETRIES_KEY, 3);
+    return conf.networkIoMaxRetries(module);
   }
 
   /**
@@ -171,17 +102,16 @@ public class TransportConf {
    * relevant if maxIORetries &gt; 0.
    */
   public int ioRetryWaitTimeMs() {
-    return (int) JavaUtils.timeStringAsSec(conf.get(RSS_NETWORK_IO_RETRYWAIT_KEY, "5s")) * 1000;
+    return conf.networkIoRetryWaitMs(module);
   }
 
   /**
    * Minimum size of a block that we should start using memory map rather than reading in through
-   * normal IO operations. This prevents Spark from memory mapping very small blocks. In general,
+   * normal IO operations. This prevents Celeborn from memory mapping very small blocks. In general,
    * memory mapping has high overhead for blocks close to or below the page size of the OS.
    */
   public int memoryMapBytes() {
-    return Ints.checkedCast(
-        JavaUtils.byteStringAsBytes(conf.get("rss.storage.memoryMapThreshold", "2m")));
+    return conf.networkIoMemoryMapBytes(module);
   }
 
   /**
@@ -189,7 +119,7 @@ public class TransportConf {
    * when data is going to be transferred. This can reduce the number of open files.
    */
   public boolean lazyFileDescriptor() {
-    return conf.getBoolean(RSS_NETWORK_IO_LAZYFD_KEY, true);
+    return conf.networkIoLazyFileDescriptor(module);
   }
 
   /**
@@ -197,20 +127,21 @@ public class TransportConf {
    * PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.
    */
   public boolean verboseMetrics() {
-    return conf.getBoolean(RSS_NETWORK_VERBOSE_METRICS, false);
+    return conf.networkIoVerboseMetrics(module);
   }
 
   /**
    * The max number of chunks allowed to be transferred at the same time on shuffle service. Note
    * that new incoming connections will be closed when the max number is hit. The client will retry
-   * according to the shuffle retry configs (see `rss.shuffle.io.maxRetries` and
-   * `rss.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure.
+   * according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and
+   * `celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch
+   * failure.
    */
   public long maxChunksBeingTransferred() {
-    return conf.getLong("rss.shuffle.maxChunksBeingTransferred", Long.MAX_VALUE);
+    return conf.networkIoMaxChunksBeingTransferred(module);
   }
 
   public String decoderMode() {
-    return conf.get(RSS_NETWORK_IO_DECODER_MODE, "default");
+    return conf.networkIoDecoderMode(module);
   }
 }

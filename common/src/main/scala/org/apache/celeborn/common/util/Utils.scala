@@ -496,20 +496,13 @@ object Utils extends Logging {
     // assuming we have all the machine's cores).
     // NB: Only set if serverThreads/clientThreads not already set.
     val numThreads = defaultNumThreads(numUsableCores)
+    conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    // TODO remove after releasing 0.2.0
     conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
 
-    new TransportConf(
-      module,
-      new ConfigProvider {
-        override def get(name: String): String = conf.get(name)
-
-        override def get(name: String, defaultValue: String): String = conf.get(name, defaultValue)
-
-        override def getAll(): java.lang.Iterable[java.util.Map.Entry[String, String]] = {
-          conf.getAll.toMap.asJava.entrySet()
-        }
-      })
+    new TransportConf(module, conf)
   }
 
   private def defaultNumThreads(numUsableCores: Int): Int = {
@@ -715,7 +708,7 @@ object Utils extends Logging {
    */
   def createTempDir(
       root: String = System.getProperty("java.io.tmpdir"),
-      namePrefix: String = "rss"): File = {
+      namePrefix: String = "celeborn"): File = {
     val dir = createDirectory(root, namePrefix)
     Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
       override def run(): Unit = {

@@ -21,8 +21,6 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +30,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -42,7 +41,6 @@ import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.StreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
-import org.apache.celeborn.common.network.util.MapConfigProvider;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 /**
@@ -65,9 +63,9 @@ public class RequestTimeoutIntegrationSuiteJ {
 
   @Before
   public void setUp() throws Exception {
-    Map<String, String> configMap = new HashMap<>();
-    configMap.put("rss.shuffle.io.connectionTimeout", "2s");
-    conf = new TransportConf("shuffle", new MapConfigProvider(configMap));
+    CelebornConf _conf = new CelebornConf();
+    _conf.set("celeborn.shuffle.io.connectionTimeout", "2s");
+    conf = new TransportConf("shuffle", _conf);
 
     defaultManager =
         new StreamManager() {

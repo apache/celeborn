@@ -76,18 +76,26 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
-### Metrics
-
-{!
-include-markdown "./metrics.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
-
 ### Quota
 
 {!
 include-markdown "./quota.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+### Network
+
+{!
+include-markdown "./network.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+### Metrics
+
+{!
+include-markdown "./metrics.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
 !}

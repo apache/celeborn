@@ -346,8 +346,8 @@ public class RetryingChunkClientSuiteJ {
       Map<Integer, List<Object>> interactions, ChunkReceivedCallback callback)
       throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
-    conf.set("rss.data.io.maxRetries", "1");
-    conf.set("rss.data.io.retryWait", "0");
+    conf.set("celeborn.data.io.maxRetries", "1");
+    conf.set("celeborn.data.io.retryWait", "0");
 
     // Contains all chunk ids that are referenced across all interactions.
     LinkedHashSet<Integer> chunkIds = Sets.newLinkedHashSet(interactions.keySet());

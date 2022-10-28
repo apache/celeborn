@@ -20,11 +20,11 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.2.0 | 
+| celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
+| celeborn.client.rpc.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for client RPC ask operations. | 0.2.0 | 
 | celeborn.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.2.0 | 
 | celeborn.fetch.timeout | 120s | Timeout for a task to fetch chunk. | 0.2.0 | 
-| celeborn.ha.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
-| celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
 | celeborn.push.buffer.initial.size | 8k |  | 0.2.0 | 
 | celeborn.push.buffer.max.size | 64k | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.2.0 | 
 | celeborn.push.limit.inFlight.sleepInterval | 50ms | Sleep interval when check netty in-flight requests to be done. | 0.2.0 | 
@@ -56,7 +56,7 @@ license: |
 | celeborn.shuffle.rangeReadFilter.enabled | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | 
 | celeborn.shuffle.register.maxRetries | 3 | Max retry times for client to register shuffle. | 0.2.0 | 
 | celeborn.shuffle.register.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.2.0 | 
-| celeborn.shuffle.writer.mode | hash | Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. | 0.2.0 | 
+| celeborn.shuffle.writer | hash | Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine when memory pressure is high or shuffle partition count it huge. | 0.2.0 | 
 | celeborn.slots.reserve.maxRetries | 3 | Max retry times for client to reserve slots. | 0.2.0 | 
 | celeborn.slots.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
