@@ -122,10 +122,9 @@ public class NettyUtils {
     //    enable `useCacheForAllThreads`.
     // This affects Spark 3.4 and above, see details in SPARK-38541.
 
-    // Use deprecated method to compatible w/ earlier Netty versions(less than 4.1.52.Final), which
-    // is used by Spark 3.1 and earlier versions. See details in
-    // https://github.com/netty/netty/pull/10267
-    // and SPARK-35132.
+    // Use deprecated method to compatible w/ earlier Netty versions(less than 4.1.52.Final),
+    // which is used by Spark 3.1 and earlier versions. See details in SPARK-35132 and
+    // https://github.com/netty/netty/pull/10267.
     return new PooledByteBufAllocator(
         allowDirectBufs && PlatformDependent.directBufferPreferred(),
         Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
