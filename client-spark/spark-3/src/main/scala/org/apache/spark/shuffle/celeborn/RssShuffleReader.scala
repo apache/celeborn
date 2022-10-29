@@ -51,10 +51,10 @@ class RssShuffleReader[K, C](
 
     var serializerInstance = dep.serializer.newInstance()
     if (conf.columnarShuffleEnabled) {
-      val schema = SparkUtils.getShuffleDependencySchema(dep)
+      val schema = SparkUtils.getSchema(dep)
       if (RssColumnarBatchBuilder.supportsColumnarType(
           schema)) {
-        val dataSize = SparkUtils.getUnsafeRowSerializerDataSizeMetric(
+        val dataSize = SparkUtils.getDataSize(
           dep.serializer.asInstanceOf[UnsafeRowSerializer])
         serializerInstance = new RssColumnarBatchSerializer(
           schema,

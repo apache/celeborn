@@ -357,7 +357,8 @@ object Utils extends Logging {
 
   val isMac: Boolean = SystemUtils.IS_OS_MAC_OSX
 
-  val isMacOnAppleSilicon = SystemUtils.IS_OS_MAC_OSX && SystemUtils.OS_ARCH.equals("aarch64")
+  val isMacOnAppleSilicon: Boolean =
+    SystemUtils.IS_OS_MAC_OSX && SystemUtils.OS_ARCH.equals("aarch64")
 
   private lazy val localIpAddress: InetAddress = findLocalInetAddress()
 
@@ -387,14 +388,14 @@ object Utils extends Logging {
             logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
               " a loopback address: " + address.getHostAddress + "; using " +
               strippedAddress.getHostAddress + " instead (on interface " + ni.getName + ")")
-            logWarning("Set RSS_LOCAL_IP if you need to bind to another address")
+            logWarning("Set CELEBORN_LOCAL_IP if you need to bind to another address")
             return strippedAddress
           }
         }
         logWarning("Your hostname, " + InetAddress.getLocalHost.getHostName + " resolves to" +
           " a loopback address: " + address.getHostAddress + ", but we couldn't find any" +
           " external IP address!")
-        logWarning("Set RSS_LOCAL_IP if you need to bind to another address")
+        logWarning("Set CELEBORN_LOCAL_IP if you need to bind to another address")
       }
       address
     }
@@ -517,16 +518,16 @@ object Utils extends Logging {
     Option(Thread.currentThread().getContextClassLoader).getOrElse(getClassLoader)
 
   def classIsLoadable(clazz: String): Boolean = {
-    // scalastyle:off classforname
     Try {
+      // scalastyle:off classforname
       Class.forName(clazz, false, getContextOrClassLoader)
+      // scalastyle:on classforname
     }.isSuccess
-    // scalastyle:on classforname
   }
 
-  // scalastyle:off classforname
   /** Preferred alternative to Class.forName(className) */
   def classForName(className: String): Class[_] = {
+    // scalastyle:off classforname
     Class.forName(className, true, getContextOrClassLoader)
     // scalastyle:on classforname
   }
