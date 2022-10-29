@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.celeborn.common.util
 
 import java.util
@@ -26,9 +43,11 @@ object PbSerDeUtils {
     files
   }
 
-  def toPbSortedShuffleFileSet(files: util.Set[String]): Array[Byte] = {
-    PbSortedShuffleFileSet.newBuilder.addAllFiles(files).build.toByteArray
-  }
+  def toPbSortedShuffleFileSet(files: util.Set[String]): Array[Byte] =
+    PbSortedShuffleFileSet.newBuilder
+      .addAllFiles(files)
+      .build
+      .toByteArray
 
   @throws[InvalidProtocolBufferException]
   def fromPbStoreVersion(data: Array[Byte]): util.ArrayList[Integer] = {
@@ -39,34 +58,44 @@ object PbSerDeUtils {
     versions
   }
 
-  def toPbStoreVersion(major: Int, minor: Int): Array[Byte] = {
-    PbStoreVersion.newBuilder.setMajor(major).setMinor(minor).build.toByteArray
-  }
+  def toPbStoreVersion(major: Int, minor: Int): Array[Byte] =
+    PbStoreVersion.newBuilder
+      .setMajor(major)
+      .setMinor(minor)
+      .build.toByteArray
 
-  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo = new DiskInfo(
-    pbDiskInfo.getMountPoint,
-    pbDiskInfo.getUsableSpace,
-    pbDiskInfo.getAvgFlushTime,
-    pbDiskInfo.getUsedSlots).setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo =
+    new DiskInfo(
+      pbDiskInfo.getMountPoint,
+      pbDiskInfo.getUsableSpace,
+      pbDiskInfo.getAvgFlushTime,
+      pbDiskInfo.getUsedSlots)
+      .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
 
   def toPbDiskInfo(diskInfo: DiskInfo): PbDiskInfo =
-    PbDiskInfo.newBuilder.setMountPoint(diskInfo.mountPoint).setUsableSpace(
-      diskInfo.actualUsableSpace).setAvgFlushTime(diskInfo.avgFlushTime).setUsedSlots(
-      diskInfo.activeSlots).setStatus(diskInfo.status.getValue).build
+    PbDiskInfo.newBuilder
+      .setMountPoint(diskInfo.mountPoint)
+      .setUsableSpace(diskInfo.actualUsableSpace)
+      .setAvgFlushTime(diskInfo.avgFlushTime)
+      .setUsedSlots(diskInfo.activeSlots)
+      .setStatus(diskInfo.status.getValue)
+      .build
 
-  def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo = {
-    val pbUserIdentifier = pbFileInfo.getUserIdentifier
-    val userIdentifier = new UserIdentifier(pbUserIdentifier.getTenantId, pbUserIdentifier.getName)
-    new FileInfo(pbFileInfo.getFilePath, pbFileInfo.getChunkOffsetsList, userIdentifier)
-  }
+  def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =
+    new FileInfo(
+      pbFileInfo.getFilePath,
+      pbFileInfo.getChunkOffsetsList,
+      fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) =
     new FileInfo(pbFileInfo.getFilePath, pbFileInfo.getChunkOffsetsList, userIdentifier)
 
-  def toPbFileInfo(fileInfo: FileInfo): PbFileInfo = {
-    PbFileInfo.newBuilder.setFilePath(fileInfo.getFilePath).addAllChunkOffsets(
-      fileInfo.getChunkOffsets).build
-  }
+  def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
+    PbFileInfo.newBuilder
+      .setFilePath(fileInfo.getFilePath)
+      .addAllChunkOffsets(fileInfo.getChunkOffsets)
+      .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
+      .build
 
   @throws[InvalidProtocolBufferException]
   def fromPbFileInfoMap(
@@ -74,30 +103,39 @@ object PbSerDeUtils {
       cache: ConcurrentHashMap[String, UserIdentifier]): ConcurrentHashMap[String, FileInfo] = {
     val pbFileInfoMap = PbFileInfoMap.parseFrom(data)
     val fileInfoMap = new ConcurrentHashMap[String, FileInfo]
-    pbFileInfoMap.getValuesMap.entrySet().asScala.flatMap(_).foreach {
-      case (str: String, pbFileInfo: PbFileInfo) =>
-        val pbUserIdentifier = pbFileInfo.getUserIdentifier
-        val userIdentifierKey = pbUserIdentifier.getTenantId + "-" + pbUserIdentifier.getName
-        if (!cache.containsKey(userIdentifierKey)) {
-          val fileInfo = fromPbFileInfo(pbFileInfo)
-          cache.put(userIdentifierKey, fileInfo.getUserIdentifier)
-          fileInfoMap.put(str, fileInfo)
-        } else {
-          val fileInfo = fromPbFileInfo(pbFileInfo, cache.get(userIdentifierKey))
-          fileInfoMap.put(str, fileInfo)
-        }
+    pbFileInfoMap.getValuesMap.entrySet().asScala.foreach { entry =>
+      val fileName = entry.getKey
+      val pbFileInfo = entry.getValue
+      val pbUserIdentifier = pbFileInfo.getUserIdentifier
+      val userIdentifierKey = pbUserIdentifier.getTenantId + "-" + pbUserIdentifier.getName
+      if (!cache.containsKey(userIdentifierKey)) {
+        val fileInfo = fromPbFileInfo(pbFileInfo)
+        cache.put(userIdentifierKey, fileInfo.getUserIdentifier)
+        fileInfoMap.put(fileName, fileInfo)
+      } else {
+        val fileInfo = fromPbFileInfo(pbFileInfo, cache.get(userIdentifierKey))
+        fileInfoMap.put(fileName, fileInfo)
+      }
     }
     fileInfoMap
   }
 
   def toPbFileInfoMap(fileInfoMap: ConcurrentHashMap[String, FileInfo]): Array[Byte] = {
     val pbFileInfoMap = new ConcurrentHashMap[String, PbFileInfo]()
-    fileInfoMap.entrySet().asScala.flatMap(_).foreach {
-      case (str: String, fileInfo: FileInfo) =>
-        pbFileInfoMap.put(str, toPbFileInfo(fileInfo))
+    fileInfoMap.entrySet().asScala.foreach { entry =>
+      pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue))
     }
     PbFileInfoMap.newBuilder.putAllValues(pbFileInfoMap).build.toByteArray
   }
+
+  def fromPbUserIdentifier(pbUserIdentifier: PbUserIdentifier): UserIdentifier =
+    UserIdentifier(pbUserIdentifier.getTenantId, pbUserIdentifier.getName)
+
+  def toPbUserIdentifier(userIdentifier: UserIdentifier): PbUserIdentifier =
+    PbUserIdentifier.newBuilder
+      .setTenantId(userIdentifier.tenantId)
+      .setName(userIdentifier.name)
+      .build
 
   def fromPbResourceConsumption(pbResourceConsumption: PbResourceConsumption) = ResourceConsumption(
     pbResourceConsumption.getDiskBytesWritten,
@@ -106,18 +144,19 @@ object PbSerDeUtils {
     pbResourceConsumption.getHdfsFileCount)
 
   def toPbResourceConsumption(resourceConsumption: ResourceConsumption): PbResourceConsumption =
-    PbResourceConsumption.newBuilder.setDiskBytesWritten(
-      resourceConsumption.diskBytesWritten).setDiskFileCount(
-      resourceConsumption.diskFileCount).setHdfsBytesWritten(
-      resourceConsumption.hdfsBytesWritten).setHdfsFileCount(
-      resourceConsumption.hdfsFileCount).build
+    PbResourceConsumption.newBuilder
+      .setDiskBytesWritten(resourceConsumption.diskBytesWritten)
+      .setDiskFileCount(resourceConsumption.diskFileCount)
+      .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
+      .setHdfsFileCount(resourceConsumption.hdfsFileCount)
+      .build
 
   def fromPbUserResourceConsumption(pbUserResourceConsumption: util.Map[
     String,
     PbResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
     pbUserResourceConsumption.asScala.map {
-      case (k: String, v: PbResourceConsumption) =>
-        (UserIdentifier(k), fromPbResourceConsumption(v))
+      case (userIdentifierString: String, pbResourceConsumption: PbResourceConsumption) =>
+        (UserIdentifier(userIdentifierString), fromPbResourceConsumption(pbResourceConsumption))
     }.asJava
   }
 
@@ -125,8 +164,8 @@ object PbSerDeUtils {
     UserIdentifier,
     ResourceConsumption]): util.Map[String, PbResourceConsumption] = {
     userResourceConsumption.asScala.map {
-      case (k: UserIdentifier, v: ResourceConsumption) =>
-        (k.toString, toPbResourceConsumption(v))
+      case (userIdentifier: UserIdentifier, resourceConsumption: ResourceConsumption) =>
+        (userIdentifier.toString, toPbResourceConsumption(resourceConsumption))
     }.asJava
   }
 
@@ -153,10 +192,16 @@ object PbSerDeUtils {
     val diskInfos = workerInfo.diskInfos.values
     val pbDiskInfos = new util.ArrayList[PbDiskInfo]()
     diskInfos.asScala.foreach(k => pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(k)))
-    PbWorkerInfo.newBuilder.setHost(workerInfo.host).setRpcPort(workerInfo.rpcPort).setFetchPort(
-      workerInfo.fetchPort).setPushPort(workerInfo.pushPort).setReplicatePort(
-      workerInfo.replicatePort).addAllDisks(pbDiskInfos).putAllUserResourceConsumption(
-      PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption)).build
+    PbWorkerInfo.newBuilder
+      .setHost(workerInfo.host)
+      .setRpcPort(workerInfo.rpcPort)
+      .setFetchPort(workerInfo.fetchPort)
+      .setPushPort(workerInfo.pushPort)
+      .setReplicatePort(workerInfo.replicatePort)
+      .addAllDisks(pbDiskInfos)
+      .putAllUserResourceConsumption(
+        PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption))
+      .build
   }
 
   def fromPbPartitionLocation(pbLoc: PbPartitionLocation): PartitionLocation = {
@@ -221,7 +266,8 @@ object PbSerDeUtils {
       } else {
         peerBuilder.setMode(PbPartitionLocation.Mode.Slave)
       }
-      peerBuilder.setHost(location.getPeer.getHost)
+      peerBuilder
+        .setHost(location.getPeer.getHost)
         .setEpoch(location.getPeer.getEpoch)
         .setId(location.getPeer.getId)
         .setRpcPort(location.getPeer.getRpcPort)

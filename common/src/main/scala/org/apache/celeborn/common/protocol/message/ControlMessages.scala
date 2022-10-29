@@ -462,11 +462,7 @@ object ControlMessages extends Logging {
         .setHostname(hostname)
         .setShouldReplicate(shouldReplicate)
         .setRequestId(requestId)
-        .setUserIdentifier(
-          PbUserIdentifier
-            .newBuilder()
-            .setTenantId(userIdentifier.tenantId)
-            .setName(userIdentifier.name))
+        .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -603,11 +599,7 @@ object ControlMessages extends Logging {
 
     case CheckQuota(userIdentifier) =>
       val builder = PbCheckQuota.newBuilder()
-        .setUserIdentifier(
-          PbUserIdentifier
-            .newBuilder()
-            .setTenantId(userIdentifier.tenantId)
-            .setName(userIdentifier.name))
+        .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
       new TransportMessage(
         MessageType.CHECK_QUOTA,
         builder.build().toByteArray)
@@ -654,11 +646,7 @@ object ControlMessages extends Logging {
         .setSplitMode(splitMode.getValue)
         .setPartitionType(partType.getValue)
         .setRangeReadFilter(rangeReadFilter)
-        .setUserIdentifier(
-          PbUserIdentifier
-            .newBuilder()
-            .setTenantId(userIdentifier.tenantId)
-            .setName(userIdentifier.name))
+        .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -802,9 +790,7 @@ object ControlMessages extends Logging {
 
       case REQUEST_SLOTS =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
-        val userIdentifier = UserIdentifier(
-          pbRequestSlots.getUserIdentifier.getTenantId,
-          pbRequestSlots.getUserIdentifier.getName)
+        val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbRequestSlots.getUserIdentifier)
         RequestSlots(
           pbRequestSlots.getApplicationId,
           pbRequestSlots.getShuffleId,
@@ -911,10 +897,7 @@ object ControlMessages extends Logging {
 
       case CHECK_QUOTA =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
-        CheckQuota(
-          UserIdentifier(
-            pbCheckAvailable.getUserIdentifier.getTenantId,
-            pbCheckAvailable.getUserIdentifier.getName))
+        CheckQuota(PbSerDeUtils.fromPbUserIdentifier(pbCheckAvailable.getUserIdentifier))
 
       case CHECK_QUOTA_RESPONSE =>
         val pbCheckAvailableResponse = PbCheckQuotaResponse
@@ -937,9 +920,7 @@ object ControlMessages extends Logging {
 
       case RESERVE_SLOTS =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
-        val userIdentifier = UserIdentifier(
-          pbReserveSlots.getUserIdentifier.getTenantId,
-          pbReserveSlots.getUserIdentifier.getName)
+        val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbReserveSlots.getUserIdentifier)
         ReserveSlots(
           pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
