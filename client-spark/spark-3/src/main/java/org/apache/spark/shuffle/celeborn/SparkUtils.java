@@ -61,7 +61,7 @@ public class SparkUtils {
   public static SQLMetric getDataSize(UnsafeRowSerializer serializer) {
     SQLMetric dataSizeMetric = DATA_SIZE_METRIC_FIELD.get(serializer);
     if (dataSizeMetric == null) {
-      LOG.warn("Failed to get dataSize metric, aqe won't work properly.");
+      LOG.warn("Failed to get dataSize metric, AQE won't work properly.");
     }
     return dataSizeMetric;
   }
