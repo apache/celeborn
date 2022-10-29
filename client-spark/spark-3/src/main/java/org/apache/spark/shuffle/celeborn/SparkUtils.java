@@ -130,6 +130,7 @@ public class SparkUtils {
               Integer.TYPE,
               TaskContext.class,
               ShuffleReadMetricsReporter.class)
+          .orNoop()
           .build();
 
   public static <K, C> ShuffleReader<K, C> getReader(
@@ -150,19 +151,22 @@ public class SparkUtils {
       return shuffleReader;
     }
 
-    return LEGACY_GET_READER_METHOD
-        .bind(sortShuffleManager)
-        .invoke(handle, startPartition, endPartition, context, metrics);
+    shuffleReader =
+        LEGACY_GET_READER_METHOD
+            .bind(sortShuffleManager)
+            .invoke(handle, startPartition, endPartition, context, metrics);
+    assert shuffleReader != null;
+    return shuffleReader;
   }
 
   private static final DynFields.UnboundField<StructType> SCHEMA_FIELD =
-      DynFields.builder().hiddenImpl(ShuffleDependency.class, "schema").build();
+      DynFields.builder().hiddenImpl(ShuffleDependency.class, "schema").defaultAlwaysNull().build();
 
   public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) throws IOException {
-    try {
-      return SCHEMA_FIELD.bind(dep).get();
-    } catch (Exception e) {
+    StructType schema = SCHEMA_FIELD.bind(dep).get();
+    if (schema == null) {
       throw new IOException("Failed to get Schema, columnar shuffle won't work properly.");
     }
+    return schema;
   }
 }
