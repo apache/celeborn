@@ -106,17 +106,33 @@ public class NettyUtils {
    * released by the executor thread rather than the event loop thread. Those thread-local caches
    * actually delay the recycling of buffers, leading to larger memory usage.
    */
+  @SuppressWarnings("deprecation")
   public static PooledByteBufAllocator createPooledByteBufAllocator(
       boolean allowDirectBufs, boolean allowCache, int numCores) {
     if (numCores == 0) {
       numCores = Runtime.getRuntime().availableProcessors();
     }
+    // After upgrade to Netty 4.1.75, there are 2 behavior changes of this method:
+    // 1. `PooledByteBufAllocator.defaultMaxOrder()` change from 11 to 9, this means the default
+    //    `PooledByteBufAllocator` chunk size reduce from 16 MiB to 4 MiB, we need use
+    //    `-Dio.netty.allocator.maxOrder=11` to keep the chunk size of PooledByteBufAllocator
+    //    to 16m.
+    // 2. `PooledByteBufAllocator.defaultUseCacheForAllThreads()` change from true to false, we need
+    //    to use `-Dio.netty.allocator.useCacheForAllThreads=true` to
+    //    enable `useCacheForAllThreads`.
+    // This affects Spark 3.4 and above, see details in SPARK-38541.
+
+    // Use deprecated method to compatible w/ earlier Netty versions(less than 4.1.52.Final), which
+    // is used by Spark 3.1 and earlier versions. See details in
+    // https://github.com/netty/netty/pull/10267
+    // and SPARK-35132.
     return new PooledByteBufAllocator(
         allowDirectBufs && PlatformDependent.directBufferPreferred(),
         Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
         Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
         PooledByteBufAllocator.defaultPageSize(),
         PooledByteBufAllocator.defaultMaxOrder(),
+        allowCache ? PooledByteBufAllocator.defaultTinyCacheSize() : 0,
         allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
         allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
         allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false);
