@@ -31,7 +31,7 @@ import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentif
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
-import org.apache.celeborn.common.protocol.{PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.{CompressionCodec, PartitionSplitMode, PartitionType, ShuffleMode, SlotsAssignPolicy}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
@@ -473,7 +473,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def slotsAssignLoadAwareDiskGroupGradient: Double =
     get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
-  def slotsAssignPolicy: String = get(SLOTS_ASSIGN_POLICY)
+  def slotsAssignPolicy: SlotsAssignPolicy = SlotsAssignPolicy.valueOf(get(SLOTS_ASSIGN_POLICY))
   def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -511,7 +511,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Client                         //
   // //////////////////////////////////////////////////////
   def clientMaxTries: Int = get(CLIENT_MAX_RETRIES)
-  def shuffleWriterMode: String = get(SHUFFLE_WRITER_MODE)
+  def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SHUFFLE_WRITER_MODE))
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
@@ -526,20 +526,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
-  def shufflePartitionType: PartitionType = {
-    get(SHUFFLE_PARTITION_TYPE) match {
-      case "reduce" => PartitionType.REDUCE_PARTITION
-      case "map" => PartitionType.MAP_PARTITION
-      case "mapgroup" => PartitionType.MAPGROUP_REDUCE_PARTITION
-      case unknown =>
-        throw new IllegalArgumentException(s"Celeborn don't support partition type `$unknown`")
-    }
-  }
+  def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
-  def shuffleCompressionCodec: String = get(SHUFFLE_COMPRESSION_CODEC)
+  def shuffleCompressionCodec: CompressionCodec =
+    CompressionCodec.valueOf(get(SHUFFLE_COMPRESSION_CODEC))
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
@@ -660,15 +653,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
-  def partitionSplitMode: PartitionSplitMode = {
-    get(PARTITION_SPLIT_MODE) match {
-      case "soft" => PartitionSplitMode.SOFT
-      case "hard" => PartitionSplitMode.HARD
-      case unknown =>
-        throw new IllegalArgumentException(
-          s"Celeborn don't support partition split mode `$unknown`")
-    }
-  }
+  def partitionSplitMode: PartitionSplitMode = PartitionSplitMode.valueOf(get(PARTITION_SPLIT_MODE))
   def partitionSplitThreshold: Long = get(PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionNumThreads: Int = get(BATCH_HANDLE_CHANGE_PARTITION_THREADS)
@@ -1181,9 +1166,9 @@ object CelebornConf extends Logging {
         "when memory pressure is high or shuffle partition count it huge.")
       .version("0.2.0")
       .stringConf
-      .transform(_.toLowerCase)
-      .checkValues(Set("hash", "sort"))
-      .createWithDefault("hash")
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
+      .createWithDefault(ShuffleMode.HASH.name)
 
   val PUSH_REPLICATE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.push.replicate.enabled")
@@ -1919,9 +1904,9 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware.")
       .stringConf
-      .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("roundrobin", "loadaware"))
-      .createWithDefault("roundrobin")
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(SlotsAssignPolicy.ROUNDROBIN.name, SlotsAssignPolicy.LOADAWARE.name))
+      .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
   val SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.initialEstimatedPartitionSize")
@@ -2031,9 +2016,9 @@ object CelebornConf extends Logging {
         "hard: the shuffle file size will be limited to split threshold.")
       .version("0.2.0")
       .stringConf
-      .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("soft", "hard"))
-      .createWithDefault("soft")
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
+      .createWithDefault(PartitionSplitMode.SOFT.name)
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")
@@ -2298,9 +2283,12 @@ object CelebornConf extends Logging {
       .doc("Type of shuffle's partition.")
       .version("0.2.0")
       .stringConf
-      .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("reduce", "map", "mapgroup"))
-      .createWithDefault("reduce")
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(
+        PartitionType.REDUCE.name,
+        PartitionType.MAP.name,
+        PartitionType.MAPGROUP.name))
+      .createWithDefault(PartitionType.REDUCE.name)
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
     buildConf("celeborn.shuffle.compression.codec")
@@ -2309,9 +2297,9 @@ object CelebornConf extends Logging {
       .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
       .version("0.2.0")
       .stringConf
-      .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("lz4", "zstd"))
-      .createWithDefault("lz4")
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(CompressionCodec.LZ4.name, CompressionCodec.ZSTD.name))
+      .createWithDefault(CompressionCodec.LZ4.name)
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
     buildConf("celeborn.shuffle.compression.zstd.level")

@@ -25,10 +25,10 @@ import org.junit.Assert
 import org.junit.runners.JUnit4
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
-import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.CompressionCodec
 
 trait ReadWriteTestBase extends Logging {
   val masterPort = 19097

@@ -18,6 +18,8 @@
 package org.apache.celeborn.client.compress;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.CompressionCodec;
+import org.apache.celeborn.common.protocol.CompressionCodec.*;
 
 public interface Compressor {
 
@@ -37,21 +39,16 @@ public interface Compressor {
   }
 
   static Compressor getCompressor(CelebornConf conf) {
-    String codec = conf.shuffleCompressionCodec();
+    CompressionCodec codec = conf.shuffleCompressionCodec();
     int blockSize = conf.pushBufferMaxSize();
     switch (codec) {
-      case "lz4":
+      case LZ4:
         return new RssLz4Compressor(blockSize);
-      case "zstd":
+      case ZSTD:
         int zstdLevel = conf.shuffleCompressionZstdCompressLevel();
         return new RssZstdCompressor(blockSize, zstdLevel);
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }
-  }
-
-  enum CompressionCodec {
-    LZ4,
-    ZSTD;
   }
 }

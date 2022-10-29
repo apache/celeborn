@@ -923,12 +923,12 @@ object Utils extends Logging {
 
   def toPartitionType(value: Int): PartitionType = {
     value match {
-      case 0 => PartitionType.REDUCE_PARTITION
-      case 1 => PartitionType.MAP_PARTITION
-      case 2 => PartitionType.MAPGROUP_REDUCE_PARTITION
+      case 0 => PartitionType.REDUCE
+      case 1 => PartitionType.MAP
+      case 2 => PartitionType.MAPGROUP
       case _ =>
         logWarning(s"invalid partitionType $value, fallback to ReducePartition")
-        PartitionType.REDUCE_PARTITION
+        PartitionType.REDUCE
     }
   }
 

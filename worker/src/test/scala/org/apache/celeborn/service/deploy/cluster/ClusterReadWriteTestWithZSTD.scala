@@ -25,9 +25,9 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
-import org.apache.celeborn.client.compress.Compressor.CompressionCodec
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol.CompressionCodec
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ClusterReadWriteTestWithZSTD extends AnyFunSuite with MiniClusterFeature
