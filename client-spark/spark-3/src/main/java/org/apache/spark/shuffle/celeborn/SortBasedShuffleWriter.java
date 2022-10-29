@@ -164,8 +164,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void fastWrite0(scala.collection.Iterator iterator) throws IOException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
-    SQLMetric dataSize =
-        SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
+    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();

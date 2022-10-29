@@ -161,7 +161,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             mapStatusLengths);
 
     if (conf.columnarShuffleEnabled()) {
-      this.schema = SparkUtils.getShuffleDependencySchema(dep);
+      this.schema = SparkUtils.getSchema(dep);
       this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
     }
@@ -196,8 +196,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void fastColumnarWrite0(scala.collection.Iterator iterator) throws IOException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
-    SQLMetric dataSize =
-        SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
+    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -230,8 +229,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void fastWrite0(scala.collection.Iterator iterator) throws IOException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
-    SQLMetric dataSize =
-        SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
+    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -356,8 +354,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void closeColumnarWrite() throws IOException {
-    SQLMetric dataSize =
-        SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
+    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     for (int i = 0; i < numPartitions; i++) {
       final RssColumnarBatchBuilder buidlers = rssColumnBuilders[i];
       if (buidlers != null && buidlers.rowCnt() > 0) {

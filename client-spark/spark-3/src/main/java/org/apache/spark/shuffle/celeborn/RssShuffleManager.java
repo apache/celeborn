@@ -199,9 +199,7 @@ public class RssShuffleManager implements ShuffleManager {
           celebornConf,
           metrics);
     }
-    return SparkUtils.invokeGetReaderMethod(
-        sortShuffleManagerName,
-        "getReader",
+    return SparkUtils.getReader(
         sortShuffleManager(),
         handle,
         startMapIndex,
@@ -225,9 +223,7 @@ public class RssShuffleManager implements ShuffleManager {
       return new RssShuffleReader<>(
           h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, celebornConf, metrics);
     }
-    return SparkUtils.invokeGetReaderMethod(
-        sortShuffleManagerName,
-        "getReader",
+    return SparkUtils.getReader(
         sortShuffleManager(),
         handle,
         0,

@@ -18,8 +18,6 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -42,25 +40,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynConstructors;
+import org.apache.celeborn.reflect.DynFields;
+import org.apache.celeborn.reflect.DynMethods;
 
 public class SparkUtils {
-  private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
 
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long mapTaskId) {
     return MapStatus$.MODULE$.apply(loc, uncompressedSizes, mapTaskId);
   }
 
-  public static SQLMetric getUnsafeRowSerializerDataSizeMetric(UnsafeRowSerializer serializer) {
-    try {
-      Field field = serializer.getClass().getDeclaredField("dataSize");
-      field.setAccessible(true);
-      return (SQLMetric) field.get(serializer);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      logger.warn("Failed to get dataSize metric, aqe won`t work properly.");
+  private static final DynFields.UnboundField<SQLMetric> DATA_SIZE_METRIC_FIELD =
+      DynFields.builder()
+          .hiddenImpl(UnsafeRowSerializer.class, "dataSize")
+          .defaultAlwaysNull()
+          .build();
+
+  public static SQLMetric getDataSize(UnsafeRowSerializer serializer) {
+    SQLMetric dataSizeMetric = DATA_SIZE_METRIC_FIELD.get(serializer);
+    if (dataSizeMetric == null) {
+      LOG.warn("Failed to get dataSize metric, AQE won't work properly.");
     }
-    return null;
+    return dataSizeMetric;
   }
 
   public static long[] unwrap(LongAdder[] adders) {
@@ -93,30 +96,44 @@ public class SparkUtils {
   // Create an instance of the class with the given name, possibly initializing it with our conf
   // Copied from SparkEnv
   public static <T> T instantiateClass(String className, SparkConf conf, Boolean isDriver) {
-    @SuppressWarnings("unchecked")
-    Class<T> cls = (Class<T>) Utils.classForName(className);
-    // Look for a constructor taking a SparkConf and a boolean isDriver, then one taking just
-    // SparkConf, then one taking no arguments
-    try {
-      return cls.getConstructor(SparkConf.class, Boolean.TYPE).newInstance(conf, isDriver);
-    } catch (ReflectiveOperationException roe1) {
-      try {
-        return cls.getConstructor(SparkConf.class).newInstance(conf);
-      } catch (ReflectiveOperationException roe2) {
-        try {
-          return cls.getConstructor().newInstance();
-        } catch (ReflectiveOperationException roe3) {
-          throw new RuntimeException(roe3);
-        }
-      }
-    }
+    DynConstructors.Ctor<T> dynConstructor =
+        DynConstructors.builder()
+            .impl(className, SparkConf.class, Boolean.TYPE)
+            .impl(className, SparkConf.class)
+            .impl(className)
+            .build();
+    return dynConstructor.newInstance(conf, isDriver);
   }
 
-  // Invoke and return getReader method of SortShuffleManager
-  @SuppressWarnings("unchecked")
-  public static <K, C> ShuffleReader<K, C> invokeGetReaderMethod(
-      String className,
-      String methodName,
+  // Added in SPARK-32055, for Spark 3.1 and above
+  private static final DynMethods.UnboundMethod GET_READER_METHOD =
+      DynMethods.builder("getReader")
+          .impl(
+              SortShuffleManager.class,
+              ShuffleHandle.class,
+              Integer.TYPE,
+              Integer.TYPE,
+              Integer.TYPE,
+              Integer.TYPE,
+              TaskContext.class,
+              ShuffleReadMetricsReporter.class)
+          .orNoop()
+          .build();
+
+  // Reserved for Spark 3.0, see detail in SPARK-32055
+  private static final DynMethods.UnboundMethod LEGACY_GET_READER_METHOD =
+      DynMethods.builder("getReader")
+          .impl(
+              SortShuffleManager.class,
+              ShuffleHandle.class,
+              Integer.TYPE,
+              Integer.TYPE,
+              TaskContext.class,
+              ShuffleReadMetricsReporter.class)
+          .orNoop()
+          .build();
+
+  public static <K, C> ShuffleReader<K, C> getReader(
       SortShuffleManager sortShuffleManager,
       ShuffleHandle handle,
       Integer startMapIndex,
@@ -125,55 +142,31 @@ public class SparkUtils {
       Integer endPartition,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
-    Class<?> cls = Utils.classForName(className);
-    try {
-      Method method =
-          cls.getMethod(
-              methodName,
-              ShuffleHandle.class,
-              Integer.TYPE,
-              Integer.TYPE,
-              Integer.TYPE,
-              Integer.TYPE,
-              TaskContext.class,
-              ShuffleReadMetricsReporter.class);
-      return (ShuffleReader<K, C>)
-          method.invoke(
-              sortShuffleManager,
-              handle,
-              startMapIndex,
-              endMapIndex,
-              startPartition,
-              endPartition,
-              context,
-              metrics);
-    } catch (ReflectiveOperationException roe1) {
-      try {
-        Method method =
-            cls.getMethod(
-                methodName,
-                ShuffleHandle.class,
-                Integer.TYPE,
-                Integer.TYPE,
-                TaskContext.class,
-                ShuffleReadMetricsReporter.class);
-        return (ShuffleReader<K, C>)
-            method.invoke(
-                sortShuffleManager, handle, startPartition, endPartition, context, metrics);
-      } catch (ReflectiveOperationException roe2) {
-        throw new RuntimeException("Get getReader method failed.", roe2);
-      }
+    ShuffleReader<K, C> shuffleReader =
+        GET_READER_METHOD
+            .bind(sortShuffleManager)
+            .invoke(
+                handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics);
+    if (shuffleReader != null) {
+      return shuffleReader;
     }
+
+    shuffleReader =
+        LEGACY_GET_READER_METHOD
+            .bind(sortShuffleManager)
+            .invoke(handle, startPartition, endPartition, context, metrics);
+    assert shuffleReader != null;
+    return shuffleReader;
   }
 
-  public static StructType getShuffleDependencySchema(ShuffleDependency<?, ?, ?> dep)
-      throws IOException {
-    try {
-      Field field = dep.getClass().getDeclaredField("schema");
-      field.setAccessible(true);
-      return (StructType) field.get(dep);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new IOException("Failed to get Schema, columnar shuffle won`t work properly.");
+  private static final DynFields.UnboundField<StructType> SCHEMA_FIELD =
+      DynFields.builder().hiddenImpl(ShuffleDependency.class, "schema").defaultAlwaysNull().build();
+
+  public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) throws IOException {
+    StructType schema = SCHEMA_FIELD.bind(dep).get();
+    if (schema == null) {
+      throw new IOException("Failed to get Schema, columnar shuffle won't work properly.");
     }
+    return schema;
   }
 }
