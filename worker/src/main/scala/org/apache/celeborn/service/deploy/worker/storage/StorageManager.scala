@@ -348,6 +348,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         } catch {
           case fe: FileAlreadyExistsException =>
             logError("Failed to create fileWriter because of existed file", fe)
+            throw fe
           case t: Throwable =>
             logError(
               s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint " +
