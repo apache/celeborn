@@ -546,7 +546,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         writer.flushOnMemoryPressure()
       } catch {
         case t: Throwable =>
-          logError(s"FileWrite of ${writer} has face unexpected exception", t)
+          logError(
+            s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure",
+            t)
       }
     }
   }
