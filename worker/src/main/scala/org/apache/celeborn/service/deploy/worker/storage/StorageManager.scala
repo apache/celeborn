@@ -538,7 +538,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val allWriters = new util.HashSet[FileWriter]()
     workingDirWriters.asScala.foreach { case (_, writers) =>
       writers.synchronized {
-        allWriters.addAll(writers)
+        allWriters.addAll(writers.asScala.filter(_.getException != null).asJava)
       }
     }
     allWriters.asScala.foreach { writer =>
@@ -547,7 +547,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       } catch {
         case t: Throwable =>
           logError(
-            s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure",
+            s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure.",
             t)
       }
     }
