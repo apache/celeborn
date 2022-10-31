@@ -4,15 +4,13 @@
 Celeborn is recommended to be deployed on nodes with local disk. Before starting, please make sure local disks on nodes are mounted to specific path.
 
 ## [Optional] Build Celeborn docker image
-We have provided a docker image for Celeborn in helm chart. If you want to build your own Celeborn image with specific version, run docker build with our Dockerfile.
+We have provided a docker image for Celeborn in helm chart. If you want to build your own Celeborn image, run docker build with our Dockerfile.
+
+You should download or build your binary package first, then decompress it, cd decompress directory, use following command to build docker image.
 
 `
-docker build -f docker/Dockerfile --build-arg celeborn_version=0.1.0 -t ${your-repo}:${tag} .
+docker build -f docker/Dockerfile -t ${your-repo}:${tag} .
 `
-
-You can use `--build-arg celeborn_version` to indicates the version of Celeborn currently in use, default value is 0.1.1.
-
-Make sure you have already built Celeborn, the target file 'apache-celeborn-${project.version}-bin.tgz' is in ${CELEBORN_HOME}.
 
 ## Deploy Celeborn with helm
 

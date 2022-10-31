@@ -18,8 +18,6 @@
 ARG java_image_tag=8-jdk-focal
 FROM eclipse-temurin:${java_image_tag}
 
-ARG celeborn_version=0.1.1
-
 USER root
 
 RUN set -ex && \
