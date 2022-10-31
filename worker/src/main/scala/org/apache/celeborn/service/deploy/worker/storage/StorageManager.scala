@@ -538,11 +538,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val allWriters = new util.HashSet[FileWriter]()
     workingDirWriters.asScala.foreach { case (_, writers) =>
       writers.synchronized {
-        allWriters.addAll(writers)
+        // Filter out FileWriter that already has IOException to avoid printing too many error logs
+        allWriters.addAll(writers.asScala.filter(_.getException == null).asJava)
       }
     }
     allWriters.asScala.foreach { writer =>
-      writer.flushOnMemoryPressure()
+      try {
+        writer.flushOnMemoryPressure()
+      } catch {
+        case t: Throwable =>
+          logError(
+            s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure.",
+            t)
+      }
     }
   }
 
