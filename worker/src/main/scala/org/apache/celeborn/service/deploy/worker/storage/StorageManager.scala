@@ -154,17 +154,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  override def notifyNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit =
-    this.synchronized {
-      if (diskStatus == DiskStatus.READ_OR_WRITE_FAILURE) {
-        logInfo("Face read or writer failure, remove disk operator.")
-        val operator = diskOperators.remove(mountPoint)
-        if (operator != null) {
-          operator.shutdown()
-        }
-      }
-    }
-
   private val counter = new AtomicInteger()
   private val counterOperator = new IntUnaryOperator() {
     override def applyAsInt(operand: Int): Int = {
