@@ -542,7 +542,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       }
     }
     allWriters.asScala.foreach { writer =>
-      writer.flushOnMemoryPressure()
+      try {
+        writer.flushOnMemoryPressure()
+      } catch {
+        case ioe: IOException =>
+          logError(s"FileWrite of ${writer} has face unexpected IOException", ioe)
+      }
     }
   }
 
