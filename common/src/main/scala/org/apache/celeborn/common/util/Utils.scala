@@ -811,35 +811,6 @@ object Utils extends Logging {
     }
   }
 
-  def convertPbWorkerResourceToWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource])
-      : WorkerResource = {
-    val slots = new WorkerResource()
-    pbWorkerResource.asScala.foreach(item => {
-      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = item._1.split(":")
-      val workerInfo =
-        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
-      val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
-        .getMasterPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
-        .getSlavePartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
-    })
-    slots
-  }
-
-  def convertWorkerResourceToPbWorkerResource(workerResource: WorkerResource)
-      : util.Map[String, PbWorkerResource] = {
-    workerResource.asScala.map(item => {
-      val uniqueId = item._1.toUniqueId()
-      val masterPartitions = item._2._1.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val slavePartitions = item._2._2.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val pbWorkerResource = PbWorkerResource.newBuilder()
-        .addAllMasterPartitions(masterPartitions)
-        .addAllSlavePartitions(slavePartitions).build()
-      uniqueId -> pbWorkerResource
-    }).toMap.asJava
-  }
-
   def toTransportMessage(message: Any): Any = {
     message match {
       case legacy: Message =>
