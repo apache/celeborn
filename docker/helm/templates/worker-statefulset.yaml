@@ -63,10 +63,6 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
         command:
-          - "/usr/bin/tini"
-          - "--"
-          - "/bin/sh"
-          - '-c'
           - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn/sbin/start-worker.sh"
         resources:
           {{- toYaml .Values.resources.worker | nindent 12 }}
