@@ -138,7 +138,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.IO_HANG) {
-      logInfo("IoHang, remove disk operator")
+      logInfo("IoHang, remove disk operator.")
       val operator = diskOperators.remove(mountPoint)
       if (operator != null) {
         operator.shutdown()
@@ -147,8 +147,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   override def notifyHealthy(mountPoint: String): Unit = this.synchronized {
-    val dir = new File(mountPoint)
-    workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
     if (!diskOperators.containsKey(mountPoint)) {
       diskOperators.put(
         mountPoint,
@@ -159,10 +157,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def notifyNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit =
     this.synchronized {
       if (diskStatus == DiskStatus.READ_OR_WRITE_FAILURE) {
-        val dir = new File(mountPoint)
-        // TODO: don't destroy exist fileWriter, but will remain fileWriter cause memory leak or other issue?
-        // And do we need to also clean the diskOperators here?
-        workingDirWriters.remove(dir)
+        logInfo("Face read or writer failure, remove disk operator.")
+        val operator = diskOperators.remove(mountPoint)
+        if (operator != null) {
+          operator.shutdown()
+        }
       }
     }
 

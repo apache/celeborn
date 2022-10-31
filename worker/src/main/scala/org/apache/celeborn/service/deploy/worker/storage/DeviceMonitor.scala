@@ -99,7 +99,7 @@ class LocalDeviceMonitor(
       this.synchronized {
         diskInfos.get(mountPoint).setStatus(diskStatus)
         val tmpObservers = new util.HashSet[DeviceObserver](observers)
-        tmpObservers.asScala.foreach(ob => ob.notifyNonCriticalError(mountPoint, diskStatus))
+        tmpObservers.asScala.foreach(_.notifyNonCriticalError(mountPoint, diskStatus))
       }
 
     def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
