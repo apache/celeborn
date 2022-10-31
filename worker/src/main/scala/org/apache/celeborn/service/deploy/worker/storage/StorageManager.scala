@@ -539,7 +539,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     workingDirWriters.asScala.foreach { case (_, writers) =>
       writers.synchronized {
         // Filter out FileWriter that already has IOException to avoid printing too many error logs
-        allWriters.addAll(writers.asScala.filter(_.getException != null).asJava)
+        allWriters.addAll(writers.asScala.filter(_.getException == null).asJava)
       }
     }
     allWriters.asScala.foreach { writer =>
