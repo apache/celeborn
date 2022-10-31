@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io._
 import java.nio.charset.Charset
+import java.nio.file.FileAlreadyExistsException
 import java.util
 import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
@@ -41,6 +42,7 @@ trait DeviceMonitor {
   // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
+  def reportNonCriticalError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
@@ -91,6 +93,13 @@ class LocalDeviceMonitor(
             ob.notifyError(mountPoint, diskStatus)
           }
         })
+      }
+
+    def notifyObserversOnNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit =
+      this.synchronized {
+        diskInfos.get(mountPoint).setStatus(diskStatus)
+        val tmpObservers = new util.HashSet[DeviceObserver](observers)
+        tmpObservers.asScala.foreach(_.notifyNonCriticalError(mountPoint, diskStatus))
       }
 
     def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
@@ -273,6 +282,15 @@ class LocalDeviceMonitor(
       observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
         .notifyObserversOnError(List(mountPoint), diskStatus)
     }
+  }
+
+  override def reportNonCriticalError(
+      mountPoint: String,
+      e: IOException,
+      diskStatus: DiskStatus): Unit = {
+    logger.error(s"Receive non-critical exception, disk: $mountPoint, $e")
+    observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
+      .notifyObserversOnNonCriticalError(mountPoint, diskStatus)
   }
 
   override def close(): Unit = {

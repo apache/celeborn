@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
@@ -138,7 +138,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.IO_HANG) {
-      logInfo("IoHang, remove disk operator")
+      logInfo("IoHang, remove disk operator.")
       val operator = diskOperators.remove(mountPoint)
       if (operator != null) {
         operator.shutdown()
@@ -304,7 +304,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         try {
           shuffleDir.mkdirs()
           if (file.exists()) {
-            throw new RssException(s"Shuffle data file ${file.getAbsolutePath} already exists.")
+            throw new FileAlreadyExistsException(
+              s"Shuffle data file ${file.getAbsolutePath} already exists.")
           } else {
             val createFileSuccess = file.createNewFile()
             if (!createFileSuccess) {
@@ -333,12 +334,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
           return fileWriter
         } catch {
+          case fe: FileAlreadyExistsException =>
+            logError("Failed to create fileWriter because of existed file", fe)
+            throw fe
           case t: Throwable =>
             logError(
-              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint failed, report to DeviceMonitor",
+              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint " +
+                s"failed, report to DeviceMonitor",
               t)
             exception = new IOException(t)
-            deviceMonitor.reportDeviceError(mountPoint, exception, DiskStatus.READ_OR_WRITE_FAILURE)
+            deviceMonitor.reportNonCriticalError(
+              mountPoint,
+              exception,
+              DiskStatus.READ_OR_WRITE_FAILURE)
         }
       }
       retryCount += 1
