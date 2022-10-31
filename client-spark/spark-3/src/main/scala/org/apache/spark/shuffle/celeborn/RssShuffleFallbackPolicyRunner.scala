@@ -62,7 +62,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
     val available = lifecycleManager.checkQuota()
     if (!available) {
-      logWarning(s"Quota exceed for current user ${lifecycleManager.getUserIdentifier()}.")
+      logWarning(s"Quota exceed for current user ${lifecycleManager.getUserIdentifier}.")
     }
     available
   }

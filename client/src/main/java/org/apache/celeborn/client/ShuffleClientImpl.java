@@ -18,8 +18,6 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -83,8 +81,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   private RpcEndpointRef driverRssMetaService;
 
   protected TransportClientFactory dataClientFactory;
-
-  private InetAddress ia = null;
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
@@ -910,8 +906,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               return;
             }
             logger.error(
-                (revived ? "Revived push" : "Push")
-                    + " merged data to "
+                "Push merged data to "
                     + host
                     + ":"
                     + port
@@ -960,9 +955,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitMaxInFlight(mapKey, pushState, 0);
 
       MapperEndResponse response =
-          driverRssMetaService.<MapperEndResponse>askSync(
+          driverRssMetaService.askSync(
               new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers),
-              ClassTag$.MODULE$.<MapperEndResponse>apply(MapperEndResponse.class));
+              ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
         throw new IOException("MapperEnd failed! StatusCode: " + response.status());
       }
@@ -1039,8 +1034,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class);
 
                 GetReducerFileGroupResponse response =
-                    driverRssMetaService.<GetReducerFileGroupResponse>askSync(
-                        getReducerFileGroup, classTag);
+                    driverRssMetaService.askSync(getReducerFileGroup, classTag);
 
                 if (response.status() == StatusCode.SUCCESS) {
                   logger.info(
@@ -1117,18 +1111,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void setupMetaServiceRef(RpcEndpointRef endpointRef) {
     driverRssMetaService = endpointRef;
-  }
-
-  private synchronized String getLocalHost() {
-    if (ia == null) {
-      try {
-        ia = InetAddress.getLocalHost();
-      } catch (UnknownHostException e) {
-        logger.error("Unknown host", e);
-        return null;
-      }
-    }
-    return ia.getHostName();
   }
 
   private boolean mapperEnded(int shuffleId, int mapId, int attemptId) {

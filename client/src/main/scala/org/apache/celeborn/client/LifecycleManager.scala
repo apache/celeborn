@@ -19,7 +19,7 @@ package org.apache.celeborn.client
 
 import java.nio.ByteBuffer
 import java.util
-import java.util.{List => JList}
+import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
@@ -75,25 +75,28 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
+  // noinspection UnstableApiUsage
   private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrencyLevel)
     .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
+
   private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
-  val newMapFunc =
+  val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
     new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
       override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
         new ConcurrentHashMap[Int, PartitionLocation]()
       }
     }
+
   private def updateLatestPartitionLocations(
       shuffleId: Int,
-      locations: util.List[PartitionLocation]) = {
+      locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
-    locations.asScala.foreach { case location => map.put(location.getId, location) }
+    locations.asScala.foreach(location => map.put(location.getId, location))
   }
 
   case class ChangePartitionRequest(
@@ -165,6 +168,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // `rssHARetryClient` is called. Therefore, it's necessary to uniformly execute the initialization
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
+    // noinspection ConvertExpressionToSAM
     appHeartbeat = appHeartbeatHandlerThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = {
@@ -192,6 +196,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       TimeUnit.MILLISECONDS)
 
     batchHandleChangePartitionSchedulerThread.foreach {
+      // noinspection ConvertExpressionToSAM
       _.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = {
@@ -233,6 +238,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   override def onStart(): Unit = {
+    // noinspection ConvertExpressionToSAM
     checkForShuffleRemoval = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -243,6 +249,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleExpiredCheckIntervalMs,
       TimeUnit.MILLISECONDS)
 
+    // noinspection ConvertExpressionToSAM
     getBlacklist = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -273,7 +280,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def getUserIdentifier(): UserIdentifier = {
+  def getUserIdentifier: UserIdentifier = {
     userIdentifier
   }
 
@@ -464,7 +471,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         shuffleId,
         candidatesWorkers.asScala.toList,
         slots,
-        false)
+        updateEpoch = false)
 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
@@ -705,7 +712,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       newlyAllocatedLocations.asScala.flatMap {
         case (workInfo, (masterLocations, slaveLocations)) =>
           // Add all re-allocated slots to worker snapshots.
-          workerSnapshots(shuffleId).asScala.get(workInfo).map { partitionLocationInfo =>
+          workerSnapshots(shuffleId).asScala.get(workInfo).foreach { partitionLocationInfo =>
             partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
             updateLatestPartitionLocations(shuffleId, masterLocations)
             partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
@@ -954,7 +961,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           val msg = failedBothPartitionIdsToWorker.map {
             case (partitionId, (masterWorker, slaveWorker)) =>
               s"Lost partition $partitionId " +
-                s"in master worker [${masterWorker.readableAddress()}] and slave worker [${slaveWorker}]"
+                s"in master worker [${masterWorker.readableAddress()}] and slave worker [$slaveWorker]"
           }.mkString("\n")
           logError(
             s"""
@@ -1146,7 +1153,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       slots: WorkerResource,
-      failedPartitionLocations: mutable.HashMap[Int, PartitionLocation]) = {
+      failedPartitionLocations: mutable.HashMap[Int, PartitionLocation]): Unit = {
     val destroyResource = new WorkerResource
     failedPartitionLocations.values
       .flatMap { partition => Option(partition.getPeer) }
@@ -1506,7 +1513,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
-          s"on worker ${endpoint}."
+          s"on worker $endpoint."
         logError(msg, e)
         ReserveSlotsResponse(StatusCode.FAILED, msg + s" ${e.getMessage}")
     }
