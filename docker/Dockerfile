@@ -18,8 +18,6 @@
 ARG java_image_tag=8-jdk-focal
 FROM eclipse-temurin:${java_image_tag}
 
-ARG celeborn_version=0.1.1
-
 USER root
 
 RUN set -ex && \
@@ -27,8 +25,11 @@ RUN set -ex && \
     apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user dnsutils && \
     ln -snf /bin/bash /bin/sh && \
     rm -rf /var/cache/apt/* && \
-    mkdir -p /opt/
+    mkdir -p /opt/celeborn
 
-ADD apache-celeborn-${celeborn_version}-bin.tgz /opt/
-
-RUN ln -s /opt/apache-celeborn-${celeborn_version}-bin /opt/celeborn
+COPY bin /opt/celeborn/bin
+COPY sbin /opt/celeborn/sbin
+COPY conf /opt/celeborn/conf
+COPY RELEASE /opt/celeborn/RELEASE
+COPY master-jars /opt/celeborn/master-jars
+COPY worker-jars /opt/celeborn/worker-jars
