@@ -130,7 +130,7 @@ private[deploy] class Controller(
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
-      rangeReadFileter: Boolean,
+      rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
@@ -161,7 +161,7 @@ private[deploy] class Controller(
             splitThreshold,
             splitMode,
             partitionType,
-            rangeReadFileter,
+            rangeReadFilter,
             userIdentifier)
           masterLocs.add(new WorkingPartition(location, writer))
         } else {
@@ -196,7 +196,7 @@ private[deploy] class Controller(
             splitThreshold,
             splitMode,
             partitionType,
-            rangeReadFileter,
+            rangeReadFilter,
             userIdentifier)
           slaveLocs.add(new WorkingPartition(location, writer))
         } else {
