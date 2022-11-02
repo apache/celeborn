@@ -231,7 +231,7 @@ public class MetaHandler {
               request.getReportWorkerFailureRequest().getFailedWorkerList();
           List<WorkerInfo> failedWorkers =
               failedAddress.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
-          metaSystem.updateBlacklistByReportWorkerFailure(failedWorkers);
+          metaSystem.updateBlacklistByReportWorkerUnavailable(failedWorkers);
           break;
 
         case UpdatePartitionSize:

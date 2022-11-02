@@ -278,7 +278,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId) {
+  public void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId) {
     try {
       List<ResourceProtos.WorkerAddress> addrs =
           failedNodes.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());

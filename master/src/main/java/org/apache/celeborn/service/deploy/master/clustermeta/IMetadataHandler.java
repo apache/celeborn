@@ -72,7 +72,7 @@ public interface IMetadataHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);
 
-  void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);
+  void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId);
 
   void handleUpdatePartitionSize();
 }

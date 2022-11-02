@@ -604,7 +604,7 @@ public class DefaultMetaSystemSuiteJ {
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);
 
-    statusSystem.handleReportWorkerFailure(failedWorkers, getNewReqeustId());
+    statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     assert 1 == statusSystem.blacklist.size();
   }
 

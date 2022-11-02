@@ -283,8 +283,8 @@ message PbCheckQuotaResponse {
   bool available = 1;
 }
 
-message PbReportWorkerFailure {
-  repeated PbWorkerInfo failed = 1;
+message PbReportWorkerUnavailable {
+  repeated PbWorkerInfo unavailable = 1;
   string requestId = 2;
 }
 

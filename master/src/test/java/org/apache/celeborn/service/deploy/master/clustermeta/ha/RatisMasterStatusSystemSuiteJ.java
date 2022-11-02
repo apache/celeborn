@@ -837,7 +837,7 @@ public class RatisMasterStatusSystemSuiteJ {
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);
 
-    statusSystem.handleReportWorkerFailure(failedWorkers, getNewReqeustId());
+    statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
     Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());

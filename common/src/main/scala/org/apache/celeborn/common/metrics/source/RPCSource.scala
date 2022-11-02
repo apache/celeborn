@@ -49,8 +49,8 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
   addCounter(RPCReleaseSlotsSize)
   addCounter(RPCUnregisterShuffleNum)
   addCounter(RPCGetBlacklistNum)
-  addCounter(RPCReportWorkerFailureNum)
-  addCounter(RPCReportWorkerFailureSize)
+  addCounter(RPCReportWorkerUnavailableNum)
+  addCounter(RPCReportWorkerUnavailableSize)
   addCounter(RPCCheckQuotaNum)
 
   def updateMessageMetrics(message: Any, messageLen: Long): Unit = {
@@ -87,9 +87,9 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
         incCounter(RPCUnregisterShuffleNum)
       case _: GetBlacklist =>
         incCounter(RPCGetBlacklistNum)
-      case _: ReportWorkerFailure =>
-        incCounter(RPCReportWorkerFailureNum)
-        incCounter(RPCReportWorkerFailureSize, messageLen)
+      case _: ReportWorkerUnavailable =>
+        incCounter(RPCReportWorkerUnavailableNum)
+        incCounter(RPCReportWorkerUnavailableSize, messageLen)
       case CheckQuota =>
         incCounter(RPCCheckQuotaNum)
       case _ => // Do nothing
@@ -120,7 +120,7 @@ object RPCSource {
   val RPCReleaseSlotsSize = "RPCReleaseSlotsSize"
   val RPCUnregisterShuffleNum = "RPCUnregisterShuffleNum"
   val RPCGetBlacklistNum = "RPCGetBlacklistNum"
-  val RPCReportWorkerFailureNum = "RPCReportWorkerFailureNum"
-  val RPCReportWorkerFailureSize = "RPCReportWorkerFailureSize"
+  val RPCReportWorkerUnavailableNum = "RPCReportWorkerUnavailableNum"
+  val RPCReportWorkerUnavailableSize = "RPCReportWorkerUnavailableSize"
   val RPCCheckQuotaNum = "RPCCheckQuotaNum"
 }
