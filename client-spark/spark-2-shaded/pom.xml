@@ -109,6 +109,8 @@
                 <echo message="deleting native kqueue library"></echo>
                 <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_x86_64.jnilib"></delete>
                 <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_aarch_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_aarch_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_x86_64.jnilib"></delete>
                 <echo message="repackaging netty jar"></echo>
                 <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${artifactId}-${version}.jar"></jar>
               </target>
