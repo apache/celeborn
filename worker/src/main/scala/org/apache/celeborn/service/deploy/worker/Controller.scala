@@ -136,14 +136,14 @@ private[deploy] class Controller(
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
       logError(s"[handleReserveSlots] $msg")
-      context.reply(ReserveSlotsResponse(StatusCode.WORKER_SHUTDOWN, msg))
+      context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
     if (storageManager.healthyWorkingDirs().size <= 0) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
-      context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
+      context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
     val masterLocs = new jArrayList[PartitionLocation]()
