@@ -299,8 +299,10 @@ private[celeborn] class Master(
     case GetWorkerInfos =>
       executeWithLeaderChecker(context, handleGetWorkerInfos(context))
 
-    case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
-      executeWithLeaderChecker(context, handleReportNodeFailure(context, failedWorkers, requestId))
+    case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
+      executeWithLeaderChecker(
+        context,
+        handleReportNodeUnavailable(context, failedWorkers, requestId))
 
     case CheckQuota(userIdentifier) =>
       executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
@@ -583,13 +585,13 @@ private[celeborn] class Master(
     context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, workersSnapShot.asScala: _*))
   }
 
-  private def handleReportNodeFailure(
+  private def handleReportNodeUnavailable(
       context: RpcCallContext,
       failedWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
       s"${statusSystem.blacklist}")
-    statusSystem.handleReportWorkerFailure(failedWorkers, requestId)
+    statusSystem.handleReportWorkerUnavailable(failedWorkers, requestId)
     context.reply(OneWayMessageResponse)
   }
 

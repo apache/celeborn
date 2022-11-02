@@ -221,8 +221,20 @@ private[celeborn] class Worker(
     val shuffleKeys = new JHashSet[String]
     shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     shuffleKeys.addAll(storageManager.shuffleKeySet())
-    storageManager.updateDiskInfos()
-    val diskInfos = storageManager.disksSnapshot()
+    // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
+    // and avoid remove this from master's blacklist.
+    val diskInfos =
+      if (shutdown.get()) {
+        Seq.empty[DiskInfo]
+      } else {
+        storageManager.updateDiskInfos()
+        workerInfo.updateThenGetDiskInfos(
+          storageManager.disksSnapshot().map { disk => disk.mountPoint -> disk }.toMap.asJava,
+          conf.initialEstimatedPartitionSize).values().asScala.toSeq
+      }
+    val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
+      storageManager.userResourceConsumptionSnapshot().asJava)
+
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(
         host,
@@ -230,11 +242,8 @@ private[celeborn] class Worker(
         pushPort,
         fetchPort,
         replicatePort,
-        workerInfo.updateThenGetDiskInfos(
-          diskInfos.map { disk => disk.mountPoint -> disk }.toMap.asJava,
-          conf.initialEstimatedPartitionSize).values().asScala.toSeq,
-        workerInfo.updateThenGetUserResourceConsumption(
-          storageManager.userResourceConsumptionSnapshot().asJava),
+        diskInfos,
+        resourceConsumption,
         shuffleKeys),
       classOf[HeartbeatResponse])
     if (response.registered) {
@@ -427,6 +436,10 @@ private[celeborn] class Worker(
         logInfo("Shutdown hook called.")
         shutdown.set(true)
         if (gracefulShutdown) {
+          // During graceful shutdown, to avoid allocate slots in this worker,
+          // add this worker to master's blacklist. When restart, register worker will
+          // make master remove this worker from blacklist.
+          rssHARetryClient.send(ReportWorkerUnavailable(List(workerInfo).asJava))
           val interval = conf.checkSlotsFinishedInterval
           val timeout = conf.checkSlotsFinishedTimeoutMs
           var waitTimes = 0

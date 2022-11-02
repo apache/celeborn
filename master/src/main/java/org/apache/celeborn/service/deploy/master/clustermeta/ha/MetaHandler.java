@@ -226,12 +226,12 @@ public class MetaHandler {
               host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
           break;
 
-        case ReportWorkerFailure:
+        case ReportWorkerUnavailable:
           List<ResourceProtos.WorkerAddress> failedAddress =
-              request.getReportWorkerFailureRequest().getFailedWorkerList();
+              request.getReportWorkerUnavailableRequest().getUnavailableList();
           List<WorkerInfo> failedWorkers =
               failedAddress.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
-          metaSystem.updateBlacklistByReportWorkerFailure(failedWorkers);
+          metaSystem.updateBlacklistByReportWorkerUnavailable(failedWorkers);
           break;
 
         case UpdatePartitionSize:

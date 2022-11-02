@@ -309,8 +309,8 @@ object ControlMessages extends Logging {
 
   case class CheckQuotaResponse(isAvailable: Boolean) extends Message
 
-  case class ReportWorkerFailure(
-      failed: util.List[WorkerInfo],
+  case class ReportWorkerUnavailable(
+      unavailable: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   /**
@@ -610,9 +610,9 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.CHECK_QUOTA_RESPONSE, payload)
 
-    case ReportWorkerFailure(failed, requestId) =>
-      val payload = PbReportWorkerFailure.newBuilder()
-        .addAllFailed(failed.asScala.map(PbSerDeUtils.toPbWorkerInfo(_)).toList.asJava)
+    case ReportWorkerUnavailable(failed, requestId) =>
+      val payload = PbReportWorkerUnavailable.newBuilder()
+        .addAllUnavailable(failed.asScala.map(PbSerDeUtils.toPbWorkerInfo(_)).toList.asJava)
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
@@ -905,11 +905,11 @@ object ControlMessages extends Logging {
         CheckQuotaResponse(pbCheckAvailableResponse.getAvailable)
 
       case REPORT_WORKER_FAILURE =>
-        val pbReportWorkerFailure = PbReportWorkerFailure.parseFrom(message.getPayload)
-        ReportWorkerFailure(
-          new util.ArrayList[WorkerInfo](pbReportWorkerFailure.getFailedList
+        val pbReportWorkerUnavailable = PbReportWorkerUnavailable.parseFrom(message.getPayload)
+        ReportWorkerUnavailable(
+          new util.ArrayList[WorkerInfo](pbReportWorkerUnavailable.getUnavailableList
             .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
-          pbReportWorkerFailure.getRequestId)
+          pbReportWorkerUnavailable.getRequestId)
 
       case REGISTER_WORKER_RESPONSE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)

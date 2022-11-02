@@ -278,17 +278,17 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId) {
+  public void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId) {
     try {
       List<ResourceProtos.WorkerAddress> addrs =
           failedNodes.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
-              .setCmdType(Type.ReportWorkerFailure)
+              .setCmdType(Type.ReportWorkerUnavailable)
               .setRequestId(requestId)
-              .setReportWorkerFailureRequest(
-                  ResourceProtos.ReportWorkerFailureRequest.newBuilder()
-                      .addAllFailedWorker(addrs)
+              .setReportWorkerUnavailableRequest(
+                  ResourceProtos.ReportWorkerUnavailableRequest.newBuilder()
+                      .addAllUnavailable(addrs)
                       .build())
               .build());
     } catch (ServiceException e) {

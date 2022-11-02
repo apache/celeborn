@@ -29,7 +29,7 @@ enum Type {
   WorkerLost = 17;
   WorkerHeartbeat = 18;
   RegisterWorker = 19;
-  ReportWorkerFailure = 20;
+  ReportWorkerUnavailable = 20;
   UpdatePartitionSize = 21;
   WorkerRemove = 22;
 }
@@ -47,7 +47,7 @@ message ResourceRequest {
   optional WorkerLostRequest workerLostRequest = 15;
   optional WorkerHeartbeatRequest workerHeartbeatRequest = 16;
   optional RegisterWorkerRequest registerWorkerRequest = 17;
-  optional ReportWorkerFailureRequest reportWorkerFailureRequest = 18;
+  optional ReportWorkerUnavailableRequest reportWorkerUnavailableRequest = 18;
   optional WorkerRemoveRequest workerRemoveRequest = 19;
 }
 
@@ -127,8 +127,8 @@ message RegisterWorkerRequest {
   map<string, ResourceConsumption> userResourceConsumption = 7;
 }
 
-message ReportWorkerFailureRequest {
-  repeated WorkerAddress failedWorker = 1;
+message ReportWorkerUnavailableRequest {
+  repeated WorkerAddress unavailable = 1;
 }
 
 message WorkerAddress {
