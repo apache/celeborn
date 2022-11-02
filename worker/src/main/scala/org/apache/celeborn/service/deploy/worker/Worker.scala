@@ -438,7 +438,7 @@ private[celeborn] class Worker(
         if (gracefulShutdown) {
           // During graceful shutdown, to avoid allocate slots in this worker,
           // add this worker to master's blacklist. When restart, register worker will
-          // make master remove this worker from blacklist even with save service port.
+          // make master remove this worker from blacklist.
           rssHARetryClient.send(ReportWorkerUnavailable(List(workerInfo).asJava))
           val interval = conf.checkSlotsFinishedInterval
           val timeout = conf.checkSlotsFinishedTimeoutMs

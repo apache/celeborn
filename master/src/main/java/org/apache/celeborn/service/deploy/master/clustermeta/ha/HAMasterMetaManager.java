@@ -284,11 +284,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
           failedNodes.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
-              .setCmdType(Type.ReportWorkerFailure)
+              .setCmdType(Type.ReportWorkerUnavailable)
               .setRequestId(requestId)
-              .setReportWorkerFailureRequest(
-                  ResourceProtos.ReportWorkerFailureRequest.newBuilder()
-                      .addAllFailedWorker(addrs)
+              .setReportWorkerUnavailableRequest(
+                  ResourceProtos.ReportWorkerUnavailableRequest.newBuilder()
+                      .addAllUnavailable(addrs)
                       .build())
               .build());
     } catch (ServiceException e) {
