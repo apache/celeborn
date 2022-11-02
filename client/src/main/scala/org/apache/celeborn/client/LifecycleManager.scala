@@ -118,7 +118,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val registeringShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
 
   // blacklist
-  private val blacklist = ConcurrentHashMap.newKeySet[WorkerInfo]()
+  private val blacklist = new ConcurrentHashMap[WorkerInfo, StatusCode]()
 
   // Threads
   private val forwardMessageThread =
@@ -253,7 +253,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     getBlacklist = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(GetBlacklist(new util.ArrayList[WorkerInfo](blacklist)))
+          self.send(
+            GetBlacklist(new util.ArrayList[WorkerInfo](blacklist.keys().asScala.toList.asJava)))
         }
       },
       workerExcludedCheckIntervalMs,
@@ -461,7 +462,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     candidatesWorkers.removeAll(connectFailedWorkers)
-    recordWorkerFailure(new util.ArrayList[WorkerInfo](connectFailedWorkers))
+    recordWorkerFailure(new ConcurrentHashMap[WorkerInfo, StatusCode](
+      connectFailedWorkers.asScala.map(_ -> StatusCode.UNKNOWN_WORKER).toMap.asJava))
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
@@ -520,13 +522,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
-    val failedWorker = new util.ArrayList[WorkerInfo]()
+    val failedWorker = new ConcurrentHashMap[WorkerInfo, StatusCode]()
     if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
       val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
         .find(_.equals(tmpWorker))
       if (worker.isDefined) {
-        failedWorker.add(worker.get)
+        failedWorker.put(worker.get, StatusCode.PUSH_DATA_FAIL_MASTER)
       }
     }
     if (!failedWorker.isEmpty) {
@@ -868,7 +870,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val failedSlavePartitionIds = new ConcurrentHashMap[String, WorkerInfo]()
 
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
-    val commitFilesFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
+    val commitFilesFailedWorkers = new ConcurrentHashMap[WorkerInfo, StatusCode]()
 
     val currentShuffleFileCount = new LongAdder
     val commitFileStartTime = System.nanoTime()
@@ -910,7 +912,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.FAILED =>
             logDebug(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-            commitFilesFailedWorkers.add(worker)
+            commitFilesFailedWorkers.put(worker, res.status)
           case _ => // won't happen
         }
 
@@ -1036,7 +1038,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       stageEndShuffleSet.add(shuffleId)
     }
     inProcessStageEndShuffleSet.remove(shuffleId)
-    recordWorkerFailure(new util.ArrayList[WorkerInfo](commitFilesFailedWorkers))
+    recordWorkerFailure(new ConcurrentHashMap[WorkerInfo, StatusCode](commitFilesFailedWorkers))
     // release resources and clear worker info
     workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
       partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
@@ -1103,7 +1105,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
-    val reserveSlotFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
+    val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, StatusCode]()
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
@@ -1127,13 +1129,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           logError(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-          reserveSlotFailedWorkers.add(workerInfo)
+          reserveSlotFailedWorkers.put(workerInfo, res.status)
         }
     }
 
-    val failedWorkerList = new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers)
+    val failedWorkerList = new ConcurrentHashMap[WorkerInfo, StatusCode](reserveSlotFailedWorkers)
     recordWorkerFailure(failedWorkerList)
-    failedWorkerList
+    new util.ArrayList[WorkerInfo](failedWorkerList.asScala.keys.toList.asJava)
   }
 
   /**
@@ -1291,7 +1293,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           // add candidates to avoid revive action passed in slots only 2 worker
           retryCandidates.addAll(candidates.asJava)
           // remove blacklist from retryCandidates
-          retryCandidates.removeAll(blacklist)
+          retryCandidates.removeAll(blacklist.keys().asScala.toList.asJava)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
             logError("Retry reserve slots failed caused by not enough slots.")
             noAvailableSlots = true
@@ -1462,12 +1464,22 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}")
-      val initFailedWorker = ConcurrentHashMap.newKeySet[WorkerInfo]()
-      initFailedWorker.addAll(blacklist.asScala.filter(_.endpoint == null).asJava)
+      val reserved = blacklist.asScala.filter { case (_, status) =>
+        status match {
+          case StatusCode.WORKER_SHUTDOWN => true
+          case StatusCode.NO_AVAILABLE_WORKING_DIR => true
+          case StatusCode.RESERVE_SLOTS_FAILED => true
+          case StatusCode.UNKNOWN_WORKER => true
+          case _ => false
+        }
+      }.asJava
+      val reservedBlackList = new ConcurrentHashMap[WorkerInfo, StatusCode]()
+      reservedBlackList.putAll(reserved)
       blacklist.clear()
-      blacklist.addAll(initFailedWorker)
-      blacklist.addAll(res.blacklist)
-      blacklist.addAll(res.unknownWorkers)
+      blacklist.putAll(res.blacklist.asScala.map(_ -> StatusCode.WORKER_IN_BLACKLIST).toMap.asJava)
+      blacklist.putAll(res.unknownWorkers.asScala.map(_ -> StatusCode.UNKNOWN_WORKER).toMap.asJava)
+      // put reserved blacklist at last to cover blacklist's local status.
+      blacklist.putAll(reservedBlackList)
     }
   }
 
@@ -1584,10 +1596,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def recordWorkerFailure(failures: util.List[WorkerInfo]): Unit = {
-    val failedWorker = new util.ArrayList[WorkerInfo](failures)
+  private def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, StatusCode]): Unit = {
+    val failedWorker = new ConcurrentHashMap[WorkerInfo, StatusCode](failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    blacklist.addAll(failedWorker)
+    blacklist.putAll(failedWorker)
   }
 
   def checkQuota(): Boolean = {
@@ -1615,7 +1627,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     workerSnapshots(shuffleId)
       .keySet()
       .asScala
-      .filter(w => !blacklist.contains(w))
+      .filter(w => !blacklist.keySet().contains(w))
       .toList
   }
 
