@@ -86,6 +86,7 @@
     <snakeyaml.version>1.30</snakeyaml.version>
     <!--  default hadoop version  -->
     <hadoop.version>3.3.1</hadoop.version>
+    <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
     <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>

@@ -45,19 +45,19 @@
           <relocations>
             <relocation>
               <pattern>com.google.protobuf</pattern>
-              <shadedPattern>org.apache.celeborn.com.google.protobuf</shadedPattern>
+              <shadedPattern>${shading.prefix}.com.google.protobuf</shadedPattern>
             </relocation>
             <relocation>
               <pattern>com.google.common</pattern>
-              <shadedPattern>org.apache.celeborn.com.google.common</shadedPattern>
+              <shadedPattern>${shading.prefix}.com.google.common</shadedPattern>
             </relocation>
             <relocation>
               <pattern>io.netty</pattern>
-              <shadedPattern>org.apache.celeborn.io.netty</shadedPattern>
+              <shadedPattern>${shading.prefix}.io.netty</shadedPattern>
             </relocation>
             <relocation>
               <pattern>org.apache.commons</pattern>
-              <shadedPattern>org.apache.celeborn.org.apache.commons</shadedPattern>
+              <shadedPattern>${shading.prefix}.org.apache.commons</shadedPattern>
             </relocation>
           </relocations>
           <artifactSet>
@@ -81,6 +81,42 @@
             </filter>
           </filters>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>${maven.plugin.antrun.version}</version>
+        <executions>
+          <execution>
+            <id>rename-native-library</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <target>
+                <echo message="unpacking netty jar"></echo>
+                <unzip dest="${project.build.directory}/unpacked/" src="${project.build.directory}/${artifactId}-${version}.jar"></unzip>
+                <echo message="renaming native epoll library"></echo>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_transport_native_epoll_x86_64.so" to="liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" type="glob"></mapper>
+                </move>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_transport_native_epoll_aarch_64.so" to="liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so.so" type="glob"></mapper>
+                </move>
+                <echo message="deleting native kqueue library"></echo>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_x86_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_aarch_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_aarch_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_x86_64.jnilib"></delete>
+                <echo message="repackaging netty jar"></echo>
+                <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${artifactId}-${version}.jar"></jar>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
