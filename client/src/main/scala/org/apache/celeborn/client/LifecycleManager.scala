@@ -702,7 +702,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       return
     }
 
-    if (!reserveSlotsWithRetry(applicationId, shuffleId, new util.HashSet(candidates.toSet.asJava), newlyAllocatedLocations)) {
+    if (!reserveSlotsWithRetry(
+        applicationId,
+        shuffleId,
+        new util.HashSet(candidates.toSet.asJava),
+        newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
       replyFailure(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
       return
