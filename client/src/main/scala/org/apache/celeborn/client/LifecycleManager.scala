@@ -469,7 +469,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       reserveSlotsWithRetry(
         applicationId,
         shuffleId,
-        candidatesWorkers.asScala.toList,
+        candidatesWorkers,
         slots,
         updateEpoch = false)
 
@@ -702,7 +702,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       return
     }
 
-    if (!reserveSlotsWithRetry(applicationId, shuffleId, candidates, newlyAllocatedLocations)) {
+    if (!reserveSlotsWithRetry(
+        applicationId,
+        shuffleId,
+        new util.HashSet(candidates.toSet.asJava),
+        newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
       replyFailure(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
       return
@@ -1257,7 +1261,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private def reserveSlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
-      candidates: List[WorkerInfo],
+      candidates: util.HashSet[WorkerInfo],
       slots: WorkerResource,
       updateEpoch: Boolean = true): Boolean = {
     var requestSlots = slots
@@ -1277,6 +1281,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       if (reserveFailedWorkers.isEmpty) {
         success = true
       } else {
+        // Should remove failed workers from candidates during retry to avoid reallocate in failed workers.
+        candidates.removeAll(reserveFailedWorkers)
         // Find out all failed partition locations and remove failed worker's partition location
         // from slots.
         val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, slots)
@@ -1289,7 +1295,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           // get retryCandidates resource and retry reserve buffer
           val retryCandidates = new util.HashSet(slots.keySet())
           // add candidates to avoid revive action passed in slots only 2 worker
-          retryCandidates.addAll(candidates.asJava)
+          retryCandidates.addAll(candidates)
           // remove blacklist from retryCandidates
           retryCandidates.removeAll(blacklist)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
