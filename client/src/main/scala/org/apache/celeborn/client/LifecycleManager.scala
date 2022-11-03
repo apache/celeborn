@@ -254,8 +254,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     getBlacklist = forwardMessageThread.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(
-            GetBlacklist(new util.ArrayList[WorkerInfo](blacklist.keys().asScala.toList.asJava)))
+          self.send(GetBlacklist(blacklist.asScala.keys.toList.asJava))
         }
       },
       workerExcludedCheckIntervalMs,
