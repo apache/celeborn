@@ -209,7 +209,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         if (conf.columnarShuffleCodeGenEnabled() && !conf.columnarShuffleDictionaryEnabled()) {
           columnBuilders =
               new RssColumnarBatchCodeGenBuild().create(schema, conf.columnarShuffleBatchSize());
-          rssBatchBuilders[partitionId] = columnBuilders;
         } else {
           columnBuilders =
               new RssColumnarBatchBuilder(
@@ -217,8 +216,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                   conf.columnarShuffleBatchSize(),
                   conf.columnarShuffleDictionaryMaxFactor(),
                   conf.columnarShuffleDictionaryEnabled());
-          columnBuilders.newBuilders();
         }
+        columnBuilders.newBuilders();
         rssBatchBuilders[partitionId] = columnBuilders;
       }
       rssBatchBuilders[partitionId].writeRow(row);
