@@ -143,12 +143,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (operator != null) {
         operator.shutdown()
       }
-    } else if (diskStatus == DiskStatus.READ_OR_WRITE_FAILURE) {
-      logInfo(s"Face read or write failure, destroy all file writers under ${mountPoint}")
-      // TODO:
-      //  1. do we need to wait rest file workers to finish their work(like close()?) or just immediately destroy them
-      //  because there is existed write error
-      workingDirWriters.get(mountPoint).asScala.foreach(_.destroy)
     }
   }
 

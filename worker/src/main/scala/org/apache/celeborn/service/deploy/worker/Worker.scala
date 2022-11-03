@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.io.IOException
 import java.util.{HashSet => JHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
@@ -389,10 +390,12 @@ private[celeborn] class Worker(
   private def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
-        partition.asInstanceOf[WorkingPartition].getFileWriter.destroy()
+        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
+        fileWriter.destroy(new IOException(s"FileWriter ${fileWriter} expired"))
       }
       partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
-        partition.asInstanceOf[WorkingPartition].getFileWriter.destroy()
+        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
+        fileWriter.destroy(new IOException(s"FileWriter ${fileWriter} expired"))
       }
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)

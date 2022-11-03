@@ -175,7 +175,10 @@ private[deploy] class Controller(
     if (masterLocs.size() < requestMasterLocs.size()) {
       val msg = s"Not all master partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
-      masterLocs.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
+      masterLocs.asScala.foreach { partitionLocation =>
+        val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
+        fileWriter.destroy(new IOException(s"Reserve slots failed for FileWriter ${fileWriter}"))
+      }
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
@@ -210,8 +213,14 @@ private[deploy] class Controller(
     if (slaveLocs.size() < requestSlaveLocs.size()) {
       val msg = s"Not all slave partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
-      masterLocs.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
-      slaveLocs.asScala.foreach(_.asInstanceOf[WorkingPartition].getFileWriter.destroy())
+      masterLocs.asScala.foreach { partitionLocation =>
+        val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
+        fileWriter.destroy(new IOException(s"Reserve slots failed for FileWriter ${fileWriter}"))
+      }
+      slaveLocs.asScala.foreach { partitionLocation =>
+        val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
+        fileWriter.destroy(new IOException(s"Reserve slots failed for FileWriter ${fileWriter}"))
+      }
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
@@ -486,7 +495,9 @@ private[deploy] class Controller(
         if (allocatedLoc == null) {
           failedMasters.add(loc)
         } else {
-          allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter.destroy()
+          val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
+          fileWriter.destroy(
+            new IOException(s"Received destroy request for FileWriter ${fileWriter}"))
         }
       }
       // remove master locations from WorkerInfo
@@ -501,7 +512,9 @@ private[deploy] class Controller(
         if (allocatedLoc == null) {
           failedSlaves.add(loc)
         } else {
-          allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter.destroy()
+          val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
+          fileWriter.destroy(
+            new IOException(s"Received destroy request for FileWriter ${fileWriter}"))
         }
       }
       // remove slave locations from worker info

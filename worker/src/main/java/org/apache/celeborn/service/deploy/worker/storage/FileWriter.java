@@ -56,6 +56,7 @@ public final class FileWriter implements DeviceObserver {
   private FileChannel channel;
   private FSDataOutputStream stream;
   private volatile boolean closed;
+  private volatile boolean destroyed;
 
   private final AtomicInteger numPendingWrites = new AtomicInteger();
   private long nextBoundary;
@@ -81,15 +82,6 @@ public final class FileWriter implements DeviceObserver {
   private Runnable destroyHook;
   private boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
-
-  @Override
-  public void notifyError(String mountPoint, DiskStatus diskStatus) {
-    if (!notifier.hasException()) {
-      notifier.setException(
-          new IOException("Device ERROR! Disk: " + mountPoint + " : " + diskStatus));
-    }
-    deviceMonitor.unregisterFileWriter(this);
-  }
 
   private final FlushNotifier notifier = new FlushNotifier();
 
@@ -241,7 +233,7 @@ public final class FileWriter implements DeviceObserver {
     }
   }
 
-  public long close() throws IOException {
+  public synchronized long close() throws IOException {
     if (closed) {
       String msg = "FileWriter has already closed! fileName " + fileInfo.getFilePath();
       logger.error(msg);
@@ -294,10 +286,12 @@ public final class FileWriter implements DeviceObserver {
     return bytesFlushed;
   }
 
-  public void destroy() {
+  public synchronized void destroy(IOException ioException) {
     if (!closed) {
       closed = true;
-      notifier.setException(new IOException("destroyed"));
+      if (!notifier.hasException()) {
+        notifier.setException(ioException);
+      }
       returnBuffer();
       try {
         if (channel != null) {
@@ -314,15 +308,18 @@ public final class FileWriter implements DeviceObserver {
       }
     }
 
-    try {
-      fileInfo.deleteAllFiles(StorageManager.hdfsFs());
-    } catch (Exception e) {
-      logger.warn("clean hdfs file {}", fileInfo.getFilePath());
-    }
+    if (!destroyed) {
+      destroyed = true;
+      try {
+        fileInfo.deleteAllFiles(StorageManager.hdfsFs());
+      } catch (Exception e) {
+        logger.warn("clean hdfs file {}", fileInfo.getFilePath());
+      }
 
-    // unregister from DeviceMonitor
-    deviceMonitor.unregisterFileWriter(this);
-    destroyHook.run();
+      // unregister from DeviceMonitor
+      deviceMonitor.unregisterFileWriter(this);
+      destroyHook.run();
+    }
   }
 
   public void registerDestroyHook(List<FileWriter> fileWriters) {
@@ -432,6 +429,21 @@ public final class FileWriter implements DeviceObserver {
 
   public PartitionSplitMode getSplitMode() {
     return splitMode;
+  }
+
+  @Override
+  public void notifyError(String mountPoint, DiskStatus diskStatus) {
+    IOException ioe = new IOException("Device ERROR! Disk: " + mountPoint + " : " + diskStatus);
+    if (diskStatus == DiskStatus.READ_OR_WRITE_FAILURE) {
+      logger.error(
+          "Will destroy FileWriter {}, because disk {} status {}", this, mountPoint, diskStatus);
+      destroy(ioe);
+    } else {
+      if (!notifier.hasException()) {
+        notifier.setException(ioe);
+      }
+      deviceMonitor.unregisterFileWriter(this);
+    }
   }
 
   // These empty methods are intended to match scala 2.11 restrictions that
