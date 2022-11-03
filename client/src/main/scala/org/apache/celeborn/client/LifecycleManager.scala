@@ -1469,12 +1469,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         .filter { case (_, entry) =>
           val (statusCode, registerTime) = entry
           statusCode match {
-            case StatusCode.WORKER_SHUTDOWN if current - registerTime < blacklistExpiredTimeout =>
+            case StatusCode.WORKER_SHUTDOWN | StatusCode.NO_AVAILABLE_WORKING_DIR | StatusCode.RESERVE_SLOTS_FAILED
+                if current - registerTime < blacklistExpiredTimeout =>
               true
-            case StatusCode.NO_AVAILABLE_WORKING_DIR
-                if current - registerTime < blacklistExpiredTimeout => true
-            case StatusCode.RESERVE_SLOTS_FAILED
-                if current - registerTime < blacklistExpiredTimeout => true
             case StatusCode.UNKNOWN_WORKER => true
             case _ => false
           }
