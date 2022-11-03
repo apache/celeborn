@@ -20,6 +20,7 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.2.0 | 
+| celeborn.blacklist.expired.timeout | 600s | Timeout time for LifecycleManager to clear reserved blacklist. | 0.2.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
 | celeborn.client.rpc.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for client RPC ask operations. | 0.2.0 | 
 | celeborn.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.2.0 | 

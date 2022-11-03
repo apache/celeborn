@@ -19,7 +19,7 @@ package org.apache.celeborn.client
 
 import java.nio.ByteBuffer
 import java.util
-import java.util.{function, List => JList}
+import java.util.{function, List => JList, Map}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
@@ -28,6 +28,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 import com.google.common.cache.{Cache, CacheBuilder}
+import org.apache.hadoop.io.nativeio.NativeIO.POSIX.Stat
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -59,6 +60,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rpcCacheSize = conf.rpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.rpcCacheExpireTime
+  private val blacklistExpiredTimeout = conf.blacklistExpiredTimeout
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -118,7 +120,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val registeringShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
 
   // blacklist
-  private val blacklist = new ConcurrentHashMap[WorkerInfo, StatusCode]()
+  private val blacklist = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
 
   // Threads
   private val forwardMessageThread =
@@ -1464,20 +1466,28 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}")
-      val reserved = blacklist.asScala.filter { case (_, status) =>
-        status match {
-          case StatusCode.WORKER_SHUTDOWN => true
-          case StatusCode.NO_AVAILABLE_WORKING_DIR => true
-          case StatusCode.RESERVE_SLOTS_FAILED => true
-          case StatusCode.UNKNOWN_WORKER => true
-          case _ => false
-        }
-      }.asJava
-      val reservedBlackList = new ConcurrentHashMap[WorkerInfo, StatusCode]()
+      val current = System.currentTimeMillis()
+      val reserved = blacklist.asScala
+        .filter { case (_, entry) =>
+          val (statusCode, registerTime) = entry
+          statusCode match {
+            case StatusCode.WORKER_SHUTDOWN if current - registerTime < blacklistExpiredTimeout =>
+              true
+            case StatusCode.NO_AVAILABLE_WORKING_DIR
+                if current - registerTime < blacklistExpiredTimeout => true
+            case StatusCode.RESERVE_SLOTS_FAILED
+                if current - registerTime < blacklistExpiredTimeout => true
+            case StatusCode.UNKNOWN_WORKER => true
+            case _ => false
+          }
+        }.asJava
+      val reservedBlackList = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
       reservedBlackList.putAll(reserved)
       blacklist.clear()
-      blacklist.putAll(res.blacklist.asScala.map(_ -> StatusCode.WORKER_IN_BLACKLIST).toMap.asJava)
-      blacklist.putAll(res.unknownWorkers.asScala.map(_ -> StatusCode.UNKNOWN_WORKER).toMap.asJava)
+      blacklist.putAll(
+        res.blacklist.asScala.map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
+      blacklist.putAll(
+        res.unknownWorkers.asScala.map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
       // put reserved blacklist at last to cover blacklist's local status.
       blacklist.putAll(reservedBlackList)
     }
