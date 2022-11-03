@@ -205,20 +205,21 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final UnsafeRow row = record._2();
 
       if (rssBatchBuilders[partitionId] == null) {
+        RssBatchBuilder columnBuilders;
         if (conf.columnarShuffleCodeGenEnabled() && !conf.columnarShuffleDictionaryEnabled()) {
-          RssBatchBuilder columnBuilders =
+          columnBuilders =
               new RssColumnarBatchCodeGenBuild().create(schema, conf.columnarShuffleBatchSize());
           rssBatchBuilders[partitionId] = columnBuilders;
         } else {
-          RssColumnarBatchBuilder columnBuilders =
+          columnBuilders =
               new RssColumnarBatchBuilder(
                   schema,
                   conf.columnarShuffleBatchSize(),
                   conf.columnarShuffleDictionaryMaxFactor(),
                   conf.columnarShuffleDictionaryEnabled());
           columnBuilders.newBuilders();
-          rssBatchBuilders[partitionId] = columnBuilders;
         }
+        rssBatchBuilders[partitionId] = columnBuilders;
       }
       rssBatchBuilders[partitionId].writeRow(row);
       if (rssBatchBuilders[partitionId].getRowCnt() >= conf.columnarShuffleBatchSize()) {
