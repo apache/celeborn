@@ -28,7 +28,6 @@ import scala.collection.mutable
 import scala.util.Random
 
 import com.google.common.cache.{Cache, CacheBuilder}
-import org.apache.hadoop.io.nativeio.NativeIO.POSIX.Stat
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -448,7 +447,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // won't be empty since master will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
-    val connectFailedWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
+    val connectFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
 
     // Second, for each worker, try to initialize the endpoint.
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
@@ -459,13 +458,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       } catch {
         case t: Throwable =>
           logError(s"Init rpc client for $workerInfo failed", t)
-          connectFailedWorkers.add(workerInfo)
+          connectFailedWorkers.put(
+            workerInfo,
+            (StatusCode.UNKNOWN_WORKER, System.currentTimeMillis()))
       }
     }
 
-    candidatesWorkers.removeAll(connectFailedWorkers)
-    recordWorkerFailure(new ConcurrentHashMap[WorkerInfo, StatusCode](
-      connectFailedWorkers.asScala.map(_ -> StatusCode.UNKNOWN_WORKER).toMap.asJava))
+    candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
+    recordWorkerFailure(connectFailedWorkers)
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
@@ -524,13 +524,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, StatusCode]()
+    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
     if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
       val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
         .find(_.equals(tmpWorker))
       if (worker.isDefined) {
-        failedWorker.put(worker.get, StatusCode.PUSH_DATA_FAIL_MASTER)
+        failedWorker.put(worker.get, (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
       }
     }
     if (!failedWorker.isEmpty) {
@@ -872,7 +872,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val failedSlavePartitionIds = new ConcurrentHashMap[String, WorkerInfo]()
 
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
-    val commitFilesFailedWorkers = new ConcurrentHashMap[WorkerInfo, StatusCode]()
+    val commitFilesFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
 
     val currentShuffleFileCount = new LongAdder
     val commitFileStartTime = System.nanoTime()
@@ -914,7 +914,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.FAILED =>
             logDebug(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-            commitFilesFailedWorkers.put(worker, res.status)
+            commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
           case _ => // won't happen
         }
 
@@ -1040,7 +1040,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       stageEndShuffleSet.add(shuffleId)
     }
     inProcessStageEndShuffleSet.remove(shuffleId)
-    recordWorkerFailure(new ConcurrentHashMap[WorkerInfo, StatusCode](commitFilesFailedWorkers))
+    recordWorkerFailure(commitFilesFailedWorkers)
     // release resources and clear worker info
     workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
       partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
@@ -1107,7 +1107,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
-    val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, StatusCode]()
+    val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
@@ -1131,13 +1131,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           logError(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-          reserveSlotFailedWorkers.put(workerInfo, res.status)
+          reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
         }
     }
 
-    val failedWorkerList = new ConcurrentHashMap[WorkerInfo, StatusCode](reserveSlotFailedWorkers)
-    recordWorkerFailure(failedWorkerList)
-    new util.ArrayList[WorkerInfo](failedWorkerList.asScala.keys.toList.asJava)
+    recordWorkerFailure(reserveSlotFailedWorkers)
+    new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers.asScala.keys.toList.asJava)
   }
 
   /**
@@ -1606,8 +1605,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, StatusCode]): Unit = {
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, StatusCode](failures)
+  private def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)])
+      : Unit = {
+    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
     blacklist.putAll(failedWorker)
   }
