@@ -32,11 +32,11 @@ case class MasterNode(
 
   def ratisPort: Int = ratisAddr.getPort
 
-  def rpcPort: Int = ratisAddr.getPort
+  def rpcPort: Int = rpcAddr.getPort
 
   def ratisEndpoint: String = ratisAddr.getHostName + ":" + ratisAddr.getPort
 
-  def rpcEndpoint: String = ratisAddr.getHostName + ":" + rpcPort
+  def rpcEndpoint: String = rpcAddr.getHostName + ":" + rpcPort
 }
 
 object MasterNode {
@@ -69,8 +69,8 @@ object MasterNode {
       this
     }
 
-    def setRatisPort(port: Int): this.type = {
-      this.ratisPort = port
+    def setRatisPort(ratisPort: Int): this.type = {
+      this.ratisPort = ratisPort
       this
     }
 
