@@ -500,7 +500,8 @@ private[deploy] class Controller(
         } else {
           val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
           fileWriter.destroy(
-            new IOException(s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
+            new IOException(
+              s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
         }
       }
       // remove master locations from WorkerInfo
@@ -517,7 +518,8 @@ private[deploy] class Controller(
         } else {
           val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
           fileWriter.destroy(
-            new IOException(s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
+            new IOException(
+              s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
         }
       }
       // remove slave locations from worker info
