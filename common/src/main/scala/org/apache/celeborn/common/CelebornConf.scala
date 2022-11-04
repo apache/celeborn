@@ -525,6 +525,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
+  def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
 
@@ -1285,6 +1286,14 @@ object CelebornConf extends Logging {
       .doc("Interval for client to refresh excluded worker list.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val WORKER_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.excluded.expireTimeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
 
   val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chuck.size")

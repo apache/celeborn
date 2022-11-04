@@ -61,4 +61,5 @@ license: |
 | celeborn.slots.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.worker.excluded.checkInterval | 30s | Interval for client to refresh excluded worker list. | 0.2.0 | 
+| celeborn.worker.excluded.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
 <!--end-include-->
