@@ -433,9 +433,15 @@ public final class FileWriter implements DeviceObserver {
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
-    logger.error(
-        "Will destroy FileWriter {}, because disk {} status {}", this, mountPoint, diskStatus);
-    destroy(new IOException("Device ERROR! Disk: " + mountPoint + " : " + diskStatus));
+    destroy(
+        new IOException(
+            "Destroy FileWriter "
+                + this
+                + " by device ERROR."
+                + " Disk: "
+                + mountPoint
+                + " Status: "
+                + diskStatus));
   }
 
   // These empty methods are intended to match scala 2.11 restrictions that
