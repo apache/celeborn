@@ -18,8 +18,8 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,7 +50,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
   private boolean closed = false;
-  private Set<PartitionLocation> readableLocations = new HashSet<>();
+  private Set<PartitionLocation> readableLocations = ConcurrentHashMap.newKeySet();
 
   WorkerPartitionReader(
       CelebornConf conf,
