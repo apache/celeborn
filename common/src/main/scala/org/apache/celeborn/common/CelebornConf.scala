@@ -661,6 +661,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
+  def fetchFailTrigger: Int = get(FETCH_FAIL_TRIGGER)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -2520,4 +2521,12 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val FETCH_FAIL_TRIGGER: ConfigEntry[Int] =
+    buildConf("celeborn.test.client.fetch.fetchFailTrigger")
+      .categories("client")
+      .version("0.2.0")
+      .internal
+      .intConf
+      .createWithDefault(0)
 }

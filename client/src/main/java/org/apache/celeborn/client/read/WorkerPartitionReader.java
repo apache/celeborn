@@ -18,8 +18,11 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -36,17 +39,18 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
-  private final RetryingChunkClient client;
-  private final int numChunks;
+  private final AtomicReference<ChunkClient> client = new AtomicReference<>();
+  private final AtomicInteger numChunks = new AtomicInteger(0);
 
-  private int returnedChunks;
-  private int chunkIndex;
+  private AtomicInteger returnedChunks = new AtomicInteger(0);
+  private AtomicInteger currentChunkIndex = new AtomicInteger(0);
 
   private final LinkedBlockingQueue<ByteBuf> results;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
   private boolean closed = false;
+  private Set<PartitionLocation> readableLocations = new HashSet<>();
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -58,6 +62,10 @@ public class WorkerPartitionReader implements PartitionReader {
       throws IOException {
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
+    readableLocations.add(location);
+    if (location.getPeer() != null) {
+      readableLocations.add(location.getPeer());
+    }
     // only add the buffer to results queue if this reader is not closed.
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
@@ -75,24 +83,48 @@ public class WorkerPartitionReader implements PartitionReader {
 
           @Override
           public void onFailure(int chunkIndex, Throwable e) {
-            String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
-            logger.error(errorMsg, e);
-            exception.set(new IOException(errorMsg, e));
+            PartitionLocation failedLocation = ((ChunkClientException) e).getLocation();
+            readableLocations.remove(failedLocation);
+            if (readableLocations.isEmpty()) {
+              String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
+              logger.error(errorMsg, e);
+              exception.set(new IOException(errorMsg, e));
+            } else {
+              try {
+                client.set(
+                    new ChunkClient(
+                        conf,
+                        shuffleKey,
+                        location.getPeer(),
+                        this,
+                        clientFactory,
+                        startMapIndex,
+                        endMapIndex));
+                synchronized (this) {
+                  currentChunkIndex.set(0);
+                  returnedChunks.set(0);
+                  numChunks.set(client.get().openChunks());
+                }
+              } catch (IOException e1) {
+                logger.error(e1.getMessage(), e1);
+                exception.set(new IOException(e1.getMessage(), e1));
+              }
+            }
           }
         };
-    client =
-        new RetryingChunkClient(
-            conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex);
-    numChunks = client.openChunks();
+    client.set(
+        new ChunkClient(
+            conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex));
+    numChunks.set(client.get().openChunks());
   }
 
-  public boolean hasNext() {
-    return returnedChunks < numChunks;
+  public synchronized boolean hasNext() {
+    return returnedChunks.get() < numChunks.get();
   }
 
-  public ByteBuf next() throws IOException {
+  public synchronized ByteBuf next() throws IOException {
     checkException();
-    if (chunkIndex < numChunks) {
+    if (currentChunkIndex.get() < numChunks.get()) {
       fetchChunks();
     }
     ByteBuf chunk = null;
@@ -107,7 +139,7 @@ public class WorkerPartitionReader implements PartitionReader {
       exception.set(ioe);
       throw ioe;
     }
-    returnedChunks++;
+    returnedChunks.incrementAndGet();
     return chunk;
   }
 
@@ -122,11 +154,15 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   private void fetchChunks() {
-    final int inFlight = chunkIndex - returnedChunks;
+    final int inFlight =
+        currentChunkIndex.get() - returnedChunks.get() < 0
+            ? 0
+            : currentChunkIndex.get() - returnedChunks.get();
     if (inFlight < fetchMaxReqsInFlight) {
-      final int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
+      final int toFetch =
+          Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks.get() - currentChunkIndex.get());
       for (int i = 0; i < toFetch; i++) {
-        client.fetchChunk(chunkIndex++);
+        client.get().fetchChunk(currentChunkIndex.getAndIncrement());
       }
     }
   }
