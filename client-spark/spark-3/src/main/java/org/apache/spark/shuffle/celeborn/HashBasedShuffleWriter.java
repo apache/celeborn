@@ -41,7 +41,9 @@ import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.PartitionIdPassthrough;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
+import org.apache.spark.sql.execution.columnar.RssBatchBuilder;
 import org.apache.spark.sql.execution.columnar.RssColumnarBatchBuilder;
+import org.apache.spark.sql.execution.columnar.RssColumnarBatchCodeGenBuild;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.BlockManagerId;
@@ -87,7 +89,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
-  private RssColumnarBatchBuilder[] rssColumnBuilders;
+  private RssBatchBuilder[] rssBatchBuilders;
   private final SendBufferPool sendBufferPool;
 
   /**
@@ -162,8 +164,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     if (conf.columnarShuffleEnabled()) {
       this.schema = SparkUtils.getSchema(dep);
-      this.rssColumnBuilders = new RssColumnarBatchBuilder[numPartitions];
-      this.isColumnarShuffle = RssColumnarBatchBuilder.supportsColumnarType(schema);
+      this.rssBatchBuilders = new RssBatchBuilder[numPartitions];
+      this.isColumnarShuffle = RssBatchBuilder.supportsColumnarType(schema);
     }
   }
 
@@ -202,25 +204,30 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int partitionId = record._1();
       final UnsafeRow row = record._2();
 
-      if (rssColumnBuilders[partitionId] == null) {
-        RssColumnarBatchBuilder columnBuilders =
-            new RssColumnarBatchBuilder(
-                schema,
-                conf.columnarShuffleBatchSize(),
-                conf.columnarShuffleDictionaryMaxFactor(),
-                conf.columnarShuffleDictionaryEnabled());
+      if (rssBatchBuilders[partitionId] == null) {
+        RssBatchBuilder columnBuilders;
+        if (conf.columnarShuffleCodeGenEnabled() && !conf.columnarShuffleDictionaryEnabled()) {
+          columnBuilders =
+              new RssColumnarBatchCodeGenBuild().create(schema, conf.columnarShuffleBatchSize());
+        } else {
+          columnBuilders =
+              new RssColumnarBatchBuilder(
+                  schema,
+                  conf.columnarShuffleBatchSize(),
+                  conf.columnarShuffleDictionaryMaxFactor(),
+                  conf.columnarShuffleDictionaryEnabled());
+        }
         columnBuilders.newBuilders();
-        rssColumnBuilders[partitionId] = columnBuilders;
+        rssBatchBuilders[partitionId] = columnBuilders;
       }
-      rssColumnBuilders[partitionId].writeRow(row);
-      if (rssColumnBuilders[partitionId].getTotalSize() > PUSH_BUFFER_MAX_SIZE
-          || rssColumnBuilders[partitionId].rowCnt() == conf.columnarShuffleBatchSize()) {
-        byte[] arr = rssColumnBuilders[partitionId].buildColumnBytes();
+      rssBatchBuilders[partitionId].writeRow(row);
+      if (rssBatchBuilders[partitionId].getRowCnt() >= conf.columnarShuffleBatchSize()) {
+        byte[] arr = rssBatchBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {
-          dataSize.add(rssColumnBuilders[partitionId].totalSize());
+          dataSize.add(arr.length);
         }
-        rssColumnBuilders[partitionId].newBuilders();
+        rssBatchBuilders[partitionId].newBuilders();
       }
       tmpRecords[partitionId] += 1;
     }
@@ -356,8 +363,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void closeColumnarWrite() throws IOException {
     SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     for (int i = 0; i < numPartitions; i++) {
-      final RssColumnarBatchBuilder buidlers = rssColumnBuilders[i];
-      if (buidlers != null && buidlers.rowCnt() > 0) {
+      final RssBatchBuilder buidlers = rssBatchBuilders[i];
+      if (buidlers != null && buidlers.getRowCnt() > 0) {
         byte[] buffers = buidlers.buildColumnBytes();
         if (dataSize != null) {
           dataSize.add(buffers.length);
@@ -375,7 +382,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 numMappers,
                 numPartitions);
         // free buffer
-        rssColumnBuilders[i] = null;
+        rssBatchBuilders[i] = null;
         mapStatusLengths[i].add(bytesWritten);
         writeMetrics.incBytesWritten(bytesWritten);
       }

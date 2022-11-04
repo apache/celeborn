@@ -777,6 +777,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
   def columnarShuffleDictionaryMaxFactor: Double =
     get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR)
+
+  def columnarShuffleCodeGenEnabled: Boolean = get(COLUMNAR_SHUFFLE_CODEGEN_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -2502,6 +2504,14 @@ object CelebornConf extends Logging {
         s"celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`.")
       .doubleConf
       .createWithDefault(0.3)
+
+  val COLUMNAR_SHUFFLE_CODEGEN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnar.shuffle.codegen.enabled")
+      .categories("columnar-shuffle")
+      .version("0.2.0")
+      .doc("Whether to use codegen for columnar-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 
   val RPC_CACHE_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.rpc.cache.size")

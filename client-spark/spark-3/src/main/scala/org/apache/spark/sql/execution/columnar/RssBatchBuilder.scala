@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.columnar
 
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.types.{BooleanType, ByteType, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, StructType}
 
 abstract class RssBatchBuilder {
 
@@ -36,5 +37,17 @@ abstract class RssBatchBuilder {
     result(2) = ((i >> 8) & 0xFF).toByte
     result(3) = (i & 0xFF).toByte
     result
+  }
+}
+
+object RssBatchBuilder {
+  def supportsColumnarType(schema: StructType): Boolean = {
+    schema.fields.forall(f =>
+      f.dataType match {
+        case BooleanType | ByteType | ShortType | IntegerType | LongType |
+            FloatType | DoubleType | StringType => true
+        case dt: DecimalType => true
+        case _ => false
+      })
   }
 }

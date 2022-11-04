@@ -126,15 +126,3 @@ class RssColumnarBatchBuilder(
 
   def getRowCnt(): Int = rowCnt
 }
-
-object RssColumnarBatchBuilder {
-  def supportsColumnarType(schema: StructType): Boolean = {
-    schema.fields.forall(f =>
-      f.dataType match {
-        case BooleanType | ByteType | ShortType | IntegerType | LongType |
-            FloatType | DoubleType | StringType => true
-        case dt: DecimalType => true
-        case _ => false
-      })
-  }
-}
