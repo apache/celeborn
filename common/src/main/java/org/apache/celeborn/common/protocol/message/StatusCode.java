@@ -49,7 +49,12 @@ public enum StatusCode {
   SOFT_SPLIT(22),
 
   STAGE_END_TIME_OUT(23),
-  SHUFFLE_DATA_LOST(24);
+  SHUFFLE_DATA_LOST(24),
+
+  PUSH_DATA_CONGESTION_MASTER(25),
+
+  PUSH_DATA_CONGESTION_SLAVE(26);
+
 
   private final byte value;
 
@@ -74,6 +79,10 @@ public enum StatusCode {
       msg = "PushDataFailPartitionNotFound";
     } else if (value == HARD_SPLIT.getValue()) {
       msg = "PartitionFileSplit";
+    } else if (value == PUSH_DATA_CONGESTION_MASTER.getValue()) {
+      msg = "PushDataCongestionMaster";
+    } else if (value == PUSH_DATA_CONGESTION_SLAVE.getValue()) {
+      msg = "PushDataCongestionSlave";
     }
     return msg;
   }

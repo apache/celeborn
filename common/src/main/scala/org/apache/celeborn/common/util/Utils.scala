@@ -878,6 +878,10 @@ object Utils extends Logging {
         StatusCode.HARD_SPLIT
       case 22 =>
         StatusCode.SOFT_SPLIT
+      case 25 =>
+        StatusCode.PUSH_DATA_CONGESTION_MASTER
+      case 26 =>
+        StatusCode.PUSH_DATA_CONGESTION_SLAVE
       case _ =>
         null
     }
