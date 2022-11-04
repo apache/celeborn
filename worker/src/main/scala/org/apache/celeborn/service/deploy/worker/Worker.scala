@@ -391,11 +391,13 @@ private[celeborn] class Worker(
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"FileWriter ${fileWriter} expired"))
+        fileWriter.destroy(new IOException(
+          s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
       }
       partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"FileWriter ${fileWriter} expired"))
+        fileWriter.destroy(new IOException(
+          s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
       }
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
