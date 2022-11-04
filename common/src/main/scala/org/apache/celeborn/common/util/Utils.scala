@@ -882,6 +882,14 @@ object Utils extends Logging {
         StatusCode.STAGE_END_TIME_OUT
       case 24 =>
         StatusCode.SHUFFLE_DATA_LOST
+      case 25 =>
+        StatusCode.WORKER_SHUTDOWN
+      case 26 =>
+        StatusCode.NO_AVAILABLE_WORKING_DIR
+      case 27 =>
+        StatusCode.WORKER_IN_BLACKLIST
+      case 28 =>
+        StatusCode.UNKNOWN_WORKER
       case _ =>
         null
     }
