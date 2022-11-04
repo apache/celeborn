@@ -520,12 +520,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
   def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
-  def excludedWorkerExpiredTimeout: Long = get(EXCLUDED_WORKER_EXPIRED_TIMEOUT)
   def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
+  def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
 
@@ -1287,6 +1287,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
+  val WORKER_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.excluded.expireTimeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
+
   val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chuck.size")
       .withAlternative("rss.chunk.size")
@@ -1332,14 +1340,6 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
-
-  val EXCLUDED_WORKER_EXPIRED_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.excludedWorker.expired.timeout")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
