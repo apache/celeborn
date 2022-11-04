@@ -20,9 +20,9 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.2.0 | 
-| celeborn.blacklist.expired.timeout | 600s | Timeout time for LifecycleManager to clear reserved blacklist. | 0.2.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
 | celeborn.client.rpc.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for client RPC ask operations. | 0.2.0 | 
+| celeborn.excludedWorker.expired.timeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
 | celeborn.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.2.0 | 
 | celeborn.fetch.timeout | 120s | Timeout for a task to fetch chunk. | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 

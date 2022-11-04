@@ -59,7 +59,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rpcCacheSize = conf.rpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.rpcCacheExpireTime
-  private val blacklistExpiredTimeout = conf.blacklistExpiredTimeout
+  private val excludedWorkerExpiredTimeout = conf.excludedWorkerExpiredTimeout
 
   private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
@@ -1470,7 +1470,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           val (statusCode, registerTime) = entry
           statusCode match {
             case StatusCode.WORKER_SHUTDOWN | StatusCode.NO_AVAILABLE_WORKING_DIR | StatusCode.RESERVE_SLOTS_FAILED
-                if current - registerTime < blacklistExpiredTimeout =>
+                if current - registerTime < excludedWorkerExpiredTimeout =>
               true
             case StatusCode.UNKNOWN_WORKER => true
             case _ => false

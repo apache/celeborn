@@ -520,7 +520,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
   def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
-  def blacklistExpiredTimeout: Long = get(BLACKLIST_EXPIRED_TIMEOUT)
+  def excludedWorkerExpiredTimeout: Long = get(EXCLUDED_WORKER_EXPIRED_TIMEOUT)
   def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -1333,11 +1333,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
 
-  val BLACKLIST_EXPIRED_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.blacklist.expired.timeout")
+  val EXCLUDED_WORKER_EXPIRED_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.excludedWorker.expired.timeout")
       .categories("client")
       .version("0.2.0")
-      .doc("Timeout time for LifecycleManager to clear reserved blacklist.")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
