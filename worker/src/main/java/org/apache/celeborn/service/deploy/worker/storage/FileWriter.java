@@ -313,7 +313,7 @@ public final class FileWriter implements DeviceObserver {
       try {
         fileInfo.deleteAllFiles(StorageManager.hdfsFs());
       } catch (Exception e) {
-        logger.warn("clean hdfs file {}", fileInfo.getFilePath());
+        logger.warn("Exception when cleaning hdfs file {}", fileInfo.getFilePath());
       }
 
       // unregister from DeviceMonitor
