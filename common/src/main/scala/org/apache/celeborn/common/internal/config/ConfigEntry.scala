@@ -36,11 +36,10 @@ The followings are best practices of naming configs for some common cases:
 1. When adding configs for a big feature, it's better to create an umbrella config that
    can turn the feature on/off, with a name like `featureName.enabled`. The other configs
    of this feature should be put under the `featureName` namespace. For example:
-     - rss.ha.enabled
-     - rss.ha.master.hosts
+     - celeborn.ha.enabled
      - celeborn.ha.client.maxRetries
 2. When adding a boolean config, the name should be a verb that describes what
-   happens if this config is set to true, e.g. `rss.worker.closeIdleConnections`.
+   happens if this config is set to true, e.g. `celeborn.worker.closeIdleConnections`.
 3. When adding a config to specify a time duration, it's better to put the time unit
    in the config name. For example, `featureName.timeoutMs`, which clearly indicates
    that the time unit is millisecond. The config entry should be created with
