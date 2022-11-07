@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io._
 import java.nio.charset.Charset
-import java.nio.file.FileAlreadyExistsException
 import java.util
 import java.util.{Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
