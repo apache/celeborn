@@ -16,13 +16,13 @@
 #
 
 # An Example:
-rss.rpc.io.mode                                  NIO
-rss.rpc.io.clientThreads                         8
-rss.rpc.io.serverThreads                         8
-rss.rpc.io.numConnectionsPerPeer                 8
+celeborn.rpc.io.mode                             NIO
+celeborn.rpc.io.clientThreads                    8
+celeborn.rpc.io.serverThreads                    8
+celeborn.rpc.io.numConnectionsPerPeer            8
 
-rss.push.io.numConnectionsPerPeer                8
-rss.push.io.threads                              8
+celeborn.push.io.numConnectionsPerPeer           8
+celeborn.push.io.threads                         8
 
 celeborn.push.replicate.enabled                  true
 

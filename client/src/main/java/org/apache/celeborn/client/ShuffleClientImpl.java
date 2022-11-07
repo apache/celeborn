@@ -131,7 +131,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(
-            conf, TransportModuleConstants.DATA_MODULE, conf.getInt("rss.data.io.threads", 8));
+            conf, TransportModuleConstants.DATA_MODULE, conf.getInt("celeborn.data.io.threads", 8));
     TransportContext context =
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
     dataClientFactory = context.createClientFactory();

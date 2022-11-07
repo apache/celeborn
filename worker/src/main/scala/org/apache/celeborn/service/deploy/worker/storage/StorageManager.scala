@@ -186,8 +186,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
-        "please refer to the configuration document to increase rss.worker.checkFileCleanRetryTimes or " +
-        "rss.worker.checkFileCleanTimeoutMs .")
+        "please refer to the configuration document to increase celeborn.worker.disk.checkFileClean.maxRetries or " +
+        "celeborn.worker.disk.checkFileClean.timeout .")
   } else {
     logInfo("Successfully remove all files under working directory.")
   }

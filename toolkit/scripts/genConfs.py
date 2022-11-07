@@ -101,9 +101,9 @@ def set_rss_confs(conf, replicate=False):
     conf["spark.shuffle.service.enabled"] = "false"
 
     if replicate:
-        conf["spark.rss.push.data.replicate"] = "true"
+        conf["spark.celeborn.push.replicate.enabled"] = "true"
     else:
-        conf["spark.rss.push.data.replicate"] = "false"
+        conf["spark.celeborn.push.replicate.enabled"] = "false"
 
 
 def save_ess_conf(dir):

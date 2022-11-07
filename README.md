@@ -90,7 +90,7 @@ CELEBORN_WORKER_OFFHEAP_MEMORY=4g
 EXAMPLE: single master cluster
 ```properties
 # used by client and worker to connect to master
-celeborn.master.endpoints=clb-master:9097
+celeborn.master.endpoints clb-master:9097
 
 # used by master to bootstrap
 celeborn.master.host clb-master
@@ -106,7 +106,7 @@ celeborn.worker.monitor.disk.enabled false
 EXAMPLE: HA cluster
 ```properties
 # used by client and worker to connect to master
-celeborn.master.endpoints=clb-1:9097,clb-2:9098,clb-3:9099
+celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
 
 # used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
 # `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required
@@ -166,7 +166,7 @@ spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
 # celeborn master
-spark.celeborn.master.endpoints=clb-1:9097,clb-2:9098,clb-3:9099
+spark.celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
 spark.shuffle.service.enabled false
 
 # options: hash, sort
