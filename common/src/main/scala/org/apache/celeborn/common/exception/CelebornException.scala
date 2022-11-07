@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.exception
 
-class RssException(message: String, cause: Throwable)
+class CelebornException(message: String, cause: Throwable)
   extends Exception(message, cause) {
 
   def this(message: String) = this(message, null)

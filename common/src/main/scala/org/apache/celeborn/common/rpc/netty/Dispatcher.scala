@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.client.RpcResponseCallback
 import org.apache.celeborn.common.rpc._
@@ -164,7 +164,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
       if (stopped) {
         Some(new RpcEnvStoppedException())
       } else if (data == null) {
-        Some(new RssException(s"Could not find $endpointName."))
+        Some(new CelebornException(s"Could not find $endpointName."))
       } else {
         data.inbox.post(message)
         receivers.offer(data)

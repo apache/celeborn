@@ -37,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.exception.RssException;
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplication;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromWorker;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatResponse;
@@ -241,7 +241,7 @@ public class RssHARetryClientSuiteJ {
                 case "host1":
                   return master1;
                 case "host2":
-                  throw new RssException("test", causedByException);
+                  throw new CelebornException("test", causedByException);
                 case "host3":
                   return master3;
                 default:

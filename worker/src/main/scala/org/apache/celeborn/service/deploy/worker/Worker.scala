@@ -29,7 +29,7 @@ import io.netty.util.HashedWheelTimer
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -395,7 +395,7 @@ private[celeborn] class Worker(
       registerTimeout = registerTimeout - interval
     }
     // If worker register still failed after retry, throw exception to stop worker process
-    throw new RssException("Register worker failed.", exception)
+    throw new CelebornException("Register worker failed.", exception)
   }
 
   private def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {

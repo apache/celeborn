@@ -40,7 +40,7 @@ import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
@@ -153,7 +153,7 @@ object Utils extends Logging {
     }
   }
 
-  @throws(classOf[RssException])
+  @throws(classOf[CelebornException])
   def extractHostPortFromRssUrl(essUrl: String): (String, Int) = {
     try {
       val uri = new java.net.URI(essUrl)
@@ -166,12 +166,12 @@ object Utils extends Logging {
         uri.getFragment != null ||
         uri.getQuery != null ||
         uri.getUserInfo != null) {
-        throw new RssException("Invalid master URL: " + essUrl)
+        throw new CelebornException("Invalid master URL: " + essUrl)
       }
       (host, port)
     } catch {
       case e: java.net.URISyntaxException =>
-        throw new RssException("Invalid master URL: " + essUrl, e)
+        throw new CelebornException("Invalid master URL: " + essUrl, e)
     }
   }
 
@@ -298,7 +298,7 @@ object Utils extends Logging {
       }
     }
     // Should never happen
-    throw new RssException(s"Failed to start service$serviceString on port $startPort")
+    throw new CelebornException(s"Failed to start service$serviceString on port $startPort")
   }
 
   def userPort(base: Int, offset: Int): Int = {
@@ -596,7 +596,7 @@ object Utils extends Logging {
 
     } catch {
       case e: IOException =>
-        throw new RssException(s"Failed when loading RSS properties from $filename", e)
+        throw new CelebornException(s"Failed when loading RSS properties from $filename", e)
     } finally {
       inReader.close()
     }

@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 
 /**
  * A factory class to create the [[RpcEnv]]. It must have an empty constructor so that it can be
@@ -67,7 +67,7 @@ trait RpcEndpoint {
    * unmatched message, `SparkException` will be thrown and sent to `onError`.
    */
   def receive: PartialFunction[Any, Unit] = {
-    case _ => throw new RssException(self + " does not implement 'receive'")
+    case _ => throw new CelebornException(self + " does not implement 'receive'")
   }
 
   /**
@@ -75,7 +75,7 @@ trait RpcEndpoint {
    * `SparkException` will be thrown and sent to `onError`.
    */
   def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case _ => context.sendFailure(new RssException(self + " won't reply anything"))
+    case _ => context.sendFailure(new CelebornException(self + " won't reply anything"))
   }
 
   def checkRegistered(): Boolean = true
