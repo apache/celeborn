@@ -165,7 +165,11 @@ public class ChunkClient {
     RetryingChunkReceiveCallback callback;
     synchronized (this) {
       callback = new RetryingChunkReceiveCallback(numTries);
-      if (location.getPeer() != null && fetchFailTrigger != 0 && chunkIndex == fetchFailTrigger) {
+      if (location.getPeer() != null
+          && fetchFailTrigger != 0
+          && chunkIndex == fetchFailTrigger
+          && location.getMode() == PartitionLocation.Mode.MASTER) {
+        logger.warn("Manual triggered fetch failure for location {}", location);
         IOException manualTriggeredFailure = new IOException("Manual triggered fetch failure");
         callback.onFailure(
             chunkIndex,
