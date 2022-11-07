@@ -191,7 +191,7 @@ private[worker] class LocalFlusher(
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     stopFlag.set(true)
     logError(s"$this write failed, report to DeviceMonitor, exception: $e")
-    deviceMonitor.reportDeviceError(mountPoint, e, deviceErrorType)
+    deviceMonitor.reportNonCriticalError(mountPoint, e, deviceErrorType)
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {
