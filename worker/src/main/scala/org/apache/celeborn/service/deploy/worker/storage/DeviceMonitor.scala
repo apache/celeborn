@@ -295,7 +295,7 @@ class LocalDeviceMonitor(
       diskStatus: DiskStatus): Unit = {
     logger.error(s"Receive non-critical exception, disk: $mountPoint, $e")
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
-      .notifyObserversOnNonCriticalError(mountPoint, diskStatus)
+      .notifyObserversOnNonCriticalError(List(mountPoint), diskStatus)
   }
 
   override def close(): Unit = {
