@@ -39,7 +39,6 @@ trait RssNullableColumnBuilder extends RssColumnBuilder {
   }
 
   abstract override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)

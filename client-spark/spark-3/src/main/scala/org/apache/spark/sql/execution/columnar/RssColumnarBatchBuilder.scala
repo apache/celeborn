@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.columnar
 
+import java.io.ByteArrayOutputStream
+
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
@@ -80,21 +82,17 @@ class RssColumnarBatchBuilder(
   }
 
   def buildColumnBytes(): Array[Byte] = {
-    var offset = 0
-    val giantBuffer = new Array[Byte](totalSize)
+    val giantBuffer = new ByteArrayOutputStream
     val rowCntBytes = int2ByteArray(rowCnt)
-    System.arraycopy(rowCntBytes, 0, giantBuffer, offset, rowCntBytes.length)
-    offset += 4
+    giantBuffer.write(rowCntBytes)
     columnBuilders.foreach { builder =>
       val buffers = builder.build()
       val bytes = JavaUtils.bufferToArray(buffers)
       val columnBuilderBytes = int2ByteArray(bytes.length)
-      System.arraycopy(columnBuilderBytes, 0, giantBuffer, offset, columnBuilderBytes.length)
-      offset += 4
-      System.arraycopy(bytes, 0, giantBuffer, offset, bytes.length)
-      offset += bytes.length
+      giantBuffer.write(columnBuilderBytes)
+      giantBuffer.write(bytes)
     }
-    giantBuffer
+    giantBuffer.toByteArray
   }
 
   var totalSize = 0
