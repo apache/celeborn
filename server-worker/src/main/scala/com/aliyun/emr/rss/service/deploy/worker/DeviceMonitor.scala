@@ -242,8 +242,8 @@ class LocalDeviceMonitor(essConf: RssConf, observer: DeviceObserver,
     logger.error(s"Receive report exception, $workingDir, $e")
     val mountPoint = DeviceInfo.getMountPoint(workingDir.getAbsolutePath, mountInfos)
     if (mountInfos.containsKey(mountPoint)) {
-      observedDevices.get(mountInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(ListBuffer(workingDir), deviceErrorType)
+      val device = observedDevices.get(mountInfos.get(mountPoint).deviceInfo)
+      device.notifyObserversOnError(device.mountInfos.flatMap(_.dirInfos), deviceErrorType)
     }
   }
 
