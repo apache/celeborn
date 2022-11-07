@@ -87,18 +87,24 @@ class LocalDeviceMonitor(
         // observer.notifyDeviceError might remove itself from observers,
         // so we need to use tmpObservers
         val tmpObservers = new util.HashSet[DeviceObserver](observers)
-        tmpObservers.asScala.foreach(ob => {
+        tmpObservers.asScala.foreach { ob =>
           mountPoints.foreach { case mountPoint =>
             ob.notifyError(mountPoint, diskStatus)
           }
-        })
+        }
       }
 
-    def notifyObserversOnNonCriticalError(mountPoint: String, diskStatus: DiskStatus): Unit =
+    def notifyObserversOnNonCriticalError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
       this.synchronized {
-        diskInfos.get(mountPoint).setStatus(diskStatus)
+        mountPoints.foreach { case mountPoint =>
+          diskInfos.get(mountPoint).setStatus(diskStatus)
+        }
         val tmpObservers = new util.HashSet[DeviceObserver](observers)
-        tmpObservers.asScala.foreach(_.notifyNonCriticalError(mountPoint, diskStatus))
+        tmpObservers.asScala.foreach { ob =>
+          mountPoints.foreach { case mountPoint =>
+            ob.notifyNonCriticalError(mountPoint, diskStatus)
+          }
+        }
       }
 
     def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
@@ -223,7 +229,7 @@ class LocalDeviceMonitor(
               if (checkIoHang && device.ioHang()) {
                 logger.error(s"Encounter device io hang error!" +
                   s"${device.deviceInfo.name}, notify observers")
-                device.notifyObserversOnError(mountPoints, DiskStatus.IO_HANG)
+                device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
               } else {
                 device.diskInfos.values().asScala.foreach { case diskInfo =>
                   if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo.mountPoint)) {
@@ -234,7 +240,7 @@ class LocalDeviceMonitor(
                     logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
                     // We think that if one dir in device has read-write problem, if possible all
                     // dirs in this device have the problem
-                    device.notifyObserversOnError(
+                    device.notifyObserversOnNonCriticalError(
                       List(diskInfo.mountPoint),
                       DiskStatus.READ_OR_WRITE_FAILURE)
                   } else {
