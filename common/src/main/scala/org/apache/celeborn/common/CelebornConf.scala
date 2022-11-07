@@ -2527,6 +2527,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.2.0")
       .internal
+      .doc("The chunk index to trigger fetch chunk failure. The is only for testing purpose.")
       .intConf
       .createWithDefault(0)
 }

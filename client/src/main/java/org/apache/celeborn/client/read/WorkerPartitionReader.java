@@ -82,9 +82,8 @@ public class WorkerPartitionReader implements PartitionReader {
           }
 
           @Override
-          public void onFailure(int chunkIndex, Throwable e) {
-            PartitionLocation failedLocation = ((ChunkClientException) e).getLocation();
-            readableLocations.remove(failedLocation);
+          public void onFailure(int chunkIndex, Throwable e, PartitionLocation location) {
+            readableLocations.remove(location);
             if (readableLocations.isEmpty()) {
               String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
               logger.error(errorMsg, e);

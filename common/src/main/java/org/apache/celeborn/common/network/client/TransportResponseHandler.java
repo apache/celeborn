@@ -86,7 +86,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private void failOutstandingRequests(Throwable cause) {
     for (Map.Entry<StreamChunkSlice, ChunkReceivedCallback> entry : outstandingFetches.entrySet()) {
       try {
-        entry.getValue().onFailure(entry.getKey().chunkIndex, cause);
+        entry.getValue().onFailure(entry.getKey().chunkIndex, cause, null);
       } catch (Exception e) {
         logger.warn("ChunkReceivedCallback.onFailure throws exception", e);
       }
@@ -162,7 +162,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         listener.onFailure(
             resp.streamChunkSlice.chunkIndex,
             new ChunkFetchFailureException(
-                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
+                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString),
+            null);
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;

@@ -71,6 +71,7 @@ import org.apache.celeborn.common.network.server.MemoryTracker;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -217,7 +218,7 @@ public class FileWriterSuiteJ {
           }
 
           @Override
-          public void onFailure(int chunkIndex, Throwable e) {
+          public void onFailure(int chunkIndex, Throwable e, PartitionLocation location) {
             res.failedChunks.add(chunkIndex);
             sem.release();
           }

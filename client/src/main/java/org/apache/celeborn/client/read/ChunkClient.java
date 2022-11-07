@@ -143,12 +143,18 @@ public class ChunkClient {
     }
     if (numChunks == -1) {
       if (currentException != null) {
-        throw new IOException(
-            String.format("Could not open chunks from %s after %d tries.", replica, numTries),
-            currentException);
+        callback.onFailure(
+            0,
+            new IOException(
+                String.format("Could not open chunks from %s after %d tries.", replica, numTries),
+                currentException),
+            location);
       } else {
-        throw new IOException(
-            String.format("Could not open chunks from %s after %d tries.", replica, numTries));
+        callback.onFailure(
+            0,
+            new IOException(
+                String.format("Could not open chunks from %s after %d tries.", replica, numTries)),
+            location);
       }
     }
     return numChunks;
@@ -165,16 +171,13 @@ public class ChunkClient {
     RetryingChunkReceiveCallback callback;
     synchronized (this) {
       callback = new RetryingChunkReceiveCallback(numTries);
-      if (location.getPeer() != null
-          && fetchFailTrigger != 0
+      if (fetchFailTrigger != 0
+          && location.getPeer() != null
           && chunkIndex == fetchFailTrigger
           && location.getMode() == PartitionLocation.Mode.MASTER) {
         logger.warn("Manual triggered fetch failure for location {}", location);
         IOException manualTriggeredFailure = new IOException("Manual triggered fetch failure");
-        callback.onFailure(
-            chunkIndex,
-            new ChunkClientException(
-                manualTriggeredFailure.getMessage(), manualTriggeredFailure, location));
+        callback.onFailure(chunkIndex, manualTriggeredFailure, location);
       }
     }
     try {
@@ -190,7 +193,7 @@ public class ChunkClient {
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, callback.currentNumTries);
       } else {
-        callback.onFailure(chunkIndex, e);
+        callback.onFailure(chunkIndex, e, location);
       }
     }
   }
@@ -247,12 +250,12 @@ public class ChunkClient {
     }
 
     @Override
-    public void onFailure(int chunkIndex, Throwable e) {
+    public void onFailure(int chunkIndex, Throwable e, PartitionLocation location) {
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, this.currentNumTries);
       } else {
         logger.error("Abandon to fetch chunk {} after {} tries.", chunkIndex, this.currentNumTries);
-        callback.onFailure(chunkIndex, new ChunkClientException(e.getMessage(), e, location));
+        callback.onFailure(chunkIndex, e, ChunkClient.this.location);
       }
     }
   }

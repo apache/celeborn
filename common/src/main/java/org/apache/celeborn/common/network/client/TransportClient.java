@@ -126,7 +126,7 @@ public class TransportClient implements Closeable {
           @Override
           protected void handleFailure(String errorMsg, Throwable cause) {
             handler.removeFetchRequest(streamChunkSlice);
-            callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
+            callback.onFailure(chunkIndex, new IOException(errorMsg, cause), null);
           }
         };
     handler.addFetchRequest(streamChunkSlice, callback);

@@ -55,7 +55,7 @@ public class TransportResponseHandlerSuiteJ {
     assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchFailure(streamChunkSlice, "some error msg"));
-    verify(callback, times(1)).onFailure(eq(0), any());
+    verify(callback, times(1)).onFailure(eq(0), any(), any());
     assertEquals(0, handler.numOutstandingRequests());
   }
 
@@ -73,8 +73,8 @@ public class TransportResponseHandlerSuiteJ {
 
     // should fail both b2 and b3
     verify(callback, times(1)).onSuccess(eq(0), any());
-    verify(callback, times(1)).onFailure(eq(1), any());
-    verify(callback, times(1)).onFailure(eq(2), any());
+    verify(callback, times(1)).onFailure(eq(1), any(), any());
+    verify(callback, times(1)).onFailure(eq(2), any(), any());
     assertEquals(0, handler.numOutstandingRequests());
   }
 
