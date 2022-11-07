@@ -157,6 +157,7 @@ public class ChunkClient {
             location);
       }
     }
+    numTries = 0;
     return numChunks;
   }
 
