@@ -91,16 +91,16 @@ public class WorkerPartitionReader implements PartitionReader {
               exception.set(new IOException(errorMsg, e));
             } else {
               try {
-                client.set(
-                    new ChunkClient(
-                        conf,
-                        shuffleKey,
-                        location.getPeer(),
-                        this,
-                        clientFactory,
-                        startMapIndex,
-                        endMapIndex));
                 synchronized (this) {
+                  client.set(
+                      new ChunkClient(
+                          conf,
+                          shuffleKey,
+                          location.getPeer(),
+                          this,
+                          clientFactory,
+                          startMapIndex,
+                          endMapIndex));
                   currentChunkIndex.set(0);
                   returnedChunks.set(0);
                   numChunks.set(client.get().openChunks());
