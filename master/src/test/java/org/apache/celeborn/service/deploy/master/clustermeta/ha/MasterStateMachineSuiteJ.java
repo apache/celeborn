@@ -100,8 +100,10 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     File storageDir = Utils.createTempDir("./", "snapshot");
 
+    System.out.println(storageDir);
     final RaftStorage storage =
-        StorageImplUtils.newRaftStorage(storageDir, null, RaftStorage.StartupOption.RECOVER, 100);
+        StorageImplUtils.newRaftStorage(storageDir, null, RaftStorage.StartupOption.FORMAT, 100);
+    storage.initialize();
     SimpleStateMachineStorage simpleStateMachineStorage =
         (SimpleStateMachineStorage) stateMachine.getStateMachineStorage();
     simpleStateMachineStorage.init(storage);
