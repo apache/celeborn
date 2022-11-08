@@ -18,6 +18,7 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -50,7 +51,8 @@ public class WorkerPartitionReader implements PartitionReader {
   private final int fetchMaxReqsInFlight;
   private boolean closed = false;
   private Set<PartitionLocation> readableLocations = ConcurrentHashMap.newKeySet();
-  private Set<PartitionLocation> failedLocations = ConcurrentHashMap.newKeySet();
+  private Set<PartitionLocation> failedLocations = new HashSet<>();
+  private Set<Integer> expectedChunkIndexes = new HashSet<>();
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -70,11 +72,12 @@ public class WorkerPartitionReader implements PartitionReader {
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
           @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
             // only add the buffer to results queue if this reader is not closed.
             synchronized (this) {
               ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-              if (!closed) {
+              if (!closed && !failedLocations.contains(location)) {
+                expectedChunkIndexes.remove(chunkIndex);
                 buf.retain();
                 results.add(buf);
               }
@@ -102,9 +105,13 @@ public class WorkerPartitionReader implements PartitionReader {
                             clientFactory,
                             startMapIndex,
                             endMapIndex);
-                    currentChunkIndex = (0);
-                    returnedChunks = (0);
+                    currentChunkIndex = 0;
+                    returnedChunks = 0;
                     numChunks = client.openChunks();
+                    expectedChunkIndexes.clear();
+                    for (int i = 0; i < numChunks; i++) {
+                      expectedChunkIndexes.add(i);
+                    }
                   }
                 }
               } catch (IOException e1) {
@@ -118,10 +125,13 @@ public class WorkerPartitionReader implements PartitionReader {
         new ChunkClient(
             conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex);
     numChunks = client.openChunks();
+    for (int i = 0; i < numChunks; i++) {
+      expectedChunkIndexes.add(i);
+    }
   }
 
   public synchronized boolean hasNext() {
-    return returnedChunks < numChunks;
+    return !expectedChunkIndexes.isEmpty();
   }
 
   public ByteBuf next() throws IOException {

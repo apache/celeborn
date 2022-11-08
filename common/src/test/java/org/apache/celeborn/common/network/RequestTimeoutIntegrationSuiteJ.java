@@ -268,7 +268,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+    public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
       try {
         successLength = buffer.nioByteBuffer().remaining();
       } catch (IOException e) {

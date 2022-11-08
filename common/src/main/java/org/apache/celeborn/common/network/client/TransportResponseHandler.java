@@ -144,7 +144,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         resp.body().release();
       } else {
         outstandingFetches.remove(resp.streamChunkSlice);
-        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
+        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body(), null);
         resp.body().release();
       }
     } else if (message instanceof ChunkFetchFailure) {

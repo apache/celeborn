@@ -246,8 +246,8 @@ public class ChunkClient {
     }
 
     @Override
-    public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-      callback.onSuccess(chunkIndex, buffer);
+    public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+      callback.onSuccess(chunkIndex, buffer, ChunkClient.this.location);
     }
 
     @Override

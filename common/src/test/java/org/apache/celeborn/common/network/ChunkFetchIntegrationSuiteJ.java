@@ -154,7 +154,7 @@ public class ChunkFetchIntegrationSuiteJ {
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
           @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
             buffer.retain();
             res.successChunks.add(chunkIndex);
             res.buffers.add(buffer);

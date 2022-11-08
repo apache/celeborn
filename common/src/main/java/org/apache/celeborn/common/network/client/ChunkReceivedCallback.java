@@ -35,7 +35,7 @@ public interface ChunkReceivedCallback {
    * this call returns. You must therefore either retain() the buffer or copy its contents before
    * returning.
    */
-  void onSuccess(int chunkIndex, ManagedBuffer buffer);
+  void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location);
 
   /**
    * Called upon failure to fetch a particular chunk. Note that this may actually be called due to
