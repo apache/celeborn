@@ -41,8 +41,8 @@ public class WorkerPartitionReader implements PartitionReader {
   private ChunkClient client;
   private int numChunks = 0;
 
-  private volatile int returnedChunks = 0;
-  private volatile int currentChunkIndex = 0;
+  private int returnedChunks = 0;
+  private int currentChunkIndex = 0;
 
   private final LinkedBlockingQueue<ByteBuf> results;
 
