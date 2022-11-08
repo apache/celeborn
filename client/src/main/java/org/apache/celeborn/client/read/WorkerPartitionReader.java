@@ -89,6 +89,12 @@ public class WorkerPartitionReader implements PartitionReader {
               logger.error(errorMsg, e);
               exception.set(new IOException(errorMsg, e));
             } else {
+              if (!readableLocations.contains(location)) {
+                // This branch means current location is failed and changed to its peer,
+                // so we should ignore it. This logic is to ensure that peer will be retried only
+                // once.
+                return;
+              }
               try {
                 synchronized (this) {
                   client.set(
