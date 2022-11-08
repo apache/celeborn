@@ -136,7 +136,6 @@ class RssDecimalColumnBuilder(dataType: DecimalType)
 class RssBooleanCodeGenColumnBuilder
   extends RssNativeColumnBuilder(new RssBooleanColumnStats, RSS_BOOLEAN) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -151,7 +150,6 @@ class RssBooleanCodeGenColumnBuilder
 
 class RssByteCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssByteColumnStats, RSS_BYTE) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -167,7 +165,6 @@ class RssByteCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssByteColu
 class RssShortCodeGenColumnBuilder
   extends RssNativeColumnBuilder(new RssShortColumnStats, RSS_SHORT) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -182,7 +179,6 @@ class RssShortCodeGenColumnBuilder
 
 class RssIntCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssIntColumnStats, RSS_INT) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -197,7 +193,6 @@ class RssIntCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssIntColumn
 
 class RssLongCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssLongColumnStats, RSS_LONG) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -213,7 +208,6 @@ class RssLongCodeGenColumnBuilder extends RssNativeColumnBuilder(new RssLongColu
 class RssFloatCodeGenColumnBuilder
   extends RssNativeColumnBuilder(new RssFloatColumnStats, RSS_FLOAT) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -229,7 +223,6 @@ class RssFloatCodeGenColumnBuilder
 class RssDoubleCodeGenColumnBuilder
   extends RssNativeColumnBuilder(new RssDoubleColumnStats, RSS_DOUBLE) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -245,7 +238,6 @@ class RssDoubleCodeGenColumnBuilder
 class RssStringCodeGenColumnBuilder
   extends RssNativeColumnBuilder(new RssStringColumnStats, RSS_STRING) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -263,7 +255,6 @@ class RssCompactDecimalCodeGenColumnBuilder(dataType: DecimalType)
     new RssDecimalColumnStats(dataType),
     RSS_COMPACT_DECIMAL(dataType)) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -281,7 +272,6 @@ class RssCompactMiniDecimalCodeGenColumnBuilder(dataType: DecimalType)
     new RssDecimalColumnStats(dataType),
     RSS_COMPACT_MINI_DECIMAL(dataType)) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
@@ -299,7 +289,6 @@ class RssDecimalCodeGenColumnBuilder(dataType: DecimalType)
     new RssDecimalColumnStats(dataType),
     RSS_LARGE_DECIMAL(dataType)) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
-    columnStats.gatherStats(row, ordinal)
     if (row.isNullAt(ordinal)) {
       nulls = RssColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
