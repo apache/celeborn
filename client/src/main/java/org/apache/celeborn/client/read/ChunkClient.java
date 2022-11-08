@@ -145,16 +145,16 @@ public class ChunkClient {
       if (currentException != null) {
         callback.onFailure(
             0,
+            location,
             new IOException(
                 String.format("Could not open chunks from %s after %d tries.", replica, numTries),
-                currentException),
-            location);
+                currentException));
       } else {
         callback.onFailure(
             0,
+            location,
             new IOException(
-                String.format("Could not open chunks from %s after %d tries.", replica, numTries)),
-            location);
+                String.format("Could not open chunks from %s after %d tries.", replica, numTries)));
       }
     }
     numTries = 0;
@@ -178,7 +178,7 @@ public class ChunkClient {
           && location.getMode() == PartitionLocation.Mode.MASTER) {
         logger.warn("Manual triggered fetch failure for location {}", location);
         IOException manualTriggeredFailure = new IOException("Manual triggered fetch failure");
-        callback.onFailure(chunkIndex, manualTriggeredFailure, location);
+        callback.onFailure(chunkIndex, location, manualTriggeredFailure);
       }
     }
     try {
@@ -194,7 +194,7 @@ public class ChunkClient {
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, callback.currentNumTries);
       } else {
-        callback.onFailure(chunkIndex, e, location);
+        callback.onFailure(chunkIndex, location, e);
       }
     }
   }
@@ -251,12 +251,12 @@ public class ChunkClient {
     }
 
     @Override
-    public void onFailure(int chunkIndex, Throwable e, PartitionLocation location) {
+    public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, this.currentNumTries);
       } else {
         logger.error("Abandon to fetch chunk {} after {} tries.", chunkIndex, this.currentNumTries);
-        callback.onFailure(chunkIndex, e, ChunkClient.this.location);
+        callback.onFailure(chunkIndex, ChunkClient.this.location, e);
       }
     }
   }

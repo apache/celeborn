@@ -279,7 +279,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onFailure(int chunkIndex, Throwable e, PartitionLocation location) {
+    public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
       failure = e;
       latch.countDown();
     }

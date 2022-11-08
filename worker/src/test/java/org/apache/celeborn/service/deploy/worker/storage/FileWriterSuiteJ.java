@@ -218,7 +218,7 @@ public class FileWriterSuiteJ {
           }
 
           @Override
-          public void onFailure(int chunkIndex, Throwable e, PartitionLocation location) {
+          public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
             res.failedChunks.add(chunkIndex);
             sem.release();
           }

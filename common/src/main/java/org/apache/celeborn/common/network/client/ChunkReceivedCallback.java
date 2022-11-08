@@ -44,5 +44,5 @@ public interface ChunkReceivedCallback {
    * <p>After receiving a failure, the stream may or may not be valid. The client should not assume
    * that the server's side of the stream has been closed.
    */
-  void onFailure(int chunkIndex, Throwable e, PartitionLocation location);
+  void onFailure(int chunkIndex, PartitionLocation location, Throwable e);
 }
