@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -42,7 +41,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private ChunkClient client;
   private int numChunks;
 
-  private AtomicInteger returnedChunks = new AtomicInteger(0);
+  private int returnedChunks;
   private int currentChunkIndex;
 
   private final LinkedBlockingQueue<ChunkData> results;
@@ -102,7 +101,7 @@ public class WorkerPartitionReader implements PartitionReader {
                             startMapIndex,
                             endMapIndex);
                     currentChunkIndex = 0;
-                    returnedChunks.set(0);
+                    returnedChunks = 0;
                     numChunks = client.openChunks();
                   }
                 }
@@ -120,7 +119,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   public synchronized boolean hasNext() {
-    return returnedChunks.get() < numChunks;
+    return returnedChunks < numChunks;
   }
 
   public ByteBuf next() throws IOException {
@@ -141,6 +140,7 @@ public class WorkerPartitionReader implements PartitionReader {
               chunkData.release();
             } else {
               chunk = chunkData.buf;
+              returnedChunks++;
             }
           }
         }
@@ -151,7 +151,6 @@ public class WorkerPartitionReader implements PartitionReader {
       exception.set(ioe);
       throw ioe;
     }
-    returnedChunks.incrementAndGet();
     return chunk;
   }
 
@@ -166,7 +165,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   private void fetchChunks() {
-    final int inFlight = currentChunkIndex - returnedChunks.get();
+    final int inFlight = currentChunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
           Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - currentChunkIndex);
