@@ -39,10 +39,10 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private ChunkClient client;
-  private int numChunks = 0;
+  private int numChunks;
 
-  private int returnedChunks = 0;
-  private int currentChunkIndex = 0;
+  private int returnedChunks;
+  private int currentChunkIndex;
 
   private final LinkedBlockingQueue<ChunkData> results;
 
