@@ -155,9 +155,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   public void close() {
-    synchronized (this) {
-      closed.set(true);
-    }
+    closed.set(true);
     if (results.size() > 0) {
       results.forEach(ChunkData::release);
     }
