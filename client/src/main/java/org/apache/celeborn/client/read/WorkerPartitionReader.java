@@ -18,11 +18,12 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -41,16 +42,16 @@ public class WorkerPartitionReader implements PartitionReader {
   private ChunkClient client;
   private int numChunks;
 
-  private int returnedChunks;
+  private AtomicInteger returnedChunks = new AtomicInteger(0);
   private int currentChunkIndex;
 
   private final LinkedBlockingQueue<ChunkData> results;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
-  private boolean closed = false;
+  private AtomicBoolean closed = new AtomicBoolean(false);
   private Set<PartitionLocation> readableLocations = ConcurrentHashMap.newKeySet();
-  private Set<PartitionLocation> failedLocations = new HashSet<>();
+  private Set<PartitionLocation> failedLocations = ConcurrentHashMap.newKeySet();
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -72,12 +73,10 @@ public class WorkerPartitionReader implements PartitionReader {
           @Override
           public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
             // only add the buffer to results queue if this reader is not closed.
-            synchronized (this) {
-              ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-              if (!closed && !failedLocations.contains(location)) {
-                buf.retain();
-                results.add(new ChunkData(buf, location));
-              }
+            ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
+            if (!closed.get() && !failedLocations.contains(location)) {
+              buf.retain();
+              results.add(new ChunkData(buf, location));
             }
           }
 
@@ -103,7 +102,7 @@ public class WorkerPartitionReader implements PartitionReader {
                             startMapIndex,
                             endMapIndex);
                     currentChunkIndex = 0;
-                    returnedChunks = 0;
+                    returnedChunks.set(0);
                     numChunks = client.openChunks();
                   }
                 }
@@ -121,7 +120,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   public synchronized boolean hasNext() {
-    return returnedChunks < numChunks;
+    return returnedChunks.get() < numChunks;
   }
 
   public ByteBuf next() throws IOException {
@@ -136,13 +135,12 @@ public class WorkerPartitionReader implements PartitionReader {
       while (chunk == null) {
         checkException();
         ChunkData chunkData = results.poll(500, TimeUnit.MILLISECONDS);
-        synchronized (this) {
-          if (chunkData != null) {
+        if (chunkData != null) {
+          synchronized (this) {
             if (failedLocations.contains(chunkData.location)) {
               chunkData.release();
             } else {
               chunk = chunkData.buf;
-              returnedChunks++;
             }
           }
         }
@@ -153,12 +151,13 @@ public class WorkerPartitionReader implements PartitionReader {
       exception.set(ioe);
       throw ioe;
     }
+    returnedChunks.incrementAndGet();
     return chunk;
   }
 
   public void close() {
     synchronized (this) {
-      closed = true;
+      closed.set(true);
     }
     if (results.size() > 0) {
       results.forEach(ChunkData::release);
@@ -167,7 +166,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   private void fetchChunks() {
-    final int inFlight = currentChunkIndex - returnedChunks;
+    final int inFlight = currentChunkIndex - returnedChunks.get();
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
           Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - currentChunkIndex);
