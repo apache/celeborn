@@ -167,8 +167,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   private void fetchChunks() {
-    final int inFlight =
-        currentChunkIndex - returnedChunks < 0 ? 0 : currentChunkIndex - returnedChunks;
+    final int inFlight = currentChunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
           Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - currentChunkIndex);
