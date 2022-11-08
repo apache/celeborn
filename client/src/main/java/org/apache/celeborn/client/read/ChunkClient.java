@@ -62,7 +62,7 @@ public class ChunkClient {
 
   private volatile int numTries = 0;
   private PartitionLocation location;
-  private int fetchFailTrigger;
+  private int fetchFailedChunkIndex;
 
   public PartitionLocation getLocation() {
     return location;
@@ -87,7 +87,7 @@ public class ChunkClient {
       int endMapIndex) {
     TransportConf transportConf =
         Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
-    this.fetchFailTrigger = conf.fetchFailTrigger();
+    this.fetchFailedChunkIndex = conf.testFetchFailedChunkIndex();
     this.callback = callback;
     this.retryWaitMs = transportConf.ioRetryWaitTimeMs();
 
@@ -172,9 +172,9 @@ public class ChunkClient {
     RetryingChunkReceiveCallback callback;
     synchronized (this) {
       callback = new RetryingChunkReceiveCallback(numTries);
-      if (fetchFailTrigger != 0
+      if (fetchFailedChunkIndex != 0
           && location.getPeer() != null
-          && chunkIndex == fetchFailTrigger
+          && chunkIndex == fetchFailedChunkIndex
           && location.getMode() == PartitionLocation.Mode.MASTER) {
         logger.warn("Manual triggered fetch failure for location {}", location);
         IOException manualTriggeredFailure = new IOException("Manual triggered fetch failure");

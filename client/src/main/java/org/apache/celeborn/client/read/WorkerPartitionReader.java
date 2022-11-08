@@ -180,7 +180,7 @@ public class WorkerPartitionReader implements PartitionReader {
     }
   }
 
-  private class ChunkData {
+  private static class ChunkData {
     ByteBuf buf;
     PartitionLocation location;
 
