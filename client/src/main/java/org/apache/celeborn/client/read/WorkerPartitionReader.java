@@ -137,11 +137,13 @@ public class WorkerPartitionReader implements PartitionReader {
         checkException();
         ChunkData chunkData = results.poll(500, TimeUnit.MILLISECONDS);
         synchronized (this) {
-          if (failedLocations.contains(chunkData.location)) {
-            chunkData.release();
-          } else {
-            chunk = chunkData.buf;
-            returnedChunks++;
+          if (chunkData != null) {
+            if (failedLocations.contains(chunkData.location)) {
+              chunkData.release();
+            } else {
+              chunk = chunkData.buf;
+              returnedChunks++;
+            }
           }
         }
       }
