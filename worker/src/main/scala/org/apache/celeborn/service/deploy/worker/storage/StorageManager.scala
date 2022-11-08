@@ -35,7 +35,7 @@ import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
@@ -309,7 +309,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           } else {
             val createFileSuccess = file.createNewFile()
             if (!createFileSuccess) {
-              throw new RssException(s"Create shuffle data file ${file.getAbsolutePath} failed!")
+              throw new CelebornException(
+                s"Create shuffle data file ${file.getAbsolutePath} failed!")
             }
           }
           val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier)

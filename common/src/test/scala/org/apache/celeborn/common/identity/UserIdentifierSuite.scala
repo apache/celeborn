@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.identity
 
 import org.apache.celeborn.RssFunSuite
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 
 class UserIdentifierSuite extends RssFunSuite {
 
@@ -41,15 +41,15 @@ class UserIdentifierSuite extends RssFunSuite {
   }
 
   test("Both UserIdentifier's tenantId and name should contains ``") {
-    val e1 = intercept[RssException] {
+    val e1 = intercept[CelebornException] {
       UserIdentifier("aa.bb")
     }.getMessage
     assert(e1.contains("Failed to parse user identifier: aa.bb"))
-    val e2 = intercept[RssException] {
+    val e2 = intercept[CelebornException] {
       UserIdentifier("`aa`.bb")
     }.getMessage
     assert(e2.contains("Failed to parse user identifier: `aa`.bb"))
-    val e3 = intercept[RssException] {
+    val e3 = intercept[CelebornException] {
       UserIdentifier("aa.`bb`")
     }.getMessage
     assert(e3.contains("Failed to parse user identifier: aa.`bb`"))

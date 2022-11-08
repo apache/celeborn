@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.metrics.source.RPCSource
@@ -114,7 +114,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           client.getChannel.writeAndFlush(new RpcFailure(
             request.requestId,
             Throwables.getStackTraceAsString(
-              new RssException("Chunk offsets meta exception", e))))
+              new CelebornException("Chunk offsets meta exception", e))))
       } finally {
         // metrics end
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)

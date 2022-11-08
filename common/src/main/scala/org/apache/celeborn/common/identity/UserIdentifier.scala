@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.identity
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 
 case class UserIdentifier(tenantId: String, name: String) {
@@ -40,7 +40,7 @@ object UserIdentifier extends Logging {
       UserIdentifier(tenantId, name)
     } else {
       logError(s"Failed to parse user identifier: $userIdentifier")
-      throw new RssException(s"Failed to parse user identifier: ${userIdentifier}")
+      throw new CelebornException(s"Failed to parse user identifier: ${userIdentifier}")
     }
   }
 }

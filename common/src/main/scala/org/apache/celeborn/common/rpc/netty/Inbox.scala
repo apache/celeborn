@@ -21,7 +21,7 @@ import javax.annotation.concurrent.GuardedBy
 
 import scala.util.control.NonFatal
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, ThreadSafeRpcEndpoint}
 
@@ -113,7 +113,7 @@ private[celeborn] class Inbox(
               endpoint.receiveAndReply(context).applyOrElse[Any, Unit](
                 content,
                 { msg =>
-                  throw new RssException(s"Unsupported message $message from ${_sender}")
+                  throw new CelebornException(s"Unsupported message $message from ${_sender}")
                 })
             } catch {
               case e: Throwable =>
@@ -127,7 +127,7 @@ private[celeborn] class Inbox(
             endpoint.receive.applyOrElse[Any, Unit](
               content,
               { msg =>
-                throw new RssException(s"Unsupported message $message from ${_sender}")
+                throw new CelebornException(s"Unsupported message $message from ${_sender}")
               })
 
           case OnStart =>

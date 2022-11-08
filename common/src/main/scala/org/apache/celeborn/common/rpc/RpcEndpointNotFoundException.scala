@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 
 private[celeborn] class RpcEndpointNotFoundException(uri: String)
-  extends RssException(s"Cannot find endpoint: $uri")
+  extends CelebornException(s"Cannot find endpoint: $uri")

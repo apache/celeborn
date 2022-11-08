@@ -23,7 +23,7 @@ import javax.annotation.concurrent.GuardedBy
 
 import scala.util.control.NonFatal
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEnvStoppedException}
@@ -112,7 +112,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
 
   /**
    * Send a message. If there is no active connection, cache it and launch a new connection. If
-   * [[Outbox]] is stopped, the sender will be notified with a [[RssException]].
+   * [[Outbox]] is stopped, the sender will be notified with a [[CelebornException]].
    */
   def send(message: OutboxMessage): Unit = {
     val dropped = synchronized {
@@ -124,7 +124,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
       }
     }
     if (dropped) {
-      message.onFailure(new RssException("Message is dropped because Outbox is stopped"))
+      message.onFailure(new CelebornException("Message is dropped because Outbox is stopped"))
     } else {
       drainOutbox()
     }
@@ -250,7 +250,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
 
   /**
    * Stop [[Outbox]]. The remaining messages in the [[Outbox]] will be notified with a
-   * [[RssException]].
+   * [[CelebornException]].
    */
   def stop(): Unit = {
     synchronized {
@@ -268,7 +268,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
     // update messages and it's safe to just drain the queue.
     var message = messages.poll()
     while (message != null) {
-      message.onFailure(new RssException("Message is dropped because Outbox is stopped"))
+      message.onFailure(new CelebornException("Message is dropped because Outbox is stopped"))
       message = messages.poll()
     }
   }

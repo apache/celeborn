@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.common.exception.RssException
+import org.apache.celeborn.common.exception.CelebornException
 
 /**
  * An address identifier for an RPC endpoint.
@@ -64,12 +64,12 @@ private[celeborn] object RpcEndpointAddress {
         (uri.getPath != null && !uri.getPath.isEmpty) || // uri.getPath returns "" instead of null
         uri.getFragment != null ||
         uri.getQuery != null) {
-        throw new RssException("Invalid RSS URL: " + essUrl)
+        throw new CelebornException("Invalid RSS URL: " + essUrl)
       }
       new RpcEndpointAddress(host, port, name)
     } catch {
       case e: java.net.URISyntaxException =>
-        throw new RssException("Invalid RSS URL: " + essUrl, e)
+        throw new CelebornException("Invalid RSS URL: " + essUrl, e)
     }
   }
 }
