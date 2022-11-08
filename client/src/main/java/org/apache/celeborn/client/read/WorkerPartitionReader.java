@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,14 +44,13 @@ public class WorkerPartitionReader implements PartitionReader {
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
 
-  private final LinkedBlockingQueue<ByteBuf> results;
+  private final LinkedBlockingQueue<ChunkData> results;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
   private boolean closed = false;
   private Set<PartitionLocation> readableLocations = ConcurrentHashMap.newKeySet();
   private Set<PartitionLocation> failedLocations = new HashSet<>();
-  private Set<Integer> expectedChunkIndexes = new HashSet<>();
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -77,9 +75,8 @@ public class WorkerPartitionReader implements PartitionReader {
             synchronized (this) {
               ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
               if (!closed && !failedLocations.contains(location)) {
-                expectedChunkIndexes.remove(chunkIndex);
                 buf.retain();
-                results.add(buf);
+                results.add(new ChunkData(buf, location));
               }
             }
           }
@@ -108,10 +105,6 @@ public class WorkerPartitionReader implements PartitionReader {
                     currentChunkIndex = 0;
                     returnedChunks = 0;
                     numChunks = client.openChunks();
-                    expectedChunkIndexes.clear();
-                    for (int i = 0; i < numChunks; i++) {
-                      expectedChunkIndexes.add(i);
-                    }
                   }
                 }
               } catch (IOException e1) {
@@ -125,13 +118,10 @@ public class WorkerPartitionReader implements PartitionReader {
         new ChunkClient(
             conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex);
     numChunks = client.openChunks();
-    for (int i = 0; i < numChunks; i++) {
-      expectedChunkIndexes.add(i);
-    }
   }
 
   public synchronized boolean hasNext() {
-    return !expectedChunkIndexes.isEmpty();
+    return returnedChunks < numChunks;
   }
 
   public ByteBuf next() throws IOException {
@@ -145,16 +135,21 @@ public class WorkerPartitionReader implements PartitionReader {
     try {
       while (chunk == null) {
         checkException();
-        chunk = results.poll(500, TimeUnit.MILLISECONDS);
+        ChunkData chunkData = results.poll(500, TimeUnit.MILLISECONDS);
+        synchronized (this) {
+          if (failedLocations.contains(chunkData.location)) {
+            chunkData.release();
+          } else {
+            chunk = chunkData.buf;
+            returnedChunks++;
+          }
+        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       IOException ioe = new IOException(e);
       exception.set(ioe);
       throw ioe;
-    }
-    synchronized (this) {
-      returnedChunks++;
     }
     return chunk;
   }
@@ -164,7 +159,7 @@ public class WorkerPartitionReader implements PartitionReader {
       closed = true;
     }
     if (results.size() > 0) {
-      results.forEach(ReferenceCounted::release);
+      results.forEach(ChunkData::release);
     }
     results.clear();
   }
@@ -185,6 +180,20 @@ public class WorkerPartitionReader implements PartitionReader {
     IOException e = exception.get();
     if (e != null) {
       throw e;
+    }
+  }
+
+  private class ChunkData {
+    ByteBuf buf;
+    PartitionLocation location;
+
+    public ChunkData(ByteBuf buf, PartitionLocation location) {
+      this.buf = buf;
+      this.location = location;
+    }
+
+    public void release() {
+      buf.release();
     }
   }
 }
