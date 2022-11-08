@@ -112,8 +112,8 @@
                 <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_aarch_64.jnilib"></delete>
                 <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_aarch_64.jnilib"></delete>
                 <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_x86_64.jnilib"></delete>
-                <echo message="deleting META-INF/native-image folder"/>
-                <delete dir="${project.build.directory}/unpacked/META-INF/native-image"/>
+                <echo message="deleting META-INF/native-image folder"></echo>
+                <delete dir="${project.build.directory}/unpacked/META-INF/native-image"></delete>
                 <echo message="repackaging netty jar"></echo>
                 <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${artifactId}-${version}.jar"></jar>
               </target>
