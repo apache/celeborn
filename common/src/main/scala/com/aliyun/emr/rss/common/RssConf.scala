@@ -835,6 +835,10 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.rpc.cache.expire", "15s")
   }
 
+  def testFetchFailedChunkIndex(conf: RssConf): Int = {
+    conf.getInt("rss.test.client.fetchFailedChuckIndex", 2)
+  }
+
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
 
   // If we want to use multi-raft group we can

@@ -56,6 +56,7 @@ import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.JavaUtils;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
+import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.protocol.PartitionSplitMode;
 import com.aliyun.emr.rss.common.util.ThreadUtils;
 import com.aliyun.emr.rss.common.util.Utils;
@@ -181,7 +182,7 @@ public class FileWriterSuiteJ {
 
     ChunkReceivedCallback callback = new ChunkReceivedCallback() {
       @Override
-      public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+      public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
         buffer.retain();
         res.successChunks.add(chunkIndex);
         res.buffers.add(buffer);
@@ -189,7 +190,7 @@ public class FileWriterSuiteJ {
       }
 
       @Override
-      public void onFailure(int chunkIndex, Throwable e) {
+      public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
         res.failedChunks.add(chunkIndex);
         sem.release();
       }
