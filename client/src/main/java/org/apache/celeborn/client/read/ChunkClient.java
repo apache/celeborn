@@ -116,7 +116,7 @@ public class ChunkClient {
     Exception currentException = null;
     while (numChunks == -1 && hasRemainingRetries()) {
       // Only not wait for first request to each replicate.
-      if (numTries >= maxTries) {
+      if (numTries != 0) {
         logger.info(
             "Retrying openChunk ({}/{}) for chunk from {} after {} ms.",
             numTries,
