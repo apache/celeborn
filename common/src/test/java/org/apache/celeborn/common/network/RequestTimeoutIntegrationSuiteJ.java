@@ -42,6 +42,7 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.StreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
@@ -267,7 +268,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+    public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
       try {
         successLength = buffer.nioByteBuffer().remaining();
       } catch (IOException e) {
@@ -278,7 +279,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onFailure(int chunkIndex, Throwable e) {
+    public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
       failure = e;
       latch.countDown();
     }

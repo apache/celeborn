@@ -86,7 +86,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private void failOutstandingRequests(Throwable cause) {
     for (Map.Entry<StreamChunkSlice, ChunkReceivedCallback> entry : outstandingFetches.entrySet()) {
       try {
-        entry.getValue().onFailure(entry.getKey().chunkIndex, cause);
+        entry.getValue().onFailure(entry.getKey().chunkIndex, null, cause);
       } catch (Exception e) {
         logger.warn("ChunkReceivedCallback.onFailure throws exception", e);
       }
@@ -144,7 +144,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         resp.body().release();
       } else {
         outstandingFetches.remove(resp.streamChunkSlice);
-        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
+        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body(), null);
         resp.body().release();
       }
     } else if (message instanceof ChunkFetchFailure) {
@@ -161,6 +161,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
         listener.onFailure(
             resp.streamChunkSlice.chunkIndex,
+            null,
             new ChunkFetchFailureException(
                 "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }

@@ -662,6 +662,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
+  def testFetchFailedChunkIndex: Int = get(TEST_FETCH_FAILED_CHUNK_INDEX)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -2539,4 +2540,13 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val TEST_FETCH_FAILED_CHUNK_INDEX: ConfigEntry[Int] =
+    buildConf("celeborn.test.client.fetchFailedChuckIndex")
+      .categories("client")
+      .version("0.2.0")
+      .internal
+      .doc("The chunk index to trigger fetch chunk failure for testing purpose only.")
+      .intConf
+      .createWithDefault(0)
 }
