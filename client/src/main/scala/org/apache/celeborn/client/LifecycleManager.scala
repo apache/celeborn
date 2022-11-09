@@ -326,7 +326,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val attemptId = pb.getAttemptId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
+      val oldPartition =
+        if (pb.hasOldPartition) {
+          PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
+        } else {
+          null
+        }
       val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
         s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
