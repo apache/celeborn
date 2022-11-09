@@ -88,7 +88,7 @@ public class WorkerPartitionReader implements PartitionReader {
               exception.set(new IOException(errorMsg, e));
             } else {
               try {
-                synchronized (this) {
+                synchronized (WorkerPartitionReader.this) {
                   if (!failedLocations.contains(location)) {
                     failedLocations.add(location);
                     client =
