@@ -106,8 +106,8 @@ public class ChunkClient {
   }
 
   /**
-   * This method should only be called once after PartitionReader is initialized, so it is
-   * assumed that there is no concurrency problem when it is called.
+   * This method should only be called once after PartitionReader is initialized, so it is assumed
+   * that there is no concurrency problem when it is called.
    *
    * @return numChunks.
    */
