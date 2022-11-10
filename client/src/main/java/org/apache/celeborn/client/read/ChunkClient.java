@@ -106,7 +106,7 @@ public class ChunkClient {
   }
 
   /**
-   * This method should only be called once after RetryingChunkReader is initialized, so it is
+   * This method should only be called once after PartitionReader is initialized, so it is
    * assumed that there is no concurrency problem when it is called.
    *
    * @return numChunks.
@@ -169,9 +169,9 @@ public class ChunkClient {
    * @param chunkIndex the index of the chunk to be fetched.
    */
   public void fetchChunk(int chunkIndex) {
-    RetryingChunkReceiveCallback callback;
+    FetchChunkCallback callback;
     synchronized (this) {
-      callback = new RetryingChunkReceiveCallback(numTries);
+      callback = new FetchChunkCallback(numTries);
       if (fetchFailedChunkIndex != 0
           && location.getPeer() != null
           && chunkIndex == fetchFailedChunkIndex
@@ -238,10 +238,10 @@ public class ChunkClient {
         });
   }
 
-  private class RetryingChunkReceiveCallback implements ChunkReceivedCallback {
+  private class FetchChunkCallback implements ChunkReceivedCallback {
     final int currentNumTries;
 
-    RetryingChunkReceiveCallback(int currentNumTries) {
+    FetchChunkCallback(int currentNumTries) {
       this.currentNumTries = currentNumTries;
     }
 
