@@ -209,12 +209,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                     new Runnable {
                       override def run(): Unit = {
                         // For each partition group only need handle one request
-                        val distinctPartitions = requests.asScala.filter { case (partitionGroupId, _) =>
-                          !inBatchPartitions.get(shuffleId).contains(partitionGroupId)
-                        }.map { case (partitionGroupId, request) =>
-                          inBatchPartitions.get(shuffleId).add(partitionGroupId)
-                          request.asScala.toArray.maxBy(_.epoch)
-                        }.toArray
+                        val distinctPartitions =
+                          requests.asScala.filter { case (partitionGroupId, _) =>
+                            !inBatchPartitions.get(shuffleId).contains(partitionGroupId)
+                          }.map { case (partitionGroupId, request) =>
+                            inBatchPartitions.get(shuffleId).add(partitionGroupId)
+                            request.asScala.toArray.maxBy(_.epoch)
+                          }.toArray
                         if (distinctPartitions.nonEmpty) {
                           batchHandleChangePartitions(
                             distinctPartitions.head.applicationId,
@@ -1406,7 +1407,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       candidates: List[WorkerInfo]): WorkerResource = {
     val slots = new WorkerResource()
     changePartitionRequests.foreach { partition =>
-      allocateFromCandidates(partition.partitionId, partition.attemptId, partition.epoch, candidates, slots)
+      allocateFromCandidates(
+        partition.partitionId,
+        partition.attemptId,
+        partition.epoch,
+        candidates,
+        slots)
     }
     slots
   }
@@ -1417,7 +1423,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       updateEpoch: Boolean = true): WorkerResource = {
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
-      allocateFromCandidates(partition.getId, partition.getAttemptId, partition.getEpoch, candidates, slots, updateEpoch)
+      allocateFromCandidates(
+        partition.getId,
+        partition.getAttemptId,
+        partition.getEpoch,
+        candidates,
+        slots,
+        updateEpoch)
     }
     slots
   }
