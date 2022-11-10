@@ -40,6 +40,7 @@ import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.SingleMasterMetaManager
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import com.aliyun.emr.rss.service.deploy.master.http.HttpRequestHandler
+import com.aliyun.emr.rss.service.deploy.master.metrics.AppDiskUsageMetric
 
 private[deploy] class Master(
     override val rpcEnv: RpcEnv,
@@ -63,6 +64,7 @@ private[deploy] class Master(
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
+  private val appDiskUsageCollector = new AppDiskUsageMetric(conf)
 
   // Config constants
   private val WorkerTimeoutMs = RssConf.workerTimeoutMs(conf)
@@ -187,10 +189,10 @@ private[deploy] class Master(
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-    shuffleKeys, requestId) =>
+    shuffleResourceConsumption, requestId) =>
       logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
       executeWithLeaderChecker(context, handleHeartBeatFromWorker(context, host, rpcPort, pushPort,
-        fetchPort, replicatePort, numSlots, shuffleKeys, requestId))
+        fetchPort, replicatePort, numSlots, shuffleResourceConsumption, requestId))
 
     case GetWorkerInfos =>
       executeWithLeaderChecker(context, handleGetWorkerInfos(context))
@@ -245,7 +247,7 @@ private[deploy] class Master(
       fetchPort: Int,
       replicatePort: Int,
       numSlots: Int,
-      shuffleKeys: util.HashSet[String],
+      shuffleDiskUsage: util.HashMap[String, java.lang.Long],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort,
       -1, null)
@@ -258,15 +260,16 @@ private[deploy] class Master(
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
     } else {
       statusSystem.handleWorkerHeartBeat(host, rpcPort, pushPort, fetchPort, replicatePort,
-        numSlots, System.currentTimeMillis(), requestId)
+        numSlots, System.currentTimeMillis(), shuffleDiskUsage, requestId)
     }
     val expiredShuffleKeys = new util.HashSet[String]
-    shuffleKeys.asScala.foreach { shuffleKey =>
-      if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
-        logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
-        expiredShuffleKeys.add(shuffleKey)
+    shuffleDiskUsage.asScala.foreach { case (key, _) =>
+      if (!statusSystem.registeredShuffle.contains(key)) {
+        logWarning(s"Shuffle ${key} expired on $host:$rpcPort:$pushPort:$fetchPort.")
+        expiredShuffleKeys.add(key)
       }
     }
+    appDiskUsageCollector.update(statusSystem.getAppDiskUsageDetailsSnapShot())
     context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
   }
 
@@ -283,9 +286,7 @@ private[deploy] class Master(
         s" for WorkerLost handler!")
       return
     }
-
     statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
-
     if (context != null) {
       context.reply(WorkerLostResponse(true))
     }
@@ -506,6 +507,10 @@ private[deploy] class Master(
 
   def getHostnameList: String = {
     statusSystem.hostnameSet.asScala.mkString(",")
+  }
+
+  def listAppDiskUsageInfos: String = {
+    appDiskUsageCollector.summary()
   }
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {

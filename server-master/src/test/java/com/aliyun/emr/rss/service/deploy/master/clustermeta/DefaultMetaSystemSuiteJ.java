@@ -247,17 +247,17 @@ public class DefaultMetaSystemSuiteJ {
       NUMSLOTS3, getNewReqeustId());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      0, 1, getNewReqeustId());
+      0, 1, new HashMap<>(),getNewReqeustId());
 
     assert statusSystem.blacklist.size()==1;
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      0, 1, getNewReqeustId());
+      0, 1, new HashMap<>(), getNewReqeustId());
 
     assert statusSystem.blacklist.size()==2;
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT3,
-      1, 1, getNewReqeustId());
+      1, 1, new HashMap<>(), getNewReqeustId());
 
     assert statusSystem.blacklist.size()==1;
   }

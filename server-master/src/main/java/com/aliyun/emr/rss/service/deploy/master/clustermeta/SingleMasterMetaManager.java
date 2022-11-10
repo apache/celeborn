@@ -78,8 +78,10 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, int numSlots, long time, String requestId) {
-    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots, time);
+      int replicatePort, int numSlots, long time,
+      Map<String, Long> shuffleDiskUsage, String requestId) {
+    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
+            numSlots, time, shuffleDiskUsage);
   }
 
   @Override

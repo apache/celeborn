@@ -18,10 +18,7 @@
 package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.netty.util.internal.ConcurrentSet;
@@ -47,6 +44,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentSet<WorkerInfo> blacklist = new ConcurrentSet<>();
   // workerLost events
   public final ConcurrentSet<WorkerInfo> workerLostEvents = new ConcurrentSet<>();
+  public final Map<WorkerInfo, Map<String, Long>> appDiskUsageDetails = new ConcurrentHashMap<>();
 
   protected RpcEnv rpcEnv;
   protected RssConf conf;
@@ -128,10 +126,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     // delete from blacklist
     blacklist.remove(worker);
     workerLostEvents.remove(worker);
+    appDiskUsageDetails.remove(worker);
   }
 
   public void updateWorkerHeartBeatMeta(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, int numSlots, long time) {
+      int replicatePort, int numSlots, long time, Map<String,Long> shuffleDiskUsage) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
       null);
     synchronized (workers) {
@@ -140,6 +139,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         info.lastHeartbeat_$eq(time);
         info.setNumSlots(numSlots);
       });
+      appDiskUsageDetails.put(worker,shuffleDiskUsage);
     }
     if (numSlots == 0 && !blacklist.contains(worker)) {
       LOG.warn("Worker: {} num total slots is 0, add to blacklist", worker.toString());
@@ -286,5 +286,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       failedWorkers.retainAll(this.workers);
       this.blacklist.addAll(failedWorkers);
     }
+  }
+
+  public Map<WorkerInfo,Map<String,Long>> getAppDiskUsageDetailsSnapShot(){
+    return new HashMap<>(this.appDiskUsageDetails);
   }
 }

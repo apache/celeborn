@@ -17,7 +17,7 @@
 
 package com.aliyun.emr.rss.service.deploy.worker
 
-import java.util.{HashSet => jHashSet}
+import java.util.{HashMap => jHashMap, HashSet => jHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -186,19 +186,24 @@ private[deploy] class Worker(
   }
 
   def heartBeatToMaster(): Unit = {
-    val shuffleKeys = new jHashSet[String]
-    shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
-    shuffleKeys.addAll(localStorageManager.shuffleKeySet())
+    val shuffleResourceConsumption = new jHashMap[String, java.lang.Long]
+    partitionLocationInfo.shuffleKeySet.asScala.foreach { shuffleKey =>
+      shuffleResourceConsumption.put(shuffleKey, 0)
+    }
+    localStorageManager.shuffleResourceConsumption.asScala.foreach { resource =>
+      shuffleResourceConsumption.put(resource._1, resource._2)
+    }
+
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots,
-        shuffleKeys)
+        shuffleResourceConsumption)
       , classOf[HeartbeatResponse])
     if (response.registered) {
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
       logError("Worker not registered in master, clean all shuffle data and register again.")
       // Clean all shuffle related metadata and data
-      cleanup(shuffleKeys)
+      cleanup(new jHashSet[String](shuffleResourceConsumption.keySet()))
       try {
         registerWithMaster()
       } catch {

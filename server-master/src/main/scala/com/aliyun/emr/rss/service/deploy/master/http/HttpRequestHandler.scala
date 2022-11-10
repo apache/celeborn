@@ -68,6 +68,8 @@ class HttpRequestHandler(val master: Master,
         master.getThreadDump
       case "/hostnames" =>
         master.getHostnameList
+      case "/listTopDiskUsedApps" =>
+        master.listAppDiskUsageInfos
       case _ => INVALID
     }
   }

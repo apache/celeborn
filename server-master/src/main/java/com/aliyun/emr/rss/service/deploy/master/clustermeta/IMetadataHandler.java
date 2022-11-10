@@ -42,7 +42,8 @@ public interface IMetadataHandler {
     String requestId);
 
   void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, int numSlots, long time, String requestId);
+    int replicatePort, int numSlots, long time,
+    Map<String, Long> shuffleDiskUsage, String requestId);
 
   void handleRegisterWorker(String host, int rpcPort, int pushPort, int fetchPort,
     int replicatePort, int numSlots, String requestId);

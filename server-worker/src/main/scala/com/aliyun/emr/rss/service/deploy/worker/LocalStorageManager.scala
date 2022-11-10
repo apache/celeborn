@@ -410,7 +410,12 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  def shuffleKeySet(): util.Set[String] = writers.keySet()
+  def shuffleResourceConsumption: util.Map[String, Long] = {
+    writers.asScala.map { keyedWriters => {
+      keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
+    }
+    }.toMap.asJava
+  }
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     val workingDirs = workingDirsSnapshot()
