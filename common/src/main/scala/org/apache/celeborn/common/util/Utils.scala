@@ -606,6 +606,13 @@ object Utils extends Logging {
     s"$applicationId-$shuffleId"
   }
 
+  def makePartitionGroupId(partitionId: Int, attemptId: Int): String = {
+    attemptId match {
+      case id if id == 0 => s"$partitionId"
+      case _ => s"$partitionId-$attemptId"
+    }
+  }
+
   def splitShuffleKey(shuffleKey: String): (String, Int) = {
     val splits = shuffleKey.split("-")
     val appId = splits.dropRight(1).mkString("-")
@@ -613,11 +620,19 @@ object Utils extends Logging {
     (appId, shuffleId)
   }
 
-  def splitPartitionLocationUniqueId(uniqueId: String): (Int, Int) = {
+  def splitPartitionLocationUniqueId(uniqueId: String): (Int, Int, Int) = {
     val splits = uniqueId.split("-")
-    val partitionId = splits.dropRight(1).mkString("-").toInt
-    val epoch = splits.last.toInt
-    (partitionId, epoch)
+    splits match {
+      case r if r.size == 3 =>
+        val partitionId = splits(0).toInt
+        val attemptId = splits(1).toInt
+        val epoch = splits.last.toInt
+        (partitionId, attemptId, epoch)
+      case _ =>
+        val partitionId = splits(0).toInt
+        val epoch = splits.last.toInt
+        (partitionId, 0, epoch)
+    }
   }
 
   def makeReducerKey(applicationId: String, shuffleId: Int, partitionId: Int): String = {

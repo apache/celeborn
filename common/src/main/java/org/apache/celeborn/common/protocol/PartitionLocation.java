@@ -19,6 +19,7 @@ package org.apache.celeborn.common.protocol;
 
 import java.io.Serializable;
 
+import org.apache.celeborn.common.util.Utils;
 import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -49,6 +50,7 @@ public class PartitionLocation implements Serializable {
   }
 
   private int id;
+  private int attemptId;
   private int epoch;
   private String host;
   private int rpcPort;
@@ -62,6 +64,7 @@ public class PartitionLocation implements Serializable {
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
+    this.attemptId = loc.attemptId;
     this.epoch = loc.epoch;
     this.host = loc.host;
     this.rpcPort = loc.rpcPort;
@@ -75,6 +78,31 @@ public class PartitionLocation implements Serializable {
   }
 
   public PartitionLocation(
+          int id,
+          int attemptId,
+          int epoch,
+          String host,
+          int rpcPort,
+          int pushPort,
+          int fetchPort,
+          int replicatePort,
+          Mode mode,
+          PartitionLocation peer) {
+    this(
+            id,
+            attemptId,
+            epoch,
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            mode,
+            peer,
+            new StorageInfo(),
+            new RoaringBitmap());
+  }
+  public PartitionLocation(
       int id,
       int epoch,
       String host,
@@ -85,6 +113,7 @@ public class PartitionLocation implements Serializable {
       Mode mode) {
     this(
         id,
+        0,
         epoch,
         host,
         rpcPort,
@@ -99,30 +128,7 @@ public class PartitionLocation implements Serializable {
 
   public PartitionLocation(
       int id,
-      int epoch,
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Mode mode,
-      PartitionLocation peer) {
-    this(
-        id,
-        epoch,
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        mode,
-        peer,
-        new StorageInfo(),
-        new RoaringBitmap());
-  }
-
-  public PartitionLocation(
-      int id,
+      int attemptId,
       int epoch,
       String host,
       int rpcPort,
@@ -134,6 +140,7 @@ public class PartitionLocation implements Serializable {
       StorageInfo hint,
       RoaringBitmap mapIdBitMap) {
     this.id = id;
+    this.attemptId = attemptId;
     this.epoch = epoch;
     this.host = host;
     this.rpcPort = rpcPort;
@@ -148,6 +155,10 @@ public class PartitionLocation implements Serializable {
 
   public int getId() {
     return id;
+  }
+
+  public int getAttemptId() {
+    return attemptId;
   }
 
   public void setId(int id) {
@@ -220,11 +231,15 @@ public class PartitionLocation implements Serializable {
   }
 
   public String getUniqueId() {
-    return id + "-" + epoch;
+    return attemptId == 0 ? id + "-" + epoch : id + "-" + attemptId + "-" + epoch;
+  }
+
+  public String getGroupId() {
+    return Utils.makePartitionGroupId(id, attemptId);
   }
 
   public String getFileName() {
-    return id + "-" + epoch + "-" + mode.mode;
+    return attemptId == 0 ? id + "-" + epoch + "-" + mode.mode : id + "-" + attemptId + "-" + epoch + "-" + mode.mode;
   }
 
   public int getRpcPort() {
@@ -258,6 +273,7 @@ public class PartitionLocation implements Serializable {
     }
     PartitionLocation o = (PartitionLocation) other;
     return id == o.id
+        && attemptId == o.attemptId
         && epoch == o.epoch
         && host.equals(o.host)
         && rpcPort == o.rpcPort
@@ -267,7 +283,7 @@ public class PartitionLocation implements Serializable {
 
   @Override
   public int hashCode() {
-    return (id + epoch + host + rpcPort + pushPort + fetchPort).hashCode();
+    return (id + attemptId + epoch + host + rpcPort + pushPort + fetchPort).hashCode();
   }
 
   @Override
@@ -277,8 +293,10 @@ public class PartitionLocation implements Serializable {
       peerAddr = peer.hostAndPorts();
     }
     return "PartitionLocation["
-        + "\n  id-epoch:"
+        + "\n  id-attemptId-epoch:"
         + id
+        + "-"
+        + attemptId
         + "-"
         + epoch
         + "\n  host-rpcPort-pushPort-fetchPort-replicatePort:"

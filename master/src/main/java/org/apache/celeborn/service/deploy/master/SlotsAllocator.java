@@ -387,6 +387,7 @@ public class SlotsAllocator {
     return new PartitionLocation(
         partitionIndex,
         0,
+        0,
         workerInfo.host(),
         workerInfo.rpcPort(),
         workerInfo.pushPort(),

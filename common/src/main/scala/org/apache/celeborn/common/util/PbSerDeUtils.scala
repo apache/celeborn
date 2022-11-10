@@ -211,6 +211,7 @@ object PbSerDeUtils {
     }
     val partitionLocation = new PartitionLocation(
       pbLoc.getId,
+      pbLoc.getAttemptId,
       pbLoc.getEpoch,
       pbLoc.getHost,
       pbLoc.getRpcPort,
@@ -227,6 +228,7 @@ object PbSerDeUtils {
       if (peerPb.getMode eq PbPartitionLocation.Mode.Slave) peerMode = Mode.SLAVE
       val peerLocation = new PartitionLocation(
         peerPb.getId,
+        peerPb.getAttemptId,
         peerPb.getEpoch,
         peerPb.getHost,
         peerPb.getRpcPort,
@@ -253,6 +255,7 @@ object PbSerDeUtils {
       .setHost(location.getHost)
       .setEpoch(location.getEpoch)
       .setId(location.getId)
+      .setAttemptId(location.getAttemptId)
       .setRpcPort(location.getRpcPort)
       .setPushPort(location.getPushPort)
       .setFetchPort(location.getFetchPort)
@@ -270,6 +273,7 @@ object PbSerDeUtils {
         .setHost(location.getPeer.getHost)
         .setEpoch(location.getPeer.getEpoch)
         .setId(location.getPeer.getId)
+        .setAttemptId(location.getAttemptId)
         .setRpcPort(location.getPeer.getRpcPort)
         .setPushPort(location.getPeer.getPushPort)
         .setFetchPort(location.getPeer.getFetchPort)
