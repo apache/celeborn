@@ -608,7 +608,7 @@ object Utils extends Logging {
 
   def makePartitionGroupId(partitionId: Int, attemptId: Int): String = {
     attemptId match {
-      case id if id == 0 => s"$partitionId"
+      case 0 => s"$partitionId"
       case _ => s"$partitionId-$attemptId"
     }
   }

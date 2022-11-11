@@ -600,7 +600,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       cause: Option[StatusCode] = None): Unit = {
 
     val partitionAttemptId = oldPartition match {
-      case partitionLocation if partitionLocation == null => 0
+      case null => 0
       case _ => oldPartition.getAttemptId
     }
 
