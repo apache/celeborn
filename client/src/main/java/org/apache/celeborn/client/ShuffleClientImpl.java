@@ -682,8 +682,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       // add batch data
       logger.debug("Merge batch {}.", nextBatchId);
       String addressPair = genAddressPair(loc);
-      boolean shoudPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
-      if (shoudPush) {
+      boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
+      if (shouldPush) {
         limitMaxInFlight(mapKey, pushState, maxInFlight);
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
         doPushMergedData(
@@ -705,6 +705,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId, int partitionId, String applicationId, PartitionLocation loc) {
     Set<Integer> splittingSet =
         splitting.computeIfAbsent(shuffleId, integer -> ConcurrentHashMap.newKeySet());
+    //noinspection SynchronizationOnLocalVariableOrMethodParameter
     synchronized (splittingSet) {
       if (splittingSet.contains(partitionId)) {
         logger.debug(

@@ -22,12 +22,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import scala.reflect.ClassTag$;
 
@@ -53,14 +49,14 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef;
 public class ShuffleClientSuiteJ {
 
   private ShuffleClientImpl shuffleClient;
-  private RpcEndpointRef endpointRef = mock(RpcEndpointRef.class);
-  private TransportClientFactory clientFactory = mock(TransportClientFactory.class);
-  private TransportClient client = mock(TransportClient.class);
+  private final RpcEndpointRef endpointRef = mock(RpcEndpointRef.class);
+  private final TransportClientFactory clientFactory = mock(TransportClientFactory.class);
+  private final TransportClient client = mock(TransportClient.class);
 
-  private static String TEST_APPLICATION_ID = "testapp1";
-  private static int TEST_SHUFFLE_ID = 1;
-  private static int TEST_ATTEMPT_ID = 0;
-  private static int TEST_REDUCRE_ID = 0;
+  private static final String TEST_APPLICATION_ID = "testapp1";
+  private static final int TEST_SHUFFLE_ID = 1;
+  private static final int TEST_ATTEMPT_ID = 0;
+  private static final int TEST_REDUCRE_ID = 0;
 
   private static final int MASTER_RPC_PORT = 1234;
   private static final int MASTER_PUSH_PORT = 1235;
@@ -91,7 +87,7 @@ public class ShuffleClientSuiteJ {
           SLAVE_REPLICATE_PORT,
           PartitionLocation.Mode.SLAVE);
 
-  private static byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
   private final int BATCH_HEADER_SIZE = 4 * 4;
 
   @Test
@@ -178,18 +174,6 @@ public class ShuffleClientSuiteJ {
     }
   }
 
-  private synchronized String getLocalHost() {
-    InetAddress ia = null;
-    if (ia == null) {
-      try {
-        ia = InetAddress.getLocalHost();
-      } catch (UnknownHostException e) {
-        return null;
-      }
-    }
-    return ia.getHostName();
-  }
-
   private CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.shuffle.compression.codec", codec.name());
@@ -221,8 +205,9 @@ public class ShuffleClientSuiteJ {
             return null;
           }
 
+          @SafeVarargs
           @Override
-          public ChannelFuture addListeners(
+          public final ChannelFuture addListeners(
               GenericFutureListener<? extends Future<? super Void>>... listeners) {
             return null;
           }
@@ -233,14 +218,15 @@ public class ShuffleClientSuiteJ {
             return null;
           }
 
+          @SafeVarargs
           @Override
-          public ChannelFuture removeListeners(
+          public final ChannelFuture removeListeners(
               GenericFutureListener<? extends Future<? super Void>>... listeners) {
             return null;
           }
 
           @Override
-          public ChannelFuture sync() throws InterruptedException {
+          public ChannelFuture sync() {
             return null;
           }
 
@@ -250,7 +236,7 @@ public class ShuffleClientSuiteJ {
           }
 
           @Override
-          public ChannelFuture await() throws InterruptedException {
+          public ChannelFuture await() {
             return null;
           }
 
@@ -280,12 +266,12 @@ public class ShuffleClientSuiteJ {
           }
 
           @Override
-          public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+          public boolean await(long timeout, TimeUnit unit) {
             return true;
           }
 
           @Override
-          public boolean await(long timeoutMillis) throws InterruptedException {
+          public boolean await(long timeoutMillis) {
             return true;
           }
 
@@ -320,13 +306,13 @@ public class ShuffleClientSuiteJ {
           }
 
           @Override
-          public Void get() throws InterruptedException, ExecutionException {
+          public Void get() {
             return null;
           }
 
+          @SuppressWarnings("NullableProblems")
           @Override
-          public Void get(long timeout, TimeUnit unit)
-              throws InterruptedException, ExecutionException, TimeoutException {
+          public Void get(long timeout, TimeUnit unit) {
             return null;
           }
         };
