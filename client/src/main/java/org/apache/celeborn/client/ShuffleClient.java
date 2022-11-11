@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 /**
@@ -109,6 +110,9 @@ public abstract class ShuffleClient implements Cloneable {
     }
     return hdfsFs;
   }
+
+  public abstract PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId);
 
   public abstract void setupMetaServiceRef(String host, int port);
 

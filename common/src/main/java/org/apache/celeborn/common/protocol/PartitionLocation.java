@@ -22,6 +22,7 @@ import java.io.Serializable;
 import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.util.PackedPartitionId;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -277,9 +278,13 @@ public class PartitionLocation implements Serializable {
       peerAddr = peer.hostAndPorts();
     }
     return "PartitionLocation["
-        + "\n  id-epoch:"
+        + "\n  id(rawId-attemptId)-epoch:"
         + id
+        + "("
+        + getRawId()
         + "-"
+        + getAttemptId()
+        + ")-"
         + epoch
         + "\n  host-rpcPort-pushPort-fetchPort-replicatePort:"
         + host
@@ -312,5 +317,13 @@ public class PartitionLocation implements Serializable {
 
   public void setMapIdBitMap(RoaringBitmap mapIdBitMap) {
     this.mapIdBitMap = mapIdBitMap;
+  }
+
+  public int getRawId() {
+    return PackedPartitionId.getRawPartitionId(id);
+  }
+
+  public int getAttemptId() {
+    return PackedPartitionId.getAttemptId(id);
   }
 }
