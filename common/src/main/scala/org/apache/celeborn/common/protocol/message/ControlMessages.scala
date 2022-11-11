@@ -130,6 +130,24 @@ object ControlMessages extends Logging {
         .build()
   }
 
+  object RegisterMapPartitionTask {
+    def apply(
+        appId: String,
+        shuffleId: Int,
+        numMappers: Int,
+        mapId: Int,
+        attemptId: Int,
+        partitionId: Int): PbRegisterMapPartitionTask =
+      PbRegisterMapPartitionTask.newBuilder()
+        .setApplicationId(appId)
+        .setShuffleId(shuffleId)
+        .setNumMappers(numMappers)
+        .setMapId(mapId)
+        .setAttemptId(attemptId)
+        .setPartitionId(partitionId)
+        .build()
+  }
+
   object RegisterShuffleResponse {
     def apply(
         status: StatusCode,

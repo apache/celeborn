@@ -20,6 +20,8 @@ package org.apache.celeborn.common.protocol;
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 
+import org.apache.celeborn.common.util.PackedPartitionId;
+
 public class PartitionLocationSuiteJ {
 
   private final int partitionId = 0;
@@ -183,9 +185,13 @@ public class PartitionLocationSuiteJ {
     bitmap.add(1);
     bitmap.add(2);
     bitmap.add(3);
+
+    int attemptId = 10;
+    int rawPartitionId = 1000;
+    int newPartitionId = PackedPartitionId.packedPartitionId(rawPartitionId, attemptId);
     PartitionLocation location3 =
         new PartitionLocation(
-            partitionId,
+            newPartitionId,
             epoch,
             host,
             rpcPort,
@@ -199,7 +205,7 @@ public class PartitionLocationSuiteJ {
 
     String exp1 =
         "PartitionLocation[\n"
-            + "  id-epoch:0-0\n"
+            + "  id(rawId-attemptId)-epoch:0(0-0)-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(empty)\n"
@@ -207,7 +213,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp2 =
         "PartitionLocation[\n"
-            + "  id-epoch:0-0\n"
+            + "  id(rawId-attemptId)-epoch:0(0-0)-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
@@ -215,7 +221,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"
-            + "  id-epoch:0-0\n"
+            + "  id(rawId-attemptId)-epoch:167773160(1000-10)-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"

@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 public class DummyShuffleClient extends ShuffleClient {
@@ -37,6 +38,12 @@ public class DummyShuffleClient extends ShuffleClient {
 
   public DummyShuffleClient(File file) throws Exception {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
+  }
+
+  @Override
+  public PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+    return null;
   }
 
   @Override
