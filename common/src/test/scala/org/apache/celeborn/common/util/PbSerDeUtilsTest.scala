@@ -161,10 +161,15 @@ class PbSerDeUtilsTest extends RssFunSuite {
   }
 
   test("fromAndToPbWorkerInfo") {
-    val pbWorkerInfo = PbSerDeUtils.toPbWorkerInfo(workerInfo1)
+    val pbWorkerInfo = PbSerDeUtils.toPbWorkerInfo(workerInfo1, false)
+    val pbWorkerInfoWithEmptyResource = PbSerDeUtils.toPbWorkerInfo(workerInfo1, true)
     val restoredWorkerInfo = PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfo)
+    val restoredWorkerInfoWithEmptyResource = PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfoWithEmptyResource)
 
     assert(restoredWorkerInfo.equals(workerInfo1))
+    assert(restoredWorkerInfoWithEmptyResource.userResourceConsumption.equals(new util.HashMap[
+      UserIdentifier,
+      ResourceConsumption]()))
   }
 
   test("fromAndToPbPartitionLocation") {
