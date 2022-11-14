@@ -111,12 +111,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val action = "PushData"
 
     // find FileWriter responsible for the data
-    val location =
-      if (isMaster) {
-        partitionLocationInfo.getMasterLocation(shuffleKey, pushData.partitionUniqueId)
-      } else {
-        partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
-      }
+    val location = getLocation(isMaster, shuffleKey, pushData.partitionUniqueId)
 
     val softSplit = new AtomicBoolean(false)
     val wrappedCallback = createWrappedRpcResponseCallback(
@@ -127,23 +122,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       softSplit,
       location)
 
-    if (location == null) {
-      val (mapId, attemptId) = getMapAttempt(body)
-      if (shuffleMapperAttempts.containsKey(shuffleKey) &&
-        -1 != shuffleMapperAttempts.get(shuffleKey)(mapId)) {
-        // partition data has already been committed
-        logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
-          s" attempt $attemptId), but this mapper has already been ended.")
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
-      } else {
-        val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
-          s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
-        logWarning(s"[handlePushData] $msg")
-        callback.onFailure(
-          new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
-      }
-      return
-    }
+    val isReturn = checkLocationNull(
+      action,
+      shuffleKey,
+      pushData.partitionUniqueId,
+      body,
+      location,
+      callback,
+      wrappedCallback)
+    if (isReturn) return
+
     val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
     val exception = fileWriter.getException
     if (exception != null) {
@@ -246,31 +234,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       null)
 
     // find FileWriters responsible for the data
-    val locations = pushMergedData.partitionUniqueIds.map { id =>
-      val loc =
-        if (isMaster) {
-          partitionLocationInfo.getMasterLocation(shuffleKey, id)
-        } else {
-          partitionLocationInfo.getSlaveLocation(shuffleKey, id)
-        }
-      if (loc == null) {
-        val (mapId, attemptId) = getMapAttempt(body)
-        if (shuffleMapperAttempts.containsKey(shuffleKey)
-          && -1 != shuffleMapperAttempts.get(shuffleKey)(mapId)) {
-          val msg = s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId," +
-            s" attempt $attemptId), but this mapper has already been ended."
-          logInfo(msg)
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
-        } else {
-          val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
-            s" attempt $attemptId, uniqueId $id)."
-          logWarning(s"[handlePushMergedData] $msg")
-          wrappedCallback.onFailure(new Exception(msg))
-        }
-        return
-      }
-      loc
-    }
+    val (isReturn, locations) = getLocations(
+      action,
+      isMaster,
+      shuffleKey,
+      body,
+      callback,
+      wrappedCallback,
+      pushMergedData.partitionUniqueIds)
+    if (isReturn) return
 
     val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
     val fileWriterWithException = fileWriters.find(_.getException != null)
@@ -492,4 +464,87 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case false => workerSource.startTimer(workSourceTimeSlave, "$requestId")
     }
   }
+
+  private def getLocation(
+      isMaster: Boolean,
+      shuffleKey: String,
+      partitionUniqueId: String): PartitionLocation = {
+    isMaster match {
+      case true => partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
+      case false => partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
+    }
+  }
+
+  private def getLocationAndCheckNull(
+      action: String,
+      isMaster: Boolean,
+      shuffleKey: String,
+      partitionUniqueId: String,
+      body: ByteBuf,
+      callback: RpcResponseCallback,
+      wrappedCallback: RpcResponseCallback): (Boolean, PartitionLocation) = {
+    val location = isMaster match {
+      case true => partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
+      case false => partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
+    }
+    val isReturn = checkLocationNull(
+      action,
+      shuffleKey,
+      partitionUniqueId,
+      body,
+      location,
+      callback,
+      wrappedCallback)
+    (isReturn, location)
+  }
+
+  private def getLocations(
+      action: String,
+      isMaster: Boolean,
+      shuffleKey: String,
+      body: ByteBuf,
+      callback: RpcResponseCallback,
+      wrappedCallback: RpcResponseCallback,
+      partitionUniqueIds: Array[String]): (Boolean, Array[PartitionLocation]) = {
+    val isReturn = false
+    val locations = partitionUniqueIds.map { id =>
+      val (isReturn, loc) =
+        getLocationAndCheckNull(action, isMaster, shuffleKey, id, body, callback, wrappedCallback)
+      if (isReturn) return (true, null)
+      loc
+    }
+    (isReturn, locations)
+  }
+
+  private def checkLocationNull(
+      action: String,
+      shuffleKey: String,
+      partitionUniqueId: String,
+      body: ByteBuf,
+      location: PartitionLocation,
+      callback: RpcResponseCallback,
+      wrappedCallback: RpcResponseCallback): Boolean = {
+    if (location == null) {
+      val (mapId, attemptId) = getMapAttempt(body)
+      if (shuffleMapperAttempts.containsKey(shuffleKey) &&
+        -1 != shuffleMapperAttempts.get(shuffleKey)(mapId)) {
+        // partition data has already been committed
+        logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
+          s" attempt $attemptId), but this mapper has already been ended.")
+        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+      } else {
+        val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
+          s"attempt $attemptId, uniqueId $partitionUniqueId)."
+        logWarning(s"[handle$action] $msg")
+        action match {
+          case "PushData" => callback.onFailure(
+              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+          case "PushMergeData" => wrappedCallback.onFailure(new Exception(msg))
+        }
+      }
+      return true
+    }
+    false
+  }
+
 }
