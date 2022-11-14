@@ -132,31 +132,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       wrappedCallback)
     if (isReturn) return
 
-    val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-    val exception = fileWriter.getException
-    if (exception != null) {
-      logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
-      val message =
-        if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
-        } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
-        }
-      callback.onFailure(new Exception(message, exception))
-      return
-    }
-    val diskFull = workerInfo.diskInfos
-      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
-      .actualUsableSpace < diskReserveSize
-    if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
-      (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
-      if (fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
-        softSplit.set(true)
-      } else {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-        return
-      }
-    }
+    val (isReturnWriter, fileWriter) = getFileWriterAndCheck(action, location, isMaster, callback)
+    if (isReturnWriter) return
+
+    val isReturnDisk = checkDiskFullAndSplit(fileWriter, isMaster, softSplit, callback)
+    if (isReturnDisk) return
+
     fileWriter.incrementPendingWrites()
 
     // for master, send data to slave
@@ -197,22 +178,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     }
 
-    try {
-      fileWriter.write(body)
-    } catch {
-      case e: AlreadyClosedException =>
-        fileWriter.decrementPendingWrites()
-        val (mapId, attemptId) = getMapAttempt(body)
-        val endedAttempt =
-          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-            shuffleMapperAttempts.get(shuffleKey)(mapId)
-          } else -1
-        // TODO just info log for ended attempt
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by ${e.getMessage}")
-      case e: Exception =>
-        logError("Exception encountered when write.", e)
-    }
+    doFileWriter(fileWriter, body, shuffleKey)
   }
 
   def handlePushMergedData(
@@ -244,21 +210,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       pushMergedData.partitionUniqueIds)
     if (isReturn) return
 
-    val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
-    val fileWriterWithException = fileWriters.find(_.getException != null)
-    if (fileWriterWithException.nonEmpty) {
-      val exception = fileWriterWithException.get.getException
-      logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
-        s" has Exception $exception")
-      val message =
-        if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
-        } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
-        }
-      callback.onFailure(new Exception(message, exception))
-      return
-    }
+    val (isReturnWriter, fileWriters) =
+      getFileWritersAndCheck(action, locations, isMaster, callback)
+    if (isReturnWriter) return
+
     fileWriters.foreach(_.incrementPendingWrites())
 
     // for master, send data to slave
@@ -317,26 +272,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       val batchBody = body.slice(offset, length)
 
-      try {
-        if (!alreadyClosed) {
-          fileWriter.write(batchBody)
-        } else {
-          fileWriter.decrementPendingWrites()
-        }
-      } catch {
-        case e: AlreadyClosedException =>
-          fileWriter.decrementPendingWrites()
-          alreadyClosed = true
-          val (mapId, attemptId) = getMapAttempt(body)
-          val endedAttempt =
-            if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-              shuffleMapperAttempts.get(shuffleKey)(mapId)
-            } else -1
-          // TODO just info log for ended attempt
-          logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by ${e.getMessage}")
-        case e: Exception =>
-          logError("Exception encountered when write.", e)
+      if (!alreadyClosed) {
+        alreadyClosed = doFileWriter(fileWriter, batchBody, shuffleKey)
+      } else {
+        fileWriter.decrementPendingWrites()
       }
       index += 1
     }
@@ -547,4 +486,93 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     false
   }
 
+  private def checkFileWriterException(
+      action: String,
+      isMaster: Boolean,
+      fileWriter: FileWriter,
+      callback: RpcResponseCallback): Unit = {
+    action match {
+      case "PushData" => logWarning(
+          s"[handle$action] fileWriter $fileWriter has Exception ${fileWriter.getException}")
+      case "PushMergeData" =>
+        logDebug(s"[handle$action] fileWriter $fileWriter has Exception ${fileWriter.getException}")
+    }
+
+    val message =
+      if (isMaster) {
+        StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
+      } else {
+        StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
+      }
+    callback.onFailure(new Exception(message, fileWriter.getException))
+  }
+
+  private def getFileWriterAndCheck(
+      action: String,
+      location: PartitionLocation,
+      isMaster: Boolean,
+      callback: RpcResponseCallback): (Boolean, FileWriter) = {
+    val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
+    val exception = fileWriter.getException
+    if (exception != null) {
+      checkFileWriterException(action, isMaster, fileWriter, callback)
+      return (true, fileWriter)
+    }
+    (false, fileWriter)
+  }
+
+  private def getFileWritersAndCheck(
+      action: String,
+      locations: Array[PartitionLocation],
+      isMaster: Boolean,
+      callback: RpcResponseCallback): (Boolean, Array[FileWriter]) = {
+    val fileWriters = locations.map(p => {
+      val (isReturn, fileWriter) = getFileWriterAndCheck(action, p, isMaster, callback)
+      if (isReturn) return (true, null)
+      fileWriter
+    })
+    (false, fileWriters)
+  }
+
+  private def checkDiskFullAndSplit(
+      fileWriter: FileWriter,
+      isMaster: Boolean,
+      softSplit: AtomicBoolean,
+      callback: RpcResponseCallback): Boolean = {
+    val diskFull = workerInfo.diskInfos
+      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
+      .actualUsableSpace < diskReserveSize
+    if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
+      (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
+      if (fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
+        softSplit.set(true)
+      } else {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        return true
+      }
+    }
+    false
+  }
+
+  private def doFileWriter(fileWriter: FileWriter, body: ByteBuf, shuffleKey: String): Boolean = {
+    var alreadyClosed = false
+    try {
+      fileWriter.write(body)
+    } catch {
+      case e: AlreadyClosedException =>
+        fileWriter.decrementPendingWrites()
+        alreadyClosed = true
+        val (mapId, attemptId) = getMapAttempt(body)
+        val endedAttempt =
+          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+            shuffleMapperAttempts.get(shuffleKey)(mapId)
+          } else -1
+        // TODO just info log for ended attempt
+        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+          s" $attemptId), caused by ${e.getMessage}")
+      case e: Exception =>
+        logError("Exception encountered when write.", e)
+    }
+    alreadyClosed
+  }
 }
