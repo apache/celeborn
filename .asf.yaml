@@ -18,7 +18,7 @@
 # See: https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
 
 github:
-  description: "Apache Celeborn is an elastic and high-performance service for shuffle and spilled data.."
+  description: "Apache Celeborn is an elastic and high-performance service for shuffle and spilled data."
   homepage: https://celeborn.apache.org/
   labels:
     - bigdata
