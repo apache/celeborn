@@ -141,42 +141,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     fileWriter.incrementPendingWrites()
 
     // for master, send data to slave
-    if (location.getPeer != null && isMaster) {
-      pushData.body().retain()
-      replicateThreadPool.submit(new Runnable {
-        override def run(): Unit = {
-          val peer = location.getPeer
-          val peerWorker = new WorkerInfo(
-            peer.getHost,
-            peer.getRpcPort,
-            peer.getPushPort,
-            peer.getFetchPort,
-            peer.getReplicatePort)
-          if (unavailablePeers.containsKey(peerWorker)) {
-            pushData.body().release()
-            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
-            return
-          }
-          try {
-            val client =
-              pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
-            val newPushData = new PushData(
-              PartitionLocation.Mode.SLAVE.mode(),
-              shuffleKey,
-              pushData.partitionUniqueId,
-              pushData.body)
-            client.pushData(newPushData, wrappedCallback)
-          } catch {
-            case e: Exception =>
-              pushData.body().release()
-              unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(e)
-          }
-        }
-      })
-    } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-    }
+
+    createReplicaTask(isMaster, location, pushData, wrappedCallback)
 
     doFileWriter(fileWriter, body, shuffleKey)
   }
@@ -217,46 +183,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     fileWriters.foreach(_.incrementPendingWrites())
 
     // for master, send data to slave
-    if (locations.head.getPeer != null && isMaster) {
-      pushMergedData.body().retain()
-      replicateThreadPool.submit(new Runnable {
-        override def run(): Unit = {
-          val location = locations.head
-          val peer = location.getPeer
-          val peerWorker = new WorkerInfo(
-            peer.getHost,
-            peer.getRpcPort,
-            peer.getPushPort,
-            peer.getFetchPort,
-            peer.getReplicatePort)
-          if (unavailablePeers.containsKey(peerWorker)) {
-            pushMergedData.body().release()
-            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
-            return
-          }
-          try {
-            val client = pushClientFactory.createClient(
-              peer.getHost,
-              peer.getReplicatePort,
-              location.getId)
-            val newPushMergedData = new PushMergedData(
-              PartitionLocation.Mode.SLAVE.mode(),
-              shuffleKey,
-              pushMergedData.partitionUniqueIds,
-              batchOffsets,
-              pushMergedData.body)
-            client.pushMergedData(newPushMergedData, wrappedCallback)
-          } catch {
-            case e: Exception =>
-              pushMergedData.body().release()
-              unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(e)
-          }
-        }
-      })
-    } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-    }
+
+    createReplicaTask(isMaster, locations.head, pushMergedData, wrappedCallback)
 
     var index = 0
     var fileWriter: FileWriter = null
@@ -574,5 +502,65 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         logError("Exception encountered when write.", e)
     }
     alreadyClosed
+  }
+
+  private def createReplicaTask(
+      isMaster: Boolean,
+      location: PartitionLocation,
+      message: RequestMessage,
+      wrappedCallback: RpcResponseCallback): Unit = {
+    // for master, send data to slave
+    if (location.getPeer != null && isMaster) {
+      message.body().retain()
+      replicateThreadPool.submit(new Runnable {
+        override def run(): Unit = {
+          val peer = location.getPeer
+          val peerWorker = new WorkerInfo(
+            peer.getHost,
+            peer.getRpcPort,
+            peer.getPushPort,
+            peer.getFetchPort,
+            peer.getReplicatePort)
+          if (unavailablePeers.containsKey(peerWorker)) {
+            message.body().release()
+            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
+            return
+          }
+          try {
+            val client = pushClientFactory.createClient(
+              peer.getHost,
+              peer.getReplicatePort,
+              location.getId)
+            message match {
+              case pd: PushData => {
+                val newPushData = new PushData(
+                  PartitionLocation.Mode.SLAVE.mode(),
+                  pd.shuffleKey,
+                  pd.partitionUniqueId,
+                  pd.body)
+                client.pushData(newPushData, wrappedCallback)
+              }
+              case pm: PushMergedData => {
+                val newPushMergedData = new PushMergedData(
+                  PartitionLocation.Mode.SLAVE.mode(),
+                  pm.shuffleKey,
+                  pm.partitionUniqueIds,
+                  pm.batchOffsets,
+                  message.body)
+                client.pushMergedData(newPushMergedData, wrappedCallback)
+              }
+            }
+
+          } catch {
+            case e: Exception =>
+              message.body().release()
+              unavailablePeers.put(peerWorker, System.currentTimeMillis())
+              wrappedCallback.onFailure(e)
+          }
+        }
+      })
+    } else {
+      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+    }
   }
 }
