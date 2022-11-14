@@ -190,25 +190,22 @@ object PbSerDeUtils {
 
   def toPbWorkerInfo(
       workerInfo: WorkerInfo,
-      setUserResourceConsumptionEmpty: Boolean): PbWorkerInfo = {
+      eliminateUserResourceConsumption: Boolean): PbWorkerInfo = {
     val diskInfos = workerInfo.diskInfos.values
     val pbDiskInfos = new util.ArrayList[PbDiskInfo]()
     diskInfos.asScala.foreach(k => pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(k)))
-    PbWorkerInfo.newBuilder
+    val builder = PbWorkerInfo.newBuilder
       .setHost(workerInfo.host)
       .setRpcPort(workerInfo.rpcPort)
       .setFetchPort(workerInfo.fetchPort)
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .addAllDisks(pbDiskInfos)
-      .putAllUserResourceConsumption {
-        if (setUserResourceConsumptionEmpty) {
-          new util.HashMap[String, PbResourceConsumption]()
-        } else {
-          PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption)
-        }
-      }
-      .build
+    if (!eliminateUserResourceConsumption) {
+      builder.putAllUserResourceConsumption(
+        PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption))
+    }
+    builder.build
   }
 
   def fromPbPartitionLocation(pbLoc: PbPartitionLocation): PartitionLocation = {
