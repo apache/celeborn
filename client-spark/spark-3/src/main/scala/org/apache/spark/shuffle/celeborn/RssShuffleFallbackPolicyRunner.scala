@@ -35,7 +35,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   def applyForceFallbackPolicy(): Boolean = {
     if (conf.shuffleForceFallbackEnabled) {
       val conf = CelebornConf.SHUFFLE_FORCE_FALLBACK_ENABLED
-      logWarning(s"Enable ${conf.alternatives.foldLeft(conf.key)((x, y) => s"$x or $y")} which will force fallback.")
+      logWarning(s"${conf.alternatives.foldLeft(conf.key)((x, y) => s"$x or $y")} is enabled, which will force fallback.")
     }
     conf.shuffleForceFallbackEnabled
   }
