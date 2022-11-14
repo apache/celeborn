@@ -583,7 +583,9 @@ object ControlMessages extends Logging {
 
     case GetBlacklist(localBlacklist) =>
       val payload = PbGetBlacklist.newBuilder()
-        .addAllLocalBlackList(localBlacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo)
+        .addAllLocalBlackList(localBlacklist.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }
           .toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST, payload)
@@ -591,9 +593,13 @@ object ControlMessages extends Logging {
     case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
-      builder.addAllBlacklist(blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo).toList.asJava)
-      builder.addAllUnknownWorkers(
-        unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo).toList.asJava)
+      builder.addAllBlacklist(blacklist.asScala.map { workerInfo =>
+        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+      }
+        .toList.asJava)
+      builder.addAllUnknownWorkers(unknownWorkers.asScala.map { workerInfo =>
+        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+      }.toList.asJava)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST_RESPONSE, payload)
 
@@ -612,7 +618,10 @@ object ControlMessages extends Logging {
 
     case ReportWorkerUnavailable(failed, requestId) =>
       val payload = PbReportWorkerUnavailable.newBuilder()
-        .addAllUnavailable(failed.asScala.map(PbSerDeUtils.toPbWorkerInfo(_)).toList.asJava)
+        .addAllUnavailable(failed.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }
+          .toList.asJava)
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
@@ -724,7 +733,10 @@ object ControlMessages extends Logging {
     case GetWorkerInfosResponse(status, workerInfos @ _*) =>
       val payload = PbGetWorkerInfosResponse.newBuilder()
         .setStatus(status.getValue)
-        .addAllWorkerInfos(workerInfos.map(PbSerDeUtils.toPbWorkerInfo(_)).toList.asJava)
+        .addAllWorkerInfos(workerInfos.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, false)
+        }
+          .toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.GET_WORKER_INFO_RESPONSE, payload)
 
