@@ -108,13 +108,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
-
-    val key = s"${pushData.requestId}"
-    if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
-    } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
-    }
+    val action = "PushData"
 
     // find FileWriter responsible for the data
     val location =
@@ -125,32 +119,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     val softSplit = new AtomicBoolean(false)
-    val wrappedCallback = new RpcResponseCallback() {
-      override def onSuccess(response: ByteBuffer): Unit = {
-        if (isMaster) {
-          workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
-          if (response.remaining() > 0) {
-            val resp = ByteBuffer.allocate(response.remaining())
-            resp.put(response)
-            resp.flip()
-            callback.onSuccess(resp)
-          } else if (softSplit.get()) {
-            callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
-          } else {
-            callback.onSuccess(response)
-          }
-        } else {
-          workerSource.stopTimer(WorkerSource.SlavePushDataTime, key)
-          callback.onSuccess(response)
-        }
-      }
-
-      override def onFailure(e: Throwable): Unit = {
-        logError(s"[handlePushData.onFailure] partitionLocation: $location")
-        workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage(), e))
-      }
-    }
+    val wrappedCallback = createWrappedRpcResponseCallback(
+      action,
+      isMaster,
+      pushData.requestId,
+      callback,
+      softSplit,
+      location)
 
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
@@ -260,37 +235,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
+    val action = "PushMergeData"
 
-    val key = s"${pushMergedData.requestId}"
-    if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
-    } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
-    }
-
-    val wrappedCallback = new RpcResponseCallback() {
-      override def onSuccess(response: ByteBuffer): Unit = {
-        if (isMaster) {
-          workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
-          if (response.remaining() > 0) {
-            val resp = ByteBuffer.allocate(response.remaining())
-            resp.put(response)
-            resp.flip()
-            callback.onSuccess(resp)
-          } else {
-            callback.onSuccess(response)
-          }
-        } else {
-          workerSource.stopTimer(WorkerSource.SlavePushDataTime, key)
-          callback.onSuccess(response)
-        }
-      }
-
-      override def onFailure(e: Throwable): Unit = {
-        workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage, e))
-      }
-    }
+    val wrappedCallback = createWrappedRpcResponseCallback(
+      action,
+      isMaster,
+      pushMergedData.requestId,
+      callback,
+      null,
+      null)
 
     // find FileWriters responsible for the data
     val locations = pushMergedData.partitionUniqueIds.map { id =>
@@ -466,6 +419,77 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           Throwables.getStackTraceAsString(e)));
     } finally {
       message.body().release()
+    }
+  }
+
+  class WrappedRpcResponseCallback(
+      action: String,
+      isMaster: Boolean,
+      requestId: Long,
+      softSplit: AtomicBoolean,
+      location: PartitionLocation,
+      workerSourceTimeMaster: String,
+      workerSourceTimeSlave: String,
+      callback: RpcResponseCallback)
+    extends RpcResponseCallback {
+    override def onSuccess(response: ByteBuffer): Unit = {
+      if (isMaster) {
+        workerSource.stopTimer(workerSourceTimeMaster, s"$requestId")
+        if (response.remaining() > 0) {
+          val resp = ByteBuffer.allocate(response.remaining())
+          resp.put(response)
+          resp.flip()
+          callback.onSuccess(resp)
+        } else if (softSplit != null && softSplit.get()) {
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+        } else {
+          callback.onSuccess(response)
+        }
+      } else {
+        workerSource.stopTimer(workerSourceTimeSlave, s"$requestId")
+        callback.onSuccess(response)
+      }
+    }
+    override def onFailure(e: Throwable): Unit = {
+      if (location != null) {
+        logError(s"[handle$action.onFailure] partitionLocation: $location")
+      }
+      workerSource.incCounter(WorkerSource.PushDataFailCount)
+      callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage, e))
+    }
+  }
+
+  private def createWrappedRpcResponseCallback(
+      action: String,
+      isMaster: Boolean,
+      requestId: Long,
+      callback: RpcResponseCallback,
+      softSplit: AtomicBoolean,
+      location: PartitionLocation): RpcResponseCallback = {
+    setWorkerSource(
+      WorkerSource.MasterPushDataTime,
+      WorkerSource.SlavePushDataTime,
+      isMaster,
+      requestId)
+    new WrappedRpcResponseCallback(
+      action,
+      isMaster,
+      requestId,
+      softSplit,
+      location,
+      WorkerSource.MasterPushDataTime,
+      WorkerSource.SlavePushDataTime,
+      callback)
+  }
+
+  private def setWorkerSource(
+      workSourceTimeMaster: String,
+      workSourceTimeSlave: String,
+      isMaster: Boolean,
+      requestId: Long): Unit = {
+    isMaster match {
+      case true => workerSource.startTimer(workSourceTimeMaster, "$requestId")
+      case false => workerSource.startTimer(workSourceTimeSlave, "$requestId")
     }
   }
 }
