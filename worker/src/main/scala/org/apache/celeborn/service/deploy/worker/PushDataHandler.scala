@@ -31,7 +31,8 @@ import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
-import org.apache.celeborn.common.network.protocol.{PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
+import org.apache.celeborn.common.network.protocol.{Message, PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
+import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -73,31 +74,31 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case pushData: PushData =>
         handleCore(
           client,
-          "PushData",
+          Type.PUSH_DATA,
           pushData,
           pushData.requestId,
-          (action: String, requestId: Long) =>
+          () =>
             handlePushData(
               pushData,
               new SimpleRpcResponseCallback(
-                action,
+                Type.PUSH_DATA,
                 client,
-                requestId,
+                pushData.requestId,
                 pushData.shuffleKey,
                 pushData.partitionUniqueId)))
       case pushMergedData: PushMergedData => {
         handleCore(
           client,
-          "PushMergedData",
+          Type.PUSH_MERGED_DATA,
           pushMergedData,
           pushMergedData.requestId,
-          (action: String, requestId: Long) =>
+          () =>
             handlePushMergedData(
               pushMergedData,
               new SimpleRpcResponseCallback(
-                action,
+                Type.PUSH_MERGED_DATA,
                 client,
-                requestId,
+                pushMergedData.requestId,
                 pushMergedData.shuffleKey,
                 pushMergedData.partitionUniqueIds.mkString(","))))
       }
@@ -429,7 +430,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   override def checkRegistered(): Boolean = registered.get()
 
   class SimpleRpcResponseCallback(
-      action: String,
+      messageType: Message.Type,
       client: TransportClient,
       requestId: Long,
       shuffleKey: String,
@@ -443,7 +444,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     override def onFailure(e: Throwable): Unit = {
       logError(
-        s"[process$action] Process $action onFailure! ShuffleKey:$shuffleKey , partitionUniqueId: $partitionUniqueId",
+        s"[process${messageType2String(messageType)}] Process ${messageType2String(
+          messageType)} onFailure! ShuffleKey:$shuffleKey , partitionUniqueId: $partitionUniqueId",
         e)
       client.getChannel.writeAndFlush(new RpcFailure(requestId, e.getMessage))
     }
@@ -451,21 +453,28 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   private def handleCore(
       client: TransportClient,
-      action: String,
+      messageType: Message.Type,
       message: RequestMessage,
       requestId: Long,
-      handler: (String, Long) => Unit): Unit = {
+      handler: () => Unit): Unit = {
     try {
       rpcSource.updateMessageMetrics(message, message.body().size())
-      handler(action, requestId)
+      handler()
     } catch {
       case e: Exception =>
-        logError(s"Error while handle$action $message", e);
+        logError(s"Error while handle${messageType2String(messageType)} $message", e);
         client.getChannel.writeAndFlush(new RpcFailure(
           requestId,
           Throwables.getStackTraceAsString(e)));
     } finally {
       message.body().release()
+    }
+  }
+
+  private def messageType2String(messageType: Message.Type): Unit = {
+    messageType match {
+      case Type.PUSH_DATA => "PushData"
+      case Type.PUSH_MERGED_DATA => "PushMergeData"
     }
   }
 }
