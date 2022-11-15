@@ -224,9 +224,7 @@ public final class Platform {
     return newMemory;
   }
 
-  /**
-   * Allocate a DirectByteBuffer, potentially bypassing the JVM's MaxDirectMemorySize limit.
-   */
+  /** Allocate a DirectByteBuffer, potentially bypassing the JVM's MaxDirectMemorySize limit. */
   @SuppressWarnings("unchecked")
   public static ByteBuffer allocateDirectBuffer(int size) {
     try {
@@ -236,8 +234,10 @@ public final class Platform {
           return ByteBuffer.allocateDirect(size);
         } catch (OutOfMemoryError oome) {
           // checkstyle.off: RegexpSinglelineJava
-          throw new OutOfMemoryError("Failed to allocate direct buffer (" + oome.getMessage() +
-                  "); try increasing -XX:MaxDirectMemorySize=... to, for example, your heap size");
+          throw new OutOfMemoryError(
+              "Failed to allocate direct buffer ("
+                  + oome.getMessage()
+                  + "); try increasing -XX:MaxDirectMemorySize=... to, for example, your heap size");
           // checkstyle.on: RegexpSinglelineJava
         }
       }
@@ -247,8 +247,9 @@ public final class Platform {
       long memory = allocateMemory(size);
       ByteBuffer buffer = (ByteBuffer) DBB_CONSTRUCTOR.newInstance(memory, size);
       try {
-        DBB_CLEANER_FIELD.set(buffer,
-                CLEANER_CREATE_METHOD.invoke(null, buffer, (Runnable) () -> freeMemory(memory)));
+        DBB_CLEANER_FIELD.set(
+            buffer,
+            CLEANER_CREATE_METHOD.invoke(null, buffer, (Runnable) () -> freeMemory(memory)));
       } catch (IllegalAccessException | InvocationTargetException e) {
         freeMemory(memory);
         throw new IllegalStateException(e);

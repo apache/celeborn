@@ -103,10 +103,11 @@ public class MemoryTracker {
       double maxSortMemRatio,
       long checkInterval,
       long reportInterval) {
-    String[][] providers = new String[][]{
-            {"sun.misc.VM", "maxDirectMemory"},
-            {"jdk.internal.misc.VM", "maxDirectMemory"}
-    };
+    String[][] providers =
+        new String[][] {
+          {"sun.misc.VM", "maxDirectMemory"},
+          {"jdk.internal.misc.VM", "maxDirectMemory"}
+        };
 
     Method maxMemMethod = null;
     for (String[] provider : providers) {
@@ -119,8 +120,10 @@ public class MemoryTracker {
         maxMemMethod.setAccessible(true);
         maxDirectorMemory = (long) maxMemMethod.invoke(null);
         break;
-      } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
-              InvocationTargetException ignored) {
+      } catch (ClassNotFoundException
+          | NoSuchMethodException
+          | IllegalAccessException
+          | InvocationTargetException ignored) {
         // Ignore Exception
       }
     }
