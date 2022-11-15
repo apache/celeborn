@@ -63,6 +63,7 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging {
     for (i <- index until topItemCount - 1) {
       topNItems(i) = topNItems(i + 1)
     }
+    topNItems(topItemCount - 1) = null
   }
 
   def findInsertPosition(usage: Long): Int = {

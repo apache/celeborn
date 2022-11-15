@@ -189,10 +189,10 @@ private[deploy] class Master(
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-    shuffleResourceConsumption, requestId) =>
+    shuffleDiskUsage, requestId) =>
       logDebug(s"Received heartbeat from worker $host:$rpcPort:$pushPort:$fetchPort.")
       executeWithLeaderChecker(context, handleHeartBeatFromWorker(context, host, rpcPort, pushPort,
-        fetchPort, replicatePort, numSlots, shuffleResourceConsumption, requestId))
+        fetchPort, replicatePort, numSlots, shuffleDiskUsage, requestId))
 
     case GetWorkerInfos =>
       executeWithLeaderChecker(context, handleGetWorkerInfos(context))
@@ -269,7 +269,8 @@ private[deploy] class Master(
         expiredShuffleKeys.add(key)
       }
     }
-    topAppDiskUsageMetric.update(statusSystem.getAppDiskUsageDetailsSnapShot())
+    topAppDiskUsageMetric.update(new util.HashMap[WorkerInfo, util.Map[String, java.lang.Long]](
+      statusSystem.appDiskUsageDetails))
     context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
   }
 

@@ -157,7 +157,7 @@ public class MetaHandler {
           LOG.debug("Handle worker heartbeat for {} {} {} {} {} {}",
                    host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
           time = request.getWorkerHeartBeatRequest().getTime();
-          Map<String,Long> diskUsageMap = request
+          Map<String, Long> diskUsageMap = request
                   .getWorkerHeartBeatRequest().getShuffleDiskUsageMap();
           metaSystem.updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
             numSlots, time, diskUsageMap);

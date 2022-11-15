@@ -410,7 +410,7 @@ private[worker] final class LocalStorageManager(
     }
   }
 
-  def shuffleResourceConsumption: util.Map[String, Long] = {
+  def shuffleDiskUsage: util.Map[String, Long] = {
     writers.asScala.map { keyedWriters => {
       keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
     }

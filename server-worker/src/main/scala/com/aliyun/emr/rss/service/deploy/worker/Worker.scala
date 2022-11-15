@@ -186,24 +186,24 @@ private[deploy] class Worker(
   }
 
   def heartBeatToMaster(): Unit = {
-    val shuffleResourceConsumption = new jHashMap[String, java.lang.Long]
+    val shuffleDiskUsage = new jHashMap[String, java.lang.Long]
     partitionLocationInfo.shuffleKeySet.asScala.foreach { shuffleKey =>
-      shuffleResourceConsumption.put(shuffleKey, 0)
+      shuffleDiskUsage.put(shuffleKey, 0)
     }
-    localStorageManager.shuffleResourceConsumption.asScala.foreach { resource =>
-      shuffleResourceConsumption.put(resource._1, resource._2)
+    localStorageManager.shuffleDiskUsage.asScala.foreach { resource =>
+      shuffleDiskUsage.put(resource._1, resource._2)
     }
 
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.numSlots,
-        shuffleResourceConsumption)
+        shuffleDiskUsage)
       , classOf[HeartbeatResponse])
     if (response.registered) {
       cleanTaskQueue.put(response.expiredShuffleKeys)
     } else {
       logError("Worker not registered in master, clean all shuffle data and register again.")
       // Clean all shuffle related metadata and data
-      cleanup(new jHashSet[String](shuffleResourceConsumption.keySet()))
+      cleanup(new jHashSet[String](shuffleDiskUsage.keySet()))
       try {
         registerWithMaster()
       } catch {

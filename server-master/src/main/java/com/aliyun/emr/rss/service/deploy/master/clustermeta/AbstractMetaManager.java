@@ -287,8 +287,4 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       this.blacklist.addAll(failedWorkers);
     }
   }
-
-  public Map<WorkerInfo,Map<String,Long>> getAppDiskUsageDetailsSnapShot(){
-    return new HashMap<>(this.appDiskUsageDetails);
-  }
 }

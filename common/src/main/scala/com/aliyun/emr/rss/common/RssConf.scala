@@ -844,7 +844,7 @@ object RssConf extends Logging {
   }
 
   def metricsAppTopDiskUsageInterval(conf: RssConf): Long = {
-    conf.getTimeAsSeconds("rss.metrids.app.topDiskUsage.interval", "1h")
+    conf.getTimeAsSeconds("rss.metrics.app.topDiskUsage.interval", "10min")
   }
 
   val WorkingDirName = "hadoop/rss-worker/shuffle_data"
