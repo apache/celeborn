@@ -210,7 +210,7 @@ Contact us through the following mailing list.
 
 ### Report Issues or Submit Pull Request
 
-If you meet any questions, feel free to file a 🔗[Jira Ticket](https://issues.apache.org/jira/projects/CELEBORN/issues) or connect us on slack 🔗[slack](https://join.slack.com/t/apachecelebor-kw08030/shared_invite/zt-1ju3hd5j8-4Z5keMdzpcVMspe4UJzF4Q) and fix it by submitting a 🔗[Pull Request](https://github.com/apache/incubator-celeborn/pulls)
+If you meet any questions, feel free to file a 🔗[Jira Ticket](https://issues.apache.org/jira/projects/CELEBORN/issues) or connect us on Slack 🔗[Slack](https://join.slack.com/t/apachecelebor-kw08030/shared_invite/zt-1ju3hd5j8-4Z5keMdzpcVMspe4UJzF4Q) and fix it by submitting a 🔗[Pull Request](https://github.com/apache/incubator-celeborn/pulls)
 
 ### How to Contribute
 
