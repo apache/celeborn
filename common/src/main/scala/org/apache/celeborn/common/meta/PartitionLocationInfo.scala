@@ -24,12 +24,11 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PartitionLocation
-import org.apache.celeborn.common.util.Utils
 
 class PartitionLocationInfo extends Logging {
 
-  // key: ShuffleKey, values: (partitionGroupId -> partition locations)
-  type PartitionInfo = util.HashMap[String, util.Map[String, util.List[PartitionLocation]]]
+  // key: ShuffleKey, values: (partitionId -> partition locations)
+  type PartitionInfo = util.HashMap[String, util.Map[Int, util.List[PartitionLocation]]]
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
 
@@ -149,15 +148,37 @@ class PartitionLocationInfo extends Logging {
     }
   }
 
+  def getLocationWithMaxEpoch(
+      shuffleKey: String,
+      partitionId: Int): Option[PartitionLocation] = this.synchronized {
+    if (!masterPartitionLocations.containsKey(shuffleKey) ||
+      !masterPartitionLocations.get(shuffleKey).containsKey(partitionId)) {
+      return None
+    }
+    val locations = masterPartitionLocations.get(shuffleKey).get(partitionId)
+    if (locations == null || locations.size() == 0) {
+      return None
+    }
+    var currentEpoch = -1
+    var currentPartition: PartitionLocation = null
+    locations.asScala.foreach(loc => {
+      if (loc.getEpoch > currentEpoch) {
+        currentEpoch = loc.getEpoch
+        currentPartition = loc
+      }
+    })
+    Some(currentPartition)
+  }
+
   private def addPartition(
       shuffleKey: String,
       location: PartitionLocation,
       partitionInfo: PartitionInfo): Int = this.synchronized {
     if (location != null) {
-      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[String, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
-      reduceLocMap.putIfAbsent(location.getGroupId, new util.ArrayList[PartitionLocation]())
-      val locations = reduceLocMap.get(location.getGroupId)
+      reduceLocMap.putIfAbsent(location.getId, new util.ArrayList[PartitionLocation]())
+      val locations = reduceLocMap.get(location.getId)
       locations.add(location)
       1
     } else {
@@ -170,11 +191,11 @@ class PartitionLocationInfo extends Logging {
       locations: util.List[PartitionLocation],
       partitionInfo: PartitionInfo): Unit = this.synchronized {
     if (locations != null && locations.size() > 0) {
-      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[String, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
-        reduceLocMap.putIfAbsent(loc.getGroupId, new util.ArrayList[PartitionLocation]())
-        val locations = reduceLocMap.get(loc.getGroupId)
+        reduceLocMap.putIfAbsent(loc.getId, new util.ArrayList[PartitionLocation]())
+        val locations = reduceLocMap.get(loc.getId)
         locations.add(loc)
       }
     }
@@ -197,9 +218,10 @@ class PartitionLocationInfo extends Logging {
     var numSlotsReleased: Int = 0
     val reduceLocMap = partitionInfo.get(shuffleKey)
     uniqueIds.asScala.foreach { id =>
-      val (partitionId, attemptId, epoch) = Utils.splitPartitionLocationUniqueId(id)
-      val partitionGroupId = Utils.makePartitionGroupId(partitionId, attemptId)
-      val locations = reduceLocMap.get(partitionGroupId)
+      val tokens = id.split("-", 2)
+      val partitionId = tokens(0).toInt
+      val epoch = tokens(1).toInt
+      val locations = reduceLocMap.get(partitionId)
       if (locations != null) {
         val targetLocation = locations.asScala.find(_.getEpoch == epoch).orNull
         if (targetLocation != null) {
@@ -215,7 +237,7 @@ class PartitionLocationInfo extends Logging {
         }
       }
       if (locations == null || locations.size() == 0) {
-        reduceLocMap.remove(partitionGroupId)
+        reduceLocMap.remove(partitionId)
       }
     }
 
@@ -230,8 +252,9 @@ class PartitionLocationInfo extends Logging {
       shuffleKey: String,
       uniqueId: String,
       mode: PartitionLocation.Mode): PartitionLocation = {
-    val (partitionId, attemptId, epoch) = Utils.splitPartitionLocationUniqueId(uniqueId)
-    val partitionGroupId = Utils.makePartitionGroupId(partitionId, attemptId)
+    val tokens = uniqueId.split("-", 2)
+    val partitionId = tokens(0).toInt
+    val epoch = tokens(1).toInt
     val partitionInfo =
       if (mode == PartitionLocation.Mode.MASTER) {
         masterPartitionLocations
@@ -241,11 +264,11 @@ class PartitionLocationInfo extends Logging {
 
     this.synchronized {
       if (!partitionInfo.containsKey(shuffleKey)
-        || !partitionInfo.get(shuffleKey).containsKey(partitionGroupId)) {
+        || !partitionInfo.get(shuffleKey).containsKey(partitionId)) {
         return null
       }
       partitionInfo.get(shuffleKey)
-        .get(partitionGroupId)
+        .get(partitionId)
         .asScala
         .find(loc => loc.getEpoch == epoch)
         .orNull

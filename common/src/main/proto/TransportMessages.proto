@@ -91,7 +91,6 @@ message PbPartitionLocation {
   PbPartitionLocation peer = 9;
   PbStorageInfo storageInfo = 10;
   bytes mapIdBitmap = 11;
-  int32 attemptId = 12;
 }
 
 message PbWorkerResource {

@@ -23,7 +23,6 @@ import org.roaringbitmap.RoaringBitmap;
 public class PartitionLocationSuiteJ {
 
   private final int partitionId = 0;
-  private final int attemptId = 0;
   private final int epoch = 0;
   private final String host = "localhost";
   private final int rpcPort = 3;
@@ -61,10 +60,10 @@ public class PartitionLocationSuiteJ {
   public void testPartitionIdNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId + 1, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId + 1, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
@@ -72,10 +71,10 @@ public class PartitionLocationSuiteJ {
   public void testEpochNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId, attemptId, epoch + 1, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch + 1, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
@@ -83,11 +82,10 @@ public class PartitionLocationSuiteJ {
   public void testHostNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
             partitionId,
-            attemptId,
             epoch,
             "remoteHost",
             rpcPort,
@@ -103,21 +101,10 @@ public class PartitionLocationSuiteJ {
   public void testPushPortNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort + 1, fetchPort, replicatePort, mode, peer);
-    checkEqual(location1, location2, false);
-  }
-
-  @Test
-  public void testPartitionAttemptNotEqualMakePartitionLocationDifferent() {
-    PartitionLocation location1 =
-            new PartitionLocation(
-                    partitionId, attemptId +1, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
-    PartitionLocation location2 =
-            new PartitionLocation(
-                    partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort + 1, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
@@ -125,10 +112,10 @@ public class PartitionLocationSuiteJ {
   public void testFetchPortNotEqualMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort + 1, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort + 1, replicatePort, mode, peer);
     checkEqual(location1, location2, false);
   }
 
@@ -136,11 +123,10 @@ public class PartitionLocationSuiteJ {
   public void testModeNotEqualNeverMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
             partitionId,
-            attemptId,
             epoch,
             host,
             rpcPort,
@@ -151,7 +137,7 @@ public class PartitionLocationSuiteJ {
             peer);
     PartitionLocation location3 =
         new PartitionLocation(
-            partitionId, 0, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
     checkEqual(location1, location3, true);
     checkEqual(location2, location3, true);
@@ -161,13 +147,13 @@ public class PartitionLocationSuiteJ {
   public void testPeerNotEqualNeverMakePartitionLocationDifferent() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, location1);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, location1);
     PartitionLocation location3 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
     checkEqual(location1, location3, true);
     checkEqual(location2, location3, true);
@@ -177,10 +163,10 @@ public class PartitionLocationSuiteJ {
   public void testAllFieldEqualMakePartitionLocationEqual() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     checkEqual(location1, location2, true);
   }
 
@@ -191,7 +177,7 @@ public class PartitionLocationSuiteJ {
             partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
     PartitionLocation location2 =
         new PartitionLocation(
-            partitionId, attemptId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
     StorageInfo storageInfo = new StorageInfo(StorageInfo.Type.MEMORY, "/mnt/disk/0");
     RoaringBitmap bitmap = new RoaringBitmap();
     bitmap.add(1);
@@ -200,7 +186,6 @@ public class PartitionLocationSuiteJ {
     PartitionLocation location3 =
         new PartitionLocation(
             partitionId,
-            attemptId + 1,
             epoch,
             host,
             rpcPort,
@@ -214,7 +199,7 @@ public class PartitionLocationSuiteJ {
 
     String exp1 =
         "PartitionLocation[\n"
-            + "  id-attemptId-epoch:0-0-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(empty)\n"
@@ -222,7 +207,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp2 =
         "PartitionLocation[\n"
-            + "  id-attemptId-epoch:0-0-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
@@ -230,7 +215,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"
-            + "  id-attemptId-epoch:0-1-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"

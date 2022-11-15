@@ -80,8 +80,7 @@ class UtilsSuite extends RssFunSuite {
   }
 
   test("splitPartitionLocationUniqueId") {
-    assert((1, 0, 1).equals(Utils.splitPartitionLocationUniqueId("1-1")))
-    assert((1, 1, 1).equals(Utils.splitPartitionLocationUniqueId("1-1-1")))
+    assert((1, 1).equals(Utils.splitPartitionLocationUniqueId("1-1")))
   }
 
   test("bytesToInt") {
