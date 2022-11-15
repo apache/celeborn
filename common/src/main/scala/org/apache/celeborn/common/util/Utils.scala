@@ -620,21 +620,18 @@ object Utils extends Logging {
     (appId, shuffleId)
   }
 
-  /**
-   * @param uniqueId is represented as partitionId-epoch when attemptId = 0(default)
-   *                 or partitionId-attemptId-epoch while attemptId is not 0
-   * @return (partitionId, attemptId, epoch)
-   * @example
-   * `uniqueId 1-2-3 = (1, 2, 3) 1-5 = (1, 0, 5)`
-   *
-   * @see [[org.apache.celeborn.common.protocol.PartitionLocation]] method `getUniqueId` for more details.
-   */
   def splitPartitionLocationUniqueId(uniqueId: String): (Int, Int, Int) = {
     val splits = uniqueId.split("-")
     splits match {
-      case Array(partitionId, attemptId, epoch) => (partitionId.toInt, attemptId.toInt, epoch.toInt)
-      case Array(partitionId, epoch) => (partitionId.toInt, 0, epoch.toInt)
-      case _ => throw new IllegalArgumentException(s"unexpected uniqueId: $uniqueId")
+      case r if r.size == 3 =>
+        val partitionId = splits(0).toInt
+        val attemptId = splits(1).toInt
+        val epoch = splits.last.toInt
+        (partitionId, attemptId, epoch)
+      case _ =>
+        val partitionId = splits(0).toInt
+        val epoch = splits.last.toInt
+        (partitionId, 0, epoch)
     }
   }
 
