@@ -1,4 +1,4 @@
-# Celeborn
+# Apache Celeborn (Incubating)
 
 [![Celeborn CI](https://github.com/alibaba/celeborn/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/alibaba/celeborn/actions/workflows/maven.yml)
 
@@ -199,7 +199,24 @@ For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_RDA_spark3.patch).
 ### Metrics
 Celeborn has various metrics. [METRICS](METRICS.md)
 
-## Contribution
+## Community and Support
+
+### Subscribe Mailing Lists
+
+Mail List is the most recognized form of communication in Apache community.
+Contact us through the following mailing list.
+
+| Name                                                       | Scope                           |                                                          |                                                               |                                                                    |
+|:-----------------------------------------------------------|:--------------------------------|:---------------------------------------------------------|:--------------------------------------------------------------|:-------------------------------------------------------------------|
+| [dev@celeborn.apache.org](mailto:dev@celeborn.apache.org)  | Development-related discussions | [Subscribe](mailto:dev-subscribe@celeborn.apache.org)    | [Unsubscribe](mailto:dev-unsubscribe@celeborn.apache.org)     | [Archives](http://mail-archives.apache.org/mod_mbox/celeborn-dev/) |
+
+
+### Report Issues or Submit Pull Request
+
+If you meet any questions, feel free to file a 🔗[GitHub Issue](https://github.com/apache/incubator-celeborn/issues) or post it in 🔗[GitHub Discussion](https://github.com/apache/incubator-celeborn/discussions) and fix it by submitting a 🔗[Pull Request](https://github.com/apache/incubator-celeborn/pulls)
+
+### How to Contribute
+
 This is an active open-source project. We are always open to developers who want to use the system or contribute to it. 
 See more detail in [Contributing](CONTRIBUTING.md).
 
