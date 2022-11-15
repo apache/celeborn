@@ -64,7 +64,7 @@ private[deploy] class Master(
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
-  private val appDiskUsageCollector = new AppDiskUsageMetric(conf)
+  private val topAppDiskUsageMetric = new AppDiskUsageMetric(conf)
 
   // Config constants
   private val WorkerTimeoutMs = RssConf.workerTimeoutMs(conf)
@@ -269,7 +269,7 @@ private[deploy] class Master(
         expiredShuffleKeys.add(key)
       }
     }
-    appDiskUsageCollector.update(statusSystem.getAppDiskUsageDetailsSnapShot())
+    topAppDiskUsageMetric.update(statusSystem.getAppDiskUsageDetailsSnapShot())
     context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
   }
 
@@ -510,7 +510,7 @@ private[deploy] class Master(
   }
 
   def listAppDiskUsageInfos: String = {
-    appDiskUsageCollector.summary()
+    topAppDiskUsageMetric.summary()
   }
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
