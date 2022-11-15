@@ -1,11 +1,8 @@
 # Apache Celeborn (Incubating)
 
-[![Celeborn CI](https://github.com/alibaba/celeborn/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/alibaba/celeborn/actions/workflows/maven.yml)
-
-[![Join the chat at https://gitter.im/RemoteShuffleServiceCommunity/community](https://badges.gitter.im/RemoteShuffleServiceCommunity/community.svg)](https://gitter.im/RemoteShuffleServiceCommunity/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
+[![Celeborn CI](https://github.com/apache/incubator-celeborn/actions/workflows/maven.yml/badge.svg)](https://github.com/apache/incubator-celeborn/actions/workflows/maven.yml)  
 Celeborn is dedicated to improving the efficiency and elasticity of
-different map-reduce engines. Celeborn provides an elastic and high efficient
+different map-reduce engines and provides an elastic, high-efficient 
 management service for shuffle data.
 
 ## Internals
@@ -213,7 +210,7 @@ Contact us through the following mailing list.
 
 ### Report Issues or Submit Pull Request
 
-If you meet any questions, feel free to file a 🔗[GitHub Issue](https://github.com/apache/incubator-celeborn/issues) or post it in 🔗[GitHub Discussion](https://github.com/apache/incubator-celeborn/discussions) and fix it by submitting a 🔗[Pull Request](https://github.com/apache/incubator-celeborn/pulls)
+If you meet any questions, feel free to file a 🔗[Jira Ticket](https://issues.apache.org/jira/projects/CELEBORN/issues) or connect us on slack in 🔗[slack](https://join.slack.com/t/apachecelebor-kw08030/shared_invite/zt-1ju3hd5j8-4Z5keMdzpcVMspe4UJzF4Q) and fix it by submitting a 🔗[Pull Request](https://github.com/apache/incubator-celeborn/pulls)
 
 ### How to Contribute
 
