@@ -74,7 +74,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case pushData: PushData =>
         handleCore(
           client,
-          Type.PUSH_DATA,
           pushData,
           pushData.requestId,
           () =>
@@ -89,7 +88,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case pushMergedData: PushMergedData => {
         handleCore(
           client,
-          Type.PUSH_MERGED_DATA,
           pushMergedData,
           pushMergedData.requestId,
           () =>
@@ -444,8 +442,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     override def onFailure(e: Throwable): Unit = {
       logError(
-        s"[process${messageType2String(messageType)}] Process ${messageType2String(
-          messageType)} onFailure! ShuffleKey:$shuffleKey , partitionUniqueId: $partitionUniqueId",
+        s"[process$messageType] Process $messageType onFailure! ShuffleKey:$shuffleKey , partitionUniqueId: $partitionUniqueId",
         e)
       client.getChannel.writeAndFlush(new RpcFailure(requestId, e.getMessage))
     }
@@ -453,7 +450,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   private def handleCore(
       client: TransportClient,
-      messageType: Message.Type,
       message: RequestMessage,
       requestId: Long,
       handler: () => Unit): Unit = {
@@ -462,19 +458,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       handler()
     } catch {
       case e: Exception =>
-        logError(s"Error while handle${messageType2String(messageType)} $message", e);
+        logError(s"Error while handle${message.`type`()} $message", e)
         client.getChannel.writeAndFlush(new RpcFailure(
           requestId,
           Throwables.getStackTraceAsString(e)));
     } finally {
       message.body().release()
-    }
-  }
-
-  private def messageType2String(messageType: Message.Type): Unit = {
-    messageType match {
-      case Type.PUSH_DATA => "PushData"
-      case Type.PUSH_MERGED_DATA => "PushMergeData"
     }
   }
 }
