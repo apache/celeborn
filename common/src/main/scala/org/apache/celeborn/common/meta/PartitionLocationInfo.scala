@@ -154,9 +154,7 @@ class PartitionLocationInfo extends Logging {
       location: PartitionLocation,
       partitionInfo: PartitionInfo): Int = this.synchronized {
     if (location != null) {
-      partitionInfo.putIfAbsent(
-        shuffleKey,
-        new util.HashMap[String, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[String, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       reduceLocMap.putIfAbsent(location.getGroupId, new util.ArrayList[PartitionLocation]())
       val locations = reduceLocMap.get(location.getGroupId)
@@ -172,9 +170,7 @@ class PartitionLocationInfo extends Logging {
       locations: util.List[PartitionLocation],
       partitionInfo: PartitionInfo): Unit = this.synchronized {
     if (locations != null && locations.size() > 0) {
-      partitionInfo.putIfAbsent(
-        shuffleKey,
-        new util.HashMap[String, util.List[PartitionLocation]]())
+      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[String, util.List[PartitionLocation]]())
       val reduceLocMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
         reduceLocMap.putIfAbsent(loc.getGroupId, new util.ArrayList[PartitionLocation]())

@@ -19,10 +19,10 @@ package org.apache.celeborn.common.protocol;
 
 import java.io.Serializable;
 
+import org.apache.celeborn.common.util.Utils;
 import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.util.Utils;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -78,31 +78,30 @@ public class PartitionLocation implements Serializable {
   }
 
   public PartitionLocation(
-      int id,
-      int attemptId,
-      int epoch,
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Mode mode,
-      PartitionLocation peer) {
+          int id,
+          int attemptId,
+          int epoch,
+          String host,
+          int rpcPort,
+          int pushPort,
+          int fetchPort,
+          int replicatePort,
+          Mode mode,
+          PartitionLocation peer) {
     this(
-        id,
-        attemptId,
-        epoch,
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        mode,
-        peer,
-        new StorageInfo(),
-        new RoaringBitmap());
+            id,
+            attemptId,
+            epoch,
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            mode,
+            peer,
+            new StorageInfo(),
+            new RoaringBitmap());
   }
-
   public PartitionLocation(
       int id,
       int epoch,
@@ -240,9 +239,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public String getFileName() {
-    return attemptId == 0
-        ? id + "-" + epoch + "-" + mode.mode
-        : id + "-" + attemptId + "-" + epoch + "-" + mode.mode;
+    return attemptId == 0 ? id + "-" + epoch + "-" + mode.mode : id + "-" + attemptId + "-" + epoch + "-" + mode.mode;
   }
 
   public int getRpcPort() {
