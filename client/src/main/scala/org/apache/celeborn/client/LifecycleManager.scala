@@ -411,7 +411,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       numMappers: Int,
-      attemptId: Int,
       partitionId: Int): Unit = {
     shufflePartitionType.putIfAbsent(shuffleId, PartitionType.MAP)
     handleOfferAndReserveSlots(

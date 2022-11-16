@@ -111,9 +111,6 @@ public abstract class ShuffleClient implements Cloneable {
     return hdfsFs;
   }
 
-  public abstract PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId);
-
   public abstract void setupMetaServiceRef(String host, int port);
 
   public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);

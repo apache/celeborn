@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
@@ -259,7 +260,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
       String appId, int shuffleId, int numMappers, int numPartitions) {
-    return registerShuffle(
+    return registerShuffleInternal(
         shuffleId,
         numMappers,
         numMappers,
@@ -269,7 +270,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
-  @Override
+  @VisibleForTesting
   public PartitionLocation registerMapPartitionTask(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
     int partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
@@ -290,7 +291,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private PartitionLocation registerMapPartitionTaskWithFirstAttempt(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) {
     ConcurrentHashMap<Integer, PartitionLocation> partitionLocationMap =
-        registerShuffle(
+        registerShuffleInternal(
             shuffleId,
             numMappers,
             numMappers,
@@ -302,7 +303,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return partitionLocationMap.get(partitionId);
   }
 
-  public ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
+  private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
       int shuffleId,
       int numMappers,
       int numPartitions,
