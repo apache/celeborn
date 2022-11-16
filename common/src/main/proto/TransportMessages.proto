@@ -155,6 +155,15 @@ message PbRegisterShuffle {
   int32 numPartitions = 4;
 }
 
+message PbRegisterMapPartitionTask {
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  int32 numMappers = 3;
+  int32 mapId = 4;
+  int32 attemptId = 5;
+  int32 partitionId = 6;
+}
+
 message PbRegisterShuffleResponse {
   int32 status = 1;
   repeated PbPartitionLocation partitionLocations = 2;

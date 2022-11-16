@@ -20,6 +20,7 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -56,6 +58,7 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.PackedPartitionId;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -257,13 +260,58 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
       String appId, int shuffleId, int numMappers, int numPartitions) {
+    return registerShuffleInternal(
+        shuffleId,
+        numMappers,
+        numMappers,
+        () ->
+            driverRssMetaService.askSync(
+                RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
+                ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
+  }
+
+  @VisibleForTesting
+  public PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+    int partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
+    logger.info(
+        "register mapPartitionTask, mapId: {}, attemptId: {}, partitionId: {}",
+        mapId,
+        attemptId,
+        partitionId);
+    if (attemptId == 0) {
+      return registerMapPartitionTaskWithFirstAttempt(
+          appId, shuffleId, numMappers, mapId, attemptId, partitionId);
+    }
+
+    // TODO
+    throw new UnsupportedOperationException("can not register shuffle task with attempt beyond 0");
+  }
+
+  private PartitionLocation registerMapPartitionTaskWithFirstAttempt(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) {
+    ConcurrentHashMap<Integer, PartitionLocation> partitionLocationMap =
+        registerShuffleInternal(
+            shuffleId,
+            numMappers,
+            numMappers,
+            () ->
+                driverRssMetaService.askSync(
+                    RegisterMapPartitionTask$.MODULE$.apply(
+                        appId, shuffleId, numMappers, mapId, attemptId, partitionId),
+                    ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
+    return partitionLocationMap.get(partitionId);
+  }
+
+  private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
+      int shuffleId,
+      int numMappers,
+      int numPartitions,
+      Callable<PbRegisterShuffleResponse> callable) {
     int numRetries = registerShuffleMaxRetries;
     while (numRetries > 0) {
       try {
-        PbRegisterShuffleResponse response =
-            driverRssMetaService.askSync(
-                RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
-                ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class));
+        PbRegisterShuffleResponse response = callable.call();
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
