@@ -279,17 +279,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         mapId,
         attemptId,
         partitionId);
-    if (attemptId == 0) {
-      return registerMapPartitionTaskWithFirstAttempt(
-          appId, shuffleId, numMappers, mapId, attemptId, partitionId);
-    }
-
-    // TODO
-    throw new UnsupportedOperationException("can not register shuffle task with attempt beyond 0");
-  }
-
-  private PartitionLocation registerMapPartitionTaskWithFirstAttempt(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) {
     ConcurrentHashMap<Integer, PartitionLocation> partitionLocationMap =
         registerShuffleInternal(
             shuffleId,
