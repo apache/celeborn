@@ -58,7 +58,7 @@ sealed trait Message extends Serializable{
         new TransportMessage(TransportMessages.MessageType.REGISTER_WORKER, payload)
 
       case HeartbeatFromWorker(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots,
-      shuffleKeys, requestId) =>
+      shuffleDiskUsage, requestId) =>
         val payload = TransportMessages.PbHeartbeatFromWorker.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
@@ -66,7 +66,7 @@ sealed trait Message extends Serializable{
           .setFetchPort(fetchPort)
           .setNumSlots(numSlots)
           .setReplicatePort(replicatePort)
-          .addAllShuffleKeys(shuffleKeys)
+          .putAllShuffleDiskUsage(shuffleDiskUsage)
           .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(TransportMessages.MessageType.HEARTBEAT_FROM_WORKER, payload)
@@ -467,8 +467,9 @@ object ControlMessages extends Logging{
       fetchPort: Int,
       replicatePort : Int,
       numSlots: Int,
-      shuffleKeys: util.HashSet[String],
-    override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      shuffleDiskUsage: util.HashMap[String, java.lang.Long],
+      override var requestId: String = ZERO_UUID)
+    extends MasterRequestMessage
 
   case class HeartbeatResponse(
       expiredShuffleKeys: util.HashSet[String],
@@ -676,9 +677,9 @@ object ControlMessages extends Logging{
 
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
-        val shuffleKeys = new util.HashSet[String]()
-        if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
-          shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
+        val shuffleKeys = new util.HashMap[String, java.lang.Long]()
+        if (!pbHeartbeatFromWorker.getShuffleDiskUsageMap.isEmpty) {
+          shuffleKeys.putAll(pbHeartbeatFromWorker.getShuffleDiskUsageMap)
         }
         HeartbeatFromWorker(pbHeartbeatFromWorker.getHost, pbHeartbeatFromWorker.getRpcPort,
           pbHeartbeatFromWorker.getPushPort, pbHeartbeatFromWorker.getFetchPort,

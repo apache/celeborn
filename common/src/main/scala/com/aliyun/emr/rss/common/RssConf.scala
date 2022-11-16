@@ -835,6 +835,18 @@ object RssConf extends Logging {
     conf.getTimeAsMs("rss.rpc.cache.expire", "15s")
   }
 
+  def metricsAppTopDiskUsageCount(conf: RssConf): Int = {
+    conf.getInt("rss.metrics.app.topDiskUsage.count", 50)
+  }
+
+  def metricsAppTopDiskUsageWindowSize(conf: RssConf): Int = {
+    conf.getInt("rss.metrics.app.topDiskUsage.windowSize", 24)
+  }
+
+  def metricsAppTopDiskUsageInterval(conf: RssConf): Long = {
+    conf.getTimeAsSeconds("rss.metrics.app.topDiskUsage.interval", "10min")
+  }  
+
   def testFetchFailedChunkIndex(conf: RssConf): Int = {
     conf.getInt("rss.test.client.fetchFailedChuckIndex", 2)
   }

@@ -20,6 +20,7 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -156,8 +157,10 @@ public class MetaHandler {
           LOG.debug("Handle worker heartbeat for {} {} {} {} {} {}",
                    host, rpcPort, pushPort, fetchPort, replicatePort, numSlots);
           time = request.getWorkerHeartBeatRequest().getTime();
+          Map<String, Long> diskUsageMap = request
+                  .getWorkerHeartBeatRequest().getShuffleDiskUsageMap();
           metaSystem.updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
-            numSlots, time);
+            numSlots, time, diskUsageMap);
           break;
 
         case RegisterWorker:

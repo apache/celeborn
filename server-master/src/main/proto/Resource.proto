@@ -74,6 +74,7 @@ message WorkerHeartBeatRequest {
   required int32 replicatePort = 5;
   required int32 numSlots = 6;
   required int64 time = 7;
+  map<string, int64> shuffleDiskUsage = 8;
 }
 
 message RegisterWorkerRequest {

@@ -33,6 +33,7 @@ import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.Type;
+import com.aliyun.emr.rss.service.deploy.master.metrics.AppDiskUsageMetric;
 
 public class HAMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(HAMasterMetaManager.class);
@@ -42,6 +43,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public HAMasterMetaManager(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
+    this.appDiskUsageMetric=new AppDiskUsageMetric(conf);
   }
 
   public HARaftServer getRatisServer() {
@@ -169,7 +171,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, int numSlots, long time, String requestId) {
+      int replicatePort, int numSlots, long time, Map<String, Long> shuffleDiskUsage,
+      String requestId) {
     try {
       ratisServer.submitRequest(ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartBeat)
@@ -183,6 +186,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                               .setReplicatePort(replicatePort)
                               .setNumSlots(numSlots)
                               .setTime(time)
+                              .putAllShuffleDiskUsage(shuffleDiskUsage)
                               .build())
               .build());
     } catch (ServiceException e) {

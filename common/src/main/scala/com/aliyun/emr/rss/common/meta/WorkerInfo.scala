@@ -137,11 +137,12 @@ class WorkerInfo(
     host == other.host &&
       rpcPort == other.rpcPort &&
       pushPort == other.pushPort &&
-      fetchPort == other.fetchPort
+      fetchPort == other.fetchPort &&
+      replicatePort == other.replicatePort
   }
 
   override def hashCode(): Int = {
-    Objects.hashCode(host, rpcPort, pushPort, fetchPort)
+    Objects.hashCode(host, rpcPort, pushPort, fetchPort, replicatePort)
   }
 }
 

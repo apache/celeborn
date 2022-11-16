@@ -56,6 +56,7 @@ public class RatisMasterStatusSystemSuiteJ {
   protected static RpcEndpointRef mockRpcEndpoint = Mockito.mock(RpcEndpointRef.class);
 
   private static String DEFAULT_SERVICE_ID = "RSS_DEFAULT_SERVICE_ID";
+  private static Map<String,Long> shuffleDiskUsageMap = new HashMap<>();
 
   @BeforeClass
   public static void init() throws IOException, InterruptedException {
@@ -439,7 +440,7 @@ public class RatisMasterStatusSystemSuiteJ {
       NUMSLOTS3, getNewReqeustId());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      0, 1, getNewReqeustId());
+      0, 1, shuffleDiskUsageMap, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
@@ -447,7 +448,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2,
-      0, 1, getNewReqeustId());
+      0, 1, shuffleDiskUsageMap, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, statusSystem.blacklist.size());
@@ -456,7 +457,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
 
     statusSystem.handleWorkerHeartBeat(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1,
-      1, 1, getNewReqeustId());
+      1, 1, shuffleDiskUsageMap, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, statusSystem.blacklist.size());

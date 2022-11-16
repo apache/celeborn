@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
+import com.aliyun.emr.rss.service.deploy.master.metrics.AppDiskUsageMetric;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -33,6 +34,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   public SingleMasterMetaManager(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
+    this.appDiskUsageMetric=new AppDiskUsageMetric(conf);
   }
 
   @Override
@@ -78,8 +80,10 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartBeat(String host, int rpcPort, int pushPort, int fetchPort,
-    int replicatePort, int numSlots, long time, String requestId) {
-    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, numSlots, time);
+      int replicatePort, int numSlots, long time,
+      Map<String, Long> shuffleDiskUsage, String requestId) {
+    updateWorkerHeartBeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort,
+            numSlots, time, shuffleDiskUsage);
   }
 
   @Override

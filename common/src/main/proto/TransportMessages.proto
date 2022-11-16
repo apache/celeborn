@@ -106,7 +106,7 @@ message PbHeartbeatFromWorker {
   int32 fetchPort = 4;
   int32 replicatePort = 5;
   int32 numSlots = 6;
-  repeated string shuffleKeys = 7;
+  map<string, int64> shuffleDiskUsage = 7;
   string requestId = 8;
 }
 
