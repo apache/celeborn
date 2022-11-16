@@ -18,9 +18,6 @@
 package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -36,9 +33,6 @@ import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
 import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
-import com.aliyun.emr.rss.common.network.protocol.Message;
-import com.aliyun.emr.rss.common.network.protocol.OpenStream;
-import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.network.util.NettyUtils;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
@@ -56,19 +50,25 @@ import com.aliyun.emr.rss.common.util.Utils;
  * not be too many. Each retry is actually a switch between Master and Slave. Therefore, each retry
  * needs to create a new connection and reopen the file to generate the stream id.
  */
-public class RetryingChunkClient {
-  private static final Logger logger = LoggerFactory.getLogger(RetryingChunkClient.class);
+public class ChunkClient {
+  private static final Logger logger = LoggerFactory.getLogger(ChunkClient.class);
   private static final ExecutorService executorService = Executors.newCachedThreadPool(
       NettyUtils.createThreadFactory("Chunk Fetch Retry"));
 
   private final ChunkReceivedCallback callback;
-  private final List<Replica> replicas;
+  private final Replica replica;
   private final long retryWaitMs;
   private final int maxTries;
 
   private volatile int numTries = 0;
+  private PartitionLocation location;
+  private int fetchFailedChunkIndex;
 
-  public RetryingChunkClient(
+  public PartitionLocation getLocation() {
+    return location;
+  }
+
+  public ChunkClient(
       RssConf conf,
       String shuffleKey,
       PartitionLocation location,
@@ -77,7 +77,7 @@ public class RetryingChunkClient {
     this(conf, shuffleKey, location, callback, clientFactory, 0, Integer.MAX_VALUE);
   }
 
-  public RetryingChunkClient(
+  public ChunkClient(
       RssConf conf,
       String shuffleKey,
       PartitionLocation location,
@@ -86,26 +86,21 @@ public class RetryingChunkClient {
       int startMapIndex,
       int endMapIndex) {
     TransportConf transportConf = Utils.fromRssConf(conf, TransportModuleConstants.DATA_MODULE, 0);
+    this.fetchFailedChunkIndex = conf.testFetchFailedChunkIndex(conf);
 
-    this.replicas = new ArrayList<>(2);
     this.callback = callback;
     this.retryWaitMs = transportConf.ioRetryWaitTimeMs();
 
     long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
-    if (location != null) {
-      replicas.add(new Replica(timeoutMs, shuffleKey, location,
-        clientFactory, startMapIndex, endMapIndex));
-      if (location.getPeer() != null) {
-        replicas.add(new Replica(timeoutMs, shuffleKey, location.getPeer(),
-          clientFactory, startMapIndex, endMapIndex));
-      }
-    }
+    this.location = location;
 
-    if (this.replicas.size() <= 0) {
+    if (location == null) {
       throw new IllegalArgumentException("Must contain at least one available PartitionLocation.");
+    } else {
+      replica = new Replica(timeoutMs, shuffleKey, location,
+              clientFactory, startMapIndex, endMapIndex);
     }
-
-    this.maxTries = (transportConf.maxIORetries() + 1) * replicas.size();
+    this.maxTries = (transportConf.maxIORetries() + 1);
   }
 
   /**
@@ -114,32 +109,47 @@ public class RetryingChunkClient {
    *
    * @return numChunks.
    */
-  public int openChunks() throws IOException {
+  public synchronized int openChunks() throws IOException {
     int numChunks = -1;
+    Exception currentException = null;
     while (numChunks == -1 && hasRemainingRetries()) {
-      Replica replica = getCurrentReplica();
+      // Only not wait for first request to each replicate.
+      if (numTries != 0) {
+        logger.info(
+                "Retrying openChunk ({}/{}) for chunk from {} after {} ms.",
+                numTries,
+                maxTries,
+                replica,
+                retryWaitMs);
+        Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+      }
       try {
         replica.getOrOpenStream();
         numChunks = replica.getNumChunks();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException(e);
       } catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-          throw new IOException(e);
-        }
-
-        logger.warn("Exception raised while sending open chunks message to {}.", replica, e);
-
-        numChunks = -1;
+        logger.error("Exception raised while sending open chunks message to " + replica + ".", e);
+        currentException = e;
         if (shouldRetry(e)) {
-          numTries += 1; // openChunks will not be concurrently called.
+          numTries += 1;
         } else {
           break;
         }
       }
     }
     if (numChunks == -1) {
-      throw new IOException(String.format("Could not open chunks after %d tries.", numTries));
+      if (currentException != null) {
+        callback.onFailure(0, location, new IOException(
+          String.format("Could not open chunks from %s after %d tries.", replica, numTries),
+            currentException));
+      } else {
+        callback.onFailure(0, location, new IOException(
+          String.format("Could not open chunks from %s after %d tries.", replica, numTries)));
+      }
     }
+    numTries = 0;
     return numChunks;
   }
 
@@ -151,31 +161,34 @@ public class RetryingChunkClient {
    * @param chunkIndex the index of the chunk to be fetched.
    */
   public void fetchChunk(int chunkIndex) {
-    Replica replica;
-    RetryingChunkReceiveCallback callback;
+    FetchChunkCallback callback;
     synchronized (this) {
-      replica = getCurrentReplica();
-      callback = new RetryingChunkReceiveCallback(numTries);
+      callback = new FetchChunkCallback(numTries);
+      if (fetchFailedChunkIndex != 0
+              && location.getPeer() != null
+              && chunkIndex == fetchFailedChunkIndex
+              && location.getMode() == PartitionLocation.Mode.Master) {
+        RuntimeException manualTriggeredFailure =
+                new RuntimeException("Manual triggered fetch failure");
+        callback.onFailure(chunkIndex, location, manualTriggeredFailure);
+      }
     }
     try {
       TransportClient client = replica.getOrOpenStream();
       client.fetchChunk(replica.getStreamId(), chunkIndex, callback);
     } catch (Exception e) {
-      logger.error("Exception raised while beginning fetch chunk {} {}.",
-          chunkIndex, numTries > 0 ? "(after " + numTries + " retries)" : "", e);
+      logger.error(
+              "Exception raised while beginning fetch chunk {}{}.",
+              chunkIndex,
+              numTries > 0 ? " (after " + numTries + " retries)" : "",
+              e);
 
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, callback.currentNumTries);
       } else {
-        callback.onFailure(chunkIndex, e);
+        callback.onFailure(chunkIndex, location, e);
       }
     }
-  }
-
-  @VisibleForTesting
-  Replica getCurrentReplica() {
-    int currentReplicaIndex = numTries % replicas.size();
-    return replicas.get(currentReplicaIndex);
   }
 
   @VisibleForTesting
@@ -200,7 +213,7 @@ public class RetryingChunkClient {
     numTries = Math.max(numTries, currentNumTries + 1);
 
     logger.info("Retrying fetch ({}/{}) for chunk {} from {} after {} ms.",
-        currentNumTries, maxTries, chunkIndex, getCurrentReplica(), retryWaitMs);
+        currentNumTries, maxTries, chunkIndex, replica, retryWaitMs);
 
     executorService.submit(() -> {
       Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
@@ -208,94 +221,27 @@ public class RetryingChunkClient {
     });
   }
 
-  private class RetryingChunkReceiveCallback implements ChunkReceivedCallback {
+  private class FetchChunkCallback implements ChunkReceivedCallback {
     final int currentNumTries;
 
-    RetryingChunkReceiveCallback(int currentNumTries) {
+    FetchChunkCallback(int currentNumTries) {
       this.currentNumTries = currentNumTries;
     }
 
     @Override
-    public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-      callback.onSuccess(chunkIndex, buffer);
+    public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+      callback.onSuccess(chunkIndex, buffer, ChunkClient.this.location);
     }
 
     @Override
-    public void onFailure(int chunkIndex, Throwable e) {
+    public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, this.currentNumTries);
       } else {
-        logger.error("Failed to fetch chunk {}, and will not retry({} tries).",
-          chunkIndex, this.currentNumTries);
-        callback.onFailure(chunkIndex, e);
+        logger.error("Abandon to fetch chunk {} after {} tries.", chunkIndex, this.currentNumTries);
+        callback.onFailure(chunkIndex, ChunkClient.this.location, e);
       }
     }
   }
 }
 
-class Replica {
-  private static final Logger logger = LoggerFactory.getLogger(Replica.class);
-  private final long timeoutMs;
-  private final String shuffleKey;
-  private final PartitionLocation location;
-  private final TransportClientFactory clientFactory;
-
-  private StreamHandle streamHandle;
-  private TransportClient client;
-  private int startMapIndex;
-  private int endMapIndex;
-
-  Replica(
-      long timeoutMs,
-      String shuffleKey,
-      PartitionLocation location,
-      TransportClientFactory clientFactory,
-      int startMapIndex,
-      int endMapIndex) {
-    this.timeoutMs = timeoutMs;
-    this.shuffleKey = shuffleKey;
-    this.location = location;
-    this.clientFactory = clientFactory;
-    this.startMapIndex = startMapIndex;
-    this.endMapIndex = endMapIndex;
-  }
-
-  Replica(
-      long timeoutMs,
-      String shuffleKey,
-      PartitionLocation location,
-      TransportClientFactory clientFactory) {
-    this(timeoutMs, shuffleKey, location, clientFactory, 0, Integer.MAX_VALUE);
-  }
-
-  public synchronized TransportClient getOrOpenStream()
-      throws IOException, InterruptedException {
-    if (client == null || !client.isActive()) {
-      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
-
-      OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
-        startMapIndex, endMapIndex);
-      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
-      streamHandle = (StreamHandle) Message.decode(response);
-    }
-    return client;
-  }
-
-  public long getStreamId() {
-    return streamHandle.streamId;
-  }
-
-  public int getNumChunks() {
-    return streamHandle.numChunks;
-  }
-
-  @Override
-  public String toString() {
-    return location.getHost() + ":" + location.getFetchPort();
-  }
-
-  @VisibleForTesting
-  PartitionLocation getLocation() {
-    return location;
-  }
-}
