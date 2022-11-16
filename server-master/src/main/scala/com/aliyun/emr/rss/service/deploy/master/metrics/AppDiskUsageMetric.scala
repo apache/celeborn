@@ -17,16 +17,17 @@
 
 package com.aliyun.emr.rss.service.deploy.master.metrics
 
+import java.time.LocalDateTime
 import java.util
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+
+import scala.collection.JavaConverters.{iterableAsScalaIterableConverter, mapAsScalaMapConverter}
+
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.WorkerInfo
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-
-import java.time.LocalDateTime
-import scala.collection.JavaConverters.{iterableAsScalaIterableConverter, mapAsScalaMapConverter}
 
 case class AppDiskUsage(var appId: String, var usage: Long) {
   override def toString: String = s"Application ${appId} used ${Utils.bytesToString(usage)} "
@@ -78,7 +79,7 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging {
     -1
   }
 
-  override def toString = s"Snapshot " +
+  override def toString(): String = s"Snapshot " +
     s"start ${startSnapShotTime} end ${endSnapShotTime}" +
     s" ${topNItems.filter(_ != null).mkString(",")}"
 }
@@ -88,9 +89,12 @@ class AppDiskUsageMetric(conf: RssConf) extends Logging {
   val snapshotCount = RssConf.metricsAppTopDiskUsageWindowSize(conf)
   val interval = RssConf.metricsAppTopDiskUsageInterval(conf)
   val snapShots = new Array[AppDiskUsageSnapShot](snapshotCount)
-  val logExecutor = ThreadUtils.newDaemonSingleThreadScheduledExecutor("App_disk_usage_metric_thread")
-  val updateExecutor = ThreadUtils.newDaemonSingleThreadExecutor("App_disk_usage_metric_thread")
-  var currentSnapShot: AtomicReference[AppDiskUsageSnapShot] = new AtomicReference[AppDiskUsageSnapShot]()
+  val logExecutor =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("App_disk_usage_metric_thread")
+  val updateExecutor =
+    ThreadUtils.newDaemonSingleThreadExecutor("App_disk_usage_metric_thread")
+  var currentSnapShot: AtomicReference[AppDiskUsageSnapShot] =
+    new AtomicReference[AppDiskUsageSnapShot]()
 
   def update(map: java.util.Map[WorkerInfo, java.util.Map[String, java.lang.Long]]): Unit = {
     updateExecutor.submit(new Runnable {
