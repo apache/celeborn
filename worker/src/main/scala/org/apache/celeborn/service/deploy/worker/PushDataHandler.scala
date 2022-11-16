@@ -31,7 +31,8 @@ import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
-import org.apache.celeborn.common.network.protocol.{PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
+import org.apache.celeborn.common.network.protocol.{Message, PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
+import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -71,65 +72,34 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
     msg match {
       case pushData: PushData =>
-        try {
-          rpcSource.updateMessageMetrics(pushData, pushData.body().size())
-          handlePushData(
-            pushData,
-            new RpcResponseCallback {
-              override def onSuccess(response: ByteBuffer): Unit = {
-                client.getChannel.writeAndFlush(new RpcResponse(
-                  pushData.requestId,
-                  new NioManagedBuffer(response)))
-              }
-
-              override def onFailure(e: Throwable): Unit = {
-                logError(
-                  "[processPushData] Process pushData onFailure! ShuffleKey: "
-                    + pushData.shuffleKey + ", partitionUniqueId: " + pushData.partitionUniqueId,
-                  e)
-                client.getChannel.writeAndFlush(new RpcFailure(pushData.requestId, e.getMessage))
-              }
-            })
-        } catch {
-          case e: Exception =>
-            logError(s"Error while handlePushData $pushData", e)
-            client.getChannel.writeAndFlush(new RpcFailure(
-              pushData.requestId,
-              Throwables.getStackTraceAsString(e)))
-        } finally {
-          pushData.body().release()
-        }
-      case pushMergedData: PushMergedData =>
-        try {
-          rpcSource.updateMessageMetrics(pushMergedData, pushMergedData.body().size())
-          handlePushMergedData(
-            pushMergedData,
-            new RpcResponseCallback {
-              override def onSuccess(response: ByteBuffer): Unit = {
-                client.getChannel.writeAndFlush(new RpcResponse(
-                  pushMergedData.requestId,
-                  new NioManagedBuffer(response)))
-              }
-
-              override def onFailure(e: Throwable): Unit = {
-                logError(
-                  "[processPushMergedData] Process PushMergedData onFailure! ShuffleKey: " +
-                    pushMergedData.shuffleKey +
-                    ", partitionUniqueId: " + pushMergedData.partitionUniqueIds.mkString(","),
-                  e)
-                client.getChannel.writeAndFlush(
-                  new RpcFailure(pushMergedData.requestId, e.getMessage()))
-              }
-            })
-        } catch {
-          case e: Exception =>
-            logError(s"Error while handlePushMergedData $pushMergedData", e);
-            client.getChannel.writeAndFlush(new RpcFailure(
-              pushMergedData.requestId,
-              Throwables.getStackTraceAsString(e)));
-        } finally {
-          pushMergedData.body().release()
-        }
+        handleCore(
+          client,
+          pushData,
+          pushData.requestId,
+          () =>
+            handlePushData(
+              pushData,
+              new SimpleRpcResponseCallback(
+                Type.PUSH_DATA,
+                client,
+                pushData.requestId,
+                pushData.shuffleKey,
+                pushData.partitionUniqueId)))
+      case pushMergedData: PushMergedData => {
+        handleCore(
+          client,
+          pushMergedData,
+          pushMergedData.requestId,
+          () =>
+            handlePushMergedData(
+              pushMergedData,
+              new SimpleRpcResponseCallback(
+                Type.PUSH_MERGED_DATA,
+                client,
+                pushMergedData.requestId,
+                pushMergedData.shuffleKey,
+                pushMergedData.partitionUniqueIds.mkString(","))))
+      }
     }
 
   def handlePushData(pushData: PushData, callback: RpcResponseCallback): Unit = {
@@ -456,4 +426,44 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   override def checkRegistered(): Boolean = registered.get()
+
+  class SimpleRpcResponseCallback(
+      messageType: Message.Type,
+      client: TransportClient,
+      requestId: Long,
+      shuffleKey: String,
+      partitionUniqueId: String)
+    extends RpcResponseCallback {
+    override def onSuccess(response: ByteBuffer): Unit = {
+      client.getChannel.writeAndFlush(new RpcResponse(
+        requestId,
+        new NioManagedBuffer(response)))
+    }
+
+    override def onFailure(e: Throwable): Unit = {
+      logError(
+        s"[process$messageType] Process $messageType onFailure! ShuffleKey:$shuffleKey , partitionUniqueId: $partitionUniqueId",
+        e)
+      client.getChannel.writeAndFlush(new RpcFailure(requestId, e.getMessage))
+    }
+  }
+
+  private def handleCore(
+      client: TransportClient,
+      message: RequestMessage,
+      requestId: Long,
+      handler: () => Unit): Unit = {
+    try {
+      rpcSource.updateMessageMetrics(message, message.body().size())
+      handler()
+    } catch {
+      case e: Exception =>
+        logError(s"Error while handle${message.`type`()} $message", e)
+        client.getChannel.writeAndFlush(new RpcFailure(
+          requestId,
+          Throwables.getStackTraceAsString(e)));
+    } finally {
+      message.body().release()
+    }
+  }
 }
