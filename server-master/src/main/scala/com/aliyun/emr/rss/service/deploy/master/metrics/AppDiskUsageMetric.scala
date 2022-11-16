@@ -90,7 +90,7 @@ class AppDiskUsageMetric(conf: RssConf) extends Logging {
   val interval = RssConf.metricsAppTopDiskUsageInterval(conf)
   val snapShots = new Array[AppDiskUsageSnapShot](snapshotCount)
   val logExecutor =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("App_disk_usage_metric_thread")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("App_disk_usage_log_thread")
   val updateExecutor =
     ThreadUtils.newDaemonSingleThreadExecutor("App_disk_usage_metric_thread")
   var currentSnapShot: AtomicReference[AppDiskUsageSnapShot] =
@@ -125,7 +125,7 @@ class AppDiskUsageMetric(conf: RssConf) extends Logging {
       currentSnapShot.set(getNewSnapShot())
       logInfo(s"App Disk Usage Top${usageCount} Report ${summary()}")
     }
-  }, interval, interval, TimeUnit.SECONDS)
+  }, 60, interval, TimeUnit.SECONDS)
 
   def getNewSnapShot(): AppDiskUsageSnapShot = {
     for (i <- snapshotCount - 1 until 0 by -1) {

@@ -33,6 +33,7 @@ import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.Type;
+import com.aliyun.emr.rss.service.deploy.master.metrics.AppDiskUsageMetric;
 
 public class HAMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(HAMasterMetaManager.class);
@@ -42,6 +43,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public HAMasterMetaManager(RpcEnv rpcEnv, RssConf conf) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
+    this.appDiskUsageMetric=new AppDiskUsageMetric(conf);
   }
 
   public HARaftServer getRatisServer() {

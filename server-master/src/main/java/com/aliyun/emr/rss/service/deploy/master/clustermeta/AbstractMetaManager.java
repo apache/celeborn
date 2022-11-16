@@ -30,6 +30,7 @@ import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.util.Utils;
+import com.aliyun.emr.rss.service.deploy.master.metrics.AppDiskUsageMetric;
 import static com.aliyun.emr.rss.common.protocol.RpcNameConstants.WORKER_EP;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
@@ -48,6 +49,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   protected RpcEnv rpcEnv;
   protected RssConf conf;
+  public AppDiskUsageMetric appDiskUsageMetric;
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, List<String> workerInfos) {
@@ -148,6 +150,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       // only unblack if numSlots larger than 0
       blacklist.remove(worker);
     }
+    appDiskUsageMetric.update(new HashMap<>(appDiskUsageDetails));
   }
 
   public void updateRegisterWorkerMeta(
