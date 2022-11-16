@@ -34,7 +34,7 @@ class ShuffleClientSuite extends AnyFunSuite with MiniClusterFeature
   with BeforeAndAfterAll {
   val masterPort = 19097
   val APP = "app-1"
-  var shuffleClient: ShuffleClient = _
+  var shuffleClient: ShuffleClientImpl = _
   var lifecycleManager: LifecycleManager = _
 
   override def beforeAll(): Unit = {

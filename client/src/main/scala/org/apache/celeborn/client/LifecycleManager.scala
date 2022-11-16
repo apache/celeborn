@@ -340,7 +340,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         applicationId,
         shuffleId,
         numMappers,
-        attemptId,
         partitionId)
 
     case pb: PbRevive =>

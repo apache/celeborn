@@ -41,12 +41,6 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
-    return null;
-  }
-
-  @Override
   public void setupMetaServiceRef(String host, int port) {}
 
   @Override
