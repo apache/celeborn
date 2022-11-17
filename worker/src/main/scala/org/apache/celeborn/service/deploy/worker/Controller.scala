@@ -457,7 +457,6 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         }
-      val status = shuffleCommitInfos.get(shuffleKey)
       status.synchronized {
         status.response = response
         status.status = CommitInfo.COMMIT_FINISHED
