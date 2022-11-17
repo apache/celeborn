@@ -81,7 +81,10 @@ public abstract class Message implements Encodable {
     STREAM_HANDLE(7),
     ONE_WAY_MESSAGE(9),
     PUSH_DATA(11),
-    PUSH_MERGED_DATA(12);
+    PUSH_MERGED_DATA(12),
+    PUSH_DATA_HAND_SHAKE(13),
+    REGION_START(14),
+    REGION_FINISH(15);
 
     private final byte id;
 
@@ -129,6 +132,12 @@ public abstract class Message implements Encodable {
           return PUSH_DATA;
         case 12:
           return PUSH_MERGED_DATA;
+        case 13:
+          return PUSH_DATA_HAND_SHAKE;
+        case 14:
+          return REGION_START;
+        case 15:
+          return REGION_FINISH;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -175,6 +184,15 @@ public abstract class Message implements Encodable {
 
       case PUSH_MERGED_DATA:
         return PushMergedData.decode(in, decodeBody);
+
+      case PUSH_DATA_HAND_SHAKE:
+        return PushDataHandShake.decode(in);
+
+      case REGION_START:
+        return RegionStart.decode(in);
+
+      case REGION_FINISH:
+        return RegionFinish.decode(in);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);
