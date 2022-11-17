@@ -22,9 +22,12 @@ import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList, S
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
+
 import scala.collection.JavaConverters._
+
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -308,7 +311,8 @@ private[deploy] class Controller(
       slaveIds: jList[String],
       mapAttempts: Array[Int]): Unit = {
     // return null if shuffleKey does not exist
-    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(shuffleKey)) {
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(
+        shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
@@ -423,35 +427,36 @@ private[deploy] class Controller(
       val totalSize = partitionSizeList.asScala.sum
       val fileCount = partitionSizeList.size()
       // reply
-      val response = if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
-        logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
-          s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        CommitFilesResponse(
-          StatusCode.SUCCESS,
-          committedMasterIdList,
-          committedSlaveIdList,
-          List.empty.asJava,
-          List.empty.asJava,
-          committedMasterStorageAndDiskHintList,
-          committedSlaveStorageAndDiskHintList,
-          committedMapIdBitMapList,
-          totalSize,
-          fileCount)
-      } else {
-        logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-          s" partitions and ${failedSlaveIds.size()} slave partitions!")
-        CommitFilesResponse(
-          StatusCode.PARTIAL_SUCCESS,
-          committedMasterIdList,
-          committedSlaveIdList,
-          failedMasterIdList,
-          failedSlaveIdList,
-          committedMasterStorageAndDiskHintList,
-          committedSlaveStorageAndDiskHintList,
-          committedMapIdBitMapList,
-          totalSize,
-          fileCount)
-      }
+      val response =
+        if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
+          logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
+            s" master partitions and ${committedSlaveIds.size()} slave partitions!")
+          CommitFilesResponse(
+            StatusCode.SUCCESS,
+            committedMasterIdList,
+            committedSlaveIdList,
+            List.empty.asJava,
+            List.empty.asJava,
+            committedMasterStorageAndDiskHintList,
+            committedSlaveStorageAndDiskHintList,
+            committedMapIdBitMapList,
+            totalSize,
+            fileCount)
+        } else {
+          logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
+            s" partitions and ${failedSlaveIds.size()} slave partitions!")
+          CommitFilesResponse(
+            StatusCode.PARTIAL_SUCCESS,
+            committedMasterIdList,
+            committedSlaveIdList,
+            failedMasterIdList,
+            failedSlaveIdList,
+            committedMasterStorageAndDiskHintList,
+            committedSlaveStorageAndDiskHintList,
+            committedMapIdBitMapList,
+            totalSize,
+            fileCount)
+        }
       val status = shuffleCommitInfos.get(shuffleKey)
       status.synchronized {
         status.response = response
