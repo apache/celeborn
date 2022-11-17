@@ -66,22 +66,22 @@ import org.apache.celeborn.common.util.Utils;
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
-  private static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
+  protected static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
 
   private static final Random rand = new Random();
 
-  private final CelebornConf conf;
+  protected final CelebornConf conf;
 
   private final UserIdentifier userIdentifier;
 
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWait;
-  private final int maxInFlight;
+  protected final int maxInFlight;
   private final int pushBufferMaxSize;
 
   private final RpcEnv rpcEnv;
 
-  private RpcEndpointRef driverRssMetaService;
+  protected RpcEndpointRef driverRssMetaService;
 
   protected TransportClientFactory dataClientFactory;
 
@@ -89,10 +89,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       new ConcurrentHashMap<>();
 
-  private final ConcurrentHashMap<Integer, Set<String>> mapperEndMap = new ConcurrentHashMap<>();
+  protected final ConcurrentHashMap<Integer, Set<String>> mapperEndMap = new ConcurrentHashMap<>();
 
   // key: shuffleId-mapId-attemptId
-  private final Map<String, PushState> pushStates = new ConcurrentHashMap<>();
+  protected final Map<String, PushState> pushStates = new ConcurrentHashMap<>();
 
   private final ExecutorService pushDataRetryPool;
 
@@ -353,7 +353,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void limitMaxInFlight(String mapKey, PushState pushState, int limit) throws IOException {
+  protected void limitMaxInFlight(String mapKey, PushState pushState, int limit)
+      throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
@@ -1162,12 +1163,12 @@ public class ShuffleClientImpl extends ShuffleClient {
     driverRssMetaService = endpointRef;
   }
 
-  private boolean mapperEnded(int shuffleId, int mapId, int attemptId) {
+  protected boolean mapperEnded(int shuffleId, int mapId, int attemptId) {
     return mapperEndMap.containsKey(shuffleId)
         && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId));
   }
 
-  private StatusCode getPushDataFailCause(String message) {
+  protected StatusCode getPushDataFailCause(String message) {
     logger.info("[getPushDataFailCause] message: " + message);
     StatusCode cause;
     if (StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage().equals(message)) {

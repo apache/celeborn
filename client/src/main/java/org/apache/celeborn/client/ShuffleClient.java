@@ -25,13 +25,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 /**
  * ShuffleClient may be a process singleton, the specific PartitionLocation should be hidden in the
  * implementation
  */
-public abstract class ShuffleClient implements Cloneable {
+public abstract class ShuffleClient implements Cloneable, MapPartitionClient {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initFinished = false;
   private static volatile FileSystem hdfsFs;
@@ -55,12 +56,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = createShuffleClient(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = createShuffleClient(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         }
@@ -79,12 +80,12 @@ public abstract class ShuffleClient implements Cloneable {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = createShuffleClient(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         } else if (!initFinished) {
           _instance.shutDown();
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = createShuffleClient(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         }
@@ -172,4 +173,11 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
+
+  private static ShuffleClient createShuffleClient(
+      CelebornConf conf, UserIdentifier userIdentifier) {
+    return conf.shufflePartitionType() == PartitionType.MAP
+        ? new MapPartitionShuffleClientImpl(conf, userIdentifier)
+        : new ShuffleClientImpl(conf, userIdentifier);
+  }
 }
