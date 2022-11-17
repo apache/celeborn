@@ -327,15 +327,15 @@ private[deploy] class Controller(
     val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
     shuffleCommitInfos.putIfAbsent(shuffleKey, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
-    val status = shuffleCommitInfos.get(shuffleKey)
+    val commitInfo = shuffleCommitInfos.get(shuffleKey)
 
     def waitForCommitFinish(): Unit = {
       val delta = 100
       var times = 0
       while (delta * times < shuffleCommitTimeout) {
-        status.synchronized {
-          if (status.status == CommitInfo.COMMIT_FINISHED) {
-            context.reply(status.response)
+        commitInfo.synchronized {
+          if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+            context.reply(commitInfo.response)
             return
           }
         }
@@ -344,11 +344,11 @@ private[deploy] class Controller(
       }
     }
 
-    status.synchronized {
-      if (status.status == CommitInfo.COMMIT_FINISHED) {
-        context.reply(status.response)
+    commitInfo.synchronized {
+      if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+        context.reply(commitInfo.response)
         return
-      } else if (status.status == CommitInfo.COMMIT_INPROCESS) {
+      } else if (commitInfo.status == CommitInfo.COMMIT_INPROCESS) {
         commitThreadPool.submit(new Runnable {
           override def run(): Unit = {
             waitForCommitFinish()
@@ -356,7 +356,7 @@ private[deploy] class Controller(
         })
         return
       } else {
-        status.status = CommitInfo.COMMIT_INPROCESS
+        commitInfo.status = CommitInfo.COMMIT_INPROCESS
       }
     }
 
@@ -457,9 +457,9 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         }
-      status.synchronized {
-        status.response = response
-        status.status = CommitInfo.COMMIT_FINISHED
+      commitInfo.synchronized {
+        commitInfo.response = response
+        commitInfo.status = CommitInfo.COMMIT_FINISHED
       }
       context.reply(response)
     }
@@ -497,15 +497,15 @@ private[deploy] class Controller(
                 case throwable: Throwable =>
                   logError("While handling commitFiles, exception occurs.", throwable)
               }
-              status.synchronized {
-                status.response = CommitFilesResponse(
+              commitInfo.synchronized {
+                commitInfo.response = CommitFilesResponse(
                   StatusCode.COMMIT_FILE_EXCEPTION,
                   List.empty.asJava,
                   List.empty.asJava,
                   masterIds,
                   slaveIds)
 
-                status.status = CommitInfo.COMMIT_FINISHED
+                commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
             } else {
               // finish, cancel timeout job first.
