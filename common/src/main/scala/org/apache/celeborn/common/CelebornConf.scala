@@ -528,6 +528,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
+  def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -1343,6 +1344,15 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.requestCommitFiles.maxRetries")
+      .categories("client")
+      .doc("Max retry times for requestCommitFiles RPC.")
+      .version("1.0.0")
+      .intConf
+      .checkValue(v => v > 0, "value must be positive")
+      .createWithDefault(2)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
