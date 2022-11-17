@@ -1776,8 +1776,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
       .version("0.2.0")
-      .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("120s")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.partitionSorter.sort.timeout")

@@ -177,6 +177,8 @@ private[celeborn] class Worker(
   val shuffleMapperAttempts = new ConcurrentHashMap[String, Array[Int]]()
   val partitionLocationInfo = new PartitionLocationInfo
 
+  val shuffleCommitInfos = new ConcurrentHashMap[String, CommitInfo]()
+
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
 
   // (workerInfo -> last connect timeout timestamp)
@@ -413,6 +415,7 @@ private[celeborn] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
+      shuffleCommitInfos.remove(shuffleKey)
       workerInfo.releaseSlots(shuffleKey)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }

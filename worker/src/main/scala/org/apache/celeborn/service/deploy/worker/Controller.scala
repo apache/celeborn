@@ -22,12 +22,9 @@ import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList, S
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.BiFunction
-
 import scala.collection.JavaConverters._
-
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -49,6 +46,8 @@ private[deploy] class Controller(
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
+  // shuffleKey -> (CommitInfo)
+  var shuffleCommitInfos: ConcurrentHashMap[String, CommitInfo] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var timer: HashedWheelTimer = _
@@ -61,6 +60,7 @@ private[deploy] class Controller(
     workerSource = worker.workerSource
     storageManager = worker.storageManager
     shuffleMapperAttempts = worker.shuffleMapperAttempts
+    shuffleCommitInfos = worker.shuffleCommitInfos
     workerInfo = worker.workerInfo
     partitionLocationInfo = worker.partitionLocationInfo
     timer = worker.timer
@@ -294,11 +294,7 @@ private[deploy] class Controller(
           },
           commitThreadPool)
 
-        if (future == null) {
-          future = task
-        } else {
-          future = CompletableFuture.allOf(future, task)
-        }
+        future = task
       }
     }
 
@@ -312,7 +308,7 @@ private[deploy] class Controller(
       slaveIds: jList[String],
       mapAttempts: Array[Int]): Unit = {
     // return null if shuffleKey does not exist
-    if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
@@ -322,6 +318,42 @@ private[deploy] class Controller(
           masterIds,
           slaveIds))
       return
+    }
+
+    val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
+
+    shuffleCommitInfos.putIfAbsent(shuffleKey, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
+    val status = shuffleCommitInfos.get(shuffleKey)
+
+    def waitForCommitFinish(): Unit = {
+      val delta = 100
+      var times = 0
+      while (delta * times < shuffleCommitTimeout) {
+        status.synchronized {
+          if (status.status == CommitInfo.COMMIT_FINISHED) {
+            context.reply(status.response)
+            return
+          }
+        }
+        Thread.sleep(delta)
+        times += 1
+      }
+    }
+
+    status.synchronized {
+      if (status.status == CommitInfo.COMMIT_FINISHED) {
+        context.reply(status.response)
+        return
+      } else if (status.status == CommitInfo.COMMIT_INPROCESS) {
+        commitThreadPool.submit(new Runnable {
+          override def run(): Unit = {
+            waitForCommitFinish()
+          }
+        })
+        return
+      } else {
+        status.status = CommitInfo.COMMIT_INPROCESS
+      }
     }
 
     // close and flush files.
@@ -391,42 +423,45 @@ private[deploy] class Controller(
       val totalSize = partitionSizeList.asScala.sum
       val fileCount = partitionSizeList.size()
       // reply
-      if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
+      val response = if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
         logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
           s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(
-          CommitFilesResponse(
-            StatusCode.SUCCESS,
-            committedMasterIdList,
-            committedSlaveIdList,
-            List.empty.asJava,
-            List.empty.asJava,
-            committedMasterStorageAndDiskHintList,
-            committedSlaveStorageAndDiskHintList,
-            committedMapIdBitMapList,
-            totalSize,
-            fileCount))
+        CommitFilesResponse(
+          StatusCode.SUCCESS,
+          committedMasterIdList,
+          committedSlaveIdList,
+          List.empty.asJava,
+          List.empty.asJava,
+          committedMasterStorageAndDiskHintList,
+          committedSlaveStorageAndDiskHintList,
+          committedMapIdBitMapList,
+          totalSize,
+          fileCount)
       } else {
         logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
           s" partitions and ${failedSlaveIds.size()} slave partitions!")
-        context.reply(
-          CommitFilesResponse(
-            StatusCode.PARTIAL_SUCCESS,
-            committedMasterIdList,
-            committedSlaveIdList,
-            failedMasterIdList,
-            failedSlaveIdList,
-            committedMasterStorageAndDiskHintList,
-            committedSlaveStorageAndDiskHintList,
-            committedMapIdBitMapList,
-            totalSize,
-            fileCount))
+        CommitFilesResponse(
+          StatusCode.PARTIAL_SUCCESS,
+          committedMasterIdList,
+          committedSlaveIdList,
+          failedMasterIdList,
+          failedSlaveIdList,
+          committedMasterStorageAndDiskHintList,
+          committedSlaveStorageAndDiskHintList,
+          committedMapIdBitMapList,
+          totalSize,
+          fileCount)
       }
+      val status = shuffleCommitInfos.get(shuffleKey)
+      status.synchronized {
+        status.response = response
+        status.status = CommitInfo.COMMIT_FINISHED
+      }
+      context.reply(response)
     }
 
     if (future != null) {
       val result = new AtomicReference[CompletableFuture[Unit]]()
-      val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
       val timeout = timer.newTimeout(
         new TimerTask {
@@ -457,6 +492,16 @@ private[deploy] class Controller(
                   logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout s.")
                 case throwable: Throwable =>
                   logError("While handling commitFiles, exception occurs.", throwable)
+              }
+              status.synchronized {
+                status.response = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  masterIds,
+                  slaveIds)
+
+                status.status = CommitInfo.COMMIT_FINISHED
               }
             } else {
               // finish, cancel timeout job first.
