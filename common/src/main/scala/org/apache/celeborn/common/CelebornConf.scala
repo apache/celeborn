@@ -479,6 +479,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
+  def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
+  def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
+  def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -1955,6 +1958,33 @@ object CelebornConf extends Logging {
       .doc("Interval of updating partition size for estimation.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10min")
+
+  val METRICS_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.app.topDiskUsage.count")
+      .withAlternative("rss.metrics.app.topDiskUsage.count")
+      .categories("master")
+      .doc("Size for top items about top disk usage applications list.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(50)
+
+  val METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.app.topDiskUsage.windowSize")
+      .withAlternative("rss.metrics.app.topDiskUsage.windowSize")
+      .categories("master")
+      .doc("Window size about top disk usage application list.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(24)
+
+  val METRICS_APP_TOP_DISK_USAGE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.app.topDiskUsage.interval")
+      .withAlternative("rss.metrics.app.topDiskUsage.interval")
+      .categories("master")
+      .doc("Time length for a window about top disk usage application list.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10min")
 
   val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =

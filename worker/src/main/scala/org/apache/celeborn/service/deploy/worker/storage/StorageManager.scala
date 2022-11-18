@@ -371,6 +371,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     hashSet
   }
 
+  def topShuffleDiskUsage: util.Map[String, Long] = {
+    fileInfos.asScala.map { keyedWriters =>
+      {
+        keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
+      }
+    }.map { case (shuffleKey, usage) =>
+      shuffleKey.split("-")(0) -> usage
+    }.groupBy(_._1).map { case (key, values) =>
+      key -> values.values.sum
+    }.toSeq.sortBy(_._2).take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
+  }
+
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")

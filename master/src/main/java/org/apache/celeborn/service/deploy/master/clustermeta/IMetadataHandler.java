@@ -59,6 +59,7 @@ public interface IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      Map<String, Long> shuffleDiskUsage,
       long time,
       String requestId);
 

@@ -518,6 +518,7 @@ public class DefaultMetaSystemSuiteJ {
         REPLICATEPORT1,
         new HashMap<>(),
         userResourceConsumption1,
+        new HashMap<>(),
         1,
         getNewReqeustId());
 
@@ -531,6 +532,7 @@ public class DefaultMetaSystemSuiteJ {
         REPLICATEPORT2,
         new HashMap<>(),
         userResourceConsumption2,
+        new HashMap<>(),
         1,
         getNewReqeustId());
 
@@ -544,6 +546,7 @@ public class DefaultMetaSystemSuiteJ {
         REPLICATEPORT3,
         disks1,
         userResourceConsumption1,
+        new HashMap<>(),
         1,
         getNewReqeustId());
 

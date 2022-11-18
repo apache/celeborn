@@ -29,6 +29,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.service.deploy.master.metrics.AppDiskUsageMetric;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -38,6 +39,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
+    this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
   }
 
   @Override
@@ -95,10 +97,19 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      Map<String, Long> shuffleDiskUsage,
       long time,
       String requestId) {
     updateWorkerHeartbeatMeta(
-        host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption, time);
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        userResourceConsumption,
+        shuffleDiskUsage,
+        time);
   }
 
   @Override

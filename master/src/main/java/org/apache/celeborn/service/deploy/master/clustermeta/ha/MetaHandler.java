@@ -100,10 +100,11 @@ public class MetaHandler {
       int pushPort;
       int fetchPort;
       int replicatePort;
-      Map<String, DiskInfo> disks;
+      Map<String, DiskInfo> diskUsage;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
+      Map<String, Long> shuffleDiskUsage = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
@@ -177,10 +178,11 @@ public class MetaHandler {
           rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
-          disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
+          diskUsage = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
+          shuffleDiskUsage.putAll(request.getWorkerHeartbeatRequest().getShuffleDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
@@ -189,7 +191,7 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              disks,
+              diskUsage,
               userResourceConsumption);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
@@ -198,8 +200,9 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              disks,
+              diskUsage,
               userResourceConsumption,
+              shuffleDiskUsage,
               time);
           break;
 
@@ -209,7 +212,7 @@ public class MetaHandler {
           pushPort = request.getRegisterWorkerRequest().getPushPort();
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
-          disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
+          diskUsage = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getRegisterWorkerRequest().getUserResourceConsumptionMap());
@@ -220,10 +223,16 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              disks,
+              diskUsage,
               userResourceConsumption);
           metaSystem.updateRegisterWorkerMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              diskUsage,
+              userResourceConsumption);
           break;
 
         case ReportWorkerUnavailable:
