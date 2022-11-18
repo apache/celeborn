@@ -236,6 +236,19 @@ class LocalDeviceMonitor(
           logger.debug("Device check start")
           try {
             observedDevices.values().asScala.foreach(device => {
+              device.nonCriticalErrors.values().forEach(list =>
+                list.removeIf(time =>
+                  System.currentTimeMillis() - time > device.reportErrorExpireDuration))
+              val nonCriticalErrorCount = device.nonCriticalErrors.values().asScala.map(_.size).sum
+              if (nonCriticalErrorCount > device.reportErrorNumberThreshold) {
+                logger.error(s"Device ${device.deviceInfo.name} accumulated error number ($nonCriticalErrorCount) " +
+                  s"within the past ${Utils.msDurationToString(device.reportErrorExpireDuration)} has exceed the " +
+                  s"threshold (${device.reportErrorNumberThreshold}), device monitor will report error to " +
+                  s"observed device.")
+                val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
+                device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
+              }
+
               val mountPoints = device.diskInfos.keySet.asScala.toList
 
               if (checkIoHang && device.ioHang()) {
@@ -261,22 +274,10 @@ class LocalDeviceMonitor(
                     device.notifyObserversOnNonCriticalError(
                       List(diskInfo.mountPoint),
                       DiskStatus.READ_OR_WRITE_FAILURE)
-                  } else {
+                  } else if (nonCriticalErrorCount < device.reportErrorNumberThreshold) {
                     device.notifyObserversOnHealthy(diskInfo.mountPoint)
                   }
                 }
-              }
-              device.nonCriticalErrors.values().forEach(list =>
-                list.removeIf(time =>
-                  System.currentTimeMillis() - time > device.reportErrorExpireDuration))
-              val nonCriticalErrorCount = device.nonCriticalErrors.values().asScala.map(_.size).sum
-              if (nonCriticalErrorCount > device.reportErrorNumberThreshold) {
-                logger.error(s"Device ${device.deviceInfo.name} accumulated error number ($nonCriticalErrorCount) " +
-                  s"within the past ${Utils.msDurationToString(device.reportErrorExpireDuration)} has exceed the " +
-                  s"threshold (${device.reportErrorNumberThreshold}), device monitor will report error to " +
-                  s"observed device.")
-                val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
-                device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               }
             })
           } catch {
