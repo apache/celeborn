@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 
 trait DeviceMonitor {
@@ -67,8 +67,9 @@ class LocalDeviceMonitor(
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
-    val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, AtomicInteger]()
-    val reportErrorThreshold = conf.diskMonitorReportErrorThreshold
+    val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, util.List[Long]]()
+    val reportErrorNumberThreshold = conf.diskMonitorReportErrorThreshold
+    val reportErrorExpireDuration = conf.diskMonitorReportErrorExpireDuration
 
     var lastReadComplete: Long = -1
     var lastWriteComplete: Long = -1
@@ -96,17 +97,17 @@ class LocalDeviceMonitor(
             ob.notifyError(mountPoint, diskStatus)
           }
         }
-        nonCriticalErrors.values().forEach(counter => (counter.set(0)))
       }
 
     def notifyObserversOnNonCriticalError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
       this.synchronized {
-        val nonCriticalErrorCounterFunc = new function.Function[DiskStatus, AtomicInteger] {
-          override def apply(t: DiskStatus): AtomicInteger = {
-            new AtomicInteger(0)
+        val nonCriticalErrorCounterFunc = new function.Function[DiskStatus, util.List[Long]] {
+          override def apply(t: DiskStatus): util.List[Long] = {
+            new util.LinkedList[Long]()
           }
         }
-        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorCounterFunc).addAndGet(1)
+        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorCounterFunc).add(
+          System.currentTimeMillis())
         mountPoints.foreach { case mountPoint =>
           diskInfos.get(mountPoint).setStatus(diskStatus)
         }
@@ -247,7 +248,9 @@ class LocalDeviceMonitor(
                     // TODO: Here we may need a duration for isolating this Disk how long? but normally if it throw critical error
                     //  which means we need manually check what happen instead of just recover
                     return
-                  } else if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo.mountPoint)) {
+                  } else if (checkDiskUsage && DeviceMonitor.highDiskUsage(
+                      conf,
+                      diskInfo.mountPoint)) {
                     logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                     device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                   } else if (checkReadWrite &&
@@ -263,10 +266,14 @@ class LocalDeviceMonitor(
                   }
                 }
               }
-              val nonCriticalErrorCount = device.nonCriticalErrors.values().asScala.map(_.get).sum
-              if (nonCriticalErrorCount > device.reportErrorThreshold) {
+              device.nonCriticalErrors.values().forEach(list =>
+                list.removeIf(time =>
+                  System.currentTimeMillis() - time > device.reportErrorExpireDuration))
+              val nonCriticalErrorCount = device.nonCriticalErrors.values().asScala.map(_.size).sum
+              if (nonCriticalErrorCount > device.reportErrorNumberThreshold) {
                 logger.error(s"Device ${device.deviceInfo.name} accumulated error number ($nonCriticalErrorCount) " +
-                  s"has exceed the threshold (${device.reportErrorThreshold}), device monitor will report error to " +
+                  s"within the past ${Utils.msDurationToString(device.reportErrorExpireDuration)} has exceed the " +
+                  s"threshold (${device.reportErrorNumberThreshold}), device monitor will report error to " +
                   s"observed device.")
                 val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
                 device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
