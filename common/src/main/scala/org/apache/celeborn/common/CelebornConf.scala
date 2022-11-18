@@ -691,6 +691,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def diskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
   def diskMonitorCheckInterval: Long = get(WORKER_DISK_MONITOR_CHECK_INTERVAL)
   def diskMonitorSysBlockDir: String = get(WORKER_DISK_MONITOR_SYS_BLOCK_DIR)
+  def diskMonitorReportErrorThreshold: Int = get(WORKER_DISK_MONITOR_REPORT_ERROR_THRESHOLD)
   def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
@@ -2278,6 +2279,15 @@ object CelebornConf extends Logging {
       .doc("The directory where linux file block information is stored.")
       .stringConf
       .createWithDefault("/sys/block")
+
+  val WORKER_DISK_MONITOR_REPORT_ERROR_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.worker.monitor.disk.reportErrorThreshold")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Device monitor will report device critical error once the accumulated non-critical error number exceed " +
+        "this threshold.")
+      .intConf
+      .createWithDefault(64)
 
   val WORKER_WRITER_CREATE_MAX_ATTEMPTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.create.maxAttempts")

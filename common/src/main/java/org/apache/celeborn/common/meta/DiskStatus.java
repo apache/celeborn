@@ -21,7 +21,8 @@ public enum DiskStatus {
   HEALTHY(0),
   READ_OR_WRITE_FAILURE(1),
   IO_HANG(2),
-  HIGH_DISK_USAGE(3);
+  HIGH_DISK_USAGE(3),
+  CRITICAL_ERROR(4);
 
   private final byte value;
 

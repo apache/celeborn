@@ -60,6 +60,7 @@ license: |
 | celeborn.worker.monitor.disk.checkInterval | 60s | Intervals between device monitor to check disk. | 0.2.0 | 
 | celeborn.worker.monitor.disk.checklist | readwrite,diskusage | Monitor type for disk, available items are: iohang, readwrite and diskusage. | 0.2.0 | 
 | celeborn.worker.monitor.disk.enabled | true | When true, worker will monitor device and report to master. | 0.2.0 | 
+| celeborn.worker.monitor.disk.reportErrorThreshold | 64 | Device monitor will report device critical error once the accumulated non-critical error number exceed this threshold. | 0.2.0 | 
 | celeborn.worker.monitor.disk.sys.block.dir | /sys/block | The directory where linux file block information is stored. | 0.2.0 | 
 | celeborn.worker.noneEmptyDirExpireDuration | 1d | If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired. | 0.2.0 | 
 | celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 | 

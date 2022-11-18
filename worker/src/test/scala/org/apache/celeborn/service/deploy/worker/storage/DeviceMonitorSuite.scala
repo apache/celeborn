@@ -214,29 +214,29 @@ class DeviceMonitorSuite extends AnyFunSuite {
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      when(fw2.notifyError("vda", DiskStatus.IO_HANG))
+      when(fw2.notifyError("vda", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      when(fw4.notifyError("vdb", DiskStatus.IO_HANG))
+      when(fw4.notifyError("vdb", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      when(df2.notifyError("vda", DiskStatus.IO_HANG))
+      when(df2.notifyError("vda", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           df2.stopFlag.set(true)
         })
-      when(df4.notifyError("vdb", DiskStatus.IO_HANG))
+      when(df4.notifyError("vdb", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           df4.stopFlag.set(true)
         })
 
       deviceMonitor.observedDevices
         .get(vdaDeviceInfo)
-        .notifyObserversOnError(List("/mnt/disk1"), DiskStatus.IO_HANG)
+        .notifyObserversOnError(List("/mnt/disk1"), DiskStatus.CRITICAL_ERROR)
       deviceMonitor.observedDevices
         .get(vdbDeviceInfo)
-        .notifyObserversOnError(List("/mnt/disk2"), DiskStatus.IO_HANG)
+        .notifyObserversOnError(List("/mnt/disk2"), DiskStatus.CRITICAL_ERROR)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
       assert(
@@ -262,7 +262,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.IO_HANG)
+      deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.CRITICAL_ERROR)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
@@ -276,7 +276,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
         .thenAnswer((_: Any) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.IO_HANG)
+      deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.CRITICAL_ERROR)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
       assert(
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))

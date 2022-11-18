@@ -20,8 +20,9 @@ package org.apache.celeborn.service.deploy.worker.storage
 import java.io._
 import java.nio.charset.Charset
 import java.util
-import java.util.{Set => jSet}
+import java.util.{function, Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.io.Source
@@ -66,6 +67,9 @@ class LocalDeviceMonitor(
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
+    val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, AtomicInteger]()
+    val reportErrorThreshold = conf.diskMonitorReportErrorThreshold
+
     var lastReadComplete: Long = -1
     var lastWriteComplete: Long = -1
     var lastReadInflight: Long = -1
@@ -92,10 +96,17 @@ class LocalDeviceMonitor(
             ob.notifyError(mountPoint, diskStatus)
           }
         }
+        nonCriticalErrors.values().forEach(counter => (counter.set(0)))
       }
 
     def notifyObserversOnNonCriticalError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
       this.synchronized {
+        val nonCriticalErrorCounterFunc = new function.Function[DiskStatus, AtomicInteger] {
+          override def apply(t: DiskStatus): AtomicInteger = {
+            new AtomicInteger(0)
+          }
+        }
+        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorCounterFunc).addAndGet(1)
         mountPoints.foreach { case mountPoint =>
           diskInfos.get(mountPoint).setStatus(diskStatus)
         }
@@ -232,7 +243,11 @@ class LocalDeviceMonitor(
                 device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
               } else {
                 device.diskInfos.values().asScala.foreach { case diskInfo =>
-                  if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo.mountPoint)) {
+                  if (diskInfo.status == DiskStatus.CRITICAL_ERROR) {
+                    // TODO: Here we may need a duration for isolating this Disk how long? but normally if it throw critical error
+                    //  which means we need manually check what happen instead of just recover
+                    return
+                  } else if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo.mountPoint)) {
                     logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                     device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                   } else if (checkReadWrite &&
@@ -247,6 +262,14 @@ class LocalDeviceMonitor(
                     device.notifyObserversOnHealthy(diskInfo.mountPoint)
                   }
                 }
+              }
+              val nonCriticalErrorCount = device.nonCriticalErrors.values().asScala.map(_.get).sum
+              if (nonCriticalErrorCount > device.reportErrorThreshold) {
+                logger.error(s"Device ${device.deviceInfo.name} accumulated error number ($nonCriticalErrorCount) " +
+                  s"has exceed the threshold (${device.reportErrorThreshold}), device monitor will report error to " +
+                  s"observed device.")
+                val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
+                device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               }
             })
           } catch {
