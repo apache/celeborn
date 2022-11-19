@@ -28,7 +28,7 @@ license: |
 | celeborn.&lt;module&gt;.io.lazyFD | true | Whether to initialize FileDescriptor lazily or not. If true, file descriptors are created only when data is going to be transferred. This can reduce the number of open files. |  | 
 | celeborn.&lt;module&gt;.io.maxRetries | 3 | Max number of times we will try IO exceptions (such as connection timeouts) per request. If set to 0, we will not do any retries. |  | 
 | celeborn.&lt;module&gt;.io.mode | NIO | Netty EventLoopGroup backend, available options: NIO, EPOLL. |  | 
-| celeborn.&lt;module&gt;.io.numConnectionsPerPeer | 8 | Number of concurrent connections between two nodes. |  | 
+| celeborn.&lt;module&gt;.io.numConnectionsPerPeer | 2 | Number of concurrent connections between two nodes. |  | 
 | celeborn.&lt;module&gt;.io.preferDirectBufs | true | If true, we will prefer allocating off-heap byte buffers within Netty. |  | 
 | celeborn.&lt;module&gt;.io.receiveBuffer | 0b | Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps buffer size should be ~ 1.25MB. | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.retryWait | 5s | Time that we will wait in order to perform a retry after an IOException. Only relevant if maxIORetries > 0. | 0.2.0 | 

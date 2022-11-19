@@ -45,7 +45,7 @@ celeborn:
   celeborn.worker.monitor.disk.enabled: false
   rss.rpc.io.serverThreads: 64
   rss.worker.fetch.chunk.size: 8m
-  rss.rpc.io.numConnectionsPerPeer: 8
+  rss.rpc.io.numConnectionsPerPeer: 2
   celeborn.worker.flush.buffer.size: 256K
   celeborn.metrics.enabled: true
   rss.push.io.threads: 32
