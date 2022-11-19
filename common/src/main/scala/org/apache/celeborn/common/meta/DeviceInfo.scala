@@ -116,6 +116,30 @@ class DiskInfo(
       s" status: $status" +
       s" dirs ${dirs.mkString("\t")}"
   }
+
+  // TODO: Could we remove some unnecessary fields when override hashcode and equals? like actualUsableSpace
+  override def hashCode(): Int = {
+    (mountPoint + actualUsableSpace + avgFlushTime + activeSlots + dirs.foldLeft("")(
+      _ + _.toString) + deviceInfo.name).hashCode
+  }
+
+  override def equals(obj: Any): Boolean = {
+    if (obj == this) {
+      true
+    } else if (obj == null) {
+      false
+    } else if (!obj.isInstanceOf[DiskInfo]) {
+      false
+    } else {
+      val otherDiskInfo = obj.asInstanceOf[DiskInfo]
+      otherDiskInfo.mountPoint.equals(this.mountPoint) &&
+      otherDiskInfo.actualUsableSpace == this.actualUsableSpace &&
+      otherDiskInfo.avgFlushTime == this.avgFlushTime &&
+      otherDiskInfo.activeSlots == this.activeSlots &&
+      otherDiskInfo.dirs.equals(this.dirs) &&
+      otherDiskInfo.deviceInfo.equals(this.deviceInfo)
+    }
+  }
 }
 
 class DeviceInfo(val name: String) extends Serializable {
