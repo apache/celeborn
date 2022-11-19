@@ -105,8 +105,10 @@ class LocalDeviceMonitor(
             new util.LinkedList[Long]()
           }
         }
-        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorCounterFunc).add(
-          System.currentTimeMillis())
+        nonCriticalErrors.synchronized {
+          nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorCounterFunc).add(
+            System.currentTimeMillis())
+        }
         mountPoints.foreach { case mountPoint =>
           diskInfos.get(mountPoint).setStatus(diskStatus)
         }
@@ -235,9 +237,16 @@ class LocalDeviceMonitor(
           logger.debug("Device check start")
           try {
             observedDevices.values().asScala.foreach(device => {
-              device.nonCriticalErrors.values().forEach(list =>
-                list.removeIf(time =>
-                  System.currentTimeMillis() - time > device.reportErrorExpireDuration))
+              for (list <- device.nonCriticalErrors.values().asScala) {
+                device.nonCriticalErrors.synchronized {
+                  val iter = list.iterator()
+                  while (iter.hasNext) {
+                    if (System.currentTimeMillis() - iter.next > device.reportErrorExpireDuration) {
+                      iter.remove()
+                    }
+                  }
+                }
+              }
               val nonCriticalErrorCount = device.nonCriticalErrors.values().asScala.map(_.size).sum
               if (nonCriticalErrorCount > device.reportErrorNumberThreshold) {
                 logger.error(s"Device ${device.deviceInfo.name} accumulated error number ($nonCriticalErrorCount) " +
