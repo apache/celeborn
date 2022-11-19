@@ -22,7 +22,6 @@ import java.nio.charset.Charset
 import java.util
 import java.util.{function, Set => jSet}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.io.Source
