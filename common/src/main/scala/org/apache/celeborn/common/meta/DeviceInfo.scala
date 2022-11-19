@@ -119,8 +119,14 @@ class DiskInfo(
 
   // TODO: Could we remove some unnecessary fields when override hashcode and equals? like actualUsableSpace
   override def hashCode(): Int = {
+    val device =
+      if (deviceInfo == null) {
+        "null"
+      } else {
+        deviceInfo.name
+      }
     (mountPoint + actualUsableSpace + avgFlushTime + activeSlots + dirs.foldLeft("")(
-      _ + _.toString) + deviceInfo.name).hashCode
+      _ + _.toString) + device).hashCode
   }
 
   override def equals(obj: Any): Boolean = {
