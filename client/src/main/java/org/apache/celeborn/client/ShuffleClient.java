@@ -19,7 +19,9 @@ package org.apache.celeborn.client;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -184,6 +186,20 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
+
+  // Write data to a specific map partition, input data's type is Bytebuf.
+  // data's type is Bytebuf to avoid copy between application and netty
+  // closecallback will do some clean opertions like memory release.
+  public abstract int pushData(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack)
+      throws IOException;;
 
   public abstract Optional<PartitionLocation> regionStart(
       String applicationId,
