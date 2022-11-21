@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.util
 
-import java.io.{File, FileInputStream, InputStreamReader, IOException}
+import java.io.{File, FileInputStream, IOException, InputStreamReader}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
@@ -25,20 +25,17 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
-import java.util.{Locale, Properties, Random, UUID}
-import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
-
+import java.util.{Locale, Objects, Properties, Random, UUID}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit, TimeoutException}
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
-
 import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
@@ -977,4 +974,13 @@ object Utils extends Logging {
     }
   }
 
+  def genAddressPair(loc: PartitionLocation): String = {
+    if (Objects.isNull(loc)) {
+      return null
+    }
+    if (loc.getPeer != null)
+      loc.hostAndPushPort + "-" + loc.getPeer.hostAndPushPort
+    else
+      loc.hostAndPushPort
+  }
 }
