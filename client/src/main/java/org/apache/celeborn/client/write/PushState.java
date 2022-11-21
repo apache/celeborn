@@ -19,12 +19,16 @@ package org.apache.celeborn.client.write;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
+import org.apache.celeborn.common.util.Utils;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,13 +41,23 @@ public class PushState {
   private int pushBufferMaxSize;
 
   public final AtomicInteger batchId = new AtomicInteger();
-  public final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
-      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
+          new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Set<Integer>> batchIdPerAddressPair =
+          new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
+  }
+
+  public ConcurrentHashMap<Integer, PartitionLocation> getInFlightBatches() {
+    return inFlightBatches;
+  }
+
+  public Set<Integer> getBatchIdSetByAddressPair(String addressPair) {
+    return batchIdPerAddressPair.computeIfAbsent(addressPair, pair -> new HashSet<>());
   }
 
   public void addFuture(int batchId, ChannelFuture future) {
@@ -87,5 +101,22 @@ public class PushState {
 
   public DataBatches takeDataBatches(String addressPair) {
     return batchesMap.remove(addressPair);
+  }
+
+  public void addFlightBatches(int batchId, PartitionLocation loc) {
+    String addressPair = Utils.genAddressPair(loc);
+    Set<Integer> batchIdSetPerPair =
+            batchIdPerAddressPair.computeIfAbsent(addressPair, id -> new HashSet<>());
+    batchIdSetPerPair.add(batchId);
+    inFlightBatches.put(batchId, loc);
+  }
+
+  public void removeFlightBatches(int batchId) {
+    PartitionLocation loc = inFlightBatches.remove(batchId);
+    String addressPair = Utils.genAddressPair(loc);
+    Set<Integer> batchIdSetPerPair = batchIdPerAddressPair.get(addressPair);
+    if (Objects.nonNull(batchIdSetPerPair)) {
+      batchIdSetPerPair.remove(batchId);
+    }
   }
 }
