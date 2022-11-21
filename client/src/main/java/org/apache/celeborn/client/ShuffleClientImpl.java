@@ -20,15 +20,14 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -47,8 +46,7 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.PushData;
-import org.apache.celeborn.common.network.protocol.PushMergedData;
+import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.*;
@@ -84,6 +82,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private RpcEndpointRef driverRssMetaService;
 
   protected TransportClientFactory dataClientFactory;
+
+  final int BATCH_HEADER_SIZE = 4 * 4;
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
@@ -557,7 +557,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     compressor.compress(data, offset, length);
 
     final int compressedTotalSize = compressor.getCompressedTotalSize();
-    final int BATCH_HEADER_SIZE = 4 * 4;
+
     final byte[] body = new byte[BATCH_HEADER_SIZE + compressedTotalSize];
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
@@ -596,7 +596,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
                     .add(mapKey);
               }
-              pushState.removeFuture(nextBatchId);
               logger.debug(
                   "Push data to {}:{} success for map {} attempt {} batch {}.",
                   loc.getHost(),
@@ -1204,5 +1203,131 @@ public class ShuffleClientImpl extends ShuffleClient {
     return (message.startsWith("Connection from ") && message.endsWith(" closed"))
         || (message.equals("Connection reset by peer"))
         || (message.startsWith("Failed to send RPC "));
+  }
+
+  @Override
+  public int pushDataByteBuf(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack)
+      throws IOException {
+    // mapKey
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+    // return if shuffle stage already ended
+    if (mapperEnded(shuffleId, mapId, attemptId)) {
+      logger.debug(
+          "The mapper(shuffle {} map {} attempt {}) has already ended while"
+              + " pushing data byteBuf.",
+          shuffleId,
+          mapId,
+          attemptId);
+      PushState pushState = pushStates.get(mapKey);
+      if (pushState != null) {
+        pushState.cancelFutures();
+      }
+      return 0;
+    }
+
+    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+
+    // increment batchId
+    final int nextBatchId = pushState.batchId.addAndGet(1);
+    int totalLength = data.readableBytes();
+    data.markWriterIndex();
+    data.writerIndex(0);
+    data.writeInt(mapId);
+    data.writeInt(attemptId);
+    data.writeInt(nextBatchId);
+    data.writeInt(totalLength - BATCH_HEADER_SIZE);
+    data.resetWriterIndex();
+    logger.debug(
+        "Do push data byteBuf for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
+        applicationId,
+        shuffleId,
+        mapId,
+        attemptId,
+        partitionId,
+        nextBatchId);
+    // check limit
+    limitMaxInFlight(mapKey, pushState, maxInFlight);
+
+    // add inFlight requests
+    pushState.inFlightBatches.put(nextBatchId, location);
+
+    // build PushData request
+    NettyManagedBuffer buffer = new NettyManagedBuffer(data);
+    PushData pushData = new PushData(MASTER_MODE, shuffleKey, location.getUniqueId(), buffer);
+
+    // build callback
+    RpcResponseCallback callback =
+        new RpcResponseCallback() {
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            closeCallBack.getAsBoolean();
+            pushState.inFlightBatches.remove(nextBatchId);
+            pushState.removeFuture(nextBatchId);
+            if (response.remaining() > 0) {
+              byte reason = response.get();
+              if (reason == StatusCode.STAGE_ENDED.getValue()) {
+                mapperEndMap
+                    .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
+                    .add(mapKey);
+              }
+            }
+            logger.debug(
+                "Push data byteBuf to {}:{} success for map {} attempt {} batch {}.",
+                location.getHost(),
+                location.getPushPort(),
+                mapId,
+                attemptId,
+                nextBatchId);
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            closeCallBack.getAsBoolean();
+            pushState.inFlightBatches.remove(nextBatchId);
+            pushState.removeFuture(nextBatchId);
+            if (pushState.exception.get() != null) {
+              return;
+            }
+            if (!mapperEnded(shuffleId, mapId, attemptId)) {
+              pushState.exception.compareAndSet(
+                  null, new IOException("PushData byteBuf failed!", e));
+              logger.error(
+                  "Push data byteBuf to {}:{} failed for map {} attempt {} batch {}.",
+                  location.getHost(),
+                  location.getPushPort(),
+                  mapId,
+                  attemptId,
+                  nextBatchId,
+                  e);
+            } else {
+              logger.warn(
+                  "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
+                  shuffleId,
+                  mapId,
+                  attemptId,
+                  nextBatchId);
+            }
+          }
+        };
+    // do push data
+    try {
+      TransportClient client =
+          dataClientFactory.createClient(location.getHost(), location.getPushPort(), partitionId);
+      ChannelFuture future = client.pushData(pushData, callback);
+      pushState.addFuture(nextBatchId, future);
+    } catch (Exception e) {
+      logger.warn("PushData byteBuf failed", e);
+      callback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+    }
+    return totalLength;
   }
 }
