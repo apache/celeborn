@@ -22,11 +22,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.function.BooleanSupplier;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 public class DummyShuffleClient extends ShuffleClient {
@@ -121,5 +124,19 @@ public class DummyShuffleClient extends ShuffleClient {
     } catch (IOException e) {
       LOG.error("Closing file failed.", e);
     }
+  }
+
+  @Override
+  public int pushDataByteBuf(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack)
+      throws IOException {
+    return 0;
   }
 }
