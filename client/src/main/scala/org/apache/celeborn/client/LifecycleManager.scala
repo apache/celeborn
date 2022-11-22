@@ -27,6 +27,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 import org.roaringbitmap.RoaringBitmap
 
@@ -53,7 +54,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   private val partitionSplitThreshold = conf.partitionSplitThreshold
   private val partitionSplitMode = conf.partitionSplitMode
-  private val partitionType = conf.shufflePartitionType
+  // shuffle id -> partition type
+  private val shufflePartitionType = new ConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
   private val stageEndTimeout = conf.pushStageEndTimeout
@@ -83,7 +85,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
-  private def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
+  @VisibleForTesting
+  def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
   val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
@@ -293,6 +296,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     rpcEnv.address.port
   }
 
+  def getPartitionType(shuffleId: Int): PartitionType = {
+    shufflePartitionType.getOrDefault(shuffleId, conf.shufflePartitionType)
+  }
+
   override def receive: PartialFunction[Any, Unit] = {
     case RemoveExpiredShuffle =>
       removeExpiredShuffle()
@@ -318,6 +325,22 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       logDebug(s"Received RegisterShuffle request, " +
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
       handleRegisterShuffle(context, applicationId, shuffleId, numMappers, numPartitions)
+
+    case pb: PbRegisterMapPartitionTask =>
+      val applicationId = pb.getApplicationId
+      val shuffleId = pb.getShuffleId
+      val numMappers = pb.getNumMappers
+      val mapId = pb.getMapId
+      val attemptId = pb.getAttemptId
+      val partitionId = pb.getPartitionId
+      logDebug(s"Received Register map partition task request, " +
+        s"$applicationId, $shuffleId, $numMappers, $mapId, $attemptId, $partitionId.")
+      handleRegisterMapPartitionTask(
+        context,
+        applicationId,
+        shuffleId,
+        numMappers,
+        partitionId)
 
     case pb: PbRevive =>
       val applicationId = pb.getApplicationId
@@ -379,6 +402,33 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       numMappers: Int,
       numReducers: Int): Unit = {
+    handleOfferAndReserveSlots(context, applicationId, shuffleId, numMappers, numReducers)
+  }
+
+  private def handleRegisterMapPartitionTask(
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      numMappers: Int,
+      partitionId: Int): Unit = {
+    shufflePartitionType.putIfAbsent(shuffleId, PartitionType.MAP)
+    handleOfferAndReserveSlots(
+      context,
+      applicationId,
+      shuffleId,
+      numMappers,
+      numMappers,
+      partitionId)
+  }
+
+  private def handleOfferAndReserveSlots(
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      numMappers: Int,
+      numReducers: Int,
+      partitionId: Int = -1): Unit = {
+    val partitionType = getPartitionType(shuffleId)
     registeringShuffleRequest.synchronized {
       if (registeringShuffleRequest.containsKey(shuffleId)) {
         // If same request already exists in the registering request list for the same shuffle,
@@ -394,7 +444,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             .values()
             .asScala
             .flatMap(_.getAllMasterLocationsWithMinEpoch(shuffleId.toString).asScala)
-            .filter(_.getEpoch == 0)
+            .filter(p =>
+              (partitionType == PartitionType.REDUCE && p.getEpoch == 0) || (partitionType == PartitionType.MAP && p.getId == partitionId))
             .toArray
           context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
           return
@@ -513,7 +564,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
-      val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
+      val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).filter(p =>
+        partitionType ==
+          PartitionType.REDUCE || (partitionType == PartitionType.MAP && p.getId == partitionId)).toArray
       reply(RegisterShuffleResponse(StatusCode.SUCCESS, allMasterPartitionLocations))
     }
   }
@@ -1123,7 +1176,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             slaveLocations,
             partitionSplitThreshold,
             partitionSplitMode,
-            partitionType,
+            getPartitionType(shuffleId),
             rangeReadFilter,
             userIdentifier))
         if (res.status.equals(StatusCode.SUCCESS)) {

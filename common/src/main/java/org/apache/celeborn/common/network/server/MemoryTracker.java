@@ -18,6 +18,8 @@
 package org.apache.celeborn.common.network.server;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -27,10 +29,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.common.base.Preconditions;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.misc.VM;
 
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -39,7 +41,7 @@ import org.apache.celeborn.common.util.Utils;
 public class MemoryTracker {
   private static final Logger logger = LoggerFactory.getLogger(MemoryTracker.class);
   private static volatile MemoryTracker _INSTANCE = null;
-  private final long maxDirectorMemory = VM.maxDirectMemory();
+  private long maxDirectorMemory = 0;
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
   private final long resumeThreshold;
@@ -101,6 +103,31 @@ public class MemoryTracker {
       double maxSortMemRatio,
       long checkInterval,
       long reportInterval) {
+    String[][] providers =
+        new String[][] {
+          {"sun.misc.VM", "maxDirectMemory"},
+          {"jdk.internal.misc.VM", "maxDirectMemory"}
+        };
+
+    Method maxMemMethod = null;
+    for (String[] provider : providers) {
+      String clazz = provider[0];
+      String method = provider[1];
+      try {
+        Class<?> vmClass = Class.forName(clazz);
+        maxMemMethod = vmClass.getDeclaredMethod(method);
+
+        maxMemMethod.setAccessible(true);
+        maxDirectorMemory = (long) maxMemMethod.invoke(null);
+        break;
+      } catch (ClassNotFoundException
+          | NoSuchMethodException
+          | IllegalAccessException
+          | InvocationTargetException ignored) {
+        // Ignore Exception
+      }
+    }
+    Preconditions.checkArgument(maxDirectorMemory > 0);
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
