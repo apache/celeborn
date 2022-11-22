@@ -31,7 +31,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {
   override def toString: String =
-    s"Application ${appId} used approximately ${Utils.bytesToString(estimatedUsage)} "
+    s"Application ${appId} used approximate ${Utils.bytesToString(estimatedUsage)} "
 }
 
 class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializable {

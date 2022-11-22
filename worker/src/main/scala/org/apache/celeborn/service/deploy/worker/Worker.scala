@@ -225,7 +225,7 @@ private[celeborn] class Worker(
     val estimatedAppDiskUsage = new JHashMap[String, JLong]()
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     activeShuffleKeys.addAll(storageManager.shuffleKeySet())
-    storageManager.topShuffleDiskUsage.asScala.foreach { case (shuffleId, usage) =>
+    storageManager.topAppDiskUsage.asScala.foreach { case (shuffleId, usage) =>
       estimatedAppDiskUsage.put(shuffleId, usage)
     }
     // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
@@ -441,8 +441,8 @@ private[celeborn] class Worker(
 
   override def listTopDiskUseApps: String = {
     val stringBuilder = new StringBuilder()
-    storageManager.topShuffleDiskUsage.asScala.foreach { case (appId, usage) =>
-      stringBuilder.append(s"application ${appId} used ${Utils.bytesToString(usage)}")
+    storageManager.topAppDiskUsage.asScala.foreach { case (appId, usage) =>
+      stringBuilder.append(s"application ${appId} used ${Utils.bytesToString(usage)} ")
     }
     stringBuilder.toString()
   }
