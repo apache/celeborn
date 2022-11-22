@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.slf4j.Logger;
@@ -41,6 +42,7 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.metrics.AppDiskUsageMetric;
+import org.apache.celeborn.service.deploy.master.metrics.AppDiskUsageSnapShot;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -282,7 +284,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
     out.writeLong(partitionTotalWritten.sum());
     out.writeLong(partitionTotalFileCount.sum());
-    out.writeObject(appDiskUsageMetric);
+    out.writeObject(appDiskUsageMetric.snapShots());
+    out.writeObject(appDiskUsageMetric.currentSnapShot());
 
     out.flush();
   }
@@ -343,7 +346,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       partitionTotalWritten.add(in.readLong());
       partitionTotalFileCount.reset();
       partitionTotalFileCount.add(in.readLong());
-      appDiskUsageMetric = (AppDiskUsageMetric) in.readObject();
+      appDiskUsageMetric.restoreFromSnapshot((AppDiskUsageSnapShot[]) in.readObject());
+      appDiskUsageMetric.currentSnapShot_$eq(
+          (AtomicReference<AppDiskUsageSnapShot>) in.readObject());
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
     }

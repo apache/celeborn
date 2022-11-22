@@ -86,7 +86,7 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
 }
 
 // This metric collects approximate value because worker won't report all app disk usage value for reducing memory pressure. .
-class AppDiskUsageMetric(conf: CelebornConf) extends Logging with Serializable {
+class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   val usageCount = conf.metricsAppTopDiskUsageCount
   val snapshotCount = conf.metricsAppTopDiskUsageWindowSize
   val interval = conf.metricsAppTopDiskUsageInterval
@@ -142,4 +142,11 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging with Serializable {
     }
     stringBuilder.toString()
   }
+
+  def restoreFromSnapshot(array: Array[AppDiskUsageSnapShot]): Unit = {
+    for (i <- 0 until (snapshotCount)) {
+      snapShots(i) = array(i)
+    }
+  }
+
 }
