@@ -52,6 +52,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var workerInfo: WorkerInfo = _
   var diskReserveSize: Long = _
   var partitionSplitMinimumSize: Long = _
+  var shutdown: AtomicBoolean = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -65,6 +66,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.diskReserveSize
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
+    shutdown = worker.shutdown
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -168,6 +170,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
       return
     }
+
+    // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
+    // This should before return exception to make current push data can revive and retry.
+    if (isMaster && shutdown.get()) {
+      logInfo(s"Push data return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      return
+    }
+
     val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
     val exception = fileWriter.getException
     if (exception != null) {
@@ -316,6 +327,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         return
       }
       loc
+    }
+
+    // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
+    // This should before return exception to make current push data can revive and retry.
+    if (isMaster && shutdown.get()) {
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      return
     }
 
     val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)

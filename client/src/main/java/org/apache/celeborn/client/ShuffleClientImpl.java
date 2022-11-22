@@ -942,7 +942,23 @@ public class ShuffleClientImpl extends ShuffleClient {
         new RpcResponseCallback() {
           @Override
           public void onSuccess(ByteBuffer response) {
-            callback.onSuccess(response);
+            if (response.remaining() > 0) {
+              byte reason = response.get();
+              if (reason == StatusCode.HARD_SPLIT.getValue()) {
+                logger.info("Push merged data return hard split for map " + mapId +
+                    " attempt " + attemptId + " batches " + Arrays.toString(batchIds) + ".");
+                pushDataRetryPool.submit(() ->
+                    submitRetryPushMergedData(pushState, applicationId, shuffleId, mapId,
+                        attemptId, batches, StatusCode.HARD_SPLIT, groupedBatchId));
+              } else {
+                // Should not happen in current architecture.
+                response.rewind();
+                logger.error("Push merged data should not receive this response");
+                callback.onSuccess(response);
+              }
+            } else {
+              callback.onSuccess(response);
+            }
           }
 
           @Override
