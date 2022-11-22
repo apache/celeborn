@@ -1165,11 +1165,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
           val masterIds = masterParts.asScala.map(_.getUniqueId).filterNot { id =>
             shuffleCommitInfo.committedMasterIds.contains(id) ||
-              shuffleCommitInfo.failedMasterPartitionIds.contains(id)
+            shuffleCommitInfo.failedMasterPartitionIds.contains(id)
           }.asJava
           val slaveIds = slaveParts.asScala.map(_.getUniqueId).filterNot { id =>
             shuffleCommitInfo.committedSlaveIds.contains(id) ||
-              shuffleCommitInfo.failedSlavePartitionIds.contains(id)
+            shuffleCommitInfo.failedSlavePartitionIds.contains(id)
           }.asJava
 
           val commitFiles = CommitFiles(
