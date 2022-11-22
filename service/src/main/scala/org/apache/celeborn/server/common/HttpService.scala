@@ -35,6 +35,8 @@ abstract class HttpService extends Service with Logging {
 
   def getShuffleList: String
 
+  def listTopDiskUseApps: String
+
   def startHttpServer(): Unit = {
     val handlers =
       if (metricsSystem.running) {

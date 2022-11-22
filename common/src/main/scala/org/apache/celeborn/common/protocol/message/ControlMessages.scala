@@ -109,7 +109,8 @@ object ControlMessages extends Logging {
       replicatePort: Int,
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-      shuffleKeys: util.HashSet[String],
+      activeShuffleKeys: util.Set[String],
+      estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatResponse(
@@ -434,7 +435,8 @@ object ControlMessages extends Logging {
           replicatePort,
           disks,
           userResourceConsumption,
-          shuffleKeys,
+          activeShuffleKeys,
+          estimatedAppDiskUsage,
           requestId) =>
       val pbDisks = disks.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption =
@@ -447,7 +449,8 @@ object ControlMessages extends Logging {
         .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setReplicatePort(replicatePort)
-        .addAllShuffleKeys(shuffleKeys)
+        .addAllActiveShuffleKeys(activeShuffleKeys)
+        .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
         .setRequestId(requestId)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
@@ -786,12 +789,16 @@ object ControlMessages extends Logging {
 
       case HEARTBEAT_FROM_WORKER =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
-        val shuffleKeys = new util.HashSet[String]()
+        val estimatedAppDiskUsage = new util.HashMap[String, java.lang.Long]()
         val userResourceConsumption = PbSerDeUtils.fromPbUserResourceConsumption(
           pbHeartbeatFromWorker.getUserResourceConsumptionMap)
         val pbDisks = pbHeartbeatFromWorker.getDisksList.asScala.map(PbSerDeUtils.fromPbDiskInfo)
-        if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
-          shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
+        if (!pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap.isEmpty) {
+          estimatedAppDiskUsage.putAll(pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap)
+        }
+        val activeShuffleKeys = new util.HashSet[String]()
+        if (!pbHeartbeatFromWorker.getActiveShuffleKeysList.isEmpty) {
+          activeShuffleKeys.addAll(pbHeartbeatFromWorker.getActiveShuffleKeysList)
         }
         HeartbeatFromWorker(
           pbHeartbeatFromWorker.getHost,
@@ -801,7 +808,8 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getReplicatePort,
           pbDisks,
           userResourceConsumption,
-          shuffleKeys,
+          activeShuffleKeys,
+          estimatedAppDiskUsage,
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>

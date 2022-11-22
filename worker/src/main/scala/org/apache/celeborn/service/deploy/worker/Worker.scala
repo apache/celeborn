@@ -18,11 +18,13 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.io.IOException
-import java.util.{HashSet => JHashSet}
+import java.lang.{Long => JLong}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -219,9 +221,13 @@ private[celeborn] class Worker(
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   private def heartBeatToMaster(): Unit = {
-    val shuffleKeys = new JHashSet[String]
-    shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
-    shuffleKeys.addAll(storageManager.shuffleKeySet())
+    val activeShuffleKeys = new JHashSet[String]()
+    val estimatedAppDiskUsage = new JHashMap[String, JLong]()
+    activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
+    activeShuffleKeys.addAll(storageManager.shuffleKeySet())
+    storageManager.topAppDiskUsage.asScala.foreach { case (shuffleId, usage) =>
+      estimatedAppDiskUsage.put(shuffleId, usage)
+    }
     // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
     // and avoid remove this from master's blacklist.
     val diskInfos =
@@ -245,7 +251,8 @@ private[celeborn] class Worker(
         replicatePort,
         diskInfos,
         resourceConsumption,
-        shuffleKeys),
+        activeShuffleKeys,
+        estimatedAppDiskUsage),
       classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
@@ -430,6 +437,14 @@ private[celeborn] class Worker(
 
   override def getShuffleList: String = {
     storageManager.shuffleKeySet().asScala.mkString("\n")
+  }
+
+  override def listTopDiskUseApps: String = {
+    val stringBuilder = new StringBuilder()
+    storageManager.topAppDiskUsage.asScala.foreach { case (appId, usage) =>
+      stringBuilder.append(s"application ${appId} used ${Utils.bytesToString(usage)} ")
+    }
+    stringBuilder.toString()
   }
 
   @VisibleForTesting

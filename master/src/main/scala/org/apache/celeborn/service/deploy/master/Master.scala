@@ -278,7 +278,8 @@ private[celeborn] class Master(
           replicatePort,
           disks,
           userResourceConsumption,
-          shuffleKeys,
+          activeShuffleKey,
+          estimatedAppDiskUsage,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
@@ -293,7 +294,8 @@ private[celeborn] class Master(
           replicatePort,
           disks,
           userResourceConsumption,
-          shuffleKeys,
+          activeShuffleKey,
+          estimatedAppDiskUsage,
           requestId))
 
     case GetWorkerInfos =>
@@ -356,7 +358,8 @@ private[celeborn] class Master(
       replicatePort: Int,
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-      shuffleKeys: util.HashSet[String],
+      activeShuffleKeys: util.Set[String],
+      estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
@@ -372,12 +375,13 @@ private[celeborn] class Master(
         replicatePort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
+        estimatedAppDiskUsage,
         System.currentTimeMillis(),
         requestId)
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
-    shuffleKeys.asScala.foreach { shuffleKey =>
+    activeShuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
         logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
         expiredShuffleKeys.add(shuffleKey)
@@ -691,6 +695,10 @@ private[celeborn] class Master(
 
   override def getShuffleList: String = {
     statusSystem.registeredShuffle.asScala.mkString("\n")
+  }
+
+  override def listTopDiskUseApps: String = {
+    statusSystem.appDiskUsageMetric.summary
   }
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
