@@ -287,7 +287,7 @@ public abstract class RssInputStream extends InputStream {
     @Override
     public void close() {
       int locationsCount = locations.length;
-      logger.info(
+      logger.warn(
           "total location count {} read {} skip {}",
           locationsCount,
           locationsCount - skipCount.sum(),
