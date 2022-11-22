@@ -9,12 +9,14 @@ This project uses check-style plugins. Run some checks before you create a new p
 ```
 
 ## How to Contribute
-For collaboration, feel free to contact us. To report a bug, you can just open an jira ticket on Celeborn
-Jira(https://issues.apache.org/jira/projects/CELEBORN/issues) or connect us on Slack() and attach the exceptions and your analysis if any.
-For other improvements, you can contact us or open an Jira ticket first and describe what improvement you would like to do. 
-After reaching a consensus, you can open a pull request and your pull request will get merged after reviewed.
+For collaboration, feel free to contact us on [Slack](https://join.slack.com/t/apachecelebor-kw08030/shared_invite/zt-1ju3hd5j8-4Z5keMdzpcVMspe4UJzF4Q).
+To report a bug, you can just open a ticket on [Jira](https://issues.apache.org/jira/projects/CELEBORN/issues)   
+and attach the exceptions and your analysis if any. For other improvements, you can contact us or
+open a Jira ticket first and describe what improvement you would like to do. 
+After reaching a consensus, you can open a pull request and your pull request 
+will get merged after reviewed.
 
 ## Improvements on the Schedule
 There are already some further improvements on the schedule and welcome to contact us for collaboration:
 1.Flink support.
-2.Multi-tenant support.
+2.Celeborn as a service.
