@@ -242,7 +242,8 @@ object ControlMessages extends Logging {
       shuffleId: Int,
       mapId: Int,
       attemptId: Int,
-      numMappers: Int)
+      numMappers: Int,
+      partitionId: Int)
     extends MasterMessage
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
@@ -253,7 +254,7 @@ object ControlMessages extends Logging {
   // Path can't be serialized
   case class GetReducerFileGroupResponse(
       status: StatusCode,
-      fileGroup: Array[Array[PartitionLocation]],
+      fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
       attempts: Array[Int])
     extends MasterMessage
 
@@ -521,13 +522,14 @@ object ControlMessages extends Logging {
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
-    case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
+    case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId) =>
       val payload = PbMapperEnd.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setNumMappers(numMappers)
+        .setPartitionId(partitionId)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload)
 
@@ -547,13 +549,13 @@ object ControlMessages extends Logging {
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
-      builder.addAllFileGroup(
-        fileGroup.map { arr =>
-          PbFileGroup.newBuilder().addAllLocations(arr
-            .map(PbSerDeUtils.toPbPartitionLocation).toIterable.asJava).build()
-        }
-          .toIterable
-          .asJava)
+      builder.putAllFileGroups(
+        fileGroup.asScala.map { case (partitionId, fileGroup) =>
+          (
+            partitionId,
+            PbFileGroup.newBuilder().addAllLocations(fileGroup.asScala.map(PbSerDeUtils
+              .toPbPartitionLocation).toList.asJava).build())
+        }.asJava)
       builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
@@ -875,7 +877,8 @@ object ControlMessages extends Logging {
           pbMapperEnd.getShuffleId,
           pbMapperEnd.getMapId,
           pbMapperEnd.getAttemptId,
-          pbMapperEnd.getNumMappers)
+          pbMapperEnd.getNumMappers,
+          pbMapperEnd.getPartitionId)
 
       case MAPPER_END_RESPONSE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
@@ -890,9 +893,14 @@ object ControlMessages extends Logging {
       case GET_REDUCER_FILE_GROUP_RESPONSE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
-        val fileGroup = pbGetReducerFileGroupResponse.getFileGroupList.asScala.map { fg =>
-          fg.getLocationsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).toArray
-        }.toArray
+        val fileGroup = pbGetReducerFileGroupResponse.getFileGroupsMap.asScala.map {
+          case (partitionId, fileGroup) =>
+            (
+              partitionId,
+              fileGroup.getLocationsList.asScala.map(
+                PbSerDeUtils.fromPbPartitionLocation).toSet.asJava)
+        }.asJava
+
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
         GetReducerFileGroupResponse(
           Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),

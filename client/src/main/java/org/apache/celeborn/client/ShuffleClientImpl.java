@@ -113,10 +113,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       };
 
   private static class ReduceFileGroups {
-    final PartitionLocation[][] partitionGroups;
+    final Map<Integer, Set<PartitionLocation>> partitionGroups;
     final int[] mapAttempts;
 
-    ReduceFileGroups(PartitionLocation[][] partitionGroups, int[] mapAttempts) {
+    ReduceFileGroups(Map<Integer, Set<PartitionLocation>> partitionGroups, int[] mapAttempts) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
     }
@@ -1028,6 +1028,29 @@ public class ShuffleClientImpl extends ShuffleClient {
   public void mapperEnd(
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException {
+    mapEndInternal(applicationId, shuffleId, mapId, attemptId, numMappers, -1);
+  }
+
+  @Override
+  public void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
+      throws IOException {
+    mapEndInternal(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId);
+  }
+
+  private void mapEndInternal(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      Integer partitionId)
+      throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
 
@@ -1036,7 +1059,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       MapperEndResponse response =
           driverRssMetaService.askSync(
-              new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers),
+              new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
         throw new IOException("MapperEnd failed! StatusCode: " + response.status());
@@ -1119,9 +1142,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
                 if (response.status() == StatusCode.SUCCESS) {
                   logger.info(
-                      "Shuffle {} request reducer file group success using time:{} ms",
+                      "Shuffle {} request reducer file group success using time:{} ms, result partition ids: {}",
                       shuffleId,
-                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000);
+                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
+                      response.fileGroup().keySet());
                   return new ReduceFileGroups(response.fileGroup(), response.attempts());
                 } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
                   logger.warn(
@@ -1147,20 +1171,26 @@ public class ShuffleClientImpl extends ShuffleClient {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
       throw new IOException(msg);
-    } else if (fileGroups.partitionGroups.length == 0) {
-      logger.warn("Shuffle data is empty for shuffle {} reduce {}.", shuffleId, partitionId);
+    } else if (fileGroups.partitionGroups.size() == 0
+        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       return RssInputStream.empty();
     } else {
       return RssInputStream.create(
           conf,
           dataClientFactory,
           shuffleKey,
-          fileGroups.partitionGroups[partitionId],
+          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),
           fileGroups.mapAttempts,
           attemptNumber,
           startMapIndex,
           endMapIndex);
     }
+  }
+
+  @VisibleForTesting
+  public Map<Integer, ReduceFileGroups> getReduceFileGroupsMap() {
+    return reduceFileGroupsMap;
   }
 
   @Override

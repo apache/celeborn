@@ -149,9 +149,19 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
       throws IOException;
 
-  // Report partition locations written by the completed map task
+  // Report partition locations written by the completed map task of ReducePartition Shuffle Type
   public abstract void mapperEnd(
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
+      throws IOException;
+
+  // Report partition locations written by the completed map task of MapPartition Shuffle Type
+  public abstract void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
       throws IOException;
 
   // Cleanup states of the map task

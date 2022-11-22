@@ -232,6 +232,7 @@ message PbMapperEnd {
   int32 mapId = 3;
   int32 attemptId = 4;
   int32 numMappers = 5;
+  int32 partitionId = 6;
 }
 
 message PbMapperEndResponse {
@@ -245,7 +246,10 @@ message PbGetReducerFileGroup {
 
 message PbGetReducerFileGroupResponse {
   int32 status = 1;
-  repeated PbFileGroup fileGroup = 2;
+  // PartitionId -> Partition FileGroup
+  map<int32, PbFileGroup> fileGroups = 2;
+
+  // only reduce partition mode need know valid attempts
   repeated int32 attempts = 3;
 }
 

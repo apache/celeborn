@@ -36,6 +36,9 @@ class ShuffleClientSuite extends AnyFunSuite with MiniClusterFeature
   val APP = "app-1"
   var shuffleClient: ShuffleClientImpl = _
   var lifecycleManager: LifecycleManager = _
+  val numMappers = 8
+  val mapId = 1
+  val attemptId = 0
 
   override def beforeAll(): Unit = {
     val masterConf = Map(
@@ -54,11 +57,8 @@ class ShuffleClientSuite extends AnyFunSuite with MiniClusterFeature
     shuffleClient.setupMetaServiceRef(lifecycleManager.self)
   }
 
-  test(s"test register map partition task with first attemptId") {
+  test(s"test register map partition task") {
     val shuffleId = 1
-    val numMappers = 8
-    val mapId = 1
-    val attemptId = 0
     var location =
       shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
     Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId, attemptId))
@@ -91,6 +91,39 @@ class ShuffleClientSuite extends AnyFunSuite with MiniClusterFeature
     count =
       partitionLocationInfos.map(r => r.getAllMasterLocations(shuffleId.toString).size()).sum
     Assert.assertEquals(count, numMappers + 1)
+  }
+
+  test(s"test map end & get reducer file group") {
+    val shuffleId = 2
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1)
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, numMappers, mapId, attemptId, mapId)
+    // retry
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, numMappers, mapId, attemptId, mapId)
+    // another attempt
+    shuffleClient.mapPartitionMapperEnd(
+      APP,
+      shuffleId,
+      numMappers,
+      mapId,
+      attemptId + 1,
+      PackedPartitionId
+        .packedPartitionId(mapId, attemptId + 1))
+    // another mapper
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, numMappers, mapId + 1, attemptId, mapId + 1)
+
+    // reduce file group size (for empty partitions)
+    Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
+
+    // reduce normal empty RssInputStream
+    var stream = shuffleClient.readPartition(APP, shuffleId, 1, 1)
+    Assert.assertEquals(stream.read(), -1)
+
+    // reduce normal null partition for RssInputStream
+    stream = shuffleClient.readPartition(APP, shuffleId, 3, 1)
+    Assert.assertEquals(stream.read(), -1)
   }
 
   override def afterAll(): Unit = {
