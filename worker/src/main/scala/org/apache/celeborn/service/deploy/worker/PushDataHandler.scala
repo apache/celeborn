@@ -322,7 +322,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId, uniqueId $id)."
           logWarning(s"[handlePushMergedData] $msg")
-          wrappedCallback.onFailure(new Exception(msg))
+          callback.onFailure(new Exception(msg))
         }
         return
       }
