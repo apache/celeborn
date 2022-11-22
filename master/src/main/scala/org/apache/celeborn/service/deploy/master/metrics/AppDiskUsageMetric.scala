@@ -18,15 +18,13 @@
 package org.apache.celeborn.service.deploy.master.metrics
 
 import java.time.LocalDateTime
-import java.util
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.collection.JavaConverters.{iterableAsScalaIterableConverter, mapAsScalaMapConverter}
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {

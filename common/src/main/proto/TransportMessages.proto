@@ -141,7 +141,7 @@ message PbHeartbeatFromWorker {
   repeated string activeShuffleKeys = 7;
   string requestId = 8;
   map<string, PbResourceConsumption> userResourceConsumption = 9;
-  map<string,int64> estimatedAppDiskUsage = 10;
+  map<string, int64> estimatedAppDiskUsage = 10;
 }
 
 message PbHeartbeatResponse {
