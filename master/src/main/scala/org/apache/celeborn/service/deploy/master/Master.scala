@@ -278,7 +278,8 @@ private[celeborn] class Master(
           replicatePort,
           disks,
           userResourceConsumption,
-          shuffleDiskUsage,
+          activeShuffleKey,
+          appDiskUsage,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
@@ -293,7 +294,8 @@ private[celeborn] class Master(
           replicatePort,
           disks,
           userResourceConsumption,
-          shuffleDiskUsage,
+          activeShuffleKey,
+            appDiskUsage,
           requestId))
 
     case GetWorkerInfos =>
@@ -348,37 +350,28 @@ private[celeborn] class Master(
   }
 
   private def handleHeartbeatFromWorker(
-      context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: Seq[DiskInfo],
-      userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-      shuffleDiskUsage: util.HashMap[String, java.lang.Long],
-      requestId: String): Unit = {
+                                         context: RpcCallContext,
+                                         host: String,
+                                         rpcPort: Int,
+                                         pushPort: Int,
+                                         fetchPort: Int,
+                                         replicatePort: Int,
+                                         disks: Seq[DiskInfo],
+                                         userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+                                         activeShuffleKeys : util.Set[String],
+                                         estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
+                                         requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
     } else {
-      statusSystem.handleWorkerHeartbeat(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
-        userResourceConsumption,
-        shuffleDiskUsage,
-        System.currentTimeMillis(),
-        requestId)
+      statusSystem.handleWorkerHeartbeat(host, rpcPort, pushPort, fetchPort, replicatePort, disks.map { disk => disk.mountPoint -> disk }.toMap.asJava, userResourceConsumption, activeShuffleKeys , estimatedAppDiskUsage, System.currentTimeMillis(), requestId)
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
-    shuffleDiskUsage.asScala.foreach { case (shuffleKey, _) =>
+    activeShuffleKeys.asScala.foreach { case shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
         logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
         expiredShuffleKeys.add(shuffleKey)

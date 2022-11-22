@@ -115,7 +115,8 @@ message WorkerHeartbeatRequest {
   map<string, DiskInfo> disks = 6;
   required int64 time = 7;
   map<string, ResourceConsumption> userResourceConsumption = 8;
-  map<string, int64> shuffleDiskUsage = 9;
+  repeated string activeShuffleKeys = 9;
+  map<string, int64> estimatedAppDiskUsage = 10;
 }
 
 message RegisterWorkerRequest {

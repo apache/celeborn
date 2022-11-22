@@ -29,11 +29,11 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
-case class AppDiskUsage(var appId: String, var usage: Long) {
-  override def toString: String = s"Application ${appId} used ${Utils.bytesToString(usage)} "
+case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {
+  override def toString: String = s"Application ${appId} used approximately ${Utils.bytesToString(estimatedUsage)} "
 }
 
-class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging {
+class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializable {
   val topNItems = new Array[AppDiskUsage](topItemCount)
   val startSnapShotTime = LocalDateTime.now()
   var endSnapShotTime: LocalDateTime = _
@@ -72,7 +72,7 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging {
       return 0
     }
     for (i <- 0 until topItemCount) {
-      if (topNItems(i) == null || topNItems(i).usage < usage) {
+      if (topNItems(i) == null || topNItems(i).estimatedUsage < usage) {
         return i
       }
     }
@@ -84,7 +84,8 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging {
     s" ${topNItems.filter(_ != null).mkString(",")}"
 }
 
-class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
+// This metric collects approximate value because worker won't report all app disk usage value for reducing memory pressure. .
+class AppDiskUsageMetric(conf: CelebornConf) extends Logging with Serializable {
   val usageCount = conf.metricsAppTopDiskUsageCount
   val snapshotCount = conf.metricsAppTopDiskUsageWindowSize
   val interval = conf.metricsAppTopDiskUsageInterval

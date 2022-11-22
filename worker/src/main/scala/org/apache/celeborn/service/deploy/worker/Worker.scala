@@ -221,10 +221,12 @@ private[celeborn] class Worker(
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   private def heartBeatToMaster(): Unit = {
-    val estimateShuffleDiskUsage = new JHashMap[String, JLong]()
-    partitionLocationInfo.shuffleKeySet.asScala.foreach(estimateShuffleDiskUsage.put(_, 0))
+    val activeShuffleKeys = new JHashSet[String]()
+    val estimatedAppDiskUsage = new JHashMap[String, JLong]()
+    activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
+    activeShuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.topShuffleDiskUsage.asScala.foreach { case (shuffleId, usage) =>
-      estimateShuffleDiskUsage.put(shuffleId, usage)
+      estimatedAppDiskUsage.put(shuffleId, usage)
     }
     // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
     // and avoid remove this from master's blacklist.
@@ -249,7 +251,8 @@ private[celeborn] class Worker(
         replicatePort,
         diskInfos,
         resourceConsumption,
-        estimateShuffleDiskUsage),
+        activeShuffleKeys,
+        estimatedAppDiskUsage),
       classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))

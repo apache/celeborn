@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Map<String, Long> shuffleDiskUsage,
+      Set<String> activeShuffleKeys,
+      Map<String, Long> appDiskUsage,
       long time,
       String requestId) {
     updateWorkerHeartbeatMeta(
@@ -107,9 +109,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         fetchPort,
         replicatePort,
         disks,
-        userResourceConsumption,
-        shuffleDiskUsage,
-        time);
+        userResourceConsumption, activeShuffleKeys,
+            appDiskUsage, time);
   }
 
   @Override

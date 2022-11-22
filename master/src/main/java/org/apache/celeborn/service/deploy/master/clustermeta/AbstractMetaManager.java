@@ -167,7 +167,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Map<String, Long> shuffleDiskUsage,
+      Set<String> activeShuffleKeys,
+      Map<String, Long> appDiskUsage,
       long time) {
     WorkerInfo worker =
         new WorkerInfo(
@@ -191,7 +192,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             info.lastHeartbeat_$eq(time);
           });
     }
-    appDiskUsageMetric.update(shuffleDiskUsage);
+    appDiskUsageMetric.update(appDiskUsage);
     if (!blacklist.contains(worker) && disks.isEmpty()) {
       LOG.debug("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
@@ -280,6 +281,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           }
         });
 
+    out.writeLong(partitionTotalWritten.sum());
+    out.writeLong(partitionTotalFileCount.sum());
+    out.writeObject(appDiskUsageMetric);
+
     out.flush();
   }
 
@@ -335,6 +340,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       for (int i = 0; i < workersSize; ++i) {
         workers.add((WorkerInfo) in.readObject());
       }
+      partitionTotalWritten.reset();
+      partitionTotalWritten.add(in.readLong());
+      partitionTotalFileCount.reset();
+      partitionTotalFileCount.add(in.readLong());
+      appDiskUsageMetric = (AppDiskUsageMetric) in.readObject();
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
     }

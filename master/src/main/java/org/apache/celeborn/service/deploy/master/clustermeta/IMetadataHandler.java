@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -59,6 +60,7 @@ public interface IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      Set<String> activeShuffleKeys,
       Map<String, Long> shuffleDiskUsage,
       long time,
       String requestId);

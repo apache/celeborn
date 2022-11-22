@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.protobuf.ServiceException;
@@ -215,16 +216,16 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartbeat(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Map<String, Long> shuffleDiskUsage,
-      long time,
-      String requestId) {
+          String host,
+          int rpcPort,
+          int pushPort,
+          int fetchPort,
+          int replicatePort,
+          Map<String, DiskInfo> disks,
+          Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+          Set<String> activeShuffleKeys, Map<String, Long> estimatedAppDiskUsage,
+          long time,
+          String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -240,7 +241,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
-                      .putAllShuffleDiskUsage(shuffleDiskUsage)
+                      .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
                       .setTime(time)
                       .build())
               .build());

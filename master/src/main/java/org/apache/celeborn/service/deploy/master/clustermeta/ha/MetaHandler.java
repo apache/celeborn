@@ -19,10 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -100,11 +97,12 @@ public class MetaHandler {
       int pushPort;
       int fetchPort;
       int replicatePort;
-      Map<String, DiskInfo> diskUsage;
+      Map<String, DiskInfo> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
-      Map<String, Long> shuffleDiskUsage = new HashMap<>();
+      Set<String> activeShuffleKeys = new HashSet<>();
+      Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
@@ -178,11 +176,11 @@ public class MetaHandler {
           rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
-          diskUsage = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
+          diskInfos = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
-          shuffleDiskUsage.putAll(request.getWorkerHeartbeatRequest().getShuffleDiskUsageMap());
+          estimatedAppDiskUsage.putAll(request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
@@ -191,7 +189,7 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              diskUsage,
+              diskInfos,
               userResourceConsumption);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
@@ -200,10 +198,9 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              diskUsage,
-              userResourceConsumption,
-              shuffleDiskUsage,
-              time);
+              diskInfos,
+              userResourceConsumption, activeShuffleKeys ,
+                  estimatedAppDiskUsage, time);
           break;
 
         case RegisterWorker:
@@ -212,7 +209,7 @@ public class MetaHandler {
           pushPort = request.getRegisterWorkerRequest().getPushPort();
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
-          diskUsage = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
+          diskInfos = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getRegisterWorkerRequest().getUserResourceConsumptionMap());
@@ -223,7 +220,7 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              diskUsage,
+              diskInfos,
               userResourceConsumption);
           metaSystem.updateRegisterWorkerMeta(
               host,
@@ -231,7 +228,7 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              diskUsage,
+              diskInfos,
               userResourceConsumption);
           break;
 

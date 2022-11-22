@@ -138,9 +138,10 @@ message PbHeartbeatFromWorker {
   int32 fetchPort = 4;
   int32 replicatePort = 5;
   repeated PbDiskInfo disks = 6;
-  map<string, int64> shuffleDiskUsage = 7;
+  repeated string activeShuffleKeys = 7;
   string requestId = 8;
   map<string, PbResourceConsumption> userResourceConsumption = 9;
+  map<string,int64> estimatedAppDiskUsage = 10;
 }
 
 message PbHeartbeatResponse {
