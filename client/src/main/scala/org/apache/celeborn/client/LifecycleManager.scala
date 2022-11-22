@@ -826,6 +826,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     override def apply(s: Int): util.Set[Integer] = new util.HashSet[Integer]()
   }
 
+  private val commitPartitionRegisterFunc =
+    new util.function.Function[Int, util.Set[CommitPartitionRequest]]() {
+      override def apply(s: Int): util.Set[CommitPartitionRequest] =
+        new util.HashSet[CommitPartitionRequest]()
+    }
+
   private def handleChangePartitionLocation(
       context: RpcCallContext,
       applicationId: String,
@@ -848,23 +854,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
     // handle hard split
-    commitPartitionRequests.computeIfAbsent(
-      shuffleId,
-      new util.function.Function[Int, util.Set[CommitPartitionRequest]]() {
-        override def apply(s: Int): util.Set[CommitPartitionRequest] = {
-          new util.HashSet[CommitPartitionRequest]()
-        }
-      })
+    commitPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
 
-    inBatchCommitPartitionRequests.computeIfAbsent(
-      shuffleId,
-      new util.function.Function[Int, util.Set[CommitPartitionRequest]]() {
-        override def apply(s: Int): util.Set[CommitPartitionRequest] = {
-          new util.HashSet[CommitPartitionRequest]()
-        }
-      })
+    inBatchCommitPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
 
-    if (batchHandleChangePartitionEnabled && cause.isDefined && cause.get.getValue == StatusCode.HARD_SPLIT.getValue) {
+    if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get.getValue == StatusCode.HARD_SPLIT.getValue) {
       committedPartitionInfo.get(shuffleId) synchronized {
         commitPartitionRequests.get(shuffleId).add(
           CommitPartitionRequest(
