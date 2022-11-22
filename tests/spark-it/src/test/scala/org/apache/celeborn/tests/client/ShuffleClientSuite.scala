@@ -67,16 +67,30 @@ class ShuffleClientSuite extends AnyFunSuite with MiniClusterFeature
     location = shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
     Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId, attemptId))
 
+    // check all allocated slots
+    var partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
+    var count =
+      partitionLocationInfos.map(r => r.getAllMasterLocations(shuffleId.toString).size()).sum
+    Assert.assertEquals(count, numMappers)
+
     // another mapId
     location =
       shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
     Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId + 1, attemptId))
 
-    // offer and reserve all slots
-    val partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
-    val count =
+    // another mapId with another attemptId
+    location =
+      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId + 1)
+    Assert.assertEquals(
+      location.getId,
+      PackedPartitionId.packedPartitionId(mapId + 1, attemptId + 1))
+
+    // check all allocated all slots
+    partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
+    print(partitionLocationInfos)
+    count =
       partitionLocationInfos.map(r => r.getAllMasterLocations(shuffleId.toString).size()).sum
-    Assert.assertEquals(count, numMappers)
+    Assert.assertEquals(count, numMappers + 1)
   }
 
   override def afterAll(): Unit = {
