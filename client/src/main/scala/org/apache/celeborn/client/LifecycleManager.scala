@@ -349,7 +349,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                                 workerInfo,
                                 mastersIds,
                                 slaveIds,
-                                Array.empty[Int],
                                 commitFilesFailedWorkers)
                           }
                           recordWorkerFailure(commitFilesFailedWorkers)
@@ -1145,7 +1144,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             worker,
             masterIds,
             slaveIds,
-            shuffleMapperAttempts.get(shuffleId),
             commitFilesFailedWorkers)
         }
       }
@@ -1274,7 +1272,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       worker: WorkerInfo,
       masterIds: util.List[String],
       slaveIds: util.List[String],
-      mapAttempts: Array[Int],
       commitFilesFailedWorkers: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]): Unit = {
 
     val commitFiles = CommitFiles(
@@ -1282,7 +1279,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId,
       masterIds,
       slaveIds,
-      mapAttempts)
+      shuffleMapperAttempts.get(shuffleId))
     val res = requestCommitFiles(worker.endpoint, commitFiles)
 
     res.status match {
