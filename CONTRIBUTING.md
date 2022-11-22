@@ -18,5 +18,13 @@ will get merged after reviewed.
 
 ## Improvements on the Schedule
 There are already some further improvements on the schedule and welcome to contact us for collaboration:
-1.Flink support.
-2.Celeborn as a service.
+1. Flink support.
+2. Multi-tenant.
+3. Support Tez.
+4. Rolling upgrade.
+5. Multi-layered storage.
+6. Enhanced flow control.
+7. HA improvement.
+8. Enhanced K8S support.
+9. Support spilled data.
+10. Locality awareness.
