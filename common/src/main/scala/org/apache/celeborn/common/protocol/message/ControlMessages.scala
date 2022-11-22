@@ -102,16 +102,16 @@ object ControlMessages extends Logging {
   }
 
   case class HeartbeatFromWorker(
-                                  host: String,
-                                  rpcPort: Int,
-                                  pushPort: Int,
-                                  fetchPort: Int,
-                                  replicatePort: Int,
-                                  disks: Seq[DiskInfo],
-                                  userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-                                  activeShuffleKeys : util.Set[String],
-                                  estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
-                                  override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      disks: Seq[DiskInfo],
+      userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+      activeShuffleKeys: util.Set[String],
+      estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatResponse(
       expiredShuffleKeys: util.HashSet[String],
@@ -797,7 +797,7 @@ object ControlMessages extends Logging {
           estimatedAppDiskUsage.putAll(pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap)
         }
         val activeShuffleKeys = new util.HashSet[String]()
-        if(!pbHeartbeatFromWorker.getActiveShuffleKeysList.isEmpty){
+        if (!pbHeartbeatFromWorker.getActiveShuffleKeysList.isEmpty) {
           activeShuffleKeys.addAll(pbHeartbeatFromWorker.getActiveShuffleKeysList)
         }
         HeartbeatFromWorker(

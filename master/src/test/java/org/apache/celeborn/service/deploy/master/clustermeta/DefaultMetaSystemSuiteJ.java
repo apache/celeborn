@@ -513,9 +513,11 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         new HashMap<>(),
-        userResourceConsumption1, new HashSet<>(),
-            new HashMap<>(),
-            1, getNewReqeustId());
+        userResourceConsumption1,
+        new HashSet<>(),
+        new HashMap<>(),
+        1,
+        getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 1);
 
@@ -526,9 +528,11 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         new HashMap<>(),
-        userResourceConsumption2,new HashSet<>(),
-            new HashMap<>(),
-            1, getNewReqeustId());
+        userResourceConsumption2,
+        new HashSet<>(),
+        new HashMap<>(),
+        1,
+        getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
 
@@ -539,9 +543,11 @@ public class DefaultMetaSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT3,
         disks1,
-        userResourceConsumption1,new HashSet<>(),
-            new HashMap<>(),
-            1, getNewReqeustId());
+        userResourceConsumption1,
+        new HashSet<>(),
+        new HashMap<>(),
+        1,
+        getNewReqeustId());
 
     Assert.assertEquals(statusSystem.blacklist.size(), 2);
   }

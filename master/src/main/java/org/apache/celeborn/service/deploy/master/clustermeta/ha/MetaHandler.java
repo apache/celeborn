@@ -180,7 +180,8 @@ public class MetaHandler {
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
-          estimatedAppDiskUsage.putAll(request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
+          estimatedAppDiskUsage.putAll(
+              request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
@@ -199,8 +200,10 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               diskInfos,
-              userResourceConsumption, activeShuffleKeys ,
-                  estimatedAppDiskUsage, time);
+              userResourceConsumption,
+              activeShuffleKeys,
+              estimatedAppDiskUsage,
+              time);
           break;
 
         case RegisterWorker:

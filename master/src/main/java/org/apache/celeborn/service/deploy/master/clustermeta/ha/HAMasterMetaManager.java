@@ -216,16 +216,17 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartbeat(
-          String host,
-          int rpcPort,
-          int pushPort,
-          int fetchPort,
-          int replicatePort,
-          Map<String, DiskInfo> disks,
-          Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-          Set<String> activeShuffleKeys, Map<String, Long> estimatedAppDiskUsage,
-          long time,
-          String requestId) {
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      Set<String> activeShuffleKeys,
+      Map<String, Long> estimatedAppDiskUsage,
+      long time,
+      String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()

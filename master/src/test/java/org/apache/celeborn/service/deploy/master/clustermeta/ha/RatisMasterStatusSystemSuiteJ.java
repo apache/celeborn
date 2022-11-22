@@ -694,9 +694,11 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         new HashMap<>(),
-        userResourceConsumption1,new HashSet<>(),
-            new HashMap<>(),
-            1, getNewReqeustId());
+        userResourceConsumption1,
+        new HashSet<>(),
+        new HashMap<>(),
+        1,
+        getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
@@ -710,9 +712,11 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         new HashMap<>(),
-        userResourceConsumption2,new HashSet<>(),
-            new HashMap<>(),
-            1, getNewReqeustId());
+        userResourceConsumption2,
+        new HashSet<>(),
+        new HashMap<>(),
+        1,
+        getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, statusSystem.blacklist.size());
@@ -727,9 +731,11 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         disks1,
-        userResourceConsumption1,new HashSet<>(),
-            new HashMap<>(),
-            1, getNewReqeustId());
+        userResourceConsumption1,
+        new HashSet<>(),
+        new HashMap<>(),
+        1,
+        getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, statusSystem.blacklist.size());

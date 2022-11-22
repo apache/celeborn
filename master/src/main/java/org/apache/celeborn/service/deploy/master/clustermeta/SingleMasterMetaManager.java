@@ -109,8 +109,10 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         fetchPort,
         replicatePort,
         disks,
-        userResourceConsumption, activeShuffleKeys,
-            appDiskUsage, time);
+        userResourceConsumption,
+        activeShuffleKeys,
+        appDiskUsage,
+        time);
   }
 
   @Override
