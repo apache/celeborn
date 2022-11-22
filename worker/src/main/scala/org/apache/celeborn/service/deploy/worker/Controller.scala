@@ -297,7 +297,11 @@ private[deploy] class Controller(
           },
           commitThreadPool)
 
-        future = task
+        if (future == null) {
+          future = task
+        } else {
+          future = CompletableFuture.allOf(future, task)
+        }
       }
     }
 
