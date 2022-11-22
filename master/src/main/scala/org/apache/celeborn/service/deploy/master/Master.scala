@@ -375,7 +375,6 @@ private[celeborn] class Master(
         replicatePort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
-        activeShuffleKeys,
         estimatedAppDiskUsage,
         System.currentTimeMillis(),
         requestId)

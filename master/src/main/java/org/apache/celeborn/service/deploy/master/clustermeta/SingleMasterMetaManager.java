@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +97,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Set<String> activeShuffleKeys,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       String requestId) {
@@ -110,7 +108,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         replicatePort,
         disks,
         userResourceConsumption,
-        activeShuffleKeys,
         estimatedAppDiskUsage,
         time);
   }

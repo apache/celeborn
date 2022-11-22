@@ -167,7 +167,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Set<String> activeShuffleKeys,
       Map<String, Long> appDiskUsage,
       long time) {
     WorkerInfo worker =

@@ -101,7 +101,6 @@ public class MetaHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
-      Set<String> activeShuffleKeys = new HashSet<>();
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
@@ -201,7 +200,6 @@ public class MetaHandler {
               replicatePort,
               diskInfos,
               userResourceConsumption,
-              activeShuffleKeys,
               estimatedAppDiskUsage,
               time);
           break;

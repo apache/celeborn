@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.protobuf.ServiceException;
@@ -223,7 +222,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Set<String> activeShuffleKeys,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       String requestId) {

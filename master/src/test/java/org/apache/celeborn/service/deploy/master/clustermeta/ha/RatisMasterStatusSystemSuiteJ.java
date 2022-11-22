@@ -695,7 +695,6 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         new HashMap<>(),
         userResourceConsumption1,
-        new HashSet<>(),
         new HashMap<>(),
         1,
         getNewReqeustId());
@@ -713,7 +712,6 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         new HashMap<>(),
         userResourceConsumption2,
-        new HashSet<>(),
         new HashMap<>(),
         1,
         getNewReqeustId());
@@ -732,7 +730,6 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         disks1,
         userResourceConsumption1,
-        new HashSet<>(),
         new HashMap<>(),
         1,
         getNewReqeustId());
