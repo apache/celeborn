@@ -381,7 +381,7 @@ private[celeborn] class Master(
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
-    activeShuffleKeys.asScala.foreach { case shuffleKey =>
+    activeShuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
         logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
         expiredShuffleKeys.add(shuffleKey)

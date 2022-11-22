@@ -167,7 +167,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Map<String, Long> appDiskUsage,
+      Map<String, Long> estimatedAppDiskUsage,
       long time) {
     WorkerInfo worker =
         new WorkerInfo(
@@ -191,7 +191,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             info.lastHeartbeat_$eq(time);
           });
     }
-    appDiskUsageMetric.update(appDiskUsage);
+    appDiskUsageMetric.update(estimatedAppDiskUsage);
     if (!blacklist.contains(worker) && disks.isEmpty()) {
       LOG.debug("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
