@@ -279,7 +279,7 @@ private[celeborn] class Master(
           disks,
           userResourceConsumption,
           activeShuffleKey,
-          appDiskUsage,
+          estimatedAppDiskUsage,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
@@ -295,7 +295,7 @@ private[celeborn] class Master(
           disks,
           userResourceConsumption,
           activeShuffleKey,
-          appDiskUsage,
+          estimatedAppDiskUsage,
           requestId))
 
     case GetWorkerInfos =>

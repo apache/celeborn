@@ -99,7 +99,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Set<String> activeShuffleKeys,
-      Map<String, Long> appDiskUsage,
+      Map<String, Long> estimatedAppDiskUsage,
       long time,
       String requestId) {
     updateWorkerHeartbeatMeta(
@@ -111,7 +111,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         disks,
         userResourceConsumption,
         activeShuffleKeys,
-        appDiskUsage,
+        estimatedAppDiskUsage,
         time);
   }
 
