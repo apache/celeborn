@@ -1126,8 +1126,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       if (!pushReplicateEnabled && shuffleCommittedInfo.failedMasterPartitionIds.size() != 0) {
         val msg =
-          shuffleCommittedInfo.failedMasterPartitionIds.asScala.map { case (partitionId, workerInfo) =>
-            s"Lost partition $partitionId in worker [${workerInfo.readableAddress()}]"
+          shuffleCommittedInfo.failedMasterPartitionIds.asScala.map {
+            case (partitionId, workerInfo) =>
+              s"Lost partition $partitionId in worker [${workerInfo.readableAddress()}]"
           }.mkString("\n")
         logError(
           s"""
