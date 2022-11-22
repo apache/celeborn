@@ -317,8 +317,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               val mastersIds = requests.map(_.oldPartition.getUniqueId)
                               // peer can be null
                               val slaveIds =
-                                requests.map(_.oldPartition.getPeer).filter(_ != null).map(
-                                  _.getUniqueId)
+                                requests
+                                  .map(_.oldPartition.getPeer)
+                                  .filter(_ != null)
+                                  .map(_.getUniqueId)
 
                               logWarning(
                                 s"""
@@ -1161,8 +1163,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             slavePartMap.put(partition.getUniqueId, partition)
           }
 
-          val masterIds = masterParts.asScala.map(_.getUniqueId).asJava
-          val slaveIds = slaveParts.asScala.map(_.getUniqueId).asJava
+          val masterIds = masterParts.asScala.map(_.getUniqueId).filterNot { id =>
+            shuffleCommitInfo.committedMasterIds.contains(id) ||
+              shuffleCommitInfo.failedMasterPartitionIds.contains(id)
+          }.asJava
+          val slaveIds = slaveParts.asScala.map(_.getUniqueId).filterNot { id =>
+            shuffleCommitInfo.committedSlaveIds.contains(id) ||
+              shuffleCommitInfo.failedSlavePartitionIds.contains(id)
+          }.asJava
 
           val commitFiles = CommitFiles(
             applicationId,
