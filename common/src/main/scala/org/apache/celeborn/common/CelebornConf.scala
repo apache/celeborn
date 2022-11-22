@@ -2086,7 +2086,7 @@ object CelebornConf extends Logging {
       .doc("Interval for LifecycleManager to schedule handling commit partition requests in batch.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("2s")
+      .createWithDefaultString("5s")
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
