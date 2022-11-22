@@ -19,7 +19,7 @@ package org.apache.celeborn.client
 
 import java.nio.ByteBuffer
 import java.util
-import java.util.{function, List => JList, Map}
+import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
 
@@ -104,13 +104,19 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   case class ChangePartitionRequest(
-      context: RpcCallContext,
+      context: RequestLocationCallContext,
       applicationId: String,
       shuffleId: Int,
       partitionId: Int,
       epoch: Int,
       oldPartition: PartitionLocation,
       causes: Option[StatusCode])
+
+  case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
+    def reply(response: PbRegisterShuffleResponse) = {
+      context.reply(response)
+    }
+  }
 
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
@@ -142,7 +148,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
 
   // register shuffle request waiting for response
-  private val registeringShuffleRequest = new ConcurrentHashMap[Int, util.Set[RpcCallContext]]()
+  private val registeringShuffleRequest =
+    new ConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
 
   // blacklist
   private val blacklist = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
@@ -255,7 +262,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                           request.asScala.toArray.maxBy(_.epoch)
                         }.toArray
                         if (distinctPartitions.nonEmpty) {
-                          batchHandleChangePartitions(
+                          batchHandleRequestPartitions(
                             distinctPartitions.head.applicationId,
                             shuffleId,
                             distinctPartitions)
@@ -444,7 +451,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val numPartitions = pb.getNumPartitions
       logDebug(s"Received RegisterShuffle request, " +
         s"$applicationId, $shuffleId, $numMappers, $numPartitions.")
-      handleRegisterShuffle(context, applicationId, shuffleId, numMappers, numPartitions)
+      offerAndReserveSlots(
+        RegisterCallContext(context),
+        applicationId,
+        shuffleId,
+        numMappers,
+        numPartitions)
 
     case pb: PbRegisterMapPartitionTask =>
       val applicationId = pb.getApplicationId
@@ -455,10 +467,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val partitionId = pb.getPartitionId
       logDebug(s"Received Register map partition task request, " +
         s"$applicationId, $shuffleId, $numMappers, $mapId, $attemptId, $partitionId.")
-      handleRegisterMapPartitionTask(
-        context,
+      shufflePartitionType.putIfAbsent(shuffleId, PartitionType.MAP)
+      offerAndReserveSlots(
+        RegisterCallContext(context, partitionId),
         applicationId,
         shuffleId,
+        numMappers,
         numMappers,
         partitionId)
 
@@ -493,8 +507,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
-      handleChangePartitionLocation(
-        context,
+      handleRequestPartitionLocation(
+        ChangeLocationCallContext(context),
         applicationId,
         shuffleId,
         partitionId,
@@ -512,37 +526,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       handleGetReducerFileGroup(context, shuffleId)
   }
 
-  /* ========================================================== *
-   |        START OF EVENT HANDLER                              |
-   * ========================================================== */
-
-  private def handleRegisterShuffle(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      numMappers: Int,
-      numReducers: Int): Unit = {
-    handleOfferAndReserveSlots(context, applicationId, shuffleId, numMappers, numReducers)
-  }
-
-  private def handleRegisterMapPartitionTask(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      numMappers: Int,
-      partitionId: Int): Unit = {
-    shufflePartitionType.putIfAbsent(shuffleId, PartitionType.MAP)
-    handleOfferAndReserveSlots(
-      context,
-      applicationId,
-      shuffleId,
-      numMappers,
-      numMappers,
-      partitionId)
-  }
-
-  private def handleOfferAndReserveSlots(
-      context: RpcCallContext,
+  private def offerAndReserveSlots(
+      context: RegisterCallContext,
       applicationId: String,
       shuffleId: Int,
       numMappers: Int,
@@ -567,12 +552,22 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             .filter(p =>
               (partitionType == PartitionType.REDUCE && p.getEpoch == 0) || (partitionType == PartitionType.MAP && p.getId == partitionId))
             .toArray
-          context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
+          partitionType match {
+            case PartitionType.MAP => processMapTaskReply(
+                applicationId,
+                shuffleId,
+                context.context,
+                partitionId,
+                initialLocs)
+            case PartitionType.REDUCE =>
+              context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
+          }
           return
         }
+
         logInfo(s"New shuffle request, shuffleId $shuffleId, partitionType: $partitionType " +
           s"numMappers: $numMappers, numReducers: $numReducers.")
-        val set = new util.HashSet[RpcCallContext]()
+        val set = new util.HashSet[RegisterCallContext]()
         set.add(context)
         registeringShuffleRequest.put(shuffleId, set)
       }
@@ -583,7 +578,21 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       registeringShuffleRequest.synchronized {
         registeringShuffleRequest.asScala
           .get(shuffleId)
-          .foreach(_.asScala.foreach(_.reply(response)))
+          .foreach(_.asScala.foreach(context => {
+            partitionType match {
+              case PartitionType.MAP =>
+                val partitionLocations =
+                  response.getPartitionLocationsList.asScala.filter(_.getId == partitionId).map(r =>
+                    PbSerDeUtils.fromPbPartitionLocation(r)).toArray
+                processMapTaskReply(
+                  applicationId,
+                  shuffleId,
+                  context.context,
+                  partitionId,
+                  partitionLocations)
+              case PartitionType.REDUCE => context.reply(response)
+            }
+          }))
         registeringShuffleRequest.remove(shuffleId)
       }
     }
@@ -695,10 +704,29 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           new ConcurrentHashMap[String, StorageInfo](),
           new ConcurrentHashMap[String, RoaringBitmap](),
           new LongAdder))
-      val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).filter(p =>
-        partitionType ==
-          PartitionType.REDUCE || (partitionType == PartitionType.MAP && p.getId == partitionId)).toArray
+      val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
       reply(RegisterShuffleResponse(StatusCode.SUCCESS, allMasterPartitionLocations))
+    }
+  }
+
+  private def processMapTaskReply(
+      applicationId: String,
+      shuffleId: Int,
+      context: RpcCallContext,
+      partitionId: Int,
+      partitionLocations: Array[PartitionLocation]): Unit = {
+    // if any partition location resource exist just reply
+    if (partitionLocations.size > 0) {
+      context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, partitionLocations))
+    } else {
+      // request new resource for this task
+      handleRequestPartitionLocation(
+        ApplyNewLocationCallContext(context),
+        applicationId,
+        shuffleId,
+        partitionId,
+        -1,
+        null)
     }
   }
 
@@ -750,8 +778,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
       s"oldPartition: $oldPartition, cause: $cause")
 
-    handleChangePartitionLocation(
-      context,
+    handleRequestPartitionLocation(
+      ChangeLocationCallContext(context),
       applicationId,
       shuffleId,
       partitionId,
@@ -778,8 +806,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         new util.HashSet[CommitPartitionRequest]()
     }
 
-  private def handleChangePartitionLocation(
-      context: RpcCallContext,
+  private def handleRequestPartitionLocation(
+      context: RequestLocationCallContext,
       applicationId: String,
       shuffleId: Int,
       partitionId: Int,
@@ -817,14 +845,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     requests.synchronized {
       if (requests.containsKey(partitionId)) {
         requests.get(partitionId).add(changePartition)
-        logTrace(s"[handleChangePartitionLocation] For $shuffleId, request for same partition" +
+        logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
           s"$partitionId-$oldEpoch exists, register context.")
         return
       } else {
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
-          context.reply(ChangeLocationResponse(StatusCode.SUCCESS, Some(latestLoc)))
+          context.reply(StatusCode.SUCCESS, Some(latestLoc))
           logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -835,11 +863,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
     if (!batchHandleChangePartitionEnabled) {
-      batchHandleChangePartitions(applicationId, shuffleId, Array(changePartition))
+      batchHandleRequestPartitions(applicationId, shuffleId, Array(changePartition))
     }
   }
 
-  def batchHandleChangePartitions(
+  def batchHandleRequestPartitions(
       applicationId: String,
       shuffleId: Int,
       changePartitions: Array[ChangePartitionRequest]): Unit = {
@@ -869,13 +897,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           location -> Option(requestsMap.remove(location.getId))
         }
       }.foreach { case (newLocation, requests) =>
-        val response = ChangeLocationResponse(StatusCode.SUCCESS, Option(newLocation))
-        requests.map(_.asScala.toList.foreach(_.context.reply(response)))
+        requests.map(_.asScala.toList.foreach(_.context.reply(
+          StatusCode.SUCCESS,
+          Option(newLocation))))
       }
     }
 
     // remove together to reduce lock time
-    def replyFailure(response: PbChangeLocationResponse): Unit = {
+    def replyFailure(status: StatusCode): Unit = {
       requestsMap.synchronized {
         changePartitions.map { changePartition =>
           if (batchHandleChangePartitionEnabled) {
@@ -884,14 +913,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           Option(requestsMap.remove(changePartition.partitionId))
         }
       }.foreach { requests =>
-        requests.map(_.asScala.toList.foreach(_.context.reply(response)))
+        requests.map(_.asScala.toList.foreach(_.context.reply(status, None)))
       }
     }
 
     val candidates = workersNotBlacklisted(shuffleId)
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      replyFailure(ChangeLocationResponse(StatusCode.SLOT_NOT_AVAILABLE, None))
+      replyFailure(StatusCode.SLOT_NOT_AVAILABLE)
       return
     }
 
@@ -901,13 +930,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
-      replyFailure(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      replyFailure(StatusCode.SHUFFLE_NOT_REGISTERED)
       return
     }
 
     if (stageEndShuffleSet.contains(shuffleId)) {
       logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
-      replyFailure(ChangeLocationResponse(StatusCode.STAGE_ENDED, None))
+      replyFailure(StatusCode.STAGE_ENDED)
       return
     }
 
@@ -917,7 +946,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         new util.HashSet(candidates.toSet.asJava),
         newlyAllocatedLocations)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      replyFailure(ChangeLocationResponse(StatusCode.RESERVE_SLOTS_FAILED, None))
+      replyFailure(StatusCode.RESERVE_SLOTS_FAILED)
       return
     }
 
