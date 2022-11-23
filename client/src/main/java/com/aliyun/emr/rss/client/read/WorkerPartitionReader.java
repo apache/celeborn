@@ -96,6 +96,7 @@ public class WorkerPartitionReader implements PartitionReader {
                   currentChunkIndex = 0;
                   returnedChunks = 0;
                   numChunks = client.openChunks();
+                  fetchChunks();
                 }
               }
             } catch (IOException e1) {

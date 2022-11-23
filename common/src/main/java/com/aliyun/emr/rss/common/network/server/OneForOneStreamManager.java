@@ -91,7 +91,7 @@ public class OneForOneStreamManager extends StreamManager {
       // Normally, when all chunks are returned to the client, the stream should be removed here.
       // But if there is a switch on the client side, it will not go here at this time, so we need
       // to remove the stream when the connection is terminated, and release the unused buffer.
-      logger.trace("Removing stream id {}", streamId);
+      logger.debug("Remove stream id {}", streamId);
       streams.remove(streamId);
     }
 
@@ -119,6 +119,7 @@ public class OneForOneStreamManager extends StreamManager {
     for (Map.Entry<Long, StreamState> entry: streams.entrySet()) {
       StreamState state = entry.getValue();
       if (state.associatedChannel == channel) {
+        logger.debug("Remove stream id {} of channel {}", entry.getKey(), channel.remoteAddress());
         streams.remove(entry.getKey());
       }
     }

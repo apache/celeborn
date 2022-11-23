@@ -96,6 +96,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         if (fileInfo.numChunks == 0) {
           logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
             s" $startMapIndex endMapIndex $endMapIndex is empty.")
+        } else {
+          logDebug(s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks} " +
+            s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
         }
         client.getChannel.writeAndFlush(new RpcResponse(request.requestId,
           new NioManagedBuffer(streamHandle.toByteBuffer)))
