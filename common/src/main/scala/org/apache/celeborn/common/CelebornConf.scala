@@ -666,6 +666,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def testFetchFailedChunkIndex: Int = get(TEST_FETCH_FAILED_CHUNK_INDEX)
+  def pushDataRpcTimeoutMs = get(PUSH_DATA_RPC_TIMEOUT)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -2579,4 +2580,13 @@ object CelebornConf extends Logging {
       .doc("The chunk index to trigger fetch chunk failure for testing purpose only.")
       .intConf
       .createWithDefault(0)
+
+  val PUSH_DATA_RPC_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.data.rpc.timeout")
+      .withAlternative("rss.push.data.rpc.timeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout for a task to push data rpc message.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 }
