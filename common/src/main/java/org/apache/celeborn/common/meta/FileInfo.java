@@ -28,24 +28,39 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.Utils;
 
 public class FileInfo {
   private final String filePath;
   private final List<Long> chunkOffsets;
   private final UserIdentifier userIdentifier;
+  private final PartitionType partitionType;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
+    this.partitionType = PartitionType.REDUCE;
   }
 
-  public FileInfo(String filePath, UserIdentifier userIdentifier) {
+  public FileInfo(
+      String filePath,
+      List<Long> chunkOffsets,
+      UserIdentifier userIdentifier,
+      PartitionType partitionType) {
+    this.filePath = filePath;
+    this.chunkOffsets = chunkOffsets;
+    this.userIdentifier = userIdentifier;
+    this.partitionType = partitionType;
+  }
+
+  public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
     this.filePath = filePath;
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
     this.userIdentifier = userIdentifier;
+    this.partitionType = partitionType;
   }
 
   @VisibleForTesting
@@ -54,6 +69,7 @@ public class FileInfo {
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
     this.userIdentifier = userIdentifier;
+    this.partitionType = PartitionType.REDUCE;
   }
 
   public synchronized void addChunkOffset(long bytesFlushed) {
@@ -137,6 +153,10 @@ public class FileInfo {
     return chunkOffsets;
   }
 
+  public PartitionType getPartitionType() {
+    return partitionType;
+  }
+
   @Override
   public String toString() {
     return "FileInfo{"
@@ -146,6 +166,8 @@ public class FileInfo {
         + StringUtils.join(this.chunkOffsets, ",")
         + ", userIdentifier="
         + userIdentifier.toString()
+        + ", partitionType="
+        + partitionType
         + '}';
   }
 }

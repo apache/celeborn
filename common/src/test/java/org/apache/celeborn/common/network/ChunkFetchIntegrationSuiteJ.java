@@ -44,7 +44,7 @@ import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.network.server.StreamManager;
+import org.apache.celeborn.common.network.server.ChunkStreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -56,7 +56,7 @@ public class ChunkFetchIntegrationSuiteJ {
 
   static TransportServer server;
   static TransportClientFactory clientFactory;
-  static StreamManager streamManager;
+  static ChunkStreamManager chunkStreamManager;
   static File testFile;
 
   static ManagedBuffer bufferChunk;
@@ -88,8 +88,8 @@ public class ChunkFetchIntegrationSuiteJ {
     final TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
 
-    streamManager =
-        new StreamManager() {
+    chunkStreamManager =
+        new ChunkStreamManager() {
           @Override
           public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
             assertEquals(STREAM_ID, streamId);
@@ -108,7 +108,8 @@ public class ChunkFetchIntegrationSuiteJ {
           public void receive(TransportClient client, RequestMessage msg) {
             StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
             ManagedBuffer buf =
-                streamManager.getChunk(slice.streamId, slice.chunkIndex, slice.offset, slice.len);
+                chunkStreamManager.getChunk(
+                    slice.streamId, slice.chunkIndex, slice.offset, slice.len);
             client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
           }
 

@@ -408,6 +408,7 @@ message PbFileInfo {
   string filePath = 1;
   repeated int64 chunkOffsets = 2;
   PbUserIdentifier userIdentifier = 3;
+  int32 partitionType = 4;
 }
 
 message PbFileInfoMap {

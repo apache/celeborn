@@ -279,7 +279,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
-        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
+        val fileInfo =
+          new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier, partitionType)
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
@@ -313,7 +314,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 s"Create shuffle data file ${file.getAbsolutePath} failed!")
             }
           }
-          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier)
+          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier, partitionType)
           val fileWriter = new FileWriter(
             fileInfo,
             localFlushers.get(mountPoint),
