@@ -19,7 +19,6 @@ package org.apache.celeborn.client.write;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,13 +26,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
-import org.apache.celeborn.common.util.Utils;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.Utils;
 
 public class PushState {
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
@@ -42,9 +40,9 @@ public class PushState {
 
   public final AtomicInteger batchId = new AtomicInteger();
   private final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
-          new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<Integer>> batchIdPerAddressPair =
-          new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
@@ -106,7 +104,7 @@ public class PushState {
   public void addFlightBatches(int batchId, PartitionLocation loc) {
     String addressPair = Utils.genAddressPair(loc);
     Set<Integer> batchIdSetPerPair =
-            batchIdPerAddressPair.computeIfAbsent(addressPair, id -> new HashSet<>());
+        batchIdPerAddressPair.computeIfAbsent(addressPair, id -> new HashSet<>());
     batchIdSetPerPair.add(batchId);
     inFlightBatches.put(batchId, loc);
   }

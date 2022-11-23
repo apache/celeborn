@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.util
 
-import java.io.{File, FileInputStream, IOException, InputStreamReader}
+import java.io.{File, FileInputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
@@ -26,24 +26,26 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
 import java.util.{Locale, Objects, Properties, Random, UUID}
-import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit, TimeoutException}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
+
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
+
 import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
-import org.apache.celeborn.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
+import org.apache.celeborn.common.network.util.{JavaUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.protocol.PbWorkerResource
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
