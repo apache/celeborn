@@ -17,23 +17,11 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 import org.apache.ratis.io.MD5Hash;
 import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.protocol.Message;
@@ -59,9 +47,20 @@ import org.apache.ratis.util.MD5FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class StateMachine extends BaseStateMachine {
   private static final Logger LOG = LoggerFactory.getLogger(StateMachine.class);
@@ -344,6 +343,7 @@ public class StateMachine extends BaseStateMachine {
         LOG.warn("Failed to rename snapshot from {} to {}.", tempFile, snapshotFile);
         return RaftLog.INVALID_LOG_INDEX;
       }
+      storage.loadLatestSnapshot();
     } catch (Exception e) {
       tempFile.delete();
       LOG.warn("Failed to complete snapshot: {}.", snapshotFile, e);
