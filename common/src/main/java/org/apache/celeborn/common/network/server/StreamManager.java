@@ -73,12 +73,6 @@ public abstract class StreamManager {
   /** Called when start sending a chunk. */
   public void chunkBeingSent(long streamId) {}
 
-  /** Called when start sending a stream. */
-  public void streamBeingSent(String streamId) {}
-
   /** Called when a chunk is successfully sent. */
   public void chunkSent(long streamId) {}
-
-  /** Called when a stream is successfully sent. */
-  public void streamSent(String streamId) {}
 }
