@@ -25,8 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.channel.Channel;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,25 +90,11 @@ public class ChunkStreamManager {
       // Normally, when all chunks are returned to the client, the stream should be removed here.
       // But if there is a switch on the client side, it will not go here at this time, so we need
       // to remove the stream when the connection is terminated, and release the unused buffer.
-      logger.trace("Removing stream id {}", streamId);
+      logger.debug("Removing stream id {}", streamId);
       streams.remove(streamId);
     }
 
     return nextChunk;
-  }
-
-  public static String genStreamChunkId(long streamId, int chunkId) {
-    return String.format("%d_%d", streamId, chunkId);
-  }
-
-  // Parse streamChunkId to be stream id and chunk id. This is used when fetch remote chunk as a
-  // stream.
-  public static Pair<Long, Integer> parseStreamChunkId(String streamChunkId) {
-    String[] array = streamChunkId.split("_");
-    assert array.length == 2 : "Stream id and chunk index should be specified.";
-    long streamId = Long.parseLong(array[0]);
-    int chunkIndex = Integer.parseInt(array[1]);
-    return ImmutablePair.of(streamId, chunkIndex);
   }
 
   public void connectionTerminated(Channel channel) {
@@ -118,6 +102,7 @@ public class ChunkStreamManager {
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
       StreamState state = entry.getValue();
       if (state.associatedChannel == channel) {
+        logger.debug("Remove stream id {} of channel {}", entry.getKey(), channel.remoteAddress());
         streams.remove(entry.getKey());
       }
     }
@@ -130,10 +115,6 @@ public class ChunkStreamManager {
     }
   }
 
-  public void streamBeingSent(String streamId) {
-    chunkBeingSent(parseStreamChunkId(streamId).getLeft());
-  }
-
   public void chunkSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
@@ -141,10 +122,7 @@ public class ChunkStreamManager {
     }
   }
 
-  public void streamSent(String streamId) {
-    chunkSent(ChunkStreamManager.parseStreamChunkId(streamId).getLeft());
-  }
-
+  @Override
   public long chunksBeingTransferred() {
     long sum = 0L;
     for (StreamState streamState : streams.values()) {

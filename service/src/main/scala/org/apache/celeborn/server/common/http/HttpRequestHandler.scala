@@ -72,6 +72,8 @@ class HttpRequestHandler(
         service.getApplicationList
       case "/shuffles" =>
         service.getShuffleList
+      case "/listTopDiskUsedApps" =>
+        service.listTopDiskUseApps
       case _ => INVALID
     }
   }
