@@ -63,8 +63,7 @@ public abstract class ShuffleClientBaseSuiteJ {
   protected final int BATCH_HEADER_SIZE = 4 * 4;
   protected ChannelFuture mockedFuture = mock(ChannelFuture.class);
 
-  protected CelebornConf setupEnv(CompressionCodec codec)
-      throws IOException, InterruptedException {
+  protected CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.shuffle.compression.codec", codec.name());
     conf.set("celeborn.push.retry.threads", "1");

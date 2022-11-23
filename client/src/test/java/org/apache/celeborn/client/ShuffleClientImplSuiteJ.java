@@ -17,21 +17,22 @@
 
 package org.apache.celeborn.client;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.client.RpcResponseCallback;
-import org.apache.celeborn.common.protocol.CompressionCodec;
-import org.apache.celeborn.common.protocol.message.StatusCode;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
+import org.apache.celeborn.common.protocol.CompressionCodec;
+import org.apache.celeborn.common.protocol.message.StatusCode;
 
 public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   static int BufferSize = 64;
