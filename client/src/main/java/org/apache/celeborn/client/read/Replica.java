@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -30,6 +32,7 @@ import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 class Replica {
+  private Logger logger = LoggerFactory.getLogger(Replica.class);
   private final long timeoutMs;
   private final String shuffleKey;
   private final PartitionLocation location;
@@ -57,15 +60,31 @@ class Replica {
 
   public synchronized TransportClient getOrOpenStream() throws IOException, InterruptedException {
     if (client == null || !client.isActive()) {
+      if (client != null) {
+        logger.warn(
+            "Current channel from "
+                + client.getChannel().localAddress()
+                + " to "
+                + client.getChannel().remoteAddress()
+                + " for "
+                + this
+                + " is not active.");
+      }
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+      openStreamInternal();
     }
+    // For retried open stream if openStream rpc is failed.
     if (streamHandle == null) {
-      OpenStream openBlocks =
-          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
-      streamHandle = (StreamHandle) Message.decode(response);
+      openStreamInternal();
     }
     return client;
+  }
+
+  private void openStreamInternal() {
+    OpenStream openBlocks =
+        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+    streamHandle = (StreamHandle) Message.decode(response);
   }
 
   public long getStreamId() {
