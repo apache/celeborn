@@ -58,7 +58,12 @@ class Replica {
   public synchronized TransportClient getOrOpenStream() throws IOException, InterruptedException {
     if (client == null || !client.isActive()) {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+      OpenStream openBlocks =
+          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+      streamHandle = (StreamHandle) Message.decode(response);
     }
+    // for open stream retry
     if (streamHandle == null) {
       OpenStream openBlocks =
           new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
