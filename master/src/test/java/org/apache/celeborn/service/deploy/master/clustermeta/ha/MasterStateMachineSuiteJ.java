@@ -17,25 +17,6 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.quota.ResourceConsumption;
-import org.apache.celeborn.common.util.Utils;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Type;
-import org.apache.ratis.server.storage.RaftStorage;
-import org.apache.ratis.server.storage.StorageImplUtils;
-import org.apache.ratis.statemachine.SnapshotInfo;
-import org.apache.ratis.statemachine.SnapshotRetentionPolicy;
-import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
-import org.junit.Assert;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,6 +28,26 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
+
+import org.apache.ratis.server.storage.RaftStorage;
+import org.apache.ratis.server.storage.StorageImplUtils;
+import org.apache.ratis.statemachine.SnapshotInfo;
+import org.apache.ratis.statemachine.SnapshotRetentionPolicy;
+import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
+import org.junit.Assert;
+import org.junit.Test;
+
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Type;
 
 public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
