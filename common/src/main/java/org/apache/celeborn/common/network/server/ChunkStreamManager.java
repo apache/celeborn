@@ -122,7 +122,6 @@ public class ChunkStreamManager {
     }
   }
 
-  @Override
   public long chunksBeingTransferred() {
     long sum = 0L;
     for (StreamState streamState : streams.values()) {

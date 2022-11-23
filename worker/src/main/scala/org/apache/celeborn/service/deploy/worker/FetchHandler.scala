@@ -52,6 +52,19 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     this.registered = worker.registered
   }
 
+  def getRawFileInfo(
+      shuffleKey: String,
+      fileName: String): FileInfo = {
+    // find FileWriter responsible for the data
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
+    if (fileInfo == null) {
+      val errMsg = s"Could not find file $fileName for $shuffleKey."
+      logWarning(errMsg)
+      throw new FileNotFoundException(errMsg)
+    }
+    fileInfo
+  }
+
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: ChunkFetchRequest =>
@@ -74,54 +87,51 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     // metrics start
     workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
-      val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
-      if (fileInfo == null) {
-        val errMsg = s"Could not find file $fileName for $shuffleKey."
-        logWarning(errMsg)
-        throw new FileNotFoundException(errMsg)
-      }
-      fileInfo.getPartitionType() match {
-        case PartitionType.REDUCE =>
-          partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
+      var fileInfo = getRawFileInfo(shuffleKey, fileName)
+      try fileInfo.getPartitionType() match {
+         case PartitionType.REDUCE =>
+          if (endMapIndex != Integer.MAX_VALUE) {
+            fileInfo = partitionsSorter.getSortedFileInfo(
+              shuffleKey,
+              fileName,
+              fileInfo,
+              startMapIndex,
+              endMapIndex)
+          }
           logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
             s"$startMapIndex $endMapIndex get file info $fileInfo")
-          try {
-            if (fileInfo.isHdfs) {
-              val streamHandle = new StreamHandle(0, 0)
-              client.getChannel.writeAndFlush(new RpcResponse(
-                request.requestId,
-                new NioManagedBuffer(streamHandle.toByteBuffer)))
-            } else {
-
-              val buffers = new FileManagedBuffers(fileInfo, conf)
-              val streamId = chunkStreamManager.registerStream(buffers, client.getChannel)
-              val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
-              if (fileInfo.numChunks() == 0) {
-                logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-                  s" $startMapIndex endMapIndex $endMapIndex is empty.")
-              } else {
-            logDebug(s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
-              s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
-          }
-              client.getChannel.writeAndFlush(new RpcResponse(
-                request.requestId,
-                new NioManagedBuffer(streamHandle.toByteBuffer)))
-            }
-          } catch {
-            case e: IOException =>
-              client.getChannel.writeAndFlush(new RpcFailure(
-                request.requestId,
-                Throwables.getStackTraceAsString(
-                  new CelebornException("Chunk offsets meta exception", e))))
-          } finally {
-            // metrics end
-            workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
-            request.body().release()
+          if (fileInfo.isHdfs) {
+            val streamHandle = new StreamHandle(0, 0)
+            client.getChannel.writeAndFlush(new RpcResponse(
+              request.requestId,
+              new NioManagedBuffer(streamHandle.toByteBuffer)))
+          } else {
+            val buffers = new FileManagedBuffers(fileInfo, conf)
+            val streamId = chunkStreamManager.registerStream(buffers, client.getChannel)
+            val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+            if (fileInfo.numChunks() == 0)
+              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
+                s" $startMapIndex endMapIndex $endMapIndex is empty.")
+            else logDebug(
+              s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
+                s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
+            client.getChannel.writeAndFlush(new RpcResponse(
+              request.requestId,
+              new NioManagedBuffer(streamHandle.toByteBuffer)))
           }
         case PartitionType.MAP =>
         case PartitionType.MAPGROUP =>
+      } catch {
+        case e: IOException =>
+          client.getChannel.writeAndFlush(new RpcFailure(
+            request.requestId,
+            Throwables.getStackTraceAsString(
+              new CelebornException("Chunk offsets meta exception", e))))
+      } finally {
+        // metrics end
+        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        request.body().release()
       }
-
     } catch {
       case ioe: IOException =>
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)

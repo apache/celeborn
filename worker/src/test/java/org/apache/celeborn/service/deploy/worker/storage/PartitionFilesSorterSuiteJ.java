@@ -127,7 +127,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info =
-        partitionFilesSorter.openStream(
+        partitionFilesSorter.getSortedFileInfo(
             "application-1", originFileName, fileWriter.getFileInfo(), 5, 10);
     Thread.sleep(1000);
     System.out.println(info.toString());
@@ -143,7 +143,7 @@ public class PartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
     FileInfo info =
-        partitionFilesSorter.openStream(
+        partitionFilesSorter.getSortedFileInfo(
             "application-1", originFileName, fileWriter.getFileInfo(), 5, 10);
     Thread.sleep(30000);
     System.out.println(info.toString());
