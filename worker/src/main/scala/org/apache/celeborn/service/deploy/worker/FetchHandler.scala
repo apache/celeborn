@@ -89,7 +89,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       try fileInfo.getPartitionType() match {
-         case PartitionType.REDUCE =>
+        case PartitionType.REDUCE =>
           if (endMapIndex != Integer.MAX_VALUE) {
             fileInfo = partitionsSorter.getSortedFileInfo(
               shuffleKey,
