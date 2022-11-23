@@ -32,7 +32,7 @@ import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 class Replica {
-  private final Logger logger = LoggerFactory.getLogger(Replica.class);
+  private Logger logger = LoggerFactory.getLogger(Replica.class);
   private final long timeoutMs;
   private final String shuffleKey;
   private final PartitionLocation location;
@@ -61,7 +61,7 @@ class Replica {
   public synchronized TransportClient getOrOpenStream() throws IOException, InterruptedException {
     if (client == null || !client.isActive()) {
       if (client != null) {
-        logger.error(
+        logger.warn(
             "Current channel from "
                 + client.getChannel().localAddress()
                 + " to "
@@ -74,15 +74,20 @@ class Replica {
       // When client is not active, the origin client's corresponding streamId may be removed
       // by channel inactive. Replica should request a new StreamHandle for the new client again.
       // Newly returned numChunks should be the same.
-      streamHandle = null;
+      openStreamInternal();
     }
+    // For retried open stream if openStream rpc is failed.
     if (streamHandle == null) {
-      OpenStream openBlocks =
-          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
-      streamHandle = (StreamHandle) Message.decode(response);
+      openStreamInternal();
     }
     return client;
+  }
+
+  private void openStreamInternal() {
+    OpenStream openBlocks =
+        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+    streamHandle = (StreamHandle) Message.decode(response);
   }
 
   public long getStreamId() {
