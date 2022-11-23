@@ -71,9 +71,9 @@ class Replica {
                 + " is not active.");
       }
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
-      // When change client, origin client's corresponding streamId may be removed by channel inactive
-      // Replica should request new StreamHandle for new client again.
-      // New returned numChunks should be same.
+      // When changing client, the origin client's corresponding streamId may be removed
+      // by channel inactive. Replica should request a new StreamHandle for the new client again.
+      // Newly returned numChunks should be the same.
       streamHandle = null;
     }
     if (streamHandle == null) {
