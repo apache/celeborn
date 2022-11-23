@@ -31,6 +31,7 @@ import java.util.regex.Matcher;
 
 import org.apache.ratis.server.storage.RaftStorage;
 import org.apache.ratis.server.storage.StorageImplUtils;
+import org.apache.ratis.statemachine.SnapshotInfo;
 import org.apache.ratis.statemachine.SnapshotRetentionPolicy;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.junit.Assert;
@@ -85,6 +86,30 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     ResourceResponse response = stateMachine.runCommand(request, -1);
     Assert.assertEquals(response.getSuccess(), true);
+  }
+
+  @Test
+  public void testTakeSnapshot() {
+    final StateMachine stateMachine = ratisServer.getMasterStateMachine();
+
+    stateMachine.notifyTermIndexUpdated(2020, 725);
+
+    final long snapshot1Index = stateMachine.takeSnapshot();
+    Assert.assertEquals(725, snapshot1Index);
+
+    SnapshotInfo snapshot1 = stateMachine.getLatestSnapshot();
+    Assert.assertEquals(2020, snapshot1.getTerm());
+    Assert.assertEquals(725, snapshot1.getIndex());
+    Assert.assertEquals(1, snapshot1.getFiles().size());
+
+    stateMachine.notifyTermIndexUpdated(2020, 1005);
+    final long snapshot2Index = stateMachine.takeSnapshot();
+    Assert.assertEquals(1005, snapshot2Index);
+
+    SnapshotInfo latest = stateMachine.getLatestSnapshot();
+    Assert.assertEquals(2020, latest.getTerm());
+    Assert.assertEquals(1005, latest.getIndex());
+    Assert.assertEquals(1, latest.getFiles().size());
   }
 
   @Test
