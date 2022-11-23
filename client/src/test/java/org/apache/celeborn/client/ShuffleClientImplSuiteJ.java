@@ -17,30 +17,29 @@
 
 package org.apache.celeborn.client;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.when;
 
 public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   static int BufferSize = 64;
   static byte[] TEST_BUF1 = new byte[BufferSize];
   static CelebornConf conf;
 
-  @BeforeClass
-  public static void setup() throws IOException, InterruptedException {
+  @Before
+  public void setup() throws IOException, InterruptedException {
     conf = setupEnv(CompressionCodec.LZ4);
   }
 

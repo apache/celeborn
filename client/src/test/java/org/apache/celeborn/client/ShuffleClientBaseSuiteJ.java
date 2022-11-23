@@ -21,10 +21,10 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 public abstract class ShuffleClientBaseSuiteJ {
-  protected static ShuffleClientImpl shuffleClient = null;
+  protected ShuffleClientImpl shuffleClient = null;
   protected static final RpcEndpointRef endpointRef = mock(RpcEndpointRef.class);
   protected static final TransportClientFactory clientFactory = mock(TransportClientFactory.class);
-  protected static final TransportClient client = mock(TransportClient.class);
+  protected final TransportClient client = mock(TransportClient.class);
 
   protected static final String TEST_APPLICATION_ID = "testapp1";
   protected static final int TEST_SHUFFLE_ID = 1;
@@ -63,7 +63,7 @@ public abstract class ShuffleClientBaseSuiteJ {
   protected final int BATCH_HEADER_SIZE = 4 * 4;
   protected ChannelFuture mockedFuture = mock(ChannelFuture.class);
 
-  protected static CelebornConf setupEnv(CompressionCodec codec)
+  protected CelebornConf setupEnv(CompressionCodec codec)
       throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.shuffle.compression.codec", codec.name());
