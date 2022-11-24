@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.util.Utils;
 
 public class PushState {
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
@@ -39,8 +38,6 @@ public class PushState {
   private int pushBufferMaxSize;
 
   public final AtomicInteger batchId = new AtomicInteger();
-  private final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
-      new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, Set<Integer>> batchIdPerAddressPair =
       new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
@@ -50,8 +47,8 @@ public class PushState {
     pushBufferMaxSize = conf.pushBufferMaxSize();
   }
 
-  public ConcurrentHashMap<Integer, PartitionLocation> getInFlightBatches() {
-    return inFlightBatches;
+  public ConcurrentHashMap<String, Set<Integer>> getBatchIdPerAddressPair() {
+    return batchIdPerAddressPair;
   }
 
   public Set<Integer> getBatchIdSetByAddressPair(String addressPair) {
@@ -102,19 +99,20 @@ public class PushState {
   }
 
   public void addFlightBatches(int batchId, PartitionLocation loc) {
-    String addressPair = Utils.genAddressPair(loc);
+    String addressPair = loc.hostAndPushPort();
     Set<Integer> batchIdSetPerPair =
         batchIdPerAddressPair.computeIfAbsent(addressPair, id -> new HashSet<>());
     batchIdSetPerPair.add(batchId);
-    inFlightBatches.put(batchId, loc);
   }
 
-  public void removeFlightBatches(int batchId) {
-    PartitionLocation loc = inFlightBatches.remove(batchId);
-    String addressPair = Utils.genAddressPair(loc);
-    Set<Integer> batchIdSetPerPair = batchIdPerAddressPair.get(addressPair);
+  public void removeFlightBatches(int batchId, PartitionLocation loc) {
+    String hostAndPushPort = loc.hostAndPushPort();
+    Set<Integer> batchIdSetPerPair = batchIdPerAddressPair.get(hostAndPushPort);
     if (Objects.nonNull(batchIdSetPerPair)) {
       batchIdSetPerPair.remove(batchId);
+      if (batchIdSetPerPair.size() == 0) {
+        batchIdPerAddressPair.remove(hostAndPushPort);
+      }
     }
   }
 }
