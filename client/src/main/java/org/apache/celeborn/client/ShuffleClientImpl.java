@@ -226,7 +226,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
         logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
         DataBatches newDataBatches =
-            newDataBatchesMap.computeIfAbsent(Utils.genAddressPair(newLoc), (s) -> new DataBatches());
+            newDataBatchesMap.computeIfAbsent(
+                Utils.genAddressPair(newLoc), (s) -> new DataBatches());
         newDataBatches.addDataBatch(newLoc, batch.batchId, batch.body);
       }
     }
@@ -343,10 +344,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void limitMaxInFlight(String mapKey,
-                                PushState pushState,
-                                int limit,
-                                String addressPair) throws IOException {
+  private void limitMaxInFlight(String mapKey, PushState pushState, int limit, String addressPair)
+      throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
@@ -374,8 +373,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.error(
           "After waiting for {} ms, there are still {} batches in flight for map {} and addressPair {}, "
               + "which exceeds the limit {}.",
-          timeoutMs, batchIdSet.size(), mapKey, addressPair, limit);
-      logger.error("Map: {} with addressPair {} in flight batches: {}", mapKey, addressPair, batchIdSet);
+          timeoutMs,
+          batchIdSet.size(),
+          mapKey,
+          addressPair,
+          limit);
+      logger.error(
+          "Map: {} with addressPair {} in flight batches: {}", mapKey, addressPair, batchIdSet);
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
     if (pushState.exception.get() != null) {
@@ -409,8 +413,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (times <= 0) {
       logger.error(
-              "After waiting for {} ms, there are still {} batches in flight for map {}, expect 0 batches",
-              timeoutMs, inFlightBatches.size(), mapKey);
+          "After waiting for {} ms, there are still {} batches in flight for map {}, expect 0 batches",
+          timeoutMs,
+          inFlightBatches.size(),
+          mapKey);
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
     if (pushState.exception.get() != null) {

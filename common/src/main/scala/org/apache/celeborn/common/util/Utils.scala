@@ -25,7 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
-import java.util.{Locale, Objects, Properties, Random, UUID}
+import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -980,13 +980,4 @@ object Utils extends Logging {
     }
   }
 
-  def genAddressPair(loc: PartitionLocation): String = {
-    if (Objects.isNull(loc)) {
-      return null
-    }
-    if (loc.getPeer != null)
-      loc.hostAndPushPort + "-" + loc.getPeer.hostAndPushPort
-    else
-      loc.hostAndPushPort
-  }
 }
