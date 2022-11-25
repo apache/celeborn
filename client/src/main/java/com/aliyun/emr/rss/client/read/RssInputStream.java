@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +33,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.aliyun.emr.rss.common.network.client.TransportClient;
+import com.aliyun.emr.rss.common.network.protocol.Message;
+import com.aliyun.emr.rss.common.network.protocol.OpenStream;
+import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import io.netty.buffer.ByteBuf;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -108,6 +113,8 @@ public abstract class RssInputStream extends InputStream {
 
     private ByteBuf currentChunk;
     private PartitionReader currentReader;
+    private final int fetchChunkMaxRetry;
+    private int fetchChunkRetryCnt = 0;
     private int fileIndex;
     private int position;
     private int limit;
@@ -155,6 +162,8 @@ public abstract class RssInputStream extends InputStream {
 
       decompressor = Decompressor.getDecompressor(conf);
 
+      fetchChunkMaxRetry = RssConf.fetchChunkMaxRetries(conf);
+
       moveToNextReader();
     }
 
@@ -191,6 +200,9 @@ public abstract class RssInputStream extends InputStream {
         }
         currentLocation = locations[fileIndex];
       }
+
+      fetchChunkRetryCnt = 0;
+
       return currentLocation;
     }
 
@@ -203,7 +215,7 @@ public abstract class RssInputStream extends InputStream {
       if (currentLocation == null) {
         return;
       }
-      currentReader = createReader(currentLocation);
+      currentReader = createReaderWithRetry(currentLocation);
       fileIndex++;
       while (!currentReader.hasNext()) {
         currentReader.close();
@@ -212,10 +224,44 @@ public abstract class RssInputStream extends InputStream {
         if (currentLocation == null) {
           return;
         }
-        currentReader = createReader(currentLocation);
+        currentReader = createReaderWithRetry(currentLocation);
         fileIndex++;
       }
-      currentChunk = currentReader.next();
+      currentChunk = getNextChunk();
+    }
+
+    private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+      while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
+        try {
+          return createReader(location);
+        } catch (Exception e) {
+          fetchChunkRetryCnt++;
+          if (location.getPeer() != null) {
+            location = location.getPeer();
+          }
+          logger.warn("createPartitionReader failed {}/{} times",
+            fetchChunkRetryCnt, fetchChunkMaxRetry);
+        }
+      }
+      throw new IOException("createPartitionReader failed!");
+    }
+
+    private ByteBuf getNextChunk() throws IOException {
+      while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
+        try {
+          return currentReader.next();
+        } catch (Exception e) {
+          fetchChunkRetryCnt++;
+          logger.warn("getNextChunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
+          currentReader.close();
+          if (currentReader.getLocation().getPeer() != null) {
+            currentReader = createReaderWithRetry(currentReader.location.getPeer());
+          } else {
+            currentReader = createReaderWithRetry(currentReader.location);
+          }
+        }
+      }
+      throw new IOException("getNextChunk failed!");
     }
 
     private PartitionReader createReader(PartitionLocation location) throws IOException {
@@ -377,8 +423,9 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private final class PartitionReader {
-      private final RetryingChunkClient client;
-      private final int numChunks;
+      private PartitionLocation location;
+      private TransportClient client;
+      private StreamHandle streamHandle;
 
       private int returnedChunks;
       private int chunkIndex;
@@ -412,18 +459,25 @@ public abstract class RssInputStream extends InputStream {
             exception.set(new IOException(errorMsg, e));
           }
         };
-        client = new RetryingChunkClient(conf, shuffleKey, location,
-          callback, clientFactory, startMapIndex, endMapIndex);
-        numChunks = client.openChunks();
+        try {
+          client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+        } catch (InterruptedException ie) {
+          throw new IOException("Interrupted when createClient", ie);
+        }
+        OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
+          startMapIndex, endMapIndex);
+        long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
+        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+        streamHandle = (StreamHandle) Message.decode(response);
       }
 
       boolean hasNext() {
-        return returnedChunks < numChunks;
+        return returnedChunks < streamHandle.numChunks;
       }
 
       ByteBuf next() throws IOException {
         checkException();
-        if (chunkIndex < numChunks) {
+        if (chunkIndex < streamHandle.numChunks) {
           fetchChunks();
         }
         ByteBuf chunk = null;
@@ -455,9 +509,11 @@ public abstract class RssInputStream extends InputStream {
       private void fetchChunks() {
         final int inFlight = chunkIndex - returnedChunks;
         if (inFlight < maxInFlight) {
-          final int toFetch = Math.min(maxInFlight - inFlight + 1, numChunks - chunkIndex);
+          final int toFetch = Math.min(maxInFlight - inFlight + 1,
+            streamHandle.numChunks - chunkIndex);
           for (int i = 0; i < toFetch; i++) {
-            client.fetchChunk(chunkIndex++);
+            client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+            chunkIndex++;
           }
         }
       }
@@ -467,6 +523,10 @@ public abstract class RssInputStream extends InputStream {
         if (e != null) {
           throw e;
         }
+      }
+
+      public PartitionLocation getLocation() {
+        return location;
       }
     }
   }
