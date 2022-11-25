@@ -46,6 +46,20 @@ public abstract class StreamManager {
   public abstract ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len);
 
   /**
+   * Called in response to a stream() request. The returned data is streamed to the client through a
+   * single TCP connection.
+   *
+   * <p>Note the <code>streamId</code> argument is not related to the similarly named argument in
+   * the {@link #getChunk(long, int, int, int)} method.
+   *
+   * @param streamId id of a stream that has been previously registered with the StreamManager.
+   * @return A managed buffer for the stream, or null if the stream was not found.
+   */
+  public ManagedBuffer openStream(String streamId) {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
    * Indicates that the given channel has been terminated. After this occurs, we are guaranteed not
    * to read from the associated streams again, so any state can be cleaned up.
    */
@@ -59,6 +73,12 @@ public abstract class StreamManager {
   /** Called when start sending a chunk. */
   public void chunkBeingSent(long streamId) {}
 
+  /** Called when start sending a stream. */
+  public void streamBeingSent(String streamId) {}
+
   /** Called when a chunk is successfully sent. */
   public void chunkSent(long streamId) {}
+
+  /** Called when a stream is successfully sent. */
+  public void streamSent(String streamId) {}
 }
