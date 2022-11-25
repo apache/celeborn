@@ -30,12 +30,13 @@ import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
-import org.apache.celeborn.common.network.protocol.{Message, PushData, PushMergedData, RequestMessage, RpcFailure, RpcResponse}
+import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse}
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
+import org.apache.celeborn.common.util.PackedPartitionId
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, LocalFlusher, StorageManager}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
@@ -44,6 +45,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var rpcSource: RPCSource = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
+  var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var replicateThreadPool: ThreadPoolExecutor = _
   var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   var pushClientFactory: TransportClientFactory = _
@@ -58,6 +60,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     workerSource = worker.workerSource
     rpcSource = worker.rpcSource
     partitionLocationInfo = worker.partitionLocationInfo
+    shufflePartitionType = worker.shufflePartitionType
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     replicateThreadPool = worker.replicateThreadPool
     unavailablePeers = worker.unavailablePeers
@@ -103,6 +106,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 pushMergedData.shuffleKey,
                 pushMergedData.partitionUniqueIds.mkString(","))))
       }
+      case rpcRequest: RpcRequest => handleRpcRequest(client, rpcRequest)
     }
 
   def handlePushData(pushData: PushData, callback: RpcResponseCallback): Unit = {
@@ -524,6 +528,280 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           Throwables.getStackTraceAsString(e)));
     } finally {
       message.body().release()
+    }
+  }
+
+  private def handleRpcRequest(client: TransportClient, rpcRequest: RpcRequest): Unit = {
+    val msg = Message.decode(rpcRequest.body().nioByteBuffer())
+    val requestId = rpcRequest.requestId
+    val (mode, shuffleKey, partitionUniqueId, isCheckSplit) = msg match {
+      case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, false)
+      case rs: RegionStart => (rs.mode, rs.shuffleKey, rs.partitionUniqueId, true)
+      case rf: RegionFinish => (rf.mode, rf.shuffleKey, rf.partitionUniqueId, false)
+    }
+    handleCore(
+      client,
+      rpcRequest,
+      requestId,
+      () =>
+        handleRpcRequestCore(
+          mode,
+          msg,
+          shuffleKey,
+          partitionUniqueId,
+          requestId,
+          isCheckSplit,
+          new SimpleRpcResponseCallback(
+            msg.`type`(),
+            client,
+            requestId,
+            shuffleKey,
+            partitionUniqueId)))
+
+  }
+
+  private def handleRpcRequestCore(
+      mode: Byte,
+      message: Message,
+      shuffleKey: String,
+      partitionUniqueId: String,
+      requestId: Long,
+      isCheckSplit: Boolean,
+      callback: RpcResponseCallback): Unit = {
+    val isMaster = mode == PartitionLocation.Mode.MASTER
+    val messageType = message.`type`()
+    log.info(s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, partitionUniqueId:$partitionUniqueId")
+    val (workerSourceMaster, workerSourceSlave) =
+      messageType match {
+        case Type.PUSH_DATA_HAND_SHAKE =>
+          (WorkerSource.MasterPushDataHandshakeTime, WorkerSource.SlavePushDataHandshakeTime)
+        case Type.REGION_START =>
+          (WorkerSource.MasterRegionStartTime, WorkerSource.SlaveRegionStartTime)
+        case Type.REGION_FINISH =>
+          (WorkerSource.MasterRegionFinishTime, WorkerSource.SlaveRegionFinishTime)
+      }
+
+    val location = isMaster match {
+      case true => partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
+      case false => partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
+    }
+    workerSource.startTimer(if (isMaster) workerSourceMaster else workerSourceSlave, s"$requestId")
+    val wrappedCallback =
+      new WrappedRpcResponseCallback(
+        messageType,
+        isMaster,
+        requestId,
+        null,
+        location,
+        if (isMaster) workerSourceMaster else workerSourceSlave,
+        callback)
+
+    val isReturn = checkLocationNull(
+      messageType,
+      shuffleKey,
+      partitionUniqueId,
+      null,
+      location,
+      callback,
+      wrappedCallback)
+    if (isReturn) return
+
+    val (isReturnWriter, fileWriter) =
+      getFileWriterAndCheck(messageType, location, isMaster, callback)
+    if (isReturnWriter) return
+
+    if (isCheckSplit) {
+      val isReturnDisk = checkDiskFullAndSplit(fileWriter, isMaster, null, callback)
+      if (isReturnDisk) return
+    }
+
+    try {
+      messageType match {
+        case Type.PUSH_DATA_HAND_SHAKE => {
+          fileWriter.pushDataHandShake(message.asInstanceOf[PushDataHandShake].numPartitions)
+        }
+        case Type.REGION_START => {
+          fileWriter.regionStart(
+            message.asInstanceOf[RegionStart].currentRegionIndex,
+            message.asInstanceOf[RegionStart].isBroadcast)
+        }
+        case Type.REGION_FINISH => {
+          fileWriter.regionFinish()
+        }
+      }
+      // for master, send data to slave
+      if (location.getPeer != null && isMaster) {
+        // to do replica
+        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      } else {
+        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      }
+    } catch {
+      case t: Throwable =>
+        callback.onFailure(new Exception(s"$messageType failed", t))
+    }
+  }
+
+  class WrappedRpcResponseCallback(
+      messageType: Message.Type,
+      isMaster: Boolean,
+      requestId: Long,
+      softSplit: AtomicBoolean,
+      location: PartitionLocation,
+      workerSourceTime: String,
+      callback: RpcResponseCallback)
+    extends RpcResponseCallback {
+    override def onSuccess(response: ByteBuffer): Unit = {
+      if (isMaster) {
+        workerSource.stopTimer(workerSourceTime, s"$requestId")
+        if (response.remaining() > 0) {
+          val resp = ByteBuffer.allocate(response.remaining())
+          resp.put(response)
+          resp.flip()
+          callback.onSuccess(resp)
+        } else if (softSplit != null && softSplit.get()) {
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+        } else {
+          callback.onSuccess(response)
+        }
+      } else {
+        workerSource.stopTimer(workerSourceTime, s"$requestId")
+        callback.onSuccess(response)
+      }
+    }
+
+    override def onFailure(e: Throwable): Unit = {
+      if (location != null) {
+        logError(s"[handle$messageType.onFailure] partitionLocation: $location")
+      }
+      messageType match {
+        case Type.PUSH_DATA_HAND_SHAKE =>
+          workerSource.incCounter(WorkerSource.PushDataHandshakeFailCount)
+          callback.onFailure(new Exception(
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE.getMessage,
+            e))
+        case Type.REGION_START =>
+          workerSource.incCounter(WorkerSource.RegionStartFailCount)
+          callback.onFailure(new Exception(StatusCode.REGION_START_FAIL_SLAVE.getMessage, e))
+        case Type.REGION_FINISH =>
+          workerSource.incCounter(WorkerSource.RegionFinishFailCount)
+          callback.onFailure(new Exception(StatusCode.REGION_FINISH_FAIL_SLAVE.getMessage, e))
+        case _ =>
+          workerSource.incCounter(WorkerSource.PushDataFailCount)
+          callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage, e))
+      }
+    }
+  }
+
+  private def checkLocationNull(
+      messageType: Message.Type,
+      shuffleKey: String,
+      partitionUniqueId: String,
+      body: ByteBuf,
+      location: PartitionLocation,
+      callback: RpcResponseCallback,
+      wrappedCallback: RpcResponseCallback): Boolean = {
+    if (location == null) {
+      val (mapId, attemptId) = getMapAttempt(body, shuffleKey, partitionUniqueId)
+      if (shuffleMapperAttempts.containsKey(shuffleKey) &&
+        -1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
+        // partition data has already been committed
+        logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
+          s" attempt $attemptId), but this mapper has already been ended.")
+        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+      } else {
+        val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
+          s"attempt $attemptId, uniqueId $partitionUniqueId)."
+        logWarning(s"[handle$messageType] $msg")
+        messageType match {
+          case Type.PUSH_MERGED_DATA => callback.onFailure(new Exception(msg))
+          case _ => callback.onFailure(
+              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+        }
+      }
+      return true
+    }
+    false
+  }
+
+  private def checkFileWriterException(
+      messageType: Message.Type,
+      isMaster: Boolean,
+      fileWriter: FileWriter,
+      callback: RpcResponseCallback): Unit = {
+    logWarning(
+      s"[handle$messageType] fileWriter $fileWriter has Exception ${fileWriter.getException}")
+
+    val (messageMaster, messageSlave) =
+      messageType match {
+        case Type.PUSH_DATA | Type.PUSH_DATA_HAND_SHAKE =>
+          (
+            StatusCode.PUSH_DATA_FAIL_MASTER.getMessage(),
+            StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage())
+        case Type.PUSH_DATA_HAND_SHAKE => (
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_MASTER.getMessage,
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE.getMessage)
+        case Type.REGION_START => (
+            StatusCode.REGION_START_FAIL_MASTER.getMessage,
+            StatusCode.REGION_START_FAIL_SLAVE.getMessage)
+        case Type.REGION_FINISH => (
+            StatusCode.REGION_FINISH_FAIL_MASTER.getMessage,
+            StatusCode.REGION_FINISH_FAIL_SLAVE.getMessage)
+      }
+    callback.onFailure(new Exception(
+      if (isMaster) messageMaster else messageSlave,
+      fileWriter.getException))
+  }
+
+  private def getFileWriterAndCheck(
+      messageType: Message.Type,
+      location: PartitionLocation,
+      isMaster: Boolean,
+      callback: RpcResponseCallback): (Boolean, FileWriter) = {
+    val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
+    val exception = fileWriter.getException
+    if (exception != null) {
+      checkFileWriterException(messageType, isMaster, fileWriter, callback)
+      return (true, fileWriter)
+    }
+    (false, fileWriter)
+  }
+
+  private def checkDiskFull(fileWriter: FileWriter): Boolean = {
+    val diskFull = workerInfo.diskInfos
+      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
+      .actualUsableSpace < diskReserveSize
+    diskFull
+  }
+
+  private def checkDiskFullAndSplit(
+      fileWriter: FileWriter,
+      isMaster: Boolean,
+      softSplit: AtomicBoolean,
+      callback: RpcResponseCallback): Boolean = {
+    val diskFull = checkDiskFull(fileWriter)
+    if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
+      (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
+      if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
+        softSplit.set(true)
+      } else {
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        return true
+      }
+    }
+    false
+  }
+
+  private def getMapAttempt(
+      body: ByteBuf,
+      shuffleKey: String,
+      partitionUniqueId: String): (Int, Int) = {
+    shufflePartitionType.get(shuffleKey) match {
+      case PartitionType.MAP => {
+        val id = partitionUniqueId.split("-")(0).toInt
+        (PackedPartitionId.getRawPartitionId(id), PackedPartitionId.getAttemptId(id))
+      }
+      case PartitionType.REDUCE => getMapAttempt(body)
     }
   }
 }
