@@ -27,7 +27,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 
 import org.apache.ratis.server.storage.RaftStorage;
-import org.apache.ratis.server.storage.StorageImplUtils;
+import org.apache.ratis.server.storage.RaftStorageImpl;
 import org.apache.ratis.statemachine.SnapshotRetentionPolicy;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.junit.Assert;
@@ -76,8 +76,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     File storageDir = Utils.createTempDir("./", "snapshot");
 
-    final RaftStorage storage = StorageImplUtils.newRaftStorage(storageDir, null,
-      RaftStorage.StartupOption.FORMAT, 100);
+    final RaftStorage storage = new RaftStorageImpl(storageDir, null, 100);
     SimpleStateMachineStorage simpleStateMachineStorage =
       (SimpleStateMachineStorage)stateMachine.getStateMachineStorage();
     simpleStateMachineStorage.init(storage);

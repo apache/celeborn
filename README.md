@@ -42,9 +42,7 @@ RSS Worker's slot count is decided by `rss.worker.numSlots` or`rss.worker.flush.
 RSS worker's slot count decreases when a partition is allocated and increments when a partition is freed.  
 
 ## Build
-RSS supports Spark2.x(>=2.4.0), Spark3.x(>=3.0.1) and only tested under Java8(JDK1.8). 
-There won't be new release package for branch-0.1, so if you need updates and fix,
-you'll need to build your own package. 
+RSS supports Spark2.x(>=2.4.0), Spark3.x(>=3.0.1) and only tested under Java8(JDK1.8).
 
 Build for Spark 2    
 `

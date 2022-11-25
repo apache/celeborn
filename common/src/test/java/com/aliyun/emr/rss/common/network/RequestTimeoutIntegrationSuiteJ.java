@@ -43,7 +43,6 @@ import com.aliyun.emr.rss.common.network.server.StreamManager;
 import com.aliyun.emr.rss.common.network.server.TransportServer;
 import com.aliyun.emr.rss.common.network.util.MapConfigProvider;
 import com.aliyun.emr.rss.common.network.util.TransportConf;
-import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
@@ -264,7 +263,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+    public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
       try {
         successLength = buffer.nioByteBuffer().remaining();
       } catch (IOException e) {
@@ -275,7 +274,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
+    public void onFailure(int chunkIndex, Throwable e) {
       failure = e;
       latch.countDown();
     }
