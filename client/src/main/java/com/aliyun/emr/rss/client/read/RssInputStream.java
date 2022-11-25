@@ -438,6 +438,8 @@ public abstract class RssInputStream extends InputStream {
       private boolean closed = false;
 
       PartitionReader(PartitionLocation location) throws IOException {
+        this.location = location;
+        
         results = new LinkedBlockingQueue<>();
         callback = new ChunkReceivedCallback() {
           @Override
