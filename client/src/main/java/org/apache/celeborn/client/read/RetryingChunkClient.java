@@ -108,8 +108,8 @@ public class RetryingChunkClient {
   }
 
   /**
-   * This method should only be called once after PartitionReader is initialized, so it is assumed
-   * that there is no concurrency problem when it is called.
+   * This method should only be called once after RetryingChunkReader is initialized, so it is
+   * assumed that there is no concurrency problem when it is called.
    *
    * @return numChunks.
    */
@@ -173,7 +173,7 @@ public class RetryingChunkClient {
     RetryingChunkReceiveCallback callback;
     synchronized (this) {
       replica = getCurrentReplica();
-      callback = new FetchChunkCallback(numTries);
+      callback = new RetryingChunkReceiveCallback(numTries);
     }
     try {
       TransportClient client = replica.getOrOpenStream();
@@ -238,10 +238,10 @@ public class RetryingChunkClient {
         });
   }
 
-  private class FetchChunkCallback implements ChunkReceivedCallback {
+  private class RetryingChunkReceiveCallback implements ChunkReceivedCallback {
     final int currentNumTries;
 
-    FetchChunkCallback(int currentNumTries) {
+    RetryingChunkReceiveCallback(int currentNumTries) {
       this.currentNumTries = currentNumTries;
     }
 
