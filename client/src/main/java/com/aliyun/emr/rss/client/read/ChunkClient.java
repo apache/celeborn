@@ -178,9 +178,9 @@ public class ChunkClient {
       client.fetchChunk(replica.getStreamId(), chunkIndex, callback);
     } catch (Exception e) {
       logger.error(
-              "Exception raised while beginning fetch chunk "
-                      + chunkIndex
-                      + (numTries > 0 ? " (after " + numTries + " retries)" : ""),
+              "Exception raised while beginning fetch chunk {}{}.",
+              chunkIndex,
+              numTries > 0 ? " (after " + numTries + " retries)" : "",
               e);
 
       if (shouldRetry(e)) {
@@ -238,8 +238,7 @@ public class ChunkClient {
       if (shouldRetry(e)) {
         initiateRetry(chunkIndex, this.currentNumTries);
       } else {
-        logger.error(
-          "Abandon to fetch chunk " + chunkIndex + " after " + this.currentNumTries + " tries.", e);
+        logger.error("Abandon to fetch chunk {} after {} tries.", chunkIndex, this.currentNumTries);
         callback.onFailure(chunkIndex, ChunkClient.this.location, e);
       }
     }
