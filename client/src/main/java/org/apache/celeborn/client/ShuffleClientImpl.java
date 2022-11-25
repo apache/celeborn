@@ -353,8 +353,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void limitMaxInFlight(String mapKey, PushState pushState, int limit, String hostAndPushPort)
-      throws IOException {
+  private void limitMaxInFlight(
+      String mapKey, PushState pushState, int limit, String hostAndPushPort) throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
@@ -388,7 +388,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           hostAndPushPort,
           limit);
       logger.error(
-          "Map: {} with hostAndPushPort {} in flight batches: {}", mapKey, hostAndPushPort, batchIdSet);
+          "Map: {} with hostAndPushPort {} in flight batches: {}",
+          mapKey,
+          hostAndPushPort,
+          batchIdSet);
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
     if (pushState.exception.get() != null) {

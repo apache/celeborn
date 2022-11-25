@@ -19,7 +19,6 @@ package org.apache.celeborn.client.write;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -108,11 +107,9 @@ public class PushState {
   public void removeFlightBatches(int batchId, PartitionLocation loc) {
     String hostAndPushPort = loc.hostAndPushPort();
     Set<Integer> batchIdSetPerPair = batchIdPerAddressPair.get(hostAndPushPort);
-    if (Objects.nonNull(batchIdSetPerPair)) {
-      batchIdSetPerPair.remove(batchId);
-      if (batchIdSetPerPair.size() == 0) {
-        batchIdPerAddressPair.remove(hostAndPushPort);
-      }
+    batchIdSetPerPair.remove(batchId);
+    if (batchIdSetPerPair.size() == 0) {
+      batchIdPerAddressPair.remove(hostAndPushPort);
     }
   }
 }
