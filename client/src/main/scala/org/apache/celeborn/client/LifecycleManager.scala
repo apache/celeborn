@@ -1506,10 +1506,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
+    val parallelism = Math.min(Math.max(1, slotsToDestroy.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(
       slotsToDestroy.asScala,
       "DestroySlot",
-      slotsToDestroy.size()) { case (workerInfo, (masterLocations, slaveLocations)) =>
+      parallelism) { case (workerInfo, (masterLocations, slaveLocations)) =>
       val destroy = Destroy(
         shuffleKey,
         masterLocations.asScala.map(_.getUniqueId).asJava,
