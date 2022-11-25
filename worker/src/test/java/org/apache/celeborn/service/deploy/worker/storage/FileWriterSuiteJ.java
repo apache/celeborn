@@ -71,7 +71,6 @@ import org.apache.celeborn.common.network.server.MemoryTracker;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -210,7 +209,7 @@ public class FileWriterSuiteJ {
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
           @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
             buffer.retain();
             res.successChunks.add(chunkIndex);
             res.buffers.add(buffer);
@@ -218,7 +217,7 @@ public class FileWriterSuiteJ {
           }
 
           @Override
-          public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
+          public void onFailure(int chunkIndex, Throwable e) {
             res.failedChunks.add(chunkIndex);
             sem.release();
           }

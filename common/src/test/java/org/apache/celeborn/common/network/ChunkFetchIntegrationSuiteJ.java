@@ -47,7 +47,6 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.StreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class ChunkFetchIntegrationSuiteJ {
   static final long STREAM_ID = 1;
@@ -154,7 +153,7 @@ public class ChunkFetchIntegrationSuiteJ {
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
           @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
             buffer.retain();
             res.successChunks.add(chunkIndex);
             res.buffers.add(buffer);
@@ -162,7 +161,7 @@ public class ChunkFetchIntegrationSuiteJ {
           }
 
           @Override
-          public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
+          public void onFailure(int chunkIndex, Throwable e) {
             res.failedChunks.add(chunkIndex);
             sem.release();
           }
