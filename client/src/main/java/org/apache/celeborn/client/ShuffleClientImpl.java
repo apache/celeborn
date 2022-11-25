@@ -1342,12 +1342,12 @@ public class ShuffleClientImpl extends ShuffleClient {
         });
   }
 
-  private <T> T sendMessageInternal(
+  private <R> R sendMessageInternal(
       int shuffleId,
       int mapId,
       int attemptId,
       PartitionLocation location,
-      ThrowingExceptionSupplier<T, IOException> supplier)
+      ThrowingExceptionSupplier<R, Exception> supplier)
       throws IOException {
     PushState pushState = null;
     int batchId = 0;
@@ -1379,27 +1379,30 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @FunctionalInterface
-  interface ThrowingExceptionSupplier<T, E extends Exception> {
-    T get() throws E, InterruptedException;
+  interface ThrowingExceptionSupplier<R, E extends Exception> {
+    R get() throws E;
   }
 
-  private <T> T retrySendMessage(ThrowingExceptionSupplier<T, IOException> supplier)
+  private <R> R retrySendMessage(ThrowingExceptionSupplier<R, Exception> supplier)
       throws IOException {
 
     int retryTimes = 0;
-    boolean isSuccess = true;
+    boolean isSuccess = false;
     Exception currentException = null;
-    T result = null;
+    R result = null;
     while (!Thread.currentThread().isInterrupted()
-        && isSuccess
+        && !isSuccess
         && retryTimes < conf.networkIoMaxRetries(TransportModuleConstants.PUSH_MODULE)) {
       logger.info("retrySendMessage times: {}", retryTimes);
       try {
-        isSuccess = true;
         result = supplier.get();
+        isSuccess = true;
       } catch (Exception e) {
+        currentException = e;
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         if (shouldRetry(e)) {
-          currentException = e;
           retryTimes++;
           Uninterruptibles.sleepUninterruptibly(
               conf.networkIoRetryWaitMs(TransportModuleConstants.PUSH_MODULE),
