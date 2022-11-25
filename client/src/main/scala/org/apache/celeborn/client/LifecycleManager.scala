@@ -1506,7 +1506,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    slotsToDestroy.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
+    ThreadUtils.parmap(
+      slotsToDestroy.asScala,
+      "DestroySlot",
+      slotsToDestroy.size()) { case (workerInfo, (masterLocations, slaveLocations)) =>
       val destroy = Destroy(
         shuffleKey,
         masterLocations.asScala.map(_.getUniqueId).asJava,
@@ -1514,7 +1517,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       var res = requestDestroy(workerInfo.endpoint, destroy)
       if (res.status != StatusCode.SUCCESS) {
         logDebug(s"Request $destroy return ${res.status} for " +
-          s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
+          s"${Utils.makeShuffleKey(applicationId, shuffleId)}, will retry request destroy.")
         res = requestDestroy(
           workerInfo.endpoint,
           Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
