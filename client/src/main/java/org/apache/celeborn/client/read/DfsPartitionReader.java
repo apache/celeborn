@@ -44,6 +44,7 @@ import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
+  PartitionLocation location;
   private final int shuffleChunkSize;
   private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
@@ -65,6 +66,8 @@ public class DfsPartitionReader implements PartitionReader {
     shuffleChunkSize = (int) conf.shuffleChunkSize();
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
+
+    this.location = location;
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
@@ -193,5 +196,10 @@ public class DfsPartitionReader implements PartitionReader {
       results.forEach(ReferenceCounted::release);
     }
     results.clear();
+  }
+
+  @Override
+  public PartitionLocation getLocation() {
+    return location;
   }
 }

@@ -18,6 +18,7 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,22 +32,33 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
+import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.protocol.OpenStream;
+import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
-  private final RetryingChunkClient client;
-  private final int numChunks;
+  private PartitionLocation location;
+  private final TransportClient client;
+  private StreamHandle streamHandle;
 
   private int returnedChunks;
   private int chunkIndex;
 
   private final LinkedBlockingQueue<ByteBuf> results;
+  private final ChunkReceivedCallback callback;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
   private boolean closed = false;
+
+  // for test
+  private int fetchChunkRetryCnt;
+  private int fetchChunkMaxRetry;
+  private final boolean testFetch;
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -54,12 +66,14 @@ public class WorkerPartitionReader implements PartitionReader {
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
-      int endMapIndex)
+      int endMapIndex,
+      int fetchChunkRetryCnt,
+      int fetchChunkMaxRetry)
       throws IOException {
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
-    ChunkReceivedCallback callback =
+    callback =
         new ChunkReceivedCallback() {
           @Override
           public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
@@ -80,19 +94,31 @@ public class WorkerPartitionReader implements PartitionReader {
             exception.set(new IOException(errorMsg, e));
           }
         };
-    client =
-        new RetryingChunkClient(
-            conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex);
-    numChunks = client.openChunks();
+    try {
+      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+    } catch (InterruptedException ie) {
+      throw new IOException("Interrupted when createClient", ie);
+    }
+    OpenStream openBlocks =
+        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+    long timeoutMs = conf.fetchTimeoutMs();
+    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+    streamHandle = (StreamHandle) Message.decode(response);
+
+    this.location = location;
+
+    this.fetchChunkRetryCnt = fetchChunkRetryCnt;
+    this.fetchChunkMaxRetry = fetchChunkMaxRetry;
+    testFetch = conf.testFetchFailure();
   }
 
   public boolean hasNext() {
-    return returnedChunks < numChunks;
+    return returnedChunks < streamHandle.numChunks;
   }
 
   public ByteBuf next() throws IOException {
     checkException();
-    if (chunkIndex < numChunks) {
+    if (chunkIndex < streamHandle.numChunks) {
       fetchChunks();
     }
     ByteBuf chunk = null;
@@ -121,12 +147,23 @@ public class WorkerPartitionReader implements PartitionReader {
     results.clear();
   }
 
+  @Override
+  public PartitionLocation getLocation() {
+    return location;
+  }
+
   private void fetchChunks() {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
-      final int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
+      final int toFetch =
+          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.numChunks - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
-        client.fetchChunk(chunkIndex++);
+        if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
+          callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
+        } else {
+          client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+          chunkIndex++;
+        }
       }
     }
   }

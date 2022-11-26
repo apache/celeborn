@@ -642,6 +642,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
+  def fetchMaxRetries: Int = get(FETCH_MAX_RETRIES)
+  def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Push                   //
@@ -1255,6 +1257,22 @@ object CelebornConf extends Logging {
       .doc("Max parallelism of client on sending RPC requests.")
       .intConf
       .createWithDefault(1024)
+
+  val FETCH_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.fetch.maxRetry")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Max retries of fetch chunk")
+      .intConf
+      .createWithDefault(3)
+
+  val TEST_FETCH_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.fetchFailure")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Wheter to test fetch chunk failure")
+      .booleanConf
+      .createWithDefault(false)
 
   val APPLICATION_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.application.heartbeat.timeout")
