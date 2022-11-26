@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +33,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.aliyun.emr.rss.common.network.client.TransportClient;
+import com.aliyun.emr.rss.common.network.protocol.Message;
+import com.aliyun.emr.rss.common.network.protocol.OpenStream;
+import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import io.netty.buffer.ByteBuf;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -108,6 +113,8 @@ public abstract class RssInputStream extends InputStream {
 
     private ByteBuf currentChunk;
     private PartitionReader currentReader;
+    private final int fetchChunkMaxRetry;
+    private int fetchChunkRetryCnt = 0;
     private int fileIndex;
     private int position;
     private int limit;
@@ -155,6 +162,8 @@ public abstract class RssInputStream extends InputStream {
 
       decompressor = Decompressor.getDecompressor(conf);
 
+      fetchChunkMaxRetry = RssConf.fetchChunkMaxRetries(conf);
+
       moveToNextReader();
     }
 
@@ -191,6 +200,9 @@ public abstract class RssInputStream extends InputStream {
         }
         currentLocation = locations[fileIndex];
       }
+
+      fetchChunkRetryCnt = 0;
+
       return currentLocation;
     }
 
@@ -203,7 +215,7 @@ public abstract class RssInputStream extends InputStream {
       if (currentLocation == null) {
         return;
       }
-      currentReader = createReader(currentLocation);
+      currentReader = createReaderWithRetry(currentLocation);
       fileIndex++;
       while (!currentReader.hasNext()) {
         currentReader.close();
@@ -212,13 +224,60 @@ public abstract class RssInputStream extends InputStream {
         if (currentLocation == null) {
           return;
         }
-        currentReader = createReader(currentLocation);
+        currentReader = createReaderWithRetry(currentLocation);
         fileIndex++;
       }
-      currentChunk = currentReader.next();
+      currentChunk = getNextChunk();
     }
 
-    private PartitionReader createReader(PartitionLocation location) throws IOException {
+    private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+      while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
+        try {
+          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
+        } catch (Exception e) {
+          fetchChunkRetryCnt++;
+          if (location.getPeer() != null) {
+            location = location.getPeer();
+            logger.warn("CreatePartitionReader failed {}/{} times, change to peer",
+              fetchChunkRetryCnt, fetchChunkMaxRetry);
+          } else {
+            logger.warn("CreatePartitionReader failed {}/{} times, retry the same location",
+              fetchChunkRetryCnt, fetchChunkMaxRetry);
+          }
+        }
+      }
+      throw new IOException("createPartitionReader failed!");
+    }
+
+    private ByteBuf getNextChunk() throws IOException {
+      while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
+        try {
+          return currentReader.next();
+        } catch (Exception e) {
+          fetchChunkRetryCnt++;
+          currentReader.close();
+          if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
+            logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt);
+            throw new IOException("Fetch chunk failed for " + fetchChunkRetryCnt + " times");
+          } else {
+            if (currentReader.getLocation().getPeer() != null) {
+              logger.warn("Fetch chunk failed {}/{} times, change to peer",
+                fetchChunkRetryCnt, fetchChunkMaxRetry);
+              currentReader = createReaderWithRetry(currentReader.location.getPeer());
+            } else {
+              logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
+              currentReader = createReaderWithRetry(currentReader.location);
+            }
+          }
+        }
+      }
+      throw new IOException("Fetch chunk failed!");
+    }
+
+    private PartitionReader createReader(
+      PartitionLocation location,
+      int fetchChunkRetryCnt,
+      int fetchChunkMaxRetry) throws IOException {
       if (location.getPeer() == null) {
         logger.debug("Partition {} has only one partition replica.", location);
       }
@@ -227,7 +286,7 @@ public abstract class RssInputStream extends InputStream {
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
 
-      return new PartitionReader(location);
+      return new PartitionReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
     }
 
     public void setCallback(MetricsCallback callback) {
@@ -286,7 +345,7 @@ public abstract class RssInputStream extends InputStream {
     @Override
     public void close() {
       int locationsCount = locations.length;
-      logger.info(
+      logger.debug(
           "total location count {} read {} skip {}",
           locationsCount,
           locationsCount - skipCount.sum(),
@@ -309,7 +368,7 @@ public abstract class RssInputStream extends InputStream {
       }
       currentChunk = null;
       if (currentReader.hasNext()) {
-        currentChunk = currentReader.next();
+        currentChunk = getNextChunk();
         return true;
       } else if (fileIndex < locations.length) {
         moveToNextReader();
@@ -377,8 +436,9 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private final class PartitionReader {
-      private final RetryingChunkClient client;
-      private final int numChunks;
+      private PartitionLocation location;
+      private TransportClient client;
+      private StreamHandle streamHandle;
 
       private int returnedChunks;
       private int chunkIndex;
@@ -390,7 +450,17 @@ public abstract class RssInputStream extends InputStream {
 
       private boolean closed = false;
 
-      PartitionReader(PartitionLocation location) throws IOException {
+      // for test
+      private int fetchChunkRetryCnt;
+      private int fetchChunkMaxRetry;
+      private final boolean testFetch;
+
+      PartitionReader(
+        PartitionLocation location,
+        int fetchChunkRetryCnt,
+        int fetchChunkMaxRetry) throws IOException {
+        this.location = location;
+
         results = new LinkedBlockingQueue<>();
         callback = new ChunkReceivedCallback() {
           @Override
@@ -412,18 +482,29 @@ public abstract class RssInputStream extends InputStream {
             exception.set(new IOException(errorMsg, e));
           }
         };
-        client = new RetryingChunkClient(conf, shuffleKey, location,
-          callback, clientFactory, startMapIndex, endMapIndex);
-        numChunks = client.openChunks();
+        try {
+          client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+        } catch (InterruptedException ie) {
+          throw new IOException("Interrupted when createClient", ie);
+        }
+        OpenStream openBlocks = new OpenStream(shuffleKey, location.getFileName(),
+          startMapIndex, endMapIndex);
+        long timeoutMs = RssConf.fetchChunkTimeoutMs(conf);
+        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+        streamHandle = (StreamHandle) Message.decode(response);
+
+        this.fetchChunkRetryCnt = fetchChunkRetryCnt;
+        this.fetchChunkMaxRetry = fetchChunkMaxRetry;
+        testFetch = RssConf.testFetchFailure(conf);
       }
 
       boolean hasNext() {
-        return returnedChunks < numChunks;
+        return returnedChunks < streamHandle.numChunks;
       }
 
       ByteBuf next() throws IOException {
         checkException();
-        if (chunkIndex < numChunks) {
+        if (chunkIndex < streamHandle.numChunks) {
           fetchChunks();
         }
         ByteBuf chunk = null;
@@ -455,9 +536,15 @@ public abstract class RssInputStream extends InputStream {
       private void fetchChunks() {
         final int inFlight = chunkIndex - returnedChunks;
         if (inFlight < maxInFlight) {
-          final int toFetch = Math.min(maxInFlight - inFlight + 1, numChunks - chunkIndex);
+          final int toFetch = Math.min(maxInFlight - inFlight + 1,
+            streamHandle.numChunks - chunkIndex);
           for (int i = 0; i < toFetch; i++) {
-            client.fetchChunk(chunkIndex++);
+            if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
+              callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
+            } else {
+              client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+              chunkIndex++;
+            }
           }
         }
       }
@@ -467,6 +554,10 @@ public abstract class RssInputStream extends InputStream {
         if (e != null) {
           throw e;
         }
+      }
+
+      public PartitionLocation getLocation() {
+        return location;
       }
     }
   }

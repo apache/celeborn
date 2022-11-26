@@ -437,6 +437,14 @@ object RssConf extends Logging {
     conf.getInt("rss.fetch.chunk.maxReqsInFlight", 3)
   }
 
+  def fetchChunkMaxRetries(conf: RssConf): Int = {
+    conf.getInt("rss.fetch.chunk.max.retry", 3)
+  }
+
+  def testFetchFailure(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.test.fetch.chunk.failure", false)
+  }
+
   def replicate(conf: RssConf): Boolean = {
     conf.getBoolean("rss.push.data.replicate", false)
   }
