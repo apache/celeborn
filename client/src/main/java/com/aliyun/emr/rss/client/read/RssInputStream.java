@@ -450,6 +450,7 @@ public abstract class RssInputStream extends InputStream {
       // for test
       private int fetchChunkRetryCnt;
       private int fetchChunkMaxRetry;
+      private final boolean testFetch;
 
       PartitionReader(
         PartitionLocation location,
@@ -491,6 +492,7 @@ public abstract class RssInputStream extends InputStream {
 
         this.fetchChunkRetryCnt = fetchChunkRetryCnt;
         this.fetchChunkMaxRetry = fetchChunkMaxRetry;
+        testFetch = RssConf.testFetchFailure(conf);
       }
 
       boolean hasNext() {
@@ -534,9 +536,7 @@ public abstract class RssInputStream extends InputStream {
           final int toFetch = Math.min(maxInFlight - inFlight + 1,
             streamHandle.numChunks - chunkIndex);
           for (int i = 0; i < toFetch; i++) {
-            if (RssConf.testFetchFailure(conf) &&
-              fetchChunkRetryCnt < fetchChunkMaxRetry - 1 &&
-              chunkIndex == 3) {
+            if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
               callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
             } else {
               client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
