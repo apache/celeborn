@@ -161,7 +161,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
         listener.onFailure(
             resp.streamChunkSlice.chunkIndex,
-            new IOException(
+            new ChunkFetchFailureException(
                 "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }
     } else if (message instanceof RpcResponse) {
