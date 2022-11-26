@@ -1259,7 +1259,7 @@ object CelebornConf extends Logging {
       .createWithDefault(1024)
 
   val FETCH_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.fetch.maxRetry")
+    buildConf("celeborn.fetch.maxRetries")
       .categories("client")
       .version("0.2.0")
       .doc("Max retries of fetch chunk")
