@@ -17,10 +17,12 @@
 
 package com.aliyun.emr.rss.common.network.client;
 
+import java.io.IOException;
+
 /**
  * General exception caused by a remote exception while fetching a chunk.
  */
-public class ChunkFetchFailureException extends RuntimeException {
+public class ChunkFetchFailureException extends IOException {
   public ChunkFetchFailureException(String errorMsg, Throwable cause) {
     super(errorMsg, cause);
   }

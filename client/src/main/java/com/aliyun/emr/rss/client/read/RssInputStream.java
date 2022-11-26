@@ -257,6 +257,7 @@ public abstract class RssInputStream extends InputStream {
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
+            logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt);
             throw new IOException("Fetch chunk failed for " + fetchChunkRetryCnt + " times");
           } else {
             if (currentReader.getLocation().getPeer() != null) {
@@ -367,7 +368,7 @@ public abstract class RssInputStream extends InputStream {
       }
       currentChunk = null;
       if (currentReader.hasNext()) {
-        currentChunk = currentReader.next();
+        currentChunk = getNextChunk();
         return true;
       } else if (fileIndex < locations.length) {
         moveToNextReader();

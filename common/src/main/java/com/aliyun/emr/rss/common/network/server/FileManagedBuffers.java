@@ -75,7 +75,7 @@ public class FileManagedBuffers {
       synchronized (chunkTracker) {
         chunkTracker.set(chunkIndex);
       }
-      if (chunkIndex == numChunks - 1) {
+      if (chunkTracker.cardinality() == numChunks) {
         fullyRead = true;
       }
     }
