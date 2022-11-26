@@ -190,7 +190,7 @@ public class FileWriterSuiteJ {
     return openBlocks.toByteBuffer();
   }
 
-  private void setUpConn(TransportClient client) {
+  private void setUpConn(TransportClient client) throws IOException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
     StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
     streamId = streamHandle.streamId;

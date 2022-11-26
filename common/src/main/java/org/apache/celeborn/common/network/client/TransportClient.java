@@ -21,14 +21,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -190,7 +188,7 @@ public class TransportClient implements Closeable {
    * Synchronously sends an opaque message to the RpcHandler on the server-side, waiting for up to a
    * specified timeout for a response.
    */
-  public ByteBuffer sendRpcSync(ByteBuffer message, long timeoutMs) {
+  public ByteBuffer sendRpcSync(ByteBuffer message, long timeoutMs) throws IOException {
     final SettableFuture<ByteBuffer> result = SettableFuture.create();
 
     sendRpc(
@@ -213,10 +211,8 @@ public class TransportClient implements Closeable {
 
     try {
       return result.get(timeoutMs, TimeUnit.MILLISECONDS);
-    } catch (ExecutionException e) {
-      throw Throwables.propagate(e.getCause());
     } catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw new IOException("Exception in sendRpcSync", e);
     }
   }
 
