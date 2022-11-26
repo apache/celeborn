@@ -24,14 +24,16 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 
-class RssHashSuite extends AnyFunSuite
+class RetryCommitFilesTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterAll
   with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniClusterSpark()
+    val workerConf = Map(
+      "celeborn.test.retryCommitFiles" -> s"true")
+    tuple = setupRssMiniClusterSpark(masterConfs = null, workerConfs = workerConf)
   }
 
   override def afterAll(): Unit = {
@@ -47,30 +49,13 @@ class RssHashSuite extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - hash") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    val combineResult = combine(sparkSession)
-    val groupbyResult = groupBy(sparkSession)
-    val repartitionResult = repartition(sparkSession)
-    val sqlResult = runsql(sparkSession)
-
-    Thread.sleep(3000L)
-    sparkSession.stop()
-
-    val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate()
-    val rssCombineResult = combine(rssSparkSession)
-    val rssGroupbyResult = groupBy(rssSparkSession)
-    val rssRepartitionResult = repartition(rssSparkSession)
-    val rssSqlResult = runsql(rssSparkSession)
-
-    assert(combineResult.equals(rssCombineResult))
-    assert(groupbyResult.equals(rssGroupbyResult))
-    assert(repartitionResult.equals(rssRepartitionResult))
-    assert(combineResult.equals(rssCombineResult))
-    assert(sqlResult.equals(rssSqlResult))
-
-    rssSparkSession.stop()
+  test("celeborn spark integration test - retry commit files") {
+    val sparkConf = new SparkConf()
+      .set("spark.celeborn.test.retryCommitFiles", "true")
+      .setAppName("rss-demo").setMaster("local[4]")
+    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
+    ss.sparkContext.parallelize(1 to 1000, 2)
+      .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
+    ss.stop()
   }
 }

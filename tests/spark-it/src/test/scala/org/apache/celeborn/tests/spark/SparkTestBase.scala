@@ -76,7 +76,9 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     tuple._12.interrupt()
   }
 
-  def setupRssMiniCluster(): (
+  def setupRssMiniClusterSpark(
+      masterConfs: Map[String, String] = null,
+      workerConfs: Map[String, String] = null): (
       Master,
       RpcEnv,
       Worker,
@@ -91,10 +93,10 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
       Thread) = {
     Thread.sleep(3000L)
 
-    val (master, masterRpcEnv) = createMaster()
-    val (worker1, workerRpcEnv1) = createWorker()
-    val (worker2, workerRpcEnv2) = createWorker()
-    val (worker3, workerRpcEnv3) = createWorker()
+    val (master, masterRpcEnv) = createMaster(masterConfs)
+    val (worker1, workerRpcEnv1) = createWorker(workerConfs)
+    val (worker2, workerRpcEnv2) = createWorker(workerConfs)
+    val (worker3, workerRpcEnv3) = createWorker(workerConfs)
     val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
     val workerThread1 = runnerWrap(worker1.initialize())
     val workerThread2 = runnerWrap(worker2.initialize())

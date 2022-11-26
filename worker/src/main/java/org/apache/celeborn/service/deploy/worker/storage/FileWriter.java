@@ -200,6 +200,11 @@ public final class FileWriter implements DeviceObserver {
     final int numBytes = data.readableBytes();
     MemoryTracker.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
+      if (closed) {
+        String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
+        logger.warn(msg);
+        throw new AlreadyClosedException(msg);
+      }
       if (rangeReadFilter) {
         mapIdBitMap.add(mapId);
       }

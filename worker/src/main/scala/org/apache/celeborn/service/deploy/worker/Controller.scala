@@ -49,6 +49,8 @@ private[deploy] class Controller(
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
+  // shuffleKey -> (CommitInfo)
+  var shuffleCommitInfos: ConcurrentHashMap[String, CommitInfo] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var timer: HashedWheelTimer = _
@@ -57,10 +59,13 @@ private[deploy] class Controller(
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
 
+  val testCommitFileFailure = conf.testRetryCommitFiles
+
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
     storageManager = worker.storageManager
     shuffleMapperAttempts = worker.shuffleMapperAttempts
+    shuffleCommitInfos = worker.shuffleCommitInfos
     workerInfo = worker.workerInfo
     partitionLocationInfo = worker.partitionLocationInfo
     timer = worker.timer
@@ -312,7 +317,8 @@ private[deploy] class Controller(
       slaveIds: jList[String],
       mapAttempts: Array[Int]): Unit = {
     // return null if shuffleKey does not exist
-    if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(
+        shuffleKey)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
@@ -322,6 +328,45 @@ private[deploy] class Controller(
           masterIds,
           slaveIds))
       return
+    }
+
+    val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
+
+    shuffleCommitInfos.putIfAbsent(shuffleKey, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
+    val commitInfo = shuffleCommitInfos.get(shuffleKey)
+
+    def waitForCommitFinish(): Unit = {
+      val delta = 100
+      var times = 0
+      while (delta * times < shuffleCommitTimeout) {
+        commitInfo.synchronized {
+          if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+            context.reply(commitInfo.response)
+            return
+          }
+        }
+        Thread.sleep(delta)
+        times += 1
+      }
+    }
+
+    commitInfo.synchronized {
+      if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+        logInfo(s"${shuffleKey} CommitFinished, just return the response")
+        context.reply(commitInfo.response)
+        return
+      } else if (commitInfo.status == CommitInfo.COMMIT_INPROCESS) {
+        logInfo(s"${shuffleKey} CommitFiles inprogress, wait for finish")
+        commitThreadPool.submit(new Runnable {
+          override def run(): Unit = {
+            waitForCommitFinish()
+          }
+        })
+        return
+      } else {
+        logInfo(s"Start commitFiles for ${shuffleKey}")
+        commitInfo.status = CommitInfo.COMMIT_INPROCESS
+      }
     }
 
     // close and flush files.
@@ -391,10 +436,10 @@ private[deploy] class Controller(
       val totalSize = partitionSizeList.asScala.sum
       val fileCount = partitionSizeList.size()
       // reply
-      if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
-        logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
-          s" master partitions and ${committedSlaveIds.size()} slave partitions!")
-        context.reply(
+      val response =
+        if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
+          logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
+            s" master partitions and ${committedSlaveIds.size()} slave partitions!")
           CommitFilesResponse(
             StatusCode.SUCCESS,
             committedMasterIdList,
@@ -405,11 +450,10 @@ private[deploy] class Controller(
             committedSlaveStorageAndDiskHintList,
             committedMapIdBitMapList,
             totalSize,
-            fileCount))
-      } else {
-        logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-          s" partitions and ${failedSlaveIds.size()} slave partitions!")
-        context.reply(
+            fileCount)
+        } else {
+          logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
+            s" partitions and ${failedSlaveIds.size()} slave partitions!")
           CommitFilesResponse(
             StatusCode.PARTIAL_SUCCESS,
             committedMasterIdList,
@@ -420,13 +464,20 @@ private[deploy] class Controller(
             committedSlaveStorageAndDiskHintList,
             committedMapIdBitMapList,
             totalSize,
-            fileCount))
+            fileCount)
+        }
+      if (testCommitFileFailure) {
+        Thread.sleep(5000)
       }
+      commitInfo.synchronized {
+        commitInfo.response = response
+        commitInfo.status = CommitInfo.COMMIT_FINISHED
+      }
+      context.reply(response)
     }
 
     if (future != null) {
       val result = new AtomicReference[CompletableFuture[Unit]]()
-      val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
       val timeout = timer.newTimeout(
         new TimerTask {
@@ -457,6 +508,16 @@ private[deploy] class Controller(
                   logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout s.")
                 case throwable: Throwable =>
                   logError("While handling commitFiles, exception occurs.", throwable)
+              }
+              commitInfo.synchronized {
+                commitInfo.response = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  masterIds,
+                  slaveIds)
+
+                commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
             } else {
               // finish, cancel timeout job first.
