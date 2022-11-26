@@ -238,10 +238,10 @@ public abstract class RssInputStream extends InputStream {
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
             location = location.getPeer();
-            logger.warn("FetchChunk failed {}/{} times, change to peer",
+            logger.warn("CreatePartitionReader failed {}/{} times, change to peer",
               fetchChunkRetryCnt, fetchChunkMaxRetry);
           } else {
-            logger.warn("FetchChunk failed {}/{} times, retry the same location",
+            logger.warn("CreatePartitionReader failed {}/{} times, retry the same location",
               fetchChunkRetryCnt, fetchChunkMaxRetry);
           }
         }
@@ -255,7 +255,7 @@ public abstract class RssInputStream extends InputStream {
           return currentReader.next();
         } catch (Exception e) {
           fetchChunkRetryCnt++;
-          logger.warn("getNextChunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
+          logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
             throw new IOException("Fetch chunk failed for " + fetchChunkRetryCnt + " times");
@@ -268,7 +268,7 @@ public abstract class RssInputStream extends InputStream {
           }
         }
       }
-      throw new IOException("getNextChunk failed!");
+      throw new IOException("Fetch chunk failed!");
     }
 
     private PartitionReader createReader(
