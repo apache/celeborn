@@ -85,6 +85,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
+  private val testCommitFileFailure = conf.testRetryCommitFiles
+
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -992,7 +994,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           masterIds,
           slaveIds,
           shuffleMapperAttempts.get(shuffleId))
-        val res = requestCommitFiles(worker.endpoint, commitFiles)
+        val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
@@ -1638,21 +1640,35 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestCommitFiles(
+  private def requestCommitFilesWithRetry(
       endpoint: RpcEndpointRef,
       message: CommitFiles): CommitFilesResponse = {
-    try {
-      endpoint.askSync[CommitFilesResponse](message)
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
-        CommitFilesResponse(
-          StatusCode.FAILED,
-          List.empty.asJava,
-          List.empty.asJava,
-          message.masterIds,
-          message.slaveIds)
+    val maxRetries = conf.requestCommitFilesMaxRetries
+    var retryTimes = 0
+    while (retryTimes < maxRetries) {
+      try {
+        if (testCommitFileFailure && retryTimes < maxRetries - 1) {
+          endpoint.ask[CommitFilesResponse](message)
+          Thread.sleep(1000)
+          throw new Exception("Mock fail for CommitFiles")
+        } else {
+          return endpoint.askSync[CommitFilesResponse](message)
+        }
+      } catch {
+        case e: Exception =>
+          retryTimes += 1
+          logError(
+            s"AskSync CommitFiles for ${message.shuffleId} failed (attempt $retryTimes/$maxRetries).",
+            e)
+      }
     }
+
+    CommitFilesResponse(
+      StatusCode.FAILED,
+      List.empty.asJava,
+      List.empty.asJava,
+      message.masterIds,
+      message.slaveIds)
   }
 
   private def requestReleaseSlots(

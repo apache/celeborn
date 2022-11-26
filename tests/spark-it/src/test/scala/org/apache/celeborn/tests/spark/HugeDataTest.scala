@@ -31,7 +31,7 @@ class HugeDataTest extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniCluster()
+    tuple = setupRssMiniClusterSpark()
   }
 
   override def afterAll(): Unit = {

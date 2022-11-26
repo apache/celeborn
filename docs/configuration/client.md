@@ -41,6 +41,7 @@ license: |
 | celeborn.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.2.0 | 
 | celeborn.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
+| celeborn.rpc.requestCommitFiles.maxRetries | 2 | Max retry times for requestCommitFiles RPC. | 1.0.0 | 
 | celeborn.shuffle.batchHandleChangePartition.enabled | false | When true, LifecycleManager will handle change partition request in batch. Otherwise, LifecycleManager will process the requests one by one | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.interval | 100ms | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.threads | 8 | Threads number for LifecycleManager to handle change partition request in batch. | 0.2.0 | 
@@ -62,6 +63,7 @@ license: |
 | celeborn.slots.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.test.fetchFailure | false | Wheter to test fetch chunk failure | 0.2.0 | 
+| celeborn.test.retryCommitFiles | false | Fail commitFile request for test | 0.2.0 | 
 | celeborn.worker.excluded.checkInterval | 30s | Interval for client to refresh excluded worker list. | 0.2.0 | 
 | celeborn.worker.excluded.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
 <!--end-include-->
