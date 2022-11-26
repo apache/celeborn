@@ -255,14 +255,16 @@ public abstract class RssInputStream extends InputStream {
           return currentReader.next();
         } catch (Exception e) {
           fetchChunkRetryCnt++;
-          logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
             throw new IOException("Fetch chunk failed for " + fetchChunkRetryCnt + " times");
           } else {
             if (currentReader.getLocation().getPeer() != null) {
+              logger.warn("Fetch chunk failed {}/{} times, change to peer",
+                fetchChunkRetryCnt, fetchChunkMaxRetry);
               currentReader = createReaderWithRetry(currentReader.location.getPeer());
             } else {
+              logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
               currentReader = createReaderWithRetry(currentReader.location);
             }
           }
