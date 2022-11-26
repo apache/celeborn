@@ -1195,6 +1195,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
     val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
@@ -1215,13 +1216,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}.")
         } else {
-          logError(s"[reserveSlots] Failed to" +
+          failureInfos.add(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
           reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
         }
     }
-
+    if (failureInfos.asScala.nonEmpty) {
+      logError(s"Aggregated error of reserveSlots failure:${failureInfos.asScala.foldLeft("")(
+        (x, y) => s"$x \n $y")}")
+    }
     recordWorkerFailure(reserveSlotFailedWorkers)
     new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers.asScala.keys.toList.asJava)
   }
