@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -85,7 +85,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
-  private val testCommitFileFailure = conf.testRetryCommitFiles
+  private val testRetryCommitFiles = conf.testRetryCommitFiles
+  private val commitEpoch = new AtomicLong()
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
@@ -988,22 +989,61 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         val masterIds = masterParts.asScala.map(_.getUniqueId).asJava
         val slaveIds = slaveParts.asScala.map(_.getUniqueId).asJava
 
-        val commitFiles = CommitFiles(
-          applicationId,
-          shuffleId,
-          masterIds,
-          slaveIds,
-          shuffleMapperAttempts.get(shuffleId))
-        val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
+        val res =
+          if (!testRetryCommitFiles) {
+            val commitFiles = CommitFiles(
+              applicationId,
+              shuffleId,
+              masterIds,
+              slaveIds,
+              shuffleMapperAttempts.get(shuffleId),
+              commitEpoch.incrementAndGet())
+            val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
-        res.status match {
-          case StatusCode.SUCCESS => // do nothing
-          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.FAILED =>
-            logDebug(s"Request $commitFiles return ${res.status} for " +
-              s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-            commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
-          case _ => // won't happen
-        }
+            res.status match {
+              case StatusCode.SUCCESS => // do nothing
+              case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.FAILED =>
+                logDebug(s"Request $commitFiles return ${res.status} for " +
+                  s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
+                commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
+              case _ => // won't happen
+            }
+            res
+          } else {
+            // for test
+            val commitFiles1 = CommitFiles(
+              applicationId,
+              shuffleId,
+              masterIds.subList(0, masterIds.size() / 2),
+              slaveIds.subList(0, slaveIds.size() / 2),
+              shuffleMapperAttempts.get(shuffleId),
+              commitEpoch.incrementAndGet())
+            val res1 = requestCommitFilesWithRetry(worker.endpoint, commitFiles1)
+
+            val commitFiles = CommitFiles(
+              applicationId,
+              shuffleId,
+              masterIds.subList(masterIds.size() / 2, masterIds.size()),
+              slaveIds.subList(slaveIds.size() / 2, slaveIds.size()),
+              shuffleMapperAttempts.get(shuffleId),
+              commitEpoch.incrementAndGet())
+            val res2 = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
+
+            res1.committedMasterStorageInfos.putAll(res2.committedMasterStorageInfos)
+            res1.committedSlaveStorageInfos.putAll(res2.committedSlaveStorageInfos)
+            res1.committedMapIdBitMap.putAll(res2.committedMapIdBitMap)
+            CommitFilesResponse(
+              status = if (res1.status == StatusCode.SUCCESS) res2.status else res1.status,
+              (res1.committedMasterIds.asScala ++ res2.committedMasterIds.asScala).toList.asJava,
+              (res1.committedSlaveIds.asScala ++ res1.committedSlaveIds.asScala).toList.asJava,
+              (res1.failedMasterIds.asScala ++ res1.failedMasterIds.asScala).toList.asJava,
+              (res1.failedSlaveIds.asScala ++ res2.failedSlaveIds.asScala).toList.asJava,
+              res1.committedMasterStorageInfos,
+              res1.committedSlaveStorageInfos,
+              res1.committedMapIdBitMap,
+              res1.totalWritten + res2.totalWritten,
+              res1.fileCount + res2.fileCount)
+          }
 
         // record committed partitionIds
         committedMasterIds.addAll(res.committedMasterIds)
@@ -1651,7 +1691,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     var retryTimes = 0
     while (retryTimes < maxRetries) {
       try {
-        if (testCommitFileFailure && retryTimes < maxRetries - 1) {
+        if (testRetryCommitFiles && retryTimes < maxRetries - 1) {
           endpoint.ask[CommitFilesResponse](message)
           Thread.sleep(1000)
           throw new Exception("Mock fail for CommitFiles")

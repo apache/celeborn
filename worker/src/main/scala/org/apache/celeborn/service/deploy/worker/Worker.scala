@@ -21,7 +21,7 @@ import java.io.IOException
 import java.lang.{Long => JLong}
 import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -176,10 +176,10 @@ private[celeborn] class Worker(
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
 
-  val shuffleMapperAttempts = new ConcurrentHashMap[String, Array[Int]]()
+  val shuffleMapperAttempts = new ConcurrentHashMap[String, AtomicIntegerArray]()
   val partitionLocationInfo = new PartitionLocationInfo
 
-  val shuffleCommitInfos = new ConcurrentHashMap[String, CommitInfo]()
+  val shuffleCommitInfos = new ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
 

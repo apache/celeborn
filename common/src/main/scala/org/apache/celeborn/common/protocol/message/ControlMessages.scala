@@ -368,7 +368,8 @@ object ControlMessages extends Logging {
       shuffleId: Int,
       masterIds: util.List[String],
       slaveIds: util.List[String],
-      mapAttempts: Array[Int])
+      mapAttempts: Array[Int],
+      epoch: Long)
     extends WorkerMessage
 
   case class CommitFilesResponse(
@@ -686,13 +687,14 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS_RESPONSE, payload)
 
-    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
+    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts, epoch) =>
       val payload = PbCommitFiles.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
         .addAllMasterIds(masterIds)
         .addAllSlaveIds(slaveIds)
         .addAllMapAttempts(mapAttempts.map(new Integer(_)).toIterable.asJava)
+        .setEpoch(epoch)
         .build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES, payload)
 
@@ -985,7 +987,8 @@ object ControlMessages extends Logging {
           pbCommitFiles.getShuffleId,
           pbCommitFiles.getMasterIdsList,
           pbCommitFiles.getSlaveIdsList,
-          pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray)
+          pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray,
+          pbCommitFiles.getEpoch)
 
       case COMMIT_FILES_RESPONSE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
