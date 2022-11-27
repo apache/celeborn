@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -86,6 +86,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
   private val testCommitFileFailure = conf.testRetryCommitFiles
+  private val commitEpoch = new AtomicLong()
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
@@ -993,7 +994,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           shuffleId,
           masterIds,
           slaveIds,
-          shuffleMapperAttempts.get(shuffleId))
+          shuffleMapperAttempts.get(shuffleId),
+          commitEpoch.incrementAndGet())
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
         res.status match {

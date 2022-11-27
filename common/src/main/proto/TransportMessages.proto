@@ -330,6 +330,7 @@ message PbCommitFiles {
   repeated string masterIds = 3;
   repeated string slaveIds = 4;
   repeated int32 mapAttempts = 5;
+  int64 epoch = 6;
 }
 
 message PbCommitFilesResponse {

@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.IOException
 import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList, Set => jSet}
 import java.util.concurrent._
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicReference}
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
@@ -48,9 +48,9 @@ private[deploy] class Controller(
 
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
-  var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
-  // shuffleKey -> (CommitInfo)
-  var shuffleCommitInfos: ConcurrentHashMap[String, CommitInfo] = _
+  var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
+  // shuffleKe -> (epoch -> CommitInfo)
+  var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var timer: HashedWheelTimer = _
@@ -104,13 +104,13 @@ private[deploy] class Controller(
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
-    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
+    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts, epoch) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
         logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
           s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
         val commitFilesTimeMs = Utils.timeIt({
-          handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts)
+          handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts, epoch)
         })
         logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
           s"$commitFilesTimeMs ms.")
@@ -315,10 +315,11 @@ private[deploy] class Controller(
       shuffleKey: String,
       masterIds: jList[String],
       slaveIds: jList[String],
-      mapAttempts: Array[Int]): Unit = {
+      mapAttempts: Array[Int],
+      epoch: Long): Unit = {
     // return null if shuffleKey does not exist
     if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(
-        shuffleKey)) {
+        shuffleKey) && !shuffleCommitInfos.get(shuffleKey).containsKey(epoch)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
@@ -332,8 +333,10 @@ private[deploy] class Controller(
 
     val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
-    shuffleCommitInfos.putIfAbsent(shuffleKey, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
-    val commitInfo = shuffleCommitInfos.get(shuffleKey)
+    shuffleCommitInfos.putIfAbsent(shuffleKey, new ConcurrentHashMap[Long, CommitInfo]())
+    val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
+    epochCommitMap.putIfAbsent(epoch, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
+    val commitInfo = epochCommitMap.get(epoch)
 
     def waitForCommitFinish(): Unit = {
       val delta = 100
@@ -370,7 +373,17 @@ private[deploy] class Controller(
     }
 
     // close and flush files.
-    shuffleMapperAttempts.putIfAbsent(shuffleKey, mapAttempts)
+    shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
+    val attempts = shuffleMapperAttempts.get(shuffleKey)
+    if (mapAttempts(0) != -1) {
+      attempts.synchronized {
+        if (attempts.get(0) == -1) {
+          0 until attempts.length() foreach (idx => {
+            attempts.set(idx, mapAttempts(idx))
+          })
+        }
+      }
+    }
 
     // Use ConcurrentSet to avoid excessive lock contention.
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
