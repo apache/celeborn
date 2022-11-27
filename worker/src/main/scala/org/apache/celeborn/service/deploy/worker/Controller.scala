@@ -59,7 +59,7 @@ private[deploy] class Controller(
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
 
-  val testCommitFileFailure = conf.testRetryCommitFiles
+  val testRetryCommitFiles = conf.testRetryCommitFiles
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -479,7 +479,7 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         }
-      if (testCommitFileFailure) {
+      if (testRetryCommitFiles) {
         Thread.sleep(5000)
       }
       commitInfo.synchronized {
