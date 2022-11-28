@@ -113,7 +113,6 @@ public class ChunkStreamManager {
     return ImmutablePair.of(streamId, chunkIndex);
   }
 
-  @Override
   public void connectionTerminated(Channel channel) {
     // Close all streams which have been associated with the channel.
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
@@ -131,12 +130,6 @@ public class ChunkStreamManager {
     }
   }
 
-  @Override
-  public void streamBeingSent(String streamId) {
-    chunkBeingSent(parseStreamChunkId(streamId).getLeft());
-  }
-
-  @Override
   public void chunkSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
@@ -144,12 +137,6 @@ public class ChunkStreamManager {
     }
   }
 
-  @Override
-  public void streamSent(String streamId) {
-    chunkSent(OneForOneStreamManager.parseStreamChunkId(streamId).getLeft());
-  }
-
-  @Override
   public long chunksBeingTransferred() {
     long sum = 0L;
     for (StreamState streamState : streams.values()) {

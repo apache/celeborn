@@ -38,10 +38,7 @@ public class FileInfo {
   private final PartitionType partitionType;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
-    this.filePath = filePath;
-    this.chunkOffsets = chunkOffsets;
-    this.userIdentifier = userIdentifier;
-    this.partitionType = PartitionType.REDUCE;
+    this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
   }
 
   public FileInfo(
@@ -56,20 +53,28 @@ public class FileInfo {
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
-    this.filePath = filePath;
-    this.chunkOffsets = new ArrayList<>();
-    chunkOffsets.add(0L);
-    this.userIdentifier = userIdentifier;
-    this.partitionType = partitionType;
+    this(
+        filePath,
+        new ArrayList() {
+          {
+            add(0L);
+          }
+        },
+        userIdentifier,
+        PartitionType.REDUCE);
   }
 
   @VisibleForTesting
   public FileInfo(File file, UserIdentifier userIdentifier) {
-    this.filePath = file.getAbsolutePath();
-    this.chunkOffsets = new ArrayList<>();
-    chunkOffsets.add(0L);
-    this.userIdentifier = userIdentifier;
-    this.partitionType = PartitionType.REDUCE;
+    this(
+        file.getAbsolutePath(),
+        new ArrayList() {
+          {
+            add(0L);
+          }
+        },
+        userIdentifier,
+        PartitionType.REDUCE);
   }
 
   public synchronized void addChunkOffset(long bytesFlushed) {
