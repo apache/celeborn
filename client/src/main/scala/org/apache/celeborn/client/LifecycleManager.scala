@@ -358,7 +358,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               mastersIds,
                               slaveIds,
                               commitFilesFailedWorkers)
-                            shuffleCommittedInfo.inFlightCommitRequest.decrementAndGet()
                         }
                         recordWorkerFailure(commitFilesFailedWorkers)
                       }
