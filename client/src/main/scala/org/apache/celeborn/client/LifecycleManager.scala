@@ -21,7 +21,8 @@ import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.{AtomicLong, LongAdder}
+import java.util.concurrent.ConcurrentHashMap.KeySetView
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -131,7 +132,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   case class CommitPartitionRequest(
       applicationId: String,
       shuffleId: Int,
-      oldPartition: PartitionLocation)
+      partition: PartitionLocation)
 
   case class ShuffleCommittedInfo(
       committedMasterIds: util.List[String],
@@ -141,12 +142,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       committedMasterStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedSlaveStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
-      currentShuffleFileCount: LongAdder)
-
-  private val commitPartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentSet[CommitPartitionRequest]]()
-  private val committedPartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentSet[CommitPartitionRequest]]()
+      currentShuffleFileCount: LongAdder,
+      commitPartitionRequests: KeySetView[CommitPartitionRequest, java.lang.Boolean],
+      handledCommitPartitionRequests: KeySetView[CommitPartitionRequest, java.lang.Boolean],
+      inFlightCommitRequest: AtomicInteger)
 
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
@@ -292,71 +291,69 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       _.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = {
-            logWarning("Batch commit hard split partition")
-            commitPartitionRequests.asScala.foreach { case (shuffleId, requests) =>
+            committedPartitionInfo.asScala.foreach { case (shuffleId, shuffleCommittedInfo) =>
               batchHandleCommitPartitionExecutors.submit {
                 new Runnable {
                   override def run(): Unit = {
-                    val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
-                    logWarning(s"Commit HardSplit partition for $shuffleId: " +
-                      s"${requests.asScala.map(_.oldPartition.getUniqueId).mkString("[", ",", "]")}")
-                    shuffleCommittedInfo.synchronized {
-                      if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                        stageEndShuffleSet.contains(shuffleId)) {
-                        logWarning(s"Shuffle $shuffleId ended or during process stage end.")
-                        commitPartitionRequests.get(shuffleId).clear()
-                      } else {
+                    if (inProcessStageEndShuffleSet.contains(shuffleId) ||
+                      stageEndShuffleSet.contains(shuffleId)) {
+                      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
+                      shuffleCommittedInfo.commitPartitionRequests.clear()
+                    } else {
+                      val currentBatch = shuffleCommittedInfo.synchronized {
                         val batch = new ConcurrentSet[CommitPartitionRequest]()
-                        batch.addAll(requests)
+                        batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
                         val currentBatch = batch.asScala.filterNot(
-                          committedPartitionRequests.get(shuffleId).contains)
-                        commitPartitionRequests.get(shuffleId).removeAll(batch)
-                        committedPartitionRequests.get(shuffleId).addAll(currentBatch.asJava)
-                        if (currentBatch.nonEmpty) {
-                          logWarning(s"Commit current HardSplit partition for $shuffleId: " +
-                            s"${currentBatch.map(_.oldPartition.getUniqueId).mkString("[", ",", "]")}")
-                          logWarning("Start commit HARD_SPLIT partition")
-                          val workerToRequests = currentBatch.groupBy(_.oldPartition.getWorker)
-                          val commitFilesFailedWorkers =
-                            new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
-                          val parallelism = workerToRequests.size
-                          ThreadUtils.parmap(
-                            workerToRequests.to,
-                            "CommitFiles",
-                            parallelism) {
-                            case (worker, requests) =>
-                              val workerInfo =
-                                shuffleAllocatedWorkers
-                                  .get(shuffleId)
-                                  .asScala
-                                  .find(_._1.equals(worker))
-                                  .get
-                                  ._1
-                              val mastersIds =
-                                requests
-                                  .map(_.oldPartition.getUniqueId)
-                                  .toList
-                                  .asJava
-                              // peer can be null
-                              val slaveIds =
-                                requests
-                                  .map(_.oldPartition.getPeer)
-                                  .filter(_ != null)
-                                  .map(_.getUniqueId)
-                                  .toList
-                                  .asJava
+                          shuffleCommittedInfo.handledCommitPartitionRequests.contains)
+                        shuffleCommittedInfo.commitPartitionRequests.removeAll(batch)
+                        shuffleCommittedInfo.handledCommitPartitionRequests.addAll(
+                          currentBatch.asJava)
+                        currentBatch
+                      }
+                      if (currentBatch.nonEmpty) {
+                        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+                          s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
+                        val workerToRequests = currentBatch.groupBy(_.partition.getWorker)
+                        val commitFilesFailedWorkers =
+                          new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+                        val parallelism = workerToRequests.size
+                        ThreadUtils.parmap(
+                          workerToRequests.to,
+                          "CommitFiles",
+                          parallelism) {
+                          case (worker, requests) =>
+                            val workerInfo =
+                              shuffleAllocatedWorkers
+                                .get(shuffleId)
+                                .asScala
+                                .find(_._1.equals(worker))
+                                .get
+                                ._1
+                            val mastersIds =
+                              requests
+                                .map(_.partition.getUniqueId)
+                                .toList
+                                .asJava
+                            // peer can be null
+                            val slaveIds =
+                              requests
+                                .map(_.partition.getPeer)
+                                .filter(_ != null)
+                                .map(_.getUniqueId)
+                                .toList
+                                .asJava
 
-                              commitFiles(
-                                appId,
-                                shuffleId,
-                                shuffleCommittedInfo,
-                                workerInfo,
-                                mastersIds,
-                                slaveIds,
-                                commitFilesFailedWorkers)
-                          }
-                          recordWorkerFailure(commitFilesFailedWorkers)
+                            commitFiles(
+                              appId,
+                              shuffleId,
+                              shuffleCommittedInfo,
+                              workerInfo,
+                              mastersIds,
+                              slaveIds,
+                              commitFilesFailedWorkers)
+                            shuffleCommittedInfo.inFlightCommitRequest.decrementAndGet()
                         }
+                        recordWorkerFailure(commitFilesFailedWorkers)
                       }
                     }
                   }
@@ -706,7 +703,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           new ConcurrentHashMap[String, StorageInfo](),
           new ConcurrentHashMap[String, StorageInfo](),
           new ConcurrentHashMap[String, RoaringBitmap](),
-          new LongAdder))
+          new LongAdder,
+          ConcurrentHashMap.newKeySet[CommitPartitionRequest](),
+          ConcurrentHashMap.newKeySet[CommitPartitionRequest](),
+          new AtomicInteger()))
       val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
       reply(RegisterShuffleResponse(StatusCode.SUCCESS, allMasterPartitionLocations))
     }
@@ -831,10 +831,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
     // handle hard split
-    commitPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
-    committedPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
-      commitPartitionRequests.get(shuffleId).add(
+      committedPartitionInfo.get(shuffleId).commitPartitionRequests.add(
         CommitPartitionRequest(
           applicationId,
           shuffleId,
@@ -1106,46 +1104,43 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val commitFileStartTime = System.nanoTime()
 
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
-    shuffleCommittedInfo.synchronized {
-      val parallelism = Math.min(workerSnapshots(shuffleId).size(), conf.rpcMaxParallelism)
-      ThreadUtils.parmap(
-        allocatedWorkers.asScala.to,
-        "CommitFiles",
-        parallelism) { case (worker, partitionLocationInfo) =>
-        if (partitionLocationInfo.containsShuffle(shuffleId.toString)) {
-          val masterParts = partitionLocationInfo.getAllMasterLocations(shuffleId.toString)
-          val slaveParts = partitionLocationInfo.getAllSlaveLocations(shuffleId.toString)
-          masterParts.asScala.foreach { p =>
+
+    val parallelism = Math.min(workerSnapshots(shuffleId).size(), conf.rpcMaxParallelism)
+    ThreadUtils.parmap(
+      allocatedWorkers.asScala.to,
+      "CommitFiles",
+      parallelism) { case (worker, partitionLocationInfo) =>
+      if (partitionLocationInfo.containsShuffle(shuffleId.toString)) {
+        val masterParts = partitionLocationInfo.getAllMasterLocations(shuffleId.toString)
+        val slaveParts = partitionLocationInfo.getAllSlaveLocations(shuffleId.toString)
+        masterParts.asScala
+          .filterNot(handledCommitPartitionRequests.get(shuffleId).contains)
+          .foreach { p =>
             val partition = new PartitionLocation(p)
             partition.setFetchPort(worker.fetchPort)
             partition.setPeer(null)
             masterPartMap.put(partition.getUniqueId, partition)
           }
-          slaveParts.asScala.foreach { p =>
+        slaveParts.asScala
+          .filterNot(handledCommitPartitionRequests.get(shuffleId).contains)
+          .foreach { p =>
             val partition = new PartitionLocation(p)
             partition.setFetchPort(worker.fetchPort)
             partition.setPeer(null)
             slavePartMap.put(partition.getUniqueId, partition)
           }
 
-          val masterIds = masterParts.asScala.map(_.getUniqueId).filterNot { id =>
-            shuffleCommittedInfo.committedMasterIds.contains(id) ||
-            shuffleCommittedInfo.failedMasterPartitionIds.contains(id)
-          }.asJava
-          val slaveIds = slaveParts.asScala.map(_.getUniqueId).filterNot { id =>
-            shuffleCommittedInfo.committedSlaveIds.contains(id) ||
-            shuffleCommittedInfo.failedSlavePartitionIds.contains(id)
-          }.asJava
+        val masterIds = masterParts.asScala.map(_.getUniqueId).asJava
+        val slaveIds = slaveParts.asScala.map(_.getUniqueId).asJava
 
-          commitFiles(
-            applicationId,
-            shuffleId,
-            shuffleCommittedInfo,
-            worker,
-            masterIds,
-            slaveIds,
-            commitFilesFailedWorkers)
-        }
+        commitFiles(
+          applicationId,
+          shuffleId,
+          shuffleCommittedInfo,
+          worker,
+          masterIds,
+          slaveIds,
+          commitFilesFailedWorkers)
       }
     }
 
@@ -1190,6 +1185,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           false
         }
       }
+    }
+
+    while (shuffleCommittedInfo.inFlightCommitRequest.get() > 0) {
+      Thread.sleep(1000)
     }
 
     val dataLost = hasCommitFailedIds
@@ -1283,7 +1282,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           slaveIds,
           shuffleMapperAttempts.get(shuffleId),
           commitEpoch.incrementAndGet())
+        shuffleCommittedInfo.inFlightCommitRequest.incrementAndGet()
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
+        shuffleCommittedInfo.inFlightCommitRequest.decrementAndGet()
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
@@ -1759,6 +1760,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         stageEndShuffleSet.remove(shuffleId)
         changePartitionRequests.remove(shuffleId)
         inBatchPartitions.remove(shuffleId)
+        handledCommitPartitionRequests.remove(shuffleId)
+        handledCommitPartitionRequests.remove(shuffleId)
         unregisterShuffleTime.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
         latestPartitionLocation.remove(shuffleId)
@@ -1872,7 +1875,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           return endpoint.askSync[CommitFilesResponse](message)
         }
       } catch {
-        case e: Exception =>
+        case e: Throwable =>
           retryTimes += 1
           logError(
             s"AskSync CommitFiles for ${message.shuffleId} failed (attempt $retryTimes/$maxRetries).",
