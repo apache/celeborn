@@ -145,7 +145,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private val commitPartitionRequests =
     new ConcurrentHashMap[Int, ConcurrentHashSet[CommitPartitionRequest]]()
-  private val inBatchCommitPartitionRequests =
+  private val committedPartitionRequests =
     new ConcurrentHashMap[Int, ConcurrentHashSet[CommitPartitionRequest]]()
 
   // shuffle id -> ShuffleCommittedInfo
@@ -306,12 +306,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                         logWarning(s"Shuffle $shuffleId ended or during process stage end.")
                         commitPartitionRequests.get(shuffleId).clear()
                       } else {
-                        val currentBatch = requests.asScala.filterNot { request =>
-                          inBatchCommitPartitionRequests.get(shuffleId).contains(request)
-                        }
-                        commitPartitionRequests.get(shuffleId).clear()
-                        inBatchCommitPartitionRequests.get(shuffleId).addAll(currentBatch.asJava)
-
+                        val batch = new ConcurrentHashSet[CommitPartitionRequest]()
+                        batch.addAll(requests)
+                        val currentBatch = batch.asScala.filterNot(committedPartitionRequests.get(shuffleId).contains)
+                        commitPartitionRequests.get(shuffleId).removeAll(batch)
+                        committedPartitionRequests.get(shuffleId).addAll(currentBatch.asJava)
                         if (currentBatch.nonEmpty) {
                           logWarning(s"Commit current HardSplit partition for $shuffleId: " +
                             s"${currentBatch.map(_.oldPartition.getUniqueId).mkString("[", ",", "]")}")
@@ -832,17 +831,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     // handle hard split
     commitPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
-
-    inBatchCommitPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
-
-    if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get.getValue == StatusCode.HARD_SPLIT.getValue) {
-      committedPartitionInfo.get(shuffleId) synchronized {
-        commitPartitionRequests.get(shuffleId).add(
-          CommitPartitionRequest(
-            applicationId,
-            shuffleId,
-            oldPartition))
-      }
+    committedPartitionRequests.computeIfAbsent(shuffleId, commitPartitionRegisterFunc)
+    if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
+      commitPartitionRequests.get(shuffleId).add(
+        CommitPartitionRequest(
+          applicationId,
+          shuffleId,
+          oldPartition))
     }
 
     requests.synchronized {
