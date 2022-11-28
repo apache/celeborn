@@ -61,7 +61,7 @@ public class FileInfo {
           }
         },
         userIdentifier,
-        PartitionType.REDUCE);
+        partitionType);
   }
 
   @VisibleForTesting
