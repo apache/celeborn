@@ -20,8 +20,10 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -30,8 +32,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 
@@ -107,6 +111,7 @@ public abstract class RssInputStream extends InputStream {
     private PartitionReader currentReader;
     private final int fetchChunkMaxRetry;
     private int fetchChunkRetryCnt = 0;
+    int retryWaitMs;
     private int fileIndex;
     private int position;
     private int limit;
@@ -147,7 +152,9 @@ public abstract class RssInputStream extends InputStream {
       decompressor = Decompressor.getDecompressor(conf);
 
       fetchChunkMaxRetry = conf.fetchMaxRetries();
-
+      TransportConf transportConf =
+          Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
+      retryWaitMs = transportConf.ioRetryWaitTimeMs();
       moveToNextReader();
     }
 
@@ -231,6 +238,7 @@ public abstract class RssInputStream extends InputStream {
                 "CreatePartitionReader failed {}/{} times, retry the same location",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry);
+            Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
           }
         }
       }
@@ -256,6 +264,7 @@ public abstract class RssInputStream extends InputStream {
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
               logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
+              Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               currentReader = createReaderWithRetry(currentReader.getLocation());
             }
           }
