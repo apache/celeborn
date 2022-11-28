@@ -310,7 +310,6 @@ private[deploy] class Controller(
     future
   }
 
-
   private def handleCommitFiles(
       context: RpcCallContext,
       shuffleKey: String,
@@ -327,7 +326,9 @@ private[deploy] class Controller(
     // Say the first CommitFiles-epoch request succeeds in Worker and removed from partitionLocationInfo,
     // but for some reason the client thinks it's failed, the client will trigger again, so we should
     // check whether the CommitFiles-epoch is already committed here.
-    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !alreadyCommitted(shuffleKey, epoch)) {
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !alreadyCommitted(
+        shuffleKey,
+        epoch)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
@@ -380,16 +381,14 @@ private[deploy] class Controller(
       }
     }
 
-    // close and flush files.
+    // Update shuffleMapperAttempts
     shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
     val attempts = shuffleMapperAttempts.get(shuffleKey)
-    if (mapAttempts(0) != -1) {
+    if (mapAttempts.exists(_ != -1)) {
       attempts.synchronized {
-        if (attempts.get(0) == -1) {
-          0 until attempts.length() foreach (idx => {
-            attempts.set(idx, mapAttempts(idx))
-          })
-        }
+        0 until attempts.length() foreach (idx => {
+          attempts.set(idx, mapAttempts(idx))
+        })
       }
     }
 
