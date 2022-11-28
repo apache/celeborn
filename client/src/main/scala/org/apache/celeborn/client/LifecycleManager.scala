@@ -29,6 +29,7 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
+import org.eclipse.jetty.util.ConcurrentHashSet
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -140,9 +141,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       currentShuffleFileCount: LongAdder)
 
   private val commitPartitionRequests =
-    new ConcurrentHashMap[Int, util.Set[CommitPartitionRequest]]()
+    new ConcurrentHashMap[Int, ConcurrentHashSet[CommitPartitionRequest]]()
   private val inBatchCommitPartitionRequests =
-    new ConcurrentHashMap[Int, util.Set[CommitPartitionRequest]]()
+    new ConcurrentHashMap[Int, ConcurrentHashSet[CommitPartitionRequest]]()
 
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
@@ -800,9 +801,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   private val commitPartitionRegisterFunc =
-    new util.function.Function[Int, util.Set[CommitPartitionRequest]]() {
-      override def apply(s: Int): util.Set[CommitPartitionRequest] =
-        new util.HashSet[CommitPartitionRequest]()
+    new util.function.Function[Int, ConcurrentHashSet[CommitPartitionRequest]]() {
+      override def apply(s: Int): ConcurrentHashSet[CommitPartitionRequest] =
+        new ConcurrentHashSet[CommitPartitionRequest]()
     }
 
   private def handleRequestPartitionLocation(
