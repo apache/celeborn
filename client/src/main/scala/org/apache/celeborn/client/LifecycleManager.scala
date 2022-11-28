@@ -320,7 +320,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                       if (currentBatch.nonEmpty) {
                         logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
                           s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
-                        val workerToRequests = currentBatch.groupBy(_.partition.getWorker)
+                        val workerToRequests = currentBatch.flatMap { request =>
+                          if (request.partition.getPeer != null) {
+                            Seq(request.partition, request.partition.getPeer)
+                          } else {
+                            Seq(request.partition)
+                          }
+                        }.groupBy(_.getWorker)
                         val commitFilesFailedWorkers =
                           new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
                         val parallelism = workerToRequests.size
@@ -338,14 +344,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                                 ._1
                             val mastersIds =
                               requests
-                                .map(_.partition.getUniqueId)
+                                .filter(_.getMode == PartitionLocation.Mode.MASTER)
+                                .map(_.getUniqueId)
                                 .toList
                                 .asJava
-                            // peer can be null
                             val slaveIds =
                               requests
-                                .map(_.partition.getPeer)
-                                .filter(_ != null)
+                                .filter(_.getMode == PartitionLocation.Mode.SLAVE)
                                 .map(_.getUniqueId)
                                 .toList
                                 .asJava
