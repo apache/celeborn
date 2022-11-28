@@ -387,7 +387,9 @@ private[deploy] class Controller(
     if (mapAttempts.exists(_ != -1)) {
       attempts.synchronized {
         0 until attempts.length() foreach (idx => {
-          attempts.set(idx, mapAttempts(idx))
+          if (attempts.get(idx) == -1) {
+            attempts.set(idx, mapAttempts(idx))
+          }
         })
       }
     }
