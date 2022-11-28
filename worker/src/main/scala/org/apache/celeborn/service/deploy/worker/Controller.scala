@@ -317,9 +317,18 @@ private[deploy] class Controller(
       slaveIds: jList[String],
       mapAttempts: Array[Int],
       epoch: Long): Unit = {
-    // return null if shuffleKey does not exist
-    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(
-        shuffleKey) && !shuffleCommitInfos.get(shuffleKey).containsKey(epoch)) {
+
+    def alreadyCommitted(shuffleKey: String, epoch: Long): Boolean = {
+      shuffleCommitInfos.contains(shuffleKey) && shuffleCommitInfos.get(shuffleKey).contains(epoch)
+    }
+
+    // Reply SHUFFLE_NOT_REGISTERED if shuffleKey does not exist AND the shuffle is not committed.
+    // Say the first CommitFiles-epoch request succeeds in Worker and removed from partitionLocationInfo,
+    // but for some reason the client thinks it's failed, the client will trigger again, so we should
+    // check whether the CommitFiles-epoch is already committed here.
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !alreadyCommitted(
+        shuffleKey,
+        epoch)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
@@ -372,16 +381,16 @@ private[deploy] class Controller(
       }
     }
 
-    // close and flush files.
+    // Update shuffleMapperAttempts
     shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
     val attempts = shuffleMapperAttempts.get(shuffleKey)
-    if (mapAttempts(0) != -1) {
+    if (mapAttempts.exists(_ != -1)) {
       attempts.synchronized {
-        if (attempts.get(0) == -1) {
-          0 until attempts.length() foreach (idx => {
+        0 until attempts.length() foreach (idx => {
+          if (mapAttempts(idx) != -1 && attempts.get(idx) == -1) {
             attempts.set(idx, mapAttempts(idx))
-          })
-        }
+          }
+        })
       }
     }
 

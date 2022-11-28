@@ -24,10 +24,10 @@ import org.mockito.Mockito;
 
 import org.apache.celeborn.common.meta.FileManagedBuffers;
 
-public class OneForOneStreamManagerSuiteJ {
+public class ChunkStreamManagerSuiteJ {
   @Test
   public void streamStatesAreFreedWhenConnectionIsClosedEvenIfBufferIteratorThrowsException() {
-    OneForOneStreamManager manager = new OneForOneStreamManager();
+    ChunkStreamManager manager = new ChunkStreamManager();
 
     @SuppressWarnings("unchecked")
     FileManagedBuffers buffers = Mockito.mock(FileManagedBuffers.class);

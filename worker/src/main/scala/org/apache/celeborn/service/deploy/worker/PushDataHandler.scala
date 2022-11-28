@@ -154,6 +154,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
+      // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
+      // A shuffle can trigger multiple CommitFiles requests, for reasons like: Hard-Split happens, StageEnd.
+      // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
+      // it's probably because commitFiles for Had-Split happens.
       if (shuffleMapperAttempts.containsKey(shuffleKey)) {
         if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
           // partition data has already been committed
@@ -317,6 +321,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
+        // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
+        // A shuffle can trigger multiple CommitFiles requests, for reasons like: Hard-Split happens, StageEnd.
+        // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
+        // it's probably because commitFiles for Had-Split happens.
         if (shuffleMapperAttempts.containsKey(shuffleKey)) {
           if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
             val msg =

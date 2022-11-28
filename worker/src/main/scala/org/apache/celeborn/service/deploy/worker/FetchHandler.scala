@@ -31,12 +31,13 @@ import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
-import org.apache.celeborn.common.network.server.{BaseMessageHandler, OneForOneStreamManager}
+import org.apache.celeborn.common.network.server.{BaseMessageHandler, ChunkStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
+import org.apache.celeborn.common.protocol.PartitionType
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
-  var streamManager = new OneForOneStreamManager()
+  var chunkStreamManager = new ChunkStreamManager()
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
@@ -51,11 +52,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     this.registered = worker.registered
   }
 
-  def openStream(
+  def getRawFileInfo(
       shuffleKey: String,
-      fileName: String,
-      startMapIndex: Int,
-      endMapIndex: Int): FileInfo = {
+      fileName: String): FileInfo = {
     // find FileWriter responsible for the data
     val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
@@ -63,7 +62,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       logWarning(errMsg)
       throw new FileNotFoundException(errMsg)
     }
-    partitionsSorter.openStream(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex)
+    fileInfo
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
@@ -88,27 +87,40 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     // metrics start
     workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
-      val fileInfo = openStream(shuffleKey, fileName, startMapIndex, endMapIndex)
-      logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
-        s"$startMapIndex $endMapIndex get file info $fileInfo")
-      try {
-        if (fileInfo.isHdfs) {
-          val streamHandle = new StreamHandle(0, 0)
-          client.getChannel.writeAndFlush(new RpcResponse(
-            request.requestId,
-            new NioManagedBuffer(streamHandle.toByteBuffer)))
-        } else {
-          val buffers = new FileManagedBuffers(fileInfo, conf)
-          val streamId = streamManager.registerStream(buffers, client.getChannel)
-          val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
-          if (fileInfo.numChunks() == 0) {
-            logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-              s" $startMapIndex endMapIndex $endMapIndex is empty.")
+      var fileInfo = getRawFileInfo(shuffleKey, fileName)
+      try fileInfo.getPartitionType() match {
+        case PartitionType.REDUCE =>
+          if (endMapIndex != Integer.MAX_VALUE) {
+            fileInfo = partitionsSorter.getSortedFileInfo(
+              shuffleKey,
+              fileName,
+              fileInfo,
+              startMapIndex,
+              endMapIndex)
           }
-          client.getChannel.writeAndFlush(new RpcResponse(
-            request.requestId,
-            new NioManagedBuffer(streamHandle.toByteBuffer)))
-        }
+          logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
+            s"$startMapIndex $endMapIndex get file info $fileInfo")
+          if (fileInfo.isHdfs) {
+            val streamHandle = new StreamHandle(0, 0)
+            client.getChannel.writeAndFlush(new RpcResponse(
+              request.requestId,
+              new NioManagedBuffer(streamHandle.toByteBuffer)))
+          } else {
+            val buffers = new FileManagedBuffers(fileInfo, conf)
+            val streamId = chunkStreamManager.registerStream(buffers, client.getChannel)
+            val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+            if (fileInfo.numChunks() == 0)
+              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
+                s" $startMapIndex endMapIndex $endMapIndex is empty.")
+            else logDebug(
+              s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
+                s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
+            client.getChannel.writeAndFlush(new RpcResponse(
+              request.requestId,
+              new NioManagedBuffer(streamHandle.toByteBuffer)))
+          }
+        case PartitionType.MAP =>
+        case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
           client.getChannel.writeAndFlush(new RpcFailure(
@@ -134,7 +146,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
-    val chunksBeingTransferred = streamManager.chunksBeingTransferred
+    val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred
     if (chunksBeingTransferred > conf.maxChunksBeingTransferred) {
       val message = "Worker is too busy. The number of chunks being transferred " +
         s"$chunksBeingTransferred exceeds rss.shuffle.maxChunksBeingTransferred " +
@@ -145,16 +157,16 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
     } else {
       try {
-        val buf = streamManager.getChunk(
+        val buf = chunkStreamManager.getChunk(
           req.streamChunkSlice.streamId,
           req.streamChunkSlice.chunkIndex,
           req.streamChunkSlice.offset,
           req.streamChunkSlice.len)
-        streamManager.chunkBeingSent(req.streamChunkSlice.streamId)
+        chunkStreamManager.chunkBeingSent(req.streamChunkSlice.streamId)
         client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
           .addListener(new GenericFutureListener[Future[_ >: Void]] {
             override def operationComplete(future: Future[_ >: Void]): Unit = {
-              streamManager.chunkSent(req.streamChunkSlice.streamId)
+              chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
               workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
             }
           })
@@ -175,7 +187,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def checkRegistered: Boolean = registered.get
 
   override def channelInactive(client: TransportClient): Unit = {
-    streamManager.connectionTerminated(client.getChannel)
+    chunkStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 
