@@ -662,7 +662,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT)
-  def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
   def partitionSplitMode: PartitionSplitMode = PartitionSplitMode.valueOf(get(PARTITION_SPLIT_MODE))
@@ -2031,15 +2030,6 @@ object CelebornConf extends Logging {
       .withAlternative("rss.stage.end.timeout")
       .categories("client")
       .doc("Timeout for StageEnd.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("240s")
-
-  val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.push.limit.inFlight.timeout")
-      .withAlternative("rss.limit.inflight.timeout")
-      .categories("client")
-      .doc("Timeout for netty in-flight requests to be done.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("240s")

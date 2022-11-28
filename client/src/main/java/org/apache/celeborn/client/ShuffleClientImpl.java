@@ -348,9 +348,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches = pushState.inFlightBatches;
-    long timeoutMs = conf.pushLimitInFlightTimeoutMs();
     long delta = conf.pushLimitInFlightSleepDeltaMs();
-    long times = timeoutMs / delta;
+    long times = Long.MAX_VALUE;
     try {
       while (times > 0) {
         if (inFlightBatches.size() <= limit) {
@@ -364,18 +363,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     } catch (InterruptedException e) {
       pushState.exception.set(new IOException(e));
-    }
-
-    if (times <= 0) {
-      logger.error(
-          "After waiting for {} ms, there are still {} batches in flight for map {}, "
-              + "which exceeds the limit {}.",
-          timeoutMs,
-          inFlightBatches.size(),
-          mapKey,
-          limit);
-      logger.error("Map: {} in flight batches: {}", mapKey, inFlightBatches);
-      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
