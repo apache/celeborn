@@ -15,17 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.client;
+package org.apache.celeborn.service.deploy.worker
 
-import java.io.IOException;
+import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
 
-/** General exception caused by a remote exception while fetching a chunk. */
-public class ChunkFetchFailureException extends IOException {
-  public ChunkFetchFailureException(String errorMsg, Throwable cause) {
-    super(errorMsg, cause);
-  }
+class CommitInfo(var response: CommitFilesResponse, var status: Int)
 
-  public ChunkFetchFailureException(String errorMsg) {
-    super(errorMsg);
-  }
+object CommitInfo {
+  val COMMIT_NOTSTARTED: Int = 0
+  val COMMIT_INPROCESS: Int = 1
+  val COMMIT_FINISHED: Int = 2
 }

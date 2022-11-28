@@ -53,7 +53,9 @@ public enum StatusCode {
   WORKER_SHUTDOWN(25),
   NO_AVAILABLE_WORKING_DIR(26),
   WORKER_IN_BLACKLIST(27),
-  UNKNOWN_WORKER(28);
+  UNKNOWN_WORKER(28),
+
+  COMMIT_FILE_EXCEPTION(29);
 
   private final byte value;
 

@@ -531,6 +531,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
+  def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -549,6 +550,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         case (host, port) => s"$host:$port"
       }
     }
+
+  // //////////////////////////////////////////////////////
+  //                      test                           //
+  // //////////////////////////////////////////////////////
+  def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
+  def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
 
   def masterHost: String = get(MASTER_HOST)
 
@@ -642,6 +649,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
+  def fetchMaxRetries: Int = get(FETCH_MAX_RETRIES)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Push                   //
@@ -665,7 +673,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
-  def testFetchFailedChunkIndex: Int = get(TEST_FETCH_FAILED_CHUNK_INDEX)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1257,6 +1264,22 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1024)
 
+  val FETCH_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.fetch.maxRetries")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Max retries of fetch chunk")
+      .intConf
+      .createWithDefault(3)
+
+  val TEST_FETCH_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.fetchFailure")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Wheter to test fetch chunk failure")
+      .booleanConf
+      .createWithDefault(false)
+
   val APPLICATION_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.application.heartbeat.timeout")
       .withAlternative("rss.application.timeout")
@@ -1346,6 +1369,23 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.requestCommitFiles.maxRetries")
+      .categories("client")
+      .doc("Max retry times for requestCommitFiles RPC.")
+      .version("1.0.0")
+      .intConf
+      .checkValue(v => v > 0, "value must be positive")
+      .createWithDefault(2)
+
+  val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.retryCommitFiles")
+      .categories("client")
+      .doc("Fail commitFile request for test")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
@@ -1779,8 +1819,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
       .version("0.2.0")
-      .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("120s")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.partitionSorter.sort.timeout")
@@ -2570,13 +2609,4 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
-
-  val TEST_FETCH_FAILED_CHUNK_INDEX: ConfigEntry[Int] =
-    buildConf("celeborn.test.client.fetchFailedChuckIndex")
-      .categories("client")
-      .version("0.2.0")
-      .internal
-      .doc("The chunk index to trigger fetch chunk failure for testing purpose only.")
-      .intConf
-      .createWithDefault(0)
 }

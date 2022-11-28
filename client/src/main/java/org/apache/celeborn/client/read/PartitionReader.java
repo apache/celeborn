@@ -21,10 +21,14 @@ import java.io.IOException;
 
 import io.netty.buffer.ByteBuf;
 
+import org.apache.celeborn.common.protocol.PartitionLocation;
+
 public interface PartitionReader {
   boolean hasNext();
 
   ByteBuf next() throws IOException;
 
   void close();
+
+  PartitionLocation getLocation();
 }

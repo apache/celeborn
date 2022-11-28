@@ -344,6 +344,7 @@ public class StateMachine extends BaseStateMachine {
         LOG.warn("Failed to rename snapshot from {} to {}.", tempFile, snapshotFile);
         return RaftLog.INVALID_LOG_INDEX;
       }
+      storage.loadLatestSnapshot();
     } catch (Exception e) {
       tempFile.delete();
       LOG.warn("Failed to complete snapshot: {}.", snapshotFile, e);
