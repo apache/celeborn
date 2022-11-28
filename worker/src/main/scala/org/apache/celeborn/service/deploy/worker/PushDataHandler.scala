@@ -317,12 +317,19 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
-        if (shuffleMapperAttempts.containsKey(shuffleKey)
-          && -1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
-          val msg = s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId," +
-            s" attempt $attemptId), but this mapper has already been ended."
-          logInfo(msg)
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+        if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+          if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
+            val msg =
+              s"Receive push merged data from speculative task(shuffle $shuffleKey, map $mapId," +
+                s" attempt $attemptId), but this mapper has already been ended."
+            logInfo(msg)
+            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+          } else {
+            logInfo(
+              s"Receive push merged data for committed hard split partition of (shuffle $shuffleKey, " +
+                s"map $mapId attempt $attemptId)")
+            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          }
         } else {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId, uniqueId $id)."

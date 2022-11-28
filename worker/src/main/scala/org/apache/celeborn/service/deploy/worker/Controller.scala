@@ -318,8 +318,8 @@ private[deploy] class Controller(
       mapAttempts: Array[Int],
       epoch: Long): Unit = {
     // return null if shuffleKey does not exist
-    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !shuffleCommitInfos.containsKey(
-        shuffleKey) && !shuffleCommitInfos.get(shuffleKey).containsKey(epoch)) {
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && (!shuffleCommitInfos.containsKey(
+        shuffleKey) || !shuffleCommitInfos.get(shuffleKey).containsKey(epoch))) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
