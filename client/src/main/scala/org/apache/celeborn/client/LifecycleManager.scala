@@ -144,7 +144,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
       currentShuffleFileCount: LongAdder,
       commitPartitionRequests: KeySetView[CommitPartitionRequest, java.lang.Boolean],
-      handledCommitPartitionRequests: KeySetView[CommitPartitionRequest, java.lang.Boolean],
+      handledCommitPartitionRequests: KeySetView[PartitionLocation, java.lang.Boolean],
       inFlightCommitRequest: AtomicInteger)
 
   // shuffle id -> ShuffleCommittedInfo
@@ -303,11 +303,19 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                       val currentBatch = shuffleCommittedInfo.synchronized {
                         val batch = new ConcurrentSet[CommitPartitionRequest]()
                         batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
-                        val currentBatch = batch.asScala.filterNot(
-                          shuffleCommittedInfo.handledCommitPartitionRequests.contains)
+                        val currentBatch = batch.asScala.filterNot { request =>
+                          shuffleCommittedInfo.handledCommitPartitionRequests.contains(
+                            request.partition)
+                        }
                         shuffleCommittedInfo.commitPartitionRequests.removeAll(batch)
-                        shuffleCommittedInfo.handledCommitPartitionRequests.addAll(
-                          currentBatch.asJava)
+                        currentBatch.foreach { commitPartitionRequest =>
+                          shuffleCommittedInfo.handledCommitPartitionRequests.add(
+                            commitPartitionRequest.partition)
+                          if (commitPartitionRequest.partition.getPeer != null) {
+                            shuffleCommittedInfo.handledCommitPartitionRequests.add(
+                              commitPartitionRequest.partition.getPeer)
+                          }
+                        }
                         currentBatch
                       }
                       if (currentBatch.nonEmpty) {
@@ -705,7 +713,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           new ConcurrentHashMap[String, RoaringBitmap](),
           new LongAdder,
           ConcurrentHashMap.newKeySet[CommitPartitionRequest](),
-          ConcurrentHashMap.newKeySet[CommitPartitionRequest](),
+          ConcurrentHashMap.newKeySet[PartitionLocation](),
           new AtomicInteger()))
       val allMasterPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
       reply(RegisterShuffleResponse(StatusCode.SUCCESS, allMasterPartitionLocations))
@@ -1114,7 +1122,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         val masterParts = partitionLocationInfo.getAllMasterLocations(shuffleId.toString)
         val slaveParts = partitionLocationInfo.getAllSlaveLocations(shuffleId.toString)
         masterParts.asScala
-          .filterNot(handledCommitPartitionRequests.get(shuffleId).contains)
+          .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
           .foreach { p =>
             val partition = new PartitionLocation(p)
             partition.setFetchPort(worker.fetchPort)
@@ -1122,7 +1130,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             masterPartMap.put(partition.getUniqueId, partition)
           }
         slaveParts.asScala
-          .filterNot(handledCommitPartitionRequests.get(shuffleId).contains)
+          .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
           .foreach { p =>
             val partition = new PartitionLocation(p)
             partition.setFetchPort(worker.fetchPort)
