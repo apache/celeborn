@@ -20,6 +20,7 @@ package org.apache.celeborn.common.meta;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -53,26 +54,14 @@ public class FileInfo {
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
-    this(
-        filePath,
-        new ArrayList() {
-          {
-            add(0L);
-          }
-        },
-        userIdentifier,
-        partitionType);
+    this(filePath, new ArrayList(Arrays.asList(0L)), userIdentifier, partitionType);
   }
 
   @VisibleForTesting
   public FileInfo(File file, UserIdentifier userIdentifier) {
     this(
         file.getAbsolutePath(),
-        new ArrayList() {
-          {
-            add(0L);
-          }
-        },
+        new ArrayList(Arrays.asList(0L)),
         userIdentifier,
         PartitionType.REDUCE);
   }
