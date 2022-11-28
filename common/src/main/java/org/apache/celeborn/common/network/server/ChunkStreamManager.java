@@ -37,8 +37,8 @@ import org.apache.celeborn.common.network.buffer.ManagedBuffer;
  * StreamManager which allows registration of an Iterator&lt;ManagedBuffer&gt;, which are
  * individually fetched as chunks by the client. Each registered buffer is one chunk.
  */
-public class OneForOneStreamManager extends StreamManager {
-  private static final Logger logger = LoggerFactory.getLogger(OneForOneStreamManager.class);
+public class ChunkStreamManager {
+  private static final Logger logger = LoggerFactory.getLogger(ChunkStreamManager.class);
 
   private final AtomicLong nextStreamId;
   protected final ConcurrentHashMap<Long, StreamState> streams;
@@ -63,14 +63,13 @@ public class OneForOneStreamManager extends StreamManager {
     }
   }
 
-  public OneForOneStreamManager() {
+  public ChunkStreamManager() {
     // For debugging purposes, start with a random stream id to help identifying different streams.
     // This does not need to be globally unique, only unique to this class.
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
     streams = new ConcurrentHashMap<>();
   }
 
-  @Override
   public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
     StreamState state = streams.get(streamId);
     if (state == null) {
@@ -114,7 +113,6 @@ public class OneForOneStreamManager extends StreamManager {
     return ImmutablePair.of(streamId, chunkIndex);
   }
 
-  @Override
   public void connectionTerminated(Channel channel) {
     // Close all streams which have been associated with the channel.
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
@@ -125,7 +123,6 @@ public class OneForOneStreamManager extends StreamManager {
     }
   }
 
-  @Override
   public void chunkBeingSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
@@ -133,12 +130,6 @@ public class OneForOneStreamManager extends StreamManager {
     }
   }
 
-  @Override
-  public void streamBeingSent(String streamId) {
-    chunkBeingSent(parseStreamChunkId(streamId).getLeft());
-  }
-
-  @Override
   public void chunkSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
@@ -146,12 +137,6 @@ public class OneForOneStreamManager extends StreamManager {
     }
   }
 
-  @Override
-  public void streamSent(String streamId) {
-    chunkSent(OneForOneStreamManager.parseStreamChunkId(streamId).getLeft());
-  }
-
-  @Override
   public long chunksBeingTransferred() {
     long sum = 0L;
     for (StreamState streamState : streams.values()) {

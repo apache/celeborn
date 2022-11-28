@@ -120,6 +120,7 @@ class PbSerDeUtilsTest extends RssFunSuite {
     assert(restoredFileInfo.getFilePath.equals(fileInfo1.getFilePath))
     assert(restoredFileInfo.getChunkOffsets.equals(fileInfo1.getChunkOffsets))
     assert(restoredFileInfo.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
+    assert(restoredFileInfo.getPartitionType.equals(fileInfo1.getPartitionType))
   }
 
   test("fromAndToPbFileInfoMap") {
