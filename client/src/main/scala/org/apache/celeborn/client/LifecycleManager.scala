@@ -29,7 +29,7 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
-import org.eclipse.jetty.util.ConcurrentHashSet
+import io.netty.util.internal.ConcurrentSet
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -144,9 +144,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       currentShuffleFileCount: LongAdder)
 
   private val commitPartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentHashSet[CommitPartitionRequest]]()
+    new ConcurrentHashMap[Int, ConcurrentSet[CommitPartitionRequest]]()
   private val committedPartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentHashSet[CommitPartitionRequest]]()
+    new ConcurrentHashMap[Int, ConcurrentSet[CommitPartitionRequest]]()
 
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
@@ -306,9 +306,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                         logWarning(s"Shuffle $shuffleId ended or during process stage end.")
                         commitPartitionRequests.get(shuffleId).clear()
                       } else {
-                        val batch = new ConcurrentHashSet[CommitPartitionRequest]()
+                        val batch = new ConcurrentSet[CommitPartitionRequest]()
                         batch.addAll(requests)
-                        val currentBatch = batch.asScala.filterNot(committedPartitionRequests.get(shuffleId).contains)
+                        val currentBatch = batch.asScala.filterNot(
+                          committedPartitionRequests.get(shuffleId).contains)
                         commitPartitionRequests.get(shuffleId).removeAll(batch)
                         committedPartitionRequests.get(shuffleId).addAll(currentBatch.asJava)
                         if (currentBatch.nonEmpty) {
@@ -803,9 +804,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   private val commitPartitionRegisterFunc =
-    new util.function.Function[Int, ConcurrentHashSet[CommitPartitionRequest]]() {
-      override def apply(s: Int): ConcurrentHashSet[CommitPartitionRequest] =
-        new ConcurrentHashSet[CommitPartitionRequest]()
+    new util.function.Function[Int, ConcurrentSet[CommitPartitionRequest]]() {
+      override def apply(s: Int): ConcurrentSet[CommitPartitionRequest] =
+        new ConcurrentSet[CommitPartitionRequest]()
     }
 
   private def handleRequestPartitionLocation(
