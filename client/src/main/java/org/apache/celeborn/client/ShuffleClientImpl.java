@@ -342,7 +342,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void limitMaxInFlight(String mapKey, PushState pushState, int limit) throws IOException {
+  private void limitMaxInFlight(PushState pushState, int limit) throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
@@ -563,7 +563,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, maxInFlight);
+      limitMaxInFlight(pushState, maxInFlight);
 
       // add inFlight requests
       pushState.inFlightBatches.put(nextBatchId, loc);
@@ -708,7 +708,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       String addressPair = genAddressPair(loc);
       boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
       if (shouldPush) {
-        limitMaxInFlight(mapKey, pushState, maxInFlight);
+        limitMaxInFlight(pushState, maxInFlight);
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
         doPushMergedData(
             addressPair.split("-")[0],
@@ -784,7 +784,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.get(mapKey);
     if (pushState != null) {
-      limitMaxInFlight(mapKey, pushState, 0);
+      limitMaxInFlight(pushState, 0);
     }
   }
 
@@ -825,7 +825,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     ArrayList<Map.Entry<String, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
-      limitMaxInFlight(mapKey, pushState, maxInFlight);
+      limitMaxInFlight(pushState, maxInFlight);
       Map.Entry<String, DataBatches> entry = batchesArr.get(rand.nextInt(batchesArr.size()));
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
@@ -1007,7 +1007,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
 
     try {
-      limitMaxInFlight(mapKey, pushState, 0);
+      limitMaxInFlight(pushState, 0);
 
       MapperEndResponse response =
           driverRssMetaService.askSync(
