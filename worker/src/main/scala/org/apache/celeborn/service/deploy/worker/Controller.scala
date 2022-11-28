@@ -310,6 +310,7 @@ private[deploy] class Controller(
     future
   }
 
+
   private def handleCommitFiles(
       context: RpcCallContext,
       shuffleKey: String,
@@ -317,9 +318,16 @@ private[deploy] class Controller(
       slaveIds: jList[String],
       mapAttempts: Array[Int],
       epoch: Long): Unit = {
-    // return null if shuffleKey does not exist
-    if (!partitionLocationInfo.containsShuffle(shuffleKey) && (!shuffleCommitInfos.containsKey(
-        shuffleKey) || !shuffleCommitInfos.get(shuffleKey).containsKey(epoch))) {
+
+    def alreadyCommitted(shuffleKey: String, epoch: Long): Boolean = {
+      shuffleCommitInfos.contains(shuffleKey) && shuffleCommitInfos.get(shuffleKey).contains(epoch)
+    }
+
+    // Reply SHUFFLE_NOT_REGISTERED if shuffleKey does not exist AND the shuffle is not committed.
+    // Say the first CommitFiles-epoch request succeeds in Worker and removed from partitionLocationInfo,
+    // but for some reason the client thinks it's failed, the client will trigger again, so we should
+    // check whether the CommitFiles-epoch is already committed here.
+    if (!partitionLocationInfo.containsShuffle(shuffleKey) && !alreadyCommitted(shuffleKey, epoch)) {
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
