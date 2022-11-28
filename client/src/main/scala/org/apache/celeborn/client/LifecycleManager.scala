@@ -833,11 +833,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     // handle hard split
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
-      committedPartitionInfo.get(shuffleId).commitPartitionRequests.add(
-        CommitPartitionRequest(
-          applicationId,
-          shuffleId,
-          oldPartition))
+      committedPartitionInfo.get(shuffleId).commitPartitionRequests
+        .add(CommitPartitionRequest(applicationId, shuffleId, oldPartition))
     }
 
     requests.synchronized {
@@ -1101,10 +1098,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
 
     val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+    val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val commitFilesFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
     val commitFileStartTime = System.nanoTime()
-
-    val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
 
     val parallelism = Math.min(workerSnapshots(shuffleId).size(), conf.rpcMaxParallelism)
     ThreadUtils.parmap(
@@ -1114,25 +1110,25 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       if (partitionLocationInfo.containsShuffle(shuffleId.toString)) {
         val masterParts = partitionLocationInfo.getAllMasterLocations(shuffleId.toString)
         val slaveParts = partitionLocationInfo.getAllSlaveLocations(shuffleId.toString)
-        masterParts.asScala
-          .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
-          .foreach { p =>
-            val partition = new PartitionLocation(p)
-            partition.setFetchPort(worker.fetchPort)
-            partition.setPeer(null)
-            masterPartMap.put(partition.getUniqueId, partition)
-          }
-        slaveParts.asScala
-          .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
-          .foreach { p =>
-            val partition = new PartitionLocation(p)
-            partition.setFetchPort(worker.fetchPort)
-            partition.setPeer(null)
-            slavePartMap.put(partition.getUniqueId, partition)
-          }
+        masterParts.asScala.foreach { p =>
+          val partition = new PartitionLocation(p)
+          partition.setFetchPort(worker.fetchPort)
+          partition.setPeer(null)
+          masterPartMap.put(partition.getUniqueId, partition)
+        }
+        slaveParts.asScala.foreach { p =>
+          val partition = new PartitionLocation(p)
+          partition.setFetchPort(worker.fetchPort)
+          partition.setPeer(null)
+          slavePartMap.put(partition.getUniqueId, partition)
+        }
 
-        val masterIds = masterParts.asScala.map(_.getUniqueId).asJava
-        val slaveIds = slaveParts.asScala.map(_.getUniqueId).asJava
+        val masterIds = masterParts.asScala
+          .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
+          .map(_.getUniqueId).asJava
+        val slaveIds = slaveParts.asScala
+          .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
+          .map(_.getUniqueId).asJava
 
         commitFiles(
           applicationId,
