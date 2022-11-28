@@ -19,12 +19,11 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
 
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -44,7 +43,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var partitionLocationInfo: PartitionLocationInfo = _
-  var shuffleMapperAttempts: ConcurrentHashMap[String, Array[Int]] = _
+  var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   var replicateThreadPool: ThreadPoolExecutor = _
   var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   var pushClientFactory: TransportClientFactory = _
@@ -156,10 +155,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
       if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-        if (-1 != shuffleMapperAttempts.get(shuffleKey)(mapId)) {
-          val msg = s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId," +
-            s" attempt $attemptId), but this mapper has already been ended."
-          logInfo(msg)
+        if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
+          // partition data has already been committed
+          logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
+            s" attempt $attemptId), but this mapper has already been ended.")
           wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
         } else {
           logInfo(
@@ -258,7 +257,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         val (mapId, attemptId) = getMapAttempt(body)
         val endedAttempt =
           if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-            shuffleMapperAttempts.get(shuffleKey)(mapId)
+            shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
         logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
@@ -319,7 +318,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-          if (-1 != shuffleMapperAttempts.get(shuffleKey)(mapId)) {
+          if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
             val msg =
               s"Receive push merged data from speculative task(shuffle $shuffleKey, map $mapId," +
                 s" attempt $attemptId), but this mapper has already been ended."
@@ -335,7 +334,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
             s" attempt $attemptId, uniqueId $id)."
           logWarning(s"[handlePushMergedData] $msg")
-          wrappedCallback.onFailure(new Exception(msg))
+          callback.onFailure(new Exception(msg))
         }
         return
       }
@@ -435,7 +434,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           val (mapId, attemptId) = getMapAttempt(body)
           val endedAttempt =
             if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-              shuffleMapperAttempts.get(shuffleKey)(mapId)
+              shuffleMapperAttempts.get(shuffleKey).get(mapId)
             } else -1
           // TODO just info log for ended attempt
           logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +

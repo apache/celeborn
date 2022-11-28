@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -85,6 +85,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
+
+  private val testRetryCommitFiles = conf.testRetryCommitFiles
+  private val commitEpoch = new AtomicLong()
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
@@ -1370,6 +1373,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
     val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
@@ -1390,13 +1394,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}.")
         } else {
-          logError(s"[reserveSlots] Failed to" +
+          failureInfos.add(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
           reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
         }
     }
-
+    if (failureInfos.asScala.nonEmpty) {
+      logError(s"Aggregated error of reserveSlots failure:${failureInfos.asScala.foldLeft("")(
+        (x, y) => s"$x \n $y")}")
+    }
     recordWorkerFailure(reserveSlotFailedWorkers)
     new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers.asScala.keys.toList.asJava)
   }
@@ -1683,7 +1690,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    slotsToDestroy.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
+    val parallelism = Math.min(Math.max(1, slotsToDestroy.size()), conf.rpcMaxParallelism)
+    ThreadUtils.parmap(
+      slotsToDestroy.asScala,
+      "DestroySlot",
+      parallelism) { case (workerInfo, (masterLocations, slaveLocations)) =>
       val destroy = Destroy(
         shuffleKey,
         masterLocations.asScala.map(_.getUniqueId).asJava,
@@ -1691,7 +1702,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       var res = requestDestroy(workerInfo.endpoint, destroy)
       if (res.status != StatusCode.SUCCESS) {
         logDebug(s"Request $destroy return ${res.status} for " +
-          s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
+          s"${Utils.makeShuffleKey(applicationId, shuffleId)}, will retry request destroy.")
         res = requestDestroy(
           workerInfo.endpoint,
           Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
@@ -1811,21 +1822,35 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestCommitFiles(
+  private def requestCommitFilesWithRetry(
       endpoint: RpcEndpointRef,
       message: CommitFiles): CommitFilesResponse = {
-    try {
-      endpoint.askSync[CommitFilesResponse](message)
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync CommitFiles for ${message.shuffleId} failed.", e)
-        CommitFilesResponse(
-          StatusCode.FAILED,
-          List.empty.asJava,
-          List.empty.asJava,
-          message.masterIds,
-          message.slaveIds)
+    val maxRetries = conf.requestCommitFilesMaxRetries
+    var retryTimes = 0
+    while (retryTimes < maxRetries) {
+      try {
+        if (testRetryCommitFiles && retryTimes < maxRetries - 1) {
+          endpoint.ask[CommitFilesResponse](message)
+          Thread.sleep(1000)
+          throw new Exception("Mock fail for CommitFiles")
+        } else {
+          return endpoint.askSync[CommitFilesResponse](message)
+        }
+      } catch {
+        case e: Exception =>
+          retryTimes += 1
+          logError(
+            s"AskSync CommitFiles for ${message.shuffleId} failed (attempt $retryTimes/$maxRetries).",
+            e)
+      }
     }
+
+    CommitFilesResponse(
+      StatusCode.FAILED,
+      List.empty.asJava,
+      List.empty.asJava,
+      message.masterIds,
+      message.slaveIds)
   }
 
   private def requestReleaseSlots(

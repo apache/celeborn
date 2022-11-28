@@ -16,8 +16,8 @@
 #
 
 site_name: Apache Celeborn (Incubating)
-repo_name: apache/incubating-celeborn
-repo_url: https://github.com/apache/incubating-celeborn
+repo_name: apache/incubator-celeborn
+repo_url: https://github.com/apache/incubator-celeborn
 
 plugins:
   - search
@@ -42,15 +42,6 @@ markdown_extensions:
   - def_list
   - md_in_html
 
-extra:
-  version: 0.2.0-SNAPSHOT
-  stable_version: 0.1.2
-  social:
-    - icon: fontawesome/brands/github
-
 nav:
-  - Home: index.md
-  - Configuration:
-      - configuration/index.md
-  - Contributor:
-      - Docs and Website: contrib/docs_and_website.md
+  - Preview: README.md
+  - Configuration: configuration/index.md
