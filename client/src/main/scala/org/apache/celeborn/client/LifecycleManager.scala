@@ -30,7 +30,6 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
-import io.netty.util.internal.ConcurrentSet
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -301,7 +300,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                       shuffleCommittedInfo.commitPartitionRequests.clear()
                     } else {
                       val currentBatch = shuffleCommittedInfo.synchronized {
-                        val batch = new ConcurrentSet[CommitPartitionRequest]()
+                        val batch = ConcurrentHashMap.newKeySet[CommitPartitionRequest]()
                         batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
                         val currentBatch = batch.asScala.filterNot { request =>
                           shuffleCommittedInfo.handledCommitPartitionRequests.contains(
@@ -810,12 +809,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val inBatchShuffleIdRegisterFunc = new util.function.Function[Int, util.Set[Integer]]() {
     override def apply(s: Int): util.Set[Integer] = new util.HashSet[Integer]()
   }
-
-  private val commitPartitionRegisterFunc =
-    new util.function.Function[Int, ConcurrentSet[CommitPartitionRequest]]() {
-      override def apply(s: Int): ConcurrentSet[CommitPartitionRequest] =
-        new ConcurrentSet[CommitPartitionRequest]()
-    }
 
   private def handleRequestPartitionLocation(
       context: RequestLocationCallContext,
