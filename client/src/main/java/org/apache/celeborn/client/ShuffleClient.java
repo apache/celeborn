@@ -176,6 +176,9 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract void shutDown();
 
+  // Write data to a specific map partition, input data's type is Bytebuf.
+  // data's type is Bytebuf to avoid copy between application and netty
+  // closecallback will do some clean opertions like memory release.
   public abstract int pushDataByteBuf(
       String applicationId,
       int shuffleId,
