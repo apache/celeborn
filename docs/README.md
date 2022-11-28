@@ -1,4 +1,8 @@
 ---
+hide:
+  - navigation
+  - toc
+
 license: |
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -14,53 +18,13 @@ license: |
   limitations under the License.
 ---
 
-Docs and Website
+Configuration Preview
 ===
 
-## Setup Python
+This is for local configuration page preview only.
 
-Follow the [Python official document](https://wiki.python.org/moin/BeginnersGuide) to install.
+The content will be merged into [apache/incubator-celeborn-website],
+and become part of [celeborn.apache.org].
 
-## Setup `pyenv` on macOS (optional)
-
-Optionally, recommend to manage Python environments by [pyenv](https://github.com/pyenv/pyenv).
-
-Install from Homebrew
-
-```bash
-brew install pyenv pyenv-virtualenv
-```
-
-Setup in `~/.zshrc`
-
-```bash
-eval "$(pyenv init -)"
-eval "$(pyenv virtualenv-init -)"
-```
-
-Install `virtualenv`
-
-```bash
-pyenv install 3.9.13
-pyenv virtualenv 3.9.13 rss
-```
-
-Localize `virtualenv`
-
-```bash
-pyenv local rss
-```
-
-## Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-## Preview website
-
-```
-mkdocs serve
-```
-
-Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in browser.
+[apache/incubator-celeborn-website]: https://github.com/apache/incubator-celeborn-website.git
+[celeborn.apache.org]: https://celeborn.apache.org/
