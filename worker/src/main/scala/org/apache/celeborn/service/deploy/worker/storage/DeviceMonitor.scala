@@ -343,14 +343,11 @@ object DeviceMonitor {
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val usableSpaceLessThanReservedSize =
-        freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024
-      val usedMoreThanConfiguredSize = {
-        diskInfo.actualUsableSpace >= diskInfo.configuredUsableSpace && diskInfo.actualUsableSpace != 0
-      }
-      val highDiskUsage = usableSpaceLessThanReservedSize || usedMoreThanConfiguredSize
+      val highDiskUsage =
+        freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024 || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
-        logger.warn(s"${diskInfo.mountPoint} usage(Report by OS):{total:$totalSpace GB," +
+        logger.warn(s"${diskInfo.mountPoint} usage is above threshold." +
+          s" Disk usage(Report by OS):{total:$totalSpace GB," +
           s" free:$freeSpace GB, used_percent:$used_percent} " +
           s"usage(Report by Celeborn):{" +
           s"total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}" +
