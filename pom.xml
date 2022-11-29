@@ -101,6 +101,7 @@
     <maven.plugin.shade.version>3.4.0</maven.plugin.shade.version>
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>3.0.0-M7</maven.plugin.surefire.version>
+    <maven.plugin.jacoco-maven-plugin.version>0.8.7</maven.plugin.jacoco-maven-plugin.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>
@@ -572,7 +573,7 @@
               <include>**/*Test*.*</include>
             </includes>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-            <argLine>-ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
             <systemProperties>
               <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
               <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
@@ -798,6 +799,31 @@
             </execution>
           </executions>
         </plugin>
+
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>${maven.plugin.jacoco-maven-plugin.version}</version>
+          <executions>
+            <execution>
+              <id>pre-test</id>
+              <goals>
+                <goal>prepare-agent</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>report</id>
+              <goals>
+                <goal>report</goal>
+              </goals>
+              <phase>test</phase>
+              <configuration>
+                <outputDirectory>${project.build.directory}/codecov</outputDirectory>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
       </plugins>
     </pluginManagement>
 
@@ -835,6 +861,11 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
