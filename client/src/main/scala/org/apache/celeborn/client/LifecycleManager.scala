@@ -203,7 +203,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
   private val heartbeater =
-    new Heartbeater(
+    new ApplicationHeartbeater(
       appId,
       conf,
       rssHARetryClient,

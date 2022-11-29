@@ -27,7 +27,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, ZERO_UUID}
 import org.apache.celeborn.common.util.ThreadUtils
 
-class Heartbeater(
+class ApplicationHeartbeater(
     appId: String,
     conf: CelebornConf,
     rssHARetryClient: RssHARetryClient,
