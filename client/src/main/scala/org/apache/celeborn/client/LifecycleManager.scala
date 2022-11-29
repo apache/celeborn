@@ -316,6 +316,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               .add(commitPartitionRequest.partition.getPeer)
                           }
                         }
+                        // When running to here, if handleStageEnd got lock first and commitFiles,
+                        // then this batch get this lock, commitPartitionRequests may contains
+                        // partitions which are already committed by stageEnd process.
+                        // But inProcessStageEndShuffleSet should have contain this shuffle id,
+                        // can directly return.
                         if (inProcessStageEndShuffleSet.contains(shuffleId) ||
                           stageEndShuffleSet.contains(shuffleId)) {
                           logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
