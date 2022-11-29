@@ -1987,4 +1987,4 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   // Initialize at the end of LifecycleManager construction.
   initialize()
-}
+} 
