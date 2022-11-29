@@ -19,9 +19,10 @@ package org.apache.celeborn.client
 
 import java.util
 import java.util.{Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -40,7 +41,9 @@ case class ChangePartitionRequest(
     oldPartition: PartitionLocation,
     causes: Option[StatusCode])
 
-class ReviveManager(conf: CelebornConf, lifecycleManager: LifecycleManager) extends Logging {
+class ChangePartitionManager(
+    conf: CelebornConf,
+    lifecycleManager: LifecycleManager) extends Logging {
 
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
@@ -63,8 +66,10 @@ class ReviveManager(conf: CelebornConf, lifecycleManager: LifecycleManager) exte
       None
     }
 
-  def initialize(): Unit = {
-    batchHandleChangePartitionSchedulerThread.foreach {
+  private var batchHandleChangePartition: Option[ScheduledFuture[_]] = _
+
+  def start(): Unit = {
+    batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
       _.scheduleAtFixedRate(
         new Runnable {
@@ -104,6 +109,11 @@ class ReviveManager(conf: CelebornConf, lifecycleManager: LifecycleManager) exte
         batchHandleChangePartitionRequestInterval,
         TimeUnit.MILLISECONDS)
     }
+  }
+
+  def stop(): Unit = {
+    batchHandleChangePartition.foreach(_.cancel(true))
+    batchHandleChangePartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
   }
 
   private val rpcContextRegisterFunc =

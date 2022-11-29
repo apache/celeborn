@@ -193,7 +193,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       conf,
       rssHARetryClient,
       () => (totalWritten.sumThenReset(), fileCount.sumThenReset()))
-  private val reviveManager = new ReviveManager(conf, this)
+  private val changePartitionManager = new ChangePartitionManager(conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -203,7 +203,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private def initialize(): Unit = {
     // noinspection ConvertExpressionToSAM
     heartbeater.start()
-    reviveManager.initialize()
+    changePartitionManager.start()
 
     batchHandleCommitPartitionSchedulerThread.foreach {
       _.scheduleAtFixedRate(
@@ -342,6 +342,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     getBlacklist.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread, 800.millis)
 
+    changePartitionManager.stop()
     heartbeater.stop()
 
     rssHARetryClient.close()
@@ -447,7 +448,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
-      reviveManager.handleRequestPartitionLocation(
+      changePartitionManager.handleRequestPartitionLocation(
         ChangeLocationCallContext(context),
         applicationId,
         shuffleId,
@@ -663,7 +664,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, partitionLocations))
     } else {
       // request new resource for this task
-      reviveManager.handleRequestPartitionLocation(
+      changePartitionManager.handleRequestPartitionLocation(
         ApplyNewLocationCallContext(context),
         applicationId,
         shuffleId,
@@ -702,7 +703,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
       s"oldPartition: $oldPartition, cause: $cause")
 
-    reviveManager.handleRequestPartitionLocation(
+    changePartitionManager.handleRequestPartitionLocation(
       ChangeLocationCallContext(context),
       applicationId,
       shuffleId,
@@ -1482,7 +1483,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         unregisterShuffleTime.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
         latestPartitionLocation.remove(shuffleId)
-        reviveManager.removeExpiredShuffle(shuffleId)
+        changePartitionManager.removeExpiredShuffle(shuffleId)
 
         requestUnregisterShuffle(
           rssHARetryClient,
