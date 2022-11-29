@@ -161,11 +161,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
   private var getBlacklist: ScheduledFuture[_] = _
 
-  // Use independent app heartbeat threads to avoid being blocked by other operations.
-  private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
-  private val appHeartbeatHandlerThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
-  private var appHeartbeat: ScheduledFuture[_] = _
   private val responseCheckerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
 
@@ -210,6 +205,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
+  private val heartbeater =
+    new Heartbeater(
+      appId,
+      conf,
+      rssHARetryClient,
+      () => (totalWritten.sumThenReset(), fileCount.sumThenReset()))
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -218,32 +219,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
     // noinspection ConvertExpressionToSAM
-    appHeartbeat = appHeartbeatHandlerThread.scheduleAtFixedRate(
-      new Runnable {
-        override def run(): Unit = {
-          try {
-            require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
-            val tmpTotalWritten = totalWritten.sumThenReset()
-            val tmpFileCount = fileCount.sumThenReset()
-            logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
-            val appHeartbeat =
-              HeartbeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
-            rssHARetryClient.send(appHeartbeat)
-            logDebug("Successfully send app heartbeat.")
-          } catch {
-            case it: InterruptedException =>
-              logWarning("Interrupted while sending app heartbeat.")
-              Thread.currentThread().interrupt()
-              throw it
-            case t: Throwable =>
-              logError("Error while send heartbeat", t)
-          }
-        }
-      },
-      0,
-      appHeartbeatIntervalMs,
-      TimeUnit.MILLISECONDS)
-
+    heartbeater.start()
     batchHandleChangePartitionSchedulerThread.foreach {
       // noinspection ConvertExpressionToSAM
       _.scheduleAtFixedRate(
@@ -422,8 +398,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     getBlacklist.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread, 800.millis)
 
-    appHeartbeat.cancel(true)
-    ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
+    heartbeater.stop()
 
     ThreadUtils.shutdown(responseCheckerThread, 800.millis)
 
