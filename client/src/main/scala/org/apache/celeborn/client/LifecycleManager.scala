@@ -166,8 +166,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val appHeartbeatHandlerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
-  private val responseCheckerThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
@@ -424,8 +422,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     appHeartbeat.cancel(true)
     ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
-
-    ThreadUtils.shutdown(responseCheckerThread, 800.millis)
 
     rssHARetryClient.close()
     if (rpcEnv != null) {
