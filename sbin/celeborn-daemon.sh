@@ -97,11 +97,11 @@ fi
 mkdir -p "$CELEBORN_LOG_DIR"
 touch "$CELEBORN_LOG_DIR"/.celeborn_test > /dev/null 2>&1
 TEST_LOG_DIR=$?
-if [ "${TEST_LOG_DIR}" = "1" ]; then
+if [ "${TEST_LOG_DIR}" = "0" ]; then
+  rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
+else
   chown "$CELEBORN_IDENT_STRING" "$CELEBORN_LOG_DIR"
 fi
-# always remove test file
-rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
 
 if [ "$CELEBORN_PID_DIR" = "" ]; then
   CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
