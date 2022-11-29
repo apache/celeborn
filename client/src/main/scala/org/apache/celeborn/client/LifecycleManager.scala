@@ -161,9 +161,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
   private var getBlacklist: ScheduledFuture[_] = _
 
-  private val responseCheckerThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("rss-master-resp-checker")
-
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "rss-lifecycle-manager-change-partition-executor",
@@ -399,8 +396,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     ThreadUtils.shutdown(forwardMessageThread, 800.millis)
 
     heartbeater.stop()
-
-    ThreadUtils.shutdown(responseCheckerThread, 800.millis)
 
     rssHARetryClient.close()
     if (rpcEnv != null) {
