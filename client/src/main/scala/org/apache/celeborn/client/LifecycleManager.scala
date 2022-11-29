@@ -1482,6 +1482,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         unregisterShuffleTime.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
         latestPartitionLocation.remove(shuffleId)
+        reviveManager.removeExpiredShuffle(shuffleId)
 
         requestUnregisterShuffle(
           rssHARetryClient,
