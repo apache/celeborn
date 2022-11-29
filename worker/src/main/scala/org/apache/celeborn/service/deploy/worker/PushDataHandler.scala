@@ -36,7 +36,7 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, LocalFlusher}
+import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, LocalFlusher, StorageManager}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
 
@@ -52,6 +52,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var diskReserveSize: Long = _
   var partitionSplitMinimumSize: Long = _
   var shutdown: AtomicBoolean = _
+  var storageManager: StorageManager = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -65,6 +66,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.diskReserveSize
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
+    storageManager = worker.storageManager
     shutdown = worker.shutdown
 
     logInfo(s"diskReserveSize $diskReserveSize")
@@ -171,11 +173,21 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         }
       } else {
-        val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
-          s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
-        logWarning(s"[handlePushData] $msg")
-        callback.onFailure(
-          new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+        if (storageManager.shuffleKeySet().contains(shuffleKey)) {
+          // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
+          // in StorageManager. This partition should be HARD_SPLIT partition and
+          // after worker restart, some task still push data to this HARD_SPLIT partition.
+          logInfo(
+            s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
+              s"map $mapId attempt $attemptId)")
+          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        } else {
+          val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
+            s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
+          logWarning(s"[handlePushData] $msg")
+          callback.onFailure(
+            new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+        }
       }
       return
     }
@@ -339,10 +351,20 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           }
         } else {
-          val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
-            s" attempt $attemptId, uniqueId $id)."
-          logWarning(s"[handlePushMergedData] $msg")
-          callback.onFailure(new Exception(msg))
+          if (storageManager.shuffleKeySet().contains(shuffleKey)) {
+            // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
+            // in StorageManager. This partition should be HARD_SPLIT partition and
+            // after worker restart, some task still push data to this HARD_SPLIT partition.
+            logInfo(
+              s"Receive push merged data for committed hard split partition of (shuffle $shuffleKey, " +
+                s"map $mapId attempt $attemptId)")
+            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          } else {
+            val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
+              s" attempt $attemptId, uniqueId $id)."
+            logWarning(s"[handlePushMergedData] $msg")
+            callback.onFailure(new Exception(msg))
+          }
         }
         return
       }
