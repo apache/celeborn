@@ -351,7 +351,7 @@ object DeviceMonitor {
           s" free:$freeSpace GB, used_percent:$used_percent} " +
           s"usage(Report by Celeborn):{" +
           s"total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}" +
-          s" used:${Utils.bytesToString(diskInfo.actualUsableSpace)} }")
+          s" free:${Utils.bytesToString(diskInfo.actualUsableSpace)} }")
       }
       highDiskUsage
     })(false)(
