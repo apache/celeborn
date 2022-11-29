@@ -316,7 +316,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               .add(commitPartitionRequest.partition.getPeer)
                           }
                         }
-                        currentBatch
+                        if (inProcessStageEndShuffleSet.contains(shuffleId) ||
+                          stageEndShuffleSet.contains(shuffleId)) {
+                          logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
+                          Seq.empty
+                        } else {
+                          currentBatch
+                        }
                       }
                       if (currentBatch.nonEmpty) {
                         logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
