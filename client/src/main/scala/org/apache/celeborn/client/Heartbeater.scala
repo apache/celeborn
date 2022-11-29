@@ -19,6 +19,8 @@ package org.apache.celeborn.client
 
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
+import scala.concurrent.duration.DurationInt
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.internal.Logging
@@ -36,6 +38,7 @@ class Heartbeater(
   private val appHeartbeatHandlerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
+
   def start(): Unit = {
     appHeartbeat = appHeartbeatHandlerThread.scheduleAtFixedRate(
       new Runnable {
