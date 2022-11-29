@@ -74,23 +74,21 @@ celeborn_rotate_log ()
     log=$1;
     num=5;
     if [ -n "$2" ]; then
-	num=$2
+	    num=$2
     fi
     if [ -f "$log" ]; then # rotate logs
-	while [ $num -gt 1 ]; do
-	    prev=`expr $num - 1`
-	    [ -f "$log.$prev" ] && mv "$log.$prev" "$log.$num"
-	    num=$prev
-	done
-	mv "$log" "$log.$num";
+	    while [ $num -gt 1 ]; do
+	      prev=`expr $num - 1`
+	      [ -f "$log.$prev" ] && mv "$log.$prev" "$log.$num"
+	      num=$prev
+	    done
+	    mv "$log" "$log.$num";
     fi
 }
 
 if [ "$CELEBORN_IDENT_STRING" = "" ]; then
   export CELEBORN_IDENT_STRING="$USER"
 fi
-
-export CELEBORN_PRINT_LAUNCH_COMMAND="1"
 
 # get log directory
 if [ "$CELEBORN_LOG_DIR" = "" ]; then
@@ -99,11 +97,11 @@ fi
 mkdir -p "$CELEBORN_LOG_DIR"
 touch "$CELEBORN_LOG_DIR"/.celeborn_test > /dev/null 2>&1
 TEST_LOG_DIR=$?
-if [ "${TEST_LOG_DIR}" = "0" ]; then
-  rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
-else
+if [ "${TEST_LOG_DIR}" = "1" ]; then
   chown "$CELEBORN_IDENT_STRING" "$CELEBORN_LOG_DIR"
 fi
+# always remove test file
+rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
 
 if [ "$CELEBORN_PID_DIR" = "" ]; then
   CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
