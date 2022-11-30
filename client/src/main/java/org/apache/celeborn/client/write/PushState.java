@@ -51,7 +51,8 @@ public class PushState {
   }
 
   public Set<Integer> getBatchIdSetByAddressPair(String addressPair) {
-    return batchIdPerAddressPair.computeIfAbsent(addressPair, pair -> new HashSet<>());
+    return batchIdPerAddressPair.computeIfAbsent(
+        addressPair, pair -> ConcurrentHashMap.newKeySet());
   }
 
   public void addFuture(int batchId, ChannelFuture future) {
@@ -97,15 +98,14 @@ public class PushState {
     return batchesMap.remove(addressPair);
   }
 
-  public void addFlightBatches(int batchId, PartitionLocation loc) {
-    String addressPair = loc.hostAndPushPort();
+  public void addFlightBatches(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSetPerPair =
-        batchIdPerAddressPair.computeIfAbsent(addressPair, id -> new HashSet<>());
+        batchIdPerAddressPair
+                .computeIfAbsent(hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
   }
 
-  public void removeFlightBatches(int batchId, PartitionLocation loc) {
-    String hostAndPushPort = loc.hostAndPushPort();
+  public void removeFlightBatches(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSetPerPair = batchIdPerAddressPair.get(hostAndPushPort);
     batchIdSetPerPair.remove(batchId);
     if (batchIdSetPerPair.size() == 0) {
