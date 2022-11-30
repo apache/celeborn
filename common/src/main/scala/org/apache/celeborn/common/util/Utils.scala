@@ -891,11 +891,9 @@ object Utils extends Logging {
       case 28 =>
         StatusCode.UNKNOWN_WORKER
       case 30 =>
-        StatusCode.SUCCESS_FREE
+        StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
       case 31 =>
-        StatusCode.SUCCESS_MASTER_CONGESTED
-      case 32 =>
-        StatusCode.SUCCESS_SLAVE_CONGESTED
+        StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED
       case _ =>
         null
     }
