@@ -167,7 +167,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
           "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
-      pushState.removeFlightBatches(batchId, loc);
+      pushState.removeFlightBatches(batchId, loc.hostAndPushPort());
     } else {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
       logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
@@ -245,7 +245,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState,
           true);
     }
-    pushState.removeFlightBatches(oldGroupedBatchId, batches.get(0).loc);
+    pushState.removeFlightBatches(oldGroupedBatchId, batches.get(0).loc.hostAndPushPort());
   }
 
   private String genAddressPair(PartitionLocation loc) {
@@ -630,7 +630,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitMaxInFlight(mapKey, pushState, maxInFlight, loc.hostAndPushPort());
 
       // add inFlight requests
-      pushState.addFlightBatches(nextBatchId, loc);
+      pushState.addFlightBatches(nextBatchId, loc.hostAndPushPort());
 
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -641,7 +641,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           new RpcResponseCallback() {
             @Override
             public void onSuccess(ByteBuffer response) {
-              pushState.removeFlightBatches(nextBatchId, loc);
+              pushState.removeFlightBatches(nextBatchId, loc.hostAndPushPort());
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
@@ -744,7 +744,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             pushState,
                             getPushDataFailCause(e.getMessage())));
               } else {
-                pushState.removeFlightBatches(nextBatchId, loc);
+                pushState.removeFlightBatches(nextBatchId, loc.hostAndPushPort());
                 logger.info(
                     "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
                     shuffleId,
@@ -915,7 +915,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int port = Integer.parseInt(splits[1]);
 
     int groupedBatchId = pushState.batchId.addAndGet(1);
-    pushState.addFlightBatches(groupedBatchId, batches.get(0).loc);
+    pushState.addFlightBatches(groupedBatchId, batches.get(0).loc.hostAndPushPort());
 
     final int numBatches = batches.size();
     final String[] partitionUniqueIds = new String[numBatches];
@@ -945,7 +945,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 mapId,
                 attemptId,
                 groupedBatchId);
-            pushState.removeFlightBatches(groupedBatchId, batches.get(0).loc);
+            pushState.removeFlightBatches(groupedBatchId, batches.get(0).loc.hostAndPushPort());
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               mapperEndMap
                   .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
