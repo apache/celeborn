@@ -22,6 +22,9 @@ fi
 
 export CELEBORN_CONF_DIR="${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}"
 
+# print launch command for debug
+export CELEBORN_PRINT_LAUNCH_COMMAND="0"
+
 if [ -z "$CELEBORN_ENV_LOADED" ]; then
   export CELEBORN_ENV_LOADED=1
 
@@ -91,5 +94,9 @@ CMD+=("$CELEBORN_CLASSPATH")
 CMD=(${CMD[@]} "$@")
 
 COUNT=${#CMD[@]}
+
+if [ "${CELEBORN_PRINT_LAUNCH_COMMAND}" = "1" ]; then
+  echo "Start to launch ${CMD[@]}"
+fi
 
 exec "${CMD[@]}"
