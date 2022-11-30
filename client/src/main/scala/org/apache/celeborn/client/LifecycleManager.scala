@@ -275,6 +275,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                       if (inProcessStageEndShuffleSet.contains(shuffleId) ||
                         stageEndShuffleSet.contains(shuffleId)) {
                         logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
+                        shuffleCommittedInfo.commitPartitionRequests.clear()
                         Seq.empty
                       } else {
                         val batch = new util.HashSet[CommitPartitionRequest]()
