@@ -266,14 +266,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
               batchHandleCommitPartitionExecutors.submit {
                 new Runnable {
                   override def run(): Unit = {
-                    if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                      stageEndShuffleSet.contains(shuffleId)) {
-                      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                      shuffleCommittedInfo.synchronized {
+                    val currentBatch = shuffleCommittedInfo.synchronized {
+                      // When running to here, if handleStageEnd got lock first and commitFiles,
+                      // then this batch get this lock, commitPartitionRequests may contains
+                      // partitions which are already committed by stageEnd process.
+                      // But inProcessStageEndShuffleSet should have contain this shuffle id,
+                      // can directly return.
+                      if (inProcessStageEndShuffleSet.contains(shuffleId) ||
+                        stageEndShuffleSet.contains(shuffleId)) {
+                        logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
                         shuffleCommittedInfo.commitPartitionRequests.clear()
-                      }
-                    } else {
-                      val currentBatch = shuffleCommittedInfo.synchronized {
+                        Seq.empty
+                      } else {
                         val batch = new util.HashSet[CommitPartitionRequest]()
                         batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
                         val currentBatch = batch.asScala.filterNot { request =>
@@ -289,68 +293,57 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               .add(commitPartitionRequest.partition.getPeer)
                           }
                         }
-                        // When running to here, if handleStageEnd got lock first and commitFiles,
-                        // then this batch get this lock, commitPartitionRequests may contains
-                        // partitions which are already committed by stageEnd process.
-                        // But inProcessStageEndShuffleSet should have contain this shuffle id,
-                        // can directly return.
-                        if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                          stageEndShuffleSet.contains(shuffleId)) {
-                          logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                          Seq.empty
+                        currentBatch
+                      }
+                    }
+                    if (currentBatch.nonEmpty) {
+                      logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+                        s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
+                      val workerToRequests = currentBatch.flatMap { request =>
+                        if (request.partition.getPeer != null) {
+                          Seq(request.partition, request.partition.getPeer)
                         } else {
-                          currentBatch
+                          Seq(request.partition)
                         }
-                      }
-                      if (currentBatch.nonEmpty) {
-                        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
-                          s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
-                        val workerToRequests = currentBatch.flatMap { request =>
-                          if (request.partition.getPeer != null) {
-                            Seq(request.partition, request.partition.getPeer)
-                          } else {
-                            Seq(request.partition)
-                          }
-                        }.groupBy(_.getWorker)
-                        val commitFilesFailedWorkers =
-                          new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
-                        val parallelism = workerToRequests.size
-                        ThreadUtils.parmap(
-                          workerToRequests.to,
-                          "CommitFiles",
-                          parallelism) {
-                          case (worker, requests) =>
-                            val workerInfo =
-                              shuffleAllocatedWorkers
-                                .get(shuffleId)
-                                .asScala
-                                .find(_._1.equals(worker))
-                                .get
-                                ._1
-                            val mastersIds =
-                              requests
-                                .filter(_.getMode == PartitionLocation.Mode.MASTER)
-                                .map(_.getUniqueId)
-                                .toList
-                                .asJava
-                            val slaveIds =
-                              requests
-                                .filter(_.getMode == PartitionLocation.Mode.SLAVE)
-                                .map(_.getUniqueId)
-                                .toList
-                                .asJava
+                      }.groupBy(_.getWorker)
+                      val commitFilesFailedWorkers =
+                        new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+                      val parallelism = workerToRequests.size
+                      ThreadUtils.parmap(
+                        workerToRequests.to,
+                        "CommitFiles",
+                        parallelism) {
+                        case (worker, requests) =>
+                          val workerInfo =
+                            shuffleAllocatedWorkers
+                              .get(shuffleId)
+                              .asScala
+                              .find(_._1.equals(worker))
+                              .get
+                              ._1
+                          val mastersIds =
+                            requests
+                              .filter(_.getMode == PartitionLocation.Mode.MASTER)
+                              .map(_.getUniqueId)
+                              .toList
+                              .asJava
+                          val slaveIds =
+                            requests
+                              .filter(_.getMode == PartitionLocation.Mode.SLAVE)
+                              .map(_.getUniqueId)
+                              .toList
+                              .asJava
 
-                            commitFiles(
-                              appId,
-                              shuffleId,
-                              shuffleCommittedInfo,
-                              workerInfo,
-                              mastersIds,
-                              slaveIds,
-                              commitFilesFailedWorkers)
-                        }
-                        recordWorkerFailure(commitFilesFailedWorkers)
+                          commitFiles(
+                            appId,
+                            shuffleId,
+                            shuffleCommittedInfo,
+                            workerInfo,
+                            mastersIds,
+                            slaveIds,
+                            commitFilesFailedWorkers)
                       }
+                      recordWorkerFailure(commitFilesFailedWorkers)
                     }
                   }
                 }
