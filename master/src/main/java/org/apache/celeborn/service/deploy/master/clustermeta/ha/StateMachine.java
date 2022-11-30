@@ -63,6 +63,8 @@ import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 
+import static org.apache.ratis.util.LifeCycle.State.*;
+
 public class StateMachine extends BaseStateMachine {
   private static final Logger LOG = LoggerFactory.getLogger(StateMachine.class);
 
@@ -191,6 +193,12 @@ public class StateMachine extends BaseStateMachine {
     LOG.info("Reinitializing state machine.");
     storage.loadLatestSnapshot();
     loadSnapshot(storage.getLatestSnapshot());
+  }
+
+  @Override
+  public void pause() {
+    getLifeCycle().compareAndTransition(RUNNING, PAUSING);
+    getLifeCycle().compareAndTransition(PAUSING, PAUSED);
   }
 
   private synchronized void loadSnapshot(SingleFileSnapshotInfo snapshot) throws IOException {
