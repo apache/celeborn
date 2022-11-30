@@ -262,7 +262,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SUCCESS_FREE.getValue)))
     }
 
     try {
