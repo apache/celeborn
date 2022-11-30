@@ -85,8 +85,10 @@
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <!--  default hadoop version  -->
-    <hadoop.version>3.3.1</hadoop.version>
+    <hadoop.version>3.2.1</hadoop.version>
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
+    <hadoop-client-api.artifact>hadoop-client-api</hadoop-client-api.artifact>
+    <hadoop-client-runtime.artifact>hadoop-client-runtime</hadoop-client-runtime.artifact>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
     <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>
@@ -321,7 +323,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client</artifactId>
+        <artifactId>${hadoop-client-api.artifact}</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
           <exclusion>
@@ -411,6 +413,11 @@
             <artifactId>reload4j</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>${hadoop-client-runtime.artifact}</artifactId>
+        <version>${hadoop.version}</version>
       </dependency>
       <dependency>
         <groupId>org.roaringbitmap</groupId>
@@ -840,6 +847,18 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>hadoop-2</id>
+      <properties>
+        <hadoop.version>2.7.4</hadoop.version>
+        <hadoop-client-api.artifact>hadoop-client</hadoop-client-api.artifact>
+        <hadoop-client-runtime.artifact>hadoop-yarn-api</hadoop-client-runtime.artifact>
+      </properties>
+    </profile>
+    <profile>
+      <id>hadoop-3</id>
+      <!-- Default hadoop profile. Uses global properties. -->
+    </profile>
     <profile>
       <id>spark-2.4</id>
       <modules>
