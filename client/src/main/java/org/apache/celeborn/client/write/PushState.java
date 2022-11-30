@@ -100,8 +100,7 @@ public class PushState {
 
   public void addFlightBatches(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSetPerPair =
-        batchIdPerAddressPair
-                .computeIfAbsent(hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
+        batchIdPerAddressPair.computeIfAbsent(hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
   }
 
