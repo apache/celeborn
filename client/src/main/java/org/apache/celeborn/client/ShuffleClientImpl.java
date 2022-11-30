@@ -591,6 +591,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onSuccess(ByteBuffer response) {
               pushState.inFlightBatches.remove(nextBatchId);
+              // TODO Need to handle CONGESTED & FREE statuses
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
