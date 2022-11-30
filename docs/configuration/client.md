@@ -21,7 +21,6 @@ license: |
 | --- | ------- | ----------- | ----- |
 | celeborn.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.2.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
-| celeborn.client.rpc.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for client RPC ask operations. | 0.2.0 | 
 | celeborn.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.2.0 | 
 | celeborn.fetch.maxRetries | 3 | Max retries of fetch chunk | 0.2.0 | 
 | celeborn.fetch.timeout | 120s | Timeout for a task to fetch chunk. | 0.2.0 | 

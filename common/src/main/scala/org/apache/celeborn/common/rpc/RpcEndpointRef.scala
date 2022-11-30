@@ -29,7 +29,7 @@ import org.apache.celeborn.common.internal.Logging
 abstract class RpcEndpointRef(conf: CelebornConf)
   extends Serializable with Logging {
 
-  private[this] val defaultAskTimeout = conf.rpcAskTimeout
+  private[this] val defaultAskTimeout = conf.rpcAskTimeout()
 
   /**
    * return the address for the [[RpcEndpointRef]]
