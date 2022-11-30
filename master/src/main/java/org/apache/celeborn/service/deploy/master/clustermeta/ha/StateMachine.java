@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
+import static org.apache.ratis.util.LifeCycle.State.*;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -62,8 +64,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
-
-import static org.apache.ratis.util.LifeCycle.State.*;
 
 public class StateMachine extends BaseStateMachine {
   private static final Logger LOG = LoggerFactory.getLogger(StateMachine.class);
