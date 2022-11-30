@@ -274,21 +274,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                       }
                     } else {
                       val currentBatch = shuffleCommittedInfo.synchronized {
-                        val batch = new util.HashSet[CommitPartitionRequest]()
-                        batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
-                        val currentBatch = batch.asScala.filterNot { request =>
-                          shuffleCommittedInfo.handledCommitPartitionRequests
-                            .contains(request.partition)
-                        }
-                        shuffleCommittedInfo.commitPartitionRequests.clear()
-                        currentBatch.foreach { commitPartitionRequest =>
-                          shuffleCommittedInfo.handledCommitPartitionRequests
-                            .add(commitPartitionRequest.partition)
-                          if (commitPartitionRequest.partition.getPeer != null) {
-                            shuffleCommittedInfo.handledCommitPartitionRequests
-                              .add(commitPartitionRequest.partition.getPeer)
-                          }
-                        }
                         // When running to here, if handleStageEnd got lock first and commitFiles,
                         // then this batch get this lock, commitPartitionRequests may contains
                         // partitions which are already committed by stageEnd process.
@@ -299,6 +284,21 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                           logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
                           Seq.empty
                         } else {
+                          val batch = new util.HashSet[CommitPartitionRequest]()
+                          batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
+                          val currentBatch = batch.asScala.filterNot { request =>
+                            shuffleCommittedInfo.handledCommitPartitionRequests
+                              .contains(request.partition)
+                          }
+                          shuffleCommittedInfo.commitPartitionRequests.clear()
+                          currentBatch.foreach { commitPartitionRequest =>
+                            shuffleCommittedInfo.handledCommitPartitionRequests
+                              .add(commitPartitionRequest.partition)
+                            if (commitPartitionRequest.partition.getPeer != null) {
+                              shuffleCommittedInfo.handledCommitPartitionRequests
+                                .add(commitPartitionRequest.partition.getPeer)
+                            }
+                          }
                           currentBatch
                         }
                       }
