@@ -286,7 +286,10 @@ public final class FileWriter implements DeviceObserver {
       }
 
       // unregister from DeviceMonitor
-      deviceMonitor.unregisterFileWriter(this);
+      if (!fileInfo.isHdfs()) {
+        logger.debug("file info {} register from device monitor");
+        deviceMonitor.unregisterFileWriter(this);
+      }
     }
     return bytesFlushed;
   }
