@@ -609,6 +609,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisLogAppenderQueueBytesLimit: Long =
     get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
   def haMasterRatisLogPurgeGap: Int = get(HA_MASTER_RATIS_LOG_PURGE_GAP)
+  def haMasterRatisLogInstallSnapshotEnabled: Boolean =
+    get(HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED)
   def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
@@ -1516,6 +1518,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32MB")
+
+  val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val HA_MASTER_RATIS_LOG_PURGE_GAP: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
