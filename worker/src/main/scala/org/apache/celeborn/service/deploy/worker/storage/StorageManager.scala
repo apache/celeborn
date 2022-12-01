@@ -119,6 +119,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
+  if (!hdfsDir.isEmpty) {
+    logInfo(s"Initialize HDFS support with path ${hdfsDir}")
+  }
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher =
@@ -253,7 +256,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
-    if (healthyWorkingDirs().size <= 0) {
+    if (healthyWorkingDirs().size <= 0 && hdfsDir.isEmpty) {
       throw new IOException("No available working dirs!")
     }
 

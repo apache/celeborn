@@ -284,6 +284,8 @@ public abstract class RssInputStream extends InputStream {
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
 
+      logger.debug("create reader for location {}", location);
+
       StorageInfo storageInfo = location.getStorageInfo();
       if (storageInfo.getType() == StorageInfo.Type.HDD
           || storageInfo.getType() == StorageInfo.Type.SSD) {

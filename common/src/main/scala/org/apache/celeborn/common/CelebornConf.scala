@@ -378,8 +378,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
-  def clientRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(CLIENT_RPC_ASK_TIMEOUT).milli, CLIENT_RPC_ASK_TIMEOUT.key)
+  def haClientRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(HA_CLIENT_RPC_ASK_TIMEOUT).milli, HA_CLIENT_RPC_ASK_TIMEOUT.key)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli, REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
 
@@ -611,6 +611,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisLogAppenderQueueBytesLimit: Long =
     get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
   def haMasterRatisLogPurgeGap: Int = get(HA_MASTER_RATIS_LOG_PURGE_GAP)
+  def haMasterRatisLogInstallSnapshotEnabled: Boolean =
+    get(HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED)
   def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
@@ -678,6 +680,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
+  def pushDataRpcTimeoutMs = get(PUSH_DATA_RPC_TIMEOUT)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1011,12 +1014,12 @@ object CelebornConf extends Logging {
       .doc("Timeout for RPC ask operations.")
       .fallbackConf(NETWORK_TIMEOUT)
 
-  val CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.rpc.askTimeout")
+  val HA_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.haClient.askTimeout")
       .withAlternative("rss.haclient.rpc.askTimeout")
-      .categories("client")
+      .categories("network")
       .version("0.2.0")
-      .doc("Timeout for client RPC ask operations.")
+      .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(NETWORK_TIMEOUT)
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
@@ -1525,6 +1528,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32MB")
+
+  val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
+      .internal
+      .categories("master")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val HA_MASTER_RATIS_LOG_PURGE_GAP: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
@@ -2646,4 +2657,13 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val PUSH_DATA_RPC_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.data.rpc.timeout")
+      .withAlternative("rss.push.data.rpc.timeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout for a task to push data rpc message.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 }
