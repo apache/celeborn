@@ -266,8 +266,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
               batchHandleCommitPartitionExecutors.submit {
                 new Runnable {
                   override def run(): Unit = {
-                    val workerToRequests
-                        : Map[WorkerInfo, Set[PartitionLocation]] = shuffleCommittedInfo.synchronized {
+                    val workerToRequests = shuffleCommittedInfo.synchronized {
                       // When running to here, if handleStageEnd got lock first and commitFiles,
                       // then this batch get this lock, commitPartitionRequests may contains
                       // partitions which are already committed by stageEnd process.
@@ -277,7 +276,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                         stageEndShuffleSet.contains(shuffleId)) {
                         logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
                         shuffleCommittedInfo.commitPartitionRequests.clear()
-                        Map.empty
+                        Map.empty[WorkerInfo, Set[PartitionLocation]]
                       } else {
                         val batch = new util.HashSet[CommitPartitionRequest]()
                         batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
@@ -307,9 +306,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                           }.groupBy(_.getWorker)
                           shuffleCommittedInfo.inFlightCommitRequest.addAndGet(
                             workerToRequests.size)
-                          return workerToRequests
+                          workerToRequests
+                        } else {
+                          Map.empty[WorkerInfo, Set[PartitionLocation]]
                         }
-                        Map.empty
                       }
                     }
                     if (workerToRequests.nonEmpty) {
