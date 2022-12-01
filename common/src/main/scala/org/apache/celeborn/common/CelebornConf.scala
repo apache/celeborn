@@ -380,6 +380,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
   def haClientRpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(HA_CLIENT_RPC_ASK_TIMEOUT).milli, HA_CLIENT_RPC_ASK_TIMEOUT.key)
+  def registerShuffleRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
+      REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
 
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
@@ -1019,6 +1023,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(NETWORK_TIMEOUT)
+
+  val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.registerShuffle.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc("Timeout for ask operations during register shuffle.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
