@@ -37,7 +37,7 @@ import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -198,7 +198,7 @@ public final class FileWriter implements DeviceObserver {
     }
 
     final int numBytes = data.readableBytes();
-    MemoryTracker.instance().incrementDiskBuffer(numBytes);
+    MemoryManager.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
       if (closed) {
         String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();

@@ -39,7 +39,8 @@ import org.apache.celeborn.common.meta.{DiskInfo, PartitionLocationInfo, WorkerI
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.network.server.{ChannelsLimiter, MemoryTracker}
+import org.apache.celeborn.common.network.server.ChannelsLimiter
+import org.apache.celeborn.common.network.server.memory.MemoryManager
 import org.apache.celeborn.common.protocol.{PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -90,11 +91,13 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryTracker = MemoryTracker.initialize(
+  val memoryTracker = MemoryManager.initialize(
     conf.workerDirectMemoryRatioToPauseReceive,
     conf.workerDirectMemoryRatioToPauseReplicate,
     conf.workerDirectMemoryRatioToResume,
     conf.partitionSorterDirectMemoryRatioThreshold,
+    conf.workerDirectMemoryRatioForReadBuffer,
+    conf.workerDirectMemoryRatioForShuffleStorage,
     conf.workerDirectMemoryPressureCheckIntervalMs,
     conf.workerDirectMemoryReportIntervalSecond)
   memoryTracker.registerMemoryListener(storageManager)

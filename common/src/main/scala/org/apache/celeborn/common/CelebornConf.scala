@@ -709,7 +709,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
 
   // //////////////////////////////////////////////////////
-  //                  Memory Tracker                    //
+  //                  Memory Manager                    //
   // //////////////////////////////////////////////////////
   def workerDirectMemoryRatioToPauseReceive: Double = get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE)
   def workerDirectMemoryRatioToPauseReplicate: Double =
@@ -719,6 +719,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
+  def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
+  def workerDirectMemoryRatioForShuffleStorage: Double =
+    get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -2433,6 +2436,24 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .createWithDefault(0.1)
+
+  val WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioForReadBuffer")
+      .categories("worker")
+      .doc("Max ratio of direct memory for read buffer")
+      .version("0.2.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 0.4, "should be in [0.0, 0.4].")
+      .createWithDefault(0.1)
+
+  val WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioForMemoryShuffleStorage")
+      .categories("worker")
+      .doc("Max ratio of direct memory to store shuffle data")
+      .version("0.2.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 0.4, "should be in [0.0, 0.4].")
       .createWithDefault(0.1)
 
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE: ConfigEntry[Double] =
