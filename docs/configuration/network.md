@@ -41,6 +41,6 @@ license: |
 | celeborn.rpc.connect.threads | 64 |  | 0.2.0 | 
 | celeborn.rpc.haClient.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for HA client RPC ask operations. | 0.2.0 | 
 | celeborn.rpc.lookupTimeout | 30s | Timeout for RPC lookup operations. | 0.2.0 | 
-| celeborn.rpc.registerShuffle.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for ask operations during register shuffle. | 0.2.0 | 
+| celeborn.rpc.registerShuffle.askTimeout | 600s | Timeout for ask operations during register shuffle. | 0.2.0 | 
 | celeborn.shuffle.maxChunksBeingTransferred | 9223372036854775807 | The max number of chunks allowed to be transferred at the same time on shuffle service. Note that new incoming connections will be closed when the max number is hit. The client will retry according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and `celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure. | 0.2.0 | 
 <!--end-include-->
