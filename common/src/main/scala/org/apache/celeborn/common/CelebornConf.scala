@@ -376,16 +376,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcConnectThreads: Int = get(RPC_CONNECT_THREADS)
   def rpcLookupTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
-  def rpcAskTimeout(func: String = "default"): RpcTimeout = {
-    if (func == "client") {
-      HARpcAskTimeout
-    } else {
-      val key = RPC_ASK_TIMEOUT.key.replace("<func>", func)
-      new RpcTimeout(getTimeAsMs(key, NETWORK_TIMEOUT.defaultValueString).milli, key)
-    }
-  }
-  def HARpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(HA_RPC_ASK_TIMEOUT).milli, HA_RPC_ASK_TIMEOUT.key)
+  def rpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
+  def clientRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(CLIENT_RPC_ASK_TIMEOUT).milli, CLIENT_RPC_ASK_TIMEOUT.key)
 
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
@@ -1008,17 +1002,17 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.<func>.rpc.askTimeout")
+    buildConf("celeborn.rpc.askTimeout")
       .withAlternative("rss.rpc.askTimeout")
       .categories("network")
       .version("0.2.0")
       .doc("Timeout for RPC ask operations.")
       .fallbackConf(NETWORK_TIMEOUT)
 
-  val HA_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.rpc.askTimeout")
+  val CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.askTimeout")
       .withAlternative("rss.haclient.rpc.askTimeout")
-      .categories("network")
+      .categories("client")
       .version("0.2.0")
       .doc("Timeout for client RPC ask operations.")
       .fallbackConf(NETWORK_TIMEOUT)
