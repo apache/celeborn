@@ -55,7 +55,11 @@ public enum StatusCode {
   WORKER_IN_BLACKLIST(27),
   UNKNOWN_WORKER(28),
 
-  COMMIT_FILE_EXCEPTION(29);
+  COMMIT_FILE_EXCEPTION(29),
+
+  // Rate limit statuses
+  PUSH_DATA_SUCCESS_MASTER_CONGESTED(30),
+  PUSH_DATA_SUCCESS_SLAVE_CONGESTED(31);
 
   private final byte value;
 

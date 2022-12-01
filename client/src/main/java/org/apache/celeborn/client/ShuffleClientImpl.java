@@ -591,6 +591,8 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onSuccess(ByteBuffer response) {
               pushState.inFlightBatches.remove(nextBatchId);
+              // TODO Need to adjust maxReqsInFlight if server response is congested, see
+              // CELEBORN-62
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
@@ -895,6 +897,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 attemptId,
                 groupedBatchId);
             pushState.inFlightBatches.remove(groupedBatchId);
+            // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               mapperEndMap
                   .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
