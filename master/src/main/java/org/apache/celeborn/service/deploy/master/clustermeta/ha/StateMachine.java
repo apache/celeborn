@@ -191,8 +191,10 @@ public class StateMachine extends BaseStateMachine {
   @Override
   public void reinitialize() throws IOException {
     LOG.info("Reinitializing state machine.");
+    getLifeCycle().compareAndTransition(PAUSED, STARTING);
     storage.loadLatestSnapshot();
     loadSnapshot(storage.getLatestSnapshot());
+    getLifeCycle().compareAndTransition(STARTING, RUNNING);
   }
 
   @Override
