@@ -267,6 +267,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         () ->
             driverRssMetaService.askSync(
                 RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
+                conf.registerShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
