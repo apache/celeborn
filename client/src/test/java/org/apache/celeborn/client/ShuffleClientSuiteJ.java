@@ -181,11 +181,9 @@ public class ShuffleClientSuiteJ {
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
-            t -> {
-              System.out.println("Return");
-              return RegisterShuffleResponse$.MODULE$.apply(
-                  StatusCode.SUCCESS, new PartitionLocation[] {masterLocation});
-            });
+            t ->
+                RegisterShuffleResponse$.MODULE$.apply(
+                    StatusCode.SUCCESS, new PartitionLocation[] {masterLocation}));
 
     shuffleClient.setupMetaServiceRef(endpointRef);
 

@@ -295,6 +295,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 driverRssMetaService.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         appId, shuffleId, numMappers, mapId, attemptId, partitionId),
+                    conf.registerShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
     return partitionLocationMap.get(partitionId);
   }
