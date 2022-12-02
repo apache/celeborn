@@ -384,6 +384,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
       REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+  def mapperEndRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(MAPPER_END_RPC_ASK_TIMEOUT).milli, MAPPER_END_RPC_ASK_TIMEOUT.key)
 
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
@@ -1028,7 +1030,15 @@ object CelebornConf extends Logging {
     buildConf("celeborn.rpc.registerShuffle.askTimeout")
       .categories("network")
       .version("0.2.0")
-      .doc("Timeout for ask operations during register shuffle.")
+      .doc("Timeout for ask operations during request register shuffle.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
+
+  val MAPPER_END_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.mapperEnd.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc("Timeout for ask operations during request mapper end.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 

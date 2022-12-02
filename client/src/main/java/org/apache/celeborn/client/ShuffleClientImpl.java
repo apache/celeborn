@@ -1036,6 +1036,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       MapperEndResponse response =
           driverRssMetaService.askSync(
               new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers),
+              conf.mapperEndRpcAskTimeout(),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
         throw new IOException("MapperEnd failed! StatusCode: " + response.status());
