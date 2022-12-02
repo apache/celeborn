@@ -723,15 +723,23 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
-    // only blacklist if cause is PushDataFailMain
     val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
-    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
-      val tmpWorker = oldPartition.getWorker
-      val worker = workerSnapshots(shuffleId).keySet().asScala
-        .find(_.equals(tmpWorker))
-      if (worker.isDefined) {
-        failedWorker.put(worker.get, (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
-      }
+    cause match {
+      case StatusCode.PUSH_DATA_FAIL_MASTER =>
+        val tmpWorker = oldPartition.getWorker
+        val worker = workerSnapshots(shuffleId).keySet().asScala
+          .find(_.equals(tmpWorker))
+        if (worker.isDefined) {
+          failedWorker.put(worker.get, (cause, System.currentTimeMillis()))
+        }
+      case StatusCode.PUSH_DATA_FAIL_SLAVE if oldPartition.getPeer != null =>
+        val tmpWorker = oldPartition.getPeer.getWorker
+        val worker = workerSnapshots(shuffleId).keySet().asScala
+          .find(_.equals(tmpWorker))
+        if (worker.isDefined) {
+          failedWorker.put(worker.get, (cause, System.currentTimeMillis()))
+        }
+      case _ => // Do nothing
     }
     if (!failedWorker.isEmpty) {
       recordWorkerFailure(failedWorker)
@@ -857,9 +865,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
-      changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
-        blacklistPartition(shuffleId, changePartition.oldPartition, changePartition.causes.get)
-      }
+      changePartitions
+        .filter(_.causes.isDefined)
+        .filter(_.oldPartition != null)
+        .foreach { changePartition =>
+          blacklistPartition(shuffleId, changePartition.oldPartition, changePartition.causes.get)
+        }
     }
 
     // remove together to reduce lock time
