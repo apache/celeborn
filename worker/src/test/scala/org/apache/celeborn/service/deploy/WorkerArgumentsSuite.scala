@@ -27,7 +27,7 @@ import org.apache.celeborn.service.deploy.worker.WorkerArguments
 
 class WorkerArgumentsSuite extends AnyFunSuite with Logging {
 
-  test("[CELEBORN-98] Test build workerArguments in different case\"") {
+  test("[CELEBORN-98] Test build workerArguments in different case") {
     val args1 = Array.empty[String]
     val conf1 = new CelebornConf()
 
