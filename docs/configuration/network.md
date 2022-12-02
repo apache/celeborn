@@ -39,7 +39,7 @@ license: |
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
 | celeborn.rpc.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for RPC ask operations. | 0.2.0 | 
 | celeborn.rpc.connect.threads | 64 |  | 0.2.0 | 
-| celeborn.rpc.getFileGroup.askTimeout | 600s | Timeout for ask operations during get reduce file group. | 0.2.0 | 
+| celeborn.rpc.getReducerFileGroup.askTimeout | 600s | Timeout for ask operations during get reducer file group. | 0.2.0 | 
 | celeborn.rpc.haClient.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for HA client RPC ask operations. | 0.2.0 | 
 | celeborn.rpc.lookupTimeout | 30s | Timeout for RPC lookup operations. | 0.2.0 | 
 | celeborn.rpc.registerShuffle.askTimeout | 600s | Timeout for ask operations during register shuffle. | 0.2.0 | 

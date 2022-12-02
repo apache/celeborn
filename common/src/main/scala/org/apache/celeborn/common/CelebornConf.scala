@@ -385,7 +385,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
       REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
   def getReducerFileGroupRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(GET_FILE_GROUP_RPC_ASK_TIMEOUT).milli, GET_FILE_GROUP_RPC_ASK_TIMEOUT.key)
+    new RpcTimeout(
+      get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
+      GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
@@ -1034,11 +1036,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
-  val GET_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.getFileGroup.askTimeout")
+  val GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.getReducerFileGroup.askTimeout")
       .categories("network")
       .version("0.2.0")
-      .doc("Timeout for ask operations during get reduce file group.")
+      .doc("Timeout for ask operations during get reducer file group.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
