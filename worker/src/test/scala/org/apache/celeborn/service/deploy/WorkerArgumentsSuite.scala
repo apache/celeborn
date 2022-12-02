@@ -15,39 +15,38 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master
+package org.apache.celeborn.service.deploy
 
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{MASTER_HOST, MASTER_PORT}
+import org.apache.celeborn.common.CelebornConf.WORKER_RPC_PORT
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.service.deploy.worker.WorkerArguments
 
-class MasterArgumentsSuite extends AnyFunSuite with Logging {
+class WorkerArgumentsSuite extends AnyFunSuite with Logging {
 
-  test("Test build masterArguments") {
+  test("Test build workerArguments") {
     val args1 = Array.empty[String]
     val conf1 = new CelebornConf()
 
-    val arguments1 = new MasterArguments(args1, conf1)
+    val arguments1 = new WorkerArguments(args1, conf1)
     assert(arguments1.host.equals(Utils.localHostName))
-    assert(arguments1.port == 9097)
+    assert(arguments1.port == 0)
 
     // should use celeborn conf
     val conf2 = new CelebornConf()
-    conf2.set(MASTER_HOST, "test-host-1")
-    conf2.set(MASTER_PORT, 19097)
+    conf2.set(WORKER_RPC_PORT, 12345)
 
-    val arguments2 = new MasterArguments(args1, conf2)
-    assert(arguments2.host.equals("test-host-1"))
-    assert(arguments2.port == 19097)
+    val arguments2 = new WorkerArguments(args1, conf2)
+    assert(arguments2.port == 12345)
 
     // should use cli args
-    val args2 = Array("-h", "test-host-2", "-p", "29097")
+    val args2 = Array("-h", "test-host-1", "-p", "22345")
 
-    val arguments3 = new MasterArguments(args2, conf2)
-    assert(arguments3.host.equals("test-host-2"))
-    assert(arguments3.port == 29097)
+    val arguments3 = new WorkerArguments(args2, conf2)
+    assert(arguments3.host.equals("test-host-1"))
+    assert(arguments3.port == 22345)
   }
 }
