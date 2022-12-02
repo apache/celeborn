@@ -26,7 +26,7 @@ import org.apache.celeborn.common.util.Utils
 
 class MasterArgumentsSuite extends AnyFunSuite with Logging {
 
-  test("Test build masterArguments") {
+  test("[CELEBORN-98] Test build masterArguments in different case") {
     val args1 = Array.empty[String]
     val conf1 = new CelebornConf()
 
