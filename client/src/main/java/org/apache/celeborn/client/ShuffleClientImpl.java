@@ -1109,11 +1109,11 @@ public class ShuffleClientImpl extends ShuffleClient {
 
                 GetReducerFileGroup getReducerFileGroup =
                     new GetReducerFileGroup(applicationId, shuffleId);
-                ClassTag<GetReducerFileGroupResponse> classTag =
-                    ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class);
 
                 GetReducerFileGroupResponse response =
-                    driverRssMetaService.askSync(getReducerFileGroup, classTag);
+                    driverRssMetaService.askSync(getReducerFileGroup,
+                            conf.getReducerFileGroupRpcAskTimeout(),
+                            ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
                 if (response.status() == StatusCode.SUCCESS) {
                   logger.info(
