@@ -36,12 +36,15 @@ license: |
 | celeborn.push.retry.threads | 8 | Thread number to process shuffle re-send push data requests. | 0.2.0 | 
 | celeborn.push.sortMemory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
-| celeborn.push.stageEnd.timeout | 240s | Timeout for StageEnd. | 0.2.0 | 
+| celeborn.push.stageEnd.timeout | &lt;undefined&gt; | Timeout for waiting StageEnd. Default value is same as `celeborn.rpc.askTimeout`. | 0.2.0 | 
 | celeborn.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
 | celeborn.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.2.0 | 
 | celeborn.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.2.0 | 
+| celeborn.rpc.getReducerFileGroup.askTimeout | &lt;undefined&gt; | Timeout for ask operations during get reducer file group. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1 + 1)`. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
+| celeborn.rpc.registerShuffle.askTimeout | &lt;undefined&gt; | Timeout for ask operations during register shuffle. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1 + 1)`. | 0.2.0 | 
 | celeborn.rpc.requestCommitFiles.maxRetries | 2 | Max retry times for requestCommitFiles RPC. | 1.0.0 | 
+| celeborn.rpc.requestPartition.askTimeout | &lt;undefined&gt; | Timeout for ask operations during request change partition location, such as revive or split partition. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1)`. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.enabled | false | When true, LifecycleManager will handle change partition request in batch. Otherwise, LifecycleManager will process the requests one by one | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.interval | 100ms | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.threads | 8 | Threads number for LifecycleManager to handle change partition request in batch. | 0.2.0 | 

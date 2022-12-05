@@ -2077,7 +2077,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.push.stageEnd.timeout")
       .withAlternative("rss.stage.end.timeout")
       .categories("client")
-      .doc(s"Timeout for waiting StageEnd. Default value is same as ${RPC_ASK_TIMEOUT.key}.")
+      .doc(s"Timeout for waiting StageEnd. Default value is same as `${RPC_ASK_TIMEOUT.key}`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
@@ -2212,25 +2212,28 @@ object CelebornConf extends Logging {
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.registerShuffle.askTimeout")
-      .categories("network")
+      .categories("client")
       .version("0.2.0")
-      .doc(s"Timeout for ask operations during register shuffle. Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
+      .doc(s"Timeout for ask operations during register shuffle. " +
+        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
   val REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.requestPartition.askTimeout")
-      .categories("network")
+      .categories("client")
       .version("0.2.0")
-      .doc(s"Timeout for ask operations during request change partition location, such as revive or split partition. Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1)`.")
+      .doc(s"Timeout for ask operations during request change partition location, such as revive or split partition. " +
+        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
   val GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.getReducerFileGroup.askTimeout")
-      .categories("network")
+      .categories("client")
       .version("0.2.0")
-      .doc(s"Timeout for ask operations during get reducer file group. Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
+      .doc(s"Timeout for ask operations during get reducer file group. " +
+        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
