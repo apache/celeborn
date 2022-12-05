@@ -50,13 +50,13 @@ public class MemoryManager {
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-check");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-checker");
 
   private final ScheduledExecutorService reportService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-reporter");
 
   private final ExecutorService actionService =
-      ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-action");
+      ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-actor");
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
