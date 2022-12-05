@@ -652,8 +652,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback)
     extends RpcResponseCallback {
     override def onSuccess(response: ByteBuffer): Unit = {
+      workerSource.stopTimer(workerSourceTime, s"$requestId")
       if (isMaster) {
-        workerSource.stopTimer(workerSourceTime, s"$requestId")
         if (response.remaining() > 0) {
           val resp = ByteBuffer.allocate(response.remaining())
           resp.put(response)
@@ -665,7 +665,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           callback.onSuccess(response)
         }
       } else {
-        workerSource.stopTimer(workerSourceTime, s"$requestId")
         callback.onSuccess(response)
       }
     }
