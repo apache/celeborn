@@ -1924,7 +1924,20 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       : Unit = {
     val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    blacklist.putAll(failedWorker)
+    failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
+      if (!blacklist.containsKey(worker)) {
+        blacklist.put(worker, (statusCode, registerTime))
+      } else {
+        statusCode match {
+          case StatusCode.WORKER_SHUTDOWN |
+              StatusCode.NO_AVAILABLE_WORKING_DIR |
+              StatusCode.RESERVE_SLOTS_FAILED |
+              StatusCode.UNKNOWN_WORKER =>
+            blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
+          case _ => // Not cover
+        }
+      }
+    }
   }
 
   def checkQuota(): Boolean = {
