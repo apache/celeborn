@@ -452,6 +452,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   epoch,
                   oldLocation,
                   cause),
+              conf.requestPartitionLocationRpcAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
       // per partitionKey only serve single PartitionLocation in Client Cache.
       StatusCode respStatus = Utils.toStatusCode(response.getStatus());
@@ -766,6 +767,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     ShuffleClientHelper.sendShuffleSplitAsync(
         driverRssMetaService,
+        conf,
         PartitionSplit$.MODULE$.apply(applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
         splittingSet,
@@ -1304,6 +1306,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                         location.getEpoch(),
                         location,
                         StatusCode.HARD_SPLIT),
+                    conf.requestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
             // per partitionKey only serve single PartitionLocation in Client Cache.
             StatusCode respStatus = Utils.toStatusCode(response.getStatus());

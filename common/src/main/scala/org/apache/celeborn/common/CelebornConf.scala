@@ -384,6 +384,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
       REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+  def requestPartitionLocationRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).milli,
+      REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
   def getReducerFileGroupRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
@@ -1033,6 +1037,14 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.2.0")
       .doc("Timeout for ask operations during register shuffle.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
+
+  val REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.requestPartition.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc("Timeout for ask operations during request change partition location, such as revive or split partition.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
