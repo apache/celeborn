@@ -380,18 +380,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
   def haClientRpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(HA_CLIENT_RPC_ASK_TIMEOUT).milli, HA_CLIENT_RPC_ASK_TIMEOUT.key)
-  def registerShuffleRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
-      REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
-  def requestPartitionLocationRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).milli,
-      REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
-  def getReducerFileGroupRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
-      GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
@@ -675,7 +663,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
-  def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT)
+  def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT))
   def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
@@ -691,6 +679,39 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataRpcTimeoutMs = get(PUSH_DATA_RPC_TIMEOUT)
+  def registerShuffleRpcAskTimeout: RpcTimeout = {
+    get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map { timeout =>
+      new RpcTimeout(
+        timeout.milli,
+        REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+    }.getOrElse {
+      new RpcTimeout(
+        rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2),
+        REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+    }
+  }
+  def requestPartitionLocationRpcAskTimeout: RpcTimeout = {
+    get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).map { timeout =>
+      new RpcTimeout(
+        timeout.milli,
+        REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
+    }.getOrElse {
+      new RpcTimeout(
+        rpcAskTimeout.duration * (reserveSlotsMaxRetries + 1),
+        REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
+    }
+  }
+  def getReducerFileGroupRpcAskTimeout: RpcTimeout = {
+    get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map { timeout =>
+      new RpcTimeout(
+        timeout.milli,
+        GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
+    }.getOrElse {
+      new RpcTimeout(
+        rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2),
+        GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
+    }
+  }
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1031,30 +1052,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(NETWORK_TIMEOUT)
-
-  val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.registerShuffle.askTimeout")
-      .categories("network")
-      .version("0.2.0")
-      .doc("Timeout for ask operations during register shuffle.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
-
-  val REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.requestPartition.askTimeout")
-      .categories("network")
-      .version("0.2.0")
-      .doc("Timeout for ask operations during request change partition location, such as revive or split partition.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
-
-  val GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.getReducerFileGroup.askTimeout")
-      .categories("network")
-      .version("0.2.0")
-      .doc("Timeout for ask operations during get reducer file group.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
@@ -2076,14 +2073,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10min")
 
-  val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
+  val PUSH_STAGE_END_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.push.stageEnd.timeout")
       .withAlternative("rss.stage.end.timeout")
       .categories("client")
-      .doc("Timeout for StageEnd.")
+      .doc(s"Timeout for waiting StageEnd. Default value is same as ${RPC_ASK_TIMEOUT.key}.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("240s")
+      .createOptional
 
   val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.limit.inFlight.timeout")
@@ -2203,6 +2200,39 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val PUSH_DATA_RPC_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.data.rpc.timeout")
+      .withAlternative("rss.push.data.rpc.timeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout for a task to push data rpc message.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
+    buildConf("celeborn.rpc.registerShuffle.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc(s"Timeout for ask operations during register shuffle. Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createOptional
+
+  val REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
+    buildConf("celeborn.rpc.requestPartition.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc(s"Timeout for ask operations during request change partition location, such as revive or split partition. Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1)`.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createOptional
+
+  val GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
+    buildConf("celeborn.rpc.getReducerFileGroup.askTimeout")
+      .categories("network")
+      .version("0.2.0")
+      .doc(s"Timeout for ask operations during get reducer file group. Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createOptional
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
@@ -2684,13 +2714,4 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
-
-  val PUSH_DATA_RPC_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.push.data.rpc.timeout")
-      .withAlternative("rss.push.data.rpc.timeout")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Timeout for a task to push data rpc message.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("120s")
 }
