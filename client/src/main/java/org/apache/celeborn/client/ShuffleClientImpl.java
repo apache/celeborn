@@ -26,7 +26,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -1111,11 +1110,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
                 GetReducerFileGroup getReducerFileGroup =
                     new GetReducerFileGroup(applicationId, shuffleId);
-                ClassTag<GetReducerFileGroupResponse> classTag =
-                    ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class);
 
                 GetReducerFileGroupResponse response =
-                    driverRssMetaService.askSync(getReducerFileGroup, classTag);
+                    driverRssMetaService.askSync(
+                        getReducerFileGroup,
+                        conf.getReducerFileGroupRpcAskTimeout(),
+                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
                 if (response.status() == StatusCode.SUCCESS) {
                   logger.info(

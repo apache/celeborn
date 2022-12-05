@@ -38,10 +38,6 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   _host = _host.orElse(Some(Utils.localHostName))
   _port = _port.orElse(Some(conf.workerRpcPort))
 
-  if (_host.isEmpty || _port.isEmpty) {
-    printUsageAndExit(1)
-  }
-
   def host: String = _host.get
 
   def port: Int = _port.get
