@@ -21,6 +21,7 @@ import java.util.concurrent.{ConcurrentHashMap, ExecutorService}
 
 import scala.util.{Failure, Success}
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbChangeLocationResponse, PbPartitionSplit}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -30,13 +31,16 @@ import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
 object ShuffleClientHelper extends Logging {
   def sendShuffleSplitAsync(
       endpointRef: RpcEndpointRef,
+      conf: CelebornConf,
       req: PbPartitionSplit,
       executors: ExecutorService,
       splittingSet: java.util.Set[Integer],
       partitionId: Int,
       shuffleId: Int,
       shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
-    endpointRef.ask[PbChangeLocationResponse](req).onComplete {
+    endpointRef.ask[PbChangeLocationResponse](
+      req,
+      conf.requestPartitionLocationRpcAskTimeout).onComplete {
       case Success(resp) =>
         val respStatus = Utils.toStatusCode(resp.getStatus)
         if (respStatus == StatusCode.SUCCESS) {

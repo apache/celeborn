@@ -25,8 +25,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
-import scala.reflect.ClassTag$;
-
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
@@ -41,7 +39,6 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.PbRegisterShuffleResponse;
 import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -182,9 +179,7 @@ public class ShuffleClientSuiteJ {
     shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
 
     masterLocation.setPeer(slaveLocation);
-    when(endpointRef.askSync(
-            RegisterShuffle$.MODULE$.apply(TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
-            ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
+    when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
             t ->
                 RegisterShuffleResponse$.MODULE$.apply(

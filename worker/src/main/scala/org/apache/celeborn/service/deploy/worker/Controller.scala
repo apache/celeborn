@@ -51,6 +51,7 @@ private[deploy] class Controller(
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   // shuffleKe -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
+  var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: PartitionLocationInfo = _
   var timer: HashedWheelTimer = _
@@ -64,6 +65,7 @@ private[deploy] class Controller(
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
     storageManager = worker.storageManager
+    shufflePartitionType = worker.shufflePartitionType
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     shuffleCommitInfos = worker.shuffleCommitInfos
     workerInfo = worker.workerInfo
@@ -145,7 +147,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && storageManager.hdfsDir.isEmpty) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
@@ -236,7 +238,7 @@ private[deploy] class Controller(
     // reserve success, update status
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterLocs)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slaveLocs)
-
+    shufflePartitionType.put(shuffleKey, partitionType)
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(requestMasterLocs, requestSlaveLocs))
 
     logInfo(s"Reserved ${masterLocs.size()} master location" +

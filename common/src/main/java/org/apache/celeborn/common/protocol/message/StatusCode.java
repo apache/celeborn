@@ -55,7 +55,18 @@ public enum StatusCode {
   WORKER_IN_BLACKLIST(27),
   UNKNOWN_WORKER(28),
 
-  COMMIT_FILE_EXCEPTION(29);
+  COMMIT_FILE_EXCEPTION(29),
+
+  // Rate limit statuses
+  PUSH_DATA_SUCCESS_MASTER_CONGESTED(30),
+  PUSH_DATA_SUCCESS_SLAVE_CONGESTED(31),
+
+  PUSH_DATA_HANDSHAKE_FAIL_SLAVE(32),
+  PUSH_DATA_HANDSHAKE_FAIL_MASTER(33),
+  REGION_START_FAIL_SLAVE(34),
+  REGION_START_FAIL_MASTER(35),
+  REGION_FINISH_FAIL_SLAVE(36),
+  REGION_FINISH_FAIL_MASTER(37);
 
   private final byte value;
 
@@ -80,7 +91,20 @@ public enum StatusCode {
       msg = "PushDataFailPartitionNotFound";
     } else if (value == HARD_SPLIT.getValue()) {
       msg = "PartitionFileSplit";
+    } else if (value == PUSH_DATA_HANDSHAKE_FAIL_MASTER.getValue()) {
+      msg = "PushDataHandShakeFailMaster";
+    } else if (value == PUSH_DATA_HANDSHAKE_FAIL_SLAVE.getValue()) {
+      msg = "PushDataHandShakeFailSlave";
+    } else if (value == REGION_START_FAIL_MASTER.getValue()) {
+      msg = "RegionStartFailMaster";
+    } else if (value == REGION_START_FAIL_SLAVE.getValue()) {
+      msg = "RegionStartFailSlave";
+    } else if (value == REGION_FINISH_FAIL_MASTER.getValue()) {
+      msg = "RegionFinishFailMaster";
+    } else if (value == REGION_FINISH_FAIL_SLAVE.getValue()) {
+      msg = "RegionFinishFailSlave";
     }
+
     return msg;
   }
 

@@ -51,10 +51,6 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
     _port = _port.orElse(Some(conf.masterPort))
   }
 
-  if (_host.isEmpty || _port.isEmpty) {
-    printUsageAndExit(1)
-  }
-
   def host: String = _host.get
 
   def port: Int = _port.get

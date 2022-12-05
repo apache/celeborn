@@ -85,6 +85,22 @@ public final class FileWriter implements DeviceObserver {
 
   private final FlushNotifier notifier = new FlushNotifier();
 
+  // //////////////////////////////////////////////////////
+  //            map partition                            //
+  // //////////////////////////////////////////////////////
+
+  /** Number of reducepartitions */
+  private int numReducePartitions;
+
+  /** Index number of the current data region being written. */
+  private int currentDataRegionIndex;
+
+  /**
+   * Whether current data region is a broadcast region or not. If true, buffers added to this region
+   * will be written to all reduce partitions.
+   */
+  private boolean isBroadcastRegion;
+
   public FileWriter(
       FileInfo fileInfo,
       Flusher flusher,
@@ -286,7 +302,10 @@ public final class FileWriter implements DeviceObserver {
       }
 
       // unregister from DeviceMonitor
-      deviceMonitor.unregisterFileWriter(this);
+      if (!fileInfo.isHdfs()) {
+        logger.debug("file info {} register from device monitor");
+        deviceMonitor.unregisterFileWriter(this);
+      }
     }
     return bytesFlushed;
   }
@@ -459,4 +478,21 @@ public final class FileWriter implements DeviceObserver {
 
   @Override
   public void notifyNonCriticalError(String mountPoint, DiskStatus diskStatus) {}
+
+  public PartitionType getPartitionType() {
+    return partitionType;
+  }
+
+  public void pushDataHandShake(int numReducePartitions) {
+    this.numReducePartitions = numReducePartitions;
+  }
+
+  public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
+    this.currentDataRegionIndex = currentDataRegionIndex;
+    this.isBroadcastRegion = isBroadcastRegion;
+  }
+
+  public void regionFinish() {
+    // flush index
+  }
 }

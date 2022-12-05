@@ -266,14 +266,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
               batchHandleCommitPartitionExecutors.submit {
                 new Runnable {
                   override def run(): Unit = {
-                    if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                      stageEndShuffleSet.contains(shuffleId)) {
-                      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                      shuffleCommittedInfo.synchronized {
+                    val workerToRequests = shuffleCommittedInfo.synchronized {
+                      // When running to here, if handleStageEnd got lock first and commitFiles,
+                      // then this batch get this lock, commitPartitionRequests may contains
+                      // partitions which are already committed by stageEnd process.
+                      // But inProcessStageEndShuffleSet should have contain this shuffle id,
+                      // can directly return.
+                      if (inProcessStageEndShuffleSet.contains(shuffleId) ||
+                        stageEndShuffleSet.contains(shuffleId)) {
+                        logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
                         shuffleCommittedInfo.commitPartitionRequests.clear()
-                      }
-                    } else {
-                      val currentBatch = shuffleCommittedInfo.synchronized {
+                        Map.empty[WorkerInfo, Set[PartitionLocation]]
+                      } else {
                         val batch = new util.HashSet[CommitPartitionRequest]()
                         batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
                         val currentBatch = batch.asScala.filterNot { request =>
@@ -289,32 +293,30 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               .add(commitPartitionRequest.partition.getPeer)
                           }
                         }
-                        // When running to here, if handleStageEnd got lock first and commitFiles,
-                        // then this batch get this lock, commitPartitionRequests may contains
-                        // partitions which are already committed by stageEnd process.
-                        // But inProcessStageEndShuffleSet should have contain this shuffle id,
-                        // can directly return.
-                        if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                          stageEndShuffleSet.contains(shuffleId)) {
-                          logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                          Seq.empty
+
+                        if (currentBatch.nonEmpty) {
+                          logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+                            s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
+                          val workerToRequests = currentBatch.flatMap { request =>
+                            if (request.partition.getPeer != null) {
+                              Seq(request.partition, request.partition.getPeer)
+                            } else {
+                              Seq(request.partition)
+                            }
+                          }.groupBy(_.getWorker)
+                          shuffleCommittedInfo.inFlightCommitRequest.addAndGet(
+                            workerToRequests.size)
+                          workerToRequests
                         } else {
-                          currentBatch
+                          Map.empty[WorkerInfo, Set[PartitionLocation]]
                         }
                       }
-                      if (currentBatch.nonEmpty) {
-                        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
-                          s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
-                        val workerToRequests = currentBatch.flatMap { request =>
-                          if (request.partition.getPeer != null) {
-                            Seq(request.partition, request.partition.getPeer)
-                          } else {
-                            Seq(request.partition)
-                          }
-                        }.groupBy(_.getWorker)
-                        val commitFilesFailedWorkers =
-                          new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
-                        val parallelism = workerToRequests.size
+                    }
+                    if (workerToRequests.nonEmpty) {
+                      val commitFilesFailedWorkers =
+                        new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+                      val parallelism = workerToRequests.size
+                      try {
                         ThreadUtils.parmap(
                           workerToRequests.to,
                           "CommitFiles",
@@ -350,6 +352,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                               commitFilesFailedWorkers)
                         }
                         recordWorkerFailure(commitFilesFailedWorkers)
+                      } finally {
+                        shuffleCommittedInfo.inFlightCommitRequest.addAndGet(-workerToRequests.size)
                       }
                     }
                   }
@@ -1271,10 +1275,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           slaveIds,
           shuffleMapperAttempts.get(shuffleId),
           commitEpoch.incrementAndGet())
-        shuffleCommittedInfo.inFlightCommitRequest.incrementAndGet()
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
-        shuffleCommittedInfo.inFlightCommitRequest.decrementAndGet()
-
         res.status match {
           case StatusCode.SUCCESS => // do nothing
           case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.FAILED =>
@@ -1923,7 +1924,20 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       : Unit = {
     val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    blacklist.putAll(failedWorker)
+    failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
+      if (!blacklist.containsKey(worker)) {
+        blacklist.put(worker, (statusCode, registerTime))
+      } else {
+        statusCode match {
+          case StatusCode.WORKER_SHUTDOWN |
+              StatusCode.NO_AVAILABLE_WORKING_DIR |
+              StatusCode.RESERVE_SLOTS_FAILED |
+              StatusCode.UNKNOWN_WORKER =>
+            blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
+          case _ => // Not cover
+        }
+      }
+    }
   }
 
   def checkQuota(): Boolean = {

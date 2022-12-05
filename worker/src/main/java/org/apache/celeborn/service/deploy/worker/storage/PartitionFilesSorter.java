@@ -417,17 +417,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       throws IOException {
     // Worker read a shuffle block whose size is 256K by default.
     // So there is no need to worry about integer overflow.
-    ByteBuffer buffer = ByteBuffer.allocate(Math.toIntExact(length));
-    long transferredSize = 0;
-    while (buffer.hasRemaining()) {
-      int read = origin.read(offset + transferredSize, buffer);
-      transferredSize += read;
-      if (-1 == read) {
-        throw new IOException(
-            "Unexpected EOF, position :" + origin.getPos() + " buffer size :" + buffer.limit());
-      }
-    }
-    sorted.write(buffer.array());
+    byte[] buffer = new byte[Math.toIntExact(length)];
+    origin.readFully(offset, buffer);
+    sorted.write(buffer);
     return length;
   }
 

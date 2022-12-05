@@ -41,7 +41,7 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSo
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.server.ChannelsLimiter
 import org.apache.celeborn.common.network.server.memory.MemoryManager
-import org.apache.celeborn.common.protocol.{PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
@@ -178,8 +178,8 @@ private[celeborn] class Worker(
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
-
   val shuffleMapperAttempts = new ConcurrentHashMap[String, AtomicIntegerArray]()
+  val shufflePartitionType = new ConcurrentHashMap[String, PartitionType]
   val partitionLocationInfo = new PartitionLocationInfo
 
   val shuffleCommitInfos = new ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
@@ -424,6 +424,7 @@ private[celeborn] class Worker(
       }
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
+      shufflePartitionType.remove(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
       shuffleCommitInfos.remove(shuffleKey)
       workerInfo.releaseSlots(shuffleKey)

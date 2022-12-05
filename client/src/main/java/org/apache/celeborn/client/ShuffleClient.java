@@ -18,6 +18,7 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -25,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 /**
@@ -172,4 +174,28 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
+
+  public abstract Optional<PartitionLocation> regionStart(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      PartitionLocation location,
+      int currentRegionIdx,
+      boolean isBroadcast)
+      throws IOException;
+
+  public abstract void regionFinish(
+      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
+      throws IOException;
+
+  public abstract void pushDataHandShake(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numPartitions,
+      int bufferSize,
+      PartitionLocation location)
+      throws IOException;
 }
