@@ -681,16 +681,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataRpcTimeoutMs = get(PUSH_DATA_RPC_TIMEOUT)
 
   def registerShuffleRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
-      .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2)),
+    new RpcTimeout(
+      get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
+        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2)),
       REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
   def requestPartitionLocationRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).map(_.milli)
-      .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 1)),
+    new RpcTimeout(
+      get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).map(_.milli)
+        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 1)),
       REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
   def getReducerFileGroupRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
-      .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2)),
+    new RpcTimeout(
+      get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
+        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2)),
       GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
