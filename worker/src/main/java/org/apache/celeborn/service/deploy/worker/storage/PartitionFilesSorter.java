@@ -53,7 +53,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
@@ -88,7 +88,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
-  private MemoryTracker memoryTracker;
+  private MemoryManager memoryManager;
 
   protected final AbstractSource source;
 
@@ -100,13 +100,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final Thread fileSorterSchedulerThread;
 
   public PartitionFilesSorter(
-      MemoryTracker memoryTracker, CelebornConf conf, AbstractSource source) {
+      MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
     this.source = source;
-    this.memoryTracker = memoryTracker;
+    this.memoryManager = memoryManager;
     this.gracefulShutdown = conf.workerGracefulShutdown();
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
@@ -130,8 +130,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               try {
                 while (!shutdown) {
                   FileSorter task = shuffleSortTaskDeque.take();
-                  memoryTracker.reserveSortMemory(reservedMemoryPerPartition);
-                  while (!memoryTracker.sortMemoryReady()) {
+                  memoryManager.reserveSortMemory(reservedMemoryPerPartition);
+                  while (!memoryManager.sortMemoryReady()) {
                     Thread.sleep(20);
                   }
                   fileSorterExecutors.submit(
@@ -591,7 +591,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
 
         ((DirectBuffer) paddingBuf).cleaner().clean();
-        memoryTracker.releaseSortMemory(reserveMemory);
+        memoryManager.releaseSortMemory(reserveMemory);
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
@@ -657,9 +657,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity)
         throws InterruptedException {
-      memoryTracker.releaseSortMemory(oldCapacity);
-      memoryTracker.reserveSortMemory(newCapacity);
-      while (!memoryTracker.sortMemoryReady()) {
+      memoryManager.releaseSortMemory(oldCapacity);
+      memoryManager.reserveSortMemory(newCapacity);
+      while (!memoryManager.sortMemoryReady()) {
         Thread.sleep(20);
       }
       return ByteBuffer.allocateDirect(newCapacity);
