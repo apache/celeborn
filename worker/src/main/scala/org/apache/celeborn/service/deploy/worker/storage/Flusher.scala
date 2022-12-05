@@ -30,7 +30,7 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.DiskStatus
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.network.server.MemoryTracker
+import org.apache.celeborn.common.network.server.memory.MemoryManager
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
@@ -141,7 +141,7 @@ abstract private[worker] class Flusher(
   }
 
   def returnBuffer(buffer: CompositeByteBuf): Unit = {
-    MemoryTracker.instance().releaseDiskBuffer(buffer.readableBytes())
+    MemoryManager.instance().releaseDiskBuffer(buffer.readableBytes())
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 

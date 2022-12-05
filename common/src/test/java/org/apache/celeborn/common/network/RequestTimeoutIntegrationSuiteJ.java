@@ -39,10 +39,9 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.network.server.StreamManager;
+import org.apache.celeborn.common.network.server.ChunkStreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
@@ -56,7 +55,6 @@ public class RequestTimeoutIntegrationSuiteJ {
   private TransportServer server;
   private TransportClientFactory clientFactory;
 
-  private StreamManager defaultManager;
   private TransportConf conf;
 
   // A large timeout that "shouldn't happen", for the sake of faulty tests not hanging forever.
@@ -67,14 +65,6 @@ public class RequestTimeoutIntegrationSuiteJ {
     CelebornConf _conf = new CelebornConf();
     _conf.set("celeborn.shuffle.io.connectionTimeout", "2s");
     conf = new TransportConf("shuffle", _conf);
-
-    defaultManager =
-        new StreamManager() {
-          @Override
-          public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
-            throw new UnsupportedOperationException();
-          }
-        };
   }
 
   @After
@@ -194,8 +184,8 @@ public class RequestTimeoutIntegrationSuiteJ {
   @Test
   public void furtherRequestsDelay() throws Exception {
     final byte[] response = new byte[16];
-    final StreamManager manager =
-        new StreamManager() {
+    final ChunkStreamManager manager =
+        new ChunkStreamManager() {
           @Override
           public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
             Uninterruptibles.sleepUninterruptibly(FOREVER, TimeUnit.MILLISECONDS);
@@ -268,7 +258,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+    public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
       try {
         successLength = buffer.nioByteBuffer().remaining();
       } catch (IOException e) {
@@ -279,7 +269,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     }
 
     @Override
-    public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
+    public void onFailure(int chunkIndex, Throwable e) {
       failure = e;
       latch.countDown();
     }

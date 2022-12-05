@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 
 trait DeviceMonitor {
@@ -232,7 +232,7 @@ class LocalDeviceMonitor(
                 device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
               } else {
                 device.diskInfos.values().asScala.foreach { case diskInfo =>
-                  if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo.mountPoint)) {
+                  if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
                     logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                     device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                   } else if (checkReadWrite &&
@@ -333,26 +333,31 @@ object DeviceMonitor {
   /**
    * check if the disk is high usage
    * @param conf conf
-   * @param diskRootPath disk root path
+   * @param diskInfo diskInfo
    * @return true if high disk usage
    */
-  def highDiskUsage(conf: CelebornConf, diskRootPath: String): Boolean = {
+  def highDiskUsage(conf: CelebornConf, diskInfo: DiskInfo): Boolean = {
     tryWithTimeoutAndCallback({
-      val usage = runCommand(s"df -B 1G $diskRootPath").trim.split("[ \t]+")
+      val usage = runCommand(s"df -B 1G ${diskInfo.mountPoint}").trim.split("[ \t]+")
       val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
 
-      val status = freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024
-      if (status) {
-        logger.warn(s"$diskRootPath usage:{total:$totalSpace GB," +
-          s" free:$freeSpace GB, used_percent:$used_percent}")
+      val highDiskUsage =
+        freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024 || diskInfo.actualUsableSpace <= 0
+      if (highDiskUsage) {
+        logger.warn(s"${diskInfo.mountPoint} usage is above threshold." +
+          s" Disk usage(Report by OS):{total:$totalSpace GB," +
+          s" free:$freeSpace GB, used_percent:$used_percent} " +
+          s"usage(Report by Celeborn):{" +
+          s"total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}" +
+          s" free:${Utils.bytesToString(diskInfo.actualUsableSpace)} }")
       }
-      status
+      highDiskUsage
     })(false)(
       deviceCheckThreadPool,
       conf.workerDeviceStatusCheckTimeout,
-      s"Disk: $diskRootPath Usage Check Timeout")
+      s"Disk: ${diskInfo.mountPoint} Usage Check Timeout")
   }
 
   /**

@@ -67,11 +67,10 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
-import org.apache.celeborn.common.network.server.MemoryTracker;
 import org.apache.celeborn.common.network.server.TransportServer;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -120,15 +119,14 @@ public class FileWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
+    MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
     FetchHandler handler =
         new FetchHandler(transConf) {
           @Override
-          public FileInfo openStream(
-              String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
+          public FileInfo getRawFileInfo(String shuffleKey, String fileName) {
             return info;
           }
 
@@ -191,7 +189,7 @@ public class FileWriterSuiteJ {
     return openBlocks.toByteBuffer();
   }
 
-  private void setUpConn(TransportClient client) {
+  private void setUpConn(TransportClient client) throws IOException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
     StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
     streamId = streamHandle.streamId;
@@ -210,7 +208,7 @@ public class FileWriterSuiteJ {
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
           @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
             buffer.retain();
             res.successChunks.add(chunkIndex);
             res.buffers.add(buffer);
@@ -218,7 +216,7 @@ public class FileWriterSuiteJ {
           }
 
           @Override
-          public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
+          public void onFailure(int chunkIndex, Throwable e) {
             res.failedChunks.add(chunkIndex);
             sem.release();
           }

@@ -40,7 +40,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.network.server.MemoryTracker.MemoryTrackerListener
+import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
@@ -48,7 +48,7 @@ import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
-  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
+  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
@@ -119,6 +119,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
+  if (!hdfsDir.isEmpty) {
+    logInfo(s"Initialize HDFS support with path ${hdfsDir}")
+  }
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher =
@@ -253,7 +256,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
-    if (healthyWorkingDirs().size <= 0) {
+    if (healthyWorkingDirs().size <= 0 && hdfsDir.isEmpty) {
       throw new IOException("No available working dirs!")
     }
 
@@ -279,7 +282,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
-        val fileInfo = new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier)
+        val fileInfo =
+          new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier, partitionType)
         val hdfsWriter = new FileWriter(
           fileInfo,
           hdfsFlusher.get,
@@ -313,7 +317,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 s"Create shuffle data file ${file.getAbsolutePath} failed!")
             }
           }
-          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier)
+          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier, partitionType)
           val fileWriter = new FileWriter(
             fileInfo,
             localFlushers.get(mountPoint),
@@ -369,6 +373,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val hashSet = new util.HashSet[String]()
     hashSet.addAll(fileInfos.keySet())
     hashSet
+  }
+
+  def topAppDiskUsage: util.Map[String, Long] = {
+    fileInfos.asScala.map { keyedWriters =>
+      {
+        keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
+      }
+    }.toList.map { case (shuffleKey, usage) =>
+      shuffleKey.split("-")(0) -> usage
+    }.groupBy(_._1).map { case (key, values) =>
+      key -> values.map(_._2).sum
+    }.toSeq.sortBy(_._2).reverse.take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
   }
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {

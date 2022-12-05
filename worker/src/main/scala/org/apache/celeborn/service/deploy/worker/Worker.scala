@@ -18,11 +18,13 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.io.IOException
-import java.util.{HashSet => JHashSet}
+import java.lang.{Long => JLong}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -37,8 +39,9 @@ import org.apache.celeborn.common.meta.{DiskInfo, PartitionLocationInfo, WorkerI
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.network.server.{ChannelsLimiter, MemoryTracker}
-import org.apache.celeborn.common.protocol.{PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.network.server.ChannelsLimiter
+import org.apache.celeborn.common.network.server.memory.MemoryManager
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
@@ -88,11 +91,13 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryTracker = MemoryTracker.initialize(
+  val memoryTracker = MemoryManager.initialize(
     conf.workerDirectMemoryRatioToPauseReceive,
     conf.workerDirectMemoryRatioToPauseReplicate,
     conf.workerDirectMemoryRatioToResume,
     conf.partitionSorterDirectMemoryRatioThreshold,
+    conf.workerDirectMemoryRatioForReadBuffer,
+    conf.workerDirectMemoryRatioForShuffleStorage,
     conf.workerDirectMemoryPressureCheckIntervalMs,
     conf.workerDirectMemoryReportIntervalSecond)
   memoryTracker.registerMemoryListener(storageManager)
@@ -173,9 +178,11 @@ private[celeborn] class Worker(
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
-
-  val shuffleMapperAttempts = new ConcurrentHashMap[String, Array[Int]]()
+  val shuffleMapperAttempts = new ConcurrentHashMap[String, AtomicIntegerArray]()
+  val shufflePartitionType = new ConcurrentHashMap[String, PartitionType]
   val partitionLocationInfo = new PartitionLocationInfo
+
+  val shuffleCommitInfos = new ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
 
@@ -219,9 +226,13 @@ private[celeborn] class Worker(
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
 
   private def heartBeatToMaster(): Unit = {
-    val shuffleKeys = new JHashSet[String]
-    shuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
-    shuffleKeys.addAll(storageManager.shuffleKeySet())
+    val activeShuffleKeys = new JHashSet[String]()
+    val estimatedAppDiskUsage = new JHashMap[String, JLong]()
+    activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
+    activeShuffleKeys.addAll(storageManager.shuffleKeySet())
+    storageManager.topAppDiskUsage.asScala.foreach { case (shuffleId, usage) =>
+      estimatedAppDiskUsage.put(shuffleId, usage)
+    }
     // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
     // and avoid remove this from master's blacklist.
     val diskInfos =
@@ -245,7 +256,8 @@ private[celeborn] class Worker(
         replicatePort,
         diskInfos,
         resourceConsumption,
-        shuffleKeys),
+        activeShuffleKeys,
+        estimatedAppDiskUsage),
       classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
@@ -412,7 +424,9 @@ private[celeborn] class Worker(
       }
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
+      shufflePartitionType.remove(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
+      shuffleCommitInfos.remove(shuffleKey)
       workerInfo.releaseSlots(shuffleKey)
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
@@ -430,6 +444,14 @@ private[celeborn] class Worker(
 
   override def getShuffleList: String = {
     storageManager.shuffleKeySet().asScala.mkString("\n")
+  }
+
+  override def listTopDiskUseApps: String = {
+    val stringBuilder = new StringBuilder()
+    storageManager.topAppDiskUsage.asScala.foreach { case (appId, usage) =>
+      stringBuilder.append(s"application ${appId} used ${Utils.bytesToString(usage)} ")
+    }
+    stringBuilder.toString()
   }
 
   @VisibleForTesting

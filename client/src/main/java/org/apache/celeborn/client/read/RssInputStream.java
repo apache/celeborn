@@ -20,8 +20,10 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -30,8 +32,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 
@@ -105,6 +109,9 @@ public abstract class RssInputStream extends InputStream {
 
     private ByteBuf currentChunk;
     private PartitionReader currentReader;
+    private final int fetchChunkMaxRetry;
+    private int fetchChunkRetryCnt = 0;
+    int retryWaitMs;
     private int fileIndex;
     private int position;
     private int limit;
@@ -144,6 +151,10 @@ public abstract class RssInputStream extends InputStream {
 
       decompressor = Decompressor.getDecompressor(conf);
 
+      fetchChunkMaxRetry = conf.fetchMaxRetries();
+      TransportConf transportConf =
+          Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
+      retryWaitMs = transportConf.ioRetryWaitTimeMs();
       moveToNextReader();
     }
 
@@ -180,6 +191,9 @@ public abstract class RssInputStream extends InputStream {
         }
         currentLocation = locations[fileIndex];
       }
+
+      fetchChunkRetryCnt = 0;
+
       return currentLocation;
     }
 
@@ -192,7 +206,7 @@ public abstract class RssInputStream extends InputStream {
       if (currentLocation == null) {
         return;
       }
-      currentReader = createReader(currentLocation);
+      currentReader = createReaderWithRetry(currentLocation);
       fileIndex++;
       while (!currentReader.hasNext()) {
         currentReader.close();
@@ -201,13 +215,67 @@ public abstract class RssInputStream extends InputStream {
         if (currentLocation == null) {
           return;
         }
-        currentReader = createReader(currentLocation);
+        currentReader = createReaderWithRetry(currentLocation);
         fileIndex++;
       }
-      currentChunk = currentReader.next();
+      currentChunk = getNextChunk();
     }
 
-    private PartitionReader createReader(PartitionLocation location) throws IOException {
+    private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+      while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
+        try {
+          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
+        } catch (Exception e) {
+          fetchChunkRetryCnt++;
+          if (location.getPeer() != null) {
+            location = location.getPeer();
+            logger.warn(
+                "CreatePartitionReader failed {}/{} times, change to peer",
+                fetchChunkRetryCnt,
+                fetchChunkMaxRetry);
+          } else {
+            logger.warn(
+                "CreatePartitionReader failed {}/{} times, retry the same location",
+                fetchChunkRetryCnt,
+                fetchChunkMaxRetry);
+            Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+          }
+        }
+      }
+      throw new IOException("createPartitionReader failed!");
+    }
+
+    private ByteBuf getNextChunk() throws IOException {
+      while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
+        try {
+          return currentReader.next();
+        } catch (Exception e) {
+          fetchChunkRetryCnt++;
+          currentReader.close();
+          if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
+            logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt);
+            throw new IOException("Fetch chunk failed for " + fetchChunkRetryCnt + " times");
+          } else {
+            if (currentReader.getLocation().getPeer() != null) {
+              logger.warn(
+                  "Fetch chunk failed {}/{} times, change to peer",
+                  fetchChunkRetryCnt,
+                  fetchChunkMaxRetry);
+              currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
+            } else {
+              logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
+              Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+              currentReader = createReaderWithRetry(currentReader.getLocation());
+            }
+          }
+        }
+      }
+      throw new IOException("Fetch chunk failed!");
+    }
+
+    private PartitionReader createReader(
+        PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
+        throws IOException {
       if (location.getPeer() == null) {
         logger.debug("Partition {} has only one partition replica.", location);
       }
@@ -216,11 +284,20 @@ public abstract class RssInputStream extends InputStream {
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
 
+      logger.debug("create reader for location {}", location);
+
       StorageInfo storageInfo = location.getStorageInfo();
       if (storageInfo.getType() == StorageInfo.Type.HDD
           || storageInfo.getType() == StorageInfo.Type.SSD) {
         return new WorkerPartitionReader(
-            conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+            conf,
+            shuffleKey,
+            location,
+            clientFactory,
+            startMapIndex,
+            endMapIndex,
+            fetchChunkRetryCnt,
+            fetchChunkMaxRetry);
       }
       if (storageInfo.getType() == StorageInfo.Type.HDFS) {
         return new DfsPartitionReader(
@@ -287,7 +364,7 @@ public abstract class RssInputStream extends InputStream {
     @Override
     public void close() {
       int locationsCount = locations.length;
-      logger.info(
+      logger.debug(
           "total location count {} read {} skip {}",
           locationsCount,
           locationsCount - skipCount.sum(),
@@ -310,7 +387,7 @@ public abstract class RssInputStream extends InputStream {
       }
       currentChunk = null;
       if (currentReader.hasNext()) {
-        currentChunk = currentReader.next();
+        currentChunk = getNextChunk();
         return true;
       } else if (fileIndex < locations.length) {
         moveToNextReader();

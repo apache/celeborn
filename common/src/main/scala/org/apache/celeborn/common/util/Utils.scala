@@ -889,6 +889,10 @@ object Utils extends Logging {
         StatusCode.WORKER_IN_BLACKLIST
       case 28 =>
         StatusCode.UNKNOWN_WORKER
+      case 30 =>
+        StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
+      case 31 =>
+        StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED
       case _ =>
         null
     }

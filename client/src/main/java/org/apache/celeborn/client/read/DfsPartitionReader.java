@@ -29,9 +29,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
@@ -44,6 +45,8 @@ import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
+  private static Logger logger = LoggerFactory.getLogger(DfsPartitionReader.class);
+  PartitionLocation location;
   private final int shuffleChunkSize;
   private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
@@ -65,6 +68,8 @@ public class DfsPartitionReader implements PartitionReader {
     shuffleChunkSize = (int) conf.shuffleChunkSize();
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
+
+    this.location = location;
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
@@ -105,7 +110,7 @@ public class DfsPartitionReader implements PartitionReader {
                     }
                     long offset = chunkOffsets.get(currentChunkIndex.get());
                     long length = chunkOffsets.get(currentChunkIndex.get() + 1) - offset;
-                    ByteBuffer buffer = ByteBuffer.allocate((int) length);
+                    byte[] buffer = new byte[(int) length];
                     hdfsInputStream.readFully(offset, buffer);
                     results.add(Unpooled.wrappedBuffer(buffer));
                     currentChunkIndex.incrementAndGet();
@@ -117,6 +122,7 @@ public class DfsPartitionReader implements PartitionReader {
                 }
               });
       fetchThread.start();
+      logger.debug("Start dfs read on location {}", location);
     }
   }
 
@@ -141,7 +147,7 @@ public class DfsPartitionReader implements PartitionReader {
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
     long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
     // Index size won't be large, so it's safe to do the conversion.
-    ByteBuffer indexBuffer = ByteBuffer.allocate((int) indexSize);
+    byte[] indexBuffer = new byte[(int) indexSize];
     indexInputStream.readFully(0L, indexBuffer);
     List<Long> offsets =
         new ArrayList<>(
@@ -188,10 +194,19 @@ public class DfsPartitionReader implements PartitionReader {
   public void close() {
     closed = true;
     fetchThread.interrupt();
-    IOUtils.closeQuietly(hdfsInputStream, null);
+    try {
+      hdfsInputStream.close();
+    } catch (IOException e) {
+      logger.warn("close hdfs input stream failed.", e);
+    }
     if (results.size() > 0) {
       results.forEach(ReferenceCounted::release);
     }
     results.clear();
+  }
+
+  @Override
+  public PartitionLocation getLocation() {
+    return location;
   }
 }

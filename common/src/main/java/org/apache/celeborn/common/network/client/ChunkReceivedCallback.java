@@ -18,7 +18,6 @@
 package org.apache.celeborn.common.network.client;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
-import org.apache.celeborn.common.protocol.PartitionLocation;
 
 /**
  * Callback for the result of a single chunk result. For a single stream, the callbacks are
@@ -35,7 +34,7 @@ public interface ChunkReceivedCallback {
    * this call returns. You must therefore either retain() the buffer or copy its contents before
    * returning.
    */
-  void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location);
+  void onSuccess(int chunkIndex, ManagedBuffer buffer);
 
   /**
    * Called upon failure to fetch a particular chunk. Note that this may actually be called due to
@@ -44,5 +43,5 @@ public interface ChunkReceivedCallback {
    * <p>After receiving a failure, the stream may or may not be valid. The client should not assume
    * that the server's side of the stream has been closed.
    */
-  void onFailure(int chunkIndex, PartitionLocation location, Throwable e);
+  void onFailure(int chunkIndex, Throwable e);
 }

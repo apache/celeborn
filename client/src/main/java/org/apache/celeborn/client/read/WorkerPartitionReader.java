@@ -18,14 +18,13 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,24 +32,33 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
+import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.protocol.OpenStream;
+import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
-  private ChunkClient client;
-  private int numChunks;
+  private PartitionLocation location;
+  private final TransportClient client;
+  private StreamHandle streamHandle;
 
   private int returnedChunks;
-  private int currentChunkIndex;
+  private int chunkIndex;
 
-  private final LinkedBlockingQueue<ChunkData> results;
+  private final LinkedBlockingQueue<ByteBuf> results;
+  private final ChunkReceivedCallback callback;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
-  private AtomicBoolean closed = new AtomicBoolean(false);
-  private Set<PartitionLocation> readableLocations = ConcurrentHashMap.newKeySet();
-  private Set<PartitionLocation> failedLocations = ConcurrentHashMap.newKeySet();
+  private boolean closed = false;
+
+  // for test
+  private int fetchChunkRetryCnt;
+  private int fetchChunkMaxRetry;
+  private final boolean testFetch;
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -58,92 +66,66 @@ public class WorkerPartitionReader implements PartitionReader {
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
-      int endMapIndex)
+      int endMapIndex,
+      int fetchChunkRetryCnt,
+      int fetchChunkMaxRetry)
       throws IOException {
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
-    readableLocations.add(location);
-    if (location.getPeer() != null) {
-      readableLocations.add(location.getPeer());
-    }
     // only add the buffer to results queue if this reader is not closed.
-    ChunkReceivedCallback callback =
+    callback =
         new ChunkReceivedCallback() {
           @Override
-          public void onSuccess(int chunkIndex, ManagedBuffer buffer, PartitionLocation location) {
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
             // only add the buffer to results queue if this reader is not closed.
-            ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-            if (!closed.get() && !failedLocations.contains(location)) {
-              buf.retain();
-              results.add(new ChunkData(buf, location));
-            }
-          }
-
-          @Override
-          public void onFailure(int chunkIndex, PartitionLocation location, Throwable e) {
-            readableLocations.remove(location);
-            if (readableLocations.isEmpty()) {
-              String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
-              logger.error(errorMsg, e);
-              exception.set(new IOException(errorMsg, e));
-            } else {
-              try {
-                synchronized (WorkerPartitionReader.this) {
-                  if (!failedLocations.contains(location)) {
-                    failedLocations.add(location);
-                    client =
-                        new ChunkClient(
-                            conf,
-                            shuffleKey,
-                            location.getPeer(),
-                            this,
-                            clientFactory,
-                            startMapIndex,
-                            endMapIndex);
-                    currentChunkIndex = 0;
-                    returnedChunks = 0;
-                    numChunks = client.openChunks();
-                  }
-                }
-              } catch (IOException e1) {
-                logger.error(e1.getMessage(), e1);
-                exception.set(new IOException(e1.getMessage(), e1));
+            synchronized (this) {
+              ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
+              if (!closed) {
+                buf.retain();
+                results.add(buf);
               }
             }
           }
+
+          @Override
+          public void onFailure(int chunkIndex, Throwable e) {
+            String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
+            logger.error(errorMsg, e);
+            exception.set(new IOException(errorMsg, e));
+          }
         };
-    client =
-        new ChunkClient(
-            conf, shuffleKey, location, callback, clientFactory, startMapIndex, endMapIndex);
-    numChunks = client.openChunks();
+    try {
+      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+    } catch (InterruptedException ie) {
+      throw new IOException("Interrupted when createClient", ie);
+    }
+    OpenStream openBlocks =
+        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+    long timeoutMs = conf.fetchTimeoutMs();
+    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+    streamHandle = (StreamHandle) Message.decode(response);
+
+    this.location = location;
+
+    this.fetchChunkRetryCnt = fetchChunkRetryCnt;
+    this.fetchChunkMaxRetry = fetchChunkMaxRetry;
+    testFetch = conf.testFetchFailure();
   }
 
-  public synchronized boolean hasNext() {
-    return returnedChunks < numChunks;
+  public boolean hasNext() {
+    return returnedChunks < streamHandle.numChunks;
   }
 
   public ByteBuf next() throws IOException {
     checkException();
-    synchronized (this) {
-      if (currentChunkIndex < numChunks) {
-        fetchChunks();
-      }
+    if (chunkIndex < streamHandle.numChunks) {
+      fetchChunks();
     }
     ByteBuf chunk = null;
     try {
       while (chunk == null) {
         checkException();
-        ChunkData chunkData = results.poll(500, TimeUnit.MILLISECONDS);
-        if (chunkData != null) {
-          synchronized (this) {
-            if (failedLocations.contains(chunkData.location)) {
-              chunkData.release();
-            } else {
-              chunk = chunkData.buf;
-              returnedChunks++;
-            }
-          }
-        }
+        chunk = results.poll(500, TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -151,24 +133,37 @@ public class WorkerPartitionReader implements PartitionReader {
       exception.set(ioe);
       throw ioe;
     }
+    returnedChunks++;
     return chunk;
   }
 
   public void close() {
-    closed.set(true);
+    synchronized (this) {
+      closed = true;
+    }
     if (results.size() > 0) {
-      results.forEach(ChunkData::release);
+      results.forEach(ReferenceCounted::release);
     }
     results.clear();
   }
 
+  @Override
+  public PartitionLocation getLocation() {
+    return location;
+  }
+
   private void fetchChunks() {
-    final int inFlight = currentChunkIndex - returnedChunks;
+    final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
-          Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - currentChunkIndex);
+          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.numChunks - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
-        client.fetchChunk(currentChunkIndex++);
+        if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
+          callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
+        } else {
+          client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+          chunkIndex++;
+        }
       }
     }
   }
@@ -177,20 +172,6 @@ public class WorkerPartitionReader implements PartitionReader {
     IOException e = exception.get();
     if (e != null) {
       throw e;
-    }
-  }
-
-  private static class ChunkData {
-    ByteBuf buf;
-    PartitionLocation location;
-
-    public ChunkData(ByteBuf buf, PartitionLocation location) {
-      this.buf = buf;
-      this.location = location;
-    }
-
-    public void release() {
-      buf.release();
     }
   }
 }
