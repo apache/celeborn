@@ -596,24 +596,22 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         if (isMaster) workerSourceMaster else workerSourceSlave,
         callback)
 
-    val isReturn = checkLocationNull(
-      messageType,
-      shuffleKey,
-      partitionUniqueId,
-      null,
-      location,
-      callback,
-      wrappedCallback)
-    if (isReturn) return
+    if (checkLocationNull(
+        messageType,
+        shuffleKey,
+        partitionUniqueId,
+        null,
+        location,
+        callback,
+        wrappedCallback)) return
 
-    val (isReturnWriter, fileWriter) =
-      getFileWriterAndCheck(messageType, location, isMaster, callback)
-    if (isReturnWriter) return
+    val fileWriter =
+      getFileWriterAndCheck(messageType, location, isMaster, callback) match {
+        case (true, _) => return
+        case (false, f: FileWriter) => f
+      }
 
-    if (isCheckSplit) {
-      val isReturnDisk = checkDiskFullAndSplit(fileWriter, isMaster, null, callback)
-      if (isReturnDisk) return
-    }
+    if (isCheckSplit && checkDiskFullAndSplit(fileWriter, isMaster, null, callback)) return
 
     try {
       messageType match {
