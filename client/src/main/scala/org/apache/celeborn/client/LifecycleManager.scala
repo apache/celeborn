@@ -674,6 +674,25 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
+  def blacklistPartition(
+      shuffleId: Int,
+      oldPartition: PartitionLocation,
+      cause: StatusCode): Unit = {
+    // only blacklist if cause is PushDataFailMain
+    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
+      val tmpWorker = oldPartition.getWorker
+      val worker = workerSnapshots(shuffleId).keySet().asScala
+        .find(_.equals(tmpWorker))
+      if (worker.isDefined) {
+        failedWorker.put(worker.get, (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
+      }
+    }
+    if (!failedWorker.isEmpty) {
+      recordWorkerFailure(failedWorker)
+    }
+  }
+
   private def handleRevive(
       context: RpcCallContext,
       applicationId: String,

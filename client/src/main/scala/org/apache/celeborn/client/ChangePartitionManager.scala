@@ -204,7 +204,10 @@ class ChangePartitionManager(
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
-        blacklistPartition(shuffleId, changePartition.oldPartition, changePartition.causes.get)
+        lifecycleManager.blacklistPartition(
+          shuffleId,
+          changePartition.oldPartition,
+          changePartition.causes.get)
       }
     }
 
@@ -240,7 +243,14 @@ class ChangePartitionManager(
       }
     }
 
-    val candidates = workersNotBlacklisted(shuffleId)
+    // Get candidate worker that not in blacklist of shuffleId
+    val candidates =
+      lifecycleManager
+        .workerSnapshots(shuffleId)
+        .keySet()
+        .asScala
+        .filter(w => !lifecycleManager.blacklist.keySet().contains(w))
+        .toList
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
       replyFailure(StatusCode.SLOT_NOT_AVAILABLE)
@@ -312,34 +322,6 @@ class ChangePartitionManager(
         slots)
     }
     slots
-  }
-
-  private def blacklistPartition(
-      shuffleId: Int,
-      oldPartition: PartitionLocation,
-      cause: StatusCode): Unit = {
-    // only blacklist if cause is PushDataFailMain
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
-    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
-      val tmpWorker = oldPartition.getWorker
-      val worker = lifecycleManager.workerSnapshots(shuffleId).keySet().asScala
-        .find(_.equals(tmpWorker))
-      if (worker.isDefined) {
-        failedWorker.put(worker.get, (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
-      }
-    }
-    if (!failedWorker.isEmpty) {
-      lifecycleManager.recordWorkerFailure(failedWorker)
-    }
-  }
-
-  private def workersNotBlacklisted(shuffleId: Int): List[WorkerInfo] = {
-    lifecycleManager
-      .workerSnapshots(shuffleId)
-      .keySet()
-      .asScala
-      .filter(w => !lifecycleManager.blacklist.keySet().contains(w))
-      .toList
   }
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
