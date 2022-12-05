@@ -20,17 +20,17 @@ package org.apache.celeborn.plugin.flink.utils;
 import java.util.Map;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 
 import org.apache.celeborn.common.CelebornConf;
 
 public class FlinkUtils {
 
-  public static CelebornConf toCelebornConf(ShuffleMasterContext shuffleMasterContext) {
+  public static CelebornConf toCelebornConf(Configuration configuration) {
     CelebornConf tmpCelebornConf = new CelebornConf();
-    Map<String, String> confMap = shuffleMasterContext.getConfiguration().toMap();
+    Map<String, String> confMap = configuration.toMap();
     for (Map.Entry<String, String> entry : confMap.entrySet()) {
       String key = entry.getKey();
       if (key.startsWith("celeborn.")) {

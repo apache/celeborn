@@ -64,7 +64,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
               if (lifecycleManagers.containsKey(jobId)) {
                 throw new RuntimeException("Duplicated registration job: " + jobId);
               } else {
-                CelebornConf celebornConf = FlinkUtils.toCelebornConf(shuffleMasterContext);
+                CelebornConf celebornConf =
+                    FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
                 LifecycleManager lifecycleManager =
                     new LifecycleManager(FlinkUtils.toCelebornAppId(jobId), celebornConf);
                 lifecycleManagers.put(jobId, lifecycleManager);
