@@ -149,7 +149,7 @@ class ChangePartitionManager(
     val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
-    lifecycleManager.commitManager.collectCommitPartitionRequest(
+    lifecycleManager.commitManager.registerCommitPartition(
       applicationId,
       shuffleId,
       oldPartition,

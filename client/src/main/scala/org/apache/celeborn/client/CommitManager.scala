@@ -57,10 +57,6 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   extends Logging {
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
-  private var shuffleMapperAttempts: ConcurrentHashMap[Int, Array[Int]] = _
-  private var shuffleAllocatedWorkers
-      : ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]] = _
-  private var blacklist: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] = _
   val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -89,9 +85,6 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   private val commitEpoch = new AtomicLong()
 
   def start(): Unit = {
-    shuffleMapperAttempts = lifecycleManager.shuffleMapperAttempts
-    shuffleAllocatedWorkers = lifecycleManager.shuffleAllocatedWorkers
-    blacklist = lifecycleManager.blacklist
     batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
       _.scheduleAtFixedRate(
         new Runnable {
@@ -157,7 +150,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                           parallelism) {
                           case (worker, requests) =>
                             val workerInfo =
-                              shuffleAllocatedWorkers
+                              lifecycleManager.shuffleAllocatedWorkers
                                 .get(shuffleId)
                                 .asScala
                                 .find(_._1.equals(worker))
@@ -185,7 +178,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                               slaveIds,
                               commitFilesFailedWorkers)
                         }
-                        recordWorkerFailure(commitFilesFailedWorkers)
+                        lifecycleManager.recordWorkerFailure(commitFilesFailedWorkers)
                       } finally {
                         shuffleCommittedInfo.inFlightCommitRequest.addAndGet(-workerToRequests.size)
                       }
@@ -207,7 +200,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
   }
 
-  def registerShuffleCommittedInfo(shuffleId: Int): Unit = {
+  def registerShuffle(shuffleId: Int): Unit = {
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
@@ -230,7 +223,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     stageEndShuffleSet.remove(shuffleId)
   }
 
-  def collectCommitPartitionRequest(
+  def registerCommitPartition(
       applicationId: String,
       shuffleId: Int,
       partition: PartitionLocation,
@@ -260,7 +253,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
           shuffleId,
           masterIds,
           slaveIds,
-          shuffleMapperAttempts.get(shuffleId),
+          lifecycleManager.shuffleMapperAttempts.get(shuffleId),
           commitEpoch.incrementAndGet())
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
@@ -280,7 +273,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
           shuffleId,
           masterIds.subList(0, masterIds.size() / 2),
           slaveIds.subList(0, slaveIds.size() / 2),
-          shuffleMapperAttempts.get(shuffleId),
+          lifecycleManager.shuffleMapperAttempts.get(shuffleId),
           commitEpoch.incrementAndGet())
         val res1 = requestCommitFilesWithRetry(worker.endpoint, commitFiles1)
 
@@ -289,7 +282,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
           shuffleId,
           masterIds.subList(masterIds.size() / 2, masterIds.size()),
           slaveIds.subList(slaveIds.size() / 2, slaveIds.size()),
-          shuffleMapperAttempts.get(shuffleId),
+          lifecycleManager.shuffleMapperAttempts.get(shuffleId),
           commitEpoch.incrementAndGet())
         val res2 = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
@@ -382,7 +375,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
 
-    val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+    val allocatedWorkers = lifecycleManager.shuffleAllocatedWorkers.get(shuffleId)
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val commitFilesFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
     val commitFileStartTime = System.nanoTime()
@@ -537,14 +530,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       stageEndShuffleSet.add(shuffleId)
     }
     inProcessStageEndShuffleSet.remove(shuffleId)
-    recordWorkerFailure(commitFilesFailedWorkers)
-  }
-
-  private def recordWorkerFailure(
-      failures: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]): Unit = {
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
-    logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    blacklist.putAll(failedWorker)
+    lifecycleManager.recordWorkerFailure(commitFilesFailedWorkers)
   }
 
   def removeExpiredShuffle(shuffleId: String): Unit = {
