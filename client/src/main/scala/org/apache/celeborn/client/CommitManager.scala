@@ -553,6 +553,5 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     committedPartitionInfo.remove(shuffleId)
   }
 
-  def totalWritenSize: Long = totalWritten.sumThenReset()
-  def fileCountNum: Long = fileCount.sumThenReset()
+  def commitMetrics(): (Long, Long) = (totalWritten.sumThenReset(), fileCount.sumThenReset())
 }
