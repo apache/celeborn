@@ -18,13 +18,13 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -52,7 +52,7 @@ case class ShuffleCommittedInfo(
     handledCommitPartitionRequests: util.Set[PartitionLocation],
     inFlightCommitRequest: AtomicInteger)
 
-class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
+class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: LifecycleManager) extends Logging {
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
   private var shuffleMapperAttempts: ConcurrentHashMap[Int, Array[Int]] = _
@@ -78,6 +78,8 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
     } else {
       None
     }
+  private var batchHandleCommitPartition: Option[ScheduledFuture[_]] = _
+
 
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
@@ -85,11 +87,11 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
   private val testRetryCommitFiles = conf.testRetryCommitFiles
   private val commitEpoch = new AtomicLong()
 
-  def initialize(lifecycleManager: LifecycleManager): Unit = {
+  def start(): Unit = {
     shuffleMapperAttempts = lifecycleManager.shuffleMapperAttempts
     shuffleAllocatedWorkers = lifecycleManager.shuffleAllocatedWorkers
     blacklist = lifecycleManager.blacklist
-    batchHandleCommitPartitionSchedulerThread.foreach {
+    batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
       _.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = {
@@ -97,14 +99,18 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
               batchHandleCommitPartitionExecutors.submit {
                 new Runnable {
                   override def run(): Unit = {
-                    if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                      stageEndShuffleSet.contains(shuffleId)) {
-                      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                      shuffleCommittedInfo.synchronized {
+                    val workerToRequests = shuffleCommittedInfo.synchronized {
+                      // When running to here, if handleStageEnd got lock first and commitFiles,
+                      // then this batch get this lock, commitPartitionRequests may contains
+                      // partitions which are already committed by stageEnd process.
+                      // But inProcessStageEndShuffleSet should have contain this shuffle id,
+                      // can directly return.
+                      if (inProcessStageEndShuffleSet.contains(shuffleId) ||
+                        stageEndShuffleSet.contains(shuffleId)) {
+                        logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
                         shuffleCommittedInfo.commitPartitionRequests.clear()
-                      }
-                    } else {
-                      val currentBatch = shuffleCommittedInfo.synchronized {
+                        Map.empty[WorkerInfo, Set[PartitionLocation]]
+                      } else {
                         val batch = new util.HashSet[CommitPartitionRequest]()
                         batch.addAll(shuffleCommittedInfo.commitPartitionRequests)
                         val currentBatch = batch.asScala.filterNot { request =>
@@ -120,32 +126,30 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
                               .add(commitPartitionRequest.partition.getPeer)
                           }
                         }
-                        // When running to here, if handleStageEnd got lock first and commitFiles,
-                        // then this batch get this lock, commitPartitionRequests may contains
-                        // partitions which are already committed by stageEnd process.
-                        // But inProcessStageEndShuffleSet should have contain this shuffle id,
-                        // can directly return.
-                        if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-                          stageEndShuffleSet.contains(shuffleId)) {
-                          logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                          Seq.empty
+
+                        if (currentBatch.nonEmpty) {
+                          logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+                            s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
+                          val workerToRequests = currentBatch.flatMap { request =>
+                            if (request.partition.getPeer != null) {
+                              Seq(request.partition, request.partition.getPeer)
+                            } else {
+                              Seq(request.partition)
+                            }
+                          }.groupBy(_.getWorker)
+                          shuffleCommittedInfo.inFlightCommitRequest.addAndGet(
+                            workerToRequests.size)
+                          workerToRequests
                         } else {
-                          currentBatch
+                          Map.empty[WorkerInfo, Set[PartitionLocation]]
                         }
                       }
-                      if (currentBatch.nonEmpty) {
-                        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
-                          s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
-                        val workerToRequests = currentBatch.flatMap { request =>
-                          if (request.partition.getPeer != null) {
-                            Seq(request.partition, request.partition.getPeer)
-                          } else {
-                            Seq(request.partition)
-                          }
-                        }.groupBy(_.getWorker)
-                        val commitFilesFailedWorkers =
-                          new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
-                        val parallelism = workerToRequests.size
+                    }
+                    if (workerToRequests.nonEmpty) {
+                      val commitFilesFailedWorkers =
+                        new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+                      val parallelism = workerToRequests.size
+                      try {
                         ThreadUtils.parmap(
                           workerToRequests.to,
                           "CommitFiles",
@@ -181,6 +185,8 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
                               commitFilesFailedWorkers)
                         }
                         recordWorkerFailure(commitFilesFailedWorkers)
+                      } finally {
+                        shuffleCommittedInfo.inFlightCommitRequest.addAndGet(-workerToRequests.size)
                       }
                     }
                   }
@@ -193,6 +199,11 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
         batchHandleCommitPartitionRequestInterval,
         TimeUnit.MILLISECONDS)
     }
+  }
+
+  def stop(): Unit = {
+    batchHandleCommitPartition.foreach(_.cancel(true))
+    batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
   }
 
   def registerShuffleCommittedInfo(shuffleId: Int): Unit = {
@@ -250,9 +261,7 @@ class CommitManager(appId: String, val conf: CelebornConf) extends Logging {
           slaveIds,
           shuffleMapperAttempts.get(shuffleId),
           commitEpoch.incrementAndGet())
-        shuffleCommittedInfo.inFlightCommitRequest.incrementAndGet()
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
-        shuffleCommittedInfo.inFlightCommitRequest.decrementAndGet()
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
