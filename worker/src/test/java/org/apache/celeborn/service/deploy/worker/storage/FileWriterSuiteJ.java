@@ -67,8 +67,8 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
-import org.apache.celeborn.common.network.server.MemoryTracker;
 import org.apache.celeborn.common.network.server.TransportServer;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -119,7 +119,7 @@ public class FileWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
+    MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {

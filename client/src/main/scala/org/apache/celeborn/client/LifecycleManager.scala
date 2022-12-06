@@ -63,15 +63,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.rpcCacheExpireTime
 
-  private val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
-  val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
+  val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
+  private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
   private val reducerFileGroupsMap =
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
+  private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
   // shuffle id -> (partitionId -> newest PartitionLocation)
-  private val latestPartitionLocation =
+  val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
   // noinspection UnstableApiUsage
@@ -94,21 +97,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
 
-  private def updateLatestPartitionLocations(
+  def updateLatestPartitionLocations(
       shuffleId: Int,
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
     locations.asScala.foreach(location => map.put(location.getId, location))
   }
-
-  case class ChangePartitionRequest(
-      context: RequestLocationCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      partitionId: Int,
-      epoch: Int,
-      oldPartition: PartitionLocation,
-      causes: Option[StatusCode])
 
   case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
     def reply(response: PbRegisterShuffleResponse) = {
@@ -276,10 +270,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     getBlacklist.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread, 800.millis)
 
-    appHeartbeat.cancel(true)
-    ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
-
-    ThreadUtils.shutdown(responseCheckerThread, 800.millis)
+    changePartitionManager.stop()
+    heartbeater.stop()
 
     rssHARetryClient.close()
     if (rpcEnv != null) {
@@ -384,7 +376,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       logTrace(s"Received split request, " +
         s"$applicationId, $shuffleId, $partitionId, $epoch, $oldPartition")
-      handleRequestPartitionLocation(
+      changePartitionManager.handleRequestPartitionLocation(
         ChangeLocationCallContext(context),
         applicationId,
         shuffleId,
@@ -587,7 +579,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, partitionLocations))
     } else {
       // request new resource for this task
-      handleRequestPartitionLocation(
+      changePartitionManager.handleRequestPartitionLocation(
         ApplyNewLocationCallContext(context),
         applicationId,
         shuffleId,
@@ -597,7 +589,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def blacklistPartition(
+  def blacklistPartition(
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
@@ -645,7 +637,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
       s"oldPartition: $oldPartition, cause: $cause")
 
-    handleRequestPartitionLocation(
+    changePartitionManager.handleRequestPartitionLocation(
       ChangeLocationCallContext(context),
       applicationId,
       shuffleId,
@@ -1159,7 +1151,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
    * @param slots         the total allocated worker resources that need to be applied for the slot
    * @return If reserve all slots success
    */
-  private def reserveSlotsWithRetry(
+  def reserveSlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
       candidates: util.HashSet[WorkerInfo],
@@ -1250,7 +1242,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
    * @param candidates WorkerInfo list can be used to offer worker slots
    * @param slots      Current WorkerResource
    */
-  private def allocateFromCandidates(
+  def allocateFromCandidates(
       id: Int,
       oldEpochId: Int,
       candidates: List[WorkerInfo],
@@ -1286,16 +1278,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     val masterAndSlavePairs = slots.computeIfAbsent(candidates(masterIndex), newLocationFunc)
     masterAndSlavePairs._1.add(masterLocation)
-  }
-
-  private def reallocateChangePartitionRequestSlotsFromCandidates(
-      changePartitionRequests: List[ChangePartitionRequest],
-      candidates: List[WorkerInfo]): WorkerResource = {
-    val slots = new WorkerResource()
-    changePartitionRequests.foreach { partition =>
-      allocateFromCandidates(partition.partitionId, partition.epoch, candidates, slots)
-    }
-    slots
   }
 
   private def reallocateSlotsFromCandidates(
@@ -1353,12 +1335,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         registeringShuffleRequest.remove(shuffleId)
         reducerFileGroupsMap.remove(shuffleId)
         shuffleMapperAttempts.remove(shuffleId)
-        changePartitionRequests.remove(shuffleId)
-        inBatchPartitions.remove(shuffleId)
+        stageEndShuffleSet.remove(shuffleId)
+        committedPartitionInfo.remove(shuffleId)
         unregisterShuffleTime.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
         latestPartitionLocation.remove(shuffleId)
-        commitManager.removeExpiredShuffle(shuffleId)
+        changePartitionManager.removeExpiredShuffle(shuffleId)
 
         requestUnregisterShuffle(
           rssHARetryClient,
@@ -1492,11 +1474,23 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)])
-      : Unit = {
+  def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]): Unit = {
     val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    blacklist.putAll(failedWorker)
+    failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
+      if (!blacklist.containsKey(worker)) {
+        blacklist.put(worker, (statusCode, registerTime))
+      } else {
+        statusCode match {
+          case StatusCode.WORKER_SHUTDOWN |
+              StatusCode.NO_AVAILABLE_WORKING_DIR |
+              StatusCode.RESERVE_SLOTS_FAILED |
+              StatusCode.UNKNOWN_WORKER =>
+            blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
+          case _ => // Not cover
+        }
+      }
+    }
   }
 
   def checkQuota(): Boolean = {
@@ -1518,14 +1512,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } else {
       workers.values().asScala.exists(_.containsShuffle(shuffleId.toString))
     }
-  }
-
-  private def workersNotBlacklisted(shuffleId: Int): List[WorkerInfo] = {
-    workerSnapshots(shuffleId)
-      .keySet()
-      .asScala
-      .filter(w => !blacklist.keySet().contains(w))
-      .toList
   }
 
   // Initialize at the end of LifecycleManager construction.

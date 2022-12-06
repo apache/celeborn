@@ -37,7 +37,7 @@ import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -84,6 +84,22 @@ public final class FileWriter implements DeviceObserver {
   private RoaringBitmap mapIdBitMap = null;
 
   private final FlushNotifier notifier = new FlushNotifier();
+
+  // //////////////////////////////////////////////////////
+  //            map partition                            //
+  // //////////////////////////////////////////////////////
+
+  /** Number of reducepartitions */
+  private int numReducePartitions;
+
+  /** Index number of the current data region being written. */
+  private int currentDataRegionIndex;
+
+  /**
+   * Whether current data region is a broadcast region or not. If true, buffers added to this region
+   * will be written to all reduce partitions.
+   */
+  private boolean isBroadcastRegion;
 
   public FileWriter(
       FileInfo fileInfo,
@@ -198,7 +214,7 @@ public final class FileWriter implements DeviceObserver {
     }
 
     final int numBytes = data.readableBytes();
-    MemoryTracker.instance().incrementDiskBuffer(numBytes);
+    MemoryManager.instance().incrementDiskBuffer(numBytes);
     synchronized (this) {
       if (closed) {
         String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
@@ -286,7 +302,10 @@ public final class FileWriter implements DeviceObserver {
       }
 
       // unregister from DeviceMonitor
-      deviceMonitor.unregisterFileWriter(this);
+      if (!fileInfo.isHdfs()) {
+        logger.debug("file info {} register from device monitor");
+        deviceMonitor.unregisterFileWriter(this);
+      }
     }
     return bytesFlushed;
   }
@@ -459,4 +478,21 @@ public final class FileWriter implements DeviceObserver {
 
   @Override
   public void notifyNonCriticalError(String mountPoint, DiskStatus diskStatus) {}
+
+  public PartitionType getPartitionType() {
+    return partitionType;
+  }
+
+  public void pushDataHandShake(int numReducePartitions) {
+    this.numReducePartitions = numReducePartitions;
+  }
+
+  public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
+    this.currentDataRegionIndex = currentDataRegionIndex;
+    this.isBroadcastRegion = isBroadcastRegion;
+  }
+
+  public void regionFinish() {
+    // flush index
+  }
 }

@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.network.server.MemoryTracker;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -110,7 +110,7 @@ public class PartitionFilesSorterSuiteJ {
             + (double) originFileLen / 1024 / 1024.0
             + "MB");
 
-    MemoryTracker.initialize(0.8, 0.9, 0.5, 0.6, 10, 10);
+    MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
@@ -125,7 +125,7 @@ public class PartitionFilesSorterSuiteJ {
     prepare(false);
     CelebornConf conf = new CelebornConf();
     PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     FileInfo info =
         partitionFilesSorter.getSortedFileInfo(
             "application-1", originFileName, fileWriter.getFileInfo(), 5, 10);
@@ -141,7 +141,7 @@ public class PartitionFilesSorterSuiteJ {
     prepare(true);
     CelebornConf conf = new CelebornConf();
     PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     FileInfo info =
         partitionFilesSorter.getSortedFileInfo(
             "application-1", originFileName, fileWriter.getFileInfo(), 5, 10);
@@ -162,7 +162,7 @@ public class PartitionFilesSorterSuiteJ {
     conf.set("celeborn.worker.graceful.shutdown.enabled", "true");
     conf.set("celeborn.worker.graceful.shutdown.recoverPath", recoverPath.getPath());
     PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     partitionFilesSorter.initSortedShuffleFiles("application-1-1");
     partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-1", 0);
     partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-2", 0);
@@ -175,7 +175,7 @@ public class PartitionFilesSorterSuiteJ {
     partitionFilesSorter.deleteSortedShuffleFiles("application-2-1");
     partitionFilesSorter.close();
     PartitionFilesSorter partitionFilesSorter2 =
-        new PartitionFilesSorter(MemoryTracker.instance(), conf, new WorkerSource(conf));
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-1-1").toString(),
         "[0-0-3, 0-0-2, 0-0-1]");

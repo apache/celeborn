@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
+import static org.apache.ratis.util.LifeCycle.State.*;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -189,8 +191,16 @@ public class StateMachine extends BaseStateMachine {
   @Override
   public void reinitialize() throws IOException {
     LOG.info("Reinitializing state machine.");
+    getLifeCycle().compareAndTransition(PAUSED, STARTING);
     storage.loadLatestSnapshot();
     loadSnapshot(storage.getLatestSnapshot());
+    getLifeCycle().compareAndTransition(STARTING, RUNNING);
+  }
+
+  @Override
+  public void pause() {
+    getLifeCycle().compareAndTransition(RUNNING, PAUSING);
+    getLifeCycle().compareAndTransition(PAUSING, PAUSED);
   }
 
   private synchronized void loadSnapshot(SingleFileSnapshotInfo snapshot) throws IOException {
