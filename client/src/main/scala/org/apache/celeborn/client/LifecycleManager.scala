@@ -516,12 +516,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def registerCommitPartition(
+  def registerCommitPartitionRequest(
       applicationId: String,
       shuffleId: Int,
       partition: PartitionLocation,
       cause: Option[StatusCode]): Unit = {
-    commitManager.registerCommitPartition(applicationId, shuffleId, partition, cause)
+    commitManager.registerCommitPartitionRequest(applicationId, shuffleId, partition, cause)
   }
 
   private def handleRevive(

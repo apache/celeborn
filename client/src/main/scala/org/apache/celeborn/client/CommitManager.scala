@@ -223,7 +223,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     stageEndShuffleSet.remove(shuffleId)
   }
 
-  def registerCommitPartition(
+  def registerCommitPartitionRequest(
       applicationId: String,
       shuffleId: Int,
       partition: PartitionLocation,
