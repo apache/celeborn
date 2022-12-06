@@ -110,12 +110,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  // shuffleId -> (partitionId -> set of ChangePartition)
-  private val changePartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]]]()
-  // shuffleId -> set of partition id
-  private val inBatchPartitions = new ConcurrentHashMap[Int, util.Set[Integer]]()
-
   // register shuffle request waiting for response
   private val registeringShuffleRequest =
     new ConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
@@ -567,24 +561,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldEpoch,
       oldPartition,
       Some(cause))
-  }
-
-  private val inBatchShuffleIdRegisterFunc = new util.function.Function[Int, util.Set[Integer]]() {
-    override def apply(s: Int): util.Set[Integer] = new util.HashSet[Integer]()
-  }
-
-  private def getLatestPartition(
-      shuffleId: Int,
-      partitionId: Int,
-      epoch: Int): Option[PartitionLocation] = {
-    val map = latestPartitionLocation.get(shuffleId)
-    if (map != null) {
-      val loc = map.get(partitionId)
-      if (loc != null && loc.getEpoch > epoch) {
-        return Some(loc)
-      }
-    }
-    None
   }
 
   private def handleMapperEnd(
