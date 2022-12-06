@@ -663,7 +663,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
-  def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT))
+  def pushStageEndTimeout: Long =
+    get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
   def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
@@ -693,7 +694,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def getReducerFileGroupRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
-        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2)),
+        .getOrElse(rpcAskTimeout.duration * (requestCommitFilesMaxRetries + 2)),
       GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
@@ -2060,7 +2061,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.push.stageEnd.timeout")
       .withAlternative("rss.stage.end.timeout")
       .categories("client")
-      .doc(s"Timeout for waiting StageEnd. Default value is same as `${RPC_ASK_TIMEOUT.key}`.")
+      .doc(s"Timeout for waiting StageEnd. " +
+        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1)`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
@@ -2216,7 +2218,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during get reducer file group. " +
-        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
+        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1 + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
