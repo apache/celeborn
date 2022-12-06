@@ -24,9 +24,7 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-flink-${flink.version}_${scala.binary.version}</artifactId>
-  <packaging>jar</packaging>
-  <name>Celeborn Client for flink</name>
+  <artifactId>celeborn-client-flink-common-${flink.version}_${scala.binary.version}</artifactId>
 
   <dependencies>
     <dependency>
@@ -43,17 +41,6 @@
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-client_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-flink-common-${flink.version}_${scala.binary.version}</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
     </dependency>
   </dependencies>
 </project>
