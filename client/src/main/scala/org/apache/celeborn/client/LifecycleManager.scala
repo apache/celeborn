@@ -67,9 +67,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
   private val reducerFileGroupsMap =
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
-  private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
-  val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
-  private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
@@ -141,7 +138,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       rssHARetryClient,
       () => (totalWritten.sumThenReset(), fileCount.sumThenReset()))
   private val changePartitionManager = new ChangePartitionManager(conf, this)
-  private val commitManager = new CommitManager(appId, conf, this)
+  val commitManager = new CommitManager(appId, conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -149,6 +146,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // `rssHARetryClient` is called. Therefore, it's necessary to uniformly execute the initialization
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
+    // noinspection ConvertExpressionToSAM
     commitManager.start()
     heartbeater.start()
     changePartitionManager.start()
@@ -1068,7 +1066,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         registeringShuffleRequest.remove(shuffleId)
         reducerFileGroupsMap.remove(shuffleId)
         shuffleMapperAttempts.remove(shuffleId)
-        stageEndShuffleSet.remove(shuffleId)
         unregisterShuffleTime.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
         latestPartitionLocation.remove(shuffleId)

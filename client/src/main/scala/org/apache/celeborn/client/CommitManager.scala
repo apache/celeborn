@@ -546,6 +546,11 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     blacklist.putAll(failedWorker)
   }
 
+  def removeExpiredShuffle(shuffleId: String): Unit = {
+    dataLostShuffleSet.remove(shuffleId)
+    committedPartitionInfo.remove(shuffleId)
+  }
+
   def totalWritenSize: Long = totalWritten.sumThenReset()
   def fileCountNum: Long = fileCount.sumThenReset()
 }
