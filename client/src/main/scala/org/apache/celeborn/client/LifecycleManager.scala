@@ -129,7 +129,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
-  private val heartbeater = new ApplicationHeartbeater(appId, conf, rssHARetryClient, () =>commitManager.commitMetrics())
+  private val heartbeater =
+    new ApplicationHeartbeater(appId, conf, rssHARetryClient, () => commitManager.commitMetrics())
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   val commitManager = new CommitManager(appId, conf, this)
 
