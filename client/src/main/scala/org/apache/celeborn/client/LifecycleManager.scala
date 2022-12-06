@@ -129,7 +129,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
-  private val commitManager = new CommitManager(appId, conf, this)
+  val commitManager = new CommitManager(appId, conf, this)
   private val heartbeater =
     new ApplicationHeartbeater(appId, conf, rssHARetryClient, () => commitManager.commitMetrics())
   private val changePartitionManager = new ChangePartitionManager(conf, this)
@@ -514,14 +514,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (!failedWorker.isEmpty) {
       recordWorkerFailure(failedWorker)
     }
-  }
-
-  def registerCommitPartitionRequest(
-      applicationId: String,
-      shuffleId: Int,
-      partition: PartitionLocation,
-      cause: Option[StatusCode]): Unit = {
-    commitManager.registerCommitPartitionRequest(applicationId, shuffleId, partition, cause)
   }
 
   private def handleRevive(
