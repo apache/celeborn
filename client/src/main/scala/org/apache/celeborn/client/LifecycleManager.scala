@@ -129,10 +129,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
+  private val commitManager = new CommitManager(appId, conf, this)
   private val heartbeater =
     new ApplicationHeartbeater(appId, conf, rssHARetryClient, () => commitManager.commitMetrics())
   private val changePartitionManager = new ChangePartitionManager(conf, this)
-  val commitManager = new CommitManager(appId, conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -514,6 +514,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (!failedWorker.isEmpty) {
       recordWorkerFailure(failedWorker)
     }
+  }
+
+  def registerCommitPartition(
+      applicationId: String,
+      shuffleId: Int,
+      partition: PartitionLocation,
+      cause: Option[StatusCode]): Unit = {
+    commitManager.registerCommitPartition(applicationId, shuffleId, partition, cause)
   }
 
   private def handleRevive(
