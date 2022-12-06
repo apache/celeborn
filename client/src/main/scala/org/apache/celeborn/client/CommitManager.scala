@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationInt
 
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -52,7 +53,8 @@ case class ShuffleCommittedInfo(
     handledCommitPartitionRequests: util.Set[PartitionLocation],
     inFlightCommitRequest: AtomicInteger)
 
-class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: LifecycleManager) extends Logging {
+class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: LifecycleManager)
+  extends Logging {
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new ConcurrentHashMap[Int, ShuffleCommittedInfo]()
   private var shuffleMapperAttempts: ConcurrentHashMap[Int, Array[Int]] = _
@@ -79,7 +81,6 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       None
     }
   private var batchHandleCommitPartition: Option[ScheduledFuture[_]] = _
-
 
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
@@ -547,6 +548,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   }
 
   def removeExpiredShuffle(shuffleId: String): Unit = {
+    stageEndShuffleSet.remove(shuffleId)
     dataLostShuffleSet.remove(shuffleId)
     committedPartitionInfo.remove(shuffleId)
   }
