@@ -67,6 +67,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
   private val reducerFileGroupsMap =
     new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
+  private val shuffleTaskInfo = new ShuffleTaskInfo()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers =
     new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
@@ -104,6 +105,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(response)
     }
   }
+
+  case class ShuffleTask(
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int)
 
   // register shuffle request waiting for response
   private val registeringShuffleRequest =
@@ -202,6 +208,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   def getPartitionType(shuffleId: Int): PartitionType = {
     shufflePartitionType.getOrDefault(shuffleId, conf.shufflePartitionType)
+  }
+
+  def encodeExternalShuffleTask(
+      taskShuffleId: String,
+      mapId: Int,
+      taskAttemptId: String): ShuffleTask = {
+    val shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId)
+    val attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId)
+    logInfo(
+      s"encode task from " + s"($taskShuffleId, $mapId, $taskAttemptId) to ($shuffleId, $mapId, " +
+        s"$attemptId)")
+    ShuffleTask(shuffleId, mapId, attemptId)
   }
 
   override def receive: PartialFunction[Any, Unit] = {
@@ -1065,7 +1083,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-
+        shuffleTaskInfo.remove(shuffleId)
         requestUnregisterShuffle(
           rssHARetryClient,
           UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
