@@ -33,4 +33,9 @@ public class WorkerSuiteJ {
     ByteBuf buf = allocator.directBuffer(1024 * 1024 * 16);
     buf.release();
   }
+
+  @Test
+  public void testxxxx() {
+    System.out.println(5 / 2);
+  }
 }

@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.reflect.ClassTag$;
 
@@ -81,7 +82,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWait;
-  private final int maxInFlight;
+  private int maxInFlight;
+  private Integer currentMaxReqsInFlight = 1;
+  private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
 
   private final RpcEnv rpcEnv;
@@ -584,7 +587,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, maxInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
 
       // add inFlight requests
       pushState.inFlightBatches.put(nextBatchId, loc);
@@ -645,6 +648,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, applicationId, loc);
+                  slowStart();
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
@@ -665,11 +669,27 @@ public class ShuffleClientImpl extends ShuffleClient {
                               this,
                               pushState,
                               StatusCode.HARD_SPLIT));
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+                  logger.debug(
+                      "Push data split for map {} attempt {} batch {} return master congested.",
+                      mapId,
+                      attemptId,
+                      nextBatchId);
+                  congestionControl();
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+                  logger.debug(
+                      "Push data split for map {} attempt {} batch {} return slave congested.",
+                      mapId,
+                      attemptId,
+                      nextBatchId);
+                  congestionControl();
                 } else {
                   response.rewind();
+                  slowStart();
                   callback.onSuccess(response);
                 }
               } else {
+                slowStart();
                 callback.onSuccess(response);
               }
             }
@@ -849,7 +869,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     ArrayList<Map.Entry<String, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
-      limitMaxInFlight(mapKey, pushState, maxInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
       Map.Entry<String, DataBatches> entry = batchesArr.get(rand.nextInt(batchesArr.size()));
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
@@ -965,13 +985,29 @@ public class ShuffleClientImpl extends ShuffleClient {
                             batches,
                             StatusCode.HARD_SPLIT,
                             groupedBatchId));
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+                logger.debug(
+                    "Push data split for map {} attempt {} batchs {} return master congested.",
+                    mapId,
+                    attemptId,
+                    Arrays.toString(batchIds));
+                congestionControl();
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+                logger.debug(
+                    "Push data split for map {} attempt {} batchs {} return slave congested.",
+                    mapId,
+                    attemptId,
+                    Arrays.toString(batchIds));
+                congestionControl();
               } else {
                 // Should not happen in current architecture.
                 response.rewind();
                 logger.error("Push merged data should not receive this response");
+                slowStart();
                 callback.onSuccess(response);
               }
             } else {
+              slowStart();
               callback.onSuccess(response);
             }
           }
@@ -1192,6 +1228,36 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void setupMetaServiceRef(RpcEndpointRef endpointRef) {
     driverRssMetaService = endpointRef;
+  }
+
+  private void slowStart() {
+    synchronized (currentMaxReqsInFlight) {
+      if (currentMaxReqsInFlight > maxInFlight) {
+        // Congestion avoidance
+        congestionAvoidanceFlag++;
+        if (congestionAvoidanceFlag >= currentMaxReqsInFlight) {
+          currentMaxReqsInFlight++;
+          congestionAvoidanceFlag = 0;
+        }
+      } else {
+        // Slow start
+        currentMaxReqsInFlight++;
+      }
+    }
+  }
+
+  /**
+   * currentMaxReqsInFlight = currentMaxReqsInFlight / 2
+   */
+  private void congestionControl() {
+    synchronized (currentMaxReqsInFlight) {
+      if (currentMaxReqsInFlight <= 1) {
+        currentMaxReqsInFlight = 1;
+      } else {
+        currentMaxReqsInFlight = currentMaxReqsInFlight / 2;
+      }
+      maxInFlight = currentMaxReqsInFlight;
+    }
   }
 
   private boolean mapperEnded(int shuffleId, int mapId, int attemptId) {
