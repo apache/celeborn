@@ -92,6 +92,16 @@ public class DummyShuffleClient extends ShuffleClient {
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers) {}
 
   @Override
+  public void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
+      throws IOException {}
+
+  @Override
   public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {}
 
   @Override

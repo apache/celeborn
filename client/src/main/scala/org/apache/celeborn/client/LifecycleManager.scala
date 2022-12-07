@@ -20,8 +20,7 @@ package org.apache.celeborn.client
 import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
-import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -29,7 +28,6 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
-import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
@@ -43,6 +41,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.FunctionConverter._
 
 class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
 
@@ -66,7 +65,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
   private val reducerFileGroupsMap =
-    new ConcurrentHashMap[Int, Array[Array[PartitionLocation]]]()
+    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]()
   private val shuffleTaskInfo = new ShuffleTaskInfo()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers =
@@ -310,10 +309,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         epoch,
         oldPartition)
 
-    case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers) =>
-      logTrace(s"Received MapperEnd request, " +
-        s"${Utils.makeMapKey(applicationId, shuffleId, mapId, attemptId)}.")
-      handleMapperEnd(context, applicationId, shuffleId, mapId, attemptId, numMappers)
+    case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId) =>
+      logTrace(s"Received MapperEnd TaskEnd request, " +
+        s"${Utils.makeMapKey(applicationId, shuffleId, mapId, attemptId)}")
+      val partitionType = getPartitionType(shuffleId)
+      partitionType match {
+        case PartitionType.REDUCE =>
+          handleMapperEnd(context, applicationId, shuffleId, mapId, attemptId, numMappers)
+        case PartitionType.MAP =>
+          handleMapPartitionEnd(context, applicationId, shuffleId, mapId, attemptId, partitionId)
+      }
 
     case GetReducerFileGroup(applicationId: String, shuffleId: Int) =>
       logDebug(s"Received GetShuffleFileGroup request," +
@@ -483,8 +488,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           }
         }
       }
-
-      reducerFileGroupsMap.put(shuffleId, new Array[Array[PartitionLocation]](numReducers))
+      reducerFileGroupsMap.put(shuffleId, new ConcurrentHashMap())
 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
@@ -551,13 +555,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       return
     }
 
-    // If shuffle registered and corresponding map finished, reply MapEnd and return.
-    if (shuffleMapperAttempts.containsKey(shuffleId)
-      && shuffleMapperAttempts.get(shuffleId)(mapId) != -1) {
-      logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
-        s"ended attemptId ${shuffleMapperAttempts.get(shuffleId)(mapId)}, shuffleId $shuffleId.")
-      context.reply(ChangeLocationResponse(StatusCode.MAP_ENDED, None))
-      return
+    // If shuffle registered and corresponding map finished, reply MapEnd and return. Only for reduce partition type
+    if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
+      if (shuffleMapperAttempts.containsKey(shuffleId) && shuffleMapperAttempts.get(shuffleId)(
+          mapId) != -1) {
+        logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
+          s"ended attemptId ${shuffleMapperAttempts.get(shuffleId)(mapId)}, shuffleId $shuffleId.")
+        context.reply(ChangeLocationResponse(StatusCode.MAP_ENDED, None))
+        return
+      }
     }
 
     logWarning(s"Do Revive for shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, " +
@@ -621,28 +627,39 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int): Unit = {
     var timeout = stageEndTimeout
     val delta = 100
-    while (!commitManager.stageEndShuffleSet.contains(shuffleId)) {
-      Thread.sleep(delta)
-      if (timeout <= 0) {
-        logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
-        context.reply(
-          GetReducerFileGroupResponse(StatusCode.STAGE_END_TIME_OUT, Array.empty, Array.empty))
-        return
+    // reduce partition need wait stage end. While map partition Would commit every partition synchronously.
+    if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
+      while (!commitManager.stageEndShuffleSet.contains(shuffleId)) {
+        Thread.sleep(delta)
+        if (timeout <= 0) {
+          logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
+          context.reply(
+            GetReducerFileGroupResponse(
+              StatusCode.STAGE_END_TIME_OUT,
+              new ConcurrentHashMap(),
+              Array.empty))
+          return
+        }
+        timeout = timeout - delta
       }
-      timeout = timeout - delta
+      logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
+        s" ${stageEndTimeout - timeout}ms")
     }
-    logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
-      s" ${stageEndTimeout - timeout}ms")
 
     if (commitManager.dataLostShuffleSet.contains(shuffleId)) {
       context.reply(
-        GetReducerFileGroupResponse(StatusCode.SHUFFLE_DATA_LOST, Array.empty, Array.empty))
+        GetReducerFileGroupResponse(
+          StatusCode.SHUFFLE_DATA_LOST,
+          new ConcurrentHashMap(),
+          Array.empty))
     } else {
       if (context.isInstanceOf[LocalNettyRpcCallContext]) {
         // This branch is for the UTs
         context.reply(GetReducerFileGroupResponse(
           StatusCode.SUCCESS,
-          reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+          reducerFileGroupsMap.getOrDefault(
+            shuffleId,
+            new ConcurrentHashMap()),
           shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty)))
       } else {
         val cachedMsg = getReducerFileGroupRpcCache.get(
@@ -651,7 +668,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             override def call(): ByteBuffer = {
               val returnedMsg = GetReducerFileGroupResponse(
                 StatusCode.SUCCESS,
-                reducerFileGroupsMap.getOrDefault(shuffleId, Array.empty),
+                reducerFileGroupsMap.getOrDefault(
+                  shuffleId,
+                  new ConcurrentHashMap()),
                 shuffleMapperAttempts.getOrDefault(shuffleId, Array.empty))
               context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
             }
@@ -684,24 +703,55 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
   }
 
+  private def handleMapPartitionEnd(
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      partitionId: Int): Unit = {
+    def reply(result: Boolean): Unit = {
+      val message =
+        s"to handle MapPartitionEnd for ${Utils.makeMapKey(appId, shuffleId, mapId, attemptId)}, " +
+          s"$partitionId.";
+      result match {
+        case true => // if already committed by another try
+          logDebug(s"Succeed $message")
+          context.reply(MapperEndResponse(StatusCode.SUCCESS))
+        case false =>
+          logError(s"Failed $message")
+          context.reply(MapperEndResponse(StatusCode.SHUFFLE_DATA_LOST))
+      }
+    }
+
+    val dataCommitSuccess = commitManager.finalPartitionCommit(
+      applicationId,
+      shuffleId,
+      reducerFileGroupsMap.get(shuffleId),
+      partitionId)
+    reply(dataCommitSuccess)
+  }
+
   private def handleUnregisterShuffle(
       appId: String,
       shuffleId: Int): Unit = {
-    // if StageEnd has not been handled, trigger StageEnd
-    if (!commitManager.stageEndShuffleSet.contains(shuffleId)) {
-      logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
-      handleStageEnd(appId, shuffleId)
-      var timeout = stageEndTimeout
-      val delta = 100
-      while (!commitManager.stageEndShuffleSet.contains(shuffleId) && timeout > 0) {
-        Thread.sleep(delta)
-        timeout = timeout - delta
-      }
-      if (timeout <= 0) {
-        logError(s"StageEnd Timeout! $shuffleId.")
-      } else {
-        logInfo("[handleUnregisterShuffle] Wait for handleStageEnd complete cost" +
-          s" ${stageEndTimeout - timeout}ms")
+    if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
+      // if StageEnd has not been handled, trigger StageEnd
+      if (!commitManager.stageEndShuffleSet.contains(shuffleId)) {
+        logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
+        handleStageEnd(appId, shuffleId)
+        var timeout = stageEndTimeout
+        val delta = 100
+        while (!commitManager.stageEndShuffleSet.contains(shuffleId) && timeout > 0) {
+          Thread.sleep(delta)
+          timeout = timeout - delta
+        }
+        if (timeout <= 0) {
+          logError(s"StageEnd Timeout! $shuffleId.")
+        } else {
+          logInfo("[handleUnregisterShuffle] Wait for handleStageEnd complete cost" +
+            s" ${stageEndTimeout - timeout}ms")
+        }
       }
     }
 
