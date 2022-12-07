@@ -149,7 +149,11 @@ class ChangePartitionManager(
     val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
-    lifecycleManager.registerCommitPartition(applicationId, shuffleId, oldPartition, cause)
+    lifecycleManager.commitManager.registerCommitPartitionRequest(
+      applicationId,
+      shuffleId,
+      oldPartition,
+      cause)
 
     requests.synchronized {
       if (requests.containsKey(partitionId)) {
@@ -267,7 +271,7 @@ class ChangePartitionManager(
       return
     }
 
-    if (lifecycleManager.stageEndShuffleSet.contains(shuffleId)) {
+    if (lifecycleManager.commitManager.stageEndShuffleSet.contains(shuffleId)) {
       logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
       replyFailure(StatusCode.STAGE_ENDED)
       return
