@@ -238,7 +238,7 @@ public class FileWriterSuiteJ {
     final int threadsNum = 8;
     File file = getTemporaryFile();
     FileWriter fileWriter =
-        new FileWriter(
+        new ReducePartitionFileWriter(
             new FileInfo(file, userIdentifier),
             localFlusher,
             source,
@@ -246,7 +246,6 @@ public class FileWriterSuiteJ {
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            partitionType,
             false);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -283,7 +282,7 @@ public class FileWriterSuiteJ {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
     File file = getTemporaryFile();
     FileWriter fileWriter =
-        new FileWriter(
+        new ReducePartitionFileWriter(
             new FileInfo(file, userIdentifier),
             localFlusher,
             source,
@@ -291,7 +290,6 @@ public class FileWriterSuiteJ {
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            partitionType,
             false);
 
     List<Future<?>> futures = new ArrayList<>();
@@ -337,7 +335,7 @@ public class FileWriterSuiteJ {
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file, userIdentifier);
     FileWriter fileWriter =
-        new FileWriter(
+        new ReducePartitionFileWriter(
             fileInfo,
             localFlusher,
             source,
@@ -345,7 +343,6 @@ public class FileWriterSuiteJ {
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            partitionType,
             false);
 
     List<Future<?>> futures = new ArrayList<>();

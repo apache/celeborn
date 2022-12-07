@@ -37,7 +37,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.PackedPartitionId
-import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, LocalFlusher, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
 
@@ -617,15 +617,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     try {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE => {
-          fileWriter.pushDataHandShake(message.asInstanceOf[PushDataHandShake].numPartitions)
+          fileWriter.asInstanceOf[MapPartitionFileWriter].pushDataHandShake(
+            message.asInstanceOf[PushDataHandShake].numPartitions)
         }
         case Type.REGION_START => {
-          fileWriter.regionStart(
+          fileWriter.asInstanceOf[MapPartitionFileWriter].regionStart(
             message.asInstanceOf[RegionStart].currentRegionIndex,
             message.asInstanceOf[RegionStart].isBroadcast)
         }
         case Type.REGION_FINISH => {
-          fileWriter.regionFinish()
+          fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
         }
       }
       // for master, send data to slave
