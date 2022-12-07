@@ -976,7 +976,7 @@
     <profile>
       <id>flink-1.14</id>
       <modules>
-        <module>client-flink/flink1.14</module>
+        <module>client-flink/flink-1.14</module>
         <module>client-flink/flink-shaded</module>
       </modules>
       <properties>
