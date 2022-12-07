@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.reflect.ClassTag$;
 
@@ -1246,9 +1245,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  /**
-   * currentMaxReqsInFlight = currentMaxReqsInFlight / 2
-   */
   private void congestionControl() {
     synchronized (currentMaxReqsInFlight) {
       if (currentMaxReqsInFlight <= 1) {
