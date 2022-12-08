@@ -610,6 +610,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
                     .add(mapKey);
               }
+              pushState.removeFuture(nextBatchId);
               logger.debug(
                   "Push data to {}:{} success for map {} attempt {} batch {}.",
                   loc.getHost(),
@@ -1252,7 +1253,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         || (message.startsWith("Failed to send RPC "));
   }
 
-  public int pushData(
+  public int pushDataToLocation(
       String applicationId,
       int shuffleId,
       int mapId,

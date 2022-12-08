@@ -67,7 +67,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
             });
 
     int pushDataLen =
-        shuffleClient.pushData(
+        shuffleClient.pushDataToLocation(
             TEST_APPLICATION_ID,
             TEST_SHUFFLE_ID,
             TEST_ATTEMPT_ID,
@@ -93,7 +93,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
               return mockedFuture;
             });
     int pushDataLen =
-        shuffleClient.pushData(
+        shuffleClient.pushDataToLocation(
             TEST_APPLICATION_ID,
             TEST_SHUFFLE_ID,
             TEST_ATTEMPT_ID,
@@ -116,7 +116,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
               return mockedFuture;
             });
     // first push just  set pushdata.exception
-    shuffleClient.pushData(
+    shuffleClient.pushDataToLocation(
         TEST_APPLICATION_ID,
         TEST_SHUFFLE_ID,
         TEST_ATTEMPT_ID,
@@ -129,7 +129,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
     boolean isFailed = false;
     // second push will throw exception
     try {
-      shuffleClient.pushData(
+      shuffleClient.pushDataToLocation(
           TEST_APPLICATION_ID,
           TEST_SHUFFLE_ID,
           TEST_ATTEMPT_ID,

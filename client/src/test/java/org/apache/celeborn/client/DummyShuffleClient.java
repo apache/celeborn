@@ -138,7 +138,7 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public int pushData(
+  public int pushDataToLocation(
       String applicationId,
       int shuffleId,
       int mapId,
