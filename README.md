@@ -193,7 +193,7 @@ spark.rss.shuffle.writer.mode hash
 spark.rss.push.data.replicate true
 
 # Support for Spark AQE only tested under Spark 3
-# we recommend set localShuffleReader to false to get better performance of RSS
+# we strongly recommend set localShuffleReader to false when using RSS to avoid performance drop.
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # we recommend enable aqe support to gain better performance
