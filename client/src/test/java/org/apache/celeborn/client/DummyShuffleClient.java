@@ -155,7 +155,8 @@ public class DummyShuffleClient extends ShuffleClient {
       throws IOException {}
 
   @Override
-  public PartitionLocation registerMapPartitionTask(String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+  public PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
     return null;
   }
 }
