@@ -214,19 +214,19 @@ class DeviceMonitorSuite extends AnyFunSuite {
         deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
       assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-      when(fw2.notifyError("vda", DiskStatus.IO_HANG))
+      when(fw2.notifyError("vda", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw2)
         })
-      when(fw4.notifyError("vdb", DiskStatus.IO_HANG))
+      when(fw4.notifyError("vdb", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           deviceMonitor.unregisterFileWriter(fw4)
         })
-      when(df2.notifyError("vda", DiskStatus.IO_HANG))
+      when(df2.notifyError("vda", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           df2.stopFlag.set(true)
         })
-      when(df4.notifyError("vdb", DiskStatus.IO_HANG))
+      when(df4.notifyError("vdb", DiskStatus.CRITICAL_ERROR))
         .thenAnswer((a: String, b: List[File]) => {
           df4.stopFlag.set(true)
         })
@@ -252,35 +252,6 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor.registerFileWriter(fw4)
       assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
       assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
-      val dirs = new jArrayList[File]()
-      dirs.add(null)
-      when(fw1.notifyError(any(), any()))
-        .thenAnswer((_: Any) => {
-          deviceMonitor.unregisterFileWriter(fw1)
-        })
-      when(fw2.notifyError(any(), any()))
-        .thenAnswer((_: Any) => {
-          deviceMonitor.unregisterFileWriter(fw2)
-        })
-      deviceMonitor.reportDeviceError("/mnt/disk1", null, DiskStatus.IO_HANG)
-      assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 2)
-      assert(
-        deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(storageManager))
-      assert(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.contains(df2))
-
-      when(fw3.notifyError(any(), any()))
-        .thenAnswer((_: Any) => {
-          deviceMonitor.unregisterFileWriter(fw3)
-        })
-      when(fw4.notifyError(any(), any()))
-        .thenAnswer((_: Any) => {
-          deviceMonitor.unregisterFileWriter(fw4)
-        })
-      deviceMonitor.reportDeviceError("/mnt/disk2", null, DiskStatus.IO_HANG)
-      assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 2)
-      assert(
-        deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
-      assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
     }
   }
 
