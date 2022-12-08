@@ -926,6 +926,7 @@ object Utils extends Logging {
       case 1 => DiskStatus.READ_OR_WRITE_FAILURE
       case 2 => DiskStatus.IO_HANG
       case 3 => DiskStatus.HIGH_DISK_USAGE
+      case 4 => DiskStatus.CRITICAL_ERROR
       case _ => null
     }
   }
