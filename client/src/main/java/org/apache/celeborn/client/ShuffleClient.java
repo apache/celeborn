@@ -208,4 +208,7 @@ public abstract class ShuffleClient implements Cloneable {
       int bufferSize,
       PartitionLocation location)
       throws IOException;
+
+  public abstract PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId);
 }
