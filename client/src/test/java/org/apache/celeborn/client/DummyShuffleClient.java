@@ -23,7 +23,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,6 +135,19 @@ public class DummyShuffleClient extends ShuffleClient {
     } catch (IOException e) {
       LOG.error("Closing file failed.", e);
     }
+  }
+
+  @Override
+  public int pushDataToLocation(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack) {
+    return 0;
   }
 
   @Override
