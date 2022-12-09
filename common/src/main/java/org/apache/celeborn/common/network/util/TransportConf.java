@@ -55,6 +55,18 @@ public class TransportConf {
     return conf.networkIoConnectionTimeoutMs(module);
   }
 
+  /** Connection heartbeat timeout in milliseconds. Default 0 secs (never). */
+  public int heartbeatTimeoutMs() {
+    return (int) JavaUtils.timeStringAsSec(
+      conf.get("rss.network.heartbeat.timeout", "0s")) * 1000;
+  }
+
+  /** Channel write timeout in milliseconds. Default 0 secs (never). */
+  public int writeTimeoutMs() {
+    return (int) JavaUtils.timeStringAsSec(
+      conf.get("rss.network.write.timeout", "0s")) * 1000;
+  }
+
   /** Number of concurrent connections between two nodes for fetching data. */
   public int numConnectionsPerPeer() {
     return conf.networkIoNumConnectionsPerPeer(module);

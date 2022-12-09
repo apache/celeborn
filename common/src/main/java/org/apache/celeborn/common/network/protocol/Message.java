@@ -84,7 +84,9 @@ public abstract class Message implements Encodable {
     PUSH_MERGED_DATA(12),
     REGION_START(13),
     REGION_FINISH(14),
-    PUSH_DATA_HAND_SHAKE(15);
+    PUSH_DATA_HAND_SHAKE(15),
+    Ping(16),
+    Pong(17);
 
     private final byte id;
 
@@ -138,6 +140,8 @@ public abstract class Message implements Encodable {
           return REGION_FINISH;
         case 15:
           return PUSH_DATA_HAND_SHAKE;
+        case 16: return Ping;
+        case 17: return Pong;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -193,6 +197,13 @@ public abstract class Message implements Encodable {
 
       case PUSH_DATA_HAND_SHAKE:
         return PushDataHandShake.decode(in);
+
+      case Ping:
+        return Ping.decode(in);
+
+      case Pong:
+        return Pong.decode(in);
+
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);
     }

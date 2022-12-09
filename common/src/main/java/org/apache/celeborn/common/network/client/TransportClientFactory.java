@@ -23,13 +23,17 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.Preconditions;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +71,7 @@ public class TransportClientFactory implements Closeable {
   private final TransportContext context;
   private final TransportConf conf;
   private final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
+  private final ChannelGroup danglingChannels;
 
   /** Random number generator for picking connections between peers. */
   private final Random rand;
@@ -81,6 +86,7 @@ public class TransportClientFactory implements Closeable {
     this.context = Preconditions.checkNotNull(context);
     this.conf = context.getConf();
     this.connectionPool = new ConcurrentHashMap<>();
+    this.danglingChannels = new DefaultChannelGroup("dangling-channels", GlobalEventExecutor.INSTANCE);
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.rand = new Random();
 
@@ -135,6 +141,7 @@ public class TransportClientFactory implements Closeable {
           cachedClient.getChannel().pipeline().get(TransportChannelHandler.class);
       synchronized (handler) {
         handler.getResponseHandler().updateTimeOfLastRequest();
+        handler.resetDanglingPingCount();
       }
 
       if (cachedClient.isActive()) {
@@ -162,6 +169,9 @@ public class TransportClientFactory implements Closeable {
         if (cachedClient.isActive()) {
           logger.trace("Returning cached connection to {}: {}", resolvedAddress, cachedClient);
           return cachedClient;
+        } else if (cachedClient.getChannel().isActive()) {
+          logger.info("Found timeout connection to {}, creating a new one.", cachedClient.getSocketAddress());
+          danglingChannels.add(cachedClient.getChannel());
         } else {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
@@ -246,6 +256,8 @@ public class TransportClientFactory implements Closeable {
       }
     }
     connectionPool.clear();
+    // close is a local operation and should finish with milliseconds; timeout just to be safe
+    danglingChannels.close().awaitUninterruptibly(10, TimeUnit.SECONDS);
 
     // SPARK-19147
     if (workerGroup != null && !workerGroup.isShuttingDown()) {

@@ -17,15 +17,20 @@
 
 package org.apache.celeborn.common.network.server;
 
+import java.net.SocketAddress;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.WriteTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
+import org.apache.celeborn.common.network.protocol.Ping;
+import org.apache.celeborn.common.network.protocol.Pong;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.ResponseMessage;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -54,18 +59,22 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   private final TransportRequestHandler requestHandler;
   private final long requestTimeoutNs;
   private final boolean closeIdleConnections;
+  private final int danglingPingThreshold;
+  private volatile int danglingPingCount = 0;
 
   public TransportChannelHandler(
       TransportClient client,
       TransportResponseHandler responseHandler,
       TransportRequestHandler requestHandler,
       long requestTimeoutMs,
-      boolean closeIdleConnections) {
+      boolean closeIdleConnections,
+      int danglingPingThreshold) {
     this.client = client;
     this.responseHandler = responseHandler;
     this.requestHandler = requestHandler;
     this.requestTimeoutNs = requestTimeoutMs * 1000L * 1000;
     this.closeIdleConnections = closeIdleConnections;
+    this.danglingPingThreshold = danglingPingThreshold;
   }
 
   public TransportClient getClient() {
@@ -74,6 +83,14 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    if (cause instanceof WriteTimeoutException) {
+      try {
+        SocketAddress localAddress = ctx.channel().localAddress();
+        SocketAddress remoteAddress = ctx.channel().remoteAddress();
+        logger.warn("Channel write timeout, local address {}, remote address {}", localAddress, remoteAddress);
+      } catch (RuntimeException ignored) { }
+      return;
+    }
     logger.warn(
         "Exception in connection from " + NettyUtils.getRemoteAddress(ctx.channel()), cause);
     requestHandler.exceptionCaught(cause);
@@ -113,10 +130,13 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object request) throws Exception {
+    resetDanglingPingCount();
     if (request instanceof RequestMessage) {
       requestHandler.handle((RequestMessage) request);
     } else if (request instanceof ResponseMessage) {
       responseHandler.handle((ResponseMessage) request);
+    } else if (request instanceof Ping) {
+      ctx.channel().writeAndFlush(new Pong());
     } else {
       ctx.fireChannelRead(request);
     }
@@ -145,6 +165,17 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
             ctx.close();
           }
         }
+        // A typical process should be like:
+        //     request -> response? -> (ping(pong?)){0,threshold} -> (heartbeat-timeout|next-request)
+        if (danglingPingThreshold > 0 && closeIdleConnections && client.isActive()) {
+          danglingPingCount += 1;
+          if (danglingPingCount > danglingPingThreshold) {
+            client.timeOut();
+          }
+          if (client.isActive()) {
+            ctx.channel().writeAndFlush(new Ping());
+          }
+        }
       }
     }
     ctx.fireUserEventTriggered(evt);
@@ -152,5 +183,9 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   public TransportResponseHandler getResponseHandler() {
     return responseHandler;
+  }
+
+  public void resetDanglingPingCount() {
+    danglingPingCount = 0;
   }
 }

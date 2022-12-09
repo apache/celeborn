@@ -17,9 +17,12 @@
 
 package org.apache.celeborn.common.network;
 
+import java.util.concurrent.TimeUnit;
+
 import io.netty.channel.Channel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +57,7 @@ public class TransportContext {
   private final boolean closeIdleConnections;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
+  private static final int ALL_IDLE_TIMEOUT = 5; // 5s
 
   public TransportContext(
       TransportConf conf,
@@ -95,6 +99,9 @@ public class TransportContext {
 
   public TransportChannelHandler initializePipeline(SocketChannel channel) {
     try {
+      if (conf.writeTimeoutMs() > 0) {
+        channel.pipeline().addLast(new WriteTimeoutHandler(conf.writeTimeoutMs(), TimeUnit.MILLISECONDS));
+      }
       if (channelsLimiter != null) {
         channel.pipeline().addLast("limiter", channelsLimiter);
       }
@@ -104,7 +111,7 @@ public class TransportContext {
           .addLast("encoder", ENCODER)
           .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
           .addLast(
-              "idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
+              "idleStateHandler", new IdleStateHandler(0, 0, ALL_IDLE_TIMEOUT))
           .addLast("handler", channelHandler);
       return channelHandler;
     } catch (RuntimeException e) {
@@ -120,7 +127,14 @@ public class TransportContext {
     TransportRequestHandler requestHandler =
         new TransportRequestHandler(channel, client, msgHandler);
     return new TransportChannelHandler(
-        client, responseHandler, requestHandler, conf.connectionTimeoutMs(), closeIdleConnections);
+        client, responseHandler, requestHandler, conf.connectionTimeoutMs(), closeIdleConnections, getDanglingPingThreshold());
+  }
+
+  private int getDanglingPingThreshold() {
+    int heartbeatTimeout = conf.heartbeatTimeoutMs() / 1000;
+    int q = heartbeatTimeout / ALL_IDLE_TIMEOUT;
+    int m = heartbeatTimeout % ALL_IDLE_TIMEOUT;
+    return m == 0 ? q : q + 1;
   }
 
   public TransportConf getConf() {
