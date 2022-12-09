@@ -573,7 +573,7 @@
               <include>**/*Test*.*</include>
             </includes>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <argLine>-ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
             <systemProperties>
               <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
               <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
