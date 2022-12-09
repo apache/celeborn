@@ -33,6 +33,8 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
+// Can Remove this if celeborn don't support scala211 in future
+import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils
 
 case class CommitPartitionRequest(

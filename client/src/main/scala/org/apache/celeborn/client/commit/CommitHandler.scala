@@ -34,6 +34,8 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles,
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+// Can Remove this if celeborn don't support scala211 in future
+import org.apache.celeborn.common.util.FunctionConverter._
 
 case class ParallelCommitResult(
     masterPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
