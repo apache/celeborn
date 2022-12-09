@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -40,7 +40,7 @@ import org.apache.celeborn.common.util.FunctionConverter._
 case class ParallelCommitResult(
     masterPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
     slavePartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
-    commitFilesFailedWorkers: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)])
+    commitFilesFailedWorkers: ShuffleFailedWorkers)
 
 abstract class CommitHandler(
     appId: String,
@@ -69,12 +69,12 @@ abstract class CommitHandler(
 
   def finalCommit(
       shuffleId: Int,
-      recordWorkerFailure: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] => Unit): Unit
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit
 
   def finalPartitionCommit(
       shuffleId: Int,
       partitionId: Int,
-      recordWorkerFailure: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] => Unit): Boolean
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean
 
   def removeExpiredShuffle(shuffleId: Int): Unit
 
@@ -87,7 +87,7 @@ abstract class CommitHandler(
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
-    val commitFilesFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val commitFilesFailedWorkers = new ShuffleFailedWorkers()
     val commitFileStartTime = System.nanoTime()
     val parallelism = Math.min(allocatedWorkers.size(), conf.rpcMaxParallelism)
     ThreadUtils.parmap(
@@ -146,7 +146,7 @@ abstract class CommitHandler(
       worker: WorkerInfo,
       masterIds: util.List[String],
       slaveIds: util.List[String],
-      commitFilesFailedWorkers: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]): Unit = {
+      commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
 
     val res =
       if (!testRetryCommitFiles) {
@@ -243,8 +243,8 @@ abstract class CommitHandler(
   def collectResult(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      masterPartitionUniqueIds: util.List[String],
-      slavePartitionUniqueIds: util.List[String],
+      masterPartitionUniqueIds: util.Iterator[String],
+      slavePartitionUniqueIds: util.Iterator[String],
       masterPartMap: ConcurrentHashMap[String, PartitionLocation],
       slavePartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
     val committedPartitions = new util.HashMap[String, PartitionLocation]

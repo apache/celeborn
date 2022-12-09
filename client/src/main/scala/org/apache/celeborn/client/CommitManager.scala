@@ -27,6 +27,7 @@ import scala.concurrent.duration.DurationInt
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
+import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.commit.{CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -186,8 +187,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                       }
                     }
                     if (workerToRequests.nonEmpty) {
-                      val commitFilesFailedWorkers =
-                        new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+                      val commitFilesFailedWorkers = new ShuffleFailedWorkers()
                       val parallelism = workerToRequests.size
                       try {
                         ThreadUtils.parmap(
@@ -331,6 +331,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                   .shuffleAllocatedWorkers,
                 lifecycleManager.reducerFileGroupsMap,
                 committedPartitionInfo)
+            case _ => throw new UnsupportedOperationException(
+                s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
           }
         })
     }
@@ -339,10 +341,10 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   def commitMetrics(): (Long, Long) = {
     var totalWritten = 0L
     var totalFileCount = 0L
-    commitHandlers.asScala.values.foreach(commitHandler => {
+    commitHandlers.asScala.values.foreach { commitHandler =>
       totalWritten += commitHandler.commitMetrics._1
       totalFileCount += commitHandler.commitMetrics._2
-    })
+    }
     (totalWritten, totalFileCount)
   }
 }

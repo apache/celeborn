@@ -24,17 +24,23 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.PartitionType
-import org.apache.celeborn.common.protocol.message.StatusCode
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.Utils
 
+/**
+ * This commit handler is for MapPartition ShuffleType, which means that a Map Partition contains all data produced
+ * by an upstream MapTask, and data in a Map Partition may be consumed by multiple ReduceTasks. If the upstream MapTask
+ * has multiple outputs, each will be a Map Partition.
+ *
+ * @see [[org.apache.celeborn.common.protocol.PartitionType.MAP]]
+ */
 class MapPartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
@@ -64,14 +70,16 @@ class MapPartitionCommitHandler(
 
   override def finalCommit(
       shuffleId: Int,
-      recordWorkerFailure: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] => Unit): Unit = {
-    throw new UnsupportedOperationException("Failed when do final Commit Operation, MapPartition shuffleType only Support final partition Commit")
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit = {
+    throw new UnsupportedOperationException(
+      "Failed when do final Commit Operation, MapPartition shuffleType only " +
+        "support final partition Commit")
   }
 
   override def finalPartitionCommit(
       shuffleId: Int,
       partitionId: Int,
-      recordWorkerFailure: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] => Unit): Boolean = {
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
     val inProcessingPartitionIds =
       inProcessMapPartitionEndIds.computeIfAbsent(shuffleId, (k: Int) => new util.HashSet[Int]())
     inProcessingPartitionIds.add(partitionId)
@@ -112,7 +120,7 @@ class MapPartitionCommitHandler(
   private def handleFinalPartitionCommitFiles(
       shuffleId: Int,
       allocatedWorkers: util.Map[WorkerInfo, PartitionLocationInfo],
-      partitionId: Int): (Boolean, ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]) = {
+      partitionId: Int): (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     // commit files
     val parallelCommitResult = parallelCommitFiles(shuffleId, allocatedWorkers, Some(partitionId))
@@ -163,7 +171,7 @@ class MapPartitionCommitHandler(
 
   private def getPartitionUniqueIds(
       ids: ConcurrentHashMap[Int, util.List[String]],
-      partitionId: Int): util.List[String] = {
-    ids.getOrDefault(partitionId, Collections.emptyList[String])
+      partitionId: Int): util.Iterator[String] = {
+    ids.getOrDefault(partitionId, Collections.emptyList[String]).iterator()
   }
 }

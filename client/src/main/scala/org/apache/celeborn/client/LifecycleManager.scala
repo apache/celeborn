@@ -29,7 +29,7 @@ import scala.util.Random
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
@@ -51,6 +51,7 @@ object LifecycleManager {
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]
   type ShuffleMapperAttempts = ConcurrentHashMap[Int, Array[Int]]
+  type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
 }
 
 class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
@@ -123,7 +124,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     new ConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
 
   // blacklist
-  val blacklist = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+  val blacklist = new ShuffleFailedWorkers()
 
   // Threads
   private val forwardMessageThread =
@@ -434,7 +435,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // won't be empty since master will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
-    val connectFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
@@ -532,7 +533,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val failedWorker = new ShuffleFailedWorkers()
     if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
       val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
@@ -793,7 +794,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
-    val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val reserveSlotFailedWorkers = new ShuffleFailedWorkers()
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
@@ -1161,7 +1162,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             case _ => false
           }
         }.asJava
-      val reservedBlackList = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+      val reservedBlackList = new ShuffleFailedWorkers()
       reservedBlackList.putAll(reserved)
       blacklist.clear()
       blacklist.putAll(
@@ -1269,8 +1270,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]): Unit = {
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
+  def recordWorkerFailure(failures: ShuffleFailedWorkers): Unit = {
+    val failedWorker = new ShuffleFailedWorkers(failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
     failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
       if (!blacklist.containsKey(worker)) {

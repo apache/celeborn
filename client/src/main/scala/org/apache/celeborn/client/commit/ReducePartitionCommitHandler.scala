@@ -19,17 +19,24 @@ package org.apache.celeborn.client.commit
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
-import java.util.stream.Collectors
+
+import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.PartitionType
-import org.apache.celeborn.common.protocol.message.StatusCode
 
+/**
+ * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
+ * produced by all upstream MapTasks, and data in a Reduce Partition would only be consumed by one ReduceTask. If the
+ * ReduceTask has multiple inputs, each will be a ReducePartition
+ *
+ * @see [[org.apache.celeborn.common.protocol.PartitionType.REDUCE]]
+ */
 class ReducePartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
@@ -81,7 +88,7 @@ class ReducePartitionCommitHandler(
 
   override def finalCommit(
       shuffleId: Int,
-      recordWorkerFailure: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] => Unit): Unit = {
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit = {
     if (stageEndShuffleSet.contains(shuffleId)) {
       logInfo(s"[handleStageEnd] Shuffle $shuffleId already ended!")
       return
@@ -114,7 +121,7 @@ class ReducePartitionCommitHandler(
   private def handleFinalCommitFiles(
       shuffleId: Int,
       allocatedWorkers: util.Map[WorkerInfo, PartitionLocationInfo])
-      : (Boolean, ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]) = {
+      : (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
 
     // commit files
@@ -146,7 +153,7 @@ class ReducePartitionCommitHandler(
   override def finalPartitionCommit(
       shuffleId: Int,
       partitionId: Int,
-      recordWorkerFailure: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)] => Unit): Boolean = {
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
     throw new UnsupportedOperationException(
       s"Failed when do final Partition Commit Operation, Reduce Partition " +
         s"shuffleType only Support final commit for all partitions ")
@@ -162,7 +169,8 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  def getPartitionUniqueIds(ids: ConcurrentHashMap[Int, util.List[String]]): util.List[String] = {
-    ids.values().stream().flatMap(r => r.stream()).collect(Collectors.toList[String])
+  def getPartitionUniqueIds(ids: ConcurrentHashMap[Int, util.List[String]])
+      : util.Iterator[String] = {
+    ids.asScala.flatMap(_._2.asScala).toIterator.asJava
   }
 }
