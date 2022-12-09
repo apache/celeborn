@@ -100,6 +100,8 @@ public abstract class ShuffleClient implements Cloneable {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
           Configuration hdfsConfiguration = new Configuration();
+          // enable fs cache to avoid too many fs instances
+          hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
           try {
             hdfsFs = FileSystem.get(hdfsConfiguration);
           } catch (IOException e) {

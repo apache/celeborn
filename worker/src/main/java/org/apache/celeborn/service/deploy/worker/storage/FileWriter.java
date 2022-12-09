@@ -54,7 +54,6 @@ public final class FileWriter implements DeviceObserver {
 
   private final FileInfo fileInfo;
   private FileChannel channel;
-  private FSDataOutputStream stream;
   private volatile boolean closed;
   private volatile boolean destroyed;
 
@@ -127,7 +126,17 @@ public final class FileWriter implements DeviceObserver {
     if (!fileInfo.isHdfs()) {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
-      stream = StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true);
+      try {
+        StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true).close();
+      } catch (IOException e) {
+        try {
+          // If create file failed, wait 10 ms and retry
+          Thread.sleep(10);
+        } catch (InterruptedException ex) {
+          throw new RuntimeException(ex);
+        }
+        StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true).close();
+      }
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
@@ -160,8 +169,8 @@ public final class FileWriter implements DeviceObserver {
     FlushTask task = null;
     if (channel != null) {
       task = new LocalFlushTask(flushBuffer, channel, notifier);
-    } else if (stream != null) {
-      task = new HdfsFlushTask(flushBuffer, stream, notifier);
+    } else if (fileInfo.isHdfs()) {
+      task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
     }
     addTask(task);
     flushBuffer = null;
@@ -281,8 +290,7 @@ public final class FileWriter implements DeviceObserver {
         if (channel != null) {
           channel.close();
         }
-        if (stream != null) {
-          stream.close();
+        if (fileInfo.isHdfs()) {
           if (StorageManager.hdfsFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
             StorageManager.hdfsFs().delete(fileInfo.getHdfsPath(), false);
             deleted = true;
@@ -321,9 +329,6 @@ public final class FileWriter implements DeviceObserver {
         if (channel != null) {
           channel.close();
         }
-        if (stream != null) {
-          stream.close();
-        }
       } catch (IOException e) {
         logger.warn(
             "Close channel failed for file {} caused by {}.",
@@ -334,14 +339,12 @@ public final class FileWriter implements DeviceObserver {
 
     if (!destroyed) {
       destroyed = true;
-      try {
-        fileInfo.deleteAllFiles(StorageManager.hdfsFs());
-      } catch (Exception e) {
-        logger.warn("Exception when cleaning hdfs file {}", fileInfo.getFilePath());
-      }
+      fileInfo.deleteAllFiles(StorageManager.hdfsFs());
 
       // unregister from DeviceMonitor
-      deviceMonitor.unregisterFileWriter(this);
+      if (!fileInfo.isHdfs()) {
+        deviceMonitor.unregisterFileWriter(this);
+      }
       destroyHook.run();
     }
   }

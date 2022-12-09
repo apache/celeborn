@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -53,9 +52,10 @@ public class DfsPartitionReader implements PartitionReader {
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
   private Thread fetchThread;
-  private final FSDataInputStream hdfsInputStream;
+  private FSDataInputStream hdfsInputStream;
   private int numChunks = 0;
-  private final AtomicInteger currentChunkIndex = new AtomicInteger(0);
+  private int returnedChunks = 0;
+  private int currentChunkIndex = 0;
 
   public DfsPartitionReader(
       CelebornConf conf,
@@ -98,31 +98,84 @@ public class DfsPartitionReader implements PartitionReader {
           ShuffleClient.getHdfsFs(conf).open(new Path(location.getStorageInfo().getFilePath()));
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "DFS "
+              + location.getStorageInfo().getFilePath()
+              + "index count:"
+              + chunkOffsets.size()
+              + " offsets:"
+              + chunkOffsets);
+    }
     if (chunkOffsets.size() > 1) {
       numChunks = chunkOffsets.size() - 1;
       fetchThread =
           new Thread(
               () -> {
                 try {
-                  while (!closed && currentChunkIndex.get() < numChunks) {
+                  while (!closed && currentChunkIndex < numChunks) {
                     while (results.size() >= fetchMaxReqsInFlight) {
                       Thread.sleep(50);
                     }
-                    long offset = chunkOffsets.get(currentChunkIndex.get());
-                    long length = chunkOffsets.get(currentChunkIndex.get() + 1) - offset;
+                    long offset = chunkOffsets.get(currentChunkIndex);
+                    long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
+                    if (logger.isDebugEnabled()) {
+                      logger.debug(
+                          "read " + currentChunkIndex + " offset " + offset + " length " + length);
+                    }
                     byte[] buffer = new byte[(int) length];
-                    hdfsInputStream.readFully(offset, buffer);
-                    results.add(Unpooled.wrappedBuffer(buffer));
-                    currentChunkIndex.incrementAndGet();
+                    try {
+                      hdfsInputStream.readFully(offset, buffer);
+                    } catch (IOException e) {
+                      logger.warn(
+                          "read hdfs "
+                              + location.getStorageInfo().getFilePath()
+                              + " failed will rety",
+                          e);
+                      try {
+                        hdfsInputStream.close();
+                        hdfsInputStream =
+                            ShuffleClient.getHdfsFs(conf)
+                                .open(
+                                    new Path(
+                                        Utils.getSortedFilePath(
+                                            location.getStorageInfo().getFilePath())));
+                        hdfsInputStream.readFully(offset, buffer);
+                      } catch (IOException ex) {
+                        logger.warn(
+                            "retry read hdfs "
+                                + location.getStorageInfo().getFilePath()
+                                + " failed",
+                            e);
+                        exception.set(ex);
+                        break;
+                      }
+                    }
+                    results.put(Unpooled.wrappedBuffer(buffer));
+                    if (logger.isDebugEnabled()) {
+                      logger.debug("add index " + currentChunkIndex++ + " to results");
+                    }
                   }
-                } catch (IOException e) {
-                  exception.set(e);
-                } catch (InterruptedException e) {
+                } catch (Exception e) {
+                  logger.warn("Fetch thread is cancelled.", e);
                   // cancel a task for speculative, ignore this exception
                 }
-              });
+                if (logger.isDebugEnabled()) {
+                  logger.debug("fetch " + location.getStorageInfo().getFilePath() + " is done.");
+                }
+              },
+              "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
       fetchThread.start();
-      logger.debug("Start dfs read on location {}", location);
+      fetchThread.setUncaughtExceptionHandler(
+          new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+              logger.error("thread" + t + "failed", e);
+            }
+          });
+      if (logger.isDebugEnabled()) {
+        logger.debug("Start dfs read on location {}", location);
+      }
     }
   }
 
@@ -145,6 +198,9 @@ public class DfsPartitionReader implements PartitionReader {
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
+    if (logger.isDebugEnabled()) {
+      logger.debug("read sorted index" + indexPath);
+    }
     long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
     // Index size won't be large, so it's safe to do the conversion.
     byte[] indexBuffer = new byte[(int) indexSize];
@@ -162,17 +218,22 @@ public class DfsPartitionReader implements PartitionReader {
 
   @Override
   public boolean hasNext() {
-    return currentChunkIndex.get() < numChunks;
+    if (logger.isDebugEnabled()) {
+      logger.debug("check has next current index:" + returnedChunks + " chunks " + numChunks);
+    }
+    return returnedChunks < numChunks;
   }
 
   @Override
   public ByteBuf next() throws IOException {
-    checkException();
     ByteBuf chunk = null;
     try {
       while (chunk == null) {
         checkException();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
+        if (logger.isDebugEnabled()) {
+          logger.debug("poll result with result size: " + results.size());
+        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -180,6 +241,7 @@ public class DfsPartitionReader implements PartitionReader {
       exception.set(ioe);
       throw ioe;
     }
+    returnedChunks++;
     return chunk;
   }
 
@@ -193,7 +255,9 @@ public class DfsPartitionReader implements PartitionReader {
   @Override
   public void close() {
     closed = true;
-    fetchThread.interrupt();
+    if (fetchThread != null) {
+      fetchThread.interrupt();
+    }
     try {
       hdfsInputStream.close();
     } catch (IOException e) {

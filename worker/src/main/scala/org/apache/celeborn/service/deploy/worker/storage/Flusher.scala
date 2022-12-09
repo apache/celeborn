@@ -212,6 +212,7 @@ private[worker] class LocalFlusher(
   override def toString(): String = {
     s"LocalFlusher@$flusherId-$mountPoint"
   }
+
 }
 
 final private[worker] class HdfsFlusher(
@@ -223,11 +224,11 @@ final private[worker] class HdfsFlusher(
     hdfsFlusherThreads,
     flushAvgTimeWindowSize,
     avgFlushTimeSlidingWindowMinCount) with Logging {
-
   override def toString: String = s"HdfsFlusher@$flusherId"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     stopAndCleanFlusher()
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
   }
+
 }

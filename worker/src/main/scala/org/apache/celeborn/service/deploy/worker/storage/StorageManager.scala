@@ -129,6 +129,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val hdfsConfiguration = new Configuration
       hdfsConfiguration.set("fs.defaultFS", hdfsDir)
       hdfsConfiguration.set("dfs.replication", "2")
+      hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false")
       StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
       Some(new HdfsFlusher(
         workerSource,
@@ -270,7 +271,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
           diskInfo.dirs
         } else {
-          logWarning(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
+          logDebug(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
             s" working dirs. diskInfo $diskInfo")
           healthyWorkingDirs()
         }
@@ -399,6 +400,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
       }
       hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hdfsFs))
+      if (!hdfsInfos.isEmpty) {
+        try {
+          StorageManager.hdfsFs.delete(
+            new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+            true)
+        } catch {
+          case e: Exception => logWarning("Clean expired hdfs shuffle failed.", e)
+        }
+      }
     }
   }
 

@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
-import org.apache.hadoop.fs.FSDataOutputStream
+import org.apache.hadoop.fs.{FSDataOutputStream, Path}
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,
@@ -44,9 +44,11 @@ private[worker] class LocalFlushTask(
 
 private[worker] class HdfsFlushTask(
     buffer: CompositeByteBuf,
-    fsStream: FSDataOutputStream,
+    val path: Path,
     notifier: FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
-    fsStream.write(ByteBufUtil.getBytes(buffer))
+    val hdfsStream = StorageManager.hdfsFs.append(path)
+    hdfsStream.write(ByteBufUtil.getBytes(buffer))
+    hdfsStream.close()
   }
 }
