@@ -18,13 +18,17 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
+import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 /**
@@ -147,9 +151,19 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
       throws IOException;
 
-  // Report partition locations written by the completed map task
+  // Report partition locations written by the completed map task of ReducePartition Shuffle Type
   public abstract void mapperEnd(
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
+      throws IOException;
+
+  // Report partition locations written by the completed map task of MapPartition Shuffle Type
+  public abstract void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
       throws IOException;
 
   // Cleanup states of the map task
@@ -172,4 +186,45 @@ public abstract class ShuffleClient implements Cloneable {
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutDown();
+
+  // Write data to a specific map partition, input data's type is Bytebuf.
+  // data's type is Bytebuf to avoid copy between application and netty
+  // closecallback will do some clean opertions like memory release.
+  public abstract int pushDataToLocation(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack)
+      throws IOException;;
+
+  public abstract Optional<PartitionLocation> regionStart(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      PartitionLocation location,
+      int currentRegionIdx,
+      boolean isBroadcast)
+      throws IOException;
+
+  public abstract void regionFinish(
+      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
+      throws IOException;
+
+  public abstract void pushDataHandShake(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numPartitions,
+      int bufferSize,
+      PartitionLocation location)
+      throws IOException;
+
+  public abstract PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId);
 }

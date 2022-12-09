@@ -36,7 +36,6 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>tests/spark-it</module>
   </modules>
 
   <distributionManagement>
@@ -84,8 +83,11 @@
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.30</snakeyaml.version>
+    <!--  default flink version  -->
+    <flink.version>1.14.0</flink.version>
+
     <!--  default hadoop version  -->
-    <hadoop.version>3.3.1</hadoop.version>
+    <hadoop.version>3.2.1</hadoop.version>
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
@@ -141,6 +143,25 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-runtime</artifactId>
+        <version>${flink.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.tysafe</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -322,7 +343,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client</artifactId>
+        <artifactId>hadoop-client-api</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
           <exclusion>
@@ -412,6 +433,11 @@
             <artifactId>reload4j</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client-runtime</artifactId>
+        <version>${hadoop.version}</version>
       </dependency>
       <dependency>
         <groupId>org.roaringbitmap</groupId>
@@ -877,6 +903,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-2</module>
         <module>client-spark/spark-2-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.6.7</jackson.version>
@@ -907,6 +934,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -925,6 +953,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -943,6 +972,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.12.3</jackson.version>
@@ -961,6 +991,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.13.4</jackson.version>
@@ -970,6 +1001,24 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.1</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-1.14</id>
+      <modules>
+        <module>client-flink/flink-1.14</module>
+        <module>client-flink/flink-common</module>
+        <module>client-flink/flink-shaded</module>
+      </modules>
+      <properties>
+        <jackson.version>2.6.7</jackson.version>
+        <jackson.databind.version>2.6.7.3</jackson.databind.version>
+        <lz4-java.version>1.4.0</lz4-java.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <zstd-jni.version>1.4.4-3</zstd-jni.version>
+        <scala.version>2.12.15</scala.version>
+        <flink.version>1.14.0</flink.version>
       </properties>
     </profile>
 

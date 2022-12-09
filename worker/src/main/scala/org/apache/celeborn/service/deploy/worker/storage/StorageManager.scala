@@ -40,7 +40,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.network.server.MemoryTracker.MemoryTrackerListener
+import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
@@ -48,7 +48,7 @@ import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
-  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener {
+  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
@@ -119,6 +119,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
+  if (!hdfsDir.isEmpty) {
+    logInfo(s"Initialize HDFS support with path ${hdfsDir}")
+  }
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
   val hdfsFlusher =
@@ -253,7 +256,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
-    if (healthyWorkingDirs().size <= 0) {
+    if (healthyWorkingDirs().size <= 0 && hdfsDir.isEmpty) {
       throw new IOException("No available working dirs!")
     }
 
@@ -281,16 +284,27 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
         val fileInfo =
           new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier, partitionType)
-        val hdfsWriter = new FileWriter(
-          fileInfo,
-          hdfsFlusher.get,
-          workerSource,
-          conf,
-          deviceMonitor,
-          splitThreshold,
-          splitMode,
-          partitionType,
-          rangeReadFilter)
+        val hdfsWriter = partitionType match {
+          case PartitionType.MAP => new MapPartitionFileWriter(
+              fileInfo,
+              hdfsFlusher.get,
+              workerSource,
+              conf,
+              deviceMonitor,
+              splitThreshold,
+              splitMode,
+              rangeReadFilter)
+          case PartitionType.REDUCE => new ReducePartitionFileWriter(
+              fileInfo,
+              hdfsFlusher.get,
+              workerSource,
+              conf,
+              deviceMonitor,
+              splitThreshold,
+              splitMode,
+              rangeReadFilter)
+        }
+
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.synchronized {
           hdfsWriters.add(hdfsWriter)
@@ -315,16 +329,27 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             }
           }
           val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier, partitionType)
-          val fileWriter = new FileWriter(
-            fileInfo,
-            localFlushers.get(mountPoint),
-            workerSource,
-            conf,
-            deviceMonitor,
-            splitThreshold,
-            splitMode,
-            partitionType,
-            rangeReadFilter)
+
+          val fileWriter = partitionType match {
+            case PartitionType.MAP => new MapPartitionFileWriter(
+                fileInfo,
+                localFlushers.get(mountPoint),
+                workerSource,
+                conf,
+                deviceMonitor,
+                splitThreshold,
+                splitMode,
+                rangeReadFilter)
+            case PartitionType.REDUCE => new ReducePartitionFileWriter(
+                fileInfo,
+                localFlushers.get(mountPoint),
+                workerSource,
+                conf,
+                deviceMonitor,
+                splitThreshold,
+                splitMode,
+                rangeReadFilter)
+          }
           deviceMonitor.registerFileWriter(fileWriter)
           val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           list.synchronized {

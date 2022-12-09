@@ -24,11 +24,14 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
 
-import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.Uninterruptibles;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -48,10 +51,14 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.PushData;
+import org.apache.celeborn.common.network.protocol.PushDataHandShake;
 import org.apache.celeborn.common.network.protocol.PushMergedData;
+import org.apache.celeborn.common.network.protocol.RegionFinish;
+import org.apache.celeborn.common.network.protocol.RegionStart;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.*;
+import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcAddress;
@@ -76,7 +83,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWait;
-  private final int maxInFlight;
+  private int maxInFlight;
+  private Integer currentMaxReqsInFlight = 1;
+  private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
 
   private final RpcEnv rpcEnv;
@@ -84,6 +93,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private RpcEndpointRef driverRssMetaService;
 
   protected TransportClientFactory dataClientFactory;
+
+  final int BATCH_HEADER_SIZE = 4 * 4;
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
@@ -108,10 +119,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       };
 
   private static class ReduceFileGroups {
-    final PartitionLocation[][] partitionGroups;
+    final Map<Integer, Set<PartitionLocation>> partitionGroups;
     final int[] mapAttempts;
 
-    ReduceFileGroups(PartitionLocation[][] partitionGroups, int[] mapAttempts) {
+    ReduceFileGroups(Map<Integer, Set<PartitionLocation>> partitionGroups, int[] mapAttempts) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
     }
@@ -267,6 +278,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         () ->
             driverRssMetaService.askSync(
                 RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
+                conf.registerShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
@@ -288,6 +300,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 driverRssMetaService.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         appId, shuffleId, numMappers, mapId, attemptId, partitionId),
+                    conf.registerShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
     return partitionLocationMap.get(partitionId);
   }
@@ -445,6 +458,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   epoch,
                   oldLocation,
                   cause),
+              conf.requestPartitionLocationRpcAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
       // per partitionKey only serve single PartitionLocation in Client Cache.
       StatusCode respStatus = Utils.toStatusCode(response.getStatus());
@@ -557,7 +571,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     compressor.compress(data, offset, length);
 
     final int compressedTotalSize = compressor.getCompressedTotalSize();
-    final int BATCH_HEADER_SIZE = 4 * 4;
+
     final byte[] body = new byte[BATCH_HEADER_SIZE + compressedTotalSize];
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
@@ -576,7 +590,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, maxInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
 
       // add inFlight requests
       pushState.inFlightBatches.put(nextBatchId, loc);
@@ -591,6 +605,8 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onSuccess(ByteBuffer response) {
               pushState.inFlightBatches.remove(nextBatchId);
+              // TODO Need to adjust maxReqsInFlight if server response is congested, see
+              // CELEBORN-62
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
@@ -635,6 +651,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, applicationId, loc);
+                  slowStart();
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
@@ -655,11 +672,27 @@ public class ShuffleClientImpl extends ShuffleClient {
                               this,
                               pushState,
                               StatusCode.HARD_SPLIT));
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+                  logger.debug(
+                      "Push data split for map {} attempt {} batch {} return master congested.",
+                      mapId,
+                      attemptId,
+                      nextBatchId);
+                  congestionControl();
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+                  logger.debug(
+                      "Push data split for map {} attempt {} batch {} return slave congested.",
+                      mapId,
+                      attemptId,
+                      nextBatchId);
+                  congestionControl();
                 } else {
                   response.rewind();
+                  slowStart();
                   callback.onSuccess(response);
                 }
               } else {
+                slowStart();
                 callback.onSuccess(response);
               }
             }
@@ -757,6 +790,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     ShuffleClientHelper.sendShuffleSplitAsync(
         driverRssMetaService,
+        conf,
         PartitionSplit$.MODULE$.apply(applicationId, shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
         splittingSet,
@@ -838,7 +872,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     ArrayList<Map.Entry<String, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
-      limitMaxInFlight(mapKey, pushState, maxInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
       Map.Entry<String, DataBatches> entry = batchesArr.get(rand.nextInt(batchesArr.size()));
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
@@ -895,6 +929,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 attemptId,
                 groupedBatchId);
             pushState.inFlightBatches.remove(groupedBatchId);
+            // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               mapperEndMap
                   .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
@@ -953,13 +988,29 @@ public class ShuffleClientImpl extends ShuffleClient {
                             batches,
                             StatusCode.HARD_SPLIT,
                             groupedBatchId));
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+                logger.debug(
+                    "Push data split for map {} attempt {} batchs {} return master congested.",
+                    mapId,
+                    attemptId,
+                    Arrays.toString(batchIds));
+                congestionControl();
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+                logger.debug(
+                    "Push data split for map {} attempt {} batchs {} return slave congested.",
+                    mapId,
+                    attemptId,
+                    Arrays.toString(batchIds));
+                congestionControl();
               } else {
                 // Should not happen in current architecture.
                 response.rewind();
                 logger.error("Push merged data should not receive this response");
+                slowStart();
                 callback.onSuccess(response);
               }
             } else {
+              slowStart();
               callback.onSuccess(response);
             }
           }
@@ -1016,6 +1067,29 @@ public class ShuffleClientImpl extends ShuffleClient {
   public void mapperEnd(
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException {
+    mapEndInternal(applicationId, shuffleId, mapId, attemptId, numMappers, -1);
+  }
+
+  @Override
+  public void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
+      throws IOException {
+    mapEndInternal(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId);
+  }
+
+  private void mapEndInternal(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      Integer partitionId)
+      throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
 
@@ -1024,7 +1098,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       MapperEndResponse response =
           driverRssMetaService.askSync(
-              new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers),
+              new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
         throw new IOException("MapperEnd failed! StatusCode: " + response.status());
@@ -1098,17 +1172,19 @@ public class ShuffleClientImpl extends ShuffleClient {
 
                 GetReducerFileGroup getReducerFileGroup =
                     new GetReducerFileGroup(applicationId, shuffleId);
-                ClassTag<GetReducerFileGroupResponse> classTag =
-                    ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class);
 
                 GetReducerFileGroupResponse response =
-                    driverRssMetaService.askSync(getReducerFileGroup, classTag);
+                    driverRssMetaService.askSync(
+                        getReducerFileGroup,
+                        conf.getReducerFileGroupRpcAskTimeout(),
+                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
                 if (response.status() == StatusCode.SUCCESS) {
                   logger.info(
-                      "Shuffle {} request reducer file group success using time:{} ms",
+                      "Shuffle {} request reducer file group success using time:{} ms, result partition ids: {}",
                       shuffleId,
-                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000);
+                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
+                      response.fileGroup().keySet());
                   return new ReduceFileGroups(response.fileGroup(), response.attempts());
                 } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
                   logger.warn(
@@ -1134,20 +1210,26 @@ public class ShuffleClientImpl extends ShuffleClient {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
       throw new IOException(msg);
-    } else if (fileGroups.partitionGroups.length == 0) {
-      logger.warn("Shuffle data is empty for shuffle {} reduce {}.", shuffleId, partitionId);
+    } else if (fileGroups.partitionGroups.size() == 0
+        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       return RssInputStream.empty();
     } else {
       return RssInputStream.create(
           conf,
           dataClientFactory,
           shuffleKey,
-          fileGroups.partitionGroups[partitionId],
+          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),
           fileGroups.mapAttempts,
           attemptNumber,
           startMapIndex,
           endMapIndex);
     }
+  }
+
+  @VisibleForTesting
+  public Map<Integer, ReduceFileGroups> getReduceFileGroupsMap() {
+    return reduceFileGroupsMap;
   }
 
   @Override
@@ -1181,6 +1263,33 @@ public class ShuffleClientImpl extends ShuffleClient {
     driverRssMetaService = endpointRef;
   }
 
+  private void slowStart() {
+    synchronized (currentMaxReqsInFlight) {
+      if (currentMaxReqsInFlight > maxInFlight) {
+        // Congestion avoidance
+        congestionAvoidanceFlag++;
+        if (congestionAvoidanceFlag >= currentMaxReqsInFlight) {
+          currentMaxReqsInFlight++;
+          congestionAvoidanceFlag = 0;
+        }
+      } else {
+        // Slow start
+        currentMaxReqsInFlight++;
+      }
+    }
+  }
+
+  private void congestionControl() {
+    synchronized (currentMaxReqsInFlight) {
+      if (currentMaxReqsInFlight <= 1) {
+        currentMaxReqsInFlight = 1;
+      } else {
+        currentMaxReqsInFlight = currentMaxReqsInFlight / 2;
+      }
+      maxInFlight = currentMaxReqsInFlight;
+    }
+  }
+
   private boolean mapperEnded(int shuffleId, int mapId, int attemptId) {
     return mapperEndMap.containsKey(shuffleId)
         && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId));
@@ -1204,5 +1313,360 @@ public class ShuffleClientImpl extends ShuffleClient {
     return (message.startsWith("Connection from ") && message.endsWith(" closed"))
         || (message.equals("Connection reset by peer"))
         || (message.startsWith("Failed to send RPC "));
+  }
+
+  public int pushDataToLocation(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack)
+      throws IOException {
+    // mapKey
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+    // return if shuffle stage already ended
+    if (mapperEnded(shuffleId, mapId, attemptId)) {
+      logger.debug(
+          "The mapper(shuffle {} map {} attempt {}) has already ended while"
+              + " pushing data byteBuf.",
+          shuffleId,
+          mapId,
+          attemptId);
+      PushState pushState = pushStates.get(mapKey);
+      if (pushState != null) {
+        pushState.cancelFutures();
+      }
+      return 0;
+    }
+
+    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+
+    // increment batchId
+    final int nextBatchId = pushState.batchId.addAndGet(1);
+    int totalLength = data.readableBytes();
+    data.markWriterIndex();
+    data.writerIndex(0);
+    data.writeInt(mapId);
+    data.writeInt(attemptId);
+    data.writeInt(nextBatchId);
+    data.writeInt(totalLength - BATCH_HEADER_SIZE);
+    data.resetWriterIndex();
+    logger.debug(
+        "Do push data byteBuf for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
+        applicationId,
+        shuffleId,
+        mapId,
+        attemptId,
+        partitionId,
+        nextBatchId);
+    // check limit
+    limitMaxInFlight(mapKey, pushState, maxInFlight);
+
+    // add inFlight requests
+    pushState.inFlightBatches.put(nextBatchId, location);
+
+    // build PushData request
+    NettyManagedBuffer buffer = new NettyManagedBuffer(data);
+    PushData pushData = new PushData(MASTER_MODE, shuffleKey, location.getUniqueId(), buffer);
+
+    // build callback
+    RpcResponseCallback callback =
+        new RpcResponseCallback() {
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            closeCallBack.getAsBoolean();
+            pushState.inFlightBatches.remove(nextBatchId);
+            pushState.removeFuture(nextBatchId);
+            if (response.remaining() > 0) {
+              byte reason = response.get();
+              if (reason == StatusCode.STAGE_ENDED.getValue()) {
+                mapperEndMap
+                    .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
+                    .add(mapKey);
+              }
+            }
+            logger.debug(
+                "Push data byteBuf to {}:{} success for map {} attempt {} batch {}.",
+                location.getHost(),
+                location.getPushPort(),
+                mapId,
+                attemptId,
+                nextBatchId);
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            closeCallBack.getAsBoolean();
+            pushState.inFlightBatches.remove(nextBatchId);
+            pushState.removeFuture(nextBatchId);
+            if (pushState.exception.get() != null) {
+              return;
+            }
+            if (!mapperEnded(shuffleId, mapId, attemptId)) {
+              pushState.exception.compareAndSet(
+                  null, new IOException("PushData byteBuf failed!", e));
+              logger.error(
+                  "Push data byteBuf to {}:{} failed for map {} attempt {} batch {}.",
+                  location.getHost(),
+                  location.getPushPort(),
+                  mapId,
+                  attemptId,
+                  nextBatchId,
+                  e);
+            } else {
+              logger.warn(
+                  "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
+                  shuffleId,
+                  mapId,
+                  attemptId,
+                  nextBatchId);
+            }
+          }
+        };
+    // do push data
+    try {
+      TransportClient client =
+          dataClientFactory.createClient(location.getHost(), location.getPushPort(), partitionId);
+      ChannelFuture future = client.pushData(pushData, callback);
+      pushState.addFuture(nextBatchId, future);
+    } catch (Exception e) {
+      logger.warn("PushData byteBuf failed", e);
+      callback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+    }
+    return totalLength;
+  }
+
+  @Override
+  public void pushDataHandShake(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numPartitions,
+      int bufferSize,
+      PartitionLocation location)
+      throws IOException {
+    sendMessageInternal(
+        shuffleId,
+        mapId,
+        attemptId,
+        location,
+        () -> {
+          String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+          logger.info(
+              "pushDataHandShake shuffleKey:{}, attemptId:{}, locationId:{}",
+              shuffleKey,
+              attemptId,
+              location.getUniqueId());
+          logger.debug("pushDataHandShake location:{}", location.toString());
+          TransportClient client =
+              dataClientFactory.createClient(location.getHost(), location.getPushPort());
+          PushDataHandShake handShake =
+              new PushDataHandShake(
+                  MASTER_MODE,
+                  shuffleKey,
+                  location.getUniqueId(),
+                  attemptId,
+                  numPartitions,
+                  bufferSize);
+          client.sendRpcSync(handShake.toByteBuffer(), conf.pushDataRpcTimeoutMs());
+          return null;
+        });
+  }
+
+  @Override
+  public Optional<PartitionLocation> regionStart(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      PartitionLocation location,
+      int currentRegionIdx,
+      boolean isBroadcast)
+      throws IOException {
+    return sendMessageInternal(
+        shuffleId,
+        mapId,
+        attemptId,
+        location,
+        () -> {
+          String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+          logger.info(
+              "regionStart shuffleKey:{}, attemptId:{}, locationId:{}",
+              shuffleKey,
+              attemptId,
+              location.getUniqueId());
+          logger.debug("regionStart location:{}", location.toString());
+          TransportClient client =
+              dataClientFactory.createClient(location.getHost(), location.getPushPort());
+          RegionStart regionStart =
+              new RegionStart(
+                  MASTER_MODE,
+                  shuffleKey,
+                  location.getUniqueId(),
+                  attemptId,
+                  currentRegionIdx,
+                  isBroadcast);
+          ByteBuffer regionStartResponse =
+              client.sendRpcSync(regionStart.toByteBuffer(), conf.pushDataRpcTimeoutMs());
+          if (regionStartResponse.hasRemaining()
+              && regionStartResponse.get() == StatusCode.HARD_SPLIT.getValue()) {
+            // if split then revive
+            PbChangeLocationResponse response =
+                driverRssMetaService.askSync(
+                    ControlMessages.Revive$.MODULE$.apply(
+                        applicationId,
+                        shuffleId,
+                        mapId,
+                        attemptId,
+                        location.getId(),
+                        location.getEpoch(),
+                        location,
+                        StatusCode.HARD_SPLIT),
+                    conf.requestPartitionLocationRpcAskTimeout(),
+                    ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
+            // per partitionKey only serve single PartitionLocation in Client Cache.
+            StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+            if (StatusCode.SUCCESS.equals(respStatus)) {
+              return Optional.of(PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
+            } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
+              final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+              mapperEndMap
+                  .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
+                  .add(mapKey);
+              return Optional.empty();
+            } else {
+              // throw exception
+              logger.error(
+                  "Exception raised while reviving for shuffle {} reduce {} epoch {}.",
+                  shuffleId,
+                  location.getId(),
+                  location.getEpoch());
+              throw new IOException("regiontstart revive failed");
+            }
+          }
+          return Optional.empty();
+        });
+  }
+
+  @Override
+  public void regionFinish(
+      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
+      throws IOException {
+    sendMessageInternal(
+        shuffleId,
+        mapId,
+        attemptId,
+        location,
+        () -> {
+          final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+          logger.info(
+              "regionFinish shuffleKey:{}, attemptId:{}, locationId:{}",
+              shuffleKey,
+              attemptId,
+              location.getUniqueId());
+          logger.debug("regionFinish location:{}", location.toString());
+          TransportClient client =
+              dataClientFactory.createClient(location.getHost(), location.getPushPort());
+          RegionFinish regionFinish =
+              new RegionFinish(MASTER_MODE, shuffleKey, location.getUniqueId(), attemptId);
+          client.sendRpcSync(regionFinish.toByteBuffer(), conf.pushDataRpcTimeoutMs());
+          return null;
+        });
+  }
+
+  private <R> R sendMessageInternal(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      PartitionLocation location,
+      ThrowingExceptionSupplier<R, Exception> supplier)
+      throws IOException {
+    PushState pushState = null;
+    int batchId = 0;
+    try {
+      // mapKey
+      final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+      // return if shuffle stage already ended
+      if (mapperEnded(shuffleId, mapId, attemptId)) {
+        logger.debug(
+            "The mapper(shuffle {} map {} attempt {}) has already ended while" + " pushing data.",
+            shuffleId,
+            mapId,
+            attemptId);
+        return null;
+      }
+      pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+      // force data has been send
+      limitMaxInFlight(mapKey, pushState, 0);
+
+      // add inFlight requests
+      batchId = pushState.batchId.incrementAndGet();
+      pushState.inFlightBatches.put(batchId, location);
+      return retrySendMessage(supplier);
+    } finally {
+      if (pushState != null) {
+        pushState.inFlightBatches.remove(batchId);
+      }
+    }
+  }
+
+  @FunctionalInterface
+  interface ThrowingExceptionSupplier<R, E extends Exception> {
+    R get() throws E;
+  }
+
+  private <R> R retrySendMessage(ThrowingExceptionSupplier<R, Exception> supplier)
+      throws IOException {
+
+    int retryTimes = 0;
+    boolean isSuccess = false;
+    Exception currentException = null;
+    R result = null;
+    while (!Thread.currentThread().isInterrupted()
+        && !isSuccess
+        && retryTimes < conf.networkIoMaxRetries(TransportModuleConstants.PUSH_MODULE)) {
+      logger.info("retrySendMessage times: {}", retryTimes);
+      try {
+        result = supplier.get();
+        isSuccess = true;
+      } catch (Exception e) {
+        currentException = e;
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        if (shouldRetry(e)) {
+          retryTimes++;
+          Uninterruptibles.sleepUninterruptibly(
+              conf.networkIoRetryWaitMs(TransportModuleConstants.PUSH_MODULE),
+              TimeUnit.MILLISECONDS);
+        } else {
+          break;
+        }
+      }
+    }
+    if (!isSuccess) {
+      if (currentException instanceof IOException) {
+        throw (IOException) currentException;
+      } else {
+        throw new IOException(currentException.getMessage(), currentException);
+      }
+    }
+    return result;
+  }
+
+  private boolean shouldRetry(Throwable e) {
+    boolean isIOException =
+        e instanceof IOException
+            || e instanceof TimeoutException
+            || (e.getCause() != null && e.getCause() instanceof TimeoutException)
+            || (e.getCause() != null && e.getCause() instanceof IOException)
+            || (e instanceof RuntimeException
+                && e.getMessage().startsWith(IOException.class.getName()));
+    return isIOException;
   }
 }

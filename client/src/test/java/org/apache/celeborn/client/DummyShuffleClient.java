@@ -22,11 +22,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
 public class DummyShuffleClient extends ShuffleClient {
@@ -90,6 +94,16 @@ public class DummyShuffleClient extends ShuffleClient {
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers) {}
 
   @Override
+  public void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
+      throws IOException {}
+
+  @Override
   public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {}
 
   @Override
@@ -121,5 +135,53 @@ public class DummyShuffleClient extends ShuffleClient {
     } catch (IOException e) {
       LOG.error("Closing file failed.", e);
     }
+  }
+
+  @Override
+  public int pushDataToLocation(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack) {
+    return 0;
+  }
+
+  @Override
+  public Optional<PartitionLocation> regionStart(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      PartitionLocation location,
+      int currentRegionIdx,
+      boolean isBroadcast)
+      throws IOException {
+    return Optional.empty();
+  }
+
+  @Override
+  public void regionFinish(
+      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
+      throws IOException {}
+
+  @Override
+  public void pushDataHandShake(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numPartitions,
+      int bufferSize,
+      PartitionLocation location)
+      throws IOException {}
+
+  @Override
+  public PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+    return null;
   }
 }

@@ -29,9 +29,11 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
+
 @ChannelHandler.Sharable
 public class ChannelsLimiter extends ChannelDuplexHandler
-    implements MemoryTracker.MemoryTrackerListener {
+    implements MemoryManager.MemoryPressureListener {
 
   private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
@@ -40,8 +42,8 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   public ChannelsLimiter(String moduleName) {
     this.moduleName = moduleName;
-    MemoryTracker memoryTracker = MemoryTracker.instance();
-    memoryTracker.registerMemoryListener(this);
+    MemoryManager memoryManager = MemoryManager.instance();
+    memoryManager.registerMemoryListener(this);
   }
 
   private void pauseAllChannels() {

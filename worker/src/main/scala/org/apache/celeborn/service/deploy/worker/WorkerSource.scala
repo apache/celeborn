@@ -62,9 +62,19 @@ object WorkerSource {
   val MasterPushDataTime = "MasterPushDataTime"
   val SlavePushDataTime = "SlavePushDataTime"
   val PushDataFailCount = "PushDataFailCount"
+  val PushDataHandshakeFailCount = "PushDataHandshakeFailCount"
+  val RegionStartFailCount = "RegionStartFailCount"
+  val RegionFinishFailCount = "RegionFinishFailCount"
+  val MasterPushDataHandshakeTime = "MasterPushDataHandshakeTime"
+  val SlavePushDataHandshakeTime = "SlavePushDataHandshakeTime"
+  val MasterRegionStartTime = "MasterRegionStartTime"
+  val SlaveRegionStartTime = "SlaveRegionStartTime"
+  val MasterRegionFinishTime = "MasterRegionFinishTime"
+  val SlaveRegionFinishTime = "SlaveRegionFinishTime"
 
   // flush
   val TakeBufferTime = "TakeBufferTime"
+  val TakeBufferTimeIndex = "TakeBufferTimeIndex"
 
   val RegisteredShuffleCount = "RegisteredShuffleCount"
 

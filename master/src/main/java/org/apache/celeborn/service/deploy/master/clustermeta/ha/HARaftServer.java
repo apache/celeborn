@@ -312,13 +312,14 @@ public class HARaftServer {
     long raftSegmentPreallocatedSize = conf.haMasterRatisLogPreallocatedSize();
     int logAppenderQueueNumElements = conf.haMasterRatisLogAppenderQueueNumElements();
     long logAppenderQueueByteLimit = conf.haMasterRatisLogAppenderQueueBytesLimit();
+    boolean shouldInstallSnapshot = conf.haMasterRatisLogInstallSnapshotEnabled();
     RaftServerConfigKeys.Log.Appender.setBufferElementLimit(
         properties, logAppenderQueueNumElements);
     RaftServerConfigKeys.Log.Appender.setBufferByteLimit(
         properties, SizeInBytes.valueOf(logAppenderQueueByteLimit));
     RaftServerConfigKeys.Log.setPreallocatedSize(
         properties, SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.Appender.setInstallSnapshotEnabled(properties, false);
+    RaftServerConfigKeys.Log.Appender.setInstallSnapshotEnabled(properties, shouldInstallSnapshot);
     int logPurgeGap = conf.haMasterRatisLogPurgeGap();
     RaftServerConfigKeys.Log.setPurgeGap(properties, logPurgeGap);
 

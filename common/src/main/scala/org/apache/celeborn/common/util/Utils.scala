@@ -890,6 +890,10 @@ object Utils extends Logging {
         StatusCode.WORKER_IN_BLACKLIST
       case 28 =>
         StatusCode.UNKNOWN_WORKER
+      case 30 =>
+        StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
+      case 31 =>
+        StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED
       case _ =>
         null
     }
@@ -922,6 +926,7 @@ object Utils extends Logging {
       case 1 => DiskStatus.READ_OR_WRITE_FAILURE
       case 2 => DiskStatus.IO_HANG
       case 3 => DiskStatus.HIGH_DISK_USAGE
+      case 4 => DiskStatus.CRITICAL_ERROR
       case _ => null
     }
   }
