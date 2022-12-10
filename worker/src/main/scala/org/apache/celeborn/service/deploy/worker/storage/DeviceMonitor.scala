@@ -21,7 +21,7 @@ import java.io._
 import java.nio.charset.Charset
 import java.util
 import java.util.{Set => jSet}
-import java.util.concurrent.{ConcurrentHashMap, CopyOnWriteArrayList, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.io.Source
@@ -42,7 +42,6 @@ trait DeviceMonitor {
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
   def reportNonCriticalError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
-  def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
 
@@ -66,7 +65,7 @@ class LocalDeviceMonitor(
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
-    val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, util.List[Long]]()
+    val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, util.Set[Long]]()
     val notifyErrorThreshold = conf.diskMonitorNotifyErrorThreshold
     val notifyErrorExpireTimeout = conf.diskMonitorNotifyErrorExpireTimeout
 
@@ -100,12 +99,12 @@ class LocalDeviceMonitor(
 
     def notifyObserversOnNonCriticalError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
       this.synchronized {
-        val nonCriticalErrorCounterFunc = new util.function.Function[DiskStatus, util.List[Long]] {
-          override def apply(t: DiskStatus): util.List[Long] = {
-            new CopyOnWriteArrayList[Long]()
+        val nonCriticalErrorSetFunc = new util.function.Function[DiskStatus, util.Set[Long]] {
+          override def apply(t: DiskStatus): util.Set[Long] = {
+            ConcurrentHashMap.newKeySet[Long]()
           }
         }
-        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorCounterFunc).add(
+        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorSetFunc).add(
           System.currentTimeMillis())
         mountPoints.foreach { case mountPoint =>
           diskInfos.get(mountPoint).setStatus(diskStatus)
@@ -236,10 +235,10 @@ class LocalDeviceMonitor(
           try {
             observedDevices.values().asScala.foreach(device => {
               val mountPoints = device.diskInfos.keySet.asScala.toList
-              for (cowList <- device.nonCriticalErrors.values().asScala) {
-                for (time <- cowList.asScala) {
+              for (concurrentSet <- device.nonCriticalErrors.values().asScala) {
+                for (time <- concurrentSet.asScala) {
                   if (System.currentTimeMillis() - time > device.notifyErrorExpireTimeout) {
-                    cowList.remove(time)
+                    concurrentSet.remove(time)
                   }
                 }
               }
@@ -251,14 +250,13 @@ class LocalDeviceMonitor(
                   s"observed device.")
                 val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
                 device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
-              }
-              if (checkIoHang && device.ioHang()) {
-                logger.error(s"Encounter device io hang error!" +
-                  s"${device.deviceInfo.name}, notify observers")
-                device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
               } else {
-                device.diskInfos.values().asScala.foreach { case diskInfo =>
-                  if (diskInfo.status != DiskStatus.CRITICAL_ERROR) {
+                if (checkIoHang && device.ioHang()) {
+                  logger.error(s"Encounter device io hang error!" +
+                    s"${device.deviceInfo.name}, notify observers")
+                  device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
+                } else {
+                  device.diskInfos.values().asScala.foreach { case diskInfo =>
                     if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
                       logger.error(
                         s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
@@ -271,7 +269,7 @@ class LocalDeviceMonitor(
                       device.notifyObserversOnNonCriticalError(
                         List(diskInfo.mountPoint),
                         DiskStatus.READ_OR_WRITE_FAILURE)
-                    } else if (nonCriticalErrorSum < device.notifyErrorThreshold) {
+                    } else if (nonCriticalErrorSum == 0) {
                       device.notifyObserversOnHealthy(diskInfo.mountPoint)
                     }
                   }
@@ -350,7 +348,8 @@ object DeviceMonitor {
 
   /**
    * check if the disk is high usage
-   * @param conf conf
+   *
+   * @param conf     conf
    * @param diskInfo diskInfo
    * @return true if high disk usage
    */
@@ -380,7 +379,8 @@ object DeviceMonitor {
 
   /**
    * check if the data dir has read-write problem
-   * @param conf conf
+   *
+   * @param conf    conf
    * @param dataDir one of shuffle data dirs in mount disk
    * @return true if disk has read-write problem
    */

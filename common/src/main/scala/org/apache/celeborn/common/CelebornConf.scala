@@ -2450,7 +2450,7 @@ object CelebornConf extends Logging {
   val WORKER_DISK_MONITOR_NOTIFY_ERROR_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.worker.monitor.disk.notifyError.threshold")
       .categories("worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Device monitor will only notify critical error once the accumulated valid non-critical error number " +
         "exceeding this threshold.")
       .intConf
@@ -2459,11 +2459,11 @@ object CelebornConf extends Logging {
   val WORKER_DISK_MONITOR_NOTIFY_ERROR_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.monitor.disk.notifyError.expireTimeout")
       .categories("worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("The expire timeout of non-critical device error. Only notify critical error when the number of non-critical " +
         "errors for a period of time exceeds threshold.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("1h")
+      .createWithDefaultString("10m")
 
   val WORKER_WRITER_CREATE_MAX_ATTEMPTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.create.maxAttempts")
