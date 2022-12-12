@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
@@ -67,9 +68,72 @@ abstract class CommitHandler(
 
   def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = false
 
+  def batchUnCommitRequests(shuffleId: Int, shuffleCommittedInfo: ShuffleCommittedInfo)
+      : Map[WorkerInfo, collection.Set[PartitionLocation]] = {
+    // When running to here, if handleStageEnd got lock first and commitFiles,
+    // then this batch get this lock, commitPartitionRequests may contains
+    // partitions which are already committed by stageEnd process.
+    // But inProcessStageEndShuffleSet should have contain this shuffle id,
+    // can directly return empty.
+    if (this.isStageEndOrInProcess(shuffleId)) {
+      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
+      shuffleCommittedInfo.commitPartitionRequests.clear()
+      Map.empty[WorkerInfo, Set[PartitionLocation]]
+    } else {
+      val currentBatch = this.getUnCommitPartitionRequests(shuffleId, shuffleCommittedInfo)
+      shuffleCommittedInfo.commitPartitionRequests.clear()
+      currentBatch.foreach { partitionLocation =>
+        shuffleCommittedInfo.handledCommitPartitionRequests
+          .add(partitionLocation)
+        if (partitionLocation.getPeer != null) {
+          shuffleCommittedInfo.handledCommitPartitionRequests
+            .add(partitionLocation.getPeer)
+        }
+      }
+
+      if (currentBatch.nonEmpty) {
+        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+          s"${currentBatch.map(_.getUniqueId).mkString("[", ",", "]")}")
+        val workerToRequests = currentBatch.flatMap { partitionLocation =>
+          if (partitionLocation.getPeer != null) {
+            Seq(partitionLocation, partitionLocation.getPeer)
+          } else {
+            Seq(partitionLocation)
+          }
+        }.groupBy(_.getWorker)
+        workerToRequests
+      } else {
+        Map.empty[WorkerInfo, Set[PartitionLocation]]
+      }
+    }
+  }
+
+  protected def getUnCommitPartitionRequests(
+      shuffleId: Int,
+      shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation]
+
+  def incrementInFlightNum(
+      shuffleCommittedInfo: ShuffleCommittedInfo,
+      workerToRequests: Map[
+        WorkerInfo,
+        collection.Set[PartitionLocation]]): Unit = {
+    shuffleCommittedInfo.allInFlightCommitRequestNum.addAndGet(
+      workerToRequests.size)
+  }
+
+  def decrementInFlightNum(
+      shuffleCommittedInfo: ShuffleCommittedInfo,
+      workerToRequests: Map[
+        WorkerInfo,
+        collection.Set[PartitionLocation]]): Unit = {
+    shuffleCommittedInfo.allInFlightCommitRequestNum.addAndGet(
+      -workerToRequests.size)
+  }
+
   /**
    * when someone calls tryFinalCommit, the function will return true if there is no one ever do final commit before,
    * otherwise it will return false.
+   *
    * @return
    */
   def tryFinalCommit(

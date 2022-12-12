@@ -38,11 +38,6 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils
 
-case class CommitPartitionRequest(
-    applicationId: String,
-    shuffleId: Int,
-    partition: PartitionLocation)
-
 case class ShuffleCommittedInfo(
     committedMasterIds: ConcurrentHashMap[Int, util.List[String]],
     committedSlaveIds: ConcurrentHashMap[Int, util.List[String]],
@@ -52,7 +47,7 @@ case class ShuffleCommittedInfo(
     committedSlaveStorageInfos: ConcurrentHashMap[String, StorageInfo],
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     currentShuffleFileCount: LongAdder,
-    commitPartitionRequests: util.Set[CommitPartitionRequest],
+    commitPartitionRequests: util.Set[PartitionLocation],
     handledCommitPartitionRequests: util.Set[PartitionLocation],
     allInFlightCommitRequestNum: AtomicInteger,
     partitionInFlightCommitRequestNum: ConcurrentHashMap[Int, AtomicInteger])
@@ -91,104 +86,20 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
             committedPartitionInfo.asScala.foreach { case (shuffleId, shuffleCommittedInfo) =>
               batchHandleCommitPartitionExecutors.submit {
                 new Runnable {
-                  val partitionType = lifecycleManager.getPartitionType(shuffleId)
                   val commitHandler = getCommitHandler(shuffleId)
-                  def incrementInflightNum(workerToRequests: Map[
-                    WorkerInfo,
-                    collection.Set[PartitionLocation]]): Unit = {
-                    if (partitionType == PartitionType.MAP) {
-                      workerToRequests.foreach {
-                        case (_, partitions) =>
-                          partitions.groupBy(_.getId).foreach { case (id, _) =>
-                            val atomicInteger = shuffleCommittedInfo
-                              .partitionInFlightCommitRequestNum
-                              .computeIfAbsent(id, (k: Int) => new AtomicInteger(0))
-                            atomicInteger.incrementAndGet()
-                          }
-                      }
-                    }
-                    shuffleCommittedInfo.allInFlightCommitRequestNum.addAndGet(
-                      workerToRequests.size)
-                  }
-
-                  def decrementInflightNum(
-                      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]])
-                      : Unit = {
-                    if (partitionType == PartitionType.MAP) {
-                      workerToRequests.foreach {
-                        case (_, partitions) =>
-                          partitions.groupBy(_.getId).foreach { case (id, _) =>
-                            shuffleCommittedInfo.partitionInFlightCommitRequestNum.get(
-                              id).decrementAndGet()
-                          }
-                      }
-                    }
-                    shuffleCommittedInfo.allInFlightCommitRequestNum.addAndGet(
-                      -workerToRequests.size)
-                  }
-
-                  def getUnCommitPartitionRequests(
-                      commitPartitionRequests: util.Set[CommitPartitionRequest])
-                      : scala.collection.mutable.Set[CommitPartitionRequest] = {
-                    if (partitionType == PartitionType.MAP) {
-                      commitPartitionRequests.asScala.filterNot { request =>
-                        shuffleCommittedInfo.handledCommitPartitionRequests
-                          .contains(request.partition) && commitHandler.isPartitionInProcess(
-                          shuffleId,
-                          request.partition.getId)
-                      }
-                    } else {
-                      commitPartitionRequests.asScala.filterNot { request =>
-                        shuffleCommittedInfo.handledCommitPartitionRequests
-                          .contains(request.partition)
-                      }
-                    }
-                  }
-
                   override def run(): Unit = {
-                    val workerToRequests = shuffleCommittedInfo.synchronized {
-                      // When running to here, if handleStageEnd got lock first and commitFiles,
-                      // then this batch get this lock, commitPartitionRequests may contains
-                      // partitions which are already committed by stageEnd process.
-                      // But inProcessStageEndShuffleSet should have contain this shuffle id,
-                      // can directly return.
-                      if (commitHandler.isStageEndOrInProcess(shuffleId)) {
-                        logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-                        shuffleCommittedInfo.commitPartitionRequests.clear()
-                        Map.empty[WorkerInfo, Set[PartitionLocation]]
-                      } else {
-                        val currentBatch =
-                          getUnCommitPartitionRequests(shuffleCommittedInfo.commitPartitionRequests)
-                        shuffleCommittedInfo.commitPartitionRequests.clear()
-                        currentBatch.foreach { commitPartitionRequest =>
-                          shuffleCommittedInfo.handledCommitPartitionRequests
-                            .add(commitPartitionRequest.partition)
-                          if (commitPartitionRequest.partition.getPeer != null) {
-                            shuffleCommittedInfo.handledCommitPartitionRequests
-                              .add(commitPartitionRequest.partition.getPeer)
-                          }
-                        }
-
-                        if (currentBatch.nonEmpty) {
-                          logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
-                            s"${currentBatch.map(_.partition.getUniqueId).mkString("[", ",", "]")}")
-                          val workerToRequests = currentBatch.flatMap { request =>
-                            if (request.partition.getPeer != null) {
-                              Seq(request.partition, request.partition.getPeer)
-                            } else {
-                              Seq(request.partition)
-                            }
-                          }.groupBy(_.getWorker)
-                          incrementInflightNum(workerToRequests)
-                          workerToRequests
-                        } else {
-                          Map.empty[WorkerInfo, Set[PartitionLocation]]
-                        }
-                      }
+                    var workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]] = null
+                    shuffleCommittedInfo.synchronized {
+                      workerToRequests =
+                        commitHandler.batchUnCommitRequests(shuffleId, shuffleCommittedInfo)
+                      // when batch commit thread starts to commit these requests, we should increment inFlightNum,
+                      // then stage/partition end would be able to recognize all requests are over.
+                      commitHandler.incrementInFlightNum(shuffleCommittedInfo, workerToRequests)
                     }
+
                     if (workerToRequests.nonEmpty) {
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
-                      val parallelism = workerToRequests.size
+                      val parallelism = Math.min(workerToRequests.size, conf.rpcMaxParallelism)
                       try {
                         ThreadUtils.parmap(
                           workerToRequests.to,
@@ -226,7 +137,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                         }
                         lifecycleManager.recordWorkerFailure(commitFilesFailedWorkers)
                       } finally {
-                        decrementInflightNum(workerToRequests)
+                        // when batch commit thread ends, we need decrementInFlightNum
+                        commitHandler.decrementInFlightNum(shuffleCommittedInfo, workerToRequests)
                       }
                     }
                   }
@@ -258,7 +170,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
         new ConcurrentHashMap[String, StorageInfo](),
         new ConcurrentHashMap[String, RoaringBitmap](),
         new LongAdder,
-        new util.HashSet[CommitPartitionRequest](),
+        new util.HashSet[PartitionLocation](),
         new util.HashSet[PartitionLocation](),
         new AtomicInteger(),
         new ConcurrentHashMap[Int, AtomicInteger]()))
@@ -270,15 +182,14 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   }
 
   def registerCommitPartitionRequest(
-      applicationId: String,
       shuffleId: Int,
-      partition: PartitionLocation,
+      partitionLocation: PartitionLocation,
       cause: Option[StatusCode]): Unit = {
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
         shuffleCommittedInfo.commitPartitionRequests
-          .add(CommitPartitionRequest(applicationId, shuffleId, partition))
+          .add(partitionLocation)
       }
     }
   }

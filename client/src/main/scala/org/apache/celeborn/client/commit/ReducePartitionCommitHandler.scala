@@ -21,6 +21,7 @@ import java.util
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
@@ -28,7 +29,7 @@ import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.PartitionType
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 
 /**
  * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
@@ -148,6 +149,15 @@ class ReducePartitionCommitHandler(
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
+  }
+
+  override def getUnCommitPartitionRequests(
+      shuffleId: Int,
+      shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
+    shuffleCommittedInfo.commitPartitionRequests.asScala.filterNot { partitionLocation =>
+      shuffleCommittedInfo.handledCommitPartitionRequests
+        .contains(partitionLocation)
+    }
   }
 
   override def finalPartitionCommit(

@@ -150,7 +150,6 @@ class ChangePartitionManager(
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
     lifecycleManager.commitManager.registerCommitPartitionRequest(
-      applicationId,
       shuffleId,
       oldPartition,
       cause)
