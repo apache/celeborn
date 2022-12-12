@@ -660,7 +660,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       requestId: Long,
       isCheckSplit: Boolean,
       callback: RpcResponseCallback): Unit = {
-    val isMaster = mode == PartitionLocation.Mode.MASTER
+    val isMaster = PartitionLocation.getMode(mode) == PartitionLocation.Mode.MASTER
     val messageType = message.`type`()
     log.info(s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, partitionUniqueId:$partitionUniqueId")
     val (workerSourceMaster, workerSourceSlave) =
