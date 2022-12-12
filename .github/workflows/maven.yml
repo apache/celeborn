@@ -34,3 +34,8 @@ jobs:
         check-latest: false
     - name: Test with Maven
       run: build/mvn -Pgoogle-mirror,spark-${{ matrix.spark }} test
+    - name: Upload coverage to Codecov
+      if: |
+        matrix.java == 8 &&
+        matrix.spark == '3.3'
+      uses: codecov/codecov-action@v3

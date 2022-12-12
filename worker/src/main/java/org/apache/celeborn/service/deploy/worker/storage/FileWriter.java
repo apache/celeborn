@@ -48,58 +48,38 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource;
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
  *       That's fine some of the internal state(e.g. bytesFlushed) may be inaccurate.
  */
-public final class FileWriter implements DeviceObserver {
+public abstract class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
   private static final long WAIT_INTERVAL_MS = 20;
 
-  private final FileInfo fileInfo;
-  private FileChannel channel;
-  private FSDataOutputStream stream;
-  private volatile boolean closed;
-  private volatile boolean destroyed;
+  protected final FileInfo fileInfo;
+  protected FileChannel channel;
+  protected FSDataOutputStream stream;
+  protected volatile boolean closed;
+  protected volatile boolean destroyed;
 
-  private final AtomicInteger numPendingWrites = new AtomicInteger();
-  private long nextBoundary;
-  private long bytesFlushed;
+  protected final AtomicInteger numPendingWrites = new AtomicInteger();
+  protected long bytesFlushed;
 
   public final Flusher flusher;
   private final int flushWorkerIndex;
-  private CompositeByteBuf flushBuffer;
+  protected CompositeByteBuf flushBuffer;
 
-  private final long shuffleChunkSize;
   private final long writerCloseTimeoutMs;
 
-  private final long flusherBufferSize;
+  protected final long flusherBufferSize;
 
-  private final DeviceMonitor deviceMonitor;
-  private final AbstractSource source; // metrics
+  protected final DeviceMonitor deviceMonitor;
+  protected final AbstractSource source; // metrics
 
   private long splitThreshold = 0;
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
   private final boolean rangeReadFilter;
-
   private Runnable destroyHook;
-  private boolean deleted = false;
+  protected boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
-
-  private final FlushNotifier notifier = new FlushNotifier();
-
-  // //////////////////////////////////////////////////////
-  //            map partition                            //
-  // //////////////////////////////////////////////////////
-
-  /** Number of reducepartitions */
-  private int numReducePartitions;
-
-  /** Index number of the current data region being written. */
-  private int currentDataRegionIndex;
-
-  /**
-   * Whether current data region is a broadcast region or not. If true, buffers added to this region
-   * will be written to all reduce partitions.
-   */
-  private boolean isBroadcastRegion;
+  protected final FlushNotifier notifier = new FlushNotifier();
 
   public FileWriter(
       FileInfo fileInfo,
@@ -115,8 +95,6 @@ public final class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.nextBoundary = this.shuffleChunkSize;
     this.writerCloseTimeoutMs = conf.writerCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
     this.flusherBufferSize = conf.workerFlusherBufferSize();
@@ -153,7 +131,7 @@ public final class FileWriter implements DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
-  private void flush(boolean finalFlush) throws IOException {
+  protected void flush(boolean finalFlush) throws IOException {
     int numBytes = flushBuffer.readableBytes();
     notifier.checkException();
     notifier.numPendingFlushes.incrementAndGet();
@@ -166,26 +144,6 @@ public final class FileWriter implements DeviceObserver {
     addTask(task);
     flushBuffer = null;
     bytesFlushed += numBytes;
-    maybeSetChunkOffsets(finalFlush);
-  }
-
-  private void maybeSetChunkOffsets(boolean forceSet) {
-    if (bytesFlushed >= nextBoundary || forceSet) {
-      fileInfo.addChunkOffset(bytesFlushed);
-      nextBoundary = bytesFlushed + shuffleChunkSize;
-    }
-  }
-
-  private boolean isChunkOffsetValid() {
-    // Consider a scenario where some bytes have been flushed
-    // but the chunk offset boundary has not yet been updated.
-    // we should check if the chunk offset boundary equals
-    // bytesFlush or not. For example:
-    // The last record is a giant record and it has been flushed
-    // but its size is smaller than the nextBoundary, then the
-    // chunk offset will not be set after flushing. we should
-    // set it during FileWriter close.
-    return fileInfo.getLastChunkOffset() == bytesFlushed;
   }
 
   /**
@@ -254,7 +212,18 @@ public final class FileWriter implements DeviceObserver {
     }
   }
 
-  public synchronized long close() throws IOException {
+  public abstract long close() throws IOException;
+
+  @FunctionalInterface
+  public interface RunnableWithException<R extends IOException> {
+    void run() throws R;
+  }
+
+  protected synchronized long close(
+      RunnableWithException tryClose,
+      RunnableWithException streamClose,
+      RunnableWithException finalClose)
+      throws IOException {
     if (closed) {
       String msg = "FileWriter has already closed! fileName " + fileInfo.getFilePath();
       logger.error(msg);
@@ -269,9 +238,7 @@ public final class FileWriter implements DeviceObserver {
         if (flushBuffer.readableBytes() > 0) {
           flush(true);
         }
-        if (!isChunkOffsetValid()) {
-          maybeSetChunkOffsets(true);
-        }
+        tryClose.run();
       }
 
       waitOnNoPending(notifier.numPendingFlushes);
@@ -283,23 +250,13 @@ public final class FileWriter implements DeviceObserver {
         }
         if (stream != null) {
           stream.close();
-          if (StorageManager.hdfsFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-            StorageManager.hdfsFs().delete(fileInfo.getHdfsPath(), false);
-            deleted = true;
-          } else {
-            StorageManager.hdfsFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
-            FSDataOutputStream indexOutputStream =
-                StorageManager.hdfsFs().create(fileInfo.getHdfsIndexPath());
-            indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
-            for (Long offset : fileInfo.getChunkOffsets()) {
-              indexOutputStream.writeLong(offset);
-            }
-            indexOutputStream.close();
-          }
+          streamClose.run();
         }
       } catch (IOException e) {
         logger.warn("close file writer" + this + "failed", e);
       }
+
+      finalClose.run();
 
       // unregister from DeviceMonitor
       if (!fileInfo.isHdfs()) {
@@ -364,7 +321,7 @@ public final class FileWriter implements DeviceObserver {
     }
   }
 
-  private void waitOnNoPending(AtomicInteger counter) throws IOException {
+  protected void waitOnNoPending(AtomicInteger counter) throws IOException {
     long waitTime = writerCloseTimeoutMs;
     while (counter.get() > 0 && waitTime > 0) {
       try {
@@ -385,7 +342,7 @@ public final class FileWriter implements DeviceObserver {
     notifier.checkException();
   }
 
-  private void takeBuffer() {
+  protected void takeBuffer() {
     // metrics start
     String metricsName = null;
     String fileAbsPath = null;
@@ -410,7 +367,7 @@ public final class FileWriter implements DeviceObserver {
     }
   }
 
-  private void addTask(FlushTask task) throws IOException {
+  protected void addTask(FlushTask task) throws IOException {
     if (!flusher.addTask(task, writerCloseTimeoutMs, flushWorkerIndex)) {
       IOException e = new IOException("Add flush task timeout.");
       notifier.setException(e);
@@ -418,7 +375,7 @@ public final class FileWriter implements DeviceObserver {
     }
   }
 
-  private synchronized void returnBuffer() {
+  protected synchronized void returnBuffer() {
     if (flushBuffer != null) {
       flusher.returnBuffer(flushBuffer);
       flushBuffer = null;
@@ -481,18 +438,5 @@ public final class FileWriter implements DeviceObserver {
 
   public PartitionType getPartitionType() {
     return partitionType;
-  }
-
-  public void pushDataHandShake(int numReducePartitions) {
-    this.numReducePartitions = numReducePartitions;
-  }
-
-  public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
-    this.currentDataRegionIndex = currentDataRegionIndex;
-    this.isBroadcastRegion = isBroadcastRegion;
-  }
-
-  public void regionFinish() {
-    // flush index
   }
 }

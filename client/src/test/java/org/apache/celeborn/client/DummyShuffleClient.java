@@ -23,7 +23,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +94,16 @@ public class DummyShuffleClient extends ShuffleClient {
       String applicationId, int shuffleId, int mapId, int attemptId, int numMappers) {}
 
   @Override
+  public void mapPartitionMapperEnd(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int partitionId)
+      throws IOException {}
+
+  @Override
   public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {}
 
   @Override
@@ -126,6 +138,19 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
+  public int pushDataToLocation(
+      String applicationId,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      ByteBuf data,
+      PartitionLocation location,
+      BooleanSupplier closeCallBack) {
+    return 0;
+  }
+
+  @Override
   public Optional<PartitionLocation> regionStart(
       String applicationId,
       int shuffleId,
@@ -153,4 +178,10 @@ public class DummyShuffleClient extends ShuffleClient {
       int bufferSize,
       PartitionLocation location)
       throws IOException {}
+
+  @Override
+  public PartitionLocation registerMapPartitionTask(
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+    return null;
+  }
 }
