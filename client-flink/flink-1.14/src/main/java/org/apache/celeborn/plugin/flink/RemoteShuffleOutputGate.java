@@ -20,6 +20,7 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -30,17 +31,32 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
+import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /**
  * A transportation gate used to spill buffers from {@link ResultPartitionWriter} to remote shuffle
- * worker.
+ * worker. The whole process of communication between outputGate and shuffle worker could be
+ * described as below:
+ *
+ * <ul>
+ *   <li>1. Client registers shuffle to get partitionLocation which stores the data in remote
+ *       shuffle;
+ *   <li>2. Client sends PushDataHandShake to transfer handshake message;
+ *   <li>3. Client sends RegionStart which announces the start of a writing region and maybe get a
+ *       new partitionLocation;
+ *   <li>4. Client write data;
+ *   <li>5. Client sends RegionFinish to indicate writing finish of aregion;
+ *   <li>6. Repeat from step-2 to step-5;
+ *   <li>7. Client sends mapend to indicate writing finish;
+ * </ul>
  */
 public class RemoteShuffleOutputGate {
 
   private final RemoteShuffleDescriptor shuffleDesc;
   protected final int numSubs;
-  private final ShuffleClient shuffleWriteClient;
+  protected ShuffleClient shuffleWriteClient;
   protected final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
   protected BufferPool bufferPool;
   private CelebornConf celebornConf;
@@ -50,6 +66,7 @@ public class RemoteShuffleOutputGate {
   private int currentRegionIndex = 0;
 
   private int bufferSize;
+  private BufferPacker bufferPacker;
   private String applicationId;
   private int shuffleId;
   private int mapId;
@@ -75,7 +92,7 @@ public class RemoteShuffleOutputGate {
     this.numSubs = numSubs;
     this.bufferPoolFactory = bufferPoolFactory;
     this.shuffleWriteClient = createWriteClient();
-    // this.bufferPacker = new BufferPacker(this::write);
+    this.bufferPacker = new BufferPacker(this::write);
     this.celebornConf = celebornConf;
     this.numMappers = numMappers;
     this.bufferSize = bufferSize;
@@ -99,7 +116,7 @@ public class RemoteShuffleOutputGate {
         "Too few buffers for transfer, the minimum valid required size is 2.");
 
     // guarantee that we have at least one buffer
-    // BufferUtils.reserveNumRequiredBuffers(bufferPool, 1);
+    BufferUtils.reserveNumRequiredBuffers(bufferPool, 1);
 
     // handshake
     handshake();
@@ -112,7 +129,7 @@ public class RemoteShuffleOutputGate {
 
   /** Writes a {@link Buffer} to a subpartition. */
   public void write(Buffer buffer, int subIdx) throws InterruptedException {
-    // bufferPacker.process(buffer, subIdx);
+    bufferPacker.process(buffer, subIdx);
   }
 
   /**
@@ -158,7 +175,7 @@ public class RemoteShuffleOutputGate {
    * region-finish.
    */
   public void regionFinish() throws InterruptedException {
-    // bufferPacker.drain();
+    bufferPacker.drain();
     try {
       shuffleWriteClient.regionFinish(
           applicationId, shuffleId, mapId, attemptId, partitionLocation);
@@ -178,7 +195,7 @@ public class RemoteShuffleOutputGate {
     if (bufferPool != null) {
       bufferPool.lazyDestroy();
     }
-    // bufferPacker.close();
+    bufferPacker.close();
     shuffleWriteClient.shutDown();
   }
 
@@ -187,26 +204,27 @@ public class RemoteShuffleOutputGate {
     return shuffleDesc;
   }
 
-  private ShuffleClient createWriteClient() {
+  @VisibleForTesting
+  ShuffleClient createWriteClient() {
     return ShuffleClient.get(rssMetaServiceHost, rssMetaServicePort, celebornConf, userIdentifier);
   }
 
   /** Writes a piece of data to a subpartition. */
   public void write(ByteBuf byteBuf, int subIdx) throws InterruptedException {
-    //    try {
-    //         byteBuf.retain();
-    //      shuffleWriteClient.pushData(
-    //          applicationId,
-    //          shuffleId,
-    //          mapId,
-    //          attemptId,
-    //          subIdx,
-    //          io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer()),
-    //          partitionLocation,
-    //          () -> byteBuf.release());
-    //    } catch (IOException e) {
-    //      Utils.rethrowAsRuntimeException(e);
-    //    }
+    try {
+      byteBuf.retain();
+      shuffleWriteClient.pushDataToLocation(
+          applicationId,
+          shuffleId,
+          mapId,
+          attemptId,
+          subIdx,
+          io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer()),
+          partitionLocation,
+          () -> byteBuf.release());
+    } catch (IOException e) {
+      Utils.rethrowAsRuntimeException(e);
+    }
   }
 
   public void handshake() {
