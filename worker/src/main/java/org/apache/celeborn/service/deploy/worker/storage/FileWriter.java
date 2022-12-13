@@ -51,7 +51,7 @@ public abstract class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
   private static final long WAIT_INTERVAL_MS = 20;
 
-  private final FileInfo fileInfo;
+  protected final FileInfo fileInfo;
   private FileChannel channel;
   private volatile boolean closed;
   private volatile boolean destroyed;
