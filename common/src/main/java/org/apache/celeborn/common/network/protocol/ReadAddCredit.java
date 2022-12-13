@@ -31,7 +31,7 @@ public class ReadAddCredit extends RequestMessage {
 
   @Override
   public int encodedLength() {
-    return 8 + 8;
+    return 8 + 4;
   }
 
   @Override

@@ -21,24 +21,12 @@ import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 
 public class ReadData extends RequestMessage {
   private long streamId;
   private int backlog;
   private int[] offsets;
   private ByteBuf buf;
-
-  protected static class StreamState {
-
-    final Channel associatedChannel;
-
-    volatile long chunksBeingTransferred = 0L;
-
-    StreamState(Channel channel) {
-      this.associatedChannel = channel;
-    }
-  }
 
   public ReadData(long streamId, int backlog, int[] offsets, ByteBuf buf) {
     this.streamId = streamId;
