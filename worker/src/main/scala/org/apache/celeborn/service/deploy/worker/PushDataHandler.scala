@@ -343,10 +343,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (rateLimitController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
             if (isMaster) {
               callback.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED)))
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
             } else {
               callback.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED)))
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
             }
           } else {
             callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -580,10 +581,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (rateLimitController.isUserCongested(fileWriters.head.getFileInfo.getUserIdentifier)) {
             if (isMaster) {
               callback.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED)))
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
             } else {
               callback.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED)))
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
             }
           } else {
             callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
