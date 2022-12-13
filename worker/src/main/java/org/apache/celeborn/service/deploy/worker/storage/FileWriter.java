@@ -186,7 +186,7 @@ public abstract class FileWriter implements DeviceObserver {
     final int numBytes = data.readableBytes();
     MemoryManager.instance().incrementDiskBuffer(numBytes);
 
-    Optional.of(RateLimitController.instance())
+    Optional.ofNullable(RateLimitController.instance())
         .ifPresent(
             rateLimitController ->
                 rateLimitController.incrementBytes(fileInfo.getUserIdentifier(), numBytes));
