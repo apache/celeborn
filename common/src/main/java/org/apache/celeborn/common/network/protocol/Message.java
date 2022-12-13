@@ -84,7 +84,9 @@ public abstract class Message implements Encodable {
     PUSH_MERGED_DATA(12),
     REGION_START(13),
     REGION_FINISH(14),
-    PUSH_DATA_HAND_SHAKE(15);
+    PUSH_DATA_HAND_SHAKE(15),
+    READ_ADD_CREDIT(16),
+    READ_DATA(17);
 
     private final byte id;
 

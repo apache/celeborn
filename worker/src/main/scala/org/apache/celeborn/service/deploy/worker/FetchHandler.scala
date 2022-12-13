@@ -18,10 +18,12 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.io.{FileNotFoundException, IOException}
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.base.Throwables
+import io.netty.buffer.{ByteBuf, Unpooled}
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.exception.CelebornException
@@ -31,13 +33,14 @@ import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
-import org.apache.celeborn.common.network.server.{BaseMessageHandler, ChunkStreamManager}
+import org.apache.celeborn.common.network.server.{BaseMessageHandler, BufferStreamManager, ChunkStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
+  val bufferStreamManager = new BufferStreamManager()
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
@@ -67,6 +70,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
+      case r: ReadAddCredit =>
+        rpcSource.updateMessageMetrics(r, 0)
+        handleReadAddCredit(client, r)
       case r: ChunkFetchRequest =>
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
@@ -120,6 +126,14 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           }
         case PartitionType.MAP =>
+          // return stream id
+          val streamId =
+            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
+          val res = ByteBuffer.allocate(8)
+          res.putLong(streamId)
+          client.getChannel.writeAndFlush(new RpcResponse(
+            request.requestId,
+            new NioManagedBuffer(res)))
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
@@ -139,6 +153,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           request.requestId,
           Throwables.getStackTraceAsString(ioe)))
     }
+  }
+
+  def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {
+    bufferStreamManager.addCredit(req.getCredit, req.getStreamId)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
@@ -188,6 +206,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   override def channelInactive(client: TransportClient): Unit = {
     chunkStreamManager.connectionTerminated(client.getChannel)
+    bufferStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 
