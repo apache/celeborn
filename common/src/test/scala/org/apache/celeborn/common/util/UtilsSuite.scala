@@ -17,7 +17,12 @@
 
 package org.apache.celeborn.common.util
 
+import java.util
+
 import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
+import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends RssFunSuite {
 
@@ -91,5 +96,46 @@ class UtilsSuite extends RssFunSuite {
 
   test("getThreadDump") {
     assert(Utils.getThreadDump().nonEmpty)
+  }
+
+  test("MapperEnd class convert with pb") {
+    val mapperEnd = MapperEnd("application1", 1, 1, 1, 2, 1)
+    val mapperEndTrans =
+      Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
+    assert(mapperEnd == mapperEndTrans)
+  }
+
+  test("GetReducerFileGroupResponse class convert with pb") {
+    val fileGroup = new util.HashMap[Integer, util.Set[PartitionLocation]]
+    fileGroup.put(0, partitionLocation(0))
+    fileGroup.put(1, partitionLocation(1))
+    fileGroup.put(2, partitionLocation(2))
+
+    val attempts = Array(0, 0, 1)
+    val response = GetReducerFileGroupResponse(StatusCode.STAGE_ENDED, fileGroup, attempts)
+    val responseTrans = Utils.fromTransportMessage(Utils.toTransportMessage(response)).asInstanceOf[
+      GetReducerFileGroupResponse]
+
+    assert(response.status == responseTrans.status)
+    assert(response.attempts.deep == responseTrans.attempts.deep)
+    val set =
+      (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
+    assert(set.size == 0)
+  }
+
+  def partitionLocation(partitionId: Int): util.HashSet[PartitionLocation] = {
+    val partitionSet = new util.HashSet[PartitionLocation]
+    for (i <- 0 until 3) {
+      partitionSet.add(new PartitionLocation(
+        partitionId,
+        i,
+        "host",
+        100,
+        1000,
+        1001,
+        100,
+        PartitionLocation.Mode.MASTER))
+    }
+    partitionSet
   }
 }

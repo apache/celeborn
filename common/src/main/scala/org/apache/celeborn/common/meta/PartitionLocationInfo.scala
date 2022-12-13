@@ -46,6 +46,24 @@ class PartitionLocationInfo extends Logging {
     slavePartitionLocations.containsKey(shuffleKey)
   }
 
+  def containsRelatedShuffleOrPartition(shuffleKey: String, partitionIdOpt: Option[Int]): Boolean =
+    this.synchronized {
+      partitionIdOpt match {
+        case Some(partitionId) =>
+          containsPartition(shuffleKey, partitionId)
+        case None => containsShuffle(shuffleKey)
+      }
+    }
+
+  private def containsPartition(shuffleKey: String, partitionId: Int): Boolean = this
+    .synchronized {
+      val contain = masterPartitionLocations.containsKey(
+        shuffleKey) && masterPartitionLocations.get(shuffleKey).containsKey(partitionId)
+      contain || (slavePartitionLocations.containsKey(shuffleKey) && slavePartitionLocations.get(
+        shuffleKey)
+        .containsKey(partitionId))
+    }
+
   def addMasterPartition(shuffleKey: String, location: PartitionLocation): Int = {
     addPartition(shuffleKey, location, masterPartitionLocations)
   }
@@ -75,26 +93,44 @@ class PartitionLocationInfo extends Logging {
   }
 
   def getAllMasterLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
-    if (masterPartitionLocations.containsKey(shuffleKey)) {
-      masterPartitionLocations.get(shuffleKey)
-        .values()
-        .asScala
-        .flatMap(_.asScala)
-        .toList
-        .asJava
-    } else {
-      new util.ArrayList[PartitionLocation]()
-    }
+    getMasterLocations(shuffleKey)
   }
 
   def getAllSlaveLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
-    if (slavePartitionLocations.containsKey(shuffleKey)) {
-      slavePartitionLocations.get(shuffleKey)
-        .values()
-        .asScala
-        .flatMap(_.asScala)
-        .toList
-        .asJava
+    getSlaveLocations(shuffleKey)
+  }
+
+  def getMasterLocations(
+      shuffleKey: String,
+      partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
+    getLocations(shuffleKey, masterPartitionLocations, partitionIdOpt)
+  }
+
+  def getSlaveLocations(
+      shuffleKey: String,
+      partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
+    getLocations(shuffleKey, slavePartitionLocations, partitionIdOpt)
+  }
+
+  private def getLocations(
+      shuffleKey: String,
+      partitionInfo: PartitionInfo,
+      partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = this.synchronized {
+    if (partitionInfo.containsKey(shuffleKey)) {
+      partitionIdOpt match {
+        case Some(partitionId) => partitionInfo.get(shuffleKey)
+            .values()
+            .asScala
+            .flatMap(_.asScala)
+            .filter(_.getId == partitionId)
+            .toList.asJava
+        case None =>
+          partitionInfo.get(shuffleKey)
+            .values()
+            .asScala
+            .flatMap(_.asScala)
+            .toList.asJava
+      }
     } else {
       new util.ArrayList[PartitionLocation]()
     }
@@ -200,6 +236,24 @@ class PartitionLocationInfo extends Logging {
       }
     }
   }
+
+  def removeAllRelatedPartitions(
+      shuffleKey: String,
+      partitionIdOpt: Option[Int]): Unit = this
+    .synchronized {
+      partitionIdOpt match {
+        case Some(partitionId) =>
+          if (masterPartitionLocations.containsKey(shuffleKey)) {
+            masterPartitionLocations.get(shuffleKey).remove(partitionId)
+          }
+          if (slavePartitionLocations.containsKey(shuffleKey)) {
+            slavePartitionLocations.get(shuffleKey).remove(partitionId)
+          }
+        case None =>
+          removeMasterPartitions(shuffleKey)
+          removeSlavePartitions(shuffleKey)
+      }
+    }
 
   /**
    * @param shuffleKey

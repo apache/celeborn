@@ -74,6 +74,7 @@ object WorkerSource {
 
   // flush
   val TakeBufferTime = "TakeBufferTime"
+  val TakeBufferTimeIndex = "TakeBufferTimeIndex"
 
   val RegisteredShuffleCount = "RegisteredShuffleCount"
 
