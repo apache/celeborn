@@ -121,9 +121,8 @@ public class DfsPartitionReader implements PartitionReader {
                       hdfsInputStream.readFully(offset, buffer);
                     } catch (IOException e) {
                       logger.warn(
-                          "read hdfs "
-                              + location.getStorageInfo().getFilePath()
-                              + " failed will rety",
+                          "read hdfs {} failed will retry, error detail {}",
+                          location.getStorageInfo().getFilePath(),
                           e);
                       try {
                         hdfsInputStream.close();
@@ -136,9 +135,8 @@ public class DfsPartitionReader implements PartitionReader {
                         hdfsInputStream.readFully(offset, buffer);
                       } catch (IOException ex) {
                         logger.warn(
-                            "retry read hdfs "
-                                + location.getStorageInfo().getFilePath()
-                                + " failed",
+                            "retry read hdfs {} failed, error detail {} ",
+                            location.getStorageInfo().getFilePath(),
                             e);
                         exception.set(ex);
                         break;
@@ -159,7 +157,7 @@ public class DfsPartitionReader implements PartitionReader {
           new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-              logger.error("thread" + t + "failed", e);
+              logger.error("thread {} failed with exception {}", t, e);
             }
           });
       logger.debug("Start dfs read on location {}", location);
