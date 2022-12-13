@@ -35,7 +35,7 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef;
  * ShuffleClient may be a process singleton, the specific PartitionLocation should be hidden in the
  * implementation
  */
-public abstract class ShuffleClient implements Cloneable {
+public abstract class ShuffleClient {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initFinished = false;
   private static volatile FileSystem hdfsFs;
@@ -63,7 +63,7 @@ public abstract class ShuffleClient implements Cloneable {
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
         } else if (!initFinished) {
-          _instance.shutDown();
+          _instance.shutdown();
           _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
           initFinished = true;
@@ -87,7 +87,7 @@ public abstract class ShuffleClient implements Cloneable {
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
         } else if (!initFinished) {
-          _instance.shutDown();
+          _instance.shutdown();
           _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initFinished = true;
@@ -185,7 +185,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
-  public abstract void shutDown();
+  public abstract void shutdown();
 
   // Write data to a specific map partition, input data's type is Bytebuf.
   // data's type is Bytebuf to avoid copy between application and netty

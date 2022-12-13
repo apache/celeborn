@@ -141,7 +141,7 @@ public class RssShuffleManager implements ShuffleManager {
   @Override
   public void stop() {
     if (rssShuffleClient != null) {
-      rssShuffleClient.shutDown();
+      rssShuffleClient.shutdown();
     }
     if (lifecycleManager != null) {
       lifecycleManager.stop();

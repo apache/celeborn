@@ -88,7 +88,7 @@ trait ReadWriteTestBase extends Logging {
     Assert.assertArrayEquals(targetArr, readBytes)
 
     Thread.sleep(5000L)
-    shuffleClient.shutDown()
+    shuffleClient.shutdown()
     lifecycleManager.rpcEnv.shutdown()
 
   }

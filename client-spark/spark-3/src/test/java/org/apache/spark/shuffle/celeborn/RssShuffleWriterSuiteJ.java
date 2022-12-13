@@ -232,7 +232,7 @@ public class RssShuffleWriterSuiteJ {
 
     writer.write(iterator);
     Option<MapStatus> status = writer.stop(true);
-    client.shutDown();
+    client.shutdown();
 
     assertNotNull(status);
     assertTrue(status.isDefined());
