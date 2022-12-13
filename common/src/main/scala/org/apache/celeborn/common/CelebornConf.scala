@@ -756,6 +756,17 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
 
+  // //////////////////////////////////////////////////////
+  //                  Rate Limit controller              //
+  // //////////////////////////////////////////////////////
+  def workerRateLimitEnabled: Boolean = get(WORKER_RATE_LIMIT_ENABLED)
+  def workerRateLimitSampleTimeWindowSeconds: Long = get(WORKER_RATE_LIMIT_SAMPLE_TIME_WINDOW)
+  def workerRateLimitLowWatermark: Option[Long] = get(WORKER_RATE_LIMIT_LOW_WATERMARK)
+  def workerRateLimitHighWatermark: Option[Long] = get(WORKER_RATE_LIMIT_HIGH_WATERMARK)
+  def workerRateLimitUserInactiveIntervalMs: Long = get(WORKER_RATE_LIMIT_USER_INACTIVE_INTERVAL)
+  def workerRateLimitCheckUserStatusIntervalSeconds: Long =
+    get(WORKER_RATE_LIMIT_CHECK_USER_STATUS_INTERVAL)
+
   /**
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
@@ -2701,6 +2712,59 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("Interval of worker direct memory tracker reporting to log.")
       .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
+
+  val WORKER_RATE_LIMIT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.ratelimit.enabled")
+      .categories("worker")
+      .doc("Whether to enable rate limit control or not.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_RATE_LIMIT_SAMPLE_TIME_WINDOW: ConfigEntry[Long] =
+    buildConf("celeborn.worker.ratelimit.sample.time.window")
+      .categories("worker")
+      .doc("The worker holds a time sliding list to calculate users' produce/consume rate")
+      .version("0.3.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
+
+  val WORKER_RATE_LIMIT_LOW_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.ratelimit.low.watermark")
+      .categories("worker")
+      .doc("Will stop congest users if the total pending bytes of disk buffer is lower than " +
+        "this configuration")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_RATE_LIMIT_HIGH_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.ratelimit.high.watermark")
+      .categories("worker")
+      .doc("If the total bytes in disk buffer exceeds this configure, will start to congest" +
+        "users whose produce rate is higher than the potential average consume rate. " +
+        "The congestion will stop if the produce rate is lower or equal to the " +
+        "average consume rate, or the total pending bytes lower than " +
+        s"${WORKER_RATE_LIMIT_LOW_WATERMARK.key}")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_RATE_LIMIT_USER_INACTIVE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.ratelimit.user.inactive.interval")
+      .categories("worker")
+      .doc("How long will consider this user is inactive if it doesn't send data")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10min")
+
+  val WORKER_RATE_LIMIT_CHECK_USER_STATUS_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.ratelimit.check.userstatus.interval")
+      .categories("worker")
+      .doc("The interval time to check and remove inactive users in rate limit controller")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
 

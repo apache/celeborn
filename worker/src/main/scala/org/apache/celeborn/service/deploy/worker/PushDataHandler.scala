@@ -34,6 +34,7 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse}
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
+import org.apache.celeborn.common.network.server.ratelimit.RateLimitController
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
@@ -337,7 +338,22 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      Option(RateLimitController.instance()) match {
+        case Some(rateLimitController) =>
+          if (rateLimitController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
+            if (isMaster) {
+              callback.onSuccess(
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED)))
+            } else {
+              callback.onSuccess(
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED)))
+            }
+          } else {
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+          }
+        case None =>
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      }
     }
 
     try {
@@ -559,7 +575,22 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      Option(RateLimitController.instance()) match {
+        case Some(rateLimitController) if fileWriters.nonEmpty =>
+          if (rateLimitController.isUserCongested(fileWriters.head.getFileInfo.getUserIdentifier)) {
+            if (isMaster) {
+              callback.onSuccess(
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED)))
+            } else {
+              callback.onSuccess(
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED)))
+            }
+          } else {
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+          }
+        case None =>
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      }
     }
 
     var index = 0

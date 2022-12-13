@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,6 +38,7 @@ import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.network.server.ratelimit.RateLimitController;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -182,6 +185,12 @@ public abstract class FileWriter implements DeviceObserver {
 
     final int numBytes = data.readableBytes();
     MemoryManager.instance().incrementDiskBuffer(numBytes);
+
+    Optional.of(RateLimitController.instance())
+        .ifPresent(
+            rateLimitController ->
+                rateLimitController.incrementBytes(fileInfo.getUserIdentifier(), numBytes));
+
     synchronized (this) {
       if (closed) {
         String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();

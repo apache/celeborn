@@ -27,10 +27,12 @@ import scala.util.Random
 
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
 
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.DiskStatus
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.memory.MemoryManager
+import org.apache.celeborn.common.network.server.ratelimit.RateLimitController
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
@@ -85,7 +87,7 @@ abstract private[worker] class Flusher(
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              returnBuffer(task.buffer)
+              returnBuffer(task.buffer, task.fileInfo.getUserIdentifier)
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }
@@ -140,8 +142,11 @@ abstract private[worker] class Flusher(
     buffer
   }
 
-  def returnBuffer(buffer: CompositeByteBuf): Unit = {
+  def returnBuffer(buffer: CompositeByteBuf, userIdentifier: UserIdentifier): Unit = {
     MemoryManager.instance().releaseDiskBuffer(buffer.readableBytes())
+    Option(RateLimitController.instance())
+      .foreach(
+        _.decrementBytes(userIdentifier, buffer.readableBytes()))
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 
@@ -164,7 +169,7 @@ abstract private[worker] class Flusher(
     }
     workingQueues.foreach { queue =>
       queue.asScala.foreach { task =>
-        returnBuffer(task.buffer)
+        returnBuffer(task.buffer, task.fileInfo.getUserIdentifier)
       }
     }
   }

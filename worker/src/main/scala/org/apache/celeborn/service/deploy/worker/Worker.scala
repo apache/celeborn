@@ -40,6 +40,7 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSo
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.server.ChannelsLimiter
 import org.apache.celeborn.common.network.server.memory.MemoryManager
+import org.apache.celeborn.common.network.server.ratelimit.RateLimitController
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -102,6 +103,20 @@ private[celeborn] class Worker(
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
+
+  if (conf.workerRateLimitEnabled) {
+    if (conf.workerRateLimitLowWatermark.isEmpty || conf.workerRateLimitHighWatermark.isEmpty) {
+      throw new IllegalArgumentException("High watermark and low watermark must be set" +
+        " when enabling rate limit")
+    }
+
+    RateLimitController.initialize(
+      conf.workerRateLimitSampleTimeWindowSeconds.toInt,
+      conf.workerRateLimitHighWatermark.get,
+      conf.workerRateLimitLowWatermark.get,
+      conf.workerRateLimitUserInactiveIntervalMs,
+      conf.workerRateLimitCheckUserStatusIntervalSeconds)
+  }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller, Some(rpcSource))
