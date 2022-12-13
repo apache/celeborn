@@ -98,15 +98,11 @@ public class DfsPartitionReader implements PartitionReader {
           ShuffleClient.getHdfsFs(conf).open(new Path(location.getStorageInfo().getFilePath()));
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
-    if (logger.isDebugEnabled()) {
-      logger.debug(
-          "DFS "
-              + location.getStorageInfo().getFilePath()
-              + "index count:"
-              + chunkOffsets.size()
-              + " offsets:"
-              + chunkOffsets);
-    }
+    logger.debug(
+        "DFS {} index count:{} offsets:{}",
+        location.getStorageInfo().getFilePath(),
+        chunkOffsets.size(),
+        chunkOffsets);
     if (chunkOffsets.size() > 1) {
       numChunks = chunkOffsets.size() - 1;
       fetchThread =
@@ -119,10 +115,7 @@ public class DfsPartitionReader implements PartitionReader {
                     }
                     long offset = chunkOffsets.get(currentChunkIndex);
                     long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
-                    if (logger.isDebugEnabled()) {
-                      logger.debug(
-                          "read " + currentChunkIndex + " offset " + offset + " length " + length);
-                    }
+                    logger.debug("read {} offset {} length {}", currentChunkIndex, offset, length);
                     byte[] buffer = new byte[(int) length];
                     try {
                       hdfsInputStream.readFully(offset, buffer);
@@ -152,17 +145,13 @@ public class DfsPartitionReader implements PartitionReader {
                       }
                     }
                     results.put(Unpooled.wrappedBuffer(buffer));
-                    if (logger.isDebugEnabled()) {
-                      logger.debug("add index " + currentChunkIndex++ + " to results");
-                    }
+                    logger.debug("add index {} to results", currentChunkIndex++);
                   }
                 } catch (Exception e) {
                   logger.warn("Fetch thread is cancelled.", e);
                   // cancel a task for speculative, ignore this exception
                 }
-                if (logger.isDebugEnabled()) {
-                  logger.debug("fetch " + location.getStorageInfo().getFilePath() + " is done.");
-                }
+                logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
               },
               "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
       fetchThread.start();
@@ -173,9 +162,7 @@ public class DfsPartitionReader implements PartitionReader {
               logger.error("thread" + t + "failed", e);
             }
           });
-      if (logger.isDebugEnabled()) {
-        logger.debug("Start dfs read on location {}", location);
-      }
+      logger.debug("Start dfs read on location {}", location);
     }
   }
 
@@ -198,9 +185,7 @@ public class DfsPartitionReader implements PartitionReader {
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
-    if (logger.isDebugEnabled()) {
-      logger.debug("read sorted index" + indexPath);
-    }
+    logger.debug("read sorted index {}", indexPath);
     long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
     // Index size won't be large, so it's safe to do the conversion.
     byte[] indexBuffer = new byte[(int) indexSize];
@@ -218,9 +203,7 @@ public class DfsPartitionReader implements PartitionReader {
 
   @Override
   public boolean hasNext() {
-    if (logger.isDebugEnabled()) {
-      logger.debug("check has next current index:" + returnedChunks + " chunks " + numChunks);
-    }
+    logger.debug("check has next current index: {} chunks {}", returnedChunks, numChunks);
     return returnedChunks < numChunks;
   }
 
@@ -231,9 +214,7 @@ public class DfsPartitionReader implements PartitionReader {
       while (chunk == null) {
         checkException();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
-        if (logger.isDebugEnabled()) {
-          logger.debug("poll result with result size: " + results.size());
-        }
+        logger.debug("poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
