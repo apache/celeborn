@@ -108,15 +108,13 @@ private[deploy] class Controller(
 
     case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts, epoch) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
-        logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
-          s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
-        val commitFilesTimeMs = Utils.timeIt({
-          handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts, epoch)
-        })
-        logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
-          s"$commitFilesTimeMs ms.")
-      }
+      logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
+        s" ${masterIds.asScala.mkString(",")}; slave files ${slaveIds.asScala.mkString(",")}.")
+      val commitFilesTimeMs = Utils.timeIt({
+        handleCommitFiles(context, shuffleKey, masterIds, slaveIds, mapAttempts, epoch)
+      })
+      logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
+        s"$commitFilesTimeMs ms.")
 
     case GetWorkerInfos =>
       handleGetWorkerInfos(context)
@@ -380,6 +378,7 @@ private[deploy] class Controller(
       } else {
         logInfo(s"Start commitFiles for ${shuffleKey}")
         commitInfo.status = CommitInfo.COMMIT_INPROCESS
+        workerSource.startTimer(WorkerSource.CommitFilesTime, shuffleKey)
       }
     }
 
@@ -498,6 +497,8 @@ private[deploy] class Controller(
         commitInfo.status = CommitInfo.COMMIT_FINISHED
       }
       context.reply(response)
+
+      workerSource.stopTimer(WorkerSource.CommitFilesTime, shuffleKey)
     }
 
     if (future != null) {
