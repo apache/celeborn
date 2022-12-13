@@ -1,7 +1,6 @@
 <!--
 Thanks for sending a pull request!  Here are some tips for you:
   - Make sure the PR title start w/ a JIRA ticket, e.g. '[CELEBORN-XXXX] Your PR title ...'.
-  - If the PR is unfinished, add '[WIP]' in your PR title, e.g. '[WIP][CELEBORN-XXXX] Your PR title ...'.
   - Be sure to keep the PR description updated to reflect all changes.
   - Please write your PR title to summarize what this PR proposes.
   - If possible, provide a concise example to reproduce the issue for a faster review.
