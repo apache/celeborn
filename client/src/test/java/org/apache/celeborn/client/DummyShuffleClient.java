@@ -117,7 +117,7 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public void shutDown() {
+  public void shutdown() {
     try {
       os.close();
     } catch (IOException e) {

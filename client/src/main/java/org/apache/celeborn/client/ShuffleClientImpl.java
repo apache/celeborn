@@ -73,7 +73,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
 
-  private static final Random rand = new Random();
+  private static final Random RND = new Random();
 
   private final CelebornConf conf;
 
@@ -137,9 +137,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
 
+    String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
-        Utils.fromCelebornConf(
-            conf, TransportModuleConstants.DATA_MODULE, conf.getInt("celeborn.data.io.threads", 8));
+        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn" + module + ".io.threads", 8));
     TransportContext context =
         new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
     dataClientFactory = context.createClientFactory();
@@ -396,7 +396,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       return true;
     }
 
-    long sleepTimeMs = rand.nextInt(50);
+    long sleepTimeMs = RND.nextInt(50);
     if (sleepTimeMs > 30) {
       try {
         TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
@@ -850,7 +850,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
       limitMaxInFlight(mapKey, pushState, maxInFlight);
-      Map.Entry<String, DataBatches> entry = batchesArr.get(rand.nextInt(batchesArr.size()));
+      Map.Entry<String, DataBatches> entry = batchesArr.get(RND.nextInt(batchesArr.size()));
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
         batchesArr.remove(entry);
@@ -1164,7 +1164,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void shutDown() {
+  public void shutdown() {
     if (null != rpcEnv) {
       rpcEnv.shutdown();
     }
