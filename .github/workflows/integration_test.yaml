@@ -64,6 +64,6 @@ jobs:
       run: helm install celeborn docker/helm -f ./integration-test/docker/helm/values.yaml
     - name: Check Celeborn Release And Pods
       run: |
-        sleep 100000
+        sleep 300
         helm list | grep celeborn
         kubectl get pods
