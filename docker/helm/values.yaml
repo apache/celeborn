@@ -102,7 +102,27 @@ resources: {}
 
 podAnnotations: {}
 
-affinity: {}
+affinity:
+  master:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - celeborn-master
+          topologyKey: kubernetes.io/hostname
+  worker:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - celeborn-worker
+          topologyKey: "kubernetes.io/hostname"
 
 tolerations: []
 
