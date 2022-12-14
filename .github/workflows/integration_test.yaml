@@ -61,7 +61,7 @@ jobs:
         minikube version: 'v1.25.2'
         kubernetes version: 'v1.23.3'
     - name: Deploy Celeborn In Single Mode
-      run: helm install celeborn docker/helm -f ./integration-test/values.yaml
+      run: helm install celeborn docker/helm -f ./integration-test/docker/helm/values.yaml
     - name: Check Celeborn Release And Pods
       run: |
         sleep 100000
