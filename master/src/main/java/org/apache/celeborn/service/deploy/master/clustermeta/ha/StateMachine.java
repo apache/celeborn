@@ -211,7 +211,7 @@ public class StateMachine extends BaseStateMachine {
       return;
     }
     if (snapshot.getTermIndex().compareTo(getLastAppliedTermIndex()) <= 0) {
-      LOG.info("obsolete snapshot provided: " + snapshot.getTermIndex());
+      LOG.info("obsolete snapshot provided: {}", snapshot.getTermIndex());
       return;
     }
     LOG.info("Loading Snapshot {}.", snapshot);
