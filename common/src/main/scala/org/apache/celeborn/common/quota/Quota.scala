@@ -52,7 +52,7 @@ case class Quota(
     val exceed = (diskBytesWritten > 0 && value >= diskBytesWritten)
     if (exceed) {
       logWarning(s"User $userIdentifier quota exceed diskBytesWritten, " +
-        s"$value >= $diskBytesWritten")
+        s"${Utils.bytesToString(value)} >= ${Utils.bytesToString(diskBytesWritten)}")
     }
     exceed
   }
@@ -69,7 +69,7 @@ case class Quota(
     val exceed = (hdfsBytesWritten > 0 && value >= hdfsBytesWritten)
     if (exceed) {
       logWarning(s"User $userIdentifier quota exceed hdfsBytesWritten, " +
-        s"$value >= $hdfsBytesWritten")
+        s"${Utils.bytesToString(value)} >= ${Utils.bytesToString(hdfsBytesWritten)}")
     }
     exceed
   }
