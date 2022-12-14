@@ -42,7 +42,7 @@ spec:
         app.kubernetes.io/role: master
         {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.affinity }}
+      {{- with .Values.affinity.master }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
