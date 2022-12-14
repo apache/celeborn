@@ -49,7 +49,12 @@ class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
             .asInstanceOf[java.util.HashMap[String, Object]]
             .asScala
             .foreach { case (key, value) =>
-              quota.update(userIdentifier, key, value.toString.toLong)
+              key match {
+                case "diskBytesWritten" | "hdfsBytesWritten" =>
+                  quota.update(userIdentifier, key, Utils.byteStringAsBytes(value.toString))
+                case _ =>
+                  quota.update(userIdentifier, key, value.toString.toLong)
+              }
             }
           userQuotas.put(userIdentifier, quota)
         }
