@@ -211,6 +211,7 @@ public class StateMachine extends BaseStateMachine {
       return;
     }
     if (snapshot.getTermIndex().compareTo(getLastAppliedTermIndex()) <= 0) {
+      LOG.info("obsolete snapshot provided: " + snapshot.getTermIndex());
       return;
     }
     LOG.info("Loading Snapshot {}.", snapshot);
@@ -222,17 +223,18 @@ public class StateMachine extends BaseStateMachine {
     try {
       setLastAppliedTermIndex(snapshot.getTermIndex());
       install(snapshotFile);
-    } catch (IOException e) {
-      throw new IOException(String.format("Failed to load snapshot %s", snapshot), e.getCause());
+    } catch (IOException rethrow) {
+      LOG.error("Failed to load snapshot {}", snapshot);
+      throw rethrow;
     }
   }
 
   private void install(File snapshotFile) throws IOException {
     try {
       metaHandler.loadSnapShot(snapshotFile);
-    } catch (IOException e) {
-      LOG.warn("Failed to install snapshot!", e);
-      throw e;
+    } catch (IOException rethrow) {
+      LOG.warn("Failed to install snapshot!", rethrow);
+      throw rethrow;
     }
     LOG.info("Successfully installed snapshot!");
   }
