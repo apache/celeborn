@@ -60,3 +60,13 @@ service:
   port: 9097
 
 configmap: celeborn-conf
+
+resources: {}
+
+podAnnotations: {}
+
+affinity: {}
+
+tolerations: []
+
+nodeSelector: {}
