@@ -283,6 +283,10 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     }
   }
 
+  def canDoFinalCommit(shuffleId: Int): Boolean = {
+    getCommitHandler(shuffleId).canDoFinalCommit(shuffleId)
+  }
+
   def finalCommit(shuffleId: Int): Unit = {
     getCommitHandler(shuffleId).finalCommit(
       shuffleId,

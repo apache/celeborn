@@ -698,15 +698,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       commitManager.setStageEnd(shuffleId)
       return
     }
-    commitManager.finalCommit(shuffleId)
-    // release resources and clear worker info
-    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
-      partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
+
+    if (commitManager.canDoFinalCommit(shuffleId)) {
+      commitManager.finalCommit(shuffleId)
+      // release resources and clear worker info
+      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
+        partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
+        partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
+      }
+      requestReleaseSlots(
+        rssHARetryClient,
+        ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
-    requestReleaseSlots(
-      rssHARetryClient,
-      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
   }
 
   private def handleMapPartitionEnd(
@@ -718,7 +721,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       partitionId: Int): Unit = {
     def reply(result: Boolean): Unit = {
       val message =
-        s"to handle MapPartitionEnd for ${Utils.makeMapKey(appId, shuffleId, mapId, attemptId)}, " +
+        s"to handle MapPartitionEnd for ${Utils.makeMapKey(applicationId, shuffleId, mapId, attemptId)}, " +
           s"$partitionId.";
       result match {
         case true => // if already committed by another try

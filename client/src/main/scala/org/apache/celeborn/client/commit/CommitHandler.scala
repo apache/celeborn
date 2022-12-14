@@ -67,6 +67,8 @@ abstract class CommitHandler(
 
   def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = false
 
+  def canDoFinalCommit(shuffleId: Int): Boolean = false
+
   def finalCommit(
       shuffleId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit

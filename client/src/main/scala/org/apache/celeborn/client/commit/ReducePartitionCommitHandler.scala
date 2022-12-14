@@ -60,12 +60,8 @@ class ReducePartitionCommitHandler(
   }
 
   override def isStageEndOrInProcess(shuffleId: Int): Boolean = {
-    if (inProcessStageEndShuffleSet.contains(shuffleId) ||
-      stageEndShuffleSet.contains(shuffleId)) {
-      true
-    } else {
-      false
-    }
+    inProcessStageEndShuffleSet.contains(shuffleId) ||
+    stageEndShuffleSet.contains(shuffleId)
   }
 
   override def isStageDataLost(shuffleId: Int): Boolean = {
@@ -86,20 +82,26 @@ class ReducePartitionCommitHandler(
     inProcessStageEndShuffleSet.remove(shuffleId)
   }
 
+  override def canDoFinalCommit(shuffleId: Int): Boolean = {
+    if (this.isStageEnd(shuffleId)) {
+      logInfo(s"[handleStageEnd] Shuffle $shuffleId already ended!")
+      false
+    } else {
+      inProcessStageEndShuffleSet.synchronized {
+        if (inProcessStageEndShuffleSet.contains(shuffleId)) {
+          logWarning(s"[handleStageEnd] Shuffle $shuffleId is in process!")
+          false
+        } else {
+          inProcessStageEndShuffleSet.add(shuffleId)
+          true
+        }
+      }
+    }
+  }
+
   override def finalCommit(
       shuffleId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit = {
-    if (stageEndShuffleSet.contains(shuffleId)) {
-      logInfo(s"[handleStageEnd] Shuffle $shuffleId already ended!")
-      return
-    }
-    inProcessStageEndShuffleSet.synchronized {
-      if (inProcessStageEndShuffleSet.contains(shuffleId)) {
-        logWarning(s"[handleStageEnd] Shuffle $shuffleId is in process!")
-        return
-      }
-      inProcessStageEndShuffleSet.add(shuffleId)
-    }
     // ask allLocations workers holding partitions to commit files
     val shuffleAllocatedWorkers = allocatedWorkers.get(shuffleId)
     val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, shuffleAllocatedWorkers)
@@ -163,13 +165,13 @@ class ReducePartitionCommitHandler(
     shuffleMapperAttempts.get(shuffleId)
   }
 
-  def waitInflightRequestComplete(shuffleCommittedInfo: ShuffleCommittedInfo): Unit = {
+  private def waitInflightRequestComplete(shuffleCommittedInfo: ShuffleCommittedInfo): Unit = {
     while (shuffleCommittedInfo.allInFlightCommitRequestNum.get() > 0) {
       Thread.sleep(1000)
     }
   }
 
-  def getPartitionUniqueIds(ids: ConcurrentHashMap[Int, util.List[String]])
+  private def getPartitionUniqueIds(ids: ConcurrentHashMap[Int, util.List[String]])
       : util.Iterator[String] = {
     ids.asScala.flatMap(_._2.asScala).toIterator.asJava
   }
