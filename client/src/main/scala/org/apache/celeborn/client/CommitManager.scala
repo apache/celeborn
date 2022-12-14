@@ -533,9 +533,9 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
         } else {
           masterPartMap.get(id).setStorageInfo(
             shuffleCommittedInfo.committedMasterStorageInfos.get(id))
-          masterPartMap.get(id).setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
-          committedPartitions.put(id, masterPartMap.get(id))
         }
+        masterPartMap.get(id).setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
+        committedPartitions.put(id, masterPartMap.get(id))
       }
 
       getPartitionUniqueIds(shuffleCommittedInfo.committedSlaveIds, partitionIdOpt).foreach { id =>
@@ -544,16 +544,16 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
           logDebug(s"$applicationId-$shuffleId $id storage hint was not returned")
         } else {
           slavePartition.setStorageInfo(shuffleCommittedInfo.committedSlaveStorageInfos.get(id))
-          val masterPartition = committedPartitions.get(id)
-          if (masterPartition ne null) {
-            masterPartition.setPeer(slavePartition)
-            slavePartition.setPeer(masterPartition)
-          } else {
-            logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
-              s"use slave $slavePartition.")
-            slavePartition.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
-            committedPartitions.put(id, slavePartition)
-          }
+        }
+        val masterPartition = committedPartitions.get(id)
+        if (masterPartition ne null) {
+          masterPartition.setPeer(slavePartition)
+          slavePartition.setPeer(masterPartition)
+        } else {
+          logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
+            s"use slave $slavePartition.")
+          slavePartition.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
+          committedPartitions.put(id, slavePartition)
         }
       }
 
