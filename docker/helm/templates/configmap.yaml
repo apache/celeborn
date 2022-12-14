@@ -23,15 +23,15 @@ metadata:
     {{- include "celeborn.labels" . | nindent 4 }}
 data:
   celeborn-defaults.conf: |-
-    {{- range $key, $val := .Values.celeborn }}
-    {{ $key }}={{ $val }}
-    {{- end -}} 
     {{- $namespace := .Release.Namespace }}
     celeborn.ha.enabled=true
     celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
     celeborn.ha.master.node.{{ . }}.host=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local
     {{- end }}
+    {{- range $key, $val := .Values.celeborn }}
+    {{ $key }}={{ $val }}
+    {{- end -}} 
     
   rss-env.sh: |
     {{- range $key, $val := .Values.environments }}
