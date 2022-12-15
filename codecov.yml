@@ -21,6 +21,5 @@ coverage:
   status:
     patch:
       default:
-        target: 0%
-        threshold: 100%
-        base: auto
+        enabled: no
+        if_not_found: success
