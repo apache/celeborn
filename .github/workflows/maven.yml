@@ -34,3 +34,10 @@ jobs:
         check-latest: false
     - name: Test with Maven
       run: build/mvn -Pgoogle-mirror,spark-${{ matrix.spark }} test
+    - name: Upload test log
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: unit-test-log
+        path: |
+          **/target/unit-tests.log
