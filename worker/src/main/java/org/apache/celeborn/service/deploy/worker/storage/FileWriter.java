@@ -106,7 +106,6 @@ public abstract class FileWriter implements DeviceObserver {
       // We open the stream and close immediately because HDFS output stream will
       // create a DataStreamer that is a threaed.
       // If we reuse HDFS output stream, we will exhaust the memory soon.
-      // So we will create HDFS output stream in place and close it as soon as possible.
       try {
         StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
       } catch (IOException e) {
