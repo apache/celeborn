@@ -59,7 +59,7 @@ class RssShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   /**
    * If rss cluster is exceed current user's quota, fallback to external shuffle
    *
-   * @return if rss cluster have available space for current user.
+   * @return if rss cluster have available space for current user
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
     if (!conf.quotaEnabled) {
