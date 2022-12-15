@@ -130,7 +130,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       hdfsConfiguration.set("fs.defaultFS", hdfsDir)
       hdfsConfiguration.set("dfs.replication", "2")
       hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false")
-      logInfo("Celeborn client will ignore cluster settings" +
+      logInfo("Celeborn will ignore cluster settings" +
         " about fs.hdfs.impl.disable.cache and set it to false")
       StorageManager.hadoopFs = FileSystem.get(hdfsConfiguration)
       Some(new HdfsFlusher(
