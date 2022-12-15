@@ -24,6 +24,7 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
   private val masterPort = 19097
   override def beforeAll(): Unit = {
+    super.beforeAll()
     val masterConf = Map(
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> masterPort.toString)
@@ -35,7 +36,6 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   override def afterAll(): Unit = {
     // TODO refactor MiniCluster later
     println("test done")
-    sys.exit(0)
   }
 
   override protected def celebornConf: CelebornConf = new CelebornConf()
