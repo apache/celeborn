@@ -24,6 +24,8 @@ import java.util.function.BooleanSupplier;
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
@@ -39,6 +41,7 @@ public abstract class ShuffleClient {
   private static volatile ShuffleClient _instance;
   private static volatile boolean initialized = false;
   private static volatile FileSystem hdfsFs;
+  private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
 
   // for testing
   public static void reset() {
@@ -102,6 +105,11 @@ public abstract class ShuffleClient {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
           Configuration hdfsConfiguration = new Configuration();
+          // enable fs cache to avoid too many fs instances
+          hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
+          logger.info(
+              "Celeborn client will ignore cluster"
+                  + " settings about fs.hdfs.impl.disable.cache and set it to false");
           try {
             hdfsFs = FileSystem.get(hdfsConfiguration);
           } catch (IOException e) {

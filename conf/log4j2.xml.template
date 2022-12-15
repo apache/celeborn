@@ -33,9 +33,13 @@
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
         </Console>
     </Appenders>
+
     <Loggers>
         <Root level="INFO">
             <AppenderRef ref="stdout"/>
         </Root>
+        <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
+            <Appender-ref ref="stdout" level="WARN" />
+        </Logger>
     </Loggers>
 </Configuration>

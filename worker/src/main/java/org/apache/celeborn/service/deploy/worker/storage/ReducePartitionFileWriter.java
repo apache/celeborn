@@ -94,13 +94,13 @@ public final class ReducePartitionFileWriter extends FileWriter {
           }
         },
         () -> {
-          if (StorageManager.hdfsFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-            StorageManager.hdfsFs().delete(fileInfo.getHdfsPath(), false);
+          if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
+            StorageManager.hadoopFs().delete(fileInfo.getHdfsPath(), false);
             deleted = true;
           } else {
-            StorageManager.hdfsFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+            StorageManager.hadoopFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
             FSDataOutputStream indexOutputStream =
-                StorageManager.hdfsFs().create(fileInfo.getHdfsIndexPath());
+                StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath());
             indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
             for (Long offset : fileInfo.getChunkOffsets()) {
               indexOutputStream.writeLong(offset);
