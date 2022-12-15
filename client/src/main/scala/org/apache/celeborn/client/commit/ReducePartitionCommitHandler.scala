@@ -24,12 +24,15 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
+import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
+import org.apache.celeborn.common.rpc.RpcCallContext
 
 /**
  * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
@@ -42,15 +45,14 @@ class ReducePartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
     allocatedWorkers: ShuffleAllocatedWorkers,
-    reducerFileGroupsMap: ShuffleFileGroups,
-    committedPartitionInfo: CommittedPartitionInfo,
-    shuffleMapperAttempts: ShuffleMapperAttempts)
-  extends CommitHandler(appId, conf, allocatedWorkers, reducerFileGroupsMap, committedPartitionInfo)
+    committedPartitionInfo: CommittedPartitionInfo)
+  extends CommitHandler(appId, conf, allocatedWorkers, committedPartitionInfo)
   with Logging {
 
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
 
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE
@@ -77,10 +79,12 @@ class ReducePartitionCommitHandler(
     stageEndShuffleSet.add(shuffleId)
   }
 
-  def removeExpiredShuffle(shuffleId: Int): Unit = {
+  override def removeExpiredShuffle(shuffleId: Int): Unit = {
     dataLostShuffleSet.remove(shuffleId)
     stageEndShuffleSet.remove(shuffleId)
     inProcessStageEndShuffleSet.remove(shuffleId)
+    shuffleMapperAttempts.remove(shuffleId)
+    super.removeExpiredShuffle(shuffleId)
   }
 
   override def tryFinalCommit(
@@ -159,19 +163,6 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def finalPartitionCommit(
-      shuffleId: Int,
-      partitionId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
-    throw new UnsupportedOperationException(
-      s"Failed when do final Partition Commit Operation, Reduce Partition " +
-        s"shuffleType only Support final commit for all partitions ")
-  }
-
-  override def getShuffleMapperAttempts(shuffleId: Int): Array[Int] = {
-    shuffleMapperAttempts.get(shuffleId)
-  }
-
   private def waitInflightRequestComplete(shuffleCommittedInfo: ShuffleCommittedInfo): Unit = {
     while (shuffleCommittedInfo.allInFlightCommitRequestNum.get() > 0) {
       Thread.sleep(1000)
@@ -181,5 +172,91 @@ class ReducePartitionCommitHandler(
   private def getPartitionUniqueIds(ids: ConcurrentHashMap[Int, util.List[String]])
       : util.Iterator[String] = {
     ids.asScala.flatMap(_._2.asScala).toIterator.asJava
+  }
+
+  /**
+   * For reduce partition shuffle type If shuffle registered and corresponding map finished, reply true.
+   * For map partition shuffle type always return false
+   * reduce partition type
+   *
+   * @param shuffleId
+   * @param mapId
+   * @return
+   */
+  override def isMapperEnded(shuffleId: Int, mapId: Int): Boolean = {
+    shuffleMapperAttempts.containsKey(shuffleId) && shuffleMapperAttempts.get(shuffleId)(
+      mapId) != -1
+  }
+
+  override def getMapperAttempts(shuffleId: Int): Array[Int] = {
+    shuffleMapperAttempts.get(shuffleId)
+  }
+
+  override def finishMapperAttempt(
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      numMappers: Int,
+      partitionId: Int,
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
+    shuffleMapperAttempts.synchronized {
+      if (getMapperAttempts(shuffleId) == null) {
+        logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
+        initMapperAttempts(shuffleId, numMappers)
+      }
+
+      val attempts = shuffleMapperAttempts.get(shuffleId)
+      if (attempts(mapId) < 0) {
+        attempts(mapId) = attemptId
+        // Mapper with this attemptId finished, also check all other mapper finished or not.
+        (true, !attempts.exists(_ < 0))
+      } else {
+        // Mapper with another attemptId finished, skip this request
+        (false, !attempts.exists(_ < 0))
+      }
+    }
+  }
+
+  override def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
+    super.registerShuffle(shuffleId, numMappers)
+    initMapperAttempts(shuffleId, numMappers)
+  }
+
+  private def initMapperAttempts(shuffleId: Int, numMappers: Int): Unit = {
+    shuffleMapperAttempts.synchronized {
+      if (!shuffleMapperAttempts.containsKey(shuffleId)) {
+        val attempts = new Array[Int](numMappers)
+        0 until numMappers foreach (idx => attempts(idx) = -1)
+        shuffleMapperAttempts.synchronized {
+          shuffleMapperAttempts.put(shuffleId, attempts)
+        }
+      }
+    }
+  }
+
+  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    val (isTimeout, cost) = waitStageEnd(shuffleId)
+    if (isTimeout) {
+      logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
+      context.reply(GetReducerFileGroupResponse(
+        StatusCode.STAGE_END_TIME_OUT,
+        new ConcurrentHashMap(),
+        Array.empty))
+    } else {
+      logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
+        s" ${cost}ms")
+      super.handleGetReducerFileGroup(context, shuffleId)
+    }
+  }
+
+  override def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
+    var timeout = stageEndTimeout
+    val delta = 100
+    while (!this.isStageEnd(shuffleId) && timeout > 0) {
+      Thread.sleep(delta)
+      timeout = timeout - delta
+    }
+
+    (timeout <= 0, stageEndTimeout - timeout)
   }
 }
