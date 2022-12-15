@@ -79,7 +79,7 @@ trait WithShuffleClientSuite extends RssFunSuite {
     Assert.assertEquals(count, numMappers + 1)
   }
 
-  gtest(s"test map end & get reducer file group") {
+  test(s"test map end & get reducer file group") {
     val shuffleId = 2
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
