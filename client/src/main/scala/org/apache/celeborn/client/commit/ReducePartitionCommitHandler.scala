@@ -154,8 +154,8 @@ class ReducePartitionCommitHandler(
   override def getUnCommitPartitionRequests(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
-    shuffleCommittedInfo.commitPartitionRequests.asScala.filterNot { partitionLocation =>
-      shuffleCommittedInfo.handledCommitPartitionRequests
+    shuffleCommittedInfo.unCommitPartitionLocations.asScala.filterNot { partitionLocation =>
+      shuffleCommittedInfo.handledCommitPartitionLocations
         .contains(partitionLocation)
     }
   }

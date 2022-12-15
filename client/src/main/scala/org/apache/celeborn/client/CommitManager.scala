@@ -47,8 +47,8 @@ case class ShuffleCommittedInfo(
     committedSlaveStorageInfos: ConcurrentHashMap[String, StorageInfo],
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     currentShuffleFileCount: LongAdder,
-    commitPartitionRequests: util.Set[PartitionLocation],
-    handledCommitPartitionRequests: util.Set[PartitionLocation],
+    unCommitPartitionLocations: util.Set[PartitionLocation],
+    handledCommitPartitionLocations: util.Set[PartitionLocation],
     allInFlightCommitRequestNum: AtomicInteger,
     partitionInFlightCommitRequestNum: ConcurrentHashMap[Int, AtomicInteger])
 
@@ -188,7 +188,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
-        shuffleCommittedInfo.commitPartitionRequests
+        shuffleCommittedInfo.unCommitPartitionLocations
           .add(partitionLocation)
       }
     }

@@ -112,19 +112,15 @@ class MapPartitionCommitHandler(
   override def getUnCommitPartitionRequests(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
-    shuffleCommittedInfo.commitPartitionRequests.asScala.filterNot { partitionLocation =>
-      shuffleCommittedInfo.handledCommitPartitionRequests
-        .contains(partitionLocation) && this.isPartitionInProcess(
-        shuffleId,
-        partitionLocation.getId)
+    shuffleCommittedInfo.unCommitPartitionLocations.asScala.filterNot { partitionLocation =>
+      shuffleCommittedInfo.handledCommitPartitionLocations.contains(partitionLocation) &&
+      this.isPartitionInProcess(shuffleId, partitionLocation.getId)
     }
   }
 
   override def incrementInFlightNum(
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      workerToRequests: Map[
-        WorkerInfo,
-        collection.Set[PartitionLocation]]): Unit = {
+      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]]): Unit = {
     workerToRequests.foreach {
       case (_, partitions) =>
         partitions.groupBy(_.getId).foreach { case (id, _) =>
@@ -138,14 +134,11 @@ class MapPartitionCommitHandler(
 
   override def decrementInFlightNum(
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      workerToRequests: Map[
-        WorkerInfo,
-        collection.Set[PartitionLocation]]): Unit = {
+      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]]): Unit = {
     workerToRequests.foreach {
       case (_, partitions) =>
         partitions.groupBy(_.getId).foreach { case (id, _) =>
-          shuffleCommittedInfo.partitionInFlightCommitRequestNum.get(
-            id).decrementAndGet()
+          shuffleCommittedInfo.partitionInFlightCommitRequestNum.get(id).decrementAndGet()
         }
     }
   }
@@ -208,8 +201,7 @@ class MapPartitionCommitHandler(
       partitionIds: ConcurrentHashMap[String, WorkerInfo],
       partitionId: Int): util.Map[String, WorkerInfo] = {
     partitionIds.asScala.filter(p =>
-      Utils.splitPartitionLocationUniqueId(p._1)._1 ==
-        partitionId).asJava
+      Utils.splitPartitionLocationUniqueId(p._1)._1 == partitionId).asJava
   }
 
   private def getPartitionUniqueIds(

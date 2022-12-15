@@ -77,16 +77,16 @@ abstract class CommitHandler(
     // can directly return empty.
     if (this.isStageEndOrInProcess(shuffleId)) {
       logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-      shuffleCommittedInfo.commitPartitionRequests.clear()
+      shuffleCommittedInfo.unCommitPartitionLocations.clear()
       Map.empty[WorkerInfo, Set[PartitionLocation]]
     } else {
       val currentBatch = this.getUnCommitPartitionRequests(shuffleId, shuffleCommittedInfo)
-      shuffleCommittedInfo.commitPartitionRequests.clear()
+      shuffleCommittedInfo.unCommitPartitionLocations.clear()
       currentBatch.foreach { partitionLocation =>
-        shuffleCommittedInfo.handledCommitPartitionRequests
+        shuffleCommittedInfo.handledCommitPartitionLocations
           .add(partitionLocation)
         if (partitionLocation.getPeer != null) {
-          shuffleCommittedInfo.handledCommitPartitionRequests
+          shuffleCommittedInfo.handledCommitPartitionLocations
             .add(partitionLocation.getPeer)
         }
       }
@@ -114,18 +114,14 @@ abstract class CommitHandler(
 
   def incrementInFlightNum(
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      workerToRequests: Map[
-        WorkerInfo,
-        collection.Set[PartitionLocation]]): Unit = {
+      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]]): Unit = {
     shuffleCommittedInfo.allInFlightCommitRequestNum.addAndGet(
       workerToRequests.size)
   }
 
   def decrementInFlightNum(
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      workerToRequests: Map[
-        WorkerInfo,
-        collection.Set[PartitionLocation]]): Unit = {
+      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]]): Unit = {
     shuffleCommittedInfo.allInFlightCommitRequestNum.addAndGet(
       -workerToRequests.size)
   }
@@ -183,10 +179,10 @@ abstract class CommitHandler(
         val (masterIds, slaveIds) = shuffleCommittedInfo.synchronized {
           (
             masterParts.asScala
-              .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
+              .filterNot(shuffleCommittedInfo.handledCommitPartitionLocations.contains)
               .map(_.getUniqueId).asJava,
             slaveParts.asScala
-              .filterNot(shuffleCommittedInfo.handledCommitPartitionRequests.contains)
+              .filterNot(shuffleCommittedInfo.handledCommitPartitionLocations.contains)
               .map(_.getUniqueId).asJava)
         }
 
