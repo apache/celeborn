@@ -342,7 +342,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     if (isHdfs) {
       // If the index file exists, it will be overwritten.
       // So there is no need to check its existence.
-      hdfsIndexOutput = StorageManager.hdfsFs().create(new Path(indexFilePath));
+      hdfsIndexOutput = StorageManager.hadoopFs().create(new Path(indexFilePath));
     } else {
       indexFileChannel = new FileOutputStream(indexFilePath).getChannel();
     }
@@ -455,8 +455,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       int indexSize = 0;
       try {
         if (isHdfs) {
-          hdfsIndexStream = StorageManager.hdfsFs().open(new Path(indexFilePath));
-          indexSize = (int) StorageManager.hdfsFs().getFileStatus(new Path(indexFilePath)).getLen();
+          hdfsIndexStream = StorageManager.hadoopFs().open(new Path(indexFilePath));
+          indexSize =
+              (int) StorageManager.hadoopFs().getFileStatus(new Path(indexFilePath)).getLen();
         } else {
           indexStream = new FileInputStream(indexFilePath);
           File indexFile = new File(indexFilePath);
@@ -520,11 +521,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFile.delete();
         }
       } else {
-        if (StorageManager.hdfsFs().exists(fileInfo.getHdfsSortedPath())) {
-          StorageManager.hdfsFs().delete(fileInfo.getHdfsSortedPath(), false);
+        if (StorageManager.hadoopFs().exists(fileInfo.getHdfsSortedPath())) {
+          StorageManager.hadoopFs().delete(fileInfo.getHdfsSortedPath(), false);
         }
-        if (StorageManager.hdfsFs().exists(fileInfo.getHdfsIndexPath())) {
-          StorageManager.hdfsFs().delete(fileInfo.getHdfsIndexPath(), false);
+        if (StorageManager.hadoopFs().exists(fileInfo.getHdfsIndexPath())) {
+          StorageManager.hadoopFs().delete(fileInfo.getHdfsIndexPath(), false);
         }
       }
     }
@@ -612,8 +613,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void initializeFiles() throws IOException {
       if (isHdfs) {
-        hdfsOriginInput = StorageManager.hdfsFs().open(new Path(originFilePath));
-        hdfsSortedOutput = StorageManager.hdfsFs().create(new Path(sortedFilePath));
+        hdfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
+        hdfsSortedOutput = StorageManager.hadoopFs().create(new Path(sortedFilePath));
       } else {
         originFileChannel = new FileInputStream(originFilePath).getChannel();
         sortedFileChannel = new FileOutputStream(sortedFilePath).getChannel();
@@ -646,7 +647,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private void deleteOriginFiles() throws IOException {
       boolean deleteSuccess = false;
       if (isHdfs) {
-        deleteSuccess = StorageManager.hdfsFs().delete(new Path(originFilePath), false);
+        deleteSuccess = StorageManager.hadoopFs().delete(new Path(originFilePath), false);
       } else {
         deleteSuccess = new File(originFilePath).delete();
       }

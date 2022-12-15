@@ -37,7 +37,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.PackedPartitionId
-import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, LocalFlusher, MapPartitionFileWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
 
@@ -224,9 +224,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback.onFailure(new Exception(message, exception))
       return
     }
-    val diskFull = workerInfo.diskInfos
-      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
-      .actualUsableSpace < diskReserveSize
+    val diskFull =
+      if (fileWriter.flusher.isInstanceOf[LocalFlusher]) {
+        workerInfo.diskInfos
+          .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
+          .actualUsableSpace < diskReserveSize
+      } else {
+        false
+      }
     if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
       (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
       if (fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
@@ -859,6 +864,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   private def checkDiskFull(fileWriter: FileWriter): Boolean = {
+    if (fileWriter.flusher.isInstanceOf[HdfsFlusher]) {
+      return false
+    }
     val diskFull = workerInfo.diskInfos
       .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
       .actualUsableSpace < diskReserveSize

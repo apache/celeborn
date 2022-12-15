@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,10 +52,9 @@ public abstract class FileWriter implements DeviceObserver {
   private static final long WAIT_INTERVAL_MS = 20;
 
   protected final FileInfo fileInfo;
-  protected FileChannel channel;
-  protected FSDataOutputStream stream;
-  protected volatile boolean closed;
-  protected volatile boolean destroyed;
+  private FileChannel channel;
+  private volatile boolean closed;
+  private volatile boolean destroyed;
 
   protected final AtomicInteger numPendingWrites = new AtomicInteger();
   protected long bytesFlushed;
@@ -105,7 +103,20 @@ public abstract class FileWriter implements DeviceObserver {
     if (!fileInfo.isHdfs()) {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
-      stream = StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true);
+      // We open the stream and close immediately because HDFS output stream will
+      // create a DataStreamer that is a threaed.
+      // If we reuse HDFS output stream, we will exhaust the memory soon.
+      try {
+        StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
+      } catch (IOException e) {
+        try {
+          // If create file failed, wait 10 ms and retry
+          Thread.sleep(10);
+        } catch (InterruptedException ex) {
+          throw new RuntimeException(ex);
+        }
+        StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
+      }
     }
     source = workerSource;
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
@@ -138,8 +149,8 @@ public abstract class FileWriter implements DeviceObserver {
     FlushTask task = null;
     if (channel != null) {
       task = new LocalFlushTask(flushBuffer, channel, notifier);
-    } else if (stream != null) {
-      task = new HdfsFlushTask(flushBuffer, stream, notifier);
+    } else if (fileInfo.isHdfs()) {
+      task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
     }
     addTask(task);
     flushBuffer = null;
@@ -248,8 +259,7 @@ public abstract class FileWriter implements DeviceObserver {
         if (channel != null) {
           channel.close();
         }
-        if (stream != null) {
-          stream.close();
+        if (fileInfo.isHdfs()) {
           streamClose.run();
         }
       } catch (IOException e) {
@@ -278,9 +288,6 @@ public abstract class FileWriter implements DeviceObserver {
         if (channel != null) {
           channel.close();
         }
-        if (stream != null) {
-          stream.close();
-        }
       } catch (IOException e) {
         logger.warn(
             "Close channel failed for file {} caused by {}.",
@@ -291,14 +298,12 @@ public abstract class FileWriter implements DeviceObserver {
 
     if (!destroyed) {
       destroyed = true;
-      try {
-        fileInfo.deleteAllFiles(StorageManager.hdfsFs());
-      } catch (Exception e) {
-        logger.warn("Exception when cleaning hdfs file {}", fileInfo.getFilePath());
-      }
+      fileInfo.deleteAllFiles(StorageManager.hadoopFs());
 
       // unregister from DeviceMonitor
-      deviceMonitor.unregisterFileWriter(this);
+      if (!fileInfo.isHdfs()) {
+        deviceMonitor.unregisterFileWriter(this);
+      }
       destroyHook.run();
     }
   }
