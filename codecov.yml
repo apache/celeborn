@@ -21,6 +21,7 @@ coverage:
   status:
     project:
       default:
-        target: 0%
+        target: auto
+        if_ci_failed: success
         threshold: 0%
         base: auto
