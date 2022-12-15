@@ -37,6 +37,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     println("test done")
     sys.exit(0)
   }
+
   override protected def celebornConf: CelebornConf = new CelebornConf()
     .set("celeborn.master.endpoints", s"localhost:$masterPort")
     .set("celeborn.push.replicate.enabled", "true")
