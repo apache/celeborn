@@ -152,7 +152,6 @@ public class DfsPartitionReader implements PartitionReader {
                 logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
               },
               "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
-      fetchThread.start();
       fetchThread.setUncaughtExceptionHandler(
           new Thread.UncaughtExceptionHandler() {
             @Override
@@ -160,6 +159,7 @@ public class DfsPartitionReader implements PartitionReader {
               logger.error("thread {} failed with exception {}", t, e);
             }
           });
+      fetchThread.start();
       logger.debug("Start dfs read on location {}", location);
     }
   }

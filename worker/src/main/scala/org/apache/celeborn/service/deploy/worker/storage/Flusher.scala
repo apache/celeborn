@@ -212,7 +212,6 @@ private[worker] class LocalFlusher(
   override def toString(): String = {
     s"LocalFlusher@$flusherId-$mountPoint"
   }
-
 }
 
 final private[worker] class HdfsFlusher(
