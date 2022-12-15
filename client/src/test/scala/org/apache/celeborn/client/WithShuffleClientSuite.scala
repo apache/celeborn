@@ -28,11 +28,11 @@ import org.apache.celeborn.common.util.PackedPartitionId
 
 trait WithShuffleClientSuite extends RssFunSuite {
 
-  protected def celebornConf: CelebornConf
+  protected var celebornConf: CelebornConf = _
 
   protected val APP = "app-1"
   protected val userIdentifier: UserIdentifier = UserIdentifier("mock", "mock")
-  print(celebornConf)
+
   protected lazy val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
   protected lazy val shuffleClient: ShuffleClientImpl = ShuffleClient.get(
     lifecycleManager.self,

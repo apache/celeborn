@@ -25,6 +25,10 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   private val masterPort = 19097
   override def beforeAll(): Unit = {
     super.beforeAll()
+    celebornConf = new CelebornConf()
+      .set("celeborn.master.endpoints", s"localhost:$masterPort")
+      .set("celeborn.push.replicate.enabled", "true")
+      .set("celeborn.push.buffer.size", "256K")
     val masterConf = Map(
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> masterPort.toString)
@@ -37,9 +41,4 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     // TODO refactor MiniCluster later
     println("test done")
   }
-
-  override protected def celebornConf: CelebornConf = new CelebornConf()
-    .set("celeborn.master.endpoints", s"localhost:$masterPort")
-    .set("celeborn.push.replicate.enabled", "true")
-    .set("celeborn.push.buffer.size", "256K")
 }
