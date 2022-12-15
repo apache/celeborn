@@ -19,6 +19,9 @@ coverage:
   round: up
   range: 10..100
   status:
+    project:
+      default:
+        target: 10%
     patch:
       default:
         enabled: no
