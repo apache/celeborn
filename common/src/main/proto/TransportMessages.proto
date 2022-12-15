@@ -295,6 +295,7 @@ message PbCheckQuota {
 
 message PbCheckQuotaResponse {
   bool available = 1;
+  string reason = 2;
 }
 
 message PbReportWorkerUnavailable {
