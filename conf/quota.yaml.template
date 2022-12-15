@@ -18,15 +18,15 @@
 -  tenantId: AAA
    name: Tom
    quota:
-     diskBytesWritten: 10000
+     diskBytesWritten: 100m
      diskFileCount: 200
-     hdfsBytesWritten: -1
-     hdfsFileCount: -1
+     hdfsBytesWritten: 200m
+     hdfsFileCount: 100
 
 -  tenantId: BBB
    name: Jerry
    quota:
-     diskBytesWritten: -1
-     diskFileCount: -1
-     hdfsBytesWritten: 10000
+     diskBytesWritten: 1G
+     diskFileCount: 1000
+     hdfsBytesWritten: 3G
      hdfsFileCount: 200
