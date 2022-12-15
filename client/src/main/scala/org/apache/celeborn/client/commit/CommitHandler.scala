@@ -67,11 +67,14 @@ abstract class CommitHandler(
 
   def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = false
 
-  def canDoFinalCommit(shuffleId: Int): Boolean = false
-
-  def finalCommit(
+  /**
+   * when someone calls tryFinalCommit, the function will return true if there is no one ever do final commit before,
+   * otherwise it will return false.
+   * @return
+   */
+  def tryFinalCommit(
       shuffleId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean
 
   def finalPartitionCommit(
       shuffleId: Int,

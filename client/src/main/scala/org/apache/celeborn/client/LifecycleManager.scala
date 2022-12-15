@@ -699,8 +699,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       return
     }
 
-    if (commitManager.canDoFinalCommit(shuffleId)) {
-      commitManager.finalCommit(shuffleId)
+    if (commitManager.tryFinalCommit(shuffleId)) {
       // release resources and clear worker info
       workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
         partitionLocationInfo.removeMasterPartitions(shuffleId.toString)

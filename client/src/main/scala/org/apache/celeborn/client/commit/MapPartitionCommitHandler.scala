@@ -68,9 +68,9 @@ class MapPartitionCommitHandler(
       shuffleId).contains(partitionId)
   }
 
-  override def finalCommit(
+  override def tryFinalCommit(
       shuffleId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Unit = {
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
     throw new UnsupportedOperationException(
       "Failed when do final Commit Operation, MapPartition shuffleType only " +
         "support final partition Commit")
