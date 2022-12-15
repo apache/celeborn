@@ -235,9 +235,11 @@ class LocalDeviceMonitor(
           try {
             observedDevices.values().asScala.foreach(device => {
               val mountPoints = device.diskInfos.keySet.asScala.toList
+              // tolerate time accuracy for better performance
+              val now = System.currentTimeMillis()
               for (concurrentSet <- device.nonCriticalErrors.values().asScala) {
                 for (time <- concurrentSet.asScala) {
-                  if (System.currentTimeMillis() - time > device.notifyErrorExpireTimeout) {
+                  if (now - time > device.notifyErrorExpireTimeout) {
                     concurrentSet.remove(time)
                   }
                 }
@@ -269,7 +271,7 @@ class LocalDeviceMonitor(
                       device.notifyObserversOnNonCriticalError(
                         List(diskInfo.mountPoint),
                         DiskStatus.READ_OR_WRITE_FAILURE)
-                    } else if (nonCriticalErrorSum == 0) {
+                    } else if (nonCriticalErrorSum <= device.notifyErrorThreshold * 0.5) {
                       device.notifyObserversOnHealthy(diskInfo.mountPoint)
                     }
                   }
