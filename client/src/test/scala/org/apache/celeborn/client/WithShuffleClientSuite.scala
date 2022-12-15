@@ -44,6 +44,8 @@ trait WithShuffleClientSuite extends RssFunSuite {
   private val attemptId = 0
 
   test(s"test register map partition task") {
+    Assert.assertNotNull(lifecycleManager)
+    Assert.assertNotNull(shuffleClient)
     val shuffleId = 1
     var location =
       shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
