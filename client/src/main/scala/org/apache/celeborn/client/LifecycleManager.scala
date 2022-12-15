@@ -1291,15 +1291,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def checkQuota(): Boolean = {
+  def checkQuota(): CheckQuotaResponse = {
     try {
       rssHARetryClient.askSync[CheckQuotaResponse](
         CheckQuota(userIdentifier),
-        classOf[CheckQuotaResponse]).isAvailable
+        classOf[CheckQuotaResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync Cluster check quota for $userIdentifier failed.", e)
-        false
+        val msg = s"AskSync Cluster check quota for $userIdentifier failed."
+        logError(msg, e)
+        CheckQuotaResponse(false, msg)
     }
   }
 
