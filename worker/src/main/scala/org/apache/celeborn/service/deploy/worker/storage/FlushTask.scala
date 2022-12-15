@@ -47,7 +47,7 @@ private[worker] class HdfsFlushTask(
     val path: Path,
     notifier: FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
-    val hdfsStream = StorageManager.hdfsFs.append(path)
+    val hdfsStream = StorageManager.hadoopFs.append(path)
     hdfsStream.write(ByteBufUtil.getBytes(buffer))
     hdfsStream.close()
   }

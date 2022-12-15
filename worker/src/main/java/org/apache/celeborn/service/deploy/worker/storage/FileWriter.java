@@ -104,7 +104,7 @@ public abstract class FileWriter implements DeviceObserver {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
       try {
-        StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true).close();
+        StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -112,7 +112,7 @@ public abstract class FileWriter implements DeviceObserver {
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
-        StorageManager.hdfsFs().create(fileInfo.getHdfsPath(), true).close();
+        StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
       }
     }
     source = workerSource;
@@ -295,7 +295,7 @@ public abstract class FileWriter implements DeviceObserver {
 
     if (!destroyed) {
       destroyed = true;
-      fileInfo.deleteAllFiles(StorageManager.hdfsFs());
+      fileInfo.deleteAllFiles(StorageManager.hadoopFs());
 
       // unregister from DeviceMonitor
       if (!fileInfo.isHdfs()) {

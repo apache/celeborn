@@ -26,12 +26,15 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.Utils;
 
 public class FileInfo {
+  private static Logger logger = LoggerFactory.getLogger(FileInfo.class);
   private final String filePath;
   private final List<Long> chunkOffsets;
   private final UserIdentifier userIdentifier;
@@ -134,6 +137,13 @@ public class FileInfo {
         hdfsFs.delete(getHdfsSortedPath(), false);
       } catch (Exception e) {
         // ignore delete exceptions because some other workers might be deleting the directory
+        logger.debug(
+            "delete hdfs file {},{},{},{} failed {}",
+            getHdfsPath(),
+            getHdfsWriterSuccessPath(),
+            getHdfsIndexPath(),
+            getHdfsSortedPath(),
+            e);
       }
     } else {
       getFile().delete();

@@ -45,7 +45,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
-import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
+import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
@@ -130,7 +130,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       hdfsConfiguration.set("fs.defaultFS", hdfsDir)
       hdfsConfiguration.set("dfs.replication", "2")
       hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false")
-      StorageManager.hdfsFs = FileSystem.get(hdfsConfiguration)
+      StorageManager.hadoopFs = FileSystem.get(hdfsConfiguration)
       Some(new HdfsFlusher(
         workerSource,
         conf.hdfsFlusherThreads,
@@ -282,7 +282,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (dirs.isEmpty) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(StorageManager.hdfsFs, shuffleDir, hdfsPermission)
+        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val fileInfo =
           new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier, partitionType)
         val hdfsWriter = partitionType match {
@@ -421,10 +421,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
       }
-      hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hdfsFs))
+      hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hadoopFs))
       if (!hdfsInfos.isEmpty) {
         try {
-          StorageManager.hdfsFs.delete(
+          StorageManager.hadoopFs.delete(
             new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
             true)
         } catch {
@@ -475,14 +475,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       }
     }
 
-    if (hdfsFs != null) {
+    if (hadoopFs != null) {
       val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
-      if (hdfsFs.exists(hdfsWorkPath)) {
-        val iter = hdfsFs.listFiles(hdfsWorkPath, false)
+      if (hadoopFs.exists(hdfsWorkPath)) {
+        val iter = hadoopFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
           val fileStatus = iter.next()
           if (fileStatus.getModificationTime < expireTime) {
-            hdfsFs.delete(fileStatus.getPath, true)
+            hadoopFs.delete(fileStatus.getPath, true)
           }
         }
       }
@@ -538,7 +538,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
 
-      val hdfsCleaned = hdfsFs match {
+      val hdfsCleaned = hadoopFs match {
         case hdfs: FileSystem =>
           val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
           // hdfs path not exist when first time initialize
@@ -680,5 +680,5 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 }
 
 object StorageManager {
-  var hdfsFs: FileSystem = _
+  var hadoopFs: FileSystem = _
 }

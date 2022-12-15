@@ -75,7 +75,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     if (!fileInfo.isHdfs()) {
       channelIndex = new FileOutputStream(fileInfo.getIndexPath()).getChannel();
     } else {
-      streamIndex = StorageManager.hdfsFs().create(fileInfo.getHdfsIndexPath(), true);
+      streamIndex = StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath(), true);
     }
   }
 

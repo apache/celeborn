@@ -39,7 +39,7 @@
             <AppenderRef ref="stdout"/>
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
-                    <Appender-ref ref="stdout" level="WARN" />
+            <Appender-ref ref="stdout" level="WARN" />
         </Logger>
     </Loggers>
 </Configuration>
