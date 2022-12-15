@@ -39,6 +39,7 @@ public class FileInfo {
   private final List<Long> chunkOffsets;
   private final UserIdentifier userIdentifier;
   private final PartitionType partitionType;
+  private int bufferSize;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
@@ -176,5 +177,9 @@ public class FileInfo {
         + ", partitionType="
         + partitionType
         + '}';
+  }
+
+  public void setBufferSize(int bufferSize) {
+    this.bufferSize = bufferSize;
   }
 }

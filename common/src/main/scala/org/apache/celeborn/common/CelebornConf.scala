@@ -2362,7 +2362,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.configuration.path")
       .withAlternative("rss.quota.configuration.path")
       .categories("quota")
-      .doc("Quota configuration file path.")
+      .doc("Quota configuration file path. The file format should be yaml. Quota configuration file template can be " +
+        "found under conf directory.")
       .version("0.2.0")
       .stringConf
       .createOptional

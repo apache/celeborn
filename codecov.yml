@@ -15,27 +15,12 @@
 # limitations under the License.
 #
 
-# See: https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
-
-github:
-  description: "Apache Celeborn is an elastic and high-performance service for shuffle and spilled data."
-  homepage: https://celeborn.apache.org/
-  labels:
-    - bigdata
-    - spark
-    - shuffle
-  enabled_merge_buttons:
-    squash: true
-    merge: false
-    rebase: false
-  protected_branches: ~
-  features:
-    issues: true
-    discussions: true
-    wiki: false
-    projects: false
-notifications:
-  commits: commits@celeborn.apache.org
-  issues: issues@celeborn.apache.org
-  pullrequests: issues@celeborn.apache.org
-  jira_options: link label worklog
+coverage:
+  round: up
+  range: 10..100
+  status:
+    project:
+      default:
+        target: 0%
+        threshold: 0%
+        base: auto

@@ -714,7 +714,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE => {
           fileWriter.asInstanceOf[MapPartitionFileWriter].pushDataHandShake(
-            message.asInstanceOf[PushDataHandShake].numPartitions)
+            message.asInstanceOf[PushDataHandShake].numPartitions,
+            message.asInstanceOf[PushDataHandShake].bufferSize)
         }
         case Type.REGION_START => {
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionStart(

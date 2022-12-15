@@ -17,7 +17,10 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
-import static org.apache.ratis.util.LifeCycle.State.*;
+import static org.apache.ratis.util.LifeCycle.State.PAUSED;
+import static org.apache.ratis.util.LifeCycle.State.PAUSING;
+import static org.apache.ratis.util.LifeCycle.State.RUNNING;
+import static org.apache.ratis.util.LifeCycle.State.STARTING;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -207,6 +210,10 @@ public class StateMachine extends BaseStateMachine {
     if (snapshot == null) {
       return;
     }
+    if (snapshot.getTermIndex().compareTo(getLastAppliedTermIndex()) <= 0) {
+      LOG.info("obsolete snapshot provided: {}", snapshot.getTermIndex());
+      return;
+    }
     LOG.info("Loading Snapshot {}.", snapshot);
     final File snapshotFile = snapshot.getFile().getPath().toFile();
     if (!snapshotFile.exists()) {
@@ -216,16 +223,18 @@ public class StateMachine extends BaseStateMachine {
     try {
       setLastAppliedTermIndex(snapshot.getTermIndex());
       install(snapshotFile);
-    } catch (Exception e) {
-      throw new IOException(String.format("Failed to load snapshot %s", snapshot), e);
+    } catch (IOException rethrow) {
+      LOG.error("Failed to load snapshot {}", snapshot);
+      throw rethrow;
     }
   }
 
-  private void install(File snapshotFile) {
+  private void install(File snapshotFile) throws IOException {
     try {
       metaHandler.loadSnapShot(snapshotFile);
-    } catch (Exception e) {
-      LOG.warn("Failed to install snapshot!", e);
+    } catch (IOException rethrow) {
+      LOG.warn("Failed to install snapshot!", rethrow);
+      throw rethrow;
     }
     LOG.info("Successfully installed snapshot!");
   }
