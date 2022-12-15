@@ -37,7 +37,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
-case class ParallelCommitResult(
+case class CommitResult(
     masterPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
     slavePartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
     commitFilesFailedWorkers: ShuffleFailedWorkers)
@@ -85,7 +85,7 @@ abstract class CommitHandler(
   def parallelCommitFiles(
       shuffleId: Int,
       allocatedWorkers: util.Map[WorkerInfo, PartitionLocationInfo],
-      partitionIdOpt: Option[Int] = None): ParallelCommitResult = {
+      partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
@@ -138,7 +138,7 @@ abstract class CommitHandler(
       s"commit files complete. File count ${shuffleCommittedInfo.currentShuffleFileCount.sum()} " +
       s"using ${(System.nanoTime() - commitFileStartTime) / 1000000} ms")
 
-    ParallelCommitResult(masterPartMap, slavePartMap, commitFilesFailedWorkers)
+    CommitResult(masterPartMap, slavePartMap, commitFilesFailedWorkers)
   }
 
   def commitFiles(
