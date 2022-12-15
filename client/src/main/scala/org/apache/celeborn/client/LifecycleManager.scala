@@ -1298,8 +1298,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         classOf[CheckQuotaResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync Cluster check quota for $userIdentifier failed.", e)
-        CheckQuotaResponse(false, "")
+        val msg = s"AskSync Cluster check quota for $userIdentifier failed."
+        logError(msg, e)
+        CheckQuotaResponse(false, msg)
     }
   }
 
