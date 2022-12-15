@@ -21,9 +21,6 @@ coverage:
   status:
     project:
       default:
-        # basic
         target: 0%
         threshold: 0%
         base: auto
-        flags:
-          - unit
