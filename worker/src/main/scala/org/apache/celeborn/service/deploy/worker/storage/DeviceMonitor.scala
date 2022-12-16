@@ -42,7 +42,6 @@ trait DeviceMonitor {
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
   def reportNonCriticalError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
-  def reportDeviceError(mountPoint: String, e: IOException, diskStatus: DiskStatus): Unit = {}
   def close() {}
 }
 
@@ -65,6 +64,10 @@ class LocalDeviceMonitor(
     val sysBlockDir = conf.diskMonitorSysBlockDir
     val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
     val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
+
+    val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, util.Set[Long]]()
+    val notifyErrorThreshold = conf.diskMonitorNotifyErrorThreshold
+    val notifyErrorExpireTimeout = conf.diskMonitorNotifyErrorExpireTimeout
 
     var lastReadComplete: Long = -1
     var lastWriteComplete: Long = -1
@@ -96,6 +99,13 @@ class LocalDeviceMonitor(
 
     def notifyObserversOnNonCriticalError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
       this.synchronized {
+        val nonCriticalErrorSetFunc = new util.function.Function[DiskStatus, util.Set[Long]] {
+          override def apply(t: DiskStatus): util.Set[Long] = {
+            ConcurrentHashMap.newKeySet[Long]()
+          }
+        }
+        nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorSetFunc).add(
+          System.currentTimeMillis())
         mountPoints.foreach { case mountPoint =>
           diskInfos.get(mountPoint).setStatus(diskStatus)
         }
@@ -225,26 +235,45 @@ class LocalDeviceMonitor(
           try {
             observedDevices.values().asScala.foreach(device => {
               val mountPoints = device.diskInfos.keySet.asScala.toList
-
-              if (checkIoHang && device.ioHang()) {
-                logger.error(s"Encounter device io hang error!" +
-                  s"${device.deviceInfo.name}, notify observers")
-                device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
+              // tolerate time accuracy for better performance
+              val now = System.currentTimeMillis()
+              for (concurrentSet <- device.nonCriticalErrors.values().asScala) {
+                for (time <- concurrentSet.asScala) {
+                  if (now - time > device.notifyErrorExpireTimeout) {
+                    concurrentSet.remove(time)
+                  }
+                }
+              }
+              val nonCriticalErrorSum = device.nonCriticalErrors.values().asScala.map(_.size).sum
+              if (nonCriticalErrorSum > device.notifyErrorThreshold) {
+                logger.error(s"Device ${device.deviceInfo.name} has accumulated $nonCriticalErrorSum non-critical " +
+                  s"error within the past ${Utils.msDurationToString(device.notifyErrorExpireTimeout)} , its sum has " +
+                  s"exceed the threshold (${device.notifyErrorThreshold}), device monitor will notify error to " +
+                  s"observed device.")
+                val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
+                device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               } else {
-                device.diskInfos.values().asScala.foreach { case diskInfo =>
-                  if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
-                    logger.error(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
-                    device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
-                  } else if (checkReadWrite &&
-                    DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
-                    logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
-                    // We think that if one dir in device has read-write problem, if possible all
-                    // dirs in this device have the problem
-                    device.notifyObserversOnNonCriticalError(
-                      List(diskInfo.mountPoint),
-                      DiskStatus.READ_OR_WRITE_FAILURE)
-                  } else {
-                    device.notifyObserversOnHealthy(diskInfo.mountPoint)
+                if (checkIoHang && device.ioHang()) {
+                  logger.error(s"Encounter device io hang error!" +
+                    s"${device.deviceInfo.name}, notify observers")
+                  device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
+                } else {
+                  device.diskInfos.values().asScala.foreach { case diskInfo =>
+                    if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
+                      logger.error(
+                        s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
+                      device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
+                    } else if (checkReadWrite &&
+                      DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
+                      logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
+                      // We think that if one dir in device has read-write problem, if possible all
+                      // dirs in this device have the problem
+                      device.notifyObserversOnNonCriticalError(
+                        List(diskInfo.mountPoint),
+                        DiskStatus.READ_OR_WRITE_FAILURE)
+                    } else if (nonCriticalErrorSum <= device.notifyErrorThreshold * 0.5) {
+                      device.notifyObserversOnHealthy(diskInfo.mountPoint)
+                    }
                   }
                 }
               }
@@ -276,17 +305,6 @@ class LocalDeviceMonitor(
 
   override def unregisterFlusher(flusher: LocalFlusher): Unit = {
     observedDevices.get(diskInfos.get(flusher.mountPoint).deviceInfo).removeObserver(flusher)
-  }
-
-  override def reportDeviceError(
-      mountPoint: String,
-      e: IOException,
-      diskStatus: DiskStatus): Unit = {
-    logger.error(s"Receive report exception, disk $mountPoint, $e")
-    if (diskInfos.containsKey(mountPoint)) {
-      observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
-        .notifyObserversOnError(List(mountPoint), diskStatus)
-    }
   }
 
   override def reportNonCriticalError(
@@ -332,7 +350,8 @@ object DeviceMonitor {
 
   /**
    * check if the disk is high usage
-   * @param conf conf
+   *
+   * @param conf     conf
    * @param diskInfo diskInfo
    * @return true if high disk usage
    */
@@ -362,7 +381,8 @@ object DeviceMonitor {
 
   /**
    * check if the data dir has read-write problem
-   * @param conf conf
+   *
+   * @param conf    conf
    * @param dataDir one of shuffle data dirs in mount disk
    * @return true if disk has read-write problem
    */

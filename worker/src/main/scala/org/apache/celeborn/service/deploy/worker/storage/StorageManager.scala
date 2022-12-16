@@ -143,8 +143,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
-    if (diskStatus == DiskStatus.IO_HANG) {
-      logInfo("IoHang, remove disk operator.")
+    if (diskStatus == DiskStatus.CRITICAL_ERROR) {
+      logInfo(s"Disk ${mountPoint} faces critical error, will remove its disk operator.")
       val operator = diskOperators.remove(mountPoint)
       if (operator != null) {
         operator.shutdown()
