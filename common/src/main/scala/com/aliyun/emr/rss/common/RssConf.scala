@@ -652,6 +652,24 @@ object RssConf extends Logging {
     conf.getInt("rss.offer.slots.extra.size", 2)
   }
 
+  def offerSlotsOrderByFreeSlots(conf: RssConf): Boolean = {
+    conf.getBoolean("rss.offer.slots.orderByFreeSlots", false)
+  }
+
+  def offerSlotsMaxWorkers(conf: RssConf): Int = {
+    // -1 unlimited
+    conf.getInt("rss.offer.slots.maxWorkers", -1)
+  }
+
+  def offerSlotsMinWorkers(conf: RssConf): Int = {
+    conf.getInt("rss.offer.slots.minWorkers", 1)
+  }
+
+  def offerSlotsMinPartitionsPerWorker(conf: RssConf): Long = {
+    // -1 unlimited
+    conf.getLong("rss.offer.slots.minPartitionsPerWorker", -1)
+  }
+
   def shuffleWriterMode(conf: RssConf): String = {
     conf.get("rss.shuffle.writer.mode", "hash")
   }

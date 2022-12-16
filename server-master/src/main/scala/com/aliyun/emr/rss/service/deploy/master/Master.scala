@@ -332,7 +332,8 @@ private[deploy] class Master(
         shuffleKey,
         workersNotBlacklisted(),
         requestSlots.reduceIdList,
-        requestSlots.shouldReplicate
+        requestSlots.shouldReplicate,
+        conf
       )
     }
 
