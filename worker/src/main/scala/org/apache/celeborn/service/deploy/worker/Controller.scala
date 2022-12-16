@@ -279,16 +279,19 @@ private[deploy] class Controller(
                 val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
-                  if (fileWriter.getStorageInfo != null) {
+                  if (fileWriter.getStorageInfo == null) {
+                    // This branch means that this partition location is deleted.
+                    logDebug(s"Location $uniqueId is deleted.")
+                  } else {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
                     }
+                    if (bytes >= minPartitionSizeToEstimate) {
+                      partitionSizeList.add(bytes)
+                    }
+                    committedIds.add(uniqueId)
                   }
-                  if (bytes >= minPartitionSizeToEstimate) {
-                    partitionSizeList.add(bytes)
-                  }
-                  committedIds.add(uniqueId)
                 }
               } catch {
                 case e: IOException =>

@@ -254,32 +254,24 @@ abstract class CommitHandler(
       slavePartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
     val committedPartitions = new util.HashMap[String, PartitionLocation]
     masterPartitionUniqueIds.asScala.foreach { id =>
-      if (shuffleCommittedInfo.committedMasterStorageInfos.get(id) == null) {
-        logDebug(s"$appId-$shuffleId $id storage hint was not returned")
-      } else {
-        masterPartMap.get(id).setStorageInfo(
-          shuffleCommittedInfo.committedMasterStorageInfos.get(id))
-        masterPartMap.get(id).setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
-        committedPartitions.put(id, masterPartMap.get(id))
-      }
+      masterPartMap.get(id).setStorageInfo(
+        shuffleCommittedInfo.committedMasterStorageInfos.get(id))
+      masterPartMap.get(id).setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
+      committedPartitions.put(id, masterPartMap.get(id))
     }
 
     slavePartitionUniqueIds.asScala.foreach { id =>
       val slavePartition = slavePartMap.get(id)
-      if (shuffleCommittedInfo.committedSlaveStorageInfos.get(id) == null) {
-        logDebug(s"$appId-$shuffleId $id storage hint was not returned")
+      slavePartition.setStorageInfo(shuffleCommittedInfo.committedSlaveStorageInfos.get(id))
+      val masterPartition = committedPartitions.get(id)
+      if (masterPartition ne null) {
+        masterPartition.setPeer(slavePartition)
+        slavePartition.setPeer(masterPartition)
       } else {
-        slavePartition.setStorageInfo(shuffleCommittedInfo.committedSlaveStorageInfos.get(id))
-        val masterPartition = committedPartitions.get(id)
-        if (masterPartition ne null) {
-          masterPartition.setPeer(slavePartition)
-          slavePartition.setPeer(masterPartition)
-        } else {
-          logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
-            s"use slave $slavePartition.")
-          slavePartition.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
-          committedPartitions.put(id, slavePartition)
-        }
+        logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
+          s"use slave $slavePartition.")
+        slavePartition.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
+        committedPartitions.put(id, slavePartition)
       }
     }
 
