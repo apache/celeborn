@@ -30,7 +30,7 @@ RUN set -ex && \
 COPY bin /opt/celeborn/bin
 COPY sbin /opt/celeborn/sbin
 COPY conf /opt/celeborn/conf
-COPY master-jars /opt/celeborn/jars
+COPY jars /opt/celeborn/jars
 COPY master-jars /opt/celeborn/master-jars
 COPY worker-jars /opt/celeborn/worker-jars
 COPY RELEASE /opt/celeborn/RELEASE
