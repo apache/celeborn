@@ -43,7 +43,7 @@ COPY master-jars /opt/celeborn/master-jars
 COPY worker-jars /opt/celeborn/worker-jars
 COPY RELEASE /opt/celeborn/RELEASE
 
-RUN chown -R celeborn:0 ${CELEBORN_HOME} && \
+RUN chown -R celeborn:celeborn ${CELEBORN_HOME} && \
     chmod -R ug+rw ${CELEBORN_HOME} && \
     chmod a+x ${CELEBORN_HOME}/bin/* && \
     chmod a+x ${CELEBORN_HOME}/sbin/*
