@@ -91,9 +91,11 @@ public class PushState {
   public synchronized void addFuture(
       int batchId, ChannelFuture future, RpcResponseCallback callback) {
     BatchInfo info = inflightBatchInfos.get(batchId);
-    info.pushTime = System.currentTimeMillis();
-    info.channelFuture = future;
-    info.callback = callback;
+    if (info != null) {
+      info.pushTime = System.currentTimeMillis();
+      info.channelFuture = future;
+      info.callback = callback;
+    }
   }
 
   public synchronized void removeFuture(int batchId) {
