@@ -305,6 +305,18 @@ public class ShuffleClientImpl extends ShuffleClient {
     return partitionLocationMap.get(partitionId);
   }
 
+  @Override
+  public ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
+      String applicationId, int shuffleId, int numMappers, int numPartitions) {
+    return reducePartitionMap.computeIfAbsent(
+        shuffleId, (id) -> registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
+  }
+
+  @Override
+  public PushState getOrRegisterPushState(String mapKey) {
+    return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+  }
+
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
       int shuffleId,
       int numMappers,
@@ -355,86 +367,20 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void limitMaxInFlight(
-      String mapKey, PushState pushState, int limit, String hostAndPushPort) throws IOException {
-    if (pushState.exception.get() != null) {
-      throw pushState.exception.get();
-    }
-    Set<Integer> batchIdSet = pushState.getBatchIdSetByAddressPair(hostAndPushPort);
+  private void limitMaxInFlight(String mapKey, PushState pushState, String hostAndPushPort)
+      throws IOException {
+    boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort);
 
-    long timeoutMs = conf.pushLimitInFlightTimeoutMs();
-    long delta = conf.pushLimitInFlightSleepDeltaMs();
-    long times = timeoutMs / delta;
-    try {
-      while (times > 0) {
-        if (batchIdSet.size() <= limit) {
-          break;
-        }
-        if (pushState.exception.get() != null) {
-          throw pushState.exception.get();
-        }
-        Thread.sleep(delta);
-        times--;
-      }
-    } catch (InterruptedException e) {
-      pushState.exception.set(new IOException(e));
-    }
-
-    if (times <= 0) {
-      logger.error(
-          "After waiting for {} ms, there are still {} batches in flight for map {} and hostAndPushPort {}, "
-              + "which exceeds the limit {}.",
-          timeoutMs,
-          batchIdSet.size(),
-          mapKey,
-          hostAndPushPort,
-          limit);
-      logger.error(
-          "Map: {} with hostAndPushPort {} in flight batches: {}",
-          mapKey,
-          hostAndPushPort,
-          batchIdSet);
+    if (reachLimit) {
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
-    }
-    if (pushState.exception.get() != null) {
-      throw pushState.exception.get();
     }
   }
 
   private void limitZeroInFlight(String mapKey, PushState pushState) throws IOException {
-    if (pushState.exception.get() != null) {
-      throw pushState.exception.get();
-    }
-    long timeoutMs = conf.pushLimitInFlightTimeoutMs();
-    long delta = conf.pushLimitInFlightSleepDeltaMs();
-    long times = timeoutMs / delta;
-    Map<String, Set<Integer>> inFlightBatches = pushState.getBatchIdPerAddressPair();
+    boolean reachLimit = pushState.limitZeroInFlight();
 
-    try {
-      while (times > 0) {
-        if (inFlightBatches.size() == 0) {
-          break;
-        }
-        if (pushState.exception.get() != null) {
-          throw pushState.exception.get();
-        }
-        Thread.sleep(delta);
-        times--;
-      }
-    } catch (InterruptedException e) {
-      pushState.exception.set(new IOException(e));
-    }
-
-    if (times <= 0) {
-      logger.error(
-          "After waiting for {} ms, there are still {} batches in flight for map {}, expect 0 batches",
-          timeoutMs,
-          inFlightBatches.size(),
-          mapKey);
+    if (reachLimit) {
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
-    }
-    if (pushState.exception.get() != null) {
-      throw pushState.exception.get();
     }
   }
 
@@ -556,9 +502,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     // register shuffle if not registered
     final ConcurrentHashMap<Integer, PartitionLocation> map =
-        reducePartitionMap.computeIfAbsent(
-            shuffleId,
-            (id) -> registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
+        getOrRegisterShuffle(applicationId, shuffleId, numMappers, numPartitions);
 
     if (map == null) {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
@@ -604,10 +548,10 @@ public class ShuffleClientImpl extends ShuffleClient {
               + " is NULL!");
     }
 
-    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    PushState pushState = getOrRegisterPushState(mapKey);
 
     // increment batchId
-    final int nextBatchId = pushState.batchId.addAndGet(1);
+    final int nextBatchId = pushState.nextBatchId();
 
     // compress data
     final Compressor compressor = compressorThreadLocal.get();
@@ -633,7 +577,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, maxInFlight, loc.hostAndPushPort());
+      limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
 
       // add inFlight requests
       pushState.addFlightBatches(nextBatchId, loc.hostAndPushPort());
@@ -798,7 +742,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       String addressPair = genAddressPair(loc);
       boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
       if (shouldPush) {
-        limitMaxInFlight(mapKey, pushState, maxInFlight, loc.hostAndPushPort());
+        limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
         doPushMergedData(
             addressPair.split("-")[0],
@@ -917,7 +861,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
       Map.Entry<String, DataBatches> entry = batchesArr.get(rand.nextInt(batchesArr.size()));
-      limitMaxInFlight(mapKey, pushState, maxInFlight, entry.getKey());
+      limitMaxInFlight(mapKey, pushState, entry.getKey());
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
         batchesArr.remove(entry);
@@ -941,7 +885,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String host = splits[0];
     final int port = Integer.parseInt(splits[1]);
 
-    int groupedBatchId = pushState.batchId.addAndGet(1);
+    int groupedBatchId = pushState.nextBatchId();
     pushState.addFlightBatches(groupedBatchId, batches.get(0).loc.hostAndPushPort());
 
     final int numBatches = batches.size();
@@ -1136,7 +1080,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       Integer partitionId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    PushState pushState = getOrRegisterPushState(mapKey);
 
     try {
       limitZeroInFlight(mapKey, pushState);
@@ -1388,10 +1332,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    PushState pushState = getOrRegisterPushState(mapKey);
 
     // increment batchId
-    final int nextBatchId = pushState.batchId.addAndGet(1);
+    final int nextBatchId = pushState.nextBatchId();
     int totalLength = data.readableBytes();
     data.markWriterIndex();
     data.writerIndex(0);
@@ -1409,7 +1353,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         partitionId,
         nextBatchId);
     // check limit
-    limitMaxInFlight(mapKey, pushState, maxInFlight, location.hostAndPushPort());
+    limitMaxInFlight(mapKey, pushState, location.hostAndPushPort());
 
     // add inFlight requests
     pushState.addFlightBatches(nextBatchId, location.hostAndPushPort());
@@ -1645,12 +1589,12 @@ public class ShuffleClientImpl extends ShuffleClient {
             attemptId);
         return null;
       }
-      pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+      pushState = getOrRegisterPushState(mapKey);
       // force data has been send
-      limitMaxInFlight(mapKey, pushState, 0, location.hostAndPushPort());
+      limitZeroInFlight(mapKey, pushState);
 
       // add inFlight requests
-      batchId = pushState.batchId.incrementAndGet();
+      batchId = pushState.nextBatchId();
       pushState.addFlightBatches(batchId, location.hostAndPushPort());
       return retrySendMessage(supplier);
     } finally {

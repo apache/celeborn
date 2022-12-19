@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
@@ -34,25 +33,15 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public class PushState {
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
 
-  private int pushBufferMaxSize;
+  private final int pushBufferMaxSize;
 
-  public final AtomicInteger batchId = new AtomicInteger();
-  private final ConcurrentHashMap<String, Set<Integer>> batchIdPerAddressPair =
-      new ConcurrentHashMap<>();
   public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
+  private final InFlightTracker inFlightTracker;
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
-  }
-
-  public ConcurrentHashMap<String, Set<Integer>> getBatchIdPerAddressPair() {
-    return batchIdPerAddressPair;
-  }
-
-  public Set<Integer> getBatchIdSetByAddressPair(String addressPair) {
-    return batchIdPerAddressPair.computeIfAbsent(
-        addressPair, pair -> ConcurrentHashMap.newKeySet());
+    this.inFlightTracker = new InFlightTracker(conf, this);
   }
 
   public void addFuture(int batchId, ChannelFuture future) {
@@ -98,17 +87,23 @@ public class PushState {
     return batchesMap.remove(addressPair);
   }
 
+  public int nextBatchId() {
+    return inFlightTracker.nextBatchId();
+  }
+
   public void addFlightBatches(int batchId, String hostAndPushPort) {
-    Set<Integer> batchIdSetPerPair =
-        batchIdPerAddressPair.computeIfAbsent(hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
-    batchIdSetPerPair.add(batchId);
+    inFlightTracker.addFlightBatches(batchId, hostAndPushPort);
   }
 
   public void removeFlightBatches(int batchId, String hostAndPushPort) {
-    Set<Integer> batchIdSetPerPair = batchIdPerAddressPair.get(hostAndPushPort);
-    batchIdSetPerPair.remove(batchId);
-    if (batchIdSetPerPair.size() == 0) {
-      batchIdPerAddressPair.remove(hostAndPushPort);
-    }
+    inFlightTracker.removeFlightBatches(batchId, hostAndPushPort);
+  }
+
+  public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {
+    return inFlightTracker.limitMaxInFlight(hostAndPushPort);
+  }
+
+  public boolean limitZeroInFlight() throws IOException {
+    return inFlightTracker.limitZeroInFlight();
   }
 }
