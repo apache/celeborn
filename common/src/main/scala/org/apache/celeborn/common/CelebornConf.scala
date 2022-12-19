@@ -520,7 +520,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
-  def registerShuffleRetryWait: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
+  def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
   def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
   def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)

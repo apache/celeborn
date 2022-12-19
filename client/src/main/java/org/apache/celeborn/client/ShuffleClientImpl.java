@@ -82,7 +82,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final UserIdentifier userIdentifier;
 
   private final int registerShuffleMaxRetries;
-  private final long registerShuffleRetryWait;
+  private final long registerShuffleRetryWaitMs;
   private int maxInFlight;
   private Integer currentMaxReqsInFlight = 1;
   private int congestionAvoidanceFlag = 0;
@@ -136,7 +136,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     this.conf = conf;
     this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = conf.registerShuffleMaxRetry();
-    registerShuffleRetryWait = conf.registerShuffleRetryWait();
+    registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
     maxInFlight = conf.pushMaxReqsInFlight();
     pushBufferMaxSize = conf.pushBufferMaxSize();
 
@@ -345,7 +345,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
 
       try {
-        TimeUnit.SECONDS.sleep(registerShuffleRetryWait);
+        TimeUnit.MILLISECONDS.sleep(registerShuffleRetryWaitMs);
       } catch (InterruptedException e) {
         break;
       }
