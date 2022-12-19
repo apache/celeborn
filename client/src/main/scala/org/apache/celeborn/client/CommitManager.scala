@@ -47,8 +47,8 @@ case class ShuffleCommittedInfo(
     committedSlaveStorageInfos: ConcurrentHashMap[String, StorageInfo],
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     currentShuffleFileCount: LongAdder,
-    unCommitPartitionLocations: util.Set[PartitionLocation],
-    handledCommitPartitionLocations: util.Set[PartitionLocation],
+    unHandledPartitionLocations: util.Set[PartitionLocation],
+    handledPartitionLocations: util.Set[PartitionLocation],
     allInFlightCommitRequestNum: AtomicInteger,
     partitionInFlightCommitRequestNum: ConcurrentHashMap[Int, AtomicInteger])
 
@@ -91,7 +91,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                     var workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]] = null
                     shuffleCommittedInfo.synchronized {
                       workerToRequests =
-                        commitHandler.batchUnCommitRequests(shuffleId, shuffleCommittedInfo)
+                        commitHandler.batchUnHandledRequests(shuffleId, shuffleCommittedInfo)
                       // when batch commit thread starts to commit these requests, we should increment inFlightNum,
                       // then stage/partition end would be able to recognize all requests are over.
                       commitHandler.incrementInFlightNum(shuffleCommittedInfo, workerToRequests)
@@ -188,8 +188,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
-        shuffleCommittedInfo.unCommitPartitionLocations
-          .add(partitionLocation)
+        shuffleCommittedInfo.unHandledPartitionLocations.add(partitionLocation)
       }
     }
   }

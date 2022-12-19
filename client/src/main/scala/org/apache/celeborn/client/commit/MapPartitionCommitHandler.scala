@@ -109,11 +109,11 @@ class MapPartitionCommitHandler(
     dataCommitSuccess
   }
 
-  override def getUnCommitPartitionRequests(
+  override def getUnHandledPartitionLocations(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
-    shuffleCommittedInfo.unCommitPartitionLocations.asScala.filterNot { partitionLocation =>
-      shuffleCommittedInfo.handledCommitPartitionLocations.contains(partitionLocation) &&
+    shuffleCommittedInfo.unHandledPartitionLocations.asScala.filterNot { partitionLocation =>
+      shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation) &&
       this.isPartitionInProcess(shuffleId, partitionLocation.getId)
     }
   }
@@ -124,8 +124,7 @@ class MapPartitionCommitHandler(
     workerToRequests.foreach {
       case (_, partitions) =>
         partitions.groupBy(_.getId).foreach { case (id, _) =>
-          val atomicInteger = shuffleCommittedInfo
-            .partitionInFlightCommitRequestNum
+          val atomicInteger = shuffleCommittedInfo.partitionInFlightCommitRequestNum
             .computeIfAbsent(id, (k: Int) => new AtomicInteger(0))
           atomicInteger.incrementAndGet()
         }

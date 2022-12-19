@@ -151,12 +151,11 @@ class ReducePartitionCommitHandler(
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
   }
 
-  override def getUnCommitPartitionRequests(
+  override def getUnHandledPartitionLocations(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
-    shuffleCommittedInfo.unCommitPartitionLocations.asScala.filterNot { partitionLocation =>
-      shuffleCommittedInfo.handledCommitPartitionLocations
-        .contains(partitionLocation)
+    shuffleCommittedInfo.unHandledPartitionLocations.asScala.filterNot { partitionLocation =>
+      shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation)
     }
   }
 
