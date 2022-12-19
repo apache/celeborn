@@ -83,11 +83,9 @@ abstract class CommitHandler(
       val currentBatch = this.getUnHandledPartitionLocations(shuffleId, shuffleCommittedInfo)
       shuffleCommittedInfo.unHandledPartitionLocations.clear()
       currentBatch.foreach { partitionLocation =>
-        shuffleCommittedInfo.handledPartitionLocations
-          .add(partitionLocation)
+        shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation)
         if (partitionLocation.getPeer != null) {
-          shuffleCommittedInfo.handledPartitionLocations
-            .add(partitionLocation.getPeer)
+          shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation.getPeer)
         }
       }
 
