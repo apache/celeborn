@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 
@@ -51,10 +52,11 @@ class LocalDeviceMonitor(
     conf: CelebornConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
-    diskInfos: util.Map[String, DiskInfo]) extends DeviceMonitor {
+    diskInfos: util.Map[String, DiskInfo],
+    workerSource: AbstractSource) extends DeviceMonitor {
   val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
 
-  class ObservedDevice(val deviceInfo: DeviceInfo) {
+  class ObservedDevice(val deviceInfo: DeviceInfo, workerSource: AbstractSource) {
     val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
     deviceInfo.diskInfos.foreach { case diskInfo =>
       diskInfos.put(diskInfo.mountPoint, diskInfo)
@@ -101,7 +103,11 @@ class LocalDeviceMonitor(
       this.synchronized {
         val nonCriticalErrorSetFunc = new util.function.Function[DiskStatus, util.Set[Long]] {
           override def apply(t: DiskStatus): util.Set[Long] = {
-            ConcurrentHashMap.newKeySet[Long]()
+            val set = ConcurrentHashMap.newKeySet[Long]()
+            workerSource.addGauge(
+              s"Device_${deviceInfo.name}_${diskStatus.toMetric}_Count",
+              _ => set.size())
+            set
           }
         }
         nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorSetFunc).add(
@@ -221,7 +227,7 @@ class LocalDeviceMonitor(
         s"because noDevice device $deviceName exists.")
     }
     deviceInfos.asScala.foreach(entry => {
-      val observedDevice = new ObservedDevice(entry._2)
+      val observedDevice = new ObservedDevice(entry._2, workerSource)
       observedDevice.addObserver(observer)
       observedDevices.put(entry._2, observedDevice)
     })
@@ -331,10 +337,12 @@ object DeviceMonitor {
       conf: CelebornConf,
       deviceObserver: DeviceObserver,
       deviceInfos: util.Map[String, DeviceInfo],
-      diskInfos: util.Map[String, DiskInfo]): DeviceMonitor = {
+      diskInfos: util.Map[String, DiskInfo],
+      workerSource: AbstractSource): DeviceMonitor = {
     try {
       if (conf.diskMonitorEnabled) {
-        val monitor = new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos)
+        val monitor =
+          new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
         logger.info("Device monitor init success")
         monitor
