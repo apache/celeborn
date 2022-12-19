@@ -1351,7 +1351,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("600s")
 
   val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chuck.size")
