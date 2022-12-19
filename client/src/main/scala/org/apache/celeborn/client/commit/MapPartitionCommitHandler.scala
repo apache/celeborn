@@ -20,8 +20,10 @@ package org.apache.celeborn.client.commit
 import java.util
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
@@ -29,7 +31,7 @@ import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.PartitionType
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.Utils
@@ -107,6 +109,39 @@ class MapPartitionCommitHandler(
     dataCommitSuccess
   }
 
+  override def getUnHandledPartitionLocations(
+      shuffleId: Int,
+      shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
+    shuffleCommittedInfo.unHandledPartitionLocations.asScala.filterNot { partitionLocation =>
+      shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation) &&
+      this.isPartitionInProcess(shuffleId, partitionLocation.getId)
+    }
+  }
+
+  override def incrementInFlightNum(
+      shuffleCommittedInfo: ShuffleCommittedInfo,
+      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]]): Unit = {
+    workerToRequests.foreach {
+      case (_, partitions) =>
+        partitions.groupBy(_.getId).foreach { case (id, _) =>
+          val atomicInteger = shuffleCommittedInfo.partitionInFlightCommitRequestNum
+            .computeIfAbsent(id, (k: Int) => new AtomicInteger(0))
+          atomicInteger.incrementAndGet()
+        }
+    }
+  }
+
+  override def decrementInFlightNum(
+      shuffleCommittedInfo: ShuffleCommittedInfo,
+      workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]]): Unit = {
+    workerToRequests.foreach {
+      case (_, partitions) =>
+        partitions.groupBy(_.getId).foreach { case (id, _) =>
+          shuffleCommittedInfo.partitionInFlightCommitRequestNum.get(id).decrementAndGet()
+        }
+    }
+  }
+
   override def getShuffleMapperAttempts(shuffleId: Int): Array[Int] = {
     // map partition now return empty mapper attempts array as map partition don't prevent other mapper commit file
     // even the same mapper id with another attemptId success in lifecycle manager.
@@ -165,8 +200,7 @@ class MapPartitionCommitHandler(
       partitionIds: ConcurrentHashMap[String, WorkerInfo],
       partitionId: Int): util.Map[String, WorkerInfo] = {
     partitionIds.asScala.filter(p =>
-      Utils.splitPartitionLocationUniqueId(p._1)._1 ==
-        partitionId).asJava
+      Utils.splitPartitionLocationUniqueId(p._1)._1 == partitionId).asJava
   }
 
   private def getPartitionUniqueIds(
