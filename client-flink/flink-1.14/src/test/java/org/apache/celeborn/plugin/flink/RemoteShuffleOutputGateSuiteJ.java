@@ -79,7 +79,7 @@ public class RemoteShuffleOutputGateSuiteJ {
         .mapperEnd(any(), anyInt(), anyInt(), anyInt(), anyInt());
     remoteShuffleOutputGate.finish();
 
-    doNothing().when(remoteShuffleOutputGate.shuffleWriteClient).shutDown();
+    doNothing().when(remoteShuffleOutputGate.shuffleWriteClient).shutdown();
     remoteShuffleOutputGate.close();
   }
 

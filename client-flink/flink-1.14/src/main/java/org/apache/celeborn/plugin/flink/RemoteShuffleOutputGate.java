@@ -196,7 +196,7 @@ public class RemoteShuffleOutputGate {
       bufferPool.lazyDestroy();
     }
     bufferPacker.close();
-    shuffleWriteClient.shutDown();
+    shuffleWriteClient.shutdown();
   }
 
   /** Returns shuffle descriptor. */
