@@ -58,5 +58,5 @@ spark.celeborn.master.endpoints=celeborn-master-0.celeborn-master-svc.${celeborn
 
 #### Uninstall Celeborn
 ```
-helm uninstall celeborn-helm -n ${celeborn namespace}
+helm uninstall celeborn -n ${celeborn namespace}
 ```
