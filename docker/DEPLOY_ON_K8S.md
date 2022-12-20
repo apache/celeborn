@@ -16,7 +16,7 @@ docker build . \
     --file docker/Dockerfile \
     --build-arg celeborn_uid=10006 \
     --build-arg celeborn_gid=10006 \
-    --tag ${your-repo}:${tag} \
+    --tag ${your-repo}:${tag}
 ```
 
 ## Deploy Celeborn with helm
