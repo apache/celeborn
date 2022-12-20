@@ -34,6 +34,7 @@ import org.apache.celeborn.common.CelebornConf.WORKER_DISK_MONITOR_CHECK_INTERVA
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 class DeviceMonitorSuite extends AnyFunSuite {
   val dfCmd = "df -ah"
@@ -66,6 +67,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
   val conf = new CelebornConf()
   conf.set(WORKER_DISK_MONITOR_CHECK_INTERVAL.key, "3600s")
+  val workerSource = new WorkerSource(conf)
 
   val storageManager = mock[DeviceObserver]
   var (deviceInfos, diskInfos, workingDirDiskInfos): (
@@ -82,7 +84,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
     diskInfos = tdiskInfos
   }
   val deviceMonitor =
-    new LocalDeviceMonitor(conf, storageManager, deviceInfos, diskInfos)
+    new LocalDeviceMonitor(conf, storageManager, deviceInfos, diskInfos, workerSource)
 
   val vdaDeviceInfo = new DeviceInfo("vda")
   val vdbDeviceInfo = new DeviceInfo("vdb")
@@ -272,5 +274,32 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assert(!result)
     })
     DeviceMonitor.deviceCheckThreadPool.shutdownNow()
+  }
+
+  test("monitor non-critical error metrics") {
+    withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
+      when(Utils.runCommand(dfCmd)) thenReturn dfOut
+      when(Utils.runCommand(lsCmd)) thenReturn lsOut
+
+      deviceMonitor.init()
+
+      val device1 = deviceMonitor.observedDevices.values().asScala.head
+      val mountPoints1 = device1.diskInfos.keySet().asScala.toList
+
+      device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.READ_OR_WRITE_FAILURE)
+      device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.IO_HANG)
+      val deviceMonitorMetrics =
+        workerSource.gauges().filter(_.name.startsWith("Device")).sortBy(_.name)
+
+      assertEquals("Device_vda_IoHang_Count", deviceMonitorMetrics.head.name)
+      assertEquals("Device_vda_ReadOrWriteFailure_Count", deviceMonitorMetrics.last.name)
+      assertEquals(1, deviceMonitorMetrics.head.gauge.getValue)
+      assertEquals(1, deviceMonitorMetrics.last.gauge.getValue)
+
+      device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.READ_OR_WRITE_FAILURE)
+      device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.IO_HANG)
+      assertEquals(2, deviceMonitorMetrics.head.gauge.getValue)
+      assertEquals(2, deviceMonitorMetrics.last.gauge.getValue)
+    }
   }
 }

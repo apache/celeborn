@@ -17,34 +17,19 @@
 
 package org.apache.celeborn.common.meta;
 
-public enum DiskStatus {
-  HEALTHY(0),
-  READ_OR_WRITE_FAILURE(1),
-  IO_HANG(2),
-  HIGH_DISK_USAGE(3),
-  CRITICAL_ERROR(4);
+import static org.junit.Assert.*;
 
-  private final byte value;
+import org.junit.Test;
 
-  DiskStatus(int value) {
-    assert (value >= 0 && value < 256);
-    this.value = (byte) value;
-  }
+public class DiskStatusSuiteJ {
 
-  public final byte getValue() {
-    return value;
-  }
-
-  public final String toMetric() {
-    String[] fragments = this.name().split("_");
-    String metric = "";
-    for (String fragment : fragments) {
-      int len = fragment.length();
-      if (len >= 1) {
-        metric += fragment.substring(0, 1).toUpperCase();
-        metric += fragment.substring(1, len).toLowerCase();
-      }
-    }
-    return metric;
+  @Test
+  public void testDiskStatusToMetric() throws Exception {
+    assertEquals(DiskStatus.values().length, 5);
+    assertEquals(DiskStatus.HEALTHY.toMetric(), "Healthy");
+    assertEquals(DiskStatus.READ_OR_WRITE_FAILURE.toMetric(), "ReadOrWriteFailure");
+    assertEquals(DiskStatus.IO_HANG.toMetric(), "IoHang");
+    assertEquals(DiskStatus.HIGH_DISK_USAGE.toMetric(), "HighDiskUsage");
+    assertEquals(DiskStatus.CRITICAL_ERROR.toMetric(), "CriticalError");
   }
 }

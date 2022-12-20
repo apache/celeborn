@@ -92,7 +92,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
   }
   private val deviceMonitor =
-    DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos)
+    DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos, workerSource)
 
   // (mountPoint -> LocalFlusher)
   private val localFlushers: ConcurrentHashMap[String, LocalFlusher] = {
