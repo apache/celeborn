@@ -128,7 +128,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // For test
     if (conf.testPushDataTimeout && !pushDataTimeoutTested) {
-      System.out.println("inside")
       pushDataTimeoutTested = true
       return
     }
