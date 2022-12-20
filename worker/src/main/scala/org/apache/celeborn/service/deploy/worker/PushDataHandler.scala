@@ -20,8 +20,10 @@ package org.apache.celeborn.service.deploy.worker
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
+
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
@@ -127,7 +129,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     // For test
     if (conf.testPushDataTimeout && !pushDataTimeoutTested) {
       System.out.println("inside")
-      pushDataTimeoutTested= true
+      pushDataTimeoutTested = true
       return
     }
 
@@ -321,7 +323,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // For test
     if (conf.testPushDataTimeout && !PushDataHandler.pushDataTimeoutTested) {
-      PushDataHandler.pushDataTimeoutTested= true
+      PushDataHandler.pushDataTimeoutTested = true
       return
     }
 

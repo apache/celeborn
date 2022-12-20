@@ -1581,10 +1581,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private <R> R sendMessageInternal(
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      ThrowingExceptionSupplier<R, Exception> supplier)
+      int shuffleId, int mapId, int attemptId, ThrowingExceptionSupplier<R, Exception> supplier)
       throws IOException {
     PushState pushState = null;
     int batchId = 0;

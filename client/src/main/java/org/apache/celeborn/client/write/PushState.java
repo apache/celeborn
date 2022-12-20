@@ -86,8 +86,7 @@ public class PushState {
             });
   }
 
-  public void pushStarted(
-      int batchId, ChannelFuture future, RpcResponseCallback callback) {
+  public void pushStarted(int batchId, ChannelFuture future, RpcResponseCallback callback) {
     BatchInfo info = inflightBatchInfos.get(batchId);
     if (info != null) {
       info.pushTime = System.currentTimeMillis();

@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.tests.spark
 
-import org.apache.celeborn.client.ShuffleClient
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.client.ShuffleClient
 
 class PushdataTimeoutTest extends AnyFunSuite
   with SparkTestBase
@@ -52,7 +53,6 @@ class PushdataTimeoutTest extends AnyFunSuite
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
       .set("spark.celeborn.push.data.timeout", "10s")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-
 
     val value = Range(1, 1000).mkString(",")
     val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
