@@ -556,6 +556,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
+  def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
 
   def masterHost: String = get(MASTER_HOST)
 
@@ -2197,6 +2198,14 @@ object CelebornConf extends Logging {
       .doc("Timeout for a task to push data rpc message.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushdataTimeout")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Wheter to test pushdata timeout")
+      .booleanConf
+      .createWithDefault(false)
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.registerShuffle.askTimeout")
