@@ -75,7 +75,7 @@ public class PushState {
         .forEach(
             info -> {
               if (currentTime - info.pushTime > pushTimeout) {
-                if (info.channelFuture != null) {
+                if (info.callback != null) {
                   info.channelFuture.cancel(true);
                   info.callback.onFailure(
                       new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));

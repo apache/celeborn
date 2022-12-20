@@ -53,12 +53,28 @@ class PushdataTimeoutTest extends AnyFunSuite
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
       .set("spark.celeborn.push.data.timeout", "10s")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+    val combineResult = combine(sparkSession)
+    val groupbyResult = groupBy(sparkSession)
+    val repartitionResult = repartition(sparkSession)
+    val sqlResult = runsql(sparkSession)
 
-    val value = Range(1, 1000).mkString(",")
-    val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
-      .map { i => (i, value) }.groupByKey(16).collect()
-
+    Thread.sleep(3000L)
     sparkSession.stop()
+
+    val rssSparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, false)).getOrCreate()
+    val rssCombineResult = combine(rssSparkSession)
+    val rssGroupbyResult = groupBy(rssSparkSession)
+    val rssRepartitionResult = repartition(rssSparkSession)
+    val rssSqlResult = runsql(rssSparkSession)
+
+    assert(combineResult.equals(rssCombineResult))
+    assert(groupbyResult.equals(rssGroupbyResult))
+    assert(repartitionResult.equals(rssRepartitionResult))
+    assert(combineResult.equals(rssCombineResult))
+    assert(sqlResult.equals(rssSqlResult))
+
+    rssSparkSession.stop()
 
   }
 }
