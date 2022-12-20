@@ -66,7 +66,9 @@ public enum StatusCode {
   REGION_START_FAIL_SLAVE(34),
   REGION_START_FAIL_MASTER(35),
   REGION_FINISH_FAIL_SLAVE(36),
-  REGION_FINISH_FAIL_MASTER(37);
+  REGION_FINISH_FAIL_MASTER(37),
+
+  PUSH_DATA_TIMEOUT(38);
 
   private final byte value;
 
@@ -103,6 +105,8 @@ public enum StatusCode {
       msg = "RegionFinishFailMaster";
     } else if (value == REGION_FINISH_FAIL_SLAVE.getValue()) {
       msg = "RegionFinishFailSlave";
+    } else if (value == PUSH_DATA_TIMEOUT.getValue()) {
+      msg = "PushDataTimeout";
     }
 
     return msg;

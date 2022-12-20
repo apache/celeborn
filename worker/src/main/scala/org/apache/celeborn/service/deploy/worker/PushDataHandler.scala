@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
@@ -55,6 +56,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var partitionSplitMinimumSize: Long = _
   var shutdown: AtomicBoolean = _
   var storageManager: StorageManager = _
+  var conf: CelebornConf = _
+  @volatile var pushDataTimeoutTested = false
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -71,6 +74,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown
+    conf = worker.conf
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -114,6 +118,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
+
+    // For test
+    if (conf.testPushDataTimeout && !pushDataTimeoutTested) {
+      pushDataTimeoutTested = true
+      return
+    }
 
     val key = s"${pushData.requestId}"
     if (isMaster) {
@@ -301,6 +311,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
     } else {
       workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
+    }
+
+    // For test
+    if (conf.testPushDataTimeout && !PushDataHandler.pushDataTimeoutTested) {
+      PushDataHandler.pushDataTimeoutTested = true
+      return
     }
 
     val wrappedCallback = new RpcResponseCallback() {
@@ -802,4 +818,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case PartitionType.REDUCE => getMapAttempt(body)
     }
   }
+}
+
+object PushDataHandler {
+  @volatile var pushDataTimeoutTested = false
 }
