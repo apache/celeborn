@@ -33,7 +33,6 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 
 public class PushState {
   class BatchInfo {
-    PartitionLocation partitionLocation;
     ChannelFuture channelFuture;
     long pushTime;
     RpcResponseCallback callback;
@@ -54,14 +53,13 @@ public class PushState {
     pushTimeout = conf.pushDataTimeoutMs();
   }
 
-  public void addBatch(int batchId, PartitionLocation partitionLocation) {
-    BatchInfo info = inflightBatchInfos.computeIfAbsent(batchId, id -> new BatchInfo());
-    info.partitionLocation = partitionLocation;
+  public void addBatch(int batchId) {
+    inflightBatchInfos.computeIfAbsent(batchId, id -> new BatchInfo());
   }
 
-  public synchronized void removeBatch(int batchId) {
+  public void removeBatch(int batchId) {
     BatchInfo info = inflightBatchInfos.remove(batchId);
-    if (info.channelFuture != null) {
+    if (info != null && info.channelFuture != null) {
       info.channelFuture.cancel(true);
     }
   }
@@ -88,7 +86,7 @@ public class PushState {
             });
   }
 
-  public synchronized void addFuture(
+  public void pushStarted(
       int batchId, ChannelFuture future, RpcResponseCallback callback) {
     BatchInfo info = inflightBatchInfos.get(batchId);
     if (info != null) {
@@ -98,15 +96,7 @@ public class PushState {
     }
   }
 
-  public synchronized void removeFuture(int batchId) {
-    BatchInfo info = inflightBatchInfos.get(batchId);
-    if (info != null) {
-      info.channelFuture = null;
-      info.callback = null;
-    }
-  }
-
-  public synchronized void cancelFutures() {
+  public void cleanup() {
     if (!inflightBatchInfos.isEmpty()) {
       logger.debug("Cancel all {} futures.", inflightBatchInfos.size());
       inflightBatchInfos
@@ -117,8 +107,8 @@ public class PushState {
                   entry.channelFuture.cancel(true);
                 }
               });
+      inflightBatchInfos.clear();
     }
-    inflightBatchInfos.clear();
   }
 
   // key: ${master addr}-${slave addr} value: list of data batch
