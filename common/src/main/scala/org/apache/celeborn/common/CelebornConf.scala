@@ -556,6 +556,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
+  def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
 
   def masterHost: String = get(MASTER_HOST)
 
@@ -679,7 +680,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
-  def pushDataRpcTimeoutMs = get(PUSH_DATA_RPC_TIMEOUT)
+  def pushDataTimeoutMs = get(PUSH_DATA_TIMEOUT)
 
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
@@ -2192,14 +2193,22 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 
-  val PUSH_DATA_RPC_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.push.data.rpc.timeout")
+  val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.data.timeout")
       .withAlternative("rss.push.data.rpc.timeout")
       .categories("client")
       .version("0.2.0")
       .doc("Timeout for a task to push data rpc message.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushdataTimeout")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Wheter to test pushdata timeout")
+      .booleanConf
+      .createWithDefault(false)
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.registerShuffle.askTimeout")

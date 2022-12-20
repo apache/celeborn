@@ -18,8 +18,6 @@
 package org.apache.celeborn.client.write;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,41 +27,90 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.message.StatusCode;
 
 public class PushState {
+  class BatchInfo {
+    ChannelFuture channelFuture;
+    long pushTime;
+    RpcResponseCallback callback;
+  }
+
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
 
   private int pushBufferMaxSize;
+  private long pushTimeout;
 
   public final AtomicInteger batchId = new AtomicInteger();
-  public final ConcurrentHashMap<Integer, PartitionLocation> inFlightBatches =
+  private final ConcurrentHashMap<Integer, BatchInfo> inflightBatchInfos =
       new ConcurrentHashMap<>();
-  public final ConcurrentHashMap<Integer, ChannelFuture> futures = new ConcurrentHashMap<>();
   public AtomicReference<IOException> exception = new AtomicReference<>();
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
+    pushTimeout = conf.pushDataTimeoutMs();
   }
 
-  public void addFuture(int batchId, ChannelFuture future) {
-    futures.put(batchId, future);
+  public void addBatch(int batchId) {
+    inflightBatchInfos.computeIfAbsent(batchId, id -> new BatchInfo());
   }
 
-  public void removeFuture(int batchId) {
-    futures.remove(batchId);
+  public void removeBatch(int batchId) {
+    BatchInfo info = inflightBatchInfos.remove(batchId);
+    if (info != null && info.channelFuture != null) {
+      info.channelFuture.cancel(true);
+    }
   }
 
-  public synchronized void cancelFutures() {
-    if (!futures.isEmpty()) {
-      Set<Integer> keys = new HashSet<>(futures.keySet());
-      logger.debug("Cancel all {} futures.", keys.size());
-      for (Integer batchId : keys) {
-        ChannelFuture future = futures.remove(batchId);
-        if (future != null) {
-          future.cancel(true);
-        }
-      }
+  public int inflightBatchCount() {
+    return inflightBatchInfos.size();
+  }
+
+  public synchronized void failExpiredBatch() {
+    long currentTime = System.currentTimeMillis();
+    inflightBatchInfos
+        .values()
+        .forEach(
+            info -> {
+              if (currentTime - info.pushTime > pushTimeout) {
+                if (info.callback != null) {
+                  info.channelFuture.cancel(true);
+                  info.callback.onFailure(
+                      new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));
+                  info.channelFuture = null;
+                  info.callback = null;
+                }
+              }
+            });
+  }
+
+  public void pushStarted(int batchId, ChannelFuture future, RpcResponseCallback callback) {
+    BatchInfo info = inflightBatchInfos.get(batchId);
+    // In rare cases info could be null. For example, a speculative task has one thread pushing,
+    // and other thread retry-pushing. At time 1 thread 1 find StageEnded, then it cleans up
+    // PushState, at the same time thread 2 pushes data and calles pushStarted,
+    // at this time info will be null
+    if (info != null) {
+      info.pushTime = System.currentTimeMillis();
+      info.channelFuture = future;
+      info.callback = callback;
+    }
+  }
+
+  public void cleanup() {
+    if (!inflightBatchInfos.isEmpty()) {
+      logger.debug("Cancel all {} futures.", inflightBatchInfos.size());
+      inflightBatchInfos
+          .values()
+          .forEach(
+              entry -> {
+                if (entry.channelFuture != null) {
+                  entry.channelFuture.cancel(true);
+                }
+              });
+      inflightBatchInfos.clear();
     }
   }
 
