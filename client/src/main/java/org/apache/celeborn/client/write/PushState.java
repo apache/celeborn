@@ -88,6 +88,9 @@ public class PushState {
 
   public void pushStarted(int batchId, ChannelFuture future, RpcResponseCallback callback) {
     BatchInfo info = inflightBatchInfos.get(batchId);
+    // In rare cases info could be null. For example, a speculative task has one thread pushing,
+    // and other thread retry-pushing. At time 1 thread 1 find StageEnded, then it cleans up PushState,
+    // at the same time thread 2 pushes data and calles pushStarted, at this time info will be null
     if (info != null) {
       info.pushTime = System.currentTimeMillis();
       info.channelFuture = future;
