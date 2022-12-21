@@ -10,7 +10,36 @@ on:
     branches: [ main ]
 
 jobs:
-  build_celeborn_on_spark:
+  service:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        java:
+          - 8
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup JDK ${{ matrix.java }}
+      uses: actions/setup-java@v2
+      with:
+        distribution: zulu
+        java-version: ${{ matrix.java }}
+        cache: maven
+        check-latest: false
+    - name: Test Service with Maven
+      run: build/mvn -Pgoogle-mirror test
+    - name: Upload test log
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: service-unit-test-log
+        path: |
+          **/target/unit-tests.log
+    - name: Upload coverage to Codecov
+      if: matrix.java == 8
+      uses: codecov/codecov-action@v3
+
+  spark:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -33,11 +62,17 @@ jobs:
         cache: maven
         check-latest: false
     - name: Test with Maven
-      run: build/mvn -Pgoogle-mirror,spark-${{ matrix.spark }} test
+      run: |
+        SPARK_BINARY_VERSION=${{ matrix.spark }}
+        SPARK_MAJOR_VERSION=${SPARK_BINARY_VERSION%%.*}
+        PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
+        TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MAJOR_VERSION},client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
+        build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
+        build/mvn $PROFILES -pl $TEST_MODULES test
     - name: Upload test log
       if: failure()
       uses: actions/upload-artifact@v3
       with:
-        name: unit-test-log
+        name: spark-${{ matrix.spark }}-unit-test-log
         path: |
           **/target/unit-tests.log

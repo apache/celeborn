@@ -58,10 +58,14 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
+    <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
+
+    <hadoop.version>3.2.1</hadoop.version>
+    <spark.version>3.3.1</spark.version>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.10</commons-lang3.version>
@@ -74,6 +78,7 @@
     <junit.version>4.12</junit.version>
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.17.2</log4j2.version>
+    <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>1.10.19</mockito.version>
     <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
     <netty.version>4.1.77.Final</netty.version>
@@ -84,8 +89,8 @@
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.30</snakeyaml.version>
-    <!--  default hadoop version  -->
-    <hadoop.version>3.2.1</hadoop.version>
+    <zstd-jni.version>1.5.2-1</zstd-jni.version>
+
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
