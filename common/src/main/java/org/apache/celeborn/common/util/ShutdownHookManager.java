@@ -46,7 +46,7 @@ import org.apache.celeborn.common.CelebornConf;
  *
  * <p>Unless a hook was registered with a shutdown explicitly set through {@link
  * #addShutdownHook(Runnable, int, long, TimeUnit)}, the shutdown time allocated to it is set by the
- * configuration option `rss.shutdown.timeout`.
+ * configuration option `celeborn.worker.graceful.shutdown.timeout`.
  *
  * <p>Note: code refer to Hadoop's ShutdownHookManager.
  */

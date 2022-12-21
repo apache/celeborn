@@ -47,10 +47,11 @@ private class MetricsConfig(conf: CelebornConf) extends Logging {
     // Add default properties in case there's no properties file
     setDefaultProperties(properties)
 
-    loadPropertiesFromFile(conf.getOption("rss.metrics.conf"))
+    val configKey = "celeborn.metrics.conf"
+    loadPropertiesFromFile(conf.getOption(configKey))
 
+    val prefix = s"${configKey}."
     // Also look for the properties in provided rss configuration
-    val prefix = "rss.metrics.conf."
     conf.getAll.foreach {
       case (k, v) if k.startsWith(prefix) =>
         properties.setProperty(k.substring(prefix.length()), v)

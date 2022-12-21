@@ -149,7 +149,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred
     if (chunksBeingTransferred > conf.maxChunksBeingTransferred) {
       val message = "Worker is too busy. The number of chunks being transferred " +
-        s"$chunksBeingTransferred exceeds rss.shuffle.maxChunksBeingTransferred " +
+        s"$chunksBeingTransferred exceeds celeborn.shuffle.maxChunksBeingTransferred " +
         s"${conf.maxChunksBeingTransferred}."
       logError(message)
       client.getChannel.writeAndFlush(
