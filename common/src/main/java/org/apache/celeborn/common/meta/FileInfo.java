@@ -18,7 +18,6 @@
 package org.apache.celeborn.common.meta;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,12 +26,15 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.Utils;
 
 public class FileInfo {
+  private static Logger logger = LoggerFactory.getLogger(FileInfo.class);
   private final String filePath;
   private final List<Long> chunkOffsets;
   private final UserIdentifier userIdentifier;
@@ -127,12 +129,23 @@ public class FileInfo {
     return userIdentifier;
   }
 
-  public void deleteAllFiles(FileSystem hdfsFs) throws IOException {
+  public void deleteAllFiles(FileSystem hdfsFs) {
     if (isHdfs()) {
-      hdfsFs.delete(getHdfsPath(), false);
-      hdfsFs.delete(getHdfsWriterSuccessPath(), false);
-      hdfsFs.delete(getHdfsIndexPath(), false);
-      hdfsFs.delete(getHdfsSortedPath(), false);
+      try {
+        hdfsFs.delete(getHdfsPath(), false);
+        hdfsFs.delete(getHdfsWriterSuccessPath(), false);
+        hdfsFs.delete(getHdfsIndexPath(), false);
+        hdfsFs.delete(getHdfsSortedPath(), false);
+      } catch (Exception e) {
+        // ignore delete exceptions because some other workers might be deleting the directory
+        logger.debug(
+            "delete hdfs file {},{},{},{} failed {}",
+            getHdfsPath(),
+            getHdfsWriterSuccessPath(),
+            getHdfsIndexPath(),
+            getHdfsSortedPath(),
+            e);
+      }
     } else {
       getFile().delete();
       new File(getIndexPath()).delete();

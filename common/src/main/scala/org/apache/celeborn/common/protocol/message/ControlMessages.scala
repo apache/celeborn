@@ -327,7 +327,7 @@ object ControlMessages extends Logging {
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
-  case class CheckQuotaResponse(isAvailable: Boolean) extends Message
+  case class CheckQuotaResponse(isAvailable: Boolean, reason: String) extends Message
 
   case class ReportWorkerUnavailable(
       unavailable: util.List[WorkerInfo],
@@ -634,9 +634,10 @@ object ControlMessages extends Logging {
         MessageType.CHECK_QUOTA,
         builder.build().toByteArray)
 
-    case CheckQuotaResponse(available) =>
+    case CheckQuotaResponse(available, reason) =>
       val payload = PbCheckQuotaResponse.newBuilder()
         .setAvailable(available)
+        .setReason(reason)
         .build().toByteArray
       new TransportMessage(MessageType.CHECK_QUOTA_RESPONSE, payload)
 
@@ -950,7 +951,9 @@ object ControlMessages extends Logging {
       case CHECK_QUOTA_RESPONSE =>
         val pbCheckAvailableResponse = PbCheckQuotaResponse
           .parseFrom(message.getPayload)
-        CheckQuotaResponse(pbCheckAvailableResponse.getAvailable)
+        CheckQuotaResponse(
+          pbCheckAvailableResponse.getAvailable,
+          pbCheckAvailableResponse.getReason)
 
       case REPORT_WORKER_FAILURE =>
         val pbReportWorkerUnavailable = PbReportWorkerUnavailable.parseFrom(message.getPayload)

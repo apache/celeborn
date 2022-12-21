@@ -150,7 +150,6 @@ class ChangePartitionManager(
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
     lifecycleManager.commitManager.registerCommitPartitionRequest(
-      applicationId,
       shuffleId,
       oldPartition,
       cause)
@@ -271,7 +270,7 @@ class ChangePartitionManager(
       return
     }
 
-    if (lifecycleManager.commitManager.stageEndShuffleSet.contains(shuffleId)) {
+    if (lifecycleManager.commitManager.isStageEnd(shuffleId)) {
       logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
       replyFailure(StatusCode.STAGE_ENDED)
       return

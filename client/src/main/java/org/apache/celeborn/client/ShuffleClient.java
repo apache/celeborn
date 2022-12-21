@@ -24,6 +24,8 @@ import java.util.function.BooleanSupplier;
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
@@ -35,15 +37,16 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef;
  * ShuffleClient may be a process singleton, the specific PartitionLocation should be hidden in the
  * implementation
  */
-public abstract class ShuffleClient implements Cloneable {
+public abstract class ShuffleClient {
   private static volatile ShuffleClient _instance;
-  private static volatile boolean initFinished = false;
+  private static volatile boolean initialized = false;
   private static volatile FileSystem hdfsFs;
+  private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
 
   // for testing
   public static void reset() {
     _instance = null;
-    initFinished = false;
+    initialized = false;
     hdfsFs = null;
   }
 
@@ -51,7 +54,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public static ShuffleClient get(
       RpcEndpointRef driverRef, CelebornConf conf, UserIdentifier userIdentifier) {
-    if (null == _instance || !initFinished) {
+    if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
@@ -61,12 +64,12 @@ public abstract class ShuffleClient implements Cloneable {
           // when communicating with MetaService, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
-          initFinished = true;
-        } else if (!initFinished) {
-          _instance.shutDown();
+          initialized = true;
+        } else if (!initialized) {
+          _instance.shutdown();
           _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverRef);
-          initFinished = true;
+          initialized = true;
         }
       }
     }
@@ -75,7 +78,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public static ShuffleClient get(
       String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
-    if (null == _instance || !initFinished) {
+    if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
@@ -85,12 +88,12 @@ public abstract class ShuffleClient implements Cloneable {
           // when communicating with MetaService, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
-          initFinished = true;
-        } else if (!initFinished) {
-          _instance.shutDown();
+          initialized = true;
+        } else if (!initialized) {
+          _instance.shutdown();
           _instance = new ShuffleClientImpl(conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
-          initFinished = true;
+          initialized = true;
         }
       }
     }
@@ -102,6 +105,11 @@ public abstract class ShuffleClient implements Cloneable {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
           Configuration hdfsConfiguration = new Configuration();
+          // enable fs cache to avoid too many fs instances
+          hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
+          logger.info(
+              "Celeborn client will ignore cluster"
+                  + " settings about fs.hdfs.impl.disable.cache and set it to false");
           try {
             hdfsFs = FileSystem.get(hdfsConfiguration);
           } catch (IOException e) {
@@ -185,7 +193,7 @@ public abstract class ShuffleClient implements Cloneable {
 
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
-  public abstract void shutDown();
+  public abstract void shutdown();
 
   // Write data to a specific map partition, input data's type is Bytebuf.
   // data's type is Bytebuf to avoid copy between application and netty

@@ -724,6 +724,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def diskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
   def diskMonitorCheckInterval: Long = get(WORKER_DISK_MONITOR_CHECK_INTERVAL)
   def diskMonitorSysBlockDir: String = get(WORKER_DISK_MONITOR_SYS_BLOCK_DIR)
+  def diskMonitorNotifyErrorThreshold: Int = get(WORKER_DISK_MONITOR_NOTIFY_ERROR_THRESHOLD)
+  def diskMonitorNotifyErrorExpireTimeout: Long =
+    get(WORKER_DISK_MONITOR_NOTIFY_ERROR_EXPIRE_TIMEOUT)
   def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
@@ -2362,7 +2365,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.configuration.path")
       .withAlternative("rss.quota.configuration.path")
       .categories("quota")
-      .doc("Quota configuration file path.")
+      .doc("Quota configuration file path. The file format should be yaml. Quota configuration file template can be " +
+        "found under conf directory.")
       .version("0.2.0")
       .stringConf
       .createOptional
@@ -2443,6 +2447,24 @@ object CelebornConf extends Logging {
       .doc("The directory where linux file block information is stored.")
       .stringConf
       .createWithDefault("/sys/block")
+
+  val WORKER_DISK_MONITOR_NOTIFY_ERROR_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.worker.monitor.disk.notifyError.threshold")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Device monitor will only notify critical error once the accumulated valid non-critical error number " +
+        "exceeding this threshold.")
+      .intConf
+      .createWithDefault(64)
+
+  val WORKER_DISK_MONITOR_NOTIFY_ERROR_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.monitor.disk.notifyError.expireTimeout")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("The expire timeout of non-critical device error. Only notify critical error when the number of non-critical " +
+        "errors for a period of time exceeds threshold.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10m")
 
   val WORKER_WRITER_CREATE_MAX_ATTEMPTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.create.maxAttempts")

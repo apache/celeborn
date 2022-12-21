@@ -46,16 +46,7 @@ class PartitionLocationInfo extends Logging {
     slavePartitionLocations.containsKey(shuffleKey)
   }
 
-  def containsRelatedShuffleOrPartition(shuffleKey: String, partitionIdOpt: Option[Int]): Boolean =
-    this.synchronized {
-      partitionIdOpt match {
-        case Some(partitionId) =>
-          containsPartition(shuffleKey, partitionId)
-        case None => containsShuffle(shuffleKey)
-      }
-    }
-
-  private def containsPartition(shuffleKey: String, partitionId: Int): Boolean = this
+  def containsPartition(shuffleKey: String, partitionId: Int): Boolean = this
     .synchronized {
       val contain = masterPartitionLocations.containsKey(
         shuffleKey) && masterPartitionLocations.get(shuffleKey).containsKey(partitionId)
@@ -237,21 +228,15 @@ class PartitionLocationInfo extends Logging {
     }
   }
 
-  def removeAllRelatedPartitions(
+  def removeRelatedPartitions(
       shuffleKey: String,
-      partitionIdOpt: Option[Int]): Unit = this
+      partitionId: Int): Unit = this
     .synchronized {
-      partitionIdOpt match {
-        case Some(partitionId) =>
-          if (masterPartitionLocations.containsKey(shuffleKey)) {
-            masterPartitionLocations.get(shuffleKey).remove(partitionId)
-          }
-          if (slavePartitionLocations.containsKey(shuffleKey)) {
-            slavePartitionLocations.get(shuffleKey).remove(partitionId)
-          }
-        case None =>
-          removeMasterPartitions(shuffleKey)
-          removeSlavePartitions(shuffleKey)
+      if (masterPartitionLocations.containsKey(shuffleKey)) {
+        masterPartitionLocations.get(shuffleKey).remove(partitionId)
+      }
+      if (slavePartitionLocations.containsKey(shuffleKey)) {
+        slavePartitionLocations.get(shuffleKey).remove(partitionId)
       }
     }
 

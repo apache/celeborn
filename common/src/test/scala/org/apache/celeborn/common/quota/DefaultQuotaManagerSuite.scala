@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.util.Utils
 
 class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
 
@@ -39,9 +40,9 @@ class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
   test("test rss quota conf") {
     assertEquals(
       quotaManager.getQuota(UserIdentifier("AAA", "Tom")),
-      Quota(10000, 200, -1, -1))
+      Quota(Utils.byteStringAsBytes("100m"), 200, -1, -1))
     assertEquals(
       quotaManager.getQuota(UserIdentifier("BBB", "Jerry")),
-      Quota(-1, -1, 10000, 200))
+      Quota(-1, -1, Utils.byteStringAsBytes("200m"), 200))
   }
 }

@@ -29,6 +29,7 @@ import scala.util.Random
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
@@ -41,7 +42,17 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+// Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+
+object LifecycleManager {
+  type ShuffleFileGroups =
+    ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
+  type ShuffleAllocatedWorkers =
+    ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]
+  type ShuffleMapperAttempts = ConcurrentHashMap[Int, Array[Int]]
+  type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
+}
 
 class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
 
@@ -63,13 +74,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rpcCacheExpireTime = conf.rpcCacheExpireTime
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
-  val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
-  private val reducerFileGroupsMap =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]()
-  private val shuffleTaskInfo = new ShuffleTaskInfo()
+  val shuffleMapperAttempts = new ShuffleMapperAttempts
+  val reducerFileGroupsMap = new ShuffleFileGroups
+  private val shuffleTaskInfo = new ShuffleTaskInfo
   // maintain each shuffle's map relation of WorkerInfo and partition location
-  val shuffleAllocatedWorkers =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]()
+  val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
     new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
@@ -115,7 +124,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     new ConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
 
   // blacklist
-  val blacklist = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+  val blacklist = new ShuffleFailedWorkers()
 
   // Threads
   private val forwardMessageThread =
@@ -426,7 +435,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // won't be empty since master will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
-    val connectFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
@@ -524,7 +533,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val failedWorker = new ShuffleFailedWorkers()
     if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
       val tmpWorker = oldPartition.getWorker
       val worker = workerSnapshots(shuffleId).keySet().asScala
@@ -629,7 +638,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val delta = 100
     // reduce partition need wait stage end. While map partition Would commit every partition synchronously.
     if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
-      while (!commitManager.stageEndShuffleSet.contains(shuffleId)) {
+      while (!commitManager.isStageEnd(shuffleId)) {
         Thread.sleep(delta)
         if (timeout <= 0) {
           logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
@@ -646,7 +655,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         s" ${stageEndTimeout - timeout}ms")
     }
 
-    if (commitManager.dataLostShuffleSet.contains(shuffleId)) {
+    if (commitManager.isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
           StatusCode.SHUFFLE_DATA_LOST,
@@ -686,21 +695,20 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       logInfo(s"[handleStageEnd]" +
         s"$shuffleId not registered, maybe no shuffle data within this stage.")
       // record in stageEndShuffleSet
-      commitManager.stageEndShuffleSet.add(shuffleId)
+      commitManager.setStageEnd(shuffleId)
       return
     }
-    commitManager.finalCommit(
-      applicationId,
-      shuffleId,
-      reducerFileGroupsMap.get(shuffleId))
-    // release resources and clear worker info
-    workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
-      partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
+
+    if (commitManager.tryFinalCommit(shuffleId)) {
+      // release resources and clear worker info
+      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
+        partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
+        partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
+      }
+      requestReleaseSlots(
+        rssHARetryClient,
+        ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
-    requestReleaseSlots(
-      rssHARetryClient,
-      ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
   }
 
   private def handleMapPartitionEnd(
@@ -712,7 +720,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       partitionId: Int): Unit = {
     def reply(result: Boolean): Unit = {
       val message =
-        s"to handle MapPartitionEnd for ${Utils.makeMapKey(appId, shuffleId, mapId, attemptId)}, " +
+        s"to handle MapPartitionEnd for ${Utils.makeMapKey(applicationId, shuffleId, mapId, attemptId)}, " +
           s"$partitionId.";
       result match {
         case true => // if already committed by another try
@@ -725,9 +733,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     val dataCommitSuccess = commitManager.finalPartitionCommit(
-      applicationId,
       shuffleId,
-      reducerFileGroupsMap.get(shuffleId),
       partitionId)
     reply(dataCommitSuccess)
   }
@@ -737,12 +743,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int): Unit = {
     if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
       // if StageEnd has not been handled, trigger StageEnd
-      if (!commitManager.stageEndShuffleSet.contains(shuffleId)) {
+      if (!commitManager.isStageEnd(shuffleId)) {
         logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
         handleStageEnd(appId, shuffleId)
         var timeout = stageEndTimeout
         val delta = 100
-        while (!commitManager.stageEndShuffleSet.contains(shuffleId) && timeout > 0) {
+        while (!commitManager.isStageEnd(shuffleId) && timeout > 0) {
           Thread.sleep(delta)
           timeout = timeout - delta
         }
@@ -790,7 +796,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       applicationId: String,
       shuffleId: Int,
       slots: WorkerResource): util.List[WorkerInfo] = {
-    val reserveSlotFailedWorkers = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+    val reserveSlotFailedWorkers = new ShuffleFailedWorkers()
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
@@ -1158,7 +1164,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             case _ => false
           }
         }.asJava
-      val reservedBlackList = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]()
+      val reservedBlackList = new ShuffleFailedWorkers()
       reservedBlackList.putAll(reserved)
       blacklist.clear()
       blacklist.putAll(
@@ -1266,8 +1272,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def recordWorkerFailure(failures: ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]): Unit = {
-    val failedWorker = new ConcurrentHashMap[WorkerInfo, (StatusCode, Long)](failures)
+  def recordWorkerFailure(failures: ShuffleFailedWorkers): Unit = {
+    val failedWorker = new ShuffleFailedWorkers(failures)
     logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
     failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
       if (!blacklist.containsKey(worker)) {
@@ -1285,15 +1291,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def checkQuota(): Boolean = {
+  def checkQuota(): CheckQuotaResponse = {
     try {
       rssHARetryClient.askSync[CheckQuotaResponse](
         CheckQuota(userIdentifier),
-        classOf[CheckQuotaResponse]).isAvailable
+        classOf[CheckQuotaResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync Cluster check quota for $userIdentifier failed.", e)
-        false
+        val msg = s"AskSync Cluster check quota for $userIdentifier failed."
+        logError(msg, e)
+        CheckQuotaResponse(false, msg)
     }
   }
 
