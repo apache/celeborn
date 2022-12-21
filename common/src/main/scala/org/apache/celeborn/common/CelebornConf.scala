@@ -57,7 +57,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   private def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
     settings.synchronized {
-      // Load any rss.* system properties
+      // Load any celeborn.* or rss.* system properties
       for ((key, value) <- props if key.startsWith("celeborn.") || key.startsWith("rss.")) {
         set(key, value, silent)
       }
@@ -793,9 +793,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   }
 
-  def partitionSplitMinimumSize: Long = {
-    getSizeAsBytes("rss.partition.split.minimum.size", "1m")
-  }
+  def partitionSplitMinimumSize: Long = get(PARTITION_SPLIT_MIN)
 
   def hdfsDir: String = {
     get(HDFS_DIR).map {
@@ -2139,6 +2137,15 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
       .createWithDefault(PartitionSplitMode.SOFT.name)
+
+  val PARTITION_SPLIT_MIN: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.partitionSplit.min")
+      .withAlternative("rss.partition.split.minimum.size")
+      .categories("worker")
+      .doc("Min size for a partition to split")
+      .version("0.2.0")
+      .longConf
+      .createWithDefaultString("1m")
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")

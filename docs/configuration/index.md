@@ -146,8 +146,8 @@ and restore the meta after restarting workers, also workers should keep a stable
 `ShuffleClient` retry reading data. Users should set `celeborn.worker.graceful.shutdown.enabled` to `true` and
 set below service port with stable port to support worker recover status.
 ```
-rss.worker.rpc.port
-rss.fetchserver.port
-rss.pushserver.port
-rss.replicateserver.port
+celeborn.worker.rpc.port
+celeborn.worker.fetch.port
+celeborn.worker.push.port
+celeborn.worker.replicate.port
 ```
