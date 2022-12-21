@@ -17,7 +17,17 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -29,65 +39,53 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
 
 public class RemoteShuffleResultPartitionSuiteJ {
-    private BufferCompressor bufferCompressor =
-            new BufferCompressor(32 * 1024, "lz4");
-    private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
+  private BufferCompressor bufferCompressor = new BufferCompressor(32 * 1024, "lz4");
+  private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
 
-    @Before
-    public void setup() {
+  @Before
+  public void setup() {}
 
-    }
+  @Test
+  public void tesSimpleFlush() throws IOException, InterruptedException {
+    List<SupplierWithException<BufferPool, IOException>> bufferPool = createBufferPoolFactory();
+    RemoteShuffleResultPartition remoteShuffleResultPartition =
+        new RemoteShuffleResultPartition(
+            "test",
+            0,
+            new ResultPartitionID(),
+            ResultPartitionType.BLOCKING,
+            2,
+            2,
+            32 * 1024,
+            new ResultPartitionManager(),
+            bufferCompressor,
+            bufferPool.get(0),
+            remoteShuffleOutputGate);
+    remoteShuffleResultPartition.setup();
+    doNothing().when(remoteShuffleOutputGate).regionStart(anyBoolean());
+    doNothing().when(remoteShuffleOutputGate).regionFinish();
+    when(remoteShuffleOutputGate.getBufferPool()).thenReturn(bufferPool.get(1).get());
+    SortBuffer sortBuffer = remoteShuffleResultPartition.getUnicastSortBuffer();
+    ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[] {1, 2, 3});
+    sortBuffer.append(byteBuffer, 0, Buffer.DataType.DATA_BUFFER);
+    remoteShuffleResultPartition.flushSortBuffer(sortBuffer, true);
+  }
 
-    @Test
-    public void tesSimpleFlush() throws IOException, InterruptedException {
-        List<SupplierWithException<BufferPool, IOException>> bufferPool = createBufferPoolFactory();
-        RemoteShuffleResultPartition remoteShuffleResultPartition = new RemoteShuffleResultPartition("test",
-                0,
-                new ResultPartitionID(),
-                ResultPartitionType.BLOCKING,
-                2,
-                2,
-                32 * 1024,
-                new ResultPartitionManager(),
-                bufferCompressor,
-                bufferPool.get(0),
-                remoteShuffleOutputGate);
-        remoteShuffleResultPartition.setup();
-        doNothing().when(remoteShuffleOutputGate).regionStart(anyBoolean());
-        doNothing().when(remoteShuffleOutputGate).regionFinish();
-        when(remoteShuffleOutputGate.getBufferPool()).thenReturn(bufferPool.get(1).get());
-        SortBuffer sortBuffer = remoteShuffleResultPartition.getUnicastSortBuffer();
-        ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[] {1, 2, 3});
-        sortBuffer.append(byteBuffer, 0, Buffer.DataType.DATA_BUFFER);
-        remoteShuffleResultPartition.flushSortBuffer(sortBuffer, true);
-    }
+  private List<SupplierWithException<BufferPool, IOException>> createBufferPoolFactory() {
+    NetworkBufferPool networkBufferPool =
+        new NetworkBufferPool(256 * 8, 32 * 1024, Duration.ofMillis(1000));
 
-    private List<SupplierWithException<BufferPool, IOException>> createBufferPoolFactory() {
-        NetworkBufferPool networkBufferPool =
-                new NetworkBufferPool(256 * 8, 32 * 1024, Duration.ofMillis(1000));
+    int numBuffersPerPartition = 64 * 1024 / 32;
+    int numForResultPartition = numBuffersPerPartition * 7 / 8;
+    int numForOutputGate = numBuffersPerPartition - numForResultPartition;
 
-        int numBuffersPerPartition = 64 * 1024 / 32;
-        int numForResultPartition = numBuffersPerPartition * 7 / 8;
-        int numForOutputGate = numBuffersPerPartition - numForResultPartition;
-
-        List<SupplierWithException<BufferPool, IOException>> factories = new ArrayList<>();
-        factories.add(
-                () -> networkBufferPool.createBufferPool(numForResultPartition, numForResultPartition));
-        factories.add(() -> networkBufferPool.createBufferPool(numForOutputGate, numForOutputGate));
-        return factories;
-    }
-
-
+    List<SupplierWithException<BufferPool, IOException>> factories = new ArrayList<>();
+    factories.add(
+        () -> networkBufferPool.createBufferPool(numForResultPartition, numForResultPartition));
+    factories.add(() -> networkBufferPool.createBufferPool(numForOutputGate, numForOutputGate));
+    return factories;
+  }
 }

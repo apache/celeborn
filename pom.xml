@@ -63,6 +63,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
 
+    <flink.version>1.14.0</flink.version>
     <hadoop.version>3.2.1</hadoop.version>
     <spark.version>3.3.1</spark.version>
 
@@ -89,9 +90,6 @@
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
-
-    <!--  default flink version  -->
-    <flink.version>1.14.0</flink.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -1016,18 +1014,19 @@
     <profile>
       <id>flink-1.14</id>
       <modules>
+        <module>client-flink/common</module>
         <module>client-flink/flink-1.14</module>
-        <module>client-flink/flink-common</module>
-        <module>client-flink/flink-shaded</module>
+        <module>client-flink/flink-1.14-shaded</module>
       </modules>
       <properties>
+        <flink.version>1.14.0</flink.version>
+        <flink.binary.version>1.14</flink.binary.version>
         <jackson.version>2.6.7</jackson.version>
         <jackson.databind.version>2.6.7.3</jackson.databind.version>
         <lz4-java.version>1.4.0</lz4-java.version>
+        <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
-        <scala.version>2.12.15</scala.version>
-        <flink.version>1.14.0</flink.version>
       </properties>
     </profile>
 
