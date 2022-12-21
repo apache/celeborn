@@ -2141,7 +2141,7 @@ object CelebornConf extends Logging {
   val PARTITION_SPLIT_MIN: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.partitionSplit.min")
       .withAlternative("rss.partition.split.minimum.size")
-      .categories("client")
+      .categories("worker")
       .doc("Min size for a partition to split")
       .version("0.2.0")
       .longConf

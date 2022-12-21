@@ -59,7 +59,6 @@ license: |
 | celeborn.shuffle.forceFallback.numPartitionsThreshold | 500000 | Celeborn will only accept shuffle of partition number lower than this configuration value. | 0.2.0 | 
 | celeborn.shuffle.manager.port | 0 | Port used by the LifecycleManager on the Driver. | 0.2.0 | 
 | celeborn.shuffle.partition.type | REDUCE | Type of shuffle's partition. | 0.2.0 | 
-| celeborn.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.2.0 | 
 | celeborn.shuffle.partitionSplit.mode | SOFT | soft: the shuffle file size might be larger than split threshold. hard: the shuffle file size will be limited to split threshold. | 0.2.0 | 
 | celeborn.shuffle.partitionSplit.threshold | 1G | Shuffle file size threshold, if file size exceeds this, trigger split. | 0.2.0 | 
 | celeborn.shuffle.rangeReadFilter.enabled | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | 
