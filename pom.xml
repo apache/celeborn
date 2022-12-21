@@ -718,6 +718,9 @@
               </goals>
               <phase>process-test-resources</phase>
             </execution>
+            <!--
+              CELEBORN-161: we must disable scaladocs to recover building for Spark 2.4
+              `build/mvn clean install -DskipTests -Pspark-2.4`
             <execution>
               <id>attach-scaladocs</id>
               <goals>
@@ -725,6 +728,7 @@
               </goals>
               <phase>verify</phase>
             </execution>
+            -->
           </executions>
         </plugin>
 
