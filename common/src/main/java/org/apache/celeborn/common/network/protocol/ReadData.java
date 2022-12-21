@@ -48,8 +48,8 @@ public class ReadData extends RequestMessage {
     for (int offset : offsets) {
       buf.writeInt(offset);
     }
-    buf.writeInt(buf.readableBytes());
-    buf.writeBytes(buf);
+    buf.writeInt(this.buf.readableBytes());
+    buf.writeBytes(this.buf);
   }
 
   public static ReadData decode(ByteBuf buf) {

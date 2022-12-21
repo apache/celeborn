@@ -195,6 +195,13 @@ public abstract class Message implements Encodable {
 
       case PUSH_DATA_HAND_SHAKE:
         return PushDataHandShake.decode(in);
+
+      case READ_ADD_CREDIT:
+        return ReadAddCredit.decode(in);
+
+      case READ_DATA:
+        return ReadData.decode(in);
+
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);
     }
