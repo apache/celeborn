@@ -205,7 +205,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
     val availableCores =
       if (numUsableCores > 0) numUsableCores
       else Math.max(16, Runtime.getRuntime.availableProcessors())
-    val numThreads = nettyEnv.conf.getInt("rss.rpc.dispatcher.numThreads", availableCores)
+    val numThreads = nettyEnv.conf.getInt("celeborn.rpc.dispatcher.numThreads", availableCores)
     val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "dispatcher-event-loop")
     logInfo(s"Dispatcher numThreads: $numThreads")
     for (i <- 0 until numThreads) {

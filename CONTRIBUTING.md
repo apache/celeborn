@@ -8,6 +8,11 @@ This project uses check-style plugins. Run some checks before you create a new p
 /dev/reformat
 ```
 
+If you have changed configuration, run following command to refresh docs.
+```shell
+UPDATE=1 build/mvn clean test -pl common -am -Pspark-3.3 -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
+```
+
 ## How to Contribute
 For collaboration, feel free to contact us on [Slack](https://join.slack.com/t/apachecelebor-kw08030/shared_invite/zt-1ju3hd5j8-4Z5keMdzpcVMspe4UJzF4Q).
 To report a bug, you can just open a ticket on [Jira](https://issues.apache.org/jira/projects/CELEBORN/issues)   
