@@ -140,6 +140,10 @@ public abstract class Message implements Encodable {
           return REGION_FINISH;
         case 15:
           return PUSH_DATA_HAND_SHAKE;
+        case 16:
+          return READ_ADD_CREDIT;
+        case 17:
+          return READ_DATA;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
