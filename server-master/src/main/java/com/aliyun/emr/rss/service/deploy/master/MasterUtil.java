@@ -27,6 +27,7 @@ import java.util.Random;
 
 import scala.Tuple2;
 
+import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
@@ -50,22 +51,62 @@ public class MasterUtil {
       String shuffleKey,
       List<WorkerInfo> workers,
       List<Integer> reduceIds,
-      boolean shouldReplicate) {
-    int[] oldEpochs = new int[reduceIds.size()];
-    Arrays.fill(oldEpochs, -1);
-    return offerSlots(shuffleKey, workers, reduceIds, oldEpochs, shouldReplicate);
-  }
-
-  public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-    offerSlots(
-      String shuffleKey,
-      List<WorkerInfo> workers,
-      List<Integer> reduceIds,
-      int[] oldEpochs,
-      boolean shouldReplicate) {
-    if (workers.size() < 2 && shouldReplicate) {
+      boolean shouldReplicate,
+      RssConf conf) {
+    if (workers.size() < 1 || workers.size() < 2 && shouldReplicate) {
       return null;
     }
+
+    int targetSlots = shouldReplicate ? reduceIds.size() * 2 : reduceIds.size();
+
+    // get max number of workers
+    int maxWorkerNums = workers.size();
+    long offerSlotsMinPartitionsPerWorker = RssConf.offerSlotsMinPartitionsPerWorker(conf);
+    if (offerSlotsMinPartitionsPerWorker > 0) {
+      int workerNums = (int) ((targetSlots +
+              offerSlotsMinPartitionsPerWorker - 1) / offerSlotsMinPartitionsPerWorker);
+      maxWorkerNums = Math.min(maxWorkerNums, workerNums);
+    }
+
+    int offerSlotsMaxWorkers = RssConf.offerSlotsMaxWorkers(conf);
+    if (offerSlotsMaxWorkers > 0) {
+      maxWorkerNums = Math.min(maxWorkerNums, offerSlotsMaxWorkers);
+    }
+
+    int minWorkerNums = Math.min(targetSlots, Math.max(RssConf.offerSlotsMinWorkers(conf), 1));
+    if (shouldReplicate) {
+      minWorkerNums = Math.max(2, minWorkerNums);
+    }
+    maxWorkerNums = Math.max(minWorkerNums, maxWorkerNums);
+
+    // choose max number of workers
+    if (maxWorkerNums < workers.size()) {
+      if (RssConf.offerSlotsOrderByFreeSlots(conf)) {
+        workers.sort((o1, o2) -> o2.freeSlots() - o1.freeSlots());
+      }
+      List<WorkerInfo> newWorkers = workers.subList(0, maxWorkerNums);
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> res =
+              doOfferSlots(newWorkers, reduceIds, shouldReplicate, targetSlots);
+      if( res != null) {
+        return res;
+      }
+    }
+
+    // fallback to original
+    return doOfferSlots(workers, reduceIds, shouldReplicate, targetSlots);
+  }
+
+  private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+    doOfferSlots(
+      List<WorkerInfo> workers,
+      List<Integer> reduceIds,
+      boolean shouldReplicate,
+      long targetSlots) {
+    long totalFreeSlots = workers.stream().mapToLong(i -> i.freeSlots()).sum();
+    if (totalFreeSlots < targetSlots) return null;
+
+    int[] oldEpochs = new int[reduceIds.size()];
+    Arrays.fill(oldEpochs, -1);
 
     int masterInd = rand.nextInt(workers.size());
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
