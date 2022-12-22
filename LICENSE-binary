@@ -207,21 +207,10 @@ for text of these licenses.
 
 Apache License Version 2.0
 --------------------------
-org.roaringbitmap:RoaringBitmap
-org.apache.commons:commons-crypto
-commons-io:commons-io
-org.apache.commons:commons-lang3
-commons-logging:commons-logging
-com.google.guava:guava
-org.apache.hadoop:hadoop-client-api
-org.apache.hadoop:hadoop-client-runtime
-org.apache.htrace:htrace-core4
-org.slf4j:jcl-over-slf4j
 com.google.code.findbugs:jsr305
-org.apache.logging.log4j:log4j-1.2-api
-org.apache.logging.log4j:log4j-api
-org.apache.logging.log4j:log4j-core
-org.apache.logging.log4j:log4j-slf4j-impl
+com.google.guava:guava
+commons-io:commons-io
+commons-logging:commons-logging
 io.dropwizard.metrics:metrics-core
 io.dropwizard.metrics:metrics-graphite
 io.dropwizard.metrics:metrics-jvm
@@ -255,6 +244,15 @@ io.netty:netty-transport-native-unix-common
 io.netty:netty-transport-rxtx
 io.netty:netty-transport-sctp
 io.netty:netty-transport-udt
+org.apache.commons:commons-crypto
+org.apache.commons:commons-lang3
+org.apache.hadoop:hadoop-client-api
+org.apache.hadoop:hadoop-client-runtime
+org.apache.htrace:htrace-core4
+org.apache.logging.log4j:log4j-1.2-api
+org.apache.logging.log4j:log4j-api
+org.apache.logging.log4j:log4j-core
+org.apache.logging.log4j:log4j-slf4j-impl
 org.apache.ratis:ratis-client
 org.apache.ratis:ratis-common
 org.apache.ratis:ratis-grpc
@@ -264,9 +262,11 @@ org.apache.ratis:ratis-proto
 org.apache.ratis:ratis-server
 org.apache.ratis:ratis-server-api
 org.apache.ratis:ratis-thirdparty-misc
+org.roaringbitmap:RoaringBitmap
+org.roaringbitmap:shims
 org.scala-lang:scala-library
 org.scala-lang:scala-reflect
-org.roaringbitmap:shims
+org.slf4j:jcl-over-slf4j
 org.yaml:snakeyaml
 
 COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0
@@ -285,5 +285,5 @@ javax.servlet:javax.servlet-api
 
 BSD 3-clause
 ------------
-org.fusesource.leveldbjni:leveldbjni-all
 com.google.protobuf:protobuf-java
+org.fusesource.leveldbjni:leveldbjni-all
