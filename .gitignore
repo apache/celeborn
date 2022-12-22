@@ -77,5 +77,4 @@ spark-warehouse/
 
 logs
 pids
-/tmp/htrace-core4-4.1.0-incubating/META-INF/NOTICE
-/tmp/
+tmp/
