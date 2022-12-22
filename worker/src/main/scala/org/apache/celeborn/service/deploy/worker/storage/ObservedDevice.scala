@@ -183,4 +183,3 @@ class ObservedDevice(
     s"DeviceName: ${deviceInfo.name}\tMount Infos: ${diskInfos.values().asScala.mkString("\n")}"
   }
 }
-
