@@ -46,6 +46,7 @@ jobs:
       matrix:
         java:
           - 8
+          - 11
         spark:
           - '2.4'
           - '3.0'
