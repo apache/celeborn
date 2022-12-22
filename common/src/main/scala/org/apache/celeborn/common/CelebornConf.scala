@@ -2144,7 +2144,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("Min size for a partition to split")
       .version("0.2.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1m")
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
