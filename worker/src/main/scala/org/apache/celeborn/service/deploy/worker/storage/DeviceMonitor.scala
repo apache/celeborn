@@ -74,7 +74,7 @@ class LocalDeviceMonitor(
         s"because noDevice device $deviceName exists.")
     }
     deviceInfos.asScala.foreach(entry => {
-      val observedDevice = new ObservedDevice(entry._2, workerSource)
+      val observedDevice = new ObservedDevice(entry._2, conf, workerSource)
       observedDevice.addObserver(observer)
       observedDevices.put(entry._2, observedDevice)
     })
