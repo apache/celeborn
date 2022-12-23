@@ -33,7 +33,6 @@ Top level targets are:
 
 All other inputs are environment variables:
 
-RELEASE_VERSION - Release version, must match pom.xml (e.g. 1.3.0-incubating)
 SKIP_GPG        - (optional) Default false
 EOF
   exit 1
@@ -182,8 +181,7 @@ package_binary() {
   # Copy notice ,license and disclaimer
   cp "$PROJECT_DIR/DISCLAIMER" "$DIST_DIR/"
   cp "$PROJECT_DIR/LICENSE-binary" "$DIST_DIR/LICENSE"
-  cp "$PROJECT_DIR/NOTICE" "$DIST_DIR/NOTICE"
-  ${PROJECT_DIR}/build/collect-licenses.sh $DIST_DIR/jars $DIST_DIR/
+  cp "$PROJECT_DIR/NOTICE-binary" "$DIST_DIR/NOTICE"
 
   TARDIR_NAME="apache-celeborn-$VERSION-$NAME"
   TARDIR="$PROJECT_DIR/$TARDIR_NAME"
@@ -201,7 +199,7 @@ package_binary() {
 
 package_source() {
 
-  VERSION=$("$MVN" help:evaluate -Dexpression=project.version -Pspark-3.3 2>/dev/null | grep -v "INFO" |
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version 2>/dev/null | grep -v "INFO" |
     grep -v "WARNING" |
     tail -n 1)
 
