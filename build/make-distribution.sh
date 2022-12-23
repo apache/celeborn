@@ -20,8 +20,9 @@ set -o pipefail
 set -e
 set -x
 
+# If you don't need to make release tar,ignore it
 SKIP_GPG=${SKIP_GPG:-false}
-# Figure out where the RSS framework is installed
+# Figure out where the Celeborn framework is installed
 PROJECT_DIR="$(
   cd "$(dirname "$0")/.."
   pwd
@@ -121,7 +122,7 @@ function custom_build() {
 
   echo "Making apache-celeborn-$VERSION-$NAME.tgz"
 
-  # Build uber fat JAR
+  # Build uber JAR
   cd "$PROJECT_DIR"
 
   export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
@@ -188,7 +189,7 @@ function package_binary() {
 
   echo "Making apache-celeborn-$VERSION-$NAME.tgz"
 
-  # Build uber fat JAR
+  # Build uber JAR
   cd "$PROJECT_DIR"
 
   export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
@@ -209,14 +210,14 @@ function package_binary() {
   mkdir -p "$DIST_DIR/jars"
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
-  mkdir -p "$DIST_DIR/spark2"
-  mkdir -p "$DIST_DIR/spark3"
+  mkdir -p "$DIST_DIR/spark"
 
   echo "Celeborn $VERSION$GITREVSTRING" >"$DIST_DIR/RELEASE"
   echo "Build flags: -Pspark-3.3" >>"$DIST_DIR/RELEASE"
   share_common_jars
+
   ## Copy spark client jars
-  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark3/"
+  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
   #build 2.4
   VERSION=$("$MVN" help:evaluate -Dexpression=project.version -Pspark-2.4 2>/dev/null | grep -v "INFO" |
     grep -v "WARNING" |
@@ -229,7 +230,7 @@ function package_binary() {
     tail -n 1)
   SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
   "$MVN" clean package -DskipTests -Pspark-2.4
-  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark2/"
+  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
 
   # Copy other things
   mkdir "$DIST_DIR/conf"
