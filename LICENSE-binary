@@ -278,11 +278,6 @@ MIT License
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
 
-COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0
-------------
-javax.activation:activation
-javax.servlet:javax.servlet-api
-
 BSD 3-clause
 ------------
 com.google.protobuf:protobuf-java

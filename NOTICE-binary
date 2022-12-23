@@ -33,9 +33,6 @@ which has the following notices:
  Copyright 2002 JSON.org. - PKCS#1 PEM encoded private key parsing and utility
  functions from oauth.googlecode.com - Copyright 1998-2010 AOL Inc.
 
-The binary distribution of this product bundles binaries of
-Gson 2.2.4,
-which has the following notices:
 
                             The Netty Project
                             =================
@@ -315,265 +312,11 @@ which has the following notices:
   notice.
 
 The binary distribution of this product bundles binaries of
-Jetty :: Http Utility 9.3.19.,
-Jetty :: IO Utility 9.3.19.,
-Jetty :: Security 9.3.19.,
-Jetty :: Server Core 9.3.19.,
-Jetty :: Servlet Handling 9.3.19.,
-Jetty :: Utilities 9.3.19.,
-Jetty :: Utilities :: Ajax,
-Jetty :: Webapp Application Support 9.3.19.,
-Jetty :: XML utilities 9.3.19.,
-which has the following notices:
- * ==============================================================
-    Jetty Web Container
-    Copyright 1995-2016 Mort Bay Consulting Pty Ltd.
-   ==============================================================
-
-   The Jetty Web Container is Copyright Mort Bay Consulting Pty Ltd
-   unless otherwise noted.
-
-   Jetty is dual licensed under both
-
-     * The Apache 2.0 License
-       http://www.apache.org/licenses/LICENSE-2.0.html
-
-         and
-
-     * The Eclipse Public 1.0 License
-       http://www.eclipse.org/legal/epl-v10.html
-
-   Jetty may be distributed under either license.
-
-   ------
-   Eclipse
-
-   The following artifacts are EPL.
-    * org.eclipse.jetty.orbit:org.eclipse.jdt.core
-
-   The following artifacts are EPL and ASL2.
-    * org.eclipse.jetty.orbit:javax.security.auth.message
-
-
-   The following artifacts are EPL and CDDL 1.0.
-    * org.eclipse.jetty.orbit:javax.mail.glassfish
-
-
-   ------
-   Oracle
-
-   The following artifacts are CDDL + GPLv2 with classpath exception.
-   https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html
-
-    * javax.servlet:javax.servlet-api
-    * javax.annotation:javax.annotation-api
-    * javax.transaction:javax.transaction-api
-    * javax.websocket:javax.websocket-api
-
-   ------
-   Oracle OpenJDK
-
-   If ALPN is used to negotiate HTTP/2 connections, then the following
-   artifacts may be included in the distribution or downloaded when ALPN
-   module is selected.
-
-    * java.sun.security.ssl
-
-   These artifacts replace/modify OpenJDK classes.  The modififications
-   are hosted at github and both modified and original are under GPL v2 with
-   classpath exceptions.
-   http://openjdk.java.net/legal/gplv2+ce.html
-
-
-   ------
-   OW2
-
-   The following artifacts are licensed by the OW2 Foundation according to the
-   terms of http://asm.ow2.org/license.html
-
-   org.ow2.asm:asm-commons
-   org.ow2.asm:asm
-
-
-   ------
-   Apache
-
-   The following artifacts are ASL2 licensed.
-
-   org.apache.taglibs:taglibs-standard-spec
-   org.apache.taglibs:taglibs-standard-impl
-
-
-   ------
-   MortBay
-
-   The following artifacts are ASL2 licensed.  Based on selected classes from
-   following Apache Tomcat jars, all ASL2 licensed.
-
-   org.mortbay.jasper:apache-jsp
-     org.apache.tomcat:tomcat-jasper
-     org.apache.tomcat:tomcat-juli
-     org.apache.tomcat:tomcat-jsp-api
-     org.apache.tomcat:tomcat-el-api
-     org.apache.tomcat:tomcat-jasper-el
-     org.apache.tomcat:tomcat-api
-     org.apache.tomcat:tomcat-util-scan
-     org.apache.tomcat:tomcat-util
-
-   org.mortbay.jasper:apache-el
-     org.apache.tomcat:tomcat-jasper-el
-     org.apache.tomcat:tomcat-el-api
-
-
-   ------
-   Mortbay
-
-   The following artifacts are CDDL + GPLv2 with classpath exception.
-
-   https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html
-
-   org.eclipse.jetty.toolchain:jetty-schemas
-
-   ------
-   Assorted
-
-   The UnixCrypt.java code implements the one way cryptography used by
-   Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
-   modified April 2001  by Iris Van den Broeke, Daniel Deville.
-   Permission to use, copy, modify and distribute UnixCrypt
-   for non-commercial or commercial purposes and without fee is
-   granted provided that the copyright notice appears in all copies./
-
-The binary distribution of this product bundles binaries of
-Snappy for Java 1.0.4.1,
-which has the following notices:
- * This product includes software developed by Google
-    Snappy: http://code.google.com/p/snappy/ (New BSD License)
-
-   This product includes software developed by Apache
-    PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/
-    (Apache 2.0 license)
-
-   This library containd statically linked libstdc++. This inclusion is allowed by
-   "GCC RUntime Library Exception"
-   http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
-
-   == Contributors ==
-     * Tatu Saloranta
-       * Providing benchmark suite
-     * Alec Wysoker
-       * Performance and memory usage improvement
-
-The binary distribution of this product bundles binaries of
-Xerces2 Java Parser 2.9.1,
-which has the following notices:
- * =========================================================================
-   ==  NOTICE file corresponding to section 4(d) of the Apache License,   ==
-   ==  Version 2.0, in this case for the Apache Xerces Java distribution. ==
-   =========================================================================
-
-   Apache Xerces Java
-   Copyright 1999-2007 The Apache Software Foundation
-
-   This product includes software developed at
-   The Apache Software Foundation (http://www.apache.org/).
-
-   Portions of this software were originally based on the following:
-     - software copyright (c) 1999, IBM Corporation., http://www.ibm.com.
-     - software copyright (c) 1999, Sun Microsystems., http://www.sun.com.
-     - voluntary contributions made by Paul Eng on behalf of the
-       Apache Software Foundation that were originally developed at iClick, Inc.,
-       software copyright (c) 1999.
-
-The binary distribution of this product bundles binaries of
 Logback Classic Module 1.1.2,
 Logback Core Module 1.1.2,
 which has the following notices:
  * Logback: the reliable, generic, fast and flexible logging framework.
    Copyright (C) 1999-2012, QOS.ch. All rights reserved.
-
-The binary distribution of this product bundles binaries of
-Apache HBase - Annotations 1.2.6,
-Apache HBase - Client 1.2.6,
-Apache HBase - Common 1.2.6,
-Apache HBase - Hadoop Compatibility 1.2.6,
-Apache HBase - Hadoop Two Compatibility 1.2.6,
-Apache HBase - Prefix Tree 1.2.6,
-Apache HBase - Procedure 1.2.6,
-Apache HBase - Protocol 1.2.6,
-Apache HBase - Server 1.2.6,
-which has the following notices:
- * Apache HBase
-   Copyright 2007-2015 The Apache Software Foundation
-
-   This product includes software developed at
-   The Apache Software Foundation (http://www.apache.org/).
-
-   --
-   This product incorporates portions of the 'Hadoop' project
-
-   Copyright 2007-2009 The Apache Software Foundation
-
-   Licensed under the Apache License v2.0
-   --
-   Our Orca logo we got here: http://www.vectorfree.com/jumping-orca
-   It is licensed Creative Commons Attribution 3.0.
-   See https://creativecommons.org/licenses/by/3.0/us/
-   We changed the logo by stripping the colored background, inverting
-   it and then rotating it some.
-
-   Later we found that vectorfree.com image is not properly licensed.
-   The original is owned by vectorportal.com. The original was
-   relicensed so we could use it as Creative Commons Attribution 3.0.
-   The license is bundled with the download available here:
-   http://www.vectorportal.com/subcategory/205/KILLER-WHALE-FREE-VECTOR.eps/ifile/9136/detailtest.asp
-   --
-   This product includes portions of the Bootstrap project v3.0.0
-
-   Copyright 2013 Twitter, Inc.
-
-   Licensed under the Apache License v2.0
-
-   This product uses the Glyphicons Halflings icon set.
-
-   http://glyphicons.com/
-
-   Copyright Jan Kovařík
-
-   Licensed under the Apache License v2.0 as a part of the Bootstrap project.
-
-   --
-   This product includes portions of the Guava project v14, specifically
-   'hbase-common/src/main/java/org/apache/hadoop/hbase/io/LimitInputStream.java'
-
-   Copyright (C) 2007 The Guava Authors
-
-   Licensed under the Apache License, Version 2.0
-
-The binary distribution of this product bundles binaries of
-Phoenix Core 4.7.0,
-which has the following notices:
-   Apache Phoenix
-   Copyright 2013-2016 The Apache Software Foundation
-
-   This product includes software developed by The Apache Software
-   Foundation (http://www.apache.org/).
-
-   This also includes:
-
-   The phoenix-spark module has been adapted from the phoenix-spark library
-   distributed under the terms of the Apache 2 license. Original source copyright:
-   Copyright 2014 Simply Measured, Inc.
-   Copyright 2015 Interset Software Inc.
-
-   The file bin/daemon.py is based on the file of the same name in python-daemon 2.0.5
-   (https://pypi.python.org/pypi/python-daemon/). Original source copyright:
-   # Copyright © 2008–2015 Ben Finney <ben+python@benfinney.id.au>
-   # Copyright © 2007–2008 Robert Niederreiter, Jens Klein
-   # Copyright © 2004–2005 Chad J. Schroeder
-   # Copyright © 2003 Clark Evans
-   # Copyright © 2002 Noah Spurrier
-   # Copyright © 2001 Jürgen Hermann
 
 The binary distribution of this product bundles binaries of
 Plexus Cipher: encryption/decryption Component 1.4,
@@ -585,33 +328,9 @@ which has the following notices:
     which is also Apache APL-2.0 license: http://www.apache.org/licenses/LICENSE-2.0
 
 The binary distribution of this product bundles binaries of
-software.amazon.ion:ion-java 1.0.1,
-which has the following notices:
- * Amazon Ion Java Copyright 2007-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-
-The binary distribution of this product bundles binaries of
-joda-time:joda-time:2.9.9
-which has the following notices:
- * =============================================================================
-   = NOTICE file corresponding to section 4d of the Apache License Version 2.0 =
-   =============================================================================
-   This product includes software developed by
-   Joda.org (http://www.joda.org/).
-
-The binary distribution of this product bundles binaries of
-Ehcache 3.3.1,
-which has the following notices:
- * Ehcache V3 Copyright 2014-2016 Terracotta, Inc.
-
-The binary distribution of this product bundles binaries of
 snakeyaml (https://bitbucket.org/asomov/snakeyaml),
 which has the following notices:
  * Copyright (c) 2008, http://www.snakeyaml.org
-
-The binary distribution of this product bundles binaries of
-swagger-annotations (https://github.com/swagger-api/swagger-core),
-which has the following notices:
- * Copyright 2016 SmartBear Software
 
 The binary distribution of this product bundles binaries of
 metrics-core 3.2.4
@@ -650,9 +369,6 @@ Copyright 1999-2012 Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
-
-ResolverUtil.java
-Copyright 2005-2006 Tim Fennell
 
 Apache Log4j SLF4J Binding
 Copyright 1999-2022 The Apache Software Foundation
@@ -697,64 +413,3 @@ This product bundles gRPC which includes the following text:
 Copyright 2014 The gRPC Authors
 
 ---
-
-This product bundles Netty which includes the following text:
-
-Copyright 2014 The Netty Project
-
----
-
-This product bundles Gson which includes the following text:
-
-Copyright 2008 Google Inc.
-
-The Netty Project
-                            =================
-
-Please visit the Netty web site for more information:
-
-  * http://netty.io/
-
-Copyright 2016 The Netty Project
-
-The Netty Project licenses this file to you under the Apache License,
-version 2.0 (the "License"); you may not use this file except in compliance
-with the License. You may obtain a copy of the License at:
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-License for the specific language governing permissions and limitations
-under the License.
-
--------------------------------------------------------------------------------
-This product contains a forked and modified version of Tomcat Native
-
-  * LICENSE:
-    * license/LICENSE.tomcat-native.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * http://tomcat.apache.org/native-doc/
-    * https://svn.apache.org/repos/asf/tomcat/native/
-
-This product contains the Maven wrapper scripts from 'Maven Wrapper', that provides an easy way to ensure a user has everything necessary to run the Maven build.
-
-  * LICENSE:
-    * license/LICENSE.mvn-wrapper.txt (Apache License 2.0)
-  * HOMEPAGE:
-    * https://github.com/takari/maven-wrapper
-
-This product contains small piece of code to support AIX, taken from netbsd.
-
-  * LICENSE:
-    * license/LICENSE.aix-netbsd.txt (OpenSSL License)
-  * HOMEPAGE:
-    * https://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/crypto/external/bsd/openssl/dist
-
-This product contains code from boringssl.
-
-  * LICENSE (Combination ISC and OpenSSL license)
-    * license/LICENSE.boringssl.txt (Combination ISC and OpenSSL license)
-  * HOMEPAGE:
-    * https://boringssl.googlesource.com/boringssl/
