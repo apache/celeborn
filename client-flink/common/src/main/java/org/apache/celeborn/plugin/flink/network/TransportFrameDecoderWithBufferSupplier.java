@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.util;
+package org.apache.celeborn.plugin.flink.network;
 
-import java.util.function.Function;
 import java.util.function.Supplier;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 
 import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.util.FrameDecoder;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
-  private final Function<Integer, Supplier<ByteBuf>> bufferSuppliers;
+  private final Supplier<ByteBuf> bufferSupplier;
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
@@ -40,24 +40,8 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
 
-  public TransportFrameDecoderWithBufferSupplier() {
-    this.bufferSuppliers =
-        new Function<Integer, Supplier<ByteBuf>>() {
-          @Override
-          public Supplier<ByteBuf> apply(Integer size) {
-            return new Supplier<ByteBuf>() {
-              @Override
-              public ByteBuf get() {
-                return Unpooled.buffer(size);
-              }
-            };
-          }
-        };
-  }
-
-  public TransportFrameDecoderWithBufferSupplier(
-      Function<Integer, Supplier<ByteBuf>> bufferSuppliers) {
-    this.bufferSuppliers = bufferSuppliers;
+  public TransportFrameDecoderWithBufferSupplier(Supplier<ByteBuf> bufferSupplier) {
+    this.bufferSupplier = bufferSupplier;
   }
 
   private void copyByteBuf(ByteBuf source, ByteBuf target, int targetSize) {
@@ -73,7 +57,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
         msgBuf.capacity(msgSize);
       }
       msgBuf.clear();
-      curType = Message.Type.decode(headerBuf);
+      curType = Message.Type.decode(headerBuf.nioBuffer());
       bodySize = headerBuf.readInt();
       decodeMsg(buf, ctx);
     }
@@ -84,7 +68,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       copyByteBuf(buf, msgBuf, msgSize);
     }
     if (msgBuf.readableBytes() == msgSize) {
-      curMsg = Message.decode(curType, msgBuf, false);
+      curMsg = MessageDecoderExt.decode(curType, msgBuf, false);
       if (bodySize <= 0) {
         ctx.fireChannelRead(curMsg);
         clear();
@@ -96,7 +80,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     if (bodyBuf == null) {
       if (buf.readableBytes() >= bodySize) {
         ByteBuf body = buf.retain().readSlice(bodySize);
-        curMsg.setBody(body);
+        curMsg.setBody(body.nioBuffer());
         ctx.fireChannelRead(curMsg);
         clear();
         return buf;
@@ -114,7 +98,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
     bodyBuf.addComponent(next).writerIndex(bodyBuf.writerIndex() + next.readableBytes());
     if (bodyBuf.readableBytes() == bodySize) {
-      curMsg.setBody(bodyBuf);
+      curMsg.setBody(bodyBuf.nioBuffer());
       ctx.fireChannelRead(curMsg);
       clear();
     }
@@ -123,11 +107,11 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   private ByteBuf decodeBodyCopyOut(ByteBuf buf, ChannelHandlerContext ctx) {
     if (externalBuf == null) {
-      externalBuf = bufferSuppliers.apply(bodySize).get();
+      externalBuf = bufferSupplier.get();
     }
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
-      curMsg.setBody(externalBuf);
+      curMsg.setBody(externalBuf.nioBuffer());
       ctx.fireChannelRead(curMsg);
       clear();
     }

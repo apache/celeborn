@@ -20,6 +20,8 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
@@ -54,6 +56,33 @@ public abstract class ShuffleClient {
 
   public static ShuffleClient get(
       RpcEndpointRef driverRef, CelebornConf conf, UserIdentifier userIdentifier) {
+    if (null == _instance || !initialized) {
+      synchronized (ShuffleClient.class) {
+        if (null == _instance) {
+          // During the execution of Spark tasks, each task may be interrupted due to speculative
+          // tasks. If the Task is interrupted while obtaining the ShuffleClient and the
+          // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
+          // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
+          // when communicating with MetaService, it will cause a NullPointerException.
+          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance.setupMetaServiceRef(driverRef);
+          initialized = true;
+        } else if (!initialized) {
+          _instance.shutdown();
+          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance.setupMetaServiceRef(driverRef);
+          initialized = true;
+        }
+      }
+    }
+    return _instance;
+  }
+
+  public static ShuffleClient get(
+      RpcEndpointRef driverRef,
+      CelebornConf conf,
+      UserIdentifier userIdentifier,
+      Function<Integer, Supplier<ByteBuf>> bufferSupplier) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {

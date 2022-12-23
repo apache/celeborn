@@ -194,7 +194,7 @@ class NettyRpcEnv(
   }
 
   private[celeborn] def createClient(address: RpcAddress): TransportClient = {
-    clientFactory.createClient(address.host, address.port)
+    clientFactory.createClient(address.host, address.port, -1)
   }
 
   private[celeborn] def ask[T: ClassTag](

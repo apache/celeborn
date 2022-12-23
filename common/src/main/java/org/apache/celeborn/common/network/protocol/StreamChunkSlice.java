@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import java.nio.ByteBuffer;
+
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
@@ -61,6 +63,15 @@ public final class StreamChunkSlice implements Encodable {
     int chunkIndex = buffer.readInt();
     int offset = buffer.readInt();
     int len = buffer.readInt();
+    return new StreamChunkSlice(streamId, chunkIndex, offset, len);
+  }
+
+  public static StreamChunkSlice decode(ByteBuffer buffer) {
+    assert buffer.remaining() >= 20;
+    long streamId = buffer.getLong();
+    int chunkIndex = buffer.getInt();
+    int offset = buffer.getInt();
+    int len = buffer.getInt();
     return new StreamChunkSlice(streamId, chunkIndex, offset, len);
   }
 

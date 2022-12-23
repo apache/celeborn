@@ -97,11 +97,9 @@ public class RemoteShuffleOutputGate {
     this.numMappers = numMappers;
     this.bufferSize = bufferSize;
     this.applicationId = shuffleDesc.getJobID().toString();
-    this.shuffleId =
-        shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getShuffleId();
-    this.mapId = shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getMapId();
-    this.attemptId =
-        shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getAttemptId();
+    this.shuffleId = shuffleDesc.getShuffleResource().getShuffleResourceDescriptor().getShuffleId();
+    this.mapId = shuffleDesc.getShuffleResource().getShuffleResourceDescriptor().getMapId();
+    this.attemptId = shuffleDesc.getShuffleResource().getShuffleResourceDescriptor().getAttemptId();
     this.rssMetaServiceHost =
         ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServiceHost();
     this.rssMetaServicePort =

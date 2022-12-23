@@ -198,6 +198,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
   public void pushDataHandShake(int numReducePartitions, int bufferSize) {
     this.numReducePartitions = numReducePartitions;
+    fileInfo.setNumReducerPartitions(this.numReducePartitions);
     fileInfo.setBufferSize(bufferSize);
   }
 

@@ -22,11 +22,13 @@ import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
 import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
+import java.util.zip.{Checksum, CRC32}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -35,6 +37,7 @@ import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
+import io.netty.buffer.ByteBuf
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
@@ -980,6 +983,56 @@ object Utils extends Logging {
     } else {
       null
     }
+  }
+
+  def checkedDownCast(value: Long): Int = {
+    val downCast = value.toInt
+    if (downCast.toLong != value) {
+      throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.")
+    }
+    downCast
+  }
+
+  @throws[IOException]
+  def checkFileIntegrity(fileChannel: FileChannel, length: Int): Unit = {
+    val remainingBytes = fileChannel.size - fileChannel.position
+    if (remainingBytes < length) {
+      logError(
+        s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
+      throw new RuntimeException(s"File is corrupted ${fileChannel}")
+    }
+  }
+  @throws[IOException]
+  def readBuffer(fileChannel: FileChannel, buffer: ByteBuffer, length: Int): Unit = {
+    checkFileIntegrity(fileChannel, length)
+    buffer.clear
+    buffer.limit(length)
+    while (buffer.hasRemaining) fileChannel.read(buffer)
+    buffer.flip
+  }
+
+  def readBuffer(fileChannel: FileChannel, buffer: ByteBuf, length: Int): Unit = {
+    checkFileIntegrity(fileChannel, length)
+    val tmpBuffer = ByteBuffer.allocate(length)
+    while (tmpBuffer.hasRemaining) fileChannel.read(tmpBuffer)
+    tmpBuffer.flip()
+    buffer.writeBytes(tmpBuffer)
+  }
+
+  @throws[IOException]
+  def readBuffer(
+      fileChannel: FileChannel,
+      header: ByteBuffer,
+      buffer: ByteBuf,
+      headerSize: Int): Int = {
+    readBuffer(fileChannel, header, headerSize)
+    val bufferLength = header.getInt()
+    if (bufferLength <= 0 || bufferLength > buffer.capacity) {
+      logError(s"Incorrect buffer header, buffer length: ${bufferLength}.")
+      throw new RuntimeException(s"File ${fileChannel} is corrupted")
+    }
+    readBuffer(fileChannel, buffer, bufferLength)
+    bufferLength + headerSize
   }
 
 }

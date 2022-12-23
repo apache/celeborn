@@ -19,7 +19,6 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.&lt;module&gt;.decoder.mode | default | Netty TransportFrameDecoder implementation, available options: default, supplier. |  | 
 | celeborn.&lt;module&gt;.io.backLog | 0 | Requested maximum length of the queue of incoming connections. Default 0 for no backlog. |  | 
 | celeborn.&lt;module&gt;.io.clientThreads | 0 | Number of threads used in the client thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.&lt;module&gt;.io.connectTimeout | &lt;value of celeborn.network.connect.timeout&gt; | Socket connect timeout. |  | 

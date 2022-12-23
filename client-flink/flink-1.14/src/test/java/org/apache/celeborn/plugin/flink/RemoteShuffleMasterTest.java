@@ -85,9 +85,9 @@ public class RemoteShuffleMasterTest {
         remoteShuffleMaster
             .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
             .get();
-    ShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
+    RemoteShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
     ShuffleResourceDescriptor mapPartitionShuffleDescriptor =
-        shuffleResource.getMapPartitionShuffleDescriptor();
+        shuffleResource.getShuffleResourceDescriptor();
     System.out.println(mapPartitionShuffleDescriptor.toString());
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getPartitionId());
@@ -101,7 +101,7 @@ public class RemoteShuffleMasterTest {
             .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
             .get();
     mapPartitionShuffleDescriptor =
-        remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
+        remoteShuffleDescriptor.getShuffleResource().getShuffleResourceDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getMapId());
 
@@ -112,7 +112,7 @@ public class RemoteShuffleMasterTest {
             .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
             .get();
     mapPartitionShuffleDescriptor =
-        remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
+        remoteShuffleDescriptor.getShuffleResource().getShuffleResourceDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
     Assert.assertEquals(
         PackedPartitionId.packedPartitionId(1, 1), mapPartitionShuffleDescriptor.getPartitionId());

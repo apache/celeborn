@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.plugin.flink;
 
-public class RemoteShuffleResource implements ShuffleResource {
+import java.io.Serializable;
+
+public class RemoteShuffleResource implements Serializable {
 
   private static final long serialVersionUID = 6497939083185255973L;
 
@@ -35,8 +37,7 @@ public class RemoteShuffleResource implements ShuffleResource {
     this.shuffleResourceDescriptor = remoteShuffleDescriptor;
   }
 
-  @Override
-  public ShuffleResourceDescriptor getMapPartitionShuffleDescriptor() {
+  public ShuffleResourceDescriptor getShuffleResourceDescriptor() {
     return shuffleResourceDescriptor;
   }
 

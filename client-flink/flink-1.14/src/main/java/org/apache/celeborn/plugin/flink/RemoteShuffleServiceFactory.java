@@ -29,11 +29,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
-import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
+import org.apache.flink.runtime.shuffle.*;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -75,8 +71,15 @@ public class RemoteShuffleServiceFactory
         new RemoteShuffleResultPartitionFactory(
             celebornConf, resultPartitionManager, networkBufferPool, bufferSize);
 
+    RemoteShuffleInputGateFactory inputGateFactory =
+        new RemoteShuffleInputGateFactory(celebornConf, networkBufferPool, bufferSize);
+
     return new RemoteShuffleEnvironment(
-        networkBufferPool, resultPartitionManager, resultPartitionFactory, celebornConf);
+        networkBufferPool,
+        resultPartitionManager,
+        resultPartitionFactory,
+        inputGateFactory,
+        celebornConf);
   }
 
   private static int calculateNumberOfNetworkBuffers(MemorySize memorySize, int bufferSize) {

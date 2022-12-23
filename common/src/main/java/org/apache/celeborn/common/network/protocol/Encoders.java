@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import io.netty.buffer.ByteBuf;
@@ -42,6 +43,13 @@ public class Encoders {
       buf.readBytes(bytes);
       return new String(bytes, StandardCharsets.UTF_8);
     }
+
+    public static String decode(ByteBuffer buf) {
+      int length = buf.getInt();
+      byte[] bytes = new byte[length];
+      buf.get(bytes);
+      return new String(bytes, StandardCharsets.UTF_8);
+    }
   }
 
   /** Int arrays are encoded with their length followed by ints. */
@@ -62,6 +70,15 @@ public class Encoders {
       int[] ints = new int[length];
       for (int i = 0; i < ints.length; i++) {
         ints[i] = buf.readInt();
+      }
+      return ints;
+    }
+
+    public static int[] decode(ByteBuffer buf) {
+      int length = buf.getInt();
+      int[] ints = new int[length];
+      for (int i = 0; i < ints.length; i++) {
+        ints[i] = buf.getInt();
       }
       return ints;
     }
@@ -86,6 +103,15 @@ public class Encoders {
 
     public static String[] decode(ByteBuf buf) {
       int numStrings = buf.readInt();
+      String[] strings = new String[numStrings];
+      for (int i = 0; i < strings.length; i++) {
+        strings[i] = Strings.decode(buf);
+      }
+      return strings;
+    }
+
+    public static String[] decode(ByteBuffer buf) {
+      int numStrings = buf.getInt();
       String[] strings = new String[numStrings];
       for (int i = 0; i < strings.length; i++) {
         strings[i] = Strings.decode(buf);

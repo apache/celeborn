@@ -340,6 +340,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             }
           }
           val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier, partitionType)
+          fileInfo.setMountPoint(mountPoint);
 
           val fileWriter = partitionType match {
             case PartitionType.MAP => new MapPartitionFileWriter(

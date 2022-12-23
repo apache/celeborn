@@ -17,42 +17,46 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import static org.apache.celeborn.common.network.protocol.Message.Type.BACKLOG_ANNOUNCEMENT;
+
 import io.netty.buffer.ByteBuf;
 
-public class OpenStream extends RequestMessage {
-  public byte[] shuffleKey;
-  public byte[] fileName;
+public class BacklogAnnouncement extends RequestMessage {
+  private long streamId;
+  private int backlog;
 
-  public OpenStream(byte[] shuffleKey, byte[] fileName) {
-    this.shuffleKey = shuffleKey;
-    this.fileName = fileName;
+  public BacklogAnnouncement(long streamId, int backlog) {
+    this.streamId = streamId;
+    this.backlog = backlog;
   }
 
   @Override
   public int encodedLength() {
-    return 4 + shuffleKey.length + 4 + fileName.length;
+    return 12;
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    buf.writeInt(shuffleKey.length);
-    buf.writeBytes(shuffleKey);
-    buf.writeInt(fileName.length);
-    buf.writeBytes(fileName);
+    buf.writeLong(streamId);
+    buf.writeInt(backlog);
   }
 
-  public static OpenStream decode(ByteBuf in) {
-    int shuffleKeyLength = in.readInt();
-    byte[] tmpShuffleKey = new byte[shuffleKeyLength];
-    in.readBytes(tmpShuffleKey);
-    int fileNameLength = in.readInt();
-    byte[] tmpFileName = new byte[fileNameLength];
-    in.readBytes(tmpFileName);
-    return new OpenStream(tmpShuffleKey, tmpFileName);
+  public static BacklogAnnouncement decode(ByteBuf in) {
+    long streamId = in.readLong();
+    int backlog = in.readInt();
+    return new BacklogAnnouncement(streamId, backlog);
   }
 
   @Override
   public Type type() {
-    return Type.OPEN_STREAM;
+    return BACKLOG_ANNOUNCEMENT;
+  }
+
+  public long getStreamId() {
+    return streamId;
+  }
+
+  public int getBacklog() {
+    return backlog;
   }
 }

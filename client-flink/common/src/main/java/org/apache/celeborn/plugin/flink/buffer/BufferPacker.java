@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.plugin.flink.buffer;
 
+import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -28,7 +30,6 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Harness used to pack multiple partial buffers together as a full one. */
 public class BufferPacker {
@@ -114,7 +115,7 @@ public class BufferPacker {
   public static Queue<Buffer> unpack(ByteBuf byteBuf) {
     Queue<Buffer> buffers = new ArrayDeque<>();
     try {
-      Utils.checkState(byteBuf instanceof Buffer, "Illegal buffer type.");
+      checkState(byteBuf instanceof Buffer, "Illegal buffer type.");
 
       Buffer buffer = (Buffer) byteBuf;
       int position = 0;

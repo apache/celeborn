@@ -72,28 +72,28 @@ import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class ShuffleClientImpl extends ShuffleClient {
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
+  protected static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
-  private static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
+  protected static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
 
-  private static final Random RND = new Random();
+  protected static final Random RND = new Random();
 
-  private final CelebornConf conf;
+  protected final CelebornConf conf;
 
-  private final UserIdentifier userIdentifier;
+  protected final UserIdentifier userIdentifier;
 
-  private final int registerShuffleMaxRetries;
-  private final long registerShuffleRetryWaitMs;
-  private int maxInFlight;
-  private int maxReviveTimes;
-  private boolean testRetryRevive;
-  private final AtomicInteger currentMaxReqsInFlight;
-  private int congestionAvoidanceFlag = 0;
-  private final int pushBufferMaxSize;
+  protected final int registerShuffleMaxRetries;
+  protected final long registerShuffleRetryWaitMs;
+  protected int maxInFlight;
+  protected int maxReviveTimes;
+  protected boolean testRetryRevive;
+  protected final AtomicInteger currentMaxReqsInFlight;
+  protected int congestionAvoidanceFlag = 0;
+  protected final int pushBufferMaxSize;
 
-  private final RpcEnv rpcEnv;
+  protected final RpcEnv rpcEnv;
 
-  private RpcEndpointRef driverRssMetaService;
+  protected RpcEndpointRef driverRssMetaService;
 
   protected TransportClientFactory dataClientFactory;
 
@@ -121,9 +121,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       };
 
-  private static class ReduceFileGroups {
-    final Map<Integer, Set<PartitionLocation>> partitionGroups;
-    final int[] mapAttempts;
+  protected static class ReduceFileGroups {
+    public final Map<Integer, Set<PartitionLocation>> partitionGroups;
+    public final int[] mapAttempts;
 
     ReduceFileGroups(Map<Integer, Set<PartitionLocation>> partitionGroups, int[] mapAttempts) {
       this.partitionGroups = partitionGroups;
@@ -1231,17 +1231,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         applicationId, shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
   }
 
-  @Override
-  public RssInputStream readPartition(
-      String applicationId,
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex)
-      throws IOException {
-    String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-    ReduceFileGroups fileGroups =
+  protected ReduceFileGroups loadFileGroup(
+      String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
+    ReduceFileGroups reduceFileGroups =
         reduceFileGroupsMap.computeIfAbsent(
             shuffleId,
             (id) -> {
@@ -1287,12 +1279,27 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
               return null;
             });
-
-    if (fileGroups == null) {
+    if (reduceFileGroups == null) {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
       throw new IOException(msg);
-    } else if (fileGroups.partitionGroups.size() == 0
+    }
+    return reduceFileGroups;
+  }
+
+  @Override
+  public RssInputStream readPartition(
+      String applicationId,
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex)
+      throws IOException {
+    String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+    ReduceFileGroups fileGroups = loadFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
+
+    if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       return RssInputStream.empty();

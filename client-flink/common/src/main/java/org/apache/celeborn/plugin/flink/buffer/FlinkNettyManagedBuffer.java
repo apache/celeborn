@@ -15,32 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.buffer;
+package org.apache.celeborn.plugin.flink.buffer;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-import com.google.common.base.Objects;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
 
-/** A {@link ManagedBuffer} backed by a Netty {@link ByteBuf}. */
-public class NettyManagedBuffer extends ManagedBuffer {
-  public static NettyManagedBuffer EmptyBuffer = new NettyManagedBuffer(Unpooled.buffer(0, 0));
+import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+
+public class FlinkNettyManagedBuffer extends ManagedBuffer {
   private final ByteBuf buf;
 
-  public NettyManagedBuffer(ByteBuf buf) {
+  public FlinkNettyManagedBuffer(ByteBuf buf) {
+    super();
     this.buf = buf;
-  }
-
-  public NettyManagedBuffer(ByteBuffer buffer) {
-    this.buf = Unpooled.wrappedBuffer(buffer);
-  }
-
-  public ByteBuf getBuf() {
-    return buf.duplicate();
   }
 
   @Override
@@ -73,10 +64,5 @@ public class NettyManagedBuffer extends ManagedBuffer {
   @Override
   public Object convertToNetty() throws IOException {
     return buf.duplicate().retain();
-  }
-
-  @Override
-  public String toString() {
-    return Objects.toStringHelper(this).add("buf", buf).toString();
   }
 }

@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.celeborn.plugin.flink.buffer;
 
-package org.apache.celeborn.plugin.flink;
+import java.nio.ByteBuffer;
 
-import java.io.Serializable;
+/** Recycler which can recycle {@link ByteBuffer}s for reuse. */
+public interface BufferRecycler {
 
-public interface ShuffleResource extends Serializable {
-
-  ShuffleResourceDescriptor getMapPartitionShuffleDescriptor();
+  /** Recycles the target {@link ByteBuffer}. */
+  void recycle(ByteBuffer buffer);
 }
