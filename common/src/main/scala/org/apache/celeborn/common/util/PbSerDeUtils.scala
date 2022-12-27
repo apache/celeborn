@@ -362,8 +362,7 @@ object PbSerDeUtils {
       .addAllRegisteredShuffle(registeredShuffle)
       .addAllHostnameSet(hostnameSet)
       .addAllBlacklist(blacklist.asScala.map(toPbWorkerInfo(_, true)).asJava)
-      .addAllWorkerLostEvents(workerLostEvent.asScala.map(
-        toPbWorkerInfo(_, true)).asJava)
+      .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .putAllAppHeartbeatTime(appHeartbeatTime)
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
