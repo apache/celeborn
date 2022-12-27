@@ -341,12 +341,16 @@ public class ShuffleClientImpl extends ShuffleClient {
             shuffleId,
             numMappers,
             numMappers,
-            () ->
-                driverRssMetaService.askSync(
-                    RegisterMapPartitionTask$.MODULE$.apply(
-                        appId, shuffleId, numMappers, mapId, attemptId, partitionId),
-                    conf.registerShuffleRpcAskTimeout(),
-                    ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
+            () -> {
+              logger.info("Now call driver");
+              assert driverRssMetaService != null;
+              logger.info(driverRssMetaService.address().toRssURL());
+              return driverRssMetaService.askSync(
+                  RegisterMapPartitionTask$.MODULE$.apply(
+                      appId, shuffleId, numMappers, mapId, attemptId, partitionId),
+                  conf.registerShuffleRpcAskTimeout(),
+                  ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class));
+            });
     return partitionLocationMap.get(partitionId);
   }
 
