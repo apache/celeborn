@@ -357,7 +357,7 @@ object PbSerDeUtils {
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot): PbSnapshotMetaInfo = {
-    PbSnapshotMetaInfo.newBuilder()
+    val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
       .addAllHostnameSet(hostnameSet)
@@ -367,10 +367,12 @@ object PbSerDeUtils {
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
-      .addAllAppDiskUsageMetricSnapshots(
-        appDiskUsageMetricSnapshots.map(toPbAppDiskUsageSnapshot).toList.asJava)
-      .setCurrentAppDiskUsageMetricsSnapshot(
-        toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
-      .build()
+      .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)
+          .map(toPbAppDiskUsageSnapshot).toList.asJava)
+      if (currentAppDiskUsageMetricsSnapshot != null) {
+        builder.setCurrentAppDiskUsageMetricsSnapshot(
+          toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
+      }
+      builder.build()
   }
 }

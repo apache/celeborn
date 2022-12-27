@@ -456,5 +456,5 @@ message PbSnapshotMetaInfo {
   int64 partitionTotalWritten = 8;
   int64 partitionTotalFileCount = 9;
   repeated PbAppDiskUsageSnapshot appDiskUsageMetricSnapshots = 10;
-  PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
+  optional PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
 }
