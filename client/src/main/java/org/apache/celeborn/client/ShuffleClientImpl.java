@@ -372,6 +372,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       try {
         PbRegisterShuffleResponse response = callable.call();
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+        logger.info(respStatus.toString());
+        logger.info(response.toString());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
