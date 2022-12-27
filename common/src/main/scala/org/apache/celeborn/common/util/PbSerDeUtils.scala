@@ -368,11 +368,11 @@ object PbSerDeUtils {
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
       .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)
-          .map(toPbAppDiskUsageSnapshot).toList.asJava)
-      if (currentAppDiskUsageMetricsSnapshot != null) {
-        builder.setCurrentAppDiskUsageMetricsSnapshot(
-          toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
-      }
-      builder.build()
+        .map(toPbAppDiskUsageSnapshot).toList.asJava)
+    if (currentAppDiskUsageMetricsSnapshot != null) {
+      builder.setCurrentAppDiskUsageMetricsSnapshot(
+        toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
+    }
+    builder.build()
   }
 }
