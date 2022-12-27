@@ -243,8 +243,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
    * @throws IOException
    */
   public void writeMetaInfoToFile(File file) throws IOException, RuntimeException {
-    ObjectOutputStream out =
-        new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
+    BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
 
     byte[] snapshotBytes =
         PbSerDeUtils.toPbSnapshotMetaInfo(
@@ -261,7 +260,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 appDiskUsageMetric.currentSnapShot().get())
             .toByteArray();
 
-    out.writeInt(snapshotBytes.length);
     out.write(snapshotBytes);
     out.flush();
   }
@@ -273,12 +271,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
    * @throws IOException
    */
   public void restoreMetaFromFile(File file) throws IOException {
-    try (ObjectInputStream in =
-        new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-      int snapshotLength = in.readInt();
-      byte[] snapshotBytes = new byte[snapshotLength];
-      in.read(snapshotBytes, 0, snapshotLength);
-      PbSnapshotMetaInfo snapshotMetaInfo = PbSnapshotMetaInfo.parseFrom(snapshotBytes);
+    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
+      PbSnapshotMetaInfo snapshotMetaInfo = PbSnapshotMetaInfo.parseFrom(in);
 
       estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 
