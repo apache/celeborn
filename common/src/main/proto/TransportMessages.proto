@@ -445,7 +445,7 @@ message PbAppDiskUsageSnapshot {
   int64 endSnapshotTime = 3;
 }
 
-message PbMetaInfo {
+message PbSnapshotMetaInfo {
   int64 estimatedPartitionSize = 1;
   repeated string registeredShuffle = 2;
   repeated string hostnameSet = 3;

@@ -31,13 +31,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.*;
-import org.apache.celeborn.common.protocol.PbMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
@@ -278,7 +278,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int snapshotLength = in.readInt();
       byte[] snapshotBytes = new byte[snapshotLength];
       in.read(snapshotBytes, 0, snapshotLength);
-      PbMetaInfo snapshotMetaInfo = PbMetaInfo.parseFrom(snapshotBytes);
+      PbSnapshotMetaInfo snapshotMetaInfo = PbSnapshotMetaInfo.parseFrom(snapshotBytes);
 
       estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 

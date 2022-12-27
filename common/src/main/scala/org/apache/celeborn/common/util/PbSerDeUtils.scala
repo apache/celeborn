@@ -328,7 +328,7 @@ object PbSerDeUtils {
   }
 
   def fromPbAppDiskUsageSnapshot(
-      pbAppDiskUsageSnapShot: PbAppDiskUsageSnapShot): AppDiskUsageSnapShot = {
+      pbAppDiskUsageSnapShot: PbAppDiskUsageSnapshot): AppDiskUsageSnapShot = {
     val snapShot = new AppDiskUsageSnapShot(pbAppDiskUsageSnapShot.getTopNItemsCount)
     snapShot.startSnapShotTime = pbAppDiskUsageSnapShot.getStartSnapShotTime
     snapShot.endSnapShotTime = pbAppDiskUsageSnapShot.getEndSnapshotTime
@@ -337,8 +337,8 @@ object PbSerDeUtils {
     snapShot
   }
 
-  def toPbAppDiskUsageSnapshot(snapshots: AppDiskUsageSnapShot): PbAppDiskUsageSnapShot = {
-    PbAppDiskUsageSnapShot.newBuilder()
+  def toPbAppDiskUsageSnapshot(snapshots: AppDiskUsageSnapShot): PbAppDiskUsageSnapshot = {
+    PbAppDiskUsageSnapshot.newBuilder()
       .setStartSnapShotTime(snapshots.startSnapShotTime)
       .setEndSnapshotTime(snapshots.endSnapShotTime)
       .addAllTopNItems(snapshots.topNItems.map(toPbAppDiskUsage).toList.asJava)
@@ -356,8 +356,8 @@ object PbSerDeUtils {
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
-      currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot): PbMetaInfo = {
-    PbMetaInfo.newBuilder()
+      currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot): PbSnapshotMetaInfo = {
+    PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
       .addAllHostnameSet(hostnameSet)
