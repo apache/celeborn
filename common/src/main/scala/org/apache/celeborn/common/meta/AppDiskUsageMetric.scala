@@ -145,9 +145,9 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
     stringBuilder.toString()
   }
 
-  def restoreFromSnapshot(array: Array[AppDiskUsageSnapShot]): Unit = {
+  def restoreFromSnapshot(array: java.util.List[AppDiskUsageSnapShot]): Unit = {
     for (i <- 0 until (snapshotCount)) {
-      snapShots(i) = array(i)
+      snapShots(i) = array.get(i)
     }
   }
 }

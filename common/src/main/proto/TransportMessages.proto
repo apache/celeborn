@@ -439,7 +439,7 @@ message PbAppDiskUsage {
   int64 estimatedUsage = 2;
 }
 
-message PbAppDiskUsageSnapShot {
+message PbAppDiskUsageSnapshot {
   repeated PbAppDiskUsage topNItems = 1;
   int64 startSnapShotTime = 2;
   int64 endSnapshotTime = 3;
@@ -455,6 +455,6 @@ message PbMetaInfo {
   repeated PbWorkerInfo workers = 7;
   int64 partitionTotalWritten = 8;
   int64 partitionTotalFileCount = 9;
-  repeated PbAppDiskUsageSnapShot appDiskUsageMetricSnapshots = 10;
-  PbAppDiskUsageSnapShot currentAppDiskUsageMetricsSnapshot = 11;
+  repeated PbAppDiskUsageSnapshot appDiskUsageMetricSnapshots = 10;
+  PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
 }

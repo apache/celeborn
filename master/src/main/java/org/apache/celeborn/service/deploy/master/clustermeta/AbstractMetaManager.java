@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -245,21 +246,20 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     ObjectOutputStream out =
         new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
 
-    SnapshotMetaInfo snapshot =
-        new SnapshotMetaInfo(
-            estimatedPartitionSize,
-            registeredShuffle,
-            hostnameSet,
-            blacklist,
-            workerLostEvents,
-            appHeartbeatTime,
-            workers,
-            partitionTotalWritten.sum(),
-            partitionTotalFileCount.sum(),
-            appDiskUsageMetric.snapShots(),
-            appDiskUsageMetric.currentSnapShot().get());
-
-    byte[] snapshotBytes = PbSerDeUtils.toPbSnapshotMetaInfo(snapshot).toByteArray();
+    byte[] snapshotBytes =
+        PbSerDeUtils.toPbSnapshotMetaInfo(
+                estimatedPartitionSize,
+                registeredShuffle,
+                hostnameSet,
+                blacklist,
+                workerLostEvents,
+                appHeartbeatTime,
+                workers,
+                partitionTotalWritten.sum(),
+                partitionTotalFileCount.sum(),
+                appDiskUsageMetric.snapShots(),
+                appDiskUsageMetric.currentSnapShot().get())
+            .toByteArray();
 
     out.writeInt(snapshotBytes.length);
     out.write(snapshotBytes);
@@ -278,16 +278,21 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int snapshotLength = in.readInt();
       byte[] snapshotBytes = new byte[snapshotLength];
       in.read(snapshotBytes, 0, snapshotLength);
-      SnapshotMetaInfo snapshotMetaInfo =
-          PbSerDeUtils.fromPbSnapshotMetaInfo(PbMetaInfo.parseFrom(snapshotBytes));
+      PbMetaInfo snapshotMetaInfo = PbMetaInfo.parseFrom(snapshotBytes);
 
-      estimatedPartitionSize = snapshotMetaInfo.estimatedPartitionSize();
+      estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 
-      registeredShuffle.addAll(snapshotMetaInfo.registeredShuffle());
-      hostnameSet.addAll(snapshotMetaInfo.hostnameSet());
-      blacklist.addAll(snapshotMetaInfo.blacklist());
-      workerLostEvents.addAll(snapshotMetaInfo.workerLostEvent());
-      appHeartbeatTime.putAll(snapshotMetaInfo.appHeartbeatTime());
+      registeredShuffle.addAll(snapshotMetaInfo.getRegisteredShuffleList());
+      hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
+      blacklist.addAll(
+          snapshotMetaInfo.getBlacklistList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+      workerLostEvents.addAll(
+          snapshotMetaInfo.getWorkerLostEventsList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+      appHeartbeatTime.putAll(snapshotMetaInfo.getAppHeartbeatTimeMap());
 
       registeredShuffle.forEach(
           shuffleKey -> {
@@ -297,16 +302,23 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             }
           });
 
-      workers.addAll(snapshotMetaInfo.workers());
+      workers.addAll(
+          snapshotMetaInfo.getWorkersList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
 
       partitionTotalWritten.reset();
-      partitionTotalWritten.add(snapshotMetaInfo.partitionTotalWritten());
+      partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.reset();
-      partitionTotalFileCount.add(snapshotMetaInfo.partitionTotalFileCount());
-      appDiskUsageMetric.restoreFromSnapshot(snapshotMetaInfo.appDiskUsageMetricSnapshots());
+      partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
+      appDiskUsageMetric.restoreFromSnapshot(
+          snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
+              .map(PbSerDeUtils::fromPbAppDiskUsageSnapshot)
+              .collect(Collectors.toList()));
       appDiskUsageMetric.currentSnapShot_$eq(
           new AtomicReference<AppDiskUsageSnapShot>(
-              snapshotMetaInfo.currentAppDiskUsageMetricsSnapshot()));
+              PbSerDeUtils.fromPbAppDiskUsageSnapshot(
+                  snapshotMetaInfo.getCurrentAppDiskUsageMetricsSnapshot())));
     } catch (Exception e) {
       throw new IOException(e);
     }
