@@ -141,7 +141,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxInFlight = conf.pushMaxReqsInFlight();
 
     if (conf.pushDataSlowStart()) {
-       currentMaxReqsInFlight = new AtomicInteger(1);
+      currentMaxReqsInFlight = new AtomicInteger(1);
     } else {
       currentMaxReqsInFlight = new AtomicInteger(maxInFlight);
     }
@@ -1295,13 +1295,15 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private void congestionControl() {
-    maxInFlight = currentMaxReqsInFlight.getAndUpdate(pre -> {
-      if (pre <= 1) {
-        return 1;
-      } else {
-        return pre / 2;
-      }
-    });
+    maxInFlight =
+        currentMaxReqsInFlight.getAndUpdate(
+            pre -> {
+              if (pre <= 1) {
+                return 1;
+              } else {
+                return pre / 2;
+              }
+            });
 
     synchronized (congestionAvoidanceFlag) {
       congestionAvoidanceFlag = 0;
