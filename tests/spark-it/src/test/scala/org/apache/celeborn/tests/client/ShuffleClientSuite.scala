@@ -18,17 +18,17 @@
 package org.apache.celeborn.tests.client
 
 import org.apache.celeborn.client.WithShuffleClientSuite
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
   private val masterPort = 19097
+
+  celebornConf.set("celeborn.master.endpoints", s"localhost:$masterPort")
+    .set("celeborn.push.replicate.enabled", "true")
+    .set("celeborn.push.buffer.size", "256K")
+
   override def beforeAll(): Unit = {
     super.beforeAll()
-    celebornConf = new CelebornConf()
-      .set("celeborn.master.endpoints", s"localhost:$masterPort")
-      .set("celeborn.push.replicate.enabled", "true")
-      .set("celeborn.push.buffer.size", "256K")
     val masterConf = Map(
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> masterPort.toString)
@@ -40,5 +40,6 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   override def afterAll(): Unit = {
     // TODO refactor MiniCluster later
     println("test done")
+    sys.exit(0)
   }
 }
