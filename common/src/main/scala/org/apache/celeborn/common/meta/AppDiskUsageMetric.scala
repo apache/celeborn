@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.metrics
+package org.apache.celeborn.common.meta
 
-import java.time.LocalDateTime
+import java.time.{Instant, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
@@ -34,11 +34,11 @@ case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {
 
 class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializable {
   val topNItems = new Array[AppDiskUsage](topItemCount)
-  val startSnapShotTime = LocalDateTime.now()
-  var endSnapShotTime: LocalDateTime = _
+  val startSnapShotTime = System.currentTimeMillis()
+  var endSnapShotTime: Long = _
 
   def commit(): Unit = {
-    endSnapShotTime = LocalDateTime.now()
+    endSnapShotTime = System.currentTimeMillis()
   }
 
   def updateAppDiskUsage(appId: String, usage: Long): Unit = {
@@ -78,9 +78,13 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
     -1
   }
 
-  override def toString(): String = s"Snapshot " +
-    s"start ${startSnapShotTime} end ${endSnapShotTime}" +
-    s" ${topNItems.filter(_ != null).mkString(",")}"
+  override def toString(): String = {
+    val zoneId = ZoneId.systemDefault()
+    s"Snapshot " +
+      s"start ${LocalDateTime.ofInstant(Instant.ofEpochMilli(startSnapShotTime), zoneId)} " +
+      s"end ${LocalDateTime.ofInstant(Instant.ofEpochMilli(endSnapShotTime), zoneId)}" +
+      s" ${topNItems.filter(_ != null).mkString(",")}"
+  }
 }
 
 // This metric collects approximate value because worker won't report all app disk usage value for reducing memory pressure. .
