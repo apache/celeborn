@@ -26,8 +26,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.service.deploy.master.metrics.{AppDiskUsageMetric, AppDiskUsageSnapShot}
+import org.apache.celeborn.common.meta.{AppDiskUsageMetric, AppDiskUsageSnapShot, WorkerInfo}
 
 class AppDiskUsageMetricSuite extends AnyFunSuite
   with BeforeAndAfterAll
