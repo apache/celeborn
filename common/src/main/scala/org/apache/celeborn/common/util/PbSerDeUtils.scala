@@ -25,9 +25,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.DiskInfo
-import org.apache.celeborn.common.meta.FileInfo
-import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskInfo, FileInfo, SnapshotMetaInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -318,4 +316,66 @@ object PbSerDeUtils {
     }).asJava
   }
 
+  def fromPbAppDiskUsage(pbAppDiskUsage: PbAppDiskUsage): AppDiskUsage = {
+    AppDiskUsage(pbAppDiskUsage.getAppId, pbAppDiskUsage.getEstimatedUsage)
+  }
+
+  def toPbAppDiskUsage(appDiskUsage: AppDiskUsage): PbAppDiskUsage = {
+    PbAppDiskUsage.newBuilder()
+      .setAppId(appDiskUsage.appId)
+      .setEstimatedUsage(appDiskUsage.estimatedUsage)
+      .build()
+  }
+
+  def fromPbAppDiskUsageSnapshot(
+      pbAppDiskUsageSnapShot: PbAppDiskUsageSnapShot): AppDiskUsageSnapShot = {
+    val snapShot = new AppDiskUsageSnapShot(pbAppDiskUsageSnapShot.getTopNItemsCount)
+    snapShot.startSnapShotTime = pbAppDiskUsageSnapShot.getStartSnapShotTime
+    snapShot.endSnapShotTime = pbAppDiskUsageSnapShot.getEndSnapshotTime
+    snapShot.topNItems =
+      pbAppDiskUsageSnapShot.getTopNItemsList.asScala.map(fromPbAppDiskUsage).toList.toArray
+    snapShot
+  }
+
+  def toPbAppDiskUsageSnapshot(snapshots: AppDiskUsageSnapShot): PbAppDiskUsageSnapShot = {
+    PbAppDiskUsageSnapShot.newBuilder()
+      .setStartSnapShotTime(snapshots.startSnapShotTime)
+      .setEndSnapshotTime(snapshots.endSnapShotTime)
+      .addAllTopNItems(snapshots.topNItems.map(toPbAppDiskUsage).toList.asJava)
+      .build()
+  }
+
+  def fromPbSnapshotMetaInfo(pbMetaInfo: PbMetaInfo): SnapshotMetaInfo = {
+    SnapshotMetaInfo(
+      pbMetaInfo.getEstimatedPartitionSize,
+      pbMetaInfo.getRegisteredShuffleList.asScala.toSet,
+      pbMetaInfo.getHostnameSetList.asScala.toSet,
+      pbMetaInfo.getBlacklistList.asScala.map(fromPbWorkerInfo).toSet,
+      pbMetaInfo.getWorkerLostEventsList.asScala.map(fromPbWorkerInfo).toSet,
+      pbMetaInfo.getAppHeartbeatTimeMap.asScala.toMap,
+      pbMetaInfo.getWorkersList.asScala.map(fromPbWorkerInfo).toSet,
+      pbMetaInfo.getPartitionTotalWritten,
+      pbMetaInfo.getPartitionTotalFileCount,
+      pbMetaInfo.getAppDiskUsageMetricSnapshotsList.asScala.map(fromPbAppDiskUsageSnapshot),
+      fromPbAppDiskUsageSnapshot(pbMetaInfo.getCurrentAppDiskUsageMetricsSnapshot))
+  }
+
+  def toPbSnapshotMetaInfo(snapshotMetaInfo: SnapshotMetaInfo): PbMetaInfo = {
+    PbMetaInfo.newBuilder()
+      .setEstimatedPartitionSize(snapshotMetaInfo.estimatedPartitionSize)
+      .addAllRegisteredShuffle(snapshotMetaInfo.registeredShuffle)
+      .addAllHostnameSet(snapshotMetaInfo.hostnameSet)
+      .addAllBlacklist(snapshotMetaInfo.blacklist.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllWorkerLostEvents(snapshotMetaInfo.workerLostEvent.asScala.map(
+        toPbWorkerInfo(_, true)).asJava)
+      .putAllAppHeartbeatTime(snapshotMetaInfo.appHeartbeatTime)
+      .addAllWorkers(snapshotMetaInfo.workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .setPartitionTotalWritten(snapshotMetaInfo.partitionTotalWritten)
+      .setPartitionTotalFileCount(snapshotMetaInfo.partitionTotalFileCount)
+      .addAllAppDiskUsageMetricSnapshots(snapshotMetaInfo.appDiskUsageMetricSnapshots.map(
+        toPbAppDiskUsageSnapshot).toList.asJava)
+      .setCurrentAppDiskUsageMetricsSnapshot(toPbAppDiskUsageSnapshot(
+        snapshotMetaInfo.currentAppDiskUsageMetricsSnapshot))
+      .build()
+  }
 }

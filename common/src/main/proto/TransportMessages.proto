@@ -433,3 +433,28 @@ message PbResourceConsumption {
   int64 hdfsBytesWritten = 3;
   int64 hdfsFileCount = 4;
 }
+
+message PbAppDiskUsage {
+  string appId = 1;
+  int64 estimatedUsage = 2;
+}
+
+message PbAppDiskUsageSnapShot {
+  repeated PbAppDiskUsage topNItems = 1;
+  int64 startSnapShotTime = 2;
+  int64 endSnapshotTime = 3;
+}
+
+message PbMetaInfo {
+  int64 estimatedPartitionSize = 1;
+  repeated string registeredShuffle = 2;
+  repeated string hostnameSet = 3;
+  repeated PbWorkerInfo blacklist = 4;
+  repeated PbWorkerInfo workerLostEvents = 5;
+  map<string, int64> appHeartbeatTime = 6;
+  repeated PbWorkerInfo workers = 7;
+  int64 partitionTotalWritten = 8;
+  int64 partitionTotalFileCount = 9;
+  repeated PbAppDiskUsageSnapShot appDiskUsageMetricSnapshots = 10;
+  PbAppDiskUsageSnapShot currentAppDiskUsageMetricsSnapshot = 11;
+}

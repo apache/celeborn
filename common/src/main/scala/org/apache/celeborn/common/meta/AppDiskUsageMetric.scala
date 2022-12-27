@@ -33,8 +33,8 @@ case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {
 }
 
 class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializable {
-  val topNItems = new Array[AppDiskUsage](topItemCount)
-  val startSnapShotTime = System.currentTimeMillis()
+  var topNItems = new Array[AppDiskUsage](topItemCount)
+  var startSnapShotTime = System.currentTimeMillis()
   var endSnapShotTime: Long = _
 
   def commit(): Unit = {
@@ -150,5 +150,4 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
       snapShots(i) = array(i)
     }
   }
-
 }

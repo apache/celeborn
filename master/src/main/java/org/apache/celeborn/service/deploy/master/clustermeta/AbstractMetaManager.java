@@ -35,13 +35,12 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.protocol.PbMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
@@ -246,60 +245,25 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     ObjectOutputStream out =
         new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
 
-    out.writeLong(estimatedPartitionSize);
-    // write registeredShuffle
-    writeSetMetaToFile(registeredShuffle, out);
+    SnapshotMetaInfo snapshot =
+        new SnapshotMetaInfo(
+            estimatedPartitionSize,
+            registeredShuffle,
+            hostnameSet,
+            blacklist,
+            workerLostEvents,
+            appHeartbeatTime,
+            workers,
+            partitionTotalWritten.sum(),
+            partitionTotalFileCount.sum(),
+            appDiskUsageMetric.snapShots(),
+            appDiskUsageMetric.currentSnapShot().get());
 
-    // write hostnameSet
-    writeSetMetaToFile(hostnameSet, out);
+    byte[] snapshotBytes = PbSerDeUtils.toPbSnapshotMetaInfo(snapshot).toByteArray();
 
-    // write blacklist
-    writeSetMetaToFile(blacklist, out);
-
-    // write workerLost events
-    writeSetMetaToFile(workerLostEvents, out);
-
-    // write application heartbeat time
-    out.writeInt(appHeartbeatTime.size());
-    appHeartbeatTime.forEach(
-        (app, time) -> {
-          try {
-            out.writeObject(app);
-            out.writeLong(time);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
-
-    // write workerInfo
-    out.writeInt(workers.size());
-    workers.forEach(
-        workerInfo -> {
-          try {
-            out.writeObject(workerInfo);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
-
-    out.writeLong(partitionTotalWritten.sum());
-    out.writeLong(partitionTotalFileCount.sum());
-    out.writeObject(appDiskUsageMetric.snapShots());
-    out.writeObject(appDiskUsageMetric.currentSnapShot());
-
+    out.writeInt(snapshotBytes.length);
+    out.write(snapshotBytes);
     out.flush();
-  }
-
-  private <T> void writeSetMetaToFile(Set<T> metas, ObjectOutputStream out) throws IOException {
-    out.writeInt(metas.size());
-    metas.forEach(
-        meta -> {
-          try {
-            out.writeObject(meta);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
   }
 
   /**
@@ -311,24 +275,20 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void restoreMetaFromFile(File file) throws IOException {
     try (ObjectInputStream in =
         new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-      estimatedPartitionSize = in.readLong();
-      // read registeredShuffle
-      readSetMetaFromFile(registeredShuffle, in.readInt(), in);
+      int snapshotLength = in.readInt();
+      byte[] snapshotBytes = new byte[snapshotLength];
+      in.read(snapshotBytes, 0, snapshotLength);
+      SnapshotMetaInfo snapshotMetaInfo =
+          PbSerDeUtils.fromPbSnapshotMetaInfo(PbMetaInfo.parseFrom(snapshotBytes));
 
-      // read hostnameSet
-      readSetMetaFromFile(hostnameSet, in.readInt(), in);
+      estimatedPartitionSize = snapshotMetaInfo.estimatedPartitionSize();
 
-      // read blacklist
-      readSetMetaFromFile(blacklist, in.readInt(), in);
+      registeredShuffle.addAll(snapshotMetaInfo.registeredShuffle());
+      hostnameSet.addAll(snapshotMetaInfo.hostnameSet());
+      blacklist.addAll(snapshotMetaInfo.blacklist());
+      workerLostEvents.addAll(snapshotMetaInfo.workerLostEvent());
+      appHeartbeatTime.putAll(snapshotMetaInfo.appHeartbeatTime());
 
-      // read workerLost events
-      readSetMetaFromFile(workerLostEvents, in.readInt(), in);
-
-      // read application heartbeat time
-      int size = in.readInt();
-      for (int i = 0; i < size; ++i) {
-        appHeartbeatTime.put((String) in.readObject(), in.readLong());
-      }
       registeredShuffle.forEach(
           shuffleKey -> {
             String appId = shuffleKey.split("-")[0];
@@ -337,19 +297,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             }
           });
 
-      // read workerInfo
-      int workersSize = in.readInt();
-      for (int i = 0; i < workersSize; ++i) {
-        workers.add((WorkerInfo) in.readObject());
-      }
+      workers.addAll(snapshotMetaInfo.workers());
+
       partitionTotalWritten.reset();
-      partitionTotalWritten.add(in.readLong());
+      partitionTotalWritten.add(snapshotMetaInfo.partitionTotalWritten());
       partitionTotalFileCount.reset();
-      partitionTotalFileCount.add(in.readLong());
-      appDiskUsageMetric.restoreFromSnapshot((AppDiskUsageSnapShot[]) in.readObject());
+      partitionTotalFileCount.add(snapshotMetaInfo.partitionTotalFileCount());
+      appDiskUsageMetric.restoreFromSnapshot(snapshotMetaInfo.appDiskUsageMetricSnapshots());
       appDiskUsageMetric.currentSnapShot_$eq(
-          (AtomicReference<AppDiskUsageSnapShot>) in.readObject());
-    } catch (ClassNotFoundException e) {
+          new AtomicReference<AppDiskUsageSnapShot>(
+              snapshotMetaInfo.currentAppDiskUsageMetricsSnapshot()));
+    } catch (Exception e) {
       throw new IOException(e);
     }
     LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
@@ -360,13 +318,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         blacklist.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
-  }
-
-  private <T> void readSetMetaFromFile(Set<T> metas, int size, ObjectInputStream in)
-      throws ClassNotFoundException, IOException {
-    for (int i = 0; i < size; ++i) {
-      metas.add((T) in.readObject());
-    }
   }
 
   public void updateBlacklistByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
