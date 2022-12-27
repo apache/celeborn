@@ -53,6 +53,7 @@ class ReducePartitionCommitHandler(
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
+  private val stageEndTimeout = conf.pushStageEndTimeout
 
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE

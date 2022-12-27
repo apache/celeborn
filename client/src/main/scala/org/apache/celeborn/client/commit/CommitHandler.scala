@@ -55,17 +55,16 @@ abstract class CommitHandler(
 
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
-  private val commitEpoch = new AtomicLong()
-  private val totalWritten = new LongAdder
-  private val fileCount = new LongAdder
   private val rpcCacheSize = conf.rpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.rpcCacheExpireTime
 
-  protected val stageEndTimeout = conf.pushStageEndTimeout
-  protected val reducerFileGroupsMap = new ShuffleFileGroups
+  private val commitEpoch = new AtomicLong()
+  private val totalWritten = new LongAdder
+  private val fileCount = new LongAdder
+  private val reducerFileGroupsMap = new ShuffleFileGroups
   // noinspection UnstableApiUsage
-  protected val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrencyLevel)
     .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
