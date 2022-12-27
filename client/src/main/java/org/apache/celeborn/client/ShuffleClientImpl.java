@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
 import scala.reflect.ClassTag$;
@@ -84,8 +85,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWaitMs;
   private int maxInFlight;
-  private Integer currentMaxReqsInFlight = 1;
-  private int congestionAvoidanceFlag = 0;
+  private final AtomicInteger currentMaxReqsInFlight;
+  private Integer congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
 
   private final RpcEnv rpcEnv;
@@ -138,6 +139,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     registerShuffleMaxRetries = conf.registerShuffleMaxRetry();
     registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
     maxInFlight = conf.pushMaxReqsInFlight();
+
+    if (conf.pushDataSlowStart()) {
+       currentMaxReqsInFlight = new AtomicInteger(1);
+    } else {
+      currentMaxReqsInFlight = new AtomicInteger(maxInFlight);
+    }
+
     pushBufferMaxSize = conf.pushBufferMaxSize();
 
     // init rpc env and master endpointRef
@@ -591,7 +599,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get());
 
       // add inFlight requests
       pushState.addBatch(nextBatchId);
@@ -873,7 +881,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     ArrayList<Map.Entry<String, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
-      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get());
       Map.Entry<String, DataBatches> entry = batchesArr.get(RND.nextInt(batchesArr.size()));
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
@@ -1268,29 +1276,35 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private void slowStart() {
-    synchronized (currentMaxReqsInFlight) {
-      if (currentMaxReqsInFlight > maxInFlight) {
-        // Congestion avoidance
-        congestionAvoidanceFlag++;
-        if (congestionAvoidanceFlag >= currentMaxReqsInFlight) {
-          currentMaxReqsInFlight++;
-          congestionAvoidanceFlag = 0;
+    if (conf.pushDataSlowStart()) {
+      synchronized (congestionAvoidanceFlag) {
+        int pre = currentMaxReqsInFlight.get();
+        if (pre > maxInFlight) {
+          // Congestion avoidance
+          congestionAvoidanceFlag++;
+          if (congestionAvoidanceFlag >= pre) {
+            currentMaxReqsInFlight.set(pre + 1);
+            congestionAvoidanceFlag = 0;
+          }
+        } else {
+          // Slow start
+          currentMaxReqsInFlight.set(pre + 1);
         }
-      } else {
-        // Slow start
-        currentMaxReqsInFlight++;
       }
     }
   }
 
   private void congestionControl() {
-    synchronized (currentMaxReqsInFlight) {
-      if (currentMaxReqsInFlight <= 1) {
-        currentMaxReqsInFlight = 1;
+    maxInFlight = currentMaxReqsInFlight.getAndUpdate(pre -> {
+      if (pre <= 1) {
+        return 1;
       } else {
-        currentMaxReqsInFlight = currentMaxReqsInFlight / 2;
+        return pre / 2;
       }
-      maxInFlight = currentMaxReqsInFlight;
+    });
+
+    synchronized (congestionAvoidanceFlag) {
+      congestionAvoidanceFlag = 0;
     }
   }
 
