@@ -367,6 +367,8 @@ object PbSerDeUtils {
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
+      // appDiskUsageMetricSnapshots can have null values,
+      // protobuf repeated value can't support null value in list.
       .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)
         .map(toPbAppDiskUsageSnapshot).toList.asJava)
     if (currentAppDiskUsageMetricsSnapshot != null) {
