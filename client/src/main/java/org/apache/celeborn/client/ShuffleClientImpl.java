@@ -1281,7 +1281,7 @@ public class ShuffleClientImpl extends ShuffleClient {
    *
    * <p>1. slow start period: every RTT period, `currentMaxReqsInFlight` is multiplied.
    *
-   * <p>2.congestion avoidance: every RTT period, `currentMaxReqsInFlight` plus 1.
+   * <p>2. congestion avoidance: every RTT period, `currentMaxReqsInFlight` plus 1.
    *
    * <p>Note that here we define one RTT period: one batch(currentMaxReqsInFlight) of push data
    * requests.
