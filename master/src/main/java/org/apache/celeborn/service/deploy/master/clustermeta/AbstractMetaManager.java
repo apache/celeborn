@@ -20,6 +20,9 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 import static org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -243,8 +246,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
    * @throws IOException
    */
   public void writeMetaInfoToFile(File file) throws IOException, RuntimeException {
-    BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
-
     byte[] snapshotBytes =
         PbSerDeUtils.toPbSnapshotMetaInfo(
                 estimatedPartitionSize,
@@ -259,10 +260,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get())
             .toByteArray();
-
-    out.write(snapshotBytes);
-    out.flush();
-    out.close();
+    Files.write(Paths.get(file.toURI()), snapshotBytes);
   }
 
   /**
