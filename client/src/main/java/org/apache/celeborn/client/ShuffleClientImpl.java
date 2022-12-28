@@ -86,7 +86,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final long registerShuffleRetryWaitMs;
   private int maxInFlight;
   private final AtomicInteger currentMaxReqsInFlight;
-  private Integer congestionAvoidanceFlag = 0;
+  private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
 
   private final RpcEnv rpcEnv;
