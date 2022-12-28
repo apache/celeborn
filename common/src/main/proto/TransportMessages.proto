@@ -440,9 +440,10 @@ message PbAppDiskUsage {
 }
 
 message PbAppDiskUsageSnapshot {
-  repeated PbAppDiskUsage topNItems = 1;
-  int64 startSnapShotTime = 2;
-  int64 endSnapshotTime = 3;
+  int32 topItemCount = 1;
+  repeated PbAppDiskUsage topNItems = 2;
+  int64 startSnapShotTime = 3;
+  int64 endSnapshotTime = 4;
 }
 
 message PbSnapshotMetaInfo {

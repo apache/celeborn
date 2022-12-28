@@ -329,11 +329,16 @@ object PbSerDeUtils {
 
   def fromPbAppDiskUsageSnapshot(
       pbAppDiskUsageSnapShot: PbAppDiskUsageSnapshot): AppDiskUsageSnapShot = {
-    val snapShot = new AppDiskUsageSnapShot(pbAppDiskUsageSnapShot.getTopNItemsCount)
+    val snapShot = new AppDiskUsageSnapShot(pbAppDiskUsageSnapShot.getTopItemCount)
     snapShot.startSnapShotTime = pbAppDiskUsageSnapShot.getStartSnapShotTime
     snapShot.endSnapShotTime = pbAppDiskUsageSnapShot.getEndSnapshotTime
-    snapShot.topNItems =
-      pbAppDiskUsageSnapShot.getTopNItemsList.asScala.map(fromPbAppDiskUsage).toList.toArray
+    snapShot.restoreFromSnapshot(
+      pbAppDiskUsageSnapShot
+        .getTopNItemsList
+        .asScala
+        .map(fromPbAppDiskUsage)
+        .toList
+        .asJava)
     snapShot
   }
 
@@ -341,7 +346,8 @@ object PbSerDeUtils {
     PbAppDiskUsageSnapshot.newBuilder()
       .setStartSnapShotTime(snapshots.startSnapShotTime)
       .setEndSnapshotTime(snapshots.endSnapShotTime)
-      .addAllTopNItems(snapshots.topNItems.map(toPbAppDiskUsage).toList.asJava)
+      // topNItems some value could be null
+      .addAllTopNItems(snapshots.topNItems.filter(_ != null).map(toPbAppDiskUsage).toList.asJava)
       .build()
   }
 

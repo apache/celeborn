@@ -78,6 +78,17 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
     -1
   }
 
+  def restoreFromSnapshot(array: java.util.List[AppDiskUsage]): Unit = {
+    // Restored snapshots only contains values not null
+    for (i <- 0 until (topItemCount)) {
+      if (i < array.size()) {
+        topNItems(i) = array.get(i)
+      } else {
+        topNItems(i) = null
+      }
+    }
+  }
+
   override def toString(): String = {
     val zoneId = ZoneId.systemDefault()
     s"Snapshot " +
