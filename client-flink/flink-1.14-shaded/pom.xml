@@ -24,14 +24,14 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-flink-${flink.binary.version}-shaded_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-flink-1.14-shaded_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Shaded Client for Flink 1.14</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-flink-${flink.binary.version}_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client-flink-1.14_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

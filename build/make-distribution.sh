@@ -185,13 +185,49 @@ function build_spark_client {
   cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
 }
 
+function build_flink_client {
+  FLINK_VERSION=$("$MVN" help:evaluate -Dexpression=flink.version $@ 2>/dev/null\
+      | grep -v "INFO"\
+      | grep -v "WARNING"\
+      | tail -n 1)
+  SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev/null \
+      | grep -v "INFO" \
+      | grep -v "WARNING" \
+      | tail -n 1)
+  FLINK_BINARY_VERSION=${FLINK_VERSION%.*}
+
+  # Store the command as an array because $MVN variable might have spaces in it.
+  # Normal quoting tricks don't work.
+  # See: http://mywiki.wooledge.org/BashFAQ/050
+  BUILD_COMMAND=("$MVN" clean package -DskipTests -pl :celeborn-client-flink-${FLINK_BINARY_VERSION}-shaded_$SCALA_VERSION -am $@)
+
+  # Actually build the jar
+  echo -e "\nBuilding with..."
+  echo -e "\$ ${BUILD_COMMAND[@]}\n"
+
+  "${BUILD_COMMAND[@]}"
+
+  ## flink spark client jars
+  mkdir -p "$DIST_DIR/flink"
+  cp "$PROJECT_DIR"/client-flink/flink-$FLINK_BINARY_VERSION-shaded/target/celeborn-client-flink-${FLINK_BINARY_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/flink/"
+}
+
 if [ "$RELEASE" == "true" ]; then
   build_service
   build_spark_client -Pspark-2.4
   build_spark_client -Pspark-3.3
+  build_flink_client -Pflink-1.14
 else
+  ## build release package on demand
   build_service $@
-  build_spark_client $@
+  if [[ $@ == *"spark"* && $@ != *"flink"* ]]; then
+    build_spark_client $@
+  elif [[ $@ == *"flink"* && $@ != *"spark"* ]]; then
+    build_flink_client $@
+  else
+    echo "Error: unsupported command $@"
+    exit -1
+  fi
 fi
 
 # Copy configuration templates

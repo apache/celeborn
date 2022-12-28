@@ -57,6 +57,8 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
+    <scala11.version>2.11.12</scala11.version>
+    <scala11.binary.version>2.11</scala11.binary.version>
     <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -1019,14 +1021,19 @@
         <module>client-flink/flink-1.14-shaded</module>
       </modules>
       <properties>
-        <flink.version>1.14.0</flink.version>
-        <flink.binary.version>1.14</flink.binary.version>
+        <flink.version>1.14.6</flink.version>
         <jackson.version>2.6.7</jackson.version>
         <jackson.databind.version>2.6.7.3</jackson.databind.version>
         <lz4-java.version>1.4.0</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
-        <scala.binary.version>2.12</scala.binary.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>scala-2.11</id>
+      <properties>
+        <scala.version>${scala11.version}</scala.version>
+        <scala.binary.version>${scala11.binary.version}</scala.binary.version>
       </properties>
     </profile>
 
