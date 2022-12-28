@@ -1275,6 +1275,16 @@ public class ShuffleClientImpl extends ShuffleClient {
     driverRssMetaService = endpointRef;
   }
 
+  /**
+   * If `pushDataSlowStart` is enabled, will increase `currentMaxReqsInFlight` gradually to meet the
+   * max push speed.
+   *
+   * <p>1. slow start period: every RTT period, `currentMaxReqsInFlight` is multiplied. 2.congestion
+   * avoidance: every RTT period, `currentMaxReqsInFlight` plus 1.
+   *
+   * <p>Note that here we define one RTT period: one batch(currentMaxReqsInFlight) of push data
+   * requests.
+   */
   private void slowStart() {
     if (conf.pushDataSlowStart()) {
       synchronized (congestionAvoidanceFlag) {
