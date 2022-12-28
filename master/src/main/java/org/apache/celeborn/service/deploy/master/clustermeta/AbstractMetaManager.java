@@ -262,6 +262,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
     out.write(snapshotBytes);
     out.flush();
+    out.close();
   }
 
   /**
