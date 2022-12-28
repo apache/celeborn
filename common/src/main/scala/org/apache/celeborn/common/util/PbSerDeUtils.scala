@@ -19,6 +19,7 @@ package org.apache.celeborn.common.util
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.IntFunction
 
 import scala.collection.JavaConverters._
 
@@ -337,13 +338,17 @@ object PbSerDeUtils {
         .getTopNItemsList
         .asScala
         .map(fromPbAppDiskUsage)
-        .toList
-        .asJava)
+        .asJava
+        .stream()
+        .toArray(new IntFunction[Array[AppDiskUsage]]() {
+          override def apply(value: Int): Array[AppDiskUsage] = new Array[AppDiskUsage](value)
+        }))
     snapShot
   }
 
   def toPbAppDiskUsageSnapshot(snapshots: AppDiskUsageSnapShot): PbAppDiskUsageSnapshot = {
     PbAppDiskUsageSnapshot.newBuilder()
+      .setTopItemCount(snapshots.topItemCount)
       .setStartSnapShotTime(snapshots.startSnapShotTime)
       .setEndSnapshotTime(snapshots.endSnapShotTime)
       // topNItems some value could be null

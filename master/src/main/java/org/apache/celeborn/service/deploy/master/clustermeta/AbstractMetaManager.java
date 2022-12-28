@@ -21,7 +21,6 @@ import static org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -259,7 +258,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get())
             .toByteArray();
-    Files.write(Paths.get(file.toURI()), snapshotBytes);
+    Files.write(file.toPath(), snapshotBytes);
   }
 
   /**
@@ -306,7 +305,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       appDiskUsageMetric.restoreFromSnapshot(
           snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
               .map(PbSerDeUtils::fromPbAppDiskUsageSnapshot)
-              .collect(Collectors.toList()));
+              .toArray(AppDiskUsageSnapShot[]::new));
       appDiskUsageMetric.currentSnapShot_$eq(
           new AtomicReference<AppDiskUsageSnapShot>(
               PbSerDeUtils.fromPbAppDiskUsageSnapshot(

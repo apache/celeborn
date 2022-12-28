@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -200,8 +201,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
   }
 
   @Test
-  public void testObjSerde() throws IOException {
-    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null, new CelebornConf());
+  public void testObjSerde() throws IOException, InterruptedException {
+    CelebornConf conf = new CelebornConf();
+    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null, conf);
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
     Map<String, DiskInfo> disks1 = new HashMap<>();
@@ -256,6 +258,24 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.hostnameSet.add(host2);
     masterStatusSystem.hostnameSet.add(host3);
 
+    // Wait for update snapshot
+    Thread.sleep(60000);
+    Map<String, Long> appDiskUsage = new ConcurrentHashMap<String, Long>();
+    appDiskUsage.put("app-1", 100L);
+    appDiskUsage.put("app-2", 200L);
+    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
+    appDiskUsage.put("app-3", 300L);
+    appDiskUsage.put("app-1", 200L);
+    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
+    // wait for snapshot updated
+    Thread.sleep(3000);
+
+    AppDiskUsageSnapShot[] originSnapshots = masterStatusSystem.appDiskUsageMetric.snapShots();
+    AppDiskUsageSnapShot originCurrentSnapshot =
+        masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
+    System.out.println("Current appDiskUsageMetric");
+    System.out.println(masterStatusSystem.appDiskUsageMetric.currentSnapShot());
+
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
     masterStatusSystem.hostnameSet.clear();
@@ -265,5 +285,14 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     Assert.assertEquals(3, masterStatusSystem.blacklist.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
+    Assert.assertEquals(
+        conf.metricsAppTopDiskUsageWindowSize(),
+        masterStatusSystem.appDiskUsageMetric.snapShots().length);
+    Assert.assertEquals(
+        conf.metricsAppTopDiskUsageCount(),
+        masterStatusSystem.appDiskUsageMetric.currentSnapShot().get().topNItems().length);
+    Assert.assertEquals(
+        originCurrentSnapshot, masterStatusSystem.appDiskUsageMetric.currentSnapShot().get());
+    Assert.assertEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
   }
 }

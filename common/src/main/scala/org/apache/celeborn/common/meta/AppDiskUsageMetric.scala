@@ -78,15 +78,23 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
     -1
   }
 
-  def restoreFromSnapshot(array: java.util.List[AppDiskUsage]): Unit = {
+  def restoreFromSnapshot(array: Array[AppDiskUsage]): Unit = {
     // Restored snapshots only contains values not null
     for (i <- 0 until (topItemCount)) {
-      if (i < array.size()) {
-        topNItems(i) = array.get(i)
+      if (i < array.length) {
+        topNItems(i) = array(i)
       } else {
         topNItems(i) = null
       }
     }
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj.isInstanceOf[AppDiskUsageSnapShot] &&
+    obj.asInstanceOf[AppDiskUsageSnapShot].topItemCount == topItemCount &&
+    obj.asInstanceOf[AppDiskUsageSnapShot].startSnapShotTime == startSnapShotTime &&
+    obj.asInstanceOf[AppDiskUsageSnapShot].endSnapShotTime == endSnapShotTime &&
+    obj.asInstanceOf[AppDiskUsageSnapShot].topNItems.zip(topNItems).forall { case (x, y) => x == y }
   }
 
   override def toString(): String = {
@@ -156,11 +164,11 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
     stringBuilder.toString()
   }
 
-  def restoreFromSnapshot(array: java.util.List[AppDiskUsageSnapShot]): Unit = {
+  def restoreFromSnapshot(array: Array[AppDiskUsageSnapShot]): Unit = {
     // Restored snapshots only contains values not null
     for (i <- 0 until (snapshotCount)) {
-      if (i < array.size()) {
-        snapShots(i) = array.get(i)
+      if (i < array.length) {
+        snapShots(i) = array(i)
       } else {
         snapShots(i) = null
       }
