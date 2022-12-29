@@ -19,12 +19,12 @@ package org.apache.celeborn.common.util
 
 import java.util
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
-class UtilsSuite extends RssFunSuite {
+class UtilsSuite extends CelebornFunSuite {
 
   test("stringToSeq") {
     val seq1 = Seq("asd", "bcd", "def")

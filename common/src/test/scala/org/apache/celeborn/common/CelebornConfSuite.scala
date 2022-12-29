@@ -17,10 +17,10 @@
 
 package org.apache.celeborn.common
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.util.Utils
 
-class CelebornConfSuite extends RssFunSuite {
+class CelebornConfSuite extends CelebornFunSuite {
 
   test("celeborn.master.endpoints support multi nodes") {
     val conf = new CelebornConf()

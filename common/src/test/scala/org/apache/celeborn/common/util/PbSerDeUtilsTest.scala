@@ -21,14 +21,14 @@ import java.io.File
 import java.util
 import java.util.concurrent.ConcurrentHashMap
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 
-class PbSerDeUtilsTest extends RssFunSuite {
+class PbSerDeUtilsTest extends CelebornFunSuite {
 
   val fileSet = new util.HashSet[String]()
   fileSet.add("a")

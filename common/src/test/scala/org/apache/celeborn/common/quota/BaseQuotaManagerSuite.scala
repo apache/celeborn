@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.common.quota
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 
-abstract class BaseQuotaManagerSuite extends RssFunSuite {
+abstract class BaseQuotaManagerSuite extends CelebornFunSuite {
   protected var quotaManager: QuotaManager = _
 }

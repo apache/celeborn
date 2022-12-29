@@ -21,12 +21,12 @@ import scala.collection.JavaConverters._
 
 import org.junit.Assert
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.PackedPartitionId
 
-trait WithShuffleClientSuite extends RssFunSuite {
+trait WithShuffleClientSuite extends CelebornFunSuite {
 
   protected val celebornConf: CelebornConf = new CelebornConf()
 

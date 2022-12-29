@@ -32,7 +32,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.internal.Logging
 
-abstract class RssFunSuite
+abstract class CelebornFunSuite
   extends AnyFunSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach
