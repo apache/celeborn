@@ -698,6 +698,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         .getOrElse(rpcAskTimeout.duration * (requestCommitFilesMaxRetries + 2)),
       GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
+  def pushDataSlowStart: Boolean = get(PUSH_DATA_SLOW_START)
+
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
@@ -2243,6 +2245,15 @@ object CelebornConf extends Logging {
         s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1 + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+
+  val PUSH_DATA_SLOW_START: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.data.slowStart")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether to allow to slow increasing maxReqs to meet the max push capacity, " +
+        "worked when worker side enables rate limit mechanism")
+      .booleanConf
+      .createWithDefault(false)
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")

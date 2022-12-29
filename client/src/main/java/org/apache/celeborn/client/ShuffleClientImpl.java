@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
 import scala.reflect.ClassTag$;
@@ -84,7 +85,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWaitMs;
   private int maxInFlight;
-  private Integer currentMaxReqsInFlight = 1;
+  private final AtomicInteger currentMaxReqsInFlight;
   private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
 
@@ -138,6 +139,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     registerShuffleMaxRetries = conf.registerShuffleMaxRetry();
     registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
     maxInFlight = conf.pushMaxReqsInFlight();
+
+    if (conf.pushDataSlowStart()) {
+      currentMaxReqsInFlight = new AtomicInteger(1);
+    } else {
+      currentMaxReqsInFlight = new AtomicInteger(maxInFlight);
+    }
+
     pushBufferMaxSize = conf.pushBufferMaxSize();
 
     // init rpc env and master endpointRef
@@ -591,7 +599,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get());
 
       // add inFlight requests
       pushState.addBatch(nextBatchId);
@@ -873,7 +881,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     ArrayList<Map.Entry<String, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
-      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight);
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get());
       Map.Entry<String, DataBatches> entry = batchesArr.get(RND.nextInt(batchesArr.size()));
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
@@ -1267,30 +1275,44 @@ public class ShuffleClientImpl extends ShuffleClient {
     driverRssMetaService = endpointRef;
   }
 
+  /**
+   * If `pushDataSlowStart` is enabled, will increase `currentMaxReqsInFlight` gradually to meet the
+   * max push speed.
+   *
+   * <p>1. slow start period: every RTT period, `currentMaxReqsInFlight` is multiplied.
+   *
+   * <p>2. congestion avoidance: every RTT period, `currentMaxReqsInFlight` plus 1.
+   *
+   * <p>Note that here we define one RTT period: one batch(currentMaxReqsInFlight) of push data
+   * requests.
+   */
   private void slowStart() {
-    synchronized (currentMaxReqsInFlight) {
-      if (currentMaxReqsInFlight > maxInFlight) {
-        // Congestion avoidance
-        congestionAvoidanceFlag++;
-        if (congestionAvoidanceFlag >= currentMaxReqsInFlight) {
-          currentMaxReqsInFlight++;
-          congestionAvoidanceFlag = 0;
+    if (conf.pushDataSlowStart()) {
+      synchronized (currentMaxReqsInFlight) {
+        if (currentMaxReqsInFlight.get() > maxInFlight) {
+          // Congestion avoidance
+          congestionAvoidanceFlag++;
+          if (congestionAvoidanceFlag >= currentMaxReqsInFlight.get()) {
+            currentMaxReqsInFlight.incrementAndGet();
+            congestionAvoidanceFlag = 0;
+          }
+        } else {
+          // Slow start
+          currentMaxReqsInFlight.incrementAndGet();
         }
-      } else {
-        // Slow start
-        currentMaxReqsInFlight++;
       }
     }
   }
 
   private void congestionControl() {
     synchronized (currentMaxReqsInFlight) {
-      if (currentMaxReqsInFlight <= 1) {
-        currentMaxReqsInFlight = 1;
+      if (currentMaxReqsInFlight.get() <= 1) {
+        currentMaxReqsInFlight.set(1);
       } else {
-        currentMaxReqsInFlight = currentMaxReqsInFlight / 2;
+        currentMaxReqsInFlight.updateAndGet(pre -> pre / 2);
       }
-      maxInFlight = currentMaxReqsInFlight;
+      maxInFlight = currentMaxReqsInFlight.get();
+      congestionAvoidanceFlag = 0;
     }
   }
 
