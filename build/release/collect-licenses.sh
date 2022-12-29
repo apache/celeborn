@@ -29,10 +29,7 @@ set -e
 
 SRC=${1:-.}
 DST=${2:-licenses-output}
-PROJECT_DIR="$(
-  cd "$(dirname "$0")"/..
-  pwd
-)"
+PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
 TMP="${DST}/tmp"
 NOTICE_BINARY_PREAMBLE="${PROJECT_DIR}/NOTICE"
 
@@ -59,7 +56,7 @@ NOTICE="${DST}/NOTICE"
 cp "${NOTICE_BINARY_PREAMBLE}" "${NOTICE}"
 (
   export LC_ALL=C
-  find "${TMP}" -name "NOTICE*" | sort | xargs ${PROJECT_DIR}/build/append_notice.py "${NOTICE}"
+  find "${TMP}" -name "NOTICE*" | sort | xargs ${PROJECT_DIR}/build/release/append_notice.py "${NOTICE}"
 )
 
 LICENSES="${DST}/licenses"
@@ -67,9 +64,7 @@ LICENSES="${DST}/licenses"
 find "${TMP}" -name "licenses" -type d -exec cp -r -- "{}" "${DST}" \;
 
 # Search and collect license files that not bundled in any jars.
-if [ ! -d ${LICENSES} ]; then
-  mkdir -p ${LICENSES}
-fi
+mkdir -p ${LICENSES}
 find "${SRC}" -name "LICENSE.*" -type f \
   ! -path "${DST}/licenses/*" ! -path "${TMP}/licenses/*" -exec cp -- "{}" "${DST}/licenses" \;
 
