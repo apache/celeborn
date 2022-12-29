@@ -415,24 +415,22 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      if (fileInfos.containsKey(shuffleKey)) {
-        val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
-        val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-        disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
-          diskInfo.dirs.foreach { dir =>
-            val file = new File(dir, s"$appId/$shuffleId")
-            deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
-          }
+      val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
+      val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+      disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
+        diskInfo.dirs.foreach { dir =>
+          val file = new File(dir, s"$appId/$shuffleId")
+          deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
         }
-        hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hadoopFs))
-        if (!hdfsInfos.isEmpty) {
-          try {
-            StorageManager.hadoopFs.delete(
-              new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
-              true)
-          } catch {
-            case e: Exception => logWarning("Clean expired hdfs shuffle failed.", e)
-          }
+      }
+      hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hadoopFs))
+      if (!hdfsInfos.isEmpty) {
+        try {
+          StorageManager.hadoopFs.delete(
+            new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+            true)
+        } catch {
+          case e: Exception => logWarning("Clean expired hdfs shuffle failed.", e)
         }
       }
     }
