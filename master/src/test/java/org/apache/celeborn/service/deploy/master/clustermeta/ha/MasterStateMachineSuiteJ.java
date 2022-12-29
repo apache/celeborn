@@ -273,8 +273,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     AppDiskUsageSnapShot[] originSnapshots = masterStatusSystem.appDiskUsageMetric.snapShots();
     AppDiskUsageSnapShot originCurrentSnapshot =
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
-    System.out.println("Current appDiskUsageMetric");
-    System.out.println(masterStatusSystem.appDiskUsageMetric.currentSnapShot());
 
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
