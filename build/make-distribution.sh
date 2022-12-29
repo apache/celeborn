@@ -217,7 +217,7 @@ function package_binary() {
   share_common_jars
 
   ## Copy spark client jars
-  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-$SPARK_MAJOR_VERSION-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
+  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
   #build 2.4
   VERSION=$("$MVN" help:evaluate -Dexpression=project.version -Pspark-2.4 2>/dev/null | grep -v "INFO" |
     grep -v "WARNING" |
@@ -230,7 +230,7 @@ function package_binary() {
     tail -n 1)
   SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
   "$MVN" clean package -DskipTests -Pspark-2.4
-  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-$SPARK_MAJOR_VERSION-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
+  cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
 
   # Copy other things
   mkdir "$DIST_DIR/conf"
