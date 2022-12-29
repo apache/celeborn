@@ -28,7 +28,7 @@ import scala.reflect.ClassTag
 
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -36,7 +36,7 @@ import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEndpoi
 import org.apache.celeborn.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
 import org.apache.celeborn.common.util.ThreadUtils
 
-class WorkerInfoSuite extends RssFunSuite {
+class WorkerInfoSuite extends CelebornFunSuite {
 
   test("test") {
     def run(block: () => Unit = () => {}): Unit = {

@@ -17,10 +17,10 @@
 
 package org.apache.celeborn.common.identity
 
-import org.apache.celeborn.RssFunSuite
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.exception.CelebornException
 
-class UserIdentifierSuite extends RssFunSuite {
+class UserIdentifierSuite extends CelebornFunSuite {
 
   test("UserIdentifier's tenantId and name should noy be null or empty") {
     val e1 = intercept[AssertionError] {
