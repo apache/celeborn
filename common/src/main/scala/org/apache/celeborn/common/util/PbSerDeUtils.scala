@@ -19,15 +19,14 @@ package org.apache.celeborn.common.util
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.IntFunction
 
 import scala.collection.JavaConverters._
 
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.DiskInfo
-import org.apache.celeborn.common.meta.FileInfo
-import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskInfo, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -318,4 +317,75 @@ object PbSerDeUtils {
     }).asJava
   }
 
+  def fromPbAppDiskUsage(pbAppDiskUsage: PbAppDiskUsage): AppDiskUsage = {
+    AppDiskUsage(pbAppDiskUsage.getAppId, pbAppDiskUsage.getEstimatedUsage)
+  }
+
+  def toPbAppDiskUsage(appDiskUsage: AppDiskUsage): PbAppDiskUsage = {
+    PbAppDiskUsage.newBuilder()
+      .setAppId(appDiskUsage.appId)
+      .setEstimatedUsage(appDiskUsage.estimatedUsage)
+      .build()
+  }
+
+  def fromPbAppDiskUsageSnapshot(
+      pbAppDiskUsageSnapShot: PbAppDiskUsageSnapshot): AppDiskUsageSnapShot = {
+    val snapShot = new AppDiskUsageSnapShot(pbAppDiskUsageSnapShot.getTopItemCount)
+    snapShot.startSnapShotTime = pbAppDiskUsageSnapShot.getStartSnapShotTime
+    snapShot.endSnapShotTime = pbAppDiskUsageSnapShot.getEndSnapshotTime
+    snapShot.restoreFromSnapshot(
+      pbAppDiskUsageSnapShot
+        .getTopNItemsList
+        .asScala
+        .map(fromPbAppDiskUsage)
+        .asJava
+        .stream()
+        .toArray(new IntFunction[Array[AppDiskUsage]]() {
+          override def apply(value: Int): Array[AppDiskUsage] = new Array[AppDiskUsage](value)
+        }))
+    snapShot
+  }
+
+  def toPbAppDiskUsageSnapshot(snapshots: AppDiskUsageSnapShot): PbAppDiskUsageSnapshot = {
+    PbAppDiskUsageSnapshot.newBuilder()
+      .setTopItemCount(snapshots.topItemCount)
+      .setStartSnapShotTime(snapshots.startSnapShotTime)
+      .setEndSnapshotTime(snapshots.endSnapShotTime)
+      // topNItems some value could be null
+      .addAllTopNItems(snapshots.topNItems.filter(_ != null).map(toPbAppDiskUsage).toList.asJava)
+      .build()
+  }
+
+  def toPbSnapshotMetaInfo(
+      estimatedPartitionSize: java.lang.Long,
+      registeredShuffle: java.util.Set[String],
+      hostnameSet: java.util.Set[String],
+      blacklist: java.util.Set[WorkerInfo],
+      workerLostEvent: java.util.Set[WorkerInfo],
+      appHeartbeatTime: java.util.Map[String, java.lang.Long],
+      workers: java.util.ArrayList[WorkerInfo],
+      partitionTotalWritten: java.lang.Long,
+      partitionTotalFileCount: java.lang.Long,
+      appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
+      currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot): PbSnapshotMetaInfo = {
+    val builder = PbSnapshotMetaInfo.newBuilder()
+      .setEstimatedPartitionSize(estimatedPartitionSize)
+      .addAllRegisteredShuffle(registeredShuffle)
+      .addAllHostnameSet(hostnameSet)
+      .addAllBlacklist(blacklist.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .putAllAppHeartbeatTime(appHeartbeatTime)
+      .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .setPartitionTotalWritten(partitionTotalWritten)
+      .setPartitionTotalFileCount(partitionTotalFileCount)
+      // appDiskUsageMetricSnapshots can have null values,
+      // protobuf repeated value can't support null value in list.
+      .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)
+        .map(toPbAppDiskUsageSnapshot).toList.asJava)
+    if (currentAppDiskUsageMetricsSnapshot != null) {
+      builder.setCurrentAppDiskUsageMetricsSnapshot(
+        toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
+    }
+    builder.build()
+  }
 }
