@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 import static org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,19 +30,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
@@ -243,63 +244,21 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
    * @throws IOException
    */
   public void writeMetaInfoToFile(File file) throws IOException, RuntimeException {
-    ObjectOutputStream out =
-        new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
-
-    out.writeLong(estimatedPartitionSize);
-    // write registeredShuffle
-    writeSetMetaToFile(registeredShuffle, out);
-
-    // write hostnameSet
-    writeSetMetaToFile(hostnameSet, out);
-
-    // write blacklist
-    writeSetMetaToFile(blacklist, out);
-
-    // write workerLost events
-    writeSetMetaToFile(workerLostEvents, out);
-
-    // write application heartbeat time
-    out.writeInt(appHeartbeatTime.size());
-    appHeartbeatTime.forEach(
-        (app, time) -> {
-          try {
-            out.writeObject(app);
-            out.writeLong(time);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
-
-    // write workerInfo
-    out.writeInt(workers.size());
-    workers.forEach(
-        workerInfo -> {
-          try {
-            out.writeObject(workerInfo);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
-
-    out.writeLong(partitionTotalWritten.sum());
-    out.writeLong(partitionTotalFileCount.sum());
-    out.writeObject(appDiskUsageMetric.snapShots());
-    out.writeObject(appDiskUsageMetric.currentSnapShot());
-
-    out.flush();
-  }
-
-  private <T> void writeSetMetaToFile(Set<T> metas, ObjectOutputStream out) throws IOException {
-    out.writeInt(metas.size());
-    metas.forEach(
-        meta -> {
-          try {
-            out.writeObject(meta);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    byte[] snapshotBytes =
+        PbSerDeUtils.toPbSnapshotMetaInfo(
+                estimatedPartitionSize,
+                registeredShuffle,
+                hostnameSet,
+                blacklist,
+                workerLostEvents,
+                appHeartbeatTime,
+                workers,
+                partitionTotalWritten.sum(),
+                partitionTotalFileCount.sum(),
+                appDiskUsageMetric.snapShots(),
+                appDiskUsageMetric.currentSnapShot().get())
+            .toByteArray();
+    Files.write(file.toPath(), snapshotBytes);
   }
 
   /**
@@ -309,26 +268,23 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
    * @throws IOException
    */
   public void restoreMetaFromFile(File file) throws IOException {
-    try (ObjectInputStream in =
-        new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-      estimatedPartitionSize = in.readLong();
-      // read registeredShuffle
-      readSetMetaFromFile(registeredShuffle, in.readInt(), in);
+    try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
+      PbSnapshotMetaInfo snapshotMetaInfo = PbSnapshotMetaInfo.parseFrom(in);
 
-      // read hostnameSet
-      readSetMetaFromFile(hostnameSet, in.readInt(), in);
+      estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 
-      // read blacklist
-      readSetMetaFromFile(blacklist, in.readInt(), in);
+      registeredShuffle.addAll(snapshotMetaInfo.getRegisteredShuffleList());
+      hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
+      blacklist.addAll(
+          snapshotMetaInfo.getBlacklistList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+      workerLostEvents.addAll(
+          snapshotMetaInfo.getWorkerLostEventsList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+      appHeartbeatTime.putAll(snapshotMetaInfo.getAppHeartbeatTimeMap());
 
-      // read workerLost events
-      readSetMetaFromFile(workerLostEvents, in.readInt(), in);
-
-      // read application heartbeat time
-      int size = in.readInt();
-      for (int i = 0; i < size; ++i) {
-        appHeartbeatTime.put((String) in.readObject(), in.readLong());
-      }
       registeredShuffle.forEach(
           shuffleKey -> {
             String appId = shuffleKey.split("-")[0];
@@ -337,19 +293,24 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             }
           });
 
-      // read workerInfo
-      int workersSize = in.readInt();
-      for (int i = 0; i < workersSize; ++i) {
-        workers.add((WorkerInfo) in.readObject());
-      }
+      workers.addAll(
+          snapshotMetaInfo.getWorkersList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+
       partitionTotalWritten.reset();
-      partitionTotalWritten.add(in.readLong());
+      partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.reset();
-      partitionTotalFileCount.add(in.readLong());
-      appDiskUsageMetric.restoreFromSnapshot((AppDiskUsageSnapShot[]) in.readObject());
+      partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
+      appDiskUsageMetric.restoreFromSnapshot(
+          snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
+              .map(PbSerDeUtils::fromPbAppDiskUsageSnapshot)
+              .toArray(AppDiskUsageSnapShot[]::new));
       appDiskUsageMetric.currentSnapShot_$eq(
-          (AtomicReference<AppDiskUsageSnapShot>) in.readObject());
-    } catch (ClassNotFoundException e) {
+          new AtomicReference<AppDiskUsageSnapShot>(
+              PbSerDeUtils.fromPbAppDiskUsageSnapshot(
+                  snapshotMetaInfo.getCurrentAppDiskUsageMetricsSnapshot())));
+    } catch (Exception e) {
       throw new IOException(e);
     }
     LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
@@ -360,13 +321,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         blacklist.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
-  }
-
-  private <T> void readSetMetaFromFile(Set<T> metas, int size, ObjectInputStream in)
-      throws ClassNotFoundException, IOException {
-    for (int i = 0; i < size; ++i) {
-      metas.add((T) in.readObject());
-    }
   }
 
   public void updateBlacklistByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
