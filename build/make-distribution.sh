@@ -218,7 +218,7 @@ function package_binary() {
 
   ## Copy spark client jars
   cp "$PROJECT_DIR"/client-spark/spark-$SPARK_MAJOR_VERSION-shaded/target/celeborn-client-spark-$SPARK_MAJOR_VERSION-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
-  # build 2.4
+  #build 2.4
   VERSION=$("$MVN" help:evaluate -Dexpression=project.version -Pspark-2.4 2>/dev/null | grep -v "INFO" |
     grep -v "WARNING" |
     tail -n 1)
