@@ -42,7 +42,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
-  var registered: AtomicBoolean = _
+  var registered: AtomicBoolean = new AtomicBoolean(false)
 
   def init(worker: Worker): Unit = {
     this.workerSource = worker.workerSource
