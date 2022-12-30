@@ -36,7 +36,6 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>tests/kubernetes-it</module>
   </modules>
 
   <distributionManagement>
@@ -1050,6 +1049,13 @@
         <mavenCentralName>GCS Maven Central mirror</mavenCentralName>
         <mavenCentralUrl>https://maven-central.storage-download.googleapis.com/maven2</mavenCentralUrl>
       </properties>
+    </profile>
+
+    <profile>
+      <id>kubernetes-it</id>
+      <modules>
+        <module>tests/kubernetes-it</module>
+      </modules>
     </profile>
 
     <profile>
