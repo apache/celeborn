@@ -228,9 +228,7 @@ class ReducePartitionCommitHandler(
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
         0 until numMappers foreach (idx => attempts(idx) = -1)
-        shuffleMapperAttempts.synchronized {
-          shuffleMapperAttempts.put(shuffleId, attempts)
-        }
+        shuffleMapperAttempts.put(shuffleId, attempts)
       }
     }
   }
@@ -253,7 +251,7 @@ class ReducePartitionCommitHandler(
   override def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
     var timeout = stageEndTimeout
     val delta = 100
-    while (!this.isStageEnd(shuffleId) && timeout > 0) {
+    while (!isStageEnd(shuffleId) && timeout > 0) {
       Thread.sleep(delta)
       timeout = timeout - delta
     }

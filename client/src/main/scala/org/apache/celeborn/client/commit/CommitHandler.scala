@@ -81,7 +81,7 @@ abstract class CommitHandler(
   def setStageEnd(shuffleId: Int): Unit
 
   /**
-   * return (waitStage isTimeOut, cost)
+   * return (waitStage isTimeOut, waitTime)
    */
   def waitStageEnd(shuffleId: Int): (Boolean, Long) = (true, 0)
 
@@ -152,7 +152,7 @@ abstract class CommitHandler(
       recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean
 
   def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
-    if (this.isStageDataLost(shuffleId)) {
+    if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
           StatusCode.SHUFFLE_DATA_LOST,
@@ -164,7 +164,7 @@ abstract class CommitHandler(
         context.reply(GetReducerFileGroupResponse(
           StatusCode.SUCCESS,
           reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
-          this.getMapperAttempts(shuffleId)))
+          getMapperAttempts(shuffleId)))
       } else {
         val cachedMsg = getReducerFileGroupRpcCache.get(
           shuffleId,
