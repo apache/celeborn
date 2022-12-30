@@ -29,6 +29,7 @@ metadata:
 data:
   celeborn-defaults.conf: |-
     {{- $namespace := .Release.Namespace }}
+    celeborn.ha.enabled=true
     celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local,{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
     celeborn.ha.master.node.{{ . }}.host=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.cluster.local
