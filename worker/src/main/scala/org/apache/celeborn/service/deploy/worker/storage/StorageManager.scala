@@ -545,7 +545,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       }
     }
     if (null != diskOperators) {
-      cleanupExpiredShuffleKey(shuffleKeySet())
+      if (!conf.workerGracefulShutdown) {
+        cleanupExpiredShuffleKey(shuffleKeySet())
+      }
       ThreadUtils.parmap(
         diskOperators.asScala.toMap,
         "ShutdownDiskOperators",
