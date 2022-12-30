@@ -47,7 +47,7 @@ jobs:
     - name: Build Celeborn Docker Image
       uses: docker/build-push-action@v2
       with:
-        context: .
+        context: ./dist
         file: ./docker/Dockerfile
         load: true
         tags: apache/celeborn:latest
