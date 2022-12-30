@@ -67,3 +67,9 @@ jobs:
         sleep 300
         helm list | grep celeborn
         kubectl get pods
+    - name: Run integration test
+      run: >-
+        ./build/mvn clean install 
+        -Pkubernetes-it 
+        -Dtest=none 
+        -DwildcardSuites=org.apache.celeborn.integration.test.ShuffleClientSuite

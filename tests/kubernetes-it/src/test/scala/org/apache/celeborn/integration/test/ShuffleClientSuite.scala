@@ -17,11 +17,20 @@
 
 package org.apache.celeborn.integration.test
 
+import io.fabric8.kubernetes.client.{Config, KubernetesClientBuilder}
+
 import org.apache.celeborn.client.WithShuffleClientSuite
 
 class ShuffleClientSuite extends WithShuffleClientSuite {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
+    val kubernetesClient = new KubernetesClientBuilder()
+      .withConfig(Config.autoConfigure("minikube")).build()
+
+    val podList = kubernetesClient.pods().list()
+    podList.getItems.forEach(pod => {
+      logInfo(pod.toString)
+    })
   }
 }
