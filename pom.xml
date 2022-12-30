@@ -90,6 +90,7 @@
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
+    <kubernetes-client.version>6.3.1</kubernetes-client.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -486,6 +487,11 @@
         <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
         <version>${mockito-scalatest.version}</version>
         <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>kubernetes-client</artifactId>
+        <version>${kubernetes-client.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
