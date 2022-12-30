@@ -36,6 +36,7 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
+    <module>integration-test/kubernetes-it</module>
   </modules>
 
   <distributionManagement>
