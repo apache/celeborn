@@ -19,5 +19,4 @@ package org.apache.celeborn.integration.test
 
 import org.apache.celeborn.client.WithShuffleClientSuite
 
-class ShuffleClientSuite extends WithShuffleClientSuite {
-}
+class ShuffleClientSuite extends WithShuffleClientSuite {}
