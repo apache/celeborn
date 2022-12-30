@@ -34,6 +34,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.rpc.RpcCallContext
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils
@@ -61,7 +62,6 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
 
   // shuffle id -> ShuffleCommittedInfo
   private val committedPartitionInfo = new CommittedPartitionInfo
-
   private val batchHandleCommitPartitionEnabled = conf.batchHandleCommitPartitionEnabled
   private val batchHandleCommitPartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "rss-lifecycle-manager-commit-partition-executor",
@@ -158,7 +158,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
   }
 
-  def registerShuffle(shuffleId: Int): Unit = {
+  def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
@@ -174,6 +174,32 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
         new util.HashSet[PartitionLocation](),
         new AtomicInteger(),
         new ConcurrentHashMap[Int, AtomicInteger]()))
+
+    getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers);
+  }
+
+  def isMapperEnded(shuffleId: Int, mapId: Int): Boolean = {
+    getCommitHandler(shuffleId).isMapperEnded(shuffleId, mapId)
+  }
+
+  def getMapperAttempts(shuffleId: Int): Array[Int] = {
+    getCommitHandler(shuffleId).getMapperAttempts(shuffleId)
+  }
+
+  def finishMapperAttempt(
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      numMappers: Int,
+      partitionId: Int = -1): (Boolean, Boolean) = {
+    getCommitHandler(shuffleId).finishMapperAttempt(
+      shuffleId,
+      mapId,
+      attemptId,
+      numMappers,
+      partitionId,
+      r =>
+        lifecycleManager.recordWorkerFailure(r))
   }
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
@@ -199,13 +225,6 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       r => lifecycleManager.recordWorkerFailure(r))
   }
 
-  def finalPartitionCommit(shuffleId: Int, partitionId: Int): Boolean = {
-    getCommitHandler(shuffleId).finalPartitionCommit(
-      shuffleId,
-      partitionId,
-      r => lifecycleManager.recordWorkerFailure(r))
-  }
-
   def isStageEnd(shuffleId: Int): Boolean = {
     getCommitHandler(shuffleId).isStageEnd(shuffleId)
   }
@@ -214,8 +233,12 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     getCommitHandler(shuffleId).setStageEnd(shuffleId)
   }
 
-  def isStageDataLost(shuffleId: Int): Boolean = {
-    getCommitHandler(shuffleId).isStageDataLost(shuffleId)
+  def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
+    getCommitHandler(shuffleId).waitStageEnd(shuffleId)
+  }
+
+  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId)
   }
 
   private def getCommitHandler(shuffleId: Int): CommitHandler = {
@@ -231,15 +254,11 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                 appId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
-                lifecycleManager.reducerFileGroupsMap,
-                committedPartitionInfo,
-                lifecycleManager.shuffleMapperAttempts)
+                committedPartitionInfo)
             case PartitionType.MAP => new MapPartitionCommitHandler(
                 appId,
                 conf,
-                lifecycleManager
-                  .shuffleAllocatedWorkers,
-                lifecycleManager.reducerFileGroupsMap,
+                lifecycleManager.shuffleAllocatedWorkers,
                 committedPartitionInfo)
             case _ => throw new UnsupportedOperationException(
                 s"Unexpected ShufflePartitionType for CommitManager: $partitionType")

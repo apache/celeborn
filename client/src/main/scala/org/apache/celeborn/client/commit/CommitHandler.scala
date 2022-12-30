@@ -17,23 +17,27 @@
 
 package org.apache.celeborn.client.commit
 
+import java.nio.ByteBuffer
 import java.util
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{Callable, ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import com.google.common.cache.{Cache, CacheBuilder}
+
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups, ShuffleMapperAttempts}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse, GetReducerFileGroupResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.rpc.RpcEndpointRef
+import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
+import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -47,14 +51,24 @@ abstract class CommitHandler(
     appId: String,
     conf: CelebornConf,
     allocatedWorkers: ShuffleAllocatedWorkers,
-    reducerFileGroupsMap: ShuffleFileGroups,
     committedPartitionInfo: CommittedPartitionInfo) extends Logging {
 
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
+  private val rpcCacheSize = conf.rpcCacheSize
+  private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
+  private val rpcCacheExpireTime = conf.rpcCacheExpireTime
+
   private val commitEpoch = new AtomicLong()
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
+  private val reducerFileGroupsMap = new ShuffleFileGroups
+  // noinspection UnstableApiUsage
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+    .concurrencyLevel(rpcCacheConcurrencyLevel)
+    .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(rpcCacheSize)
+    .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
   def getPartitionType(): PartitionType
 
@@ -65,6 +79,11 @@ abstract class CommitHandler(
   def isStageDataLost(shuffleId: Int): Boolean = false
 
   def setStageEnd(shuffleId: Int): Unit
+
+  /**
+   * return (waitStage isTimeOut, waitTime)
+   */
+  def waitStageEnd(shuffleId: Int): (Boolean, Long) = (true, 0)
 
   def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = false
 
@@ -132,14 +151,63 @@ abstract class CommitHandler(
       shuffleId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean
 
-  def finalPartitionCommit(
+  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    if (isStageDataLost(shuffleId)) {
+      context.reply(
+        GetReducerFileGroupResponse(
+          StatusCode.SHUFFLE_DATA_LOST,
+          new ConcurrentHashMap(),
+          Array.empty))
+    } else {
+      if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+        // This branch is for the UTs
+        context.reply(GetReducerFileGroupResponse(
+          StatusCode.SUCCESS,
+          reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+          getMapperAttempts(shuffleId)))
+      } else {
+        val cachedMsg = getReducerFileGroupRpcCache.get(
+          shuffleId,
+          new Callable[ByteBuffer]() {
+            override def call(): ByteBuffer = {
+              val returnedMsg = GetReducerFileGroupResponse(
+                StatusCode.SUCCESS,
+                reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+                getMapperAttempts(shuffleId))
+              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+            }
+          })
+        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+      }
+    }
+  }
+
+  def removeExpiredShuffle(shuffleId: Int): Unit = {
+    reducerFileGroupsMap.remove(shuffleId)
+  }
+
+  /**
+   * For reduce partition if shuffle registered and corresponding map finished, reply true.
+   * For map partition would always return false, as one mapper attempt finished don't mean mapper ended.
+   */
+  def isMapperEnded(shuffleId: Int, mapId: Int): Boolean = false
+
+  def getMapperAttempts(shuffleId: Int): Array[Int]
+
+  /**
+   * return (thisMapperAttemptedFinishedSuccessOrNot, allMapperFinishedOrNot)
+   */
+  def finishMapperAttempt(
       shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      numMappers: Int,
       partitionId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
-  def removeExpiredShuffle(shuffleId: Int): Unit
-
-  def getShuffleMapperAttempts(shuffleId: Int): Array[Int]
+  def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
+    reducerFileGroupsMap.put(shuffleId, new ConcurrentHashMap())
+  }
 
   def parallelCommitFiles(
       shuffleId: Int,
@@ -216,7 +284,7 @@ abstract class CommitHandler(
           shuffleId,
           masterIds,
           slaveIds,
-          getShuffleMapperAttempts(shuffleId),
+          getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
@@ -236,7 +304,7 @@ abstract class CommitHandler(
           shuffleId,
           masterIds.subList(0, masterIds.size() / 2),
           slaveIds.subList(0, slaveIds.size() / 2),
-          getShuffleMapperAttempts(shuffleId),
+          getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res1 = requestCommitFilesWithRetry(worker.endpoint, commitFiles1)
 
@@ -245,7 +313,7 @@ abstract class CommitHandler(
           shuffleId,
           masterIds.subList(masterIds.size() / 2, masterIds.size()),
           slaveIds.subList(slaveIds.size() / 2, slaveIds.size()),
-          getShuffleMapperAttempts(shuffleId),
+          getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res2 = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 

@@ -47,9 +47,8 @@ class MapPartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
     allocatedWorkers: ShuffleAllocatedWorkers,
-    reducerFileGroupsMap: ShuffleFileGroups,
     committedPartitionInfo: CommittedPartitionInfo)
-  extends CommitHandler(appId, conf, allocatedWorkers, reducerFileGroupsMap, committedPartitionInfo)
+  extends CommitHandler(appId, conf, allocatedWorkers, committedPartitionInfo)
   with Logging {
 
   // shuffleId -> in processing partitionId set
@@ -76,37 +75,6 @@ class MapPartitionCommitHandler(
     throw new UnsupportedOperationException(
       "Failed when do final Commit Operation, MapPartition shuffleType only " +
         "support final partition Commit")
-  }
-
-  override def finalPartitionCommit(
-      shuffleId: Int,
-      partitionId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
-    val inProcessingPartitionIds =
-      inProcessMapPartitionEndIds.computeIfAbsent(shuffleId, (k: Int) => new util.HashSet[Int]())
-    inProcessingPartitionIds.add(partitionId)
-
-    val partitionAllocatedWorkers = allocatedWorkers.get(shuffleId).asScala.filter(p =>
-      p._2.containsPartition(shuffleId.toString, partitionId)).asJava
-
-    var dataCommitSuccess = true
-    if (!partitionAllocatedWorkers.isEmpty) {
-      val result =
-        handleFinalPartitionCommitFiles(
-          shuffleId,
-          partitionAllocatedWorkers,
-          partitionId)
-      dataCommitSuccess = result._1
-      recordWorkerFailure(result._2)
-    }
-
-    // release resources and clear related info
-    partitionAllocatedWorkers.asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removeRelatedPartitions(shuffleId.toString, partitionId)
-    }
-
-    inProcessingPartitionIds.remove(partitionId)
-    dataCommitSuccess
   }
 
   override def getUnHandledPartitionLocations(
@@ -142,7 +110,7 @@ class MapPartitionCommitHandler(
     }
   }
 
-  override def getShuffleMapperAttempts(shuffleId: Int): Array[Int] = {
+  override def getMapperAttempts(shuffleId: Int): Array[Int] = {
     // map partition now return empty mapper attempts array as map partition don't prevent other mapper commit file
     // even the same mapper id with another attemptId success in lifecycle manager.
     Array.empty
@@ -150,6 +118,7 @@ class MapPartitionCommitHandler(
 
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
     inProcessMapPartitionEndIds.remove(shuffleId)
+    super.removeExpiredShuffle(shuffleId)
   }
 
   private def handleFinalPartitionCommitFiles(
@@ -207,5 +176,39 @@ class MapPartitionCommitHandler(
       ids: ConcurrentHashMap[Int, util.List[String]],
       partitionId: Int): util.Iterator[String] = {
     ids.getOrDefault(partitionId, Collections.emptyList[String]).iterator()
+  }
+
+  override def finishMapperAttempt(
+      shuffleId: Int,
+      mapId: Int,
+      attemptId: Int,
+      numMappers: Int,
+      partitionId: Int,
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
+    val inProcessingPartitionIds =
+      inProcessMapPartitionEndIds.computeIfAbsent(shuffleId, (k: Int) => new util.HashSet[Int]())
+    inProcessingPartitionIds.add(partitionId)
+
+    val partitionAllocatedWorkers = allocatedWorkers.get(shuffleId).asScala.filter(p =>
+      p._2.containsPartition(shuffleId.toString, partitionId)).asJava
+
+    var dataCommitSuccess = true
+    if (!partitionAllocatedWorkers.isEmpty) {
+      val result =
+        handleFinalPartitionCommitFiles(
+          shuffleId,
+          partitionAllocatedWorkers,
+          partitionId)
+      dataCommitSuccess = result._1
+      recordWorkerFailure(result._2)
+    }
+
+    // release resources and clear related info
+    partitionAllocatedWorkers.asScala.foreach { case (_, partitionLocationInfo) =>
+      partitionLocationInfo.removeRelatedPartitions(shuffleId.toString, partitionId)
+    }
+
+    inProcessingPartitionIds.remove(partitionId)
+    (dataCommitSuccess, false)
   }
 }
