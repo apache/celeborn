@@ -45,6 +45,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
+import org.apache.celeborn.service.deploy.worker.storage.DeviceMonitor.deviceCheckThreadPool
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
@@ -72,6 +73,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       disks.asScala.toList
     }
   }
+
+  disksSnapshot()
+    .groupBy(_.deviceInfo)
+    .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
+      val dumbArray = Array("none", "0", "0", "0", "0%", "none")
+      def usage: Array[String] =
+        Utils.tryWithTimeoutAndCallback(DeviceMonitor.getDiskUsageInfos(diskInfos.head))(dumbArray)(
+          deviceCheckThreadPool,
+          conf.workerDeviceStatusCheckTimeout,
+          s"Disk: ${diskInfos.head.mountPoint} Usage Check Timeout")
+
+      workerSource.addGauge(
+        s"${WorkerSource.DeviceOSTotalCapacity}_${deviceInfo.name}",
+        _ => usage(usage.length - 5))
+      workerSource.addGauge(
+        s"${WorkerSource.DeviceOSFreeCapacity}_${deviceInfo.name}",
+        _ => usage(usage.length - 3))
+    }
 
   def healthyWorkingDirs(): List[File] =
     disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)

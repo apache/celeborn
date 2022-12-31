@@ -203,6 +203,10 @@ object DeviceMonitor {
     }
   }
 
+  def getDiskUsageInfos(diskInfo: DiskInfo): Array[String] = {
+    runCommand(s"df -B 1G ${diskInfo.mountPoint}").trim.split("[ \t]+")
+  }
+
   /**
    * check if the disk is high usage
    *
@@ -212,7 +216,7 @@ object DeviceMonitor {
    */
   def highDiskUsage(conf: CelebornConf, diskInfo: DiskInfo): Boolean = {
     tryWithTimeoutAndCallback({
-      val usage = runCommand(s"df -B 1G ${diskInfo.mountPoint}").trim.split("[ \t]+")
+      val usage = getDiskUsageInfos(diskInfo)
       val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
