@@ -48,6 +48,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var replicateThreadPool: ThreadPoolExecutor = _
+  var mapPartitionReplicateThreadPool: (String, String, Int) => ThreadPoolExecutor = _
   var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   var pushClientFactory: TransportClientFactory = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
@@ -66,6 +67,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     shufflePartitionType = worker.shufflePartitionType
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     replicateThreadPool = worker.replicateThreadPool
+    mapPartitionReplicateThreadPool = worker.getMapPartitionReplicatePool
     unavailablePeers = worker.unavailablePeers
     pushClientFactory = worker.pushClientFactory
     registered = worker.registered
@@ -620,8 +622,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // for master, send data to slave
     if (location.getPeer != null && isMaster) {
-      // to do
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      pushData.body().retain()
+      replicateMapPartition(shuffleKey, location, pushData.`type`(), pushData, wrappedCallback)
     } else {
       wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     }
@@ -744,8 +746,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
       // for master, send data to slave
       if (location.getPeer != null && isMaster) {
-        // to do replica
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        replicateMapPartition(shuffleKey, location, messageType, message, wrappedCallback)
       } else {
         wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
       }
@@ -753,6 +754,90 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       case t: Throwable =>
         callback.onFailure(new Exception(s"$messageType failed", t))
     }
+  }
+
+  def replicateMapPartition(
+      shuffleKey: String,
+      location: PartitionLocation,
+      messageType: Type,
+      message: Message,
+      wrappedCallback: WrappedRpcResponseCallback): Unit = {
+    mapPartitionReplicateThreadPool(
+      shuffleKey,
+      location.getPeer.getHost,
+      location.getPeer.getReplicatePort).submit(new Runnable {
+      override def run(): Unit = {
+        val peer = location.getPeer
+        val peerWorker = new WorkerInfo(
+          peer.getHost,
+          peer.getRpcPort,
+          peer.getPushPort,
+          peer.getFetchPort,
+          peer.getReplicatePort)
+        if (unavailablePeers.containsKey(peerWorker)) {
+          if (message.body() != null) {
+            message.body().release()
+          }
+          wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
+          return
+        }
+        try {
+          val client =
+            pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
+          var response: ByteBuffer = null
+          messageType match {
+            case Type.PUSH_DATA => {
+              val pushDataMaster = message.asInstanceOf[PushData]
+              val slavePushData = new PushData(
+                PartitionLocation.Mode.SLAVE.mode(),
+                shuffleKey,
+                pushDataMaster.partitionUniqueId,
+                pushDataMaster.body)
+              client.pushData(slavePushData, wrappedCallback)
+            }
+            case Type.PUSH_DATA_HAND_SHAKE => {
+              val handShakeMsg = message.asInstanceOf[PushDataHandShake]
+              val handShake = new PushDataHandShake(
+                PartitionLocation.Mode.SLAVE.mode(),
+                shuffleKey,
+                location.getUniqueId,
+                handShakeMsg.attemptId,
+                handShakeMsg.numPartitions,
+                handShakeMsg.bufferSize)
+              response = client.sendRpcSync(handShake.toByteBuffer, conf.pushDataTimeoutMs)
+            }
+            case Type.REGION_START => {
+              val regionStartMsg = message.asInstanceOf[RegionStart]
+              val regionStart = new RegionStart(
+                PartitionLocation.Mode.SLAVE.mode(),
+                shuffleKey,
+                location.getUniqueId,
+                regionStartMsg.attemptId,
+                regionStartMsg.currentRegionIndex,
+                regionStartMsg.isBroadcast)
+              response = client.sendRpcSync(regionStart.toByteBuffer, conf.pushDataTimeoutMs)
+            }
+            case Type.REGION_FINISH => {
+              val regionFinishMsg = message.asInstanceOf[RegionFinish]
+              val regionFinish = new RegionFinish(
+                PartitionLocation.Mode.SLAVE.mode(),
+                shuffleKey,
+                location.getUniqueId,
+                regionFinishMsg.attemptId)
+              response = client.sendRpcSync(regionFinish.toByteBuffer, conf.pushDataTimeoutMs)
+            }
+          }
+          wrappedCallback.onSuccess(response)
+        } catch {
+          case e: Exception =>
+            if (message.body() != null) {
+              message.body().release()
+            }
+            unavailablePeers.put(peerWorker, System.currentTimeMillis())
+            wrappedCallback.onFailure(e)
+        }
+      }
+    })
   }
 
   class WrappedRpcResponseCallback(

@@ -21,7 +21,7 @@ import java.io.IOException
 import java.lang.{Long => JLong}
 import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicLong}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -203,6 +203,12 @@ private[celeborn] class Worker(
   val asyncReplyPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
 
+  // in mappartition to keep order while replicating datas, each replicate channel must use the single thread.
+  val mapPartitionReplicatePoolNextId: AtomicLong = new AtomicLong()
+  val mapPartitionReplicatePoolHostPortMap = new ConcurrentHashMap[String, ThreadPoolExecutor]()
+  val mapPartitionReplicatePoolIdMap = new ConcurrentHashMap[Int, ThreadPoolExecutor]()
+  val mapPartitionReplicateShuffleKeyMap = new ConcurrentHashMap[String, mutable.Set[String]]()
+
   // Configs
   private val HEARTBEAT_MILLIS = conf.workerHeartbeatTimeout / 4
   private val REPLICATE_FAST_FAIL_DURATION = conf.workerReplicateFastFailDuration
@@ -224,6 +230,55 @@ private[celeborn] class Worker(
   workerSource.addGauge(
     WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
+
+  def getMapPartitionReplicatePool(
+      shuffleKey: String,
+      host: String,
+      port: Int): ThreadPoolExecutor = {
+    val key = s"$shuffleKey:$host:$port"
+    if (mapPartitionReplicatePoolHostPortMap.get(key) != null) {
+      mapPartitionReplicatePoolHostPortMap.get(key)
+    } else {
+      // if no replicatePool for the key, so it should be found from existed pools by nextId
+      val nextId = Math.abs(
+        mapPartitionReplicatePoolNextId.getAndIncrement % conf.workerReplicateThreads).toInt
+      if (mapPartitionReplicatePoolIdMap.get(nextId) != null) {
+        synchronized {
+          if (mapPartitionReplicatePoolHostPortMap.get(key) == null) {
+            mapPartitionReplicatePoolHostPortMap.put(
+              key,
+              mapPartitionReplicatePoolIdMap.get(nextId))
+            // in order to clean up one shufflekey's peer workers;
+            mapPartitionReplicateShuffleKeyMap.put(
+              shuffleKey,
+              mapPartitionReplicateShuffleKeyMap.getOrDefault(
+                shuffleKey,
+                mutable.Set()) += s"$host:$port")
+          }
+        }
+        mapPartitionReplicatePoolHostPortMap.get(key)
+      } else {
+        // if no replicatePool from thread pools, so it should create new thread pool.
+        synchronized {
+          if (mapPartitionReplicatePoolHostPortMap.get(key) == null) {
+            val pool = ThreadUtils.newDaemonCachedThreadPool(
+              "worker-replicate-data",
+              1)
+            mapPartitionReplicatePoolHostPortMap.put(
+              key,
+              pool)
+            mapPartitionReplicatePoolIdMap.put(nextId, pool)
+            mapPartitionReplicateShuffleKeyMap.put(
+              shuffleKey,
+              mapPartitionReplicateShuffleKeyMap.getOrDefault(
+                shuffleKey,
+                mutable.Set()) += s"$host:$port")
+          }
+        }
+        mapPartitionReplicatePoolHostPortMap.get(key)
+      }
+    }
+  }
 
   private def heartBeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
@@ -348,6 +403,7 @@ private[celeborn] class Worker(
       }
       forwardMessageScheduler.shutdownNow()
       replicateThreadPool.shutdownNow()
+      mapPartitionReplicatePoolHostPortMap.asScala.foreach(p => p._2.shutdown())
       commitThreadPool.shutdownNow()
       asyncReplyPool.shutdownNow()
       partitionsSorter.close()
@@ -428,6 +484,9 @@ private[celeborn] class Worker(
       shuffleMapperAttempts.remove(shuffleKey)
       shuffleCommitInfos.remove(shuffleKey)
       workerInfo.releaseSlots(shuffleKey)
+      mapPartitionReplicateShuffleKeyMap.asScala.foreach(s => {
+        mapPartitionReplicatePoolHostPortMap.remove(s"$shuffleKey:$s")
+      })
       logInfo(s"Cleaned up expired shuffle $shuffleKey")
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
