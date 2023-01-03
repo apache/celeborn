@@ -36,7 +36,6 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>tests/spark-it</module>
   </modules>
 
   <distributionManagement>
@@ -890,6 +889,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -908,6 +908,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.10.0</jackson.version>
@@ -926,6 +927,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.12.3</jackson.version>
@@ -944,6 +946,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.13.4</jackson.version>
