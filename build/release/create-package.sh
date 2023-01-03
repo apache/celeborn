@@ -69,8 +69,22 @@ package_source() {
 }
 
 package_binary() {
-  echo "TODO"
-  exit 1
+  BIN_TGZ_FILE="apache-celeborn-${RELEASE_VERSION}-bin.tgz"
+  BIN_TGZ="${RELEASE_DIR}/${BIN_TGZ_FILE}"
+
+  mkdir -p "${RELEASE_DIR}"
+  rm -f "${BIN_TGZ}*"
+
+  echo "Creating binary release tarball ${BIN_TGZ_FILE}"
+
+  ${PROJECT_DIR}/build/make-distribution.sh --release
+
+  cp "${BIN_TGZ_FILE}" "${RELEASE_DIR}"
+
+  if [ "$SKIP_GPG" == "false" ] ; then
+    gpg --armor --detach-sig "${BIN_TGZ}"
+  fi
+  (cd "${RELEASE_DIR}" && $SHASUM "${BIN_TGZ_FILE}" > "${BIN_TGZ_FILE}.sha512")
 }
 
 if [[ "$1" == "source" ]]; then
