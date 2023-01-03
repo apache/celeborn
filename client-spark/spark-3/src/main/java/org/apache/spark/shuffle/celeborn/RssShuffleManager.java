@@ -170,6 +170,7 @@ public class RssShuffleManager implements ShuffleManager {
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
+        sortShuffleIds.add(shuffleId);
         return sortShuffleManager().getWriter(handle, mapId, context, metrics);
       }
     } catch (IOException e) {
