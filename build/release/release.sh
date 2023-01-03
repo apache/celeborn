@@ -65,8 +65,8 @@ SVN_STAGING_DIR="${PROJECT_DIR}/tmp/svn-dev"
 SVN_RELEASE_DIR="${PROJECT_DIR}/tmp/svn-release"
 
 package() {
-  SKIP_GPG="false" RELEASE_VERSION="${RELEASE_VERSION}" $PROJECT_DIR/build/release/create-package.sh source
-  SKIP_GPG="false" RELEASE_VERSION="${RELEASE_VERSION}" $PROJECT_DIR/build/release/create-package.sh binary
+  SKIP_GPG="false" $PROJECT_DIR/build/release/create-package.sh source
+  SKIP_GPG="false" $PROJECT_DIR/build/release/create-package.sh binary
 }
 
 upload_svn_staging() {
