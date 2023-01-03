@@ -35,7 +35,7 @@ exit_with_usage() {
 Usage: $NAME <publish|finalize>
 
 Top level targets are:
-  publish: Publish tarballs to SVN staging repository and jars to Nexus staging repository
+  publish: Publish tarballs to SVN staging repository
   finalize: Finalize the release after an RC passes vote
 
 All other inputs are environment variables
