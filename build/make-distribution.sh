@@ -171,7 +171,7 @@ function build_spark_client {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package -DskipTests -pl :celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION $@)
+  BUILD_COMMAND=("$MVN" clean package -DskipTests -pl :celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
