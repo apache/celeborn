@@ -60,7 +60,7 @@ package_source() {
 
   echo "Creating source release tarball ${SRC_TGZ_FILE}"
 
-  git archive --prefix="apache-celeborn-${RELEASE_VERSION}-source/" -o "${SRC_TGZ}" HEAD
+  git archive --worktree-attributes --prefix="apache-celeborn-${RELEASE_VERSION}-source/" -o "${SRC_TGZ}" HEAD
 
   if [ "$SKIP_GPG" == "false" ] ; then
     gpg --armor --detach-sig "${SRC_TGZ}"
