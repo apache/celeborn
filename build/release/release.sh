@@ -60,9 +60,9 @@ SVN_STAGING_REPO="https://dist.apache.org/repos/dist/dev/incubator/celeborn"
 SVN_RELEASE_REPO="https://dist.apache.org/repos/dist/release/incubator/celeborn"
 
 PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
-RELEASE_DIR="${PROJECT_DIR}/work/release"
-SVN_STAGING_DIR="${PROJECT_DIR}/work/svn-dev"
-SVN_RELEASE_DIR="${PROJECT_DIR}/work/svn-release"
+RELEASE_DIR="${PROJECT_DIR}/tmp"
+SVN_STAGING_DIR="${PROJECT_DIR}/tmp/svn-dev"
+SVN_RELEASE_DIR="${PROJECT_DIR}/tmp/svn-release"
 
 package() {
   SKIP_GPG="false" RELEASE_VERSION="${RELEASE_VERSION}" $PROJECT_DIR/build/release/create-package.sh source
