@@ -186,7 +186,7 @@ function build_spark_client {
 }
 
 if [ "$RELEASE" == "true" ]; then
-  build_service -Pspark-3.3
+  build_service
   build_spark_client -Pspark-2.4
   build_spark_client -Pspark-3.3
 else
