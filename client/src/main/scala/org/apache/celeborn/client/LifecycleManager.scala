@@ -516,12 +516,27 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       cause: StatusCode): Unit = {
     // only blacklist if cause is PushDataFailMain
     val failedWorker = new ShuffleFailedWorkers()
-    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
-      val tmpWorker = oldPartition.getWorker
-      val worker = workerSnapshots(shuffleId).keySet().asScala
-        .find(_.equals(tmpWorker))
-      if (worker.isDefined) {
-        failedWorker.put(worker.get, (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
+    if (oldPartition != null) {
+      cause match {
+        case StatusCode.PUSH_DATA_FAIL_MASTER =>
+          val tmpWorker = oldPartition.getWorker
+          val worker = workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
+          if (worker.isDefined) {
+            failedWorker.put(
+              worker.get,
+              (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
+          }
+        case StatusCode.PUSH_DATA_FAIL_SLAVE
+            if oldPartition.getPeer != null && conf.workerExcludedSlaveEnabled =>
+          val tmpWorker = oldPartition.getPeer.getWorker
+          val worker = workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
+          if (worker.isDefined) {
+            failedWorker.put(
+              worker.get,
+              (StatusCode.PUSH_DATA_FAIL_SLAVE, System.currentTimeMillis()))
+          }
+        case _ =>
+
       }
     }
     if (!failedWorker.isEmpty) {

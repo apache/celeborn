@@ -73,4 +73,5 @@ license: |
 | celeborn.test.retryCommitFiles | false | Fail commitFile request for test | 0.2.0 | 
 | celeborn.worker.excluded.checkInterval | 30s | Interval for client to refresh excluded worker list. | 0.2.0 | 
 | celeborn.worker.excluded.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
+| celeborn.worker.excluded.slave.enabled | true | When true, Celeborn will add partition's peer worker into blacklist when push data to slave failed. | 0.3.0 | 
 <!--end-include-->
