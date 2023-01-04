@@ -95,4 +95,6 @@ object WorkerSource {
   // local device
   val DeviceOSFreeCapacity = "DeviceOSFreeCapacity"
   val DeviceOSTotalCapacity = "DeviceOSTotalCapacity"
+  val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity"
+  val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity"
 }
