@@ -52,7 +52,6 @@ public class RemoteShuffleServiceFactory
   @Override
   public ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> createShuffleEnvironment(
       ShuffleEnvironmentContext shuffleEnvironmentContext) {
-    // TODO
     Configuration configuration = shuffleEnvironmentContext.getConfiguration();
     int bufferSize = ConfigurationParserUtils.getPageSize(configuration);
     final int numBuffers =
