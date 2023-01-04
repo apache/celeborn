@@ -514,7 +514,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
-    // only blacklist if cause is PushDataFailMain
     val failedWorker = new ShuffleFailedWorkers()
     if (oldPartition != null) {
       cause match {
