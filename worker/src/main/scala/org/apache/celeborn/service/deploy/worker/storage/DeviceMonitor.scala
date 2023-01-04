@@ -33,7 +33,6 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 import org.apache.celeborn.service.deploy.worker.WorkerSource
-import org.apache.celeborn.service.deploy.worker.storage.DeviceMonitor.deviceCheckThreadPool
 
 trait DeviceMonitor {
   def startCheck() {}
