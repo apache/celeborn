@@ -1026,12 +1026,6 @@
         <jackson.databind.version>2.6.7.3</jackson.databind.version>
         <lz4-java.version>1.4.0</lz4-java.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>scala-2.11</id>
-      <properties>
         <scala.version>${scala211.version}</scala.version>
         <scala.binary.version>${scala211.binary.version}</scala.binary.version>
       </properties>
