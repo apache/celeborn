@@ -57,8 +57,8 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
-    <scala11.version>2.11.12</scala11.version>
-    <scala11.binary.version>2.11</scala11.binary.version>
+    <scala211.version>2.11.12</scala211.version>
+    <scala211.binary.version>2.11</scala211.binary.version>
     <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -1032,8 +1032,8 @@
     <profile>
       <id>scala-2.11</id>
       <properties>
-        <scala.version>${scala11.version}</scala.version>
-        <scala.binary.version>${scala11.binary.version}</scala.binary.version>
+        <scala.version>${scala211.version}</scala.version>
+        <scala.binary.version>${scala211.binary.version}</scala.binary.version>
       </properties>
     </profile>
 
