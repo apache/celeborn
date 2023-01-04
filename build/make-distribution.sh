@@ -186,9 +186,9 @@ function build_spark_client {
 }
 
 function build_flink_client {
-  FLINK_VERSION=$("$MVN" help:evaluate -Dexpression=flink.version $@ 2>/dev/null\
-      | grep -v "INFO"\
-      | grep -v "WARNING"\
+  FLINK_VERSION=$("$MVN" help:evaluate -Dexpression=flink.version $@ 2>/dev/null \
+      | grep -v "INFO" \
+      | grep -v "WARNING" \
       | tail -n 1)
   SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev/null \
       | grep -v "INFO" \
