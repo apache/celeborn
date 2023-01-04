@@ -225,7 +225,7 @@ else
   elif [[ $@ == *"flink"* && $@ != *"spark"* ]]; then
     build_flink_client $@
   else
-    echo "Error: unsupported command $@"
+    echo "Error: unsupported command $@, currently we do not support compiling spark and flink at the same time."
     exit -1
   fi
 fi
