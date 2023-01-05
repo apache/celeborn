@@ -25,7 +25,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import org.junit.Assert.assertEquals
-import org.mockito.ArgumentMatchers._
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -51,9 +50,57 @@ class DeviceMonitorSuite extends AnyFunSuite {
       |/dev/vdb        1.8T   91G  1.7T    6% /mnt/disk2
       |tmpfs           6.3G     0  6.3G    0% /run/user/1001
       |""".stripMargin
+  val dfOut2 =
+    """
+      |Filesystem      Size  Used Avail  Use% Mounted on
+      |devtmpfs         32G     0   32G    0% /dev
+      |tmpfs            32G  108K   32G    1% /dev/shm
+      |tmpfs            32G  672K   32G    1% /run
+      |tmpfs            32G     0   32G    0% /sys/fs/cgroup
+      |/dev/vda1       118G   43G   71G   38% /
+      |tmpfs           6.3G     0  6.3G    0% /run/user/0
+      |/dev/vda        1.3T   95G  1.2T    7% /mnt/disk1
+      |/dev/vdb        1.8T   91G  1.7T    6% /mnt/disk2
+      |/dev/vda        1.3T   95G  1.2T    7% /mnt/disk3
+      |/dev/vdb        1.8T   91G  1.7T    6% /mnt/disk4
+      |/dev/vdb        1.8T   91G  1.7T    6% /mnt/disk5
+      |tmpfs           6.3G     0  6.3G    0% /run/user/1001
+      |""".stripMargin
 
   val lsCmd = "ls /sys/block/"
   val lsOut = "loop0  loop1  loop2  loop3  loop4  loop5  loop6  loop7  vda  vdb"
+
+  val dfBCmd1 = "df -B 1G /mnt/disk1"
+  val dfBCmd2 = "df -B 1G /mnt/disk2"
+  val dfBCmd3 = "df -B 1G /mnt/disk3"
+  val dfBCmd4 = "df -B 1G /mnt/disk4"
+  val dfBCmd5 = "df -B 1G /mnt/disk5"
+
+  val dfBOut1 =
+    """
+      |Filesystem     1G-blocks  Used Available Use% Mounted on
+      |/dev/vda            1300    95      1205   7% /mnt/disk1
+      |""".stripMargin
+  val dfBOut2 =
+    """
+      |Filesystem     1G-blocks  Used Available Use% Mounted on
+      |/dev/vdb            1800    91      1709   6% /mnt/disk2
+      |""".stripMargin
+  val dfBOut3 =
+    """
+      |Filesystem     1G-blocks  Used Available Use% Mounted on
+      |/dev/vda            1300    95      1205   7% /mnt/disk3
+      |""".stripMargin
+  val dfBOut4 =
+    """
+      |Filesystem     1G-blocks  Used Available Use% Mounted on
+      |/dev/vdb            1800    91      1709   6% /mnt/disk4
+      |""".stripMargin
+  val dfBOut5 =
+    """
+      |Filesystem     1G-blocks  Used Available Use% Mounted on
+      |/dev/vdb            1800    91      1709   6% /mnt/disk5
+      |""".stripMargin
 
   val dirs = new jArrayList[File]()
   val workingDir1 = ListBuffer[File](new File("/mnt/disk1/data1"))
@@ -65,15 +112,27 @@ class DeviceMonitorSuite extends AnyFunSuite {
   dirs.addAll(workingDir3.asJava)
   dirs.addAll(workingDir4.asJava)
 
+  val dirs2 = new jArrayList[File]()
+  dirs2.add(new File("/mnt/disk1/data1"))
+  dirs2.add(new File("/mnt/disk2/data1"))
+  dirs2.add(new File("/mnt/disk3/data1"))
+  dirs2.add(new File("/mnt/disk4/data1"))
+  dirs2.add(new File("/mnt/disk5/data1"))
+
   val conf = new CelebornConf()
   conf.set(WORKER_DISK_MONITOR_CHECK_INTERVAL.key, "3600s")
   val workerSource = new WorkerSource(conf)
+  val workerSource2 = new WorkerSource(conf)
 
   val storageManager = mock[DeviceObserver]
-  var (deviceInfos, diskInfos, workingDirDiskInfos): (
+  val storageManager2 = mock[DeviceObserver]
+
+  var (deviceInfos, diskInfos): (
       java.util.Map[String, DeviceInfo],
-      java.util.Map[String, DiskInfo],
-      java.util.Map[String, DiskInfo]) = (null, null, null)
+      java.util.Map[String, DiskInfo]) = (null, null)
+  var (deviceInfos2, diskInfos2): (
+      java.util.Map[String, DeviceInfo],
+      java.util.Map[String, DiskInfo]) = (null, null)
 
   withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
     when(Utils.runCommand(dfCmd)) thenReturn dfOut
@@ -82,9 +141,18 @@ class DeviceMonitorSuite extends AnyFunSuite {
       (f, Long.MaxValue, 1, StorageInfo.Type.HDD)))
     deviceInfos = tdeviceInfos
     diskInfos = tdiskInfos
+    when(Utils.runCommand(dfCmd)) thenReturn dfOut2
+    val (tdeviceInfos2, tdiskInfos2) =
+      DeviceInfo.getDeviceAndDiskInfos(dirs2.asScala.toArray.map(f =>
+        (f, Int.MaxValue.toLong, 8, StorageInfo.Type.SSD)))
+    deviceInfos2 = tdeviceInfos2
+    diskInfos2 = tdiskInfos2
   }
+
   val deviceMonitor =
     new LocalDeviceMonitor(conf, storageManager, deviceInfos, diskInfos, workerSource)
+  val deviceMonitor2 =
+    new LocalDeviceMonitor(conf, storageManager2, deviceInfos2, diskInfos2, workerSource2)
 
   val vdaDeviceInfo = new DeviceInfo("vda")
   val vdbDeviceInfo = new DeviceInfo("vdb")
@@ -300,6 +368,57 @@ class DeviceMonitorSuite extends AnyFunSuite {
       device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.IO_HANG)
       assertEquals(2, deviceMonitorMetrics.head.gauge.getValue)
       assertEquals(2, deviceMonitorMetrics.last.gauge.getValue)
+    }
+  }
+
+  test("monitor device usage metrics") {
+    withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
+      when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut1)
+      when(Utils.runCommand(dfBCmd2)).thenReturn(dfBOut2)
+      when(Utils.runCommand(dfBCmd3)).thenReturn(dfBOut3)
+      when(Utils.runCommand(dfBCmd4)).thenReturn(dfBOut4)
+      when(Utils.runCommand(dfBCmd5)).thenReturn(dfBOut5)
+      val dfBOut6 =
+        """
+          |Filesystem     1G-blocks  Used Available Use% Mounted on
+          |/dev/vda            1300   122      1178   9% /mnt/disk1
+          |""".stripMargin
+
+      deviceMonitor2.init()
+
+      val metrics1 = workerSource2.gauges().filter(
+        _.name.startsWith(WorkerSource.DeviceOSTotalCapacity)).sortBy(_.name)
+      val metrics2 = workerSource2.gauges().filter(
+        _.name.startsWith(WorkerSource.DeviceOSFreeCapacity)).sortBy(_.name)
+      val metrics3 = workerSource2.gauges().filter(
+        _.name.startsWith(WorkerSource.DeviceCelebornTotalCapacity)).sortBy(_.name)
+      val metrics4 = workerSource2.gauges().filter(
+        _.name.startsWith(WorkerSource.DeviceCelebornFreeCapacity)).sortBy(_.name)
+
+      assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vda", metrics1.head.name)
+      assertEquals("1300", metrics1.head.gauge.getValue)
+      assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vdb", metrics1.last.name)
+      assertEquals("1800", metrics1.last.gauge.getValue)
+
+      assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vda", metrics2.head.name)
+      assertEquals("1205", metrics2.head.gauge.getValue)
+      assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vdb", metrics2.last.name)
+      assertEquals("1709", metrics2.last.gauge.getValue)
+
+      assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vda", metrics3.head.name)
+      assertEquals(Int.MaxValue.toLong * 2, metrics3.head.gauge.getValue)
+      assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vdb", metrics3.last.name)
+      assertEquals(Int.MaxValue.toLong * 3, metrics3.last.gauge.getValue)
+
+      diskInfos2.values().asScala.foreach(diskInfo => diskInfo.setUsableSpace(1024))
+      assertEquals(s"${WorkerSource.DeviceCelebornFreeCapacity}_vda", metrics4.head.name)
+      assertEquals(1024L * 2, metrics4.head.gauge.getValue)
+      assertEquals(s"${WorkerSource.DeviceCelebornFreeCapacity}_vdb", metrics4.last.name)
+      assertEquals(1024L * 3, metrics4.last.gauge.getValue)
+
+      // test if metrics will change when disk usage change, here
+      when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut6)
+      assertEquals("1178", metrics2.head.gauge.getValue)
     }
   }
 }

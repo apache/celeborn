@@ -32,6 +32,7 @@ import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
+import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 trait DeviceMonitor {
   def startCheck() {}
@@ -78,6 +79,26 @@ class LocalDeviceMonitor(
       observedDevice.addObserver(observer)
       observedDevices.put(entry._2, observedDevice)
     })
+    diskInfos
+      .asScala
+      .values
+      .toList
+      .groupBy(_.deviceInfo)
+      .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
+        def usage = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
+        workerSource.addGauge(
+          s"${WorkerSource.DeviceOSTotalCapacity}_${deviceInfo.name}",
+          _ => usage(usage.length - 5))
+        workerSource.addGauge(
+          s"${WorkerSource.DeviceOSFreeCapacity}_${deviceInfo.name}",
+          _ => usage(usage.length - 3))
+        workerSource.addGauge(
+          s"${WorkerSource.DeviceCelebornTotalCapacity}_${deviceInfo.name}",
+          _ => diskInfos.map(_.configuredUsableSpace).sum)
+        workerSource.addGauge(
+          s"${WorkerSource.DeviceCelebornFreeCapacity}_${deviceInfo.name}",
+          _ => diskInfos.map(_.actualUsableSpace).sum)
+      }
   }
 
   override def startCheck(): Unit = {
@@ -203,6 +224,11 @@ object DeviceMonitor {
     }
   }
 
+  def getDiskUsageInfos(diskInfo: DiskInfo): Array[String] = {
+    // TODO: will it be more flexible if return as Bytes?
+    runCommand(s"df -B 1G ${diskInfo.mountPoint}").trim.split("[ \t]+")
+  }
+
   /**
    * check if the disk is high usage
    *
@@ -212,7 +238,7 @@ object DeviceMonitor {
    */
   def highDiskUsage(conf: CelebornConf, diskInfo: DiskInfo): Boolean = {
     tryWithTimeoutAndCallback({
-      val usage = runCommand(s"df -B 1G ${diskInfo.mountPoint}").trim.split("[ \t]+")
+      val usage = getDiskUsageInfos(diskInfo)
       val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
