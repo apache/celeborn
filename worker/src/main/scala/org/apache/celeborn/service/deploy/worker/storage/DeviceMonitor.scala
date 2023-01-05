@@ -88,10 +88,10 @@ class LocalDeviceMonitor(
         def usage = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
         workerSource.addGauge(
           s"${WorkerSource.DeviceOSTotalCapacity}_${deviceInfo.name}",
-          _ => usage(usage.length - 5))
+          _ => usage(usage.length - 5).toLong)
         workerSource.addGauge(
           s"${WorkerSource.DeviceOSFreeCapacity}_${deviceInfo.name}",
-          _ => usage(usage.length - 3))
+          _ => usage(usage.length - 3).toLong)
         workerSource.addGauge(
           s"${WorkerSource.DeviceCelebornTotalCapacity}_${deviceInfo.name}",
           _ => diskInfos.map(_.configuredUsableSpace).sum)
