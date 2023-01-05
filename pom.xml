@@ -102,7 +102,7 @@
     <maven.plugin.jacoco.version>0.8.7</maven.plugin.jacoco.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.7.0</maven.plugin.os.version>
-    <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
+    <maven.plugin.protobuf.version>0.6.1</maven.plugin.protobuf.version>
     <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
     <maven.plugin.scala.version>4.7.2</maven.plugin.scala.version>
     <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
