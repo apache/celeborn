@@ -529,6 +529,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
   def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
+  def blacklistSlaveEnabled: Boolean = get(BLACKLIST_SLAVE_ENABLED)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
@@ -1353,6 +1354,15 @@ object CelebornConf extends Logging {
       .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
+
+  val BLACKLIST_SLAVE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.blacklistSlave.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("When true, Celeborn will add partition's peer worker into blacklist " +
+        "when push data to slave failed.")
+      .booleanConf
+      .createWithDefault(true)
 
   val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chuck.size")
