@@ -20,9 +20,10 @@ package org.apache.celeborn.service.deploy
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.mutable
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.rpc.RpcEnv
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
@@ -30,21 +31,23 @@ import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 trait MiniClusterFeature extends Logging {
   val workerPrometheusPort = new AtomicInteger(12378)
   val masterPrometheusPort = new AtomicInteger(22378)
+  var masterInfo: (Master, Thread) = _
+  val workerInfos = new mutable.HashMap[Worker, Thread]()
 
-  protected def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
+  private def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
     }
   })
 
-  protected def createTmpDir(): String = {
+  private def createTmpDir(): String = {
     val tmpDir = Files.createTempDirectory("celeborn-")
     logInfo(s"created temp dir: $tmpDir")
     tmpDir.toFile.deleteOnExit()
     tmpDir.toAbsolutePath.toString
   }
 
-  protected def createMaster(map: Map[String, String] = null): (Master, RpcEnv) = {
+  private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
     conf.set("celeborn.metrics.enabled", "false")
     val prometheusPort = masterPrometheusPort.getAndIncrement()
@@ -59,10 +62,10 @@ trait MiniClusterFeature extends Logging {
     master.startHttpServer()
 
     Thread.sleep(5000L)
-    (master, master.rpcEnv)
+    master
   }
 
-  protected def createWorker(map: Map[String, String] = null): (Worker, RpcEnv) = {
+  private def createWorker(map: Map[String, String] = null): Worker = {
     logInfo("start create worker for mini cluster")
     val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.dirs", createTmpDir())
@@ -83,63 +86,58 @@ trait MiniClusterFeature extends Logging {
     try {
       val worker = new Worker(conf, workerArguments)
       logInfo("worker created for mini cluster")
-      (worker, worker.rpcEnv)
+      worker
     } catch {
       case e: Exception =>
         logError("create worker failed, detail:", e)
         System.exit(-1)
-        (null, null)
+        null
     }
   }
 
   def setUpMiniCluster(
       masterConfs: Map[String, String] = null,
-      workerConfs: Map[String, String] = null)
-      : (Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv, Worker, RpcEnv) = {
-    val (master, masterRpcEnv) = createMaster(masterConfs)
-    val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
+      workerConfs: Map[String, String] = null,
+      workerNum: Int = 3): Unit = {
+    val master = createMaster(masterConfs)
+    val masterThread = runnerWrap(master.rpcEnv.awaitTermination())
     masterThread.start()
+    masterInfo = (master, masterThread)
+    Thread.sleep(5000L)
+
+    for (_ <- 1 to workerNum) {
+      val worker = createWorker(workerConfs)
+      val workerThread = runnerWrap(worker.initialize())
+      workerThread.start()
+      workerInfos.put(worker, workerThread)
+    }
 
     Thread.sleep(5000L)
 
-    val (worker1, workerRpcEnv1) = createWorker(workerConfs)
-    val workerThread1 = runnerWrap(worker1.initialize())
-    workerThread1.start()
+    workerInfos.foreach {
+      case (worker, _) => assert(worker.isRegistered())
+    }
+  }
 
-    val (worker2, workerRpcEnv2) = createWorker(workerConfs)
-    val workerThread2 = runnerWrap(worker2.initialize())
-    workerThread2.start()
+  def shutdownMiniCluster(): Unit = {
+    // shutdown workers
+    workerInfos.foreach {
+      case (worker, _) =>
+        worker.close()
+        worker.rpcEnv.shutdown()
+    }
 
-    val (worker3, workerRpcEnv3) = createWorker(workerConfs)
-    val workerThread3 = runnerWrap(worker3.initialize())
-    workerThread3.start()
+    // shutdown masters
+    masterInfo._1.close()
+    masterInfo._1.rpcEnv.shutdown()
 
-    val (worker4, workerRpcEnv4) = createWorker(workerConfs)
-    val workerThread4 = runnerWrap(worker4.initialize())
-    workerThread4.start()
+    // interrupt threads
+    Thread.sleep(5000)
+    workerInfos.foreach {
+      case (_, thread) =>
+        thread.interrupt()
+    }
 
-    val (worker5, workerRpcEnv5) = createWorker(workerConfs)
-    val workerThread5 = runnerWrap(worker5.initialize())
-    workerThread5.start()
-
-    Thread.sleep(5000L)
-
-    assert(worker1.isRegistered())
-    assert(worker2.isRegistered())
-    assert(worker3.isRegistered())
-    assert(worker4.isRegistered())
-    assert(worker5.isRegistered())
-
-    (
-      worker1,
-      workerRpcEnv1,
-      worker2,
-      workerRpcEnv2,
-      worker3,
-      workerRpcEnv3,
-      worker4,
-      workerRpcEnv4,
-      worker5,
-      workerRpcEnv5)
+    masterInfo._2.interrupt()
   }
 }

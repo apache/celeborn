@@ -21,27 +21,15 @@ import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.CompressionCodec
-import org.apache.celeborn.common.util.Utils
 
 class SkewJoinSuite extends AnyFunSuite
   with SparkTestBase
-  with BeforeAndAfterAll
   with BeforeAndAfterEach {
-
-  override def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniClusterSpark()
-  }
-
-  override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
-    clearMiniCluster(tuple)
-  }
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
@@ -53,7 +41,7 @@ class SkewJoinSuite extends AnyFunSuite
 
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.rss.master.address", tuple._1.rpcEnv.address.toString)
+      .set("spark.rss.master.address", masterInfo._1.rpcEnv.address.toString)
       .set("spark.rss.shuffle.split.threshold", "10MB")
   }
 
