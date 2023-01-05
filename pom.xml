@@ -57,13 +57,15 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
+    <scala211.version>2.11.12</scala211.version>
+    <scala211.binary.version>2.11</scala211.binary.version>
     <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
 
-    <flink.version>1.14.0</flink.version>
+    <flink.version>1.14.6</flink.version>
     <hadoop.version>3.2.1</hadoop.version>
     <spark.version>3.3.1</spark.version>
 
@@ -1019,14 +1021,9 @@
         <module>client-flink/flink-1.14-shaded</module>
       </modules>
       <properties>
-        <flink.version>1.14.0</flink.version>
-        <flink.binary.version>1.14</flink.binary.version>
-        <jackson.version>2.6.7</jackson.version>
-        <jackson.databind.version>2.6.7.3</jackson.databind.version>
-        <lz4-java.version>1.4.0</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <zstd-jni.version>1.4.4-3</zstd-jni.version>
+        <flink.version>1.14.6</flink.version>
+        <scala.version>${scala211.version}</scala.version>
+        <scala.binary.version>${scala211.binary.version}</scala.binary.version>
       </properties>
     </profile>
 
