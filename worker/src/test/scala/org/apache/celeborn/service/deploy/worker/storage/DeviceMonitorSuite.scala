@@ -357,7 +357,8 @@ class DeviceMonitorSuite extends AnyFunSuite {
       device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.READ_OR_WRITE_FAILURE)
       device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.IO_HANG)
       val deviceMonitorMetrics =
-        workerSource.gauges().filter(_.name.startsWith("Device")).sortBy(_.name)
+        workerSource.gauges().filter(_.name.startsWith("Device_" + device1.deviceInfo.name))
+          .sortBy(_.name)
 
       assertEquals("Device_vda_IoHang_Count", deviceMonitorMetrics.head.name)
       assertEquals("Device_vda_ReadOrWriteFailure_Count", deviceMonitorMetrics.last.name)
