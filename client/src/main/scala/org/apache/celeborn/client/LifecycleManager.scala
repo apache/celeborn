@@ -526,7 +526,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
               (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
           }
         case StatusCode.PUSH_DATA_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.workerExcludedSlaveEnabled =>
+            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
           val tmpWorker = oldPartition.getPeer.getWorker
           val worker = workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
           if (worker.isDefined) {
