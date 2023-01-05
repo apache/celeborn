@@ -396,14 +396,14 @@ class DeviceMonitorSuite extends AnyFunSuite {
         _.name.startsWith(WorkerSource.DeviceCelebornFreeCapacity)).sortBy(_.name)
 
       assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vda", metrics1.head.name)
-      assertEquals("1300", metrics1.head.gauge.getValue)
+      assertEquals(1300L, metrics1.head.gauge.getValue)
       assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vdb", metrics1.last.name)
-      assertEquals("1800", metrics1.last.gauge.getValue)
+      assertEquals(1800L, metrics1.last.gauge.getValue)
 
       assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vda", metrics2.head.name)
-      assertEquals("1205", metrics2.head.gauge.getValue)
+      assertEquals(1205L, metrics2.head.gauge.getValue)
       assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vdb", metrics2.last.name)
-      assertEquals("1709", metrics2.last.gauge.getValue)
+      assertEquals(1709L, metrics2.last.gauge.getValue)
 
       assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vda", metrics3.head.name)
       assertEquals(Int.MaxValue.toLong * 2, metrics3.head.gauge.getValue)
@@ -418,7 +418,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
       // test if metrics will change when disk usage change, here
       when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut6)
-      assertEquals("1178", metrics2.head.gauge.getValue)
+      assertEquals(1178L, metrics2.head.gauge.getValue)
     }
   }
 }
