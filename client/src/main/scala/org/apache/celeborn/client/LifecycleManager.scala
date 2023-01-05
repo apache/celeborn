@@ -514,7 +514,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
-
     val failedWorker = new ShuffleFailedWorkers()
 
     def blacklistPartitionWorker(
