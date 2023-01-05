@@ -88,7 +88,7 @@ class ChangePartitionManager(
                           request.asScala.toArray.maxBy(_.epoch)
                         }.toArray
                         if (distinctPartitions.nonEmpty) {
-                          batchHandleRequestPartitions(
+                          handleRequestPartitions(
                             distinctPartitions.head.applicationId,
                             shuffleId,
                             distinctPartitions)
@@ -175,7 +175,7 @@ class ChangePartitionManager(
       }
     }
     if (!batchHandleChangePartitionEnabled) {
-      batchHandleRequestPartitions(applicationId, shuffleId, Array(changePartition))
+      handleRequestPartitions(applicationId, shuffleId, Array(changePartition))
     }
   }
 
@@ -193,7 +193,7 @@ class ChangePartitionManager(
     None
   }
 
-  def batchHandleRequestPartitions(
+  def handleRequestPartitions(
       applicationId: String,
       shuffleId: Int,
       changePartitions: Array[ChangePartitionRequest]): Unit = {
