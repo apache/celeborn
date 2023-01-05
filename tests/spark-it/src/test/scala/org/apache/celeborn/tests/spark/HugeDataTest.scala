@@ -19,25 +19,14 @@ package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 
 class HugeDataTest extends AnyFunSuite
   with SparkTestBase
-  with BeforeAndAfterAll
   with BeforeAndAfterEach {
-
-  override def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
-    tuple = setupRssMiniClusterSpark()
-  }
-
-  override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
-    clearMiniCluster(tuple)
-  }
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()

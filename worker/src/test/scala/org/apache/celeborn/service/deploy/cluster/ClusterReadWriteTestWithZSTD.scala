@@ -17,36 +17,9 @@
 
 package org.apache.celeborn.service.deploy.cluster
 
-import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
-
-import org.apache.commons.lang3.RandomStringUtils
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.funsuite.AnyFunSuite
-
-import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.CompressionCodec
-import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-class ClusterReadWriteTestWithZSTD extends AnyFunSuite with MiniClusterFeature
-  with BeforeAndAfterAll with ReadWriteTestBase {
-
-  override def beforeAll(): Unit = {
-    val masterPort = 19097
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> masterPort.toString)
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> s"localhost:$masterPort")
-    setUpMiniCluster(masterConf, workerConf)
-  }
-
-  override def afterAll(): Unit = {
-    println("test done")
-    sys.exit(0)
-  }
+class ClusterReadWriteTestWithZSTD extends ReadWriteTestBase {
 
   test(s"test MiniCluster With ZSTD") {
     testReadWriteByCode(CompressionCodec.ZSTD)

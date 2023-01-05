@@ -22,15 +22,34 @@ import java.nio.charset.StandardCharsets
 
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.Assert
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.CompressionCodec
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-trait ReadWriteTestBase extends Logging {
+trait ReadWriteTestBase extends AnyFunSuite
+  with Logging with MiniClusterFeature with BeforeAndAfterAll {
   val masterPort = 19097
+
+  override def beforeAll(): Unit = {
+    val masterConf = Map(
+      "celeborn.master.host" -> "localhost",
+      "celeborn.master.port" -> masterPort.toString)
+    val workerConf = Map(
+      "celeborn.master.endpoints" -> s"localhost:$masterPort")
+    logInfo("test initialized , setup rss mini cluster")
+    setUpMiniCluster(masterConf, workerConf)
+  }
+
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop rss mini cluster")
+    shutdownMiniCluster()
+  }
 
   def testReadWriteByCode(codec: CompressionCodec): Unit = {
     val APP = "app-1"
