@@ -88,20 +88,20 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId)
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1)
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, numMappers, mapId, attemptId, mapId)
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, mapId)
     // retry
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, numMappers, mapId, attemptId, mapId)
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, mapId)
     // another attempt
     shuffleClient.mapPartitionMapperEnd(
       APP,
       shuffleId,
-      numMappers,
       mapId,
       attemptId + 1,
+      numMappers,
       PackedPartitionId
         .packedPartitionId(mapId, attemptId + 1))
     // another mapper
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, numMappers, mapId + 1, attemptId, mapId + 1)
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
 
     // reduce file group size (for empty partitions)
     Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
