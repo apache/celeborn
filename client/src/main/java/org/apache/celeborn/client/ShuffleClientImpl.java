@@ -344,7 +344,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else {
           logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
-              StatusCode.FAILED,
+              StatusCode.REQUEST_FAILED,
               numRetries - 1);
         }
       } catch (Exception e) {
