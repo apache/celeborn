@@ -43,8 +43,14 @@ class ShuffleTaskInfoSuite extends AnyFunSuite {
     assert(encodeAttemptId012 == 1)
 
     // remove shuffleId and reEncode
-    shuffleTaskInfo.remove(encodeShuffleId)
+    shuffleTaskInfo.removeExpiredShuffle(encodeShuffleId)
     val encodeShuffleIdNew = shuffleTaskInfo.getShuffleId("shuffleId")
     assert(encodeShuffleIdNew == 2)
+  }
+
+  test("remove none exist shuffle") {
+    val shuffleTaskInfo = new ShuffleTaskInfo
+    // remove none exist shuffle
+    shuffleTaskInfo.removeExpiredShuffle(0)
   }
 }
