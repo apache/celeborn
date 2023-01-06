@@ -36,7 +36,7 @@ public class BufferUtils {
   // subpartitionid(4) + attemptId(4) + nextBatchId(4) + compressedsize
   public static final int HEADER_LENGTH_PREFIX = 4 * 4;
   // dataType(1) + size(4)
-  public static final int HEADER_LENGTH = HEADER_LENGTH_PREFIX + 1 + 4;
+  public static final int HEADER_LENGTH = HEADER_LENGTH_PREFIX + 1 + 1 + 4;
 
   /**
    * Copies the data of the compressed buffer and the corresponding buffer header to the origin
@@ -77,7 +77,7 @@ public class BufferUtils {
   public static BufferHeader getBufferHeader(Buffer buffer, int position, boolean isFirst) {
     ByteBuf byteBuf = buffer.asByteBuf();
     byteBuf.readerIndex(position);
-    if (isFirst) {
+    if (!isFirst) {
       return new BufferHeader(
           Buffer.DataType.values()[byteBuf.readByte()], byteBuf.readBoolean(), byteBuf.readInt());
     } else {
