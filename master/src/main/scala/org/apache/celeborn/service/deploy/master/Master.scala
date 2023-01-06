@@ -717,7 +717,7 @@ private[celeborn] class Master(
           new util.HashMap[String, DiskInfo](),
           new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
           null))
-        GetWorkerInfosResponse(StatusCode.FAILED, result.asScala: _*)
+        GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
     }
   }
 

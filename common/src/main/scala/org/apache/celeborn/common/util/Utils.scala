@@ -837,7 +837,7 @@ object Utils extends Logging {
       case 1 =>
         StatusCode.PARTIAL_SUCCESS
       case 2 =>
-        StatusCode.FAILED
+        StatusCode.REQUEST_FAILED
       case 3 =>
         StatusCode.SHUFFLE_ALREADY_REGISTERED
       case 4 =>
