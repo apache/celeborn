@@ -17,10 +17,9 @@
 
 package org.apache.celeborn.client
 
-import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
-import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -28,18 +27,17 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -48,7 +46,7 @@ object LifecycleManager {
   type ShuffleFileGroups =
     ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
   type ShuffleAllocatedWorkers =
-    ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]]
+    ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
 }
 
@@ -77,7 +75,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
-  def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, PartitionLocationInfo] =
+  def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
   val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
@@ -350,7 +348,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           val initialLocs = workerSnapshots(shuffleId)
             .values()
             .asScala
-            .flatMap(_.getAllMasterLocationsWithMinEpoch(shuffleId.toString).asScala)
+            .flatMap(_.getAllMasterLocationsWithMinEpoch().asScala)
             .filter(p =>
               (partitionType == PartitionType.REDUCE && p.getEpoch == 0) || (partitionType == PartitionType.MAP && p.getId == partitionId))
             .toArray
@@ -470,12 +468,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       logInfo(s"ReserveSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} success!")
       logDebug(s"Allocated Slots: $slots")
       // Forth, register shuffle success, update status
-      val allocatedWorkers = new ConcurrentHashMap[WorkerInfo, PartitionLocationInfo]()
+      val allocatedWorkers = new ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
-        val partitionLocationInfo = new PartitionLocationInfo()
-        partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+        val partitionLocationInfo = new ShufflePartitionLocationInfo()
+        partitionLocationInfo.addMasterPartitions(masterLocations)
         updateLatestPartitionLocations(shuffleId, masterLocations)
-        partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
+        partitionLocationInfo.addSlavePartitions(slaveLocations)
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
@@ -617,10 +615,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     if (commitManager.tryFinalCommit(shuffleId)) {
       // release resources and clear worker info
-      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
-        partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
-        partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
-      }
+      shuffleAllocatedWorkers.remove(shuffleId)
+
       requestReleaseSlots(
         rssHARetryClient,
         ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
@@ -677,13 +673,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
 
-    if (partitionExists(shuffleId)) {
+    if (shuffleResourceExists(shuffleId)) {
       logWarning(s"Partition exists for shuffle $shuffleId, " +
         "maybe caused by task rerun or speculative.")
-      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
-        partitionLocationInfo.removeMasterPartitions(shuffleId.toString)
-        partitionLocationInfo.removeSlavePartitions(shuffleId.toString)
-      }
+      shuffleAllocatedWorkers.remove(shuffleId)
       requestReleaseSlots(
         rssHARetryClient,
         ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
@@ -1218,13 +1211,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def partitionExists(shuffleId: Int): Boolean = {
+  private def shuffleResourceExists(shuffleId: Int): Boolean = {
     val workers = workerSnapshots(shuffleId)
-    if (workers == null || workers.isEmpty) {
-      false
-    } else {
-      workers.values().asScala.exists(_.containsShuffle(shuffleId.toString))
-    }
+    workers != null && !workers.isEmpty
   }
 
   // Initialize at the end of LifecycleManager construction.

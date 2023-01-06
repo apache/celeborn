@@ -59,7 +59,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check all allocated slots
     var partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     var count =
-      partitionLocationInfos.map(r => r.getAllMasterLocations(shuffleId.toString).size()).sum
+      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
     Assert.assertEquals(count, numMappers)
 
     // another mapId
@@ -78,7 +78,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     logInfo(partitionLocationInfos.toString())
     count =
-      partitionLocationInfos.map(r => r.getAllMasterLocations(shuffleId.toString).size()).sum
+      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
     Assert.assertEquals(count, numMappers + 1)
   }
 

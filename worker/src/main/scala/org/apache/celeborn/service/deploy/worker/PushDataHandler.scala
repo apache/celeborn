@@ -27,7 +27,7 @@ import io.netty.buffer.ByteBuf
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
@@ -44,7 +44,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
-  var partitionLocationInfo: PartitionLocationInfo = _
+  var partitionLocationInfo: WorkerPartitionLocationInfo = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var replicateThreadPool: ThreadPoolExecutor = _
