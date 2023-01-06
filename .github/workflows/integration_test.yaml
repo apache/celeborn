@@ -67,5 +67,6 @@ jobs:
       run: >-
         ./build/mvn clean install 
         -Pkubernetes-it 
+        -Pspark-3.3
         -Dtest=none 
         -DwildcardSuites=org.apache.celeborn.integration.test.ShuffleClientSuite
