@@ -29,13 +29,13 @@ import org.slf4j.LoggerFactory;
 public class BufferStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(BufferStreamManager.class);
   private final AtomicLong nextStreamId;
-  protected final ConcurrentHashMap<Long, StreamStat> streams;
+  protected final ConcurrentHashMap<Long, StreamState> streams;
 
-  protected class StreamStat {
+  protected class StreamState {
     private Channel associatedChannel;
     private int bufferSize;
 
-    public StreamStat(Channel associatedChannel, int bufferSize) {
+    public StreamState(Channel associatedChannel, int bufferSize) {
       this.associatedChannel = associatedChannel;
       this.bufferSize = bufferSize;
     }
@@ -56,15 +56,15 @@ public class BufferStreamManager {
 
   public long registerStream(Channel channel, int bufferSize) {
     long streamId = nextStreamId.getAndIncrement();
-    streams.put(streamId, new StreamStat(channel, bufferSize));
+    streams.put(streamId, new StreamState(channel, bufferSize));
     return streamId;
   }
 
   public void addCredit(int numCredit, long streamId) {}
 
   public void connectionTerminated(Channel channel) {
-    for (Map.Entry<Long, StreamStat> entry : streams.entrySet()) {
-      if (entry.getValue().getAssociatedChannel().equals(channel)) {
+    for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
+      if (entry.getValue().getAssociatedChannel() == channel) {
         streams.remove(entry.getKey());
       }
     }

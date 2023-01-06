@@ -16,7 +16,6 @@
  */
 package org.apache.celeborn.common.network.protocol;
 
-import java.util.Arrays;
 import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
@@ -25,45 +24,38 @@ import io.netty.buffer.Unpooled;
 public class ReadData extends RequestMessage {
   private long streamId;
   private int backlog;
-  private int[] offsets;
+  private long offset;
   private ByteBuf buf;
 
-  public ReadData(long streamId, int backlog, int[] offsets, ByteBuf buf) {
+  public ReadData(long streamId, int backlog, long offset, ByteBuf buf) {
     this.streamId = streamId;
     this.backlog = backlog;
-    this.offsets = offsets;
+    this.offset = offset;
     this.buf = buf;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 4 + offsets.length * 4 + 4 + buf.readableBytes();
+    return 8 + 4 + 4 + 8 + 4 + buf.readableBytes();
   }
 
   @Override
   public void encode(ByteBuf buf) {
     buf.writeLong(streamId);
     buf.writeInt(backlog);
-    buf.writeInt(offsets.length);
-    for (int offset : offsets) {
-      buf.writeInt(offset);
-    }
+    buf.writeLong(offset);
     buf.writeInt(this.buf.readableBytes());
     buf.writeBytes(this.buf);
   }
 
   public static ReadData decode(ByteBuf buf) {
     long streamId = buf.readLong();
-    int credit = buf.readInt();
-    int offsetCount = buf.readInt();
-    int offsets[] = new int[offsetCount];
-    for (int i = 0; i < offsets.length; i++) {
-      offsets[i] = buf.readInt();
-    }
+    int backlog = buf.readInt();
+    long offset = buf.readLong();
     int tmpBufSize = buf.readInt();
     ByteBuf tmpBuf = Unpooled.buffer(tmpBufSize, tmpBufSize);
     buf.readBytes(tmpBuf);
-    return new ReadData(streamId, credit, offsets, tmpBuf);
+    return new ReadData(streamId, backlog, offset, tmpBuf);
   }
 
   public long getStreamId() {
@@ -74,8 +66,8 @@ public class ReadData extends RequestMessage {
     return backlog;
   }
 
-  public int[] getOffsets() {
-    return offsets;
+  public long getOffset() {
+    return offset;
   }
 
   public ByteBuf getBuf() {
@@ -94,15 +86,13 @@ public class ReadData extends RequestMessage {
     ReadData readData = (ReadData) o;
     return streamId == readData.streamId
         && backlog == readData.backlog
-        && Arrays.equals(offsets, readData.offsets)
-        && buf.equals(readData.buf);
+        && offset == readData.offset
+        && Objects.equals(buf, readData.buf);
   }
 
   @Override
   public int hashCode() {
-    int result = Objects.hash(streamId, backlog, buf);
-    result = 31 * result + Arrays.hashCode(offsets);
-    return result;
+    return Objects.hash(streamId, backlog, offset, buf);
   }
 
   @Override
@@ -112,8 +102,8 @@ public class ReadData extends RequestMessage {
         + streamId
         + ", backlog="
         + backlog
-        + ", offsets="
-        + Arrays.toString(offsets)
+        + ", offset="
+        + offset
         + ", buf="
         + buf
         + '}';
