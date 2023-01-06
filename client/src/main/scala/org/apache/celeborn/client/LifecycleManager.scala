@@ -1053,7 +1053,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        shuffleTaskInfo.remove(shuffleId)
+        shuffleTaskInfo.removeExpiredShuffle(shuffleId)
         requestUnregisterShuffle(
           rssHARetryClient,
           UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))

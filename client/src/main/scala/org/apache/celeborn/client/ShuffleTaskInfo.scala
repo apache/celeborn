@@ -86,10 +86,12 @@ class ShuffleTaskInfo {
     attemptIdMap.get(mapAttemptId)
   }
 
-  def remove(shuffleId: Int): Unit = {
-    val taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId)
-    taskShuffleIdToShuffleId.remove(taskShuffleId)
-    taskShuffleAttemptIdIndex.remove(shuffleId)
-    taskShuffleAttemptIdToAttemptId.remove(taskShuffleId)
+  def removeExpiredShuffle(shuffleId: Int): Unit = {
+    if (shuffleIdToTaskShuffleId.containsKey(shuffleId)) {
+      val taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId)
+      taskShuffleIdToShuffleId.remove(taskShuffleId)
+      taskShuffleAttemptIdIndex.remove(shuffleId)
+      taskShuffleAttemptIdToAttemptId.remove(taskShuffleId)
+    }
   }
 }
