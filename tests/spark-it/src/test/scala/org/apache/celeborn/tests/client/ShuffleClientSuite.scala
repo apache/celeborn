@@ -24,7 +24,7 @@ import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.{LifecycleManager, ShuffleClient, ShuffleClientImpl}
+import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.PackedPartitionId
@@ -94,8 +94,7 @@ class ShuffleClientSuite extends AnyFunSuite with MiniClusterFeature
   }
 
   override def afterAll(): Unit = {
-    // TODO refactor MiniCluster later
-    println("test done")
-    sys.exit(0)
+    logInfo("all test complete , stop rss mini cluster")
+    shutdownMiniCluster()
   }
 }

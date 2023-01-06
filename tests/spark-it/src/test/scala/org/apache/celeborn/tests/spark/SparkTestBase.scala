@@ -21,112 +21,27 @@ import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.rpc.RpcEnv
 import org.apache.celeborn.service.deploy.MiniClusterFeature
-import org.apache.celeborn.service.deploy.master.Master
-import org.apache.celeborn.service.deploy.worker.Worker
 
-trait SparkTestBase extends Logging with MiniClusterFeature {
+trait SparkTestBase extends AnyFunSuite
+  with Logging with MiniClusterFeature with BeforeAndAfterAll {
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
     .toList
     .map(v => (v.toUpper, Random.nextInt(12) + 1))
 
-  @volatile var tuple: (
-      Master,
-      RpcEnv,
-      Worker,
-      RpcEnv,
-      Worker,
-      RpcEnv,
-      Worker,
-      RpcEnv,
-      Thread,
-      Thread,
-      Thread,
-      Thread) = _
-
-  def clearMiniCluster(
-      tuple: (
-          Master,
-          RpcEnv,
-          Worker,
-          RpcEnv,
-          Worker,
-          RpcEnv,
-          Worker,
-          RpcEnv,
-          Thread,
-          Thread,
-          Thread,
-          Thread)): Unit = {
-    tuple._3.close()
-    tuple._4.shutdown()
-    tuple._5.close()
-    tuple._6.shutdown()
-    tuple._7.close()
-    tuple._8.shutdown()
-    tuple._1.close()
-    tuple._2.shutdown()
-    Thread.sleep(5000L)
-    tuple._10.interrupt()
-    tuple._11.interrupt()
-    tuple._12.interrupt()
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup rss mini cluster")
+    setUpMiniCluster()
   }
 
-  def setupRssMiniClusterSpark(
-      masterConfs: Map[String, String] = null,
-      workerConfs: Map[String, String] = null): (
-      Master,
-      RpcEnv,
-      Worker,
-      RpcEnv,
-      Worker,
-      RpcEnv,
-      Worker,
-      RpcEnv,
-      Thread,
-      Thread,
-      Thread,
-      Thread) = {
-    Thread.sleep(3000L)
-
-    val (master, masterRpcEnv) = createMaster(masterConfs)
-    val (worker1, workerRpcEnv1) = createWorker(workerConfs)
-    val (worker2, workerRpcEnv2) = createWorker(workerConfs)
-    val (worker3, workerRpcEnv3) = createWorker(workerConfs)
-    val masterThread = runnerWrap(masterRpcEnv.awaitTermination())
-    val workerThread1 = runnerWrap(worker1.initialize())
-    val workerThread2 = runnerWrap(worker2.initialize())
-    val workerThread3 = runnerWrap(worker3.initialize())
-
-    masterThread.start()
-    Thread.sleep(5000L)
-
-    workerThread1.start()
-    workerThread2.start()
-    workerThread3.start()
-    Thread.sleep(5000L)
-
-    assert(worker1.isRegistered())
-    assert(worker2.isRegistered())
-    assert(worker3.isRegistered())
-
-    (
-      master,
-      masterRpcEnv,
-      worker1,
-      workerRpcEnv1,
-      worker2,
-      workerRpcEnv2,
-      worker3,
-      workerRpcEnv3,
-      masterThread,
-      workerThread1,
-      workerThread2,
-      workerThread3)
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop rss mini cluster")
+    shutdownMiniCluster()
   }
 
   def updateSparkConf(sparkConf: SparkConf, sort: Boolean): SparkConf = {
@@ -137,7 +52,7 @@ trait SparkTestBase extends Logging with MiniClusterFeature {
     sparkConf.set("spark.shuffle.service.enabled", "false")
     sparkConf.set("spark.sql.adaptive.skewJoin.enabled", "false")
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
-    sparkConf.set("spark.celeborn.master.endpoints", tuple._1.rpcEnv.address.toString)
+    sparkConf.set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
     if (sort) {
       sparkConf.set("spark.celeborn.shuffle.writer.mode", "sort")
     }
