@@ -37,11 +37,7 @@ jobs:
         check-latest: false
     - name: Build Celeborn Binary
       run:
-<<<<<<< HEAD
-        ./build/make-distribution.sh --integrationTest -Pspark-3.3 -Pgoogle-mirror
-=======
-        ./dev/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
->>>>>>> 6cb66a40 (fix)
+        ./build/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
     - name: Build Celeborn Docker Image
