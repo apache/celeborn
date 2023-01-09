@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles,
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
@@ -217,6 +217,11 @@ abstract class CommitHandler(
     val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
     val commitFilesFailedWorkers = new ShuffleFailedWorkers()
+
+    if (CollectionUtils.isEmpty(allocatedWorkers)) {
+      return CommitResult(masterPartMap, slavePartMap, commitFilesFailedWorkers)
+    }
+
     val commitFileStartTime = System.nanoTime()
     val parallelism = Math.min(allocatedWorkers.size(), conf.rpcMaxParallelism)
     ThreadUtils.parmap(
@@ -275,6 +280,10 @@ abstract class CommitHandler(
       masterIds: util.List[String],
       slaveIds: util.List[String],
       commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
+
+    if (CollectionUtils.isEmpty(masterIds) && CollectionUtils.isEmpty(slaveIds)) {
+      return
+    }
 
     val res =
       if (!testRetryCommitFiles) {

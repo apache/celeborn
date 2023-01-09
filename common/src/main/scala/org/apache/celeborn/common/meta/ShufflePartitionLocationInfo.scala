@@ -75,7 +75,7 @@ class ShufflePartitionLocationInfo {
       locations: util.List[PartitionLocation]): Unit = {
     if (locations != null && locations.size() > 0) {
       locations.asScala.foreach { loc =>
-        partitionInfo.putIfAbsent(loc.getId, new util.ArrayList[PartitionLocation]())
+        partitionInfo.putIfAbsent(loc.getId, new util.ArrayList)
         val locations = partitionInfo.get(loc.getId)
         locations.add(loc)
       }
