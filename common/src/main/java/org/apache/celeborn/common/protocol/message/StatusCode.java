@@ -21,7 +21,7 @@ public enum StatusCode {
   // 1/0 Status
   SUCCESS(0),
   PARTIAL_SUCCESS(1),
-  FAILED(2),
+  REQUEST_FAILED(2),
 
   // Specific Status
   SHUFFLE_ALREADY_REGISTERED(3),

@@ -103,6 +103,12 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>${maven.plugin.protobuf.version}</version>
         <extensions>true</extensions>
+        <configuration>
+          <protoSourceRoot>${basedir}/src/main/proto/</protoSourceRoot>
+          <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+          <pluginId>grpc-java</pluginId>
+          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+        </configuration>
         <executions>
           <execution>
             <id>compile-protoc</id>
@@ -110,12 +116,6 @@
               <goal>compile</goal>
               <goal>compile-custom</goal>
             </goals>
-            <configuration>
-              <protoSourceRoot>${basedir}/src/main/proto/</protoSourceRoot>
-              <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-              <pluginId>grpc-java</pluginId>
-              <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-            </configuration>
           </execution>
         </executions>
       </plugin>

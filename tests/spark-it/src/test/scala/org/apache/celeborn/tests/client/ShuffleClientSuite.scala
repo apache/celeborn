@@ -38,8 +38,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   }
 
   override def afterAll(): Unit = {
-    // TODO refactor MiniCluster later
-    println("test done")
-    sys.exit(0)
+    logInfo("all test complete , stop rss mini cluster")
+    shutdownMiniCluster()
   }
 }

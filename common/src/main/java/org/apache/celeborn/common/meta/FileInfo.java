@@ -182,4 +182,8 @@ public class FileInfo {
   public void setBufferSize(int bufferSize) {
     this.bufferSize = bufferSize;
   }
+
+  public int getBufferSize() {
+    return bufferSize;
+  }
 }

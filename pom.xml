@@ -52,18 +52,20 @@
   </distributionManagement>
 
   <properties>
-    <project.version>0.2.0-SNAPSHOT</project.version>
+    <project.version>0.3.0-SNAPSHOT</project.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
+    <scala211.version>2.11.12</scala211.version>
+    <scala211.binary.version>2.11</scala211.binary.version>
     <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.6.3</maven.version>
 
-    <flink.version>1.14.0</flink.version>
+    <flink.version>1.14.6</flink.version>
     <hadoop.version>3.2.1</hadoop.version>
     <spark.version>3.3.1</spark.version>
 
@@ -100,7 +102,7 @@
     <maven.plugin.jacoco.version>0.8.7</maven.plugin.jacoco.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.7.0</maven.plugin.os.version>
-    <maven.plugin.protobuf.version>0.5.1</maven.plugin.protobuf.version>
+    <maven.plugin.protobuf.version>0.6.1</maven.plugin.protobuf.version>
     <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
     <maven.plugin.scala.version>4.7.2</maven.plugin.scala.version>
     <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
@@ -1019,14 +1021,9 @@
         <module>client-flink/flink-1.14-shaded</module>
       </modules>
       <properties>
-        <flink.version>1.14.0</flink.version>
-        <flink.binary.version>1.14</flink.binary.version>
-        <jackson.version>2.6.7</jackson.version>
-        <jackson.databind.version>2.6.7.3</jackson.databind.version>
-        <lz4-java.version>1.4.0</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <zstd-jni.version>1.4.4-3</zstd-jni.version>
+        <flink.version>1.14.6</flink.version>
+        <scala.version>${scala211.version}</scala.version>
+        <scala.binary.version>${scala211.binary.version}</scala.binary.version>
       </properties>
     </profile>
 

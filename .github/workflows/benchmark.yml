@@ -34,7 +34,7 @@ jobs:
 
       - name: Build
         run: |
-          dev/make-distribution.sh -Pspark-3.2
+          build/make-distribution.sh -Pspark-3.2
           rm -rf /home/hadoop/celeborn-toolkit/dist/*
           mv apache-celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
 

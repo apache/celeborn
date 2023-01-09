@@ -21,6 +21,8 @@ set -o pipefail
 set -e
 set -x
 
+PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
+
 ASF_USERNAME=${ASF_USERNAME:?"ASF_USERNAME is required"}
 ASF_PASSWORD=${ASF_PASSWORD:?"ASF_PASSWORD is required"}
 RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
@@ -59,7 +61,6 @@ RELEASE_TAG="v${RELEASE_VERSION}-rc${RELEASE_RC_NO}"
 SVN_STAGING_REPO="https://dist.apache.org/repos/dist/dev/incubator/celeborn"
 SVN_RELEASE_REPO="https://dist.apache.org/repos/dist/release/incubator/celeborn"
 
-PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
 RELEASE_DIR="${PROJECT_DIR}/tmp"
 SVN_STAGING_DIR="${PROJECT_DIR}/tmp/svn-dev"
 SVN_RELEASE_DIR="${PROJECT_DIR}/tmp/svn-release"

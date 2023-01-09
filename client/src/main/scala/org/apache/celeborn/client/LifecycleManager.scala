@@ -409,9 +409,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val res = requestSlotsWithRetry(applicationId, shuffleId, ids)
 
     res.status match {
-      case StatusCode.FAILED =>
+      case StatusCode.REQUEST_FAILED =>
         logError(s"OfferSlots RPC request failed for $shuffleId!")
-        reply(RegisterShuffleResponse(StatusCode.FAILED, Array.empty))
+        reply(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
         logError(s"OfferSlots for $shuffleId failed!")
@@ -514,14 +514,26 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
-    // only blacklist if cause is PushDataFailMain
     val failedWorker = new ShuffleFailedWorkers()
-    if (cause == StatusCode.PUSH_DATA_FAIL_MASTER && oldPartition != null) {
-      val tmpWorker = oldPartition.getWorker
-      val worker = workerSnapshots(shuffleId).keySet().asScala
-        .find(_.equals(tmpWorker))
+
+    def blacklistPartitionWorker(
+        partition: PartitionLocation,
+        statusCode: StatusCode): Unit = {
+      val tmpWorker = partition.getWorker
+      val worker = workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
       if (worker.isDefined) {
-        failedWorker.put(worker.get, (StatusCode.PUSH_DATA_FAIL_MASTER, System.currentTimeMillis()))
+        failedWorker.put(worker.get, (statusCode, System.currentTimeMillis()))
+      }
+    }
+
+    if (oldPartition != null) {
+      cause match {
+        case StatusCode.PUSH_DATA_FAIL_MASTER =>
+          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_FAIL_MASTER)
+        case StatusCode.PUSH_DATA_FAIL_SLAVE
+            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
+          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_FAIL_SLAVE)
+        case _ =>
       }
     }
     if (!failedWorker.isEmpty) {
@@ -1041,7 +1053,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        shuffleTaskInfo.remove(shuffleId)
+        shuffleTaskInfo.removeExpiredShuffle(shuffleId)
         requestUnregisterShuffle(
           rssHARetryClient,
           UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
@@ -1107,7 +1119,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync RegisterShuffle for $shuffleKey failed.", e)
-        RequestSlotsResponse(StatusCode.FAILED, new WorkerResource())
+        RequestSlotsResponse(StatusCode.REQUEST_FAILED, new WorkerResource())
     }
   }
 
@@ -1122,7 +1134,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
           s"on worker $endpoint."
         logError(msg, e)
-        ReserveSlotsResponse(StatusCode.FAILED, msg + s" ${e.getMessage}")
+        ReserveSlotsResponse(StatusCode.REQUEST_FAILED, msg + s" ${e.getMessage}")
     }
   }
 
@@ -1132,7 +1144,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
-        DestroyResponse(StatusCode.FAILED, message.masterLocations, message.slaveLocations)
+        DestroyResponse(StatusCode.REQUEST_FAILED, message.masterLocations, message.slaveLocations)
     }
   }
 
@@ -1144,7 +1156,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync ReleaseSlots for ${message.shuffleId} failed.", e)
-        ReleaseSlotsResponse(StatusCode.FAILED)
+        ReleaseSlotsResponse(StatusCode.REQUEST_FAILED)
     }
   }
 
@@ -1158,7 +1170,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
-        UnregisterShuffleResponse(StatusCode.FAILED)
+        UnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
     }
   }
 
@@ -1170,7 +1182,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync GetBlacklist failed.", e)
-        GetBlacklistResponse(StatusCode.FAILED, List.empty.asJava, List.empty.asJava)
+        GetBlacklistResponse(StatusCode.REQUEST_FAILED, List.empty.asJava, List.empty.asJava)
     }
   }
 

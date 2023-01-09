@@ -336,10 +336,15 @@ public class ShuffleClientImpl extends ShuffleClient {
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
               StatusCode.SLOT_NOT_AVAILABLE,
               numRetries - 1);
+        } else if (StatusCode.RESERVE_SLOTS_FAILED.equals(respStatus)) {
+          logger.error(
+              "LifecycleManager request slots return {}, retry again, remain retry times {}",
+              StatusCode.RESERVE_SLOTS_FAILED,
+              numRetries - 1);
         } else {
           logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
-              StatusCode.FAILED,
+              StatusCode.REQUEST_FAILED,
               numRetries - 1);
         }
       } catch (Exception e) {

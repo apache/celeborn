@@ -21,6 +21,9 @@ _config.yml export-ignore
 codecov.yml export-ignore
 LICENSE-binary export-ignore
 NOTICE-binary export-ignore
+assets/slides/* export-ignore
+assets/diagram/* export-ignore
+assets/img/* export-ignore
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.java text eol=lf
