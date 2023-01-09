@@ -656,8 +656,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       RpcResponseCallback wrappedCallback =
           new RpcResponseCallback() {
+            int remainReviveTimes = maxReviveTimes;
 
-          int remainReviveTimes = maxReviveTimes
             @Override
             public void onSuccess(ByteBuffer response) {
               if (response.remaining() > 0) {
