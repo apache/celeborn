@@ -93,8 +93,8 @@ object WorkerSource {
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
 
   // local device
-  val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(GB)"
-  val DeviceOSTotalCapacity = "DeviceOSTotalCapacity(GB)"
+  val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"
+  val DeviceOSTotalCapacity = "DeviceOSTotalCapacity(B)"
   val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity(B)"
   val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity(B)"
 }

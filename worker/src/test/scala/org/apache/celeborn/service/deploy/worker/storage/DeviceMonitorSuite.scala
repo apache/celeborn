@@ -70,36 +70,36 @@ class DeviceMonitorSuite extends AnyFunSuite {
   val lsCmd = "ls /sys/block/"
   val lsOut = "loop0  loop1  loop2  loop3  loop4  loop5  loop6  loop7  vda  vdb"
 
-  val dfBCmd1 = "df -B 1G /mnt/disk1"
-  val dfBCmd2 = "df -B 1G /mnt/disk2"
-  val dfBCmd3 = "df -B 1G /mnt/disk3"
-  val dfBCmd4 = "df -B 1G /mnt/disk4"
-  val dfBCmd5 = "df -B 1G /mnt/disk5"
+  val dfBCmd1 = "df -B1 /mnt/disk1"
+  val dfBCmd2 = "df -B1 /mnt/disk2"
+  val dfBCmd3 = "df -B1 /mnt/disk3"
+  val dfBCmd4 = "df -B1 /mnt/disk4"
+  val dfBCmd5 = "df -B1 /mnt/disk5"
 
   val dfBOut1 =
     """
-      |Filesystem     1G-blocks  Used Available Use% Mounted on
-      |/dev/vda            1300    95      1205   7% /mnt/disk1
+      |Filesystem     1B-blocks            Used          Available Use% Mounted on
+      |/dev/vda   1395864371200    102005473280      1293858897920   7% /mnt/disk1
       |""".stripMargin
   val dfBOut2 =
     """
-      |Filesystem     1G-blocks  Used Available Use% Mounted on
-      |/dev/vdb            1800    91      1709   6% /mnt/disk2
+      |Filesystem     1B-blocks            Used          Available Use% Mounted on
+      |/dev/vdb   1932735283200     97710505984      1835024777216   6% /mnt/disk2
       |""".stripMargin
   val dfBOut3 =
     """
-      |Filesystem     1G-blocks  Used Available Use% Mounted on
-      |/dev/vda            1300    95      1205   7% /mnt/disk3
+      |Filesystem     1B-blocks            Used          Available Use% Mounted on
+      |/dev/vda   1395864371200    102005473280      1293858897920   7% /mnt/disk3
       |""".stripMargin
   val dfBOut4 =
     """
-      |Filesystem     1G-blocks  Used Available Use% Mounted on
-      |/dev/vdb            1800    91      1709   6% /mnt/disk4
+      |Filesystem     1B-blocks            Used          Available Use% Mounted on
+      |/dev/vdb   1932735283200     97710505984      1835024777216   6% /mnt/disk4
       |""".stripMargin
   val dfBOut5 =
     """
-      |Filesystem     1G-blocks  Used Available Use% Mounted on
-      |/dev/vdb            1800    91      1709   6% /mnt/disk5
+      |Filesystem     1B-blocks            Used          Available Use% Mounted on
+      |/dev/vdb   1932735283200     97710505984      1835024777216   6% /mnt/disk5
       |""".stripMargin
 
   val dirs = new jArrayList[File]()
@@ -381,8 +381,8 @@ class DeviceMonitorSuite extends AnyFunSuite {
       when(Utils.runCommand(dfBCmd5)).thenReturn(dfBOut5)
       val dfBOut6 =
         """
-          |Filesystem     1G-blocks  Used Available Use% Mounted on
-          |/dev/vda            1300   122      1178   9% /mnt/disk1
+          |Filesystem     1B-blocks            Used          Available Use% Mounted on
+          |/dev/vda   1395864371200    130996502528      1264867868672   9% /mnt/disk1
           |""".stripMargin
 
       deviceMonitor2.init()
@@ -397,29 +397,29 @@ class DeviceMonitorSuite extends AnyFunSuite {
         _.name.startsWith(WorkerSource.DeviceCelebornFreeCapacity)).sortBy(_.name)
 
       assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vda", metrics1.head.name)
-      assertEquals(1300L, metrics1.head.gauge.getValue)
+      assertEquals(1395864371200L, metrics1.head.gauge.getValue)
       assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vdb", metrics1.last.name)
-      assertEquals(1800L, metrics1.last.gauge.getValue)
+      assertEquals(1932735283200L, metrics1.last.gauge.getValue)
 
       assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vda", metrics2.head.name)
-      assertEquals(1205L, metrics2.head.gauge.getValue)
+      assertEquals(1293858897920L, metrics2.head.gauge.getValue)
       assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vdb", metrics2.last.name)
-      assertEquals(1709L, metrics2.last.gauge.getValue)
+      assertEquals(1835024777216L, metrics2.last.gauge.getValue)
 
       assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vda", metrics3.head.name)
       assertEquals(Int.MaxValue.toLong * 2, metrics3.head.gauge.getValue)
       assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vdb", metrics3.last.name)
       assertEquals(Int.MaxValue.toLong * 3, metrics3.last.gauge.getValue)
 
+      // test if metrics will change when disk usage change
       diskInfos2.values().asScala.foreach(diskInfo => diskInfo.setUsableSpace(1024))
       assertEquals(s"${WorkerSource.DeviceCelebornFreeCapacity}_vda", metrics4.head.name)
       assertEquals(1024L * 2, metrics4.head.gauge.getValue)
       assertEquals(s"${WorkerSource.DeviceCelebornFreeCapacity}_vdb", metrics4.last.name)
       assertEquals(1024L * 3, metrics4.last.gauge.getValue)
 
-      // test if metrics will change when disk usage change, here
       when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut6)
-      assertEquals(1178L, metrics2.head.gauge.getValue)
+      assertEquals(1264867868672L, metrics2.head.gauge.getValue)
     }
   }
 }
