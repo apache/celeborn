@@ -750,7 +750,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             body,
                             nextBatchId,
                             loc,
-                            callback,
+                            this,
                             pushState,
                             getPushDataFailCause(e.getMessage()),
                             remainReviveTimes));
