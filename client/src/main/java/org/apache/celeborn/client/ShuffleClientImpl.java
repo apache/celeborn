@@ -261,7 +261,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           mapId,
           attemptId,
           newDataBatches.requireBatches(),
-          pushState);
+          pushState,
+          true);
     }
     pushState.removeBatch(oldGroupedBatchId);
   }
@@ -771,7 +772,8 @@ public class ShuffleClientImpl extends ShuffleClient {
             mapId,
             attemptId,
             dataBatches.requireBatches(),
-            pushState);
+            pushState,
+            false);
       }
     }
 
@@ -886,7 +888,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         batchesArr.remove(entry);
       }
       String[] tokens = entry.getKey().split("-");
-      doPushMergedData(tokens[0], applicationId, shuffleId, mapId, attemptId, batches, pushState);
+      doPushMergedData(
+          tokens[0], applicationId, shuffleId, mapId, attemptId, batches, pushState, false);
     }
   }
 
@@ -897,7 +900,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       ArrayList<DataBatches.DataBatch> batches,
-      PushState pushState) {
+      PushState pushState,
+      boolean revived) {
     final String[] splits = hostPort.split(":");
     final String host = splits[0];
     final int port = Integer.parseInt(splits[1]);
@@ -945,7 +949,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onFailure(Throwable e) {
             String errorMsg =
-                "Push merged data to "
+                (revived ? "Revived push" : "Push")
+                    + " merged data to "
                     + host
                     + ":"
                     + port
@@ -1024,6 +1029,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onFailure(Throwable e) {
             if (pushState.exception.get() != null) {
+              return;
+            }
+            if (revived) {
+              callback.onFailure(e);
               return;
             }
             logger.error(
