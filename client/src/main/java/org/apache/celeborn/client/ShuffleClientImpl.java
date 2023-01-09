@@ -185,7 +185,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     int partitionId = loc.getId();
     if (!revive(
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
-      callback.onFailure(new IOException("Revive Failed, remain revive times " + remainReviveTimes));
+      callback.onFailure(
+          new IOException("Revive Failed, remain revive times " + remainReviveTimes));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
           "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
