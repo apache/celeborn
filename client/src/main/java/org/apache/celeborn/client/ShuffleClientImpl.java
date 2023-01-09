@@ -228,6 +228,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       Integer oldGroupedBatchId,
       int remainReviveTimes) {
     HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
+    ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
     for (DataBatches.DataBatch batch : batches) {
       int partitionId = batch.loc.getId();
       if (!revive(
@@ -239,10 +240,16 @@ public class ShuffleClientImpl extends ShuffleClient {
           batch.loc.getEpoch(),
           batch.loc,
           cause)) {
-        pushState.exception.compareAndSet(
-            null,
-            new IOException("Revive Failed in retry push merged data for location: " + batch.loc));
-        return;
+
+        if (remainReviveTimes > 0) {
+          reviveFailedBatchesMap.add(batch);
+        } else {
+          pushState.exception.compareAndSet(
+              null,
+              new IOException(
+                  "Revive Failed in retry push merged data for location: " + batch.loc));
+          return;
+        }
       } else if (mapperEnded(shuffleId, mapId, attemptId)) {
         logger.debug(
             "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
@@ -269,7 +276,22 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState,
           remainReviveTimes);
     }
-    pushState.removeBatch(oldGroupedBatchId);
+    if (reviveFailedBatchesMap.isEmpty()) {
+      pushState.removeBatch(oldGroupedBatchId);
+    } else {
+      pushDataRetryPool.submit(
+          () ->
+              submitRetryPushMergedData(
+                  pushState,
+                  applicationId,
+                  shuffleId,
+                  mapId,
+                  attemptId,
+                  reviveFailedBatchesMap,
+                  cause,
+                  oldGroupedBatchId,
+                  remainReviveTimes - 1));
+    }
   }
 
   private String genAddressPair(PartitionLocation loc) {
