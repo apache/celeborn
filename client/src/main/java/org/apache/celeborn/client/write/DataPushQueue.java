@@ -32,7 +32,11 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.Utils;
 
 /*
- * Queue for push data
+ * Queue for push data,
+ * it can take one special PushTask queue by partitionId,
+ * and it can take one random PushTask queue.
+ * workingQueuePerPartition: for PushTask queue per every partition.
+ *
  * */
 public class DataPushQueue {
   private static final Logger logger = LoggerFactory.getLogger(DataPushQueue.class);
@@ -67,9 +71,9 @@ public class DataPushQueue {
     this.dataPusher = dataPusher;
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     this.pushState = client.getOrRegisterPushState(mapKey);
-    workingQueuePerPartition = new ArrayList<>(numPartitions);
     this.maxInFlight = conf.pushMaxReqsInFlight();
     final int capacity = conf.pushQueueCapacity();
+    workingQueuePerPartition = new ArrayList<>(numPartitions);
     for (int i = 0; i < numPartitions; i++) {
       workingQueuePerPartition.add(new LinkedBlockingQueue<>(capacity));
     }
@@ -78,7 +82,7 @@ public class DataPushQueue {
   public LinkedBlockingQueue<PushTask> takeAnyWorkingQueue() throws IOException {
     while (!dataPusher.terminatedOrHasException()) {
       int partitionId = nextPartitionId();
-      LinkedBlockingQueue<PushTask> pushTasks = null;
+      LinkedBlockingQueue<PushTask> pushTasks;
       try {
         pushTasks = workingQueuePerPartition.get(partitionId);
       } catch (IndexOutOfBoundsException ex) {
@@ -87,7 +91,6 @@ public class DataPushQueue {
         }
         throw ex;
       }
-      assert pushTasks != null;
       if (!pushTasks.isEmpty()) {
         Map<Integer, PartitionLocation> partitionLocationMap =
             client.getOrRegisterShuffle(appId, shuffleId, numMappers, numPartitions);
