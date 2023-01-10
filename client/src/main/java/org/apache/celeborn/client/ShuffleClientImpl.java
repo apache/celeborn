@@ -186,7 +186,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
           "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
-      pushState.removeBatch(batchId, loc.hostAndPushPort());
+      pushState.removeBatch(batchId);
     } else {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
       logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
@@ -199,7 +199,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         PushData newPushData =
             new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
         ChannelFuture future = client.pushData(newPushData, callback);
-        pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort());
+        pushState.pushStarted(batchId, future, callback);
       } catch (Exception ex) {
         logger.warn(
             "Exception raised while pushing data for shuffle {} map {} attempt {}" + " batch {}.",
@@ -264,7 +264,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState,
           true);
     }
-    pushState.removeBatch(oldGroupedBatchId, batches.get(0).loc.hostAndPushPort());
+    pushState.removeBatch(oldGroupedBatchId);
   }
 
   private String genAddressPair(PartitionLocation loc) {
@@ -311,18 +311,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                     conf.registerShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
     return partitionLocationMap.get(partitionId);
-  }
-
-  @Override
-  public ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
-      String applicationId, int shuffleId, int numMappers, int numPartitions) {
-    return reducePartitionMap.computeIfAbsent(
-        shuffleId, (id) -> registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
-  }
-
-  @Override
-  public PushState getOrRegisterPushState(String mapKey) {
-    return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
@@ -380,20 +368,44 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void limitMaxInFlight(
-      String mapKey, PushState pushState, int limit, String hostAndPushPort) throws IOException {
-    boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort, limit);
+  private void limitMaxInFlight(String mapKey, PushState pushState, int limit) throws IOException {
+    if (pushState.exception.get() != null) {
+      throw pushState.exception.get();
+    }
 
-    if (reachLimit) {
+    long timeoutMs = conf.pushLimitInFlightTimeoutMs();
+    long delta = conf.pushLimitInFlightSleepDeltaMs();
+    long times = timeoutMs / delta;
+    try {
+      while (times > 0) {
+        if (pushState.inflightBatchCount() <= limit) {
+          break;
+        }
+        if (pushState.exception.get() != null) {
+          throw pushState.exception.get();
+        }
+
+        pushState.failExpiredBatch();
+
+        Thread.sleep(delta);
+        times--;
+      }
+    } catch (InterruptedException e) {
+      pushState.exception.set(new IOException(e));
+    }
+
+    if (times <= 0) {
+      logger.error(
+          "After waiting for {} ms, there are still {} batches in flight for map {}, "
+              + "which exceeds the limit {}.",
+          timeoutMs,
+          pushState.inflightBatchCount(),
+          mapKey,
+          limit);
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
-  }
-
-  private void limitZeroInFlight(String mapKey, PushState pushState) throws IOException {
-    boolean reachLimit = pushState.limitZeroInFlight();
-
-    if (reachLimit) {
-      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
+    if (pushState.exception.get() != null) {
+      throw pushState.exception.get();
     }
   }
 
@@ -515,7 +527,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     // register shuffle if not registered
     final ConcurrentHashMap<Integer, PartitionLocation> map =
-        getOrRegisterShuffle(applicationId, shuffleId, numMappers, numPartitions);
+        reducePartitionMap.computeIfAbsent(
+            shuffleId,
+            (id) -> registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
 
     if (map == null) {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
@@ -561,10 +575,10 @@ public class ShuffleClientImpl extends ShuffleClient {
               + " is NULL!");
     }
 
-    PushState pushState = getOrRegisterPushState(mapKey);
+    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
 
     // increment batchId
-    final int nextBatchId = pushState.nextBatchId();
+    final int nextBatchId = pushState.batchId.addAndGet(1);
 
     // compress data
     final Compressor compressor = compressorThreadLocal.get();
@@ -590,10 +604,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           nextBatchId);
       // check limit
-      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get(), loc.hostAndPushPort());
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get());
 
       // add inFlight requests
-      pushState.addBatch(nextBatchId, loc.hostAndPushPort());
+      pushState.addBatch(nextBatchId);
 
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -604,7 +618,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           new RpcResponseCallback() {
             @Override
             public void onSuccess(ByteBuffer response) {
-              pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
+              pushState.removeBatch(nextBatchId);
               // TODO Need to adjust maxReqsInFlight if server response is congested, see
               // CELEBORN-62
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
@@ -726,7 +740,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             pushState,
                             getPushDataFailCause(e.getMessage())));
               } else {
-                pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
+                pushState.removeBatch(nextBatchId);
                 logger.info(
                     "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
                     shuffleId,
@@ -742,7 +756,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         TransportClient client =
             dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
         ChannelFuture future = client.pushData(pushData, wrappedCallback);
-        pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
+        pushState.pushStarted(nextBatchId, future, wrappedCallback);
       } catch (Exception e) {
         logger.warn("PushData failed", e);
         wrappedCallback.onFailure(
@@ -754,7 +768,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       String addressPair = genAddressPair(loc);
       boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
       if (shouldPush) {
-        limitMaxInFlight(mapKey, pushState, maxInFlight, loc.hostAndPushPort());
+        limitMaxInFlight(mapKey, pushState, maxInFlight);
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
         doPushMergedData(
             addressPair.split("-")[0],
@@ -831,7 +845,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.get(mapKey);
     if (pushState != null) {
-      limitZeroInFlight(mapKey, pushState);
+      limitMaxInFlight(mapKey, pushState, 0);
     }
   }
 
@@ -872,13 +886,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     ArrayList<Map.Entry<String, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
+      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get());
       Map.Entry<String, DataBatches> entry = batchesArr.get(RND.nextInt(batchesArr.size()));
-      String[] tokens = entry.getKey().split("-");
-      limitMaxInFlight(mapKey, pushState, currentMaxReqsInFlight.get(), tokens[0]);
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
         batchesArr.remove(entry);
       }
+      String[] tokens = entry.getKey().split("-");
       doPushMergedData(
           tokens[0], applicationId, shuffleId, mapId, attemptId, batches, pushState, false);
     }
@@ -897,8 +911,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String host = splits[0];
     final int port = Integer.parseInt(splits[1]);
 
-    int groupedBatchId = pushState.nextBatchId();
-    pushState.addBatch(groupedBatchId, hostPort);
+    int groupedBatchId = pushState.batchId.addAndGet(1);
+    pushState.addBatch(groupedBatchId);
 
     final int numBatches = batches.size();
     final String[] partitionUniqueIds = new String[numBatches];
@@ -928,7 +942,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 mapId,
                 attemptId,
                 groupedBatchId);
-            pushState.removeBatch(groupedBatchId, hostPort);
+            pushState.removeBatch(groupedBatchId);
             // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               mapperEndMap
@@ -1059,7 +1073,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       TransportClient client = dataClientFactory.createClient(host, port);
       ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
-      pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
+      pushState.pushStarted(groupedBatchId, future, wrappedCallback);
     } catch (Exception e) {
       logger.warn("PushMergedData failed", e);
       wrappedCallback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
@@ -1094,10 +1108,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       Integer partitionId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    PushState pushState = getOrRegisterPushState(mapKey);
+    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
 
     try {
-      limitZeroInFlight(mapKey, pushState);
+      limitMaxInFlight(mapKey, pushState, 0);
 
       MapperEndResponse response =
           driverRssMetaService.askSync(
@@ -1362,10 +1376,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    PushState pushState = getOrRegisterPushState(mapKey);
+    PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
 
     // increment batchId
-    final int nextBatchId = pushState.nextBatchId();
+    final int nextBatchId = pushState.batchId.addAndGet(1);
     int totalLength = data.readableBytes();
     data.markWriterIndex();
     data.writerIndex(0);
@@ -1383,10 +1397,10 @@ public class ShuffleClientImpl extends ShuffleClient {
         partitionId,
         nextBatchId);
     // check limit
-    limitMaxInFlight(mapKey, pushState, maxInFlight, location.hostAndPushPort());
+    limitMaxInFlight(mapKey, pushState, maxInFlight);
 
     // add inFlight requests
-    pushState.addBatch(nextBatchId, location.hostAndPushPort());
+    pushState.addBatch(nextBatchId);
 
     // build PushData request
     NettyManagedBuffer buffer = new NettyManagedBuffer(data);
@@ -1398,7 +1412,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onSuccess(ByteBuffer response) {
             closeCallBack.getAsBoolean();
-            pushState.removeBatch(nextBatchId, location.hostAndPushPort());
+            pushState.removeBatch(nextBatchId);
             if (response.remaining() > 0) {
               byte reason = response.get();
               if (reason == StatusCode.STAGE_ENDED.getValue()) {
@@ -1419,7 +1433,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onFailure(Throwable e) {
             closeCallBack.getAsBoolean();
-            pushState.removeBatch(nextBatchId, location.hostAndPushPort());
+            pushState.removeBatch(nextBatchId);
             if (pushState.exception.get() != null) {
               return;
             }
@@ -1449,7 +1463,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       TransportClient client =
           dataClientFactory.createClient(location.getHost(), location.getPushPort(), partitionId);
       ChannelFuture future = client.pushData(pushData, callback);
-      pushState.pushStarted(nextBatchId, future, callback, location.hostAndPushPort());
+      pushState.pushStarted(nextBatchId, future, callback);
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
@@ -1471,7 +1485,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         shuffleId,
         mapId,
         attemptId,
-        location,
         () -> {
           String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
@@ -1509,7 +1522,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         shuffleId,
         mapId,
         attemptId,
-        location,
         () -> {
           String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
@@ -1578,7 +1590,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         shuffleId,
         mapId,
         attemptId,
-        location,
         () -> {
           final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
@@ -1597,11 +1608,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private <R> R sendMessageInternal(
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      PartitionLocation location,
-      ThrowingExceptionSupplier<R, Exception> supplier)
+      int shuffleId, int mapId, int attemptId, ThrowingExceptionSupplier<R, Exception> supplier)
       throws IOException {
     PushState pushState = null;
     int batchId = 0;
@@ -1617,17 +1624,17 @@ public class ShuffleClientImpl extends ShuffleClient {
             attemptId);
         return null;
       }
-      pushState = getOrRegisterPushState(mapKey);
+      pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
       // force data has been send
-      limitZeroInFlight(mapKey, pushState);
+      limitMaxInFlight(mapKey, pushState, 0);
 
       // add inFlight requests
-      batchId = pushState.nextBatchId();
-      pushState.addBatch(batchId, location.hostAndPushPort());
+      batchId = pushState.batchId.incrementAndGet();
+      pushState.addBatch(batchId);
       return retrySendMessage(supplier);
     } finally {
       if (pushState != null) {
-        pushState.removeBatch(batchId, location.hostAndPushPort());
+        pushState.removeBatch(batchId);
       }
     }
   }
