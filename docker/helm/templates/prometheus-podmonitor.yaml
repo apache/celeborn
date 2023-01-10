@@ -21,6 +21,13 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: celeborn-master-podmonitor
+  labels:
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{ - include "celeborn.labels" . | nindent 4 }}
 spec:
   podMetricsEndpoints:
     - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
@@ -39,6 +46,13 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: celeborn-worker-podmonitor
+  labels:
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{ - include "celeborn.labels" . | nindent 4 }}
 spec:
   podMetricsEndpoints:
     - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
