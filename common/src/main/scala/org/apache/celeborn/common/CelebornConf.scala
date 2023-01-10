@@ -490,9 +490,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
   def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
-  def workerPushIoThreads: Option[Int] = get(WORKER_PUSH_IO_THREADS)
-  def workerFetchIoThreads: Option[Int] = get(WORKER_FETCH_IO_THREADS)
-  def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
+  def workerPushIoThreads: Int = get(WORKER_PUSH_IO_THREADS)
+  def workerFetchIoThreads: Int = get(WORKER_FETCH_IO_THREADS)
+  def workerReplicateIoThreads: Int = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
@@ -1717,35 +1717,35 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
-  val WORKER_PUSH_IO_THREADS: OptionalConfigEntry[Int] =
+  val WORKER_PUSH_IO_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.push.io.threads")
       .withAlternative("rss.push.io.threads")
       .categories("worker")
       .doc("Netty IO thread number of worker to handle client push data. " +
-        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+        s"The default threads number is 16.")
       .version("0.2.0")
       .intConf
-      .createOptional
+      .createWithDefault(16)
 
-  val WORKER_FETCH_IO_THREADS: OptionalConfigEntry[Int] =
+  val WORKER_FETCH_IO_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.fetch.io.threads")
       .withAlternative("rss.fetch.io.threads")
       .categories("worker")
       .doc("Netty IO thread number of worker to handle client fetch data. " +
-        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+        s"The default threads number is 16.")
       .version("0.2.0")
       .intConf
-      .createOptional
+      .createWithDefault(16)
 
-  val WORKER_REPLICATE_IO_THREADS: OptionalConfigEntry[Int] =
+  val WORKER_REPLICATE_IO_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.replicate.io.threads")
       .withAlternative("rss.replicate.io.threads")
       .categories("worker")
       .doc("Netty IO thread number of worker to replicate shuffle data. " +
-        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+        s"The default threads number is 16.")
       .version("0.2.0")
       .intConf
-      .createOptional
+      .createWithDefault(16)
 
   val WORKER_REGISTER_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.register.timeout")
