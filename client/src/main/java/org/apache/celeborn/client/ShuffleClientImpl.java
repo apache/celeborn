@@ -210,9 +210,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else {
           throw new RuntimeException(
               "Mock push data submit retry failed. remainReviveTimes = "
-                  + remainReviveTimes
-                  + "  "
-                  + callback.toString());
+                  + remainReviveTimes + ".");
         }
       } catch (Exception ex) {
         logger.warn(
