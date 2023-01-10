@@ -20,6 +20,11 @@ kind: Service
 metadata:
   name: celeborn-master-svc
   labels:
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
@@ -30,6 +35,7 @@ spec:
       name: celeborn-master
   clusterIP: None
   selector:
-    {{- include "celeborn.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/name: celeborn-master
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
     app.kubernetes.io/role: master
+    {{- include "celeborn.selectorLabels" . | nindent 4 }}
