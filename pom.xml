@@ -57,8 +57,6 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
-    <scala211.version>2.11.12</scala211.version>
-    <scala211.binary.version>2.11</scala211.binary.version>
     <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -1022,8 +1020,8 @@
       </modules>
       <properties>
         <flink.version>1.14.6</flink.version>
-        <scala.version>${scala211.version}</scala.version>
-        <scala.binary.version>${scala211.binary.version}</scala.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
       </properties>
     </profile>
 

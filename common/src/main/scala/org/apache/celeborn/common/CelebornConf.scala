@@ -552,13 +552,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       }
     }
 
-  // //////////////////////////////////////////////////////
-  //                      test                           //
-  // //////////////////////////////////////////////////////
-  def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
-  def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
-  def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
-
   def masterHost: String = get(MASTER_HOST)
 
   def masterPort: Int = get(MASTER_PORT)
@@ -663,6 +656,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushBufferMaxSize: Int = get(PUSH_BUFFER_MAX_SIZE).toInt
   def pushQueueCapacity: Int = get(PUSH_QUEUE_CAPACITY)
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
+  def pushMaxReviveTimes: Int = get(PUSH_MAX_REVIVE_TIMES)
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
@@ -821,6 +815,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR)
 
   def columnarShuffleCodeGenEnabled: Boolean = get(COLUMNAR_SHUFFLE_CODEGEN_ENABLED)
+
+  // //////////////////////////////////////////////////////
+  //                      test                           //
+  // //////////////////////////////////////////////////////
+  def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
+  def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
+  def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
+  def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
 }
 
 object CelebornConf extends Logging {
@@ -1267,6 +1269,22 @@ object CelebornConf extends Logging {
         "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
       .intConf
       .createWithDefault(32)
+
+  val PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
+    buildConf("celeborn.push.revive.maxRetries")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Max retry times for reviving when celeborn push data failed.")
+      .intConf
+      .createWithDefault(5)
+
+  val TEST_RETRY_REVIVE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.retryRevive")
+      .categories("client")
+      .doc("Fail push data and request for test")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")

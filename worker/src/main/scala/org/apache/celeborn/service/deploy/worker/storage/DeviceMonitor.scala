@@ -224,9 +224,9 @@ object DeviceMonitor {
     }
   }
 
+  // unit is byte
   def getDiskUsageInfos(diskInfo: DiskInfo): Array[String] = {
-    // TODO: will it be more flexible if return as Bytes?
-    runCommand(s"df -B 1G ${diskInfo.mountPoint}").trim.split("[ \t]+")
+    runCommand(s"df -B1 ${diskInfo.mountPoint}").trim.split("[ \t]+")
   }
 
   /**
@@ -242,13 +242,13 @@ object DeviceMonitor {
       val totalSpace = usage(usage.length - 5)
       val freeSpace = usage(usage.length - 3)
       val used_percent = usage(usage.length - 2)
-
+      // assume no single device capacity exceeds 1EB in this era
       val highDiskUsage =
-        freeSpace.toLong < conf.diskReserveSize / 1024 / 1024 / 1024 || diskInfo.actualUsableSpace <= 0
+        freeSpace.toLong < conf.diskReserveSize || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
         logger.warn(s"${diskInfo.mountPoint} usage is above threshold." +
-          s" Disk usage(Report by OS):{total:$totalSpace GB," +
-          s" free:$freeSpace GB, used_percent:$used_percent} " +
+          s" Disk usage(Report by OS):{total:${Utils.bytesToString(totalSpace.toLong)}," +
+          s" free:${Utils.bytesToString(freeSpace.toLong)}, used_percent:$used_percent} " +
           s"usage(Report by Celeborn):{" +
           s"total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}" +
           s" free:${Utils.bytesToString(diskInfo.actualUsableSpace)} }")
