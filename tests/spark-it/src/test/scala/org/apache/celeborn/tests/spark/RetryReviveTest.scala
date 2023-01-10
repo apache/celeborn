@@ -30,9 +30,7 @@ class RetryReviveTest extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val workerConf = Map(
-      "celeborn.test.retryRevive" -> s"true")
-    setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
+    setUpMiniCluster(masterConfs = null)
   }
 
   override def beforeEach(): Unit = {
