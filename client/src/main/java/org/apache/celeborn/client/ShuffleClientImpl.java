@@ -159,7 +159,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn" + module + ".io.threads", 8));
     TransportContext context =
-        new TransportContext(dataTransportConf, new BaseMessageHandler(), true);
+        new TransportContext(
+            dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
     dataClientFactory = context.createClientFactory();
 
     int pushDataRetryThreads = conf.pushRetryThreads();

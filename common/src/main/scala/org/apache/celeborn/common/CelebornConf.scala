@@ -514,6 +514,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Client                         //
   // //////////////////////////////////////////////////////
   def clientMaxTries: Int = get(CLIENT_MAX_RETRIES)
+  def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SHUFFLE_WRITER_MODE))
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
@@ -2300,6 +2301,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .intConf
       .createWithDefault(15)
+
+  val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.closeIdleConnections")
+      .categories("client")
+      .doc("Whether client will close idle connections.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
