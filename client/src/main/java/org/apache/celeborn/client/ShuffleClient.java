@@ -19,6 +19,7 @@ package org.apache.celeborn.client;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
 import io.netty.buffer.ByteBuf;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.write.PushState;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -235,4 +237,9 @@ public abstract class ShuffleClient {
 
   public abstract PartitionLocation registerMapPartitionTask(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId);
+
+  public abstract ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
+      String applicationId, int shuffleId, int numMappers, int numPartitions);
+
+  public abstract PushState getOrRegisterPushState(String mapKey);
 }

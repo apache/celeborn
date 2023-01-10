@@ -18,6 +18,7 @@
 package org.apache.celeborn.client.write;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,8 +34,8 @@ public class DataPusher {
   private final long WAIT_TIME_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
 
   private final LinkedBlockingQueue<PushTask> idleQueue;
-  private final LinkedBlockingQueue<PushTask> workingQueue;
-
+  // partition -> PushTask Queue
+  private final DataPushQueue dataPushQueue;
   private final ReentrantLock idleLock = new ReentrantLock();
   private final Condition idleFull = idleLock.newCondition();
 
@@ -69,7 +70,9 @@ public class DataPusher {
     final int pushBufferMaxSize = conf.pushBufferMaxSize();
 
     idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
-    workingQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
+    dataPushQueue =
+        new DataPushQueue(
+            conf, this, client, appId, shuffleId, mapId, attemptId, numMappers, numPartitions);
 
     for (int i = 0; i < pushQueueCapacity; i++) {
       try {
@@ -110,6 +113,10 @@ public class DataPusher {
       public void run() {
         while (!terminated && exceptionRef.get() == null) {
           try {
+            LinkedBlockingQueue<PushTask> workingQueue = dataPushQueue.takeAnyWorkingQueue();
+            if (workingQueue == null) {
+              continue;
+            }
             PushTask task = workingQueue.poll(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
             if (task == null) {
               continue;
@@ -136,6 +143,7 @@ public class DataPusher {
       task.setSize(size);
       task.setPartitionId(partitionId);
       System.arraycopy(buffer, 0, task.getBuffer(), 0, size);
+      LinkedBlockingQueue<PushTask> workingQueue = dataPushQueue.takeWorkingQueue(partitionId);
       while (!workingQueue.offer(task, WAIT_TIME_NANOS, TimeUnit.NANOSECONDS)) {
         checkException();
       }
@@ -158,7 +166,7 @@ public class DataPusher {
 
     terminated = true;
     idleQueue.clear();
-    workingQueue.clear();
+    dataPushQueue.clear();
     checkException();
   }
 
@@ -196,5 +204,9 @@ public class DataPusher {
     } finally {
       idleLock.unlock();
     }
+  }
+
+  protected boolean terminatedOrHasException() {
+    return terminated || Objects.nonNull(exceptionRef.get());
   }
 }
