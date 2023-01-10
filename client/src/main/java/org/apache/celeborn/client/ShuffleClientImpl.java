@@ -209,8 +209,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState.pushStarted(batchId, future, callback);
         } else {
           throw new RuntimeException(
-              "Mock push data submit retry failed. remainReviveTimes = "
-                  + remainReviveTimes + ".");
+              "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
         }
       } catch (Exception ex) {
         logger.warn(
