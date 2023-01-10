@@ -23,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
 import io.netty.buffer.ByteBuf;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.write.PushState;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
@@ -182,6 +184,17 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public PartitionLocation registerMapPartitionTask(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+    return null;
+  }
+
+  @Override
+  public ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
+      String applicationId, int shuffleId, int numMappers, int numPartitions) {
+    return null;
+  }
+
+  @Override
+  public PushState getOrRegisterPushState(String mapKey) {
     return null;
   }
 }
