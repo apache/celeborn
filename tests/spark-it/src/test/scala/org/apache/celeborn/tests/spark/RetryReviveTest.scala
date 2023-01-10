@@ -41,7 +41,7 @@ class RetryReviveTest extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - retry revive as configued times") {
+  test("celeborn spark integration test - retry revive as configured times") {
     val sparkConf = new SparkConf()
       .set("spark.celeborn.test.retryRevive", "true")
       .setAppName("rss-demo").setMaster("local[4]")
