@@ -14,7 +14,7 @@ class RetryReviveTest extends AnyFunSuite
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val workerConf = Map(
-      "celeborn.test.retryCommitFiles" -> s"true")
+      "celeborn.test.retryRevive" -> s"true")
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
   }
 
@@ -28,7 +28,7 @@ class RetryReviveTest extends AnyFunSuite
 
   test("celeborn spark integration test - retry revive as configued times") {
     val sparkConf = new SparkConf()
-//      .set("spark.celeborn.test.retryCommitFiles", "true")
+      .set("spark.celeborn.test.retryRevive", "true")
       .setAppName("rss-demo").setMaster("local[4]")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
     ss.sparkContext.parallelize(1 to 1000, 2)

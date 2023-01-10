@@ -86,6 +86,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final long registerShuffleRetryWaitMs;
   private int maxInFlight;
   private int maxReviveTimes;
+  private boolean testRetryRevive;
   private final AtomicInteger currentMaxReqsInFlight;
   private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
@@ -141,6 +142,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
     maxInFlight = conf.pushMaxReqsInFlight();
     maxReviveTimes = conf.pushMaxReviveTimes();
+    testRetryRevive = conf.testRetryRevive();
 
     if (conf.pushDataSlowStart()) {
       currentMaxReqsInFlight = new AtomicInteger(1);
@@ -195,15 +197,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
       logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
       try {
-        TransportClient client =
-            dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
-        NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
-        String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+        if (!testRetryRevive || remainReviveTimes < 1) {
+          TransportClient client =
+              dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
+          NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
+          String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
 
-        PushData newPushData =
-            new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-        ChannelFuture future = client.pushData(newPushData, callback);
-        pushState.pushStarted(batchId, future, callback);
+          PushData newPushData =
+              new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
+          ChannelFuture future = client.pushData(newPushData, callback);
+          pushState.pushStarted(batchId, future, callback);
+        } else {
+          throw new RuntimeException("Mock push data submit retry failed. remainReviveTimes = "
+              + remainReviveTimes + "  " + callback.toString());
+        }
       } catch (Exception ex) {
         logger.warn(
             "Exception raised while pushing data for shuffle {} map {} attempt {}" + " batch {}.",
@@ -791,10 +798,14 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
-        TransportClient client =
-            dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
-        ChannelFuture future = client.pushData(pushData, wrappedCallback);
-        pushState.pushStarted(nextBatchId, future, wrappedCallback);
+        if (!testRetryRevive) {
+          TransportClient client =
+              dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
+          ChannelFuture future = client.pushData(pushData, wrappedCallback);
+          pushState.pushStarted(nextBatchId, future, wrappedCallback);
+        } else {
+          throw new RuntimeException("Mock push data first time failed.");
+        }
       } catch (Exception e) {
         logger.warn("PushData failed", e);
         wrappedCallback.onFailure(
@@ -1118,9 +1129,13 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // do push merged data
     try {
-      TransportClient client = dataClientFactory.createClient(host, port);
-      ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
-      pushState.pushStarted(groupedBatchId, future, wrappedCallback);
+      if (!testRetryRevive || remainReviveTimes < 1) {
+        TransportClient client = dataClientFactory.createClient(host, port);
+        ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
+        pushState.pushStarted(groupedBatchId, future, wrappedCallback);
+      } else {
+        throw new RuntimeException("Mock push merge data failed");
+      }
     } catch (Exception e) {
       logger.warn("PushMergedData failed", e);
       wrappedCallback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
