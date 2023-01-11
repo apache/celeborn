@@ -19,6 +19,7 @@ package org.apache.celeborn.client.write;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -67,11 +68,6 @@ public class InFlightRequestTracker {
     if (batchIdMap.size() == 0) {
       batchIdPerAddressPair.remove(hostAndPushPort);
     }
-  }
-
-  public ConcurrentHashMap<String, ConcurrentHashMap<Integer, BatchInfo>>
-      getBatchIdPerAddressPair() {
-    return batchIdPerAddressPair;
   }
 
   public ConcurrentHashMap<Integer, BatchInfo> getBatchIdSetByAddressPair(String hostAndPort) {
@@ -126,9 +122,13 @@ public class InFlightRequestTracker {
     }
     long times = timeoutMs / delta;
 
+    int inFlightSize = 0;
     try {
       while (times > 0) {
-        if (batchIdPerAddressPair.size() == 0) {
+        Optional<Integer> inFlightSizeOptional =
+            batchIdPerAddressPair.values().stream().map(Map::size).reduce(Integer::sum);
+        inFlightSize = inFlightSizeOptional.orElse(0);
+        if (inFlightSize == 0) {
           break;
         }
         if (pushState.exception.get() != null) {
@@ -146,7 +146,7 @@ public class InFlightRequestTracker {
       logger.error(
           "After waiting for {} ms, there are still {} batches in flight, expect 0 batches",
           timeoutMs,
-          batchIdPerAddressPair.values().stream().map(Map::size).reduce(Integer::sum));
+          inFlightSize);
     }
 
     if (pushState.exception.get() != null) {

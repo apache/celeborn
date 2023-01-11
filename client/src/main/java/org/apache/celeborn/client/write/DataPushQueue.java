@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
@@ -91,6 +92,9 @@ public class DataPushQueue {
         }
         throw ex;
       }
+      if (Objects.isNull(pushTasks) && dataPusher.terminatedOrHasException()) {
+        return null;
+      }
       if (!pushTasks.isEmpty()) {
         Map<Integer, PartitionLocation> partitionLocationMap =
             client.getOrRegisterShuffle(appId, shuffleId, numMappers, numPartitions);
@@ -114,6 +118,7 @@ public class DataPushQueue {
   }
 
   private int nextPartitionId() {
-    return partitionIdIdx++ % numPartitions;
+    partitionIdIdx = (partitionIdIdx + 1) % numPartitions;
+    return partitionIdIdx;
   }
 }

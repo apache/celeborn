@@ -211,6 +211,7 @@ public class RssShuffleWriterSuiteJ {
     final RssShuffleHandle<Integer, String, String> handle =
         new RssShuffleHandle<>(appId, host, port, userIdentifier, shuffleId, numMaps, dependency);
     final ShuffleClient client = new DummyShuffleClient(tempFile);
+    ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, host);
 
     final HashBasedShuffleWriter<Integer, String, String> writer =
         new HashBasedShuffleWriter<>(

@@ -17,11 +17,15 @@
 
 package org.apache.celeborn.client;
 
+import static org.apache.celeborn.common.protocol.PartitionLocation.Mode.MASTER;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
@@ -32,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.client.write.PushState;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
@@ -40,6 +45,9 @@ public class DummyShuffleClient extends ShuffleClient {
   private static final Logger LOG = LoggerFactory.getLogger(DummyShuffleClient.class);
 
   private final OutputStream os;
+
+  private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
+      new HashMap<>();
 
   public DummyShuffleClient(File file) throws Exception {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
@@ -190,11 +198,19 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
       String applicationId, int shuffleId, int numMappers, int numPartitions) {
-    return null;
+    return reducePartitionMap.get(shuffleId);
   }
 
   @Override
   public PushState getOrRegisterPushState(String mapKey) {
-    return null;
+    return new PushState(new CelebornConf());
+  }
+
+  public void initReducePartitionMap(int shuffleId, int numPartitions, String host) {
+    ConcurrentHashMap<Integer, PartitionLocation> map = new ConcurrentHashMap<>();
+    for (int i = 0; i < numPartitions; i++) {
+      map.put(i, new PartitionLocation(0, 0, host, 1000, 1001, 1002, 1003, MASTER));
+    }
+    reducePartitionMap.put(shuffleId, map);
   }
 }
