@@ -212,7 +212,6 @@ public class RemoteShuffleOutputGate {
   /** Writes a piece of data to a subpartition. */
   public void write(ByteBuf byteBuf, int subIdx) throws InterruptedException {
     try {
-      byteBuf.retain();
       shuffleWriteClient.pushDataToLocation(
           applicationId,
           shuffleId,
