@@ -47,7 +47,6 @@ import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.nio.ch.DirectBuffer;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -379,7 +378,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
       indexFileChannel.close();
     }
-    ((DirectBuffer) indexBuf).cleaner().clean();
+    Utils.disposeByteBuffer(indexBuf);
   }
 
   protected void readStreamFully(FSDataInputStream stream, ByteBuffer buffer, String path)
@@ -564,7 +563,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
           if (compressedSize > reserveMemory) {
-            ((DirectBuffer) paddingBuf).cleaner().clean();
+            Utils.disposeByteBuffer(paddingBuf);
             paddingBuf = expandBufferAndUpdateMemoryTracker(reserveMemory, compressedSize);
             reserveMemory = compressedSize;
           }
@@ -591,7 +590,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
 
-        ((DirectBuffer) paddingBuf).cleaner().clean();
+        Utils.disposeByteBuffer(paddingBuf);
         memoryManager.releaseSortMemory(reserveMemory);
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);

@@ -1012,6 +1012,20 @@
     </profile>
 
     <profile>
+      <id>jdk-8</id>
+      <properties>
+        <java.version>8</java.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>jdk-11</id>
+      <properties>
+        <java.version>11</java.version>
+      </properties>
+    </profile>
+
+    <profile>
       <id>flink-1.14</id>
       <modules>
         <module>client-flink/common</module>
