@@ -241,7 +241,9 @@ cp -r "$PROJECT_DIR/sbin" "$DIST_DIR"
 # Copy container related resources
 mkdir "$DIST_DIR/docker"
 cp "$PROJECT_DIR/docker/Dockerfile" "$DIST_DIR/docker"
-cp -r "$PROJECT_DIR/docker/helm" "$DIST_DIR/docker"
+
+# Copy Helm Charts
+cp -r "$PROJECT_DIR/charts" "$DIST_DIR"
 
 # Copy license files
 cp "$PROJECT_DIR/DISCLAIMER" "$DIST_DIR/DISCLAIMER"

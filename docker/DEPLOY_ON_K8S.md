@@ -34,7 +34,7 @@ kubectl create namespace celeborn
 #### [Optional] Modify helm values file values.yaml
 You can modify helm values file and set up customized deployment configuration.
 ```
-vim ${CELEBORN_HOME}/docker/helm/values.yaml
+vim ${CELEBORN_HOME}/charts/celeborn/values.yaml
 ```
 These values are suggested to be checked before deploy:  
 - masterReplicas (number of Celeborn Master)
@@ -46,7 +46,7 @@ For more information of Celeborn configurations, see [CONFIGURATIONS](../CONFIGU
 
 #### Install Celeborn
 ```
-helm install celeborn ${CELEBORN_HOME}/docker/helm -n ${celeborn namespace}
+helm install celeborn ${CELEBORN_HOME}/charts/celebron -n ${celeborn namespace}
 ```
 
 #### Connect to Celeborn in K8s pod
