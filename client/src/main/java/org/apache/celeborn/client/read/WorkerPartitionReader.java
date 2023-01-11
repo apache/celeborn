@@ -38,11 +38,12 @@ import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.ExceptionUtils;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private PartitionLocation location;
-  private final TransportClient client;
+  private final TransportClientFactory clientFactory;
   private StreamHandle streamHandle;
 
   private int returnedChunks;
@@ -94,6 +95,7 @@ public class WorkerPartitionReader implements PartitionReader {
             exception.set(new IOException(errorMsg, e));
           }
         };
+    TransportClient client;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
@@ -106,7 +108,7 @@ public class WorkerPartitionReader implements PartitionReader {
     streamHandle = (StreamHandle) Message.decode(response);
 
     this.location = location;
-
+    this.clientFactory = clientFactory;
     this.fetchChunkRetryCnt = fetchChunkRetryCnt;
     this.fetchChunkMaxRetry = fetchChunkMaxRetry;
     testFetch = conf.testFetchFailure();
@@ -152,7 +154,7 @@ public class WorkerPartitionReader implements PartitionReader {
     return location;
   }
 
-  private void fetchChunks() {
+  private void fetchChunks() throws IOException {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
@@ -161,8 +163,19 @@ public class WorkerPartitionReader implements PartitionReader {
         if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
           callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
         } else {
-          client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
-          chunkIndex++;
+          try {
+            TransportClient client =
+                clientFactory.createClient(location.getHost(), location.getFetchPort());
+            client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+            chunkIndex++;
+          } catch (IOException | InterruptedException e) {
+            logger.error(
+                "fetchChunk for streamId: {}, chunkIndex: {} failed.",
+                streamHandle.streamId,
+                chunkIndex,
+                e);
+            ExceptionUtils.wrapAndThrowIOException(e);
+          }
         }
       }
     }
