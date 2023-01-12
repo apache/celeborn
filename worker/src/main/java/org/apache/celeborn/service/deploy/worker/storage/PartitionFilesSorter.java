@@ -352,7 +352,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       indexSize += entry.getValue().size() * 16;
     }
 
-    ByteBuffer indexBuf = ByteBuffer.allocateDirect(indexSize);
+    ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
     for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : indexMap.entrySet()) {
       int mapId = entry.getKey();
       List<ShuffleBlockInfo> list = entry.getValue();
@@ -378,7 +378,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
       indexFileChannel.close();
     }
-    Utils.disposeByteBuffer(indexBuf);
   }
 
   protected void readStreamFully(FSDataInputStream stream, ByteBuffer buffer, String path)
@@ -396,6 +395,28 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
+  protected void readStreamBySize(
+      FSDataInputStream stream, ByteBuffer buffer, String path, int toRead) throws IOException {
+    int read = 0;
+    while (read != toRead) {
+      int tmpRead = stream.read(buffer);
+      if (-1 == tmpRead) {
+        throw new IOException(
+            "Unexpected EOF, file name : "
+                + path
+                + " position :"
+                + stream.getPos()
+                + " read size :"
+                + read);
+      } else {
+        read += tmpRead;
+        if (!buffer.hasRemaining()) {
+          buffer.clear();
+        }
+      }
+    }
+  }
+
   protected void readChannelFully(FileChannel channel, ByteBuffer buffer, String path)
       throws IOException {
     while (buffer.hasRemaining()) {
@@ -407,6 +428,28 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                 + channel.position()
                 + " buffer size :"
                 + buffer.limit());
+      }
+    }
+  }
+
+  protected void readChannelBySize(FileChannel channel, ByteBuffer buffer, String path, int toRead)
+      throws IOException {
+    int read = 0;
+    while (read != toRead) {
+      int tmpRead = channel.read(buffer);
+      if (-1 == tmpRead) {
+        throw new IOException(
+            "Unexpected EOF, file name : "
+                + path
+                + " position :"
+                + channel.position()
+                + " read size :"
+                + read);
+      } else {
+        read += tmpRead;
+        if (!buffer.hasRemaining()) {
+          buffer.clear();
+        }
       }
     }
   }
@@ -562,14 +605,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
-          if (compressedSize > reserveMemory) {
-            Utils.disposeByteBuffer(paddingBuf);
-            paddingBuf = expandBufferAndUpdateMemoryTracker(reserveMemory, compressedSize);
-            reserveMemory = compressedSize;
-          }
-          paddingBuf.limit(compressedSize);
-          // TODO: compare skip or read performance differential
-          readBufferFully(paddingBuf);
+          readBufferBySize(paddingBuf, compressedSize);
         }
 
         long fileIndex = 0;
@@ -590,7 +626,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
 
-        Utils.disposeByteBuffer(paddingBuf);
         memoryManager.releaseSortMemory(reserveMemory);
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
@@ -635,6 +670,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
+    private void readBufferBySize(ByteBuffer buffer, int toRead) throws IOException {
+      if (isHdfs) {
+        readStreamBySize(hdfsOriginInput, buffer, originFilePath, toRead);
+      } else {
+        readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
+      }
+    }
+
     private long transferBlock(long offset, long length) throws IOException {
       if (isHdfs) {
         return transferStreamFully(hdfsOriginInput, hdfsSortedOutput, offset, length);
@@ -653,16 +696,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       if (!deleteSuccess) {
         logger.warn("Clean origin file failed, origin file is : {}", originFilePath);
       }
-    }
-
-    private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity)
-        throws InterruptedException {
-      memoryManager.releaseSortMemory(oldCapacity);
-      memoryManager.reserveSortMemory(newCapacity);
-      while (!memoryManager.sortMemoryReady()) {
-        Thread.sleep(20);
-      }
-      return ByteBuffer.allocateDirect(newCapacity);
     }
   }
 }

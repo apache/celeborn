@@ -19,7 +19,10 @@
 # Starts the celeborn worker on the machine this script is executed on.
 
 if [ -z "${CELEBORN_HOME}" ]; then
-  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+  export CELEBORN_HOME="$(
+    cd "$(dirname "$0")"/..
+    pwd
+  )"
 fi
 
 . "${CELEBORN_HOME}/sbin/celeborn-config.sh"
@@ -32,7 +35,12 @@ if [ "$CELEBORN_WORKER_OFFHEAP_MEMORY" = "" ]; then
   CELEBORN_WORKER_OFFHEAP_MEMORY="1g"
 fi
 
-export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
+JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
+if [ "$JAVA_VER" -gt "8" ]; then
+  export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --illegal-access=warn -Dio.netty.tryReflectionSetAccessible=true"
+else
+  export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
+fi
 
 if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1

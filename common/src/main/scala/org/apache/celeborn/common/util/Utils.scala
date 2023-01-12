@@ -21,7 +21,7 @@ import java.io.{File, FileInputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
-import java.nio.{ByteBuffer, MappedByteBuffer}
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
@@ -36,10 +36,8 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
-import org.apache.commons.lang3.{JavaVersion, SystemUtils}
+import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
-import sun.misc.Unsafe
-import sun.nio.ch.DirectBuffer
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
@@ -982,36 +980,4 @@ object Utils extends Logging {
       null
     }
   }
-
-  def disposeByteBuffer(buffer: ByteBuffer): Unit = {
-    if (buffer != null && buffer.isInstanceOf[MappedByteBuffer]) {
-      logTrace(s"Disposing of $buffer")
-      bufferCleaner(buffer.asInstanceOf[DirectBuffer])
-    }
-  }
-
-  // In Java 8, the type of DirectBuffer.cleaner() was sun.misc.Cleaner, and it was possible
-  // to access the method sun.misc.Cleaner.clean() to invoke it. The type changed to
-  // jdk.internal.ref.Cleaner in later JDKs, and the .clean() method is not accessible even with
-  // reflection. However sun.misc.Unsafe added a invokeCleaner() method in JDK 9+ and this is
-  // still accessible with reflection.
-  private val bufferCleaner: DirectBuffer => Unit =
-    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
-      val cleanerMethod =
-        Utils.classForName("sun.misc.Unsafe").getMethod("invokeCleaner", classOf[ByteBuffer])
-      val unsafeField = classOf[Unsafe].getDeclaredField("theUnsafe")
-      unsafeField.setAccessible(true)
-      val unsafe = unsafeField.get(null).asInstanceOf[Unsafe]
-      buffer: DirectBuffer => cleanerMethod.invoke(unsafe, buffer)
-    } else {
-      val cleanerMethod = Utils.classForName("sun.misc.Cleaner").getMethod("clean")
-      buffer: DirectBuffer => {
-        // Careful to avoid the return type of .cleaner(), which changes with JDK
-        val cleaner: AnyRef = buffer.cleaner()
-        if (cleaner != null) {
-          cleanerMethod.invoke(cleaner)
-        }
-      }
-    }
-
 }

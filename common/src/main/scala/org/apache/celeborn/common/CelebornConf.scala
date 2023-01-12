@@ -1872,7 +1872,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .withAlternative("rss.worker.initialReserveSingleSortMemory")
       .categories("worker")
-      .doc("Initial reserve memory when sorting a shuffle file off-heap.")
+      .doc("Reserve memory when sorting a shuffle file off-heap.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1mb")
