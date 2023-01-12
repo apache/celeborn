@@ -398,6 +398,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected void readStreamBySize(
       FSDataInputStream stream, ByteBuffer buffer, String path, int toRead) throws IOException {
     int read = 0;
+    if (toRead < buffer.capacity()) {
+      buffer.limit(toRead);
+    }
     while (read != toRead) {
       int tmpRead = stream.read(buffer);
       if (-1 == tmpRead) {
@@ -412,6 +415,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         read += tmpRead;
         if (!buffer.hasRemaining()) {
           buffer.clear();
+          if (toRead - read < buffer.capacity()) {
+            buffer.limit(toRead - read);
+          }
         }
       }
     }
@@ -435,6 +441,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected void readChannelBySize(FileChannel channel, ByteBuffer buffer, String path, int toRead)
       throws IOException {
     int read = 0;
+    if (toRead < buffer.capacity()) {
+      buffer.limit(toRead);
+    }
     while (read != toRead) {
       int tmpRead = channel.read(buffer);
       if (-1 == tmpRead) {
@@ -449,6 +458,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         read += tmpRead;
         if (!buffer.hasRemaining()) {
           buffer.clear();
+          if (toRead - read < buffer.capacity()) {
+            buffer.limit(toRead - read);
+          }
         }
       }
     }
