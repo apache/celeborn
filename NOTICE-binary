@@ -14,6 +14,9 @@ Copyright 2001-2020 The Apache Software Foundation
 Apache Commons Logging
 Copyright 2003-2013 The Apache Software Foundation
 
+This product includes software developed by The Apache Software
+Foundation (http://www.apache.org/).
+
 The binary distribution of this product bundles binaries of
 org.iq80.leveldb:leveldb-api (https://github.com/dain/leveldb), which has the
 following notices:
@@ -33,6 +36,9 @@ which has the following notices:
  Copyright 2002 JSON.org. - PKCS#1 PEM encoded private key parsing and utility
  functions from oauth.googlecode.com - Copyright 1998-2010 AOL Inc.
 
+The binary distribution of this product bundles binaries of
+Gson 2.2.4,
+which has the following notices:
 
                             The Netty Project
                             =================
@@ -77,21 +83,6 @@ Base64 Encoder and Decoder, which can be obtained at:
   * HOMEPAGE:
     * http://iharder.sourceforge.net/current/java/base64/
 
-This product contains a modified portion of 'Webbit', an event based
-WebSocket and HTTP server, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.webbit.txt (BSD License)
-  * HOMEPAGE:
-    * https://github.com/joewalnes/webbit
-
-This product contains a modified portion of 'SLF4J', a simple logging
-facade for Java, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.slf4j.txt (MIT License)
-  * HOMEPAGE:
-    * http://www.slf4j.org/
 
 This product contains a modified portion of 'ArrayDeque', written by Josh
 Bloch of Google, Inc:
@@ -116,23 +107,6 @@ It can be obtained at:
   * HOMEPAGE:
     * https://github.com/akka/akka/blob/wip-2.2.3-for-scala-2.11/akka-actor/src/main/java/akka/dispatch/AbstractNodeQueue.java
 
-This product contains a modified portion of 'jbzip2', a Java bzip2 compression
-and decompression library written by Matthew J. Francis. It can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.jbzip2.txt (MIT License)
-  * HOMEPAGE:
-    * https://code.google.com/p/jbzip2/
-
-This product contains a modified portion of 'libdivsufsort', a C API library to construct
-the suffix array and the Burrows-Wheeler transformed string for any input string of
-a constant-size alphabet written by Yuta Mori. It can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.libdivsufsort.txt (MIT License)
-  * HOMEPAGE:
-    * https://code.google.com/p/libdivsufsort/
-
 This product contains a modified portion of Nitsan Wakart's 'JCTools', Java Concurrency Tools for the JVM,
  which can be obtained at:
 
@@ -140,14 +114,6 @@ This product contains a modified portion of Nitsan Wakart's 'JCTools', Java Conc
     * license/LICENSE.jctools.txt (ASL2 License)
   * HOMEPAGE:
     * https://github.com/JCTools/JCTools
-
-This product optionally depends on 'JZlib', a re-implementation of zlib in
-pure Java, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.jzlib.txt (BSD style License)
-  * HOMEPAGE:
-    * http://www.jcraft.com/jzlib/
 
 This product optionally depends on 'Compress-LZF', a Java library for encoding and
 decoding data in LZF format, written by Tatu Saloranta. It can be obtained at:
@@ -172,39 +138,6 @@ and decompression library, which can be obtained at:
     * license/LICENSE.lzma-java.txt (Apache License 2.0)
   * HOMEPAGE:
     * https://github.com/jponge/lzma-java
-
-This product contains a modified portion of 'jfastlz', a Java port of FastLZ compression
-and decompression library written by William Kinney. It can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.jfastlz.txt (MIT License)
-  * HOMEPAGE:
-    * https://code.google.com/p/jfastlz/
-
-This product contains a modified portion of and optionally depends on 'Protocol Buffers', Google's data
-interchange format, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.protobuf.txt (New BSD License)
-  * HOMEPAGE:
-    * http://code.google.com/p/protobuf/
-
-This product optionally depends on 'Bouncy Castle Crypto APIs' to generate
-a temporary self-signed X.509 certificate when the JVM does not provide the
-equivalent functionality.  It can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.bouncycastle.txt (MIT License)
-  * HOMEPAGE:
-    * http://www.bouncycastle.org/
-
-This product optionally depends on 'Snappy', a compression library produced
-by Google Inc, which can be obtained at:
-
-  * LICENSE:
-    * license/LICENSE.snappy.txt (New BSD License)
-  * HOMEPAGE:
-    * http://code.google.com/p/snappy/
 
 This product contains a modified portion of UnsignedBytes LexicographicalComparator
 from Guava v21 project by Google Inc, which can be obtained at:
@@ -302,50 +235,6 @@ which has the following notices:
   TypeUtil.java
     Copyright 2002-2012 Ramnivas Laddad, Juergen Hoeller, Chris Beams
 
-The binary distribution of this product bundles binaries of
-"Java Concurrency in Practice" book annotations 1.0,
-which has the following notices:
- * Copyright (c) 2005 Brian Goetz and Tim Peierls Released under the Creative
-  Commons Attribution License (http://creativecommons.org/licenses/by/2.5)
-  Official home: http://www.jcip.net Any republication or derived work
-  distributed in source code form must include this copyright and license
-  notice.
-
-The binary distribution of this product bundles binaries of
-Logback Classic Module 1.1.2,
-Logback Core Module 1.1.2,
-which has the following notices:
- * Logback: the reliable, generic, fast and flexible logging framework.
-   Copyright (C) 1999-2012, QOS.ch. All rights reserved.
-
-The binary distribution of this product bundles binaries of
-Plexus Cipher: encryption/decryption Component 1.4,
-which has the following notices:
- * The code in this component contains a class - Base64 taken from http://juliusdavies.ca/svn/not-yet-commons-ssl/tags/commons-ssl-0.3.10/src/java/org/apache/commons/ssl/Base64.java
-   which is Apache license: http://www.apache.org/licenses/LICENSE-2.0
-
-   The PBE key processing routine PBECipher.createCipher() is adopted from http://juliusdavies.ca/svn/not-yet-commons-ssl/tags/commons-ssl-0.3.10/src/java/org/apache/commons/ssl/OpenSSL.java
-    which is also Apache APL-2.0 license: http://www.apache.org/licenses/LICENSE-2.0
-
-The binary distribution of this product bundles binaries of
-snakeyaml (https://bitbucket.org/asomov/snakeyaml),
-which has the following notices:
- * Copyright (c) 2008, http://www.snakeyaml.org
-
-The binary distribution of this product bundles binaries of
-metrics-core 3.2.4
-which has the following notices:
- * Copyright 2010-2013 Coda Hale and Yammer, Inc.
-
-   This product includes software developed by Coda Hale and Yammer, Inc.
-
-   This product includes code derived from the JSR-166 project (ThreadLocalRandom, Striped64,
-   LongAdder), which was released with the following comments:
-
-   Written by Doug Lea with assistance from members of JCP JSR-166
-   Expert Group and released to the public domain, as explained at
-   http://creativecommons.org/publicdomain/zero/1.0/
-
 htrace-core4
 Copyright 2016 The Apache Software Foundation
 
@@ -370,41 +259,68 @@ Copyright 1999-2012 Apache Software Foundation
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
+ResolverUtil.java
+Copyright 2005-2006 Tim Fennell
+
 Apache Log4j SLF4J Binding
 Copyright 1999-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 Apache Ratis Client
 Copyright 2017-2020 The Apache Software Foundation
 
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
 Apache Ratis Common
 Copyright 2017-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 Apache Ratis gRPC Support
 Copyright 2017-2020 The Apache Software Foundation
 
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
 Apache Ratis Metrics
 Copyright 2017-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 Apache Ratis Netty Support
 Copyright 2017-2020 The Apache Software Foundation
 
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
 Apache Ratis Protocols
 Copyright 2017-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 Apache Ratis Server
 Copyright 2017-2020 The Apache Software Foundation
 
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
 Apache Ratis Server API
 Copyright 2017-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 Apache Ratis Thirdparty Miscellaneous
 Copyright 2017-2020 The Apache Software Foundation
 
----
-
-This product bundles protobuf-java which includes the following:
-
-Copyright 2008 Google Inc.
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
 ---
 
@@ -413,3 +329,13 @@ This product bundles gRPC which includes the following text:
 Copyright 2014 The gRPC Authors
 
 ---
+
+This product bundles Netty which includes the following text:
+
+Copyright 2014 The Netty Project
+
+---
+
+This product bundles Gson which includes the following text:
+
+Copyright 2008 Google Inc.
