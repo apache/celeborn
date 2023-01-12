@@ -35,7 +35,7 @@ public class BufferUtils {
 
   // subpartitionid(4) + attemptId(4) + nextBatchId(4) + compressedsize
   public static final int HEADER_LENGTH_PREFIX = 4 * 4;
-  // dataType(1) + size(4)
+  // dataType(1) + isCompress(1) + size(4)
   public static final int HEADER_LENGTH = HEADER_LENGTH_PREFIX + 1 + 1 + 4;
 
   /**
