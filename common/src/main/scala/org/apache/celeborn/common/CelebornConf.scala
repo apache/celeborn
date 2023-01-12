@@ -2812,7 +2812,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("15s")
 
   val MEMORY_PER_RESULT_PARTITION: ConfigEntry[String] =
-    buildConf("celeborn.client.network.memory.per.result.partition")
+    buildConf("celeborn.client.network.memory.perResultPartition")
       .categories("client")
       .version("0.3.0")
       .doc("The size of network buffers required per result partition. The minimum valid value is 8M. Usually, several hundreds of megabytes memory is enough for large scale batch jobs.")
