@@ -17,10 +17,18 @@
 
 package org.apache.celeborn.plugin.flink.buffer;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
+import java.util.Queue;
+
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
+import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Harness used to pack multiple partial buffers together as a full one. */
 public class BufferPacker {
@@ -101,5 +109,185 @@ public class BufferPacker {
       cachedBuffer = null;
     }
     currentSubIdx = -1;
+  }
+
+  public static Queue<Buffer> unpack(ByteBuf byteBuf) {
+    Queue<Buffer> buffers = new ArrayDeque<>();
+    try {
+      Utils.checkState(byteBuf instanceof Buffer, "Illegal buffer type.");
+
+      Buffer buffer = (Buffer) byteBuf;
+      int position = 0;
+      int totalBytes = buffer.readableBytes();
+      boolean isFirst = true;
+      while (position < totalBytes) {
+        BufferHeader bufferHeader;
+        if (isFirst) {
+          bufferHeader = BufferUtils.getBufferHeader(buffer, position, isFirst);
+          position += BufferUtils.HEADER_LENGTH;
+        } else {
+          // in the remaining datas, the headlength is BufferUtils.HEADER_LENGTH -
+          // BufferUtils.HEADER_LENGTH_PREFIX
+          bufferHeader = BufferUtils.getBufferHeader(buffer, position);
+          position += BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX;
+        }
+
+        Buffer slice = buffer.readOnlySlice(position, bufferHeader.getSize());
+        position += bufferHeader.getSize();
+
+        buffers.add(
+            new UnpackSlicedBuffer(
+                slice,
+                bufferHeader.getDataType(),
+                bufferHeader.isCompressed(),
+                bufferHeader.getSize()));
+        slice.retainBuffer();
+        isFirst = false;
+      }
+      return buffers;
+    } catch (Throwable throwable) {
+      buffers.forEach(Buffer::recycleBuffer);
+      throw throwable;
+    } finally {
+      byteBuf.release();
+    }
+  }
+
+  private static class UnpackSlicedBuffer implements Buffer {
+
+    private final Buffer buffer;
+
+    private DataType dataType;
+
+    private boolean isCompressed;
+
+    private final int size;
+
+    UnpackSlicedBuffer(Buffer buffer, DataType dataType, boolean isCompressed, int size) {
+      this.buffer = buffer;
+      this.dataType = dataType;
+      this.isCompressed = isCompressed;
+      this.size = size;
+    }
+
+    @Override
+    public boolean isBuffer() {
+      return dataType.isBuffer();
+    }
+
+    @Override
+    public MemorySegment getMemorySegment() {
+      return buffer.getMemorySegment();
+    }
+
+    @Override
+    public int getMemorySegmentOffset() {
+      return buffer.getMemorySegmentOffset();
+    }
+
+    @Override
+    public BufferRecycler getRecycler() {
+      return buffer.getRecycler();
+    }
+
+    @Override
+    public void recycleBuffer() {
+      buffer.recycleBuffer();
+    }
+
+    @Override
+    public boolean isRecycled() {
+      return buffer.isRecycled();
+    }
+
+    @Override
+    public Buffer retainBuffer() {
+      return buffer.retainBuffer();
+    }
+
+    @Override
+    public Buffer readOnlySlice() {
+      return buffer.readOnlySlice();
+    }
+
+    @Override
+    public Buffer readOnlySlice(int i, int i1) {
+      return buffer.readOnlySlice(i, i1);
+    }
+
+    @Override
+    public int getMaxCapacity() {
+      return buffer.getMaxCapacity();
+    }
+
+    @Override
+    public int getReaderIndex() {
+      return buffer.getReaderIndex();
+    }
+
+    @Override
+    public void setReaderIndex(int i) throws IndexOutOfBoundsException {
+      buffer.setReaderIndex(i);
+    }
+
+    @Override
+    public int getSize() {
+      return size;
+    }
+
+    @Override
+    public void setSize(int i) {
+      buffer.setSize(i);
+    }
+
+    @Override
+    public int readableBytes() {
+      return buffer.readableBytes();
+    }
+
+    @Override
+    public ByteBuffer getNioBufferReadable() {
+      return buffer.getNioBufferReadable();
+    }
+
+    @Override
+    public ByteBuffer getNioBuffer(int i, int i1) throws IndexOutOfBoundsException {
+      return buffer.getNioBuffer(i, i1);
+    }
+
+    @Override
+    public void setAllocator(ByteBufAllocator byteBufAllocator) {
+      buffer.setAllocator(byteBufAllocator);
+    }
+
+    @Override
+    public ByteBuf asByteBuf() {
+      return buffer.asByteBuf();
+    }
+
+    @Override
+    public boolean isCompressed() {
+      return isCompressed;
+    }
+
+    @Override
+    public void setCompressed(boolean b) {
+      isCompressed = b;
+    }
+
+    @Override
+    public DataType getDataType() {
+      return dataType;
+    }
+
+    @Override
+    public void setDataType(DataType dataType) {
+      this.dataType = dataType;
+    }
+
+    @Override
+    public int refCnt() {
+      return buffer.refCnt();
+    }
   }
 }
