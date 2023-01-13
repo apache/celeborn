@@ -744,6 +744,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
+  def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -2809,4 +2810,12 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val MEMORY_PER_RESULT_PARTITION: ConfigEntry[String] =
+    buildConf("celeborn.client.network.memory.perResultPartition")
+      .categories("client")
+      .version("0.3.0")
+      .doc("The size of network buffers required per result partition. The minimum valid value is 8M. Usually, several hundreds of megabytes memory is enough for large scale batch jobs.")
+      .stringConf
+      .createWithDefault("64m")
 }
