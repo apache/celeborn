@@ -123,11 +123,13 @@ public class RateLimitController {
   }
 
   /**
-   * <p> 1. If the total pending bytes is over high watermark, will congest users who produce speed
-   * is higher than the potential average consume speed.
-   * <p> 2. Will stop congest these uses until the pending bytes lower to low watermark.
-   * <p> 3. If the pending bytes doesn't exceed the high watermark, will allow all users to
-   * try to get max throughout capacity.
+   * 1. If the total pending bytes is over high watermark, will congest users who produce speed is
+   * higher than the potential average consume speed.
+   *
+   * <p>2. Will stop congest these uses until the pending bytes lower to low watermark.
+   *
+   * <p>3. If the pending bytes doesn't exceed the high watermark, will allow all users to try to
+   * get max throughout capacity.
    */
   public boolean isUserCongested(UserIdentifier userIdentifier) {
     if (userBufferStatuses.size() == 0) {

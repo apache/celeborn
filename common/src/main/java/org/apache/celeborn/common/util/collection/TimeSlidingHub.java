@@ -22,8 +22,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A time sliding list that group different {@link TimeSlidingNode} with corresponding timestamp by
