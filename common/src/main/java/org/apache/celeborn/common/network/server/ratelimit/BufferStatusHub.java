@@ -25,47 +25,40 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
 
   public static class BufferStatusNode implements TimeSlidingHub.TimeSlidingNode {
 
-    private final AtomicLong bytesAdded;
-    private final AtomicLong bytesConsumed;
+    private final AtomicLong numBytes;
 
-    public BufferStatusNode(long bytesAdded, long bytesConsumed) {
-      this.bytesAdded = new AtomicLong(bytesAdded);
-      this.bytesConsumed = new AtomicLong(bytesConsumed);
+    public BufferStatusNode(long numBytes) {
+      this.numBytes = new AtomicLong(numBytes);
     }
 
     public BufferStatusNode() {
-      this(0, 0);
+      this(0);
     }
 
     @Override
     public void combineNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      this.bytesAdded.addAndGet(needToCombined.bytesAdded.get());
-      this.bytesConsumed.addAndGet(needToCombined.bytesConsumed.get());
+      this.numBytes.addAndGet(needToCombined.numBytes.get());
     }
 
     @Override
     public void separateNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      this.bytesAdded.addAndGet(-needToCombined.bytesAdded.get());
-      this.bytesConsumed.addAndGet(-needToCombined.bytesConsumed.get());
+      this.numBytes.addAndGet(-needToCombined.numBytes.get());
     }
 
     @Override
     public TimeSlidingNode clone() {
-      return new BufferStatusNode(bytesAdded(), bytesConsumed());
+      return new BufferStatusNode(numBytes());
     }
 
-    public long bytesAdded() {
-      return this.bytesAdded.get();
+    public long numBytes() {
+      return this.numBytes.get();
     }
 
-    public long bytesConsumed() {
-      return this.bytesConsumed.get();
-    }
-
-    public long bytesPendingConsumed() {
-      return bytesAdded() - bytesConsumed();
+    @Override
+    public String toString() {
+      return String.format("BufferStatusNode: {bytes: %s}", numBytes.get());
     }
   }
 

@@ -87,7 +87,7 @@ abstract private[worker] class Flusher(
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              returnBuffer(task.buffer, task.fileInfo.getUserIdentifier)
+              returnBuffer(task.buffer)
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }
@@ -142,11 +142,11 @@ abstract private[worker] class Flusher(
     buffer
   }
 
-  def returnBuffer(buffer: CompositeByteBuf, userIdentifier: UserIdentifier): Unit = {
+  def returnBuffer(buffer: CompositeByteBuf): Unit = {
     MemoryManager.instance().releaseDiskBuffer(buffer.readableBytes())
     Option(RateLimitController.instance())
       .foreach(
-        _.decrementBytes(userIdentifier, buffer.readableBytes()))
+        _.decrementBytes(buffer.readableBytes()))
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 
@@ -169,7 +169,7 @@ abstract private[worker] class Flusher(
     }
     workingQueues.foreach { queue =>
       queue.asScala.foreach { task =>
-        returnBuffer(task.buffer, task.fileInfo.getUserIdentifier)
+        returnBuffer(task.buffer)
       }
     }
   }

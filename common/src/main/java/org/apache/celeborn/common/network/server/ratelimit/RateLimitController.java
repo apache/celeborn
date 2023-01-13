@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 
 public class RateLimitController {
 
@@ -48,7 +49,7 @@ public class RateLimitController {
 
   private final ScheduledExecutorService removeUserExecutorService;
 
-  private RateLimitController(
+  protected RateLimitController(
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
@@ -75,7 +76,7 @@ public class RateLimitController {
         this::removeInactiveUsers, 0, checkInterval, TimeUnit.SECONDS);
   }
 
-  public static RateLimitController initialize(
+  public static synchronized RateLimitController initialize(
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
@@ -109,7 +110,7 @@ public class RateLimitController {
 
     synchronized void updateInfo(long timestamp, BufferStatusHub.BufferStatusNode node) {
       this.timestamp = timestamp;
-      this.bufferStatusHub.add(node);
+      this.bufferStatusHub.add(timestamp, node);
     }
 
     public long getTimestamp() {
@@ -122,30 +123,32 @@ public class RateLimitController {
   }
 
   /**
-   * 1. If the total pending bytes is over high watermark, will congest users who produce speed is
-   * higher than the potential average consume speed. 2. Will stop congest these uses until the
-   * pending bytes lower to low watermark. 3. If the pending bytes doesn't exceed the high
-   * watermark, will allow all users to try to get max throughout capacity.
+   * <p> 1. If the total pending bytes is over high watermark, will congest users who produce speed
+   * is higher than the potential average consume speed.
+   * <p> 2. Will stop congest these uses until the pending bytes lower to low watermark.
+   * <p> 3. If the pending bytes doesn't exceed the high watermark, will allow all users to
+   * try to get max throughout capacity.
    */
   public boolean isUserCongested(UserIdentifier userIdentifier) {
     if (userBufferStatuses.size() == 0) {
       return false;
     }
 
-    BufferStatusHub.BufferStatusNode totalBufferStatus = totalBufferStatusHub.sum();
-    long pendingConsumed = totalBufferStatus.bytesPendingConsumed();
+    long pendingConsumed = getTotalPendingBytes();
 
     // The potential consume speed in average
-    long avgConsumeSpeed =
-        totalBufferStatus.bytesConsumed()
-            / ((long) sampleTimeWindowSeconds * userBufferStatuses.size());
+    long avgConsumeSpeed = getPotentialConsumeSpeed();
 
-    if (pendingConsumed > highWatermark) {
+    if (!overHighWatermark.get() && pendingConsumed > highWatermark) {
+      logger.info(
+          "Pending consume bytes: {} higher than high watermark, need to congest it",
+          pendingConsumed);
       overHighWatermark.set(true);
     }
 
     if (overHighWatermark.get()) {
       if (pendingConsumed < lowWatermark) {
+        logger.info("Lower than low watermark, exit congestion control");
         overHighWatermark.set(false);
         return false;
       }
@@ -156,7 +159,16 @@ public class RateLimitController {
             userBufferInfo.getBufferStatusHub().sum();
 
         // If the user produce speed is higher that the avg consume speed, will congest it
-        long userProduceSpeed = userBufferStatus.bytesAdded() / sampleTimeWindowSeconds;
+        long userProduceSpeed = userBufferStatus.numBytes() / sampleTimeWindowSeconds;
+        if (logger.isDebugEnabled()) {
+          logger.debug(
+              "The user {}, produceSpeed is {},"
+                  + " while consumeSpeed is {}, need to congest it: {}",
+              userIdentifier,
+              userProduceSpeed,
+              avgConsumeSpeed,
+              userProduceSpeed > avgConsumeSpeed);
+        }
         return userProduceSpeed > avgConsumeSpeed;
       }
     }
@@ -175,26 +187,29 @@ public class RateLimitController {
               return new UserBufferInfo(currentTimeMillis, bufferStatusHub);
             });
 
-    BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes, 0);
-    totalBufferStatusHub.add(node);
+    BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes);
     userBufferInfo.updateInfo(currentTimeMillis, node);
   }
 
-  public void decrementBytes(UserIdentifier userIdentifier, int numBytes) {
-    UserBufferInfo userBufferInfo = userBufferStatuses.get(userIdentifier);
+  public void decrementBytes(int numBytes) {
+    long currentTimeMillis = System.currentTimeMillis();
+    BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes);
+    totalBufferStatusHub.add(currentTimeMillis, node);
+  }
 
-    if (userBufferInfo == null) {
-      logger.warn(
-          "The user {} is already in inactive status, while we're still trying "
-              + "to update it, will simply ignore to decrement bytes here",
-          userIdentifier);
-      return;
+  public long getTotalPendingBytes() {
+    return MemoryManager.instance().getMemoryUsage();
+  }
+
+  public long getPotentialConsumeSpeed() {
+    if (userBufferStatuses.size() == 0) {
+      return 0;
     }
 
-    long currentTimeMillis = System.currentTimeMillis();
-    BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(0, numBytes);
-    totalBufferStatusHub.add(node);
-    userBufferInfo.updateInfo(currentTimeMillis, node);
+    BufferStatusHub.BufferStatusNode totalBufferStatus = totalBufferStatusHub.sum();
+    // The potential consume speed in average
+    return totalBufferStatus.numBytes()
+        / ((long) sampleTimeWindowSeconds * userBufferStatuses.size());
   }
 
   private void removeInactiveUsers() {
@@ -219,11 +234,15 @@ public class RateLimitController {
     }
   }
 
-  public static void destroy() {
+  public void close() {
+    this.removeUserExecutorService.shutdownNow();
+    this.userBufferStatuses.clear();
+    this.totalBufferStatusHub.clear();
+  }
+
+  public static synchronized void destroy() {
     if (_INSTANCE != null) {
-      _INSTANCE.removeUserExecutorService.shutdownNow();
-      _INSTANCE.userBufferStatuses.clear();
-      _INSTANCE.totalBufferStatusHub.clear();
+      _INSTANCE.close();
       _INSTANCE = null;
     }
   }

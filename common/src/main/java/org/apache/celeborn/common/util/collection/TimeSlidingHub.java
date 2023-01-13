@@ -22,6 +22,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A time sliding list that group different {@link TimeSlidingNode} with corresponding timestamp by
@@ -71,14 +73,14 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
   public void add(N newNode) {
     long currentTimestamp = currentTimeMillis();
+    add(currentTimestamp, newNode);
+  }
+
+  public synchronized void add(long currentTimestamp, N newNode) {
     if (_deque.size() == 0) {
-      synchronized (_deque) {
-        if (_deque.size() == 0) {
-          _deque.add(Pair.of(currentTimestamp, newNode));
-          sumNode = (N) newNode.clone();
-          return;
-        }
-      }
+      _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+      sumNode = (N) newNode.clone();
+      return;
     }
 
     Pair<Long, N> lastNode = _deque.getLast();
@@ -93,44 +95,38 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       if (nodesToAdd >= maxQueueSize) {
         // The new node exceed existing sliding list, need to clear all old nodes
         // and create a new sliding list
-        synchronized (_deque) {
-          _deque.clear();
-          _deque.add(Pair.of(currentTimestamp, newNode));
-          sumNode = (N) newNode.clone();
-        }
+        _deque.clear();
+        _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+        sumNode = (N) newNode.clone();
         return;
       }
 
       // Add new node at the end of the list, and deprecate nodes out of timeInterval
-      synchronized (_deque) {
-        for (long i = 1; i < nodesToAdd; i++) {
-          N toAdd = newEmptyNode();
-          lastNode = Pair.of(lastNode.getLeft() + intervalPerBucketInMills, toAdd);
-          _deque.add(lastNode);
-        }
+      for (long i = 1; i < nodesToAdd; i++) {
+        N toAdd = newEmptyNode();
+        lastNode = Pair.of(lastNode.getLeft() + intervalPerBucketInMills, toAdd);
+        _deque.add(lastNode);
+      }
 
-        _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, newNode));
-        sumNode.combineNode(newNode);
+      _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
+      sumNode.combineNode(newNode);
 
-        while (_deque.size() > maxQueueSize) {
-          Pair<Long, N> removed = _deque.removeFirst();
-          sumNode.separateNode(removed.getRight());
-        }
+      while (_deque.size() > maxQueueSize) {
+        Pair<Long, N> removed = _deque.removeFirst();
+        sumNode.separateNode(removed.getRight());
       }
       return;
     }
 
     if (timeDiff < 0) {
       // Belong to one existing node
-      synchronized (_deque) {
-        Iterator<Pair<Long, N>> iter = _deque.descendingIterator();
-        while (iter.hasNext()) {
-          Pair<Long, N> curNode = iter.next();
-          if (currentTimestamp - curNode.getLeft() >= 0) {
-            curNode.getRight().combineNode(newNode);
-            sumNode.combineNode(newNode);
-            return;
-          }
+      Iterator<Pair<Long, N>> iter = _deque.descendingIterator();
+      while (iter.hasNext()) {
+        Pair<Long, N> curNode = iter.next();
+        if (currentTimestamp - curNode.getLeft() >= 0) {
+          curNode.getRight().combineNode(newNode);
+          sumNode.combineNode(newNode);
+          return;
         }
       }
 
@@ -139,10 +135,8 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
     }
 
     // Belong to last node
-    synchronized (_deque) {
-      lastNode.getRight().combineNode(newNode);
-      sumNode.combineNode(newNode);
-    }
+    lastNode.getRight().combineNode(newNode);
+    sumNode.combineNode(newNode);
   }
 
   public void clear() {
