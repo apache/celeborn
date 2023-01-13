@@ -33,10 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
-import com.aliyun.emr.rss.common.network.client.TransportClient;
-import com.aliyun.emr.rss.common.network.protocol.Message;
-import com.aliyun.emr.rss.common.network.protocol.OpenStream;
-import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import io.netty.buffer.ByteBuf;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -47,9 +43,14 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.network.buffer.ManagedBuffer;
 import com.aliyun.emr.rss.common.network.buffer.NettyManagedBuffer;
 import com.aliyun.emr.rss.common.network.client.ChunkReceivedCallback;
+import com.aliyun.emr.rss.common.network.client.TransportClient;
 import com.aliyun.emr.rss.common.network.client.TransportClientFactory;
+import com.aliyun.emr.rss.common.network.protocol.Message;
+import com.aliyun.emr.rss.common.network.protocol.OpenStream;
+import com.aliyun.emr.rss.common.network.protocol.StreamHandle;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 import com.aliyun.emr.rss.common.unsafe.Platform;
+import com.aliyun.emr.rss.common.util.ExceptionUtils;
 
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
@@ -437,7 +438,6 @@ public abstract class RssInputStream extends InputStream {
 
     private final class PartitionReader {
       private PartitionLocation location;
-      private TransportClient client;
       private StreamHandle streamHandle;
 
       private int returnedChunks;
@@ -482,6 +482,7 @@ public abstract class RssInputStream extends InputStream {
             exception.set(new IOException(errorMsg, e));
           }
         };
+        TransportClient client;
         try {
           client = clientFactory.createClient(location.getHost(), location.getFetchPort());
         } catch (InterruptedException ie) {
@@ -533,7 +534,7 @@ public abstract class RssInputStream extends InputStream {
         results.clear();
       }
 
-      private void fetchChunks() {
+      private void fetchChunks() throws IOException {
         final int inFlight = chunkIndex - returnedChunks;
         if (inFlight < maxInFlight) {
           final int toFetch = Math.min(maxInFlight - inFlight + 1,
@@ -542,8 +543,19 @@ public abstract class RssInputStream extends InputStream {
             if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
               callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
             } else {
-              client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
-              chunkIndex++;
+              try {
+                TransportClient client = clientFactory.createClient(location.getHost(),
+                  location.getFetchPort());
+                client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+                chunkIndex++;
+              } catch (IOException | InterruptedException e) {
+                logger.error(
+                  "fetchChunk for streamId: {}, chunkIndex: {} failed.",
+                  streamHandle.streamId,
+                  chunkIndex,
+                  e);
+                ExceptionUtils.wrapAndThrowIOException(e);
+              }
             }
           }
         }

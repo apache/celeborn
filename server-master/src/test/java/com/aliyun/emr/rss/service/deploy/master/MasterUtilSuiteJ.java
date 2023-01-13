@@ -23,11 +23,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.aliyun.emr.rss.common.RssConf;
 import scala.Tuple2;
 
 import org.junit.Test;
 
+import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
 import com.aliyun.emr.rss.common.protocol.PartitionLocation;
 
