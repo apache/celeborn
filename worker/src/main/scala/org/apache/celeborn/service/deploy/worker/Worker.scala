@@ -116,6 +116,11 @@ private[celeborn] class Worker(
       conf.workerRateLimitLowWatermark.get,
       conf.workerRateLimitUserInactiveIntervalMs,
       conf.workerRateLimitCheckUserStatusIntervalSeconds)
+
+    val rateLimitController = RateLimitController.instance()
+    workerSource.addGauge(
+      WorkerSource.PotentialConsumeSpeed,
+      _ => rateLimitController.getPotentialConsumeSpeed)
   }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
