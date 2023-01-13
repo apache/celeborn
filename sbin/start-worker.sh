@@ -35,11 +35,10 @@ if [ "$CELEBORN_WORKER_OFFHEAP_MEMORY" = "" ]; then
   CELEBORN_WORKER_OFFHEAP_MEMORY="1g"
 fi
 
-JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
-if [ "$JAVA_VER" -gt "8" ]; then
-  export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --illegal-access=warn -Dio.netty.tryReflectionSetAccessible=true"
-else
-  export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
+export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
+JAVA_VERSION=$(java -version 2>&1 | grep " version " | head -1 | awk '{print $3}' | tr -d '"')
+if [[ ! "$JAVA_VERSION" == 1.8.* ]]; then
+  export CELEBORN_JAVA_OPTS="${CELEBORN_JAVA_OPTS} --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --illegal-access=warn -Dio.netty.tryReflectionSetAccessible=true"
 fi
 
 if [ "$WORKER_INSTANCE" = "" ]; then
