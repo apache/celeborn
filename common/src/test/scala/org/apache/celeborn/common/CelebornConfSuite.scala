@@ -31,17 +31,17 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(masterEndpoints(1) == "localhost2:9097")
   }
 
-  test("basedir test") {
+  test("storage test") {
     val conf = new CelebornConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
-    assert(workerBaseDirs.head._3 == 1)
+    assert(workerBaseDirs.head._3 == 2)
     assert(workerBaseDirs.head._2 == defaultMaxUsableSpace)
   }
 
-  test("basedir test2") {
+  test("storage test2") {
     val conf = new CelebornConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g")
@@ -51,7 +51,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(workerBaseDirs.head._2 == 10 * 1024 * 1024 * 1024L)
   }
 
-  test("basedir test3") {
+  test("storage test3") {
     val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
     val workerBaseDirs = conf.workerBaseDirs
@@ -60,7 +60,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(workerBaseDirs.head._2 == 10 * 1024 * 1024 * 1024L)
   }
 
-  test("basedir test4") {
+  test("storage test4") {
     val conf = new CelebornConf()
     conf.set(
       "celeborn.worker.storage.dirs",
@@ -75,6 +75,45 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(workerBaseDirs(1)._1 == "/mnt/disk2")
     assert(workerBaseDirs(1)._3 == 7)
     assert(workerBaseDirs(1)._2 == 15 * 1024 * 1024 * 1024L)
+  }
+
+  test("storage test5") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
+    val workerBaseDirs = conf.workerBaseDirs
+    assert(workerBaseDirs.head._3 == 2)
+  }
+
+  test("storage test6") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.flusher.threads", "4")
+      .set("celeborn.worker.storage.dirs", "/mnt/disk1")
+    val workerBaseDirs = conf.workerBaseDirs
+    assert(workerBaseDirs.head._3 == 4)
+  }
+
+  test("storage test7") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.flusher.threads", "4")
+      .set("celeborn.worker.storage.dirs", "/mnt/disk1:flushthread=8")
+    val workerBaseDirs = conf.workerBaseDirs
+    assert(workerBaseDirs.head._3 == 8)
+  }
+
+  test("storage test8") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.flusher.threads", "4")
+      .set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD")
+    val workerBaseDirs = conf.workerBaseDirs
+    assert(workerBaseDirs.head._3 == 8)
+  }
+
+  test("storage test9") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.flusher.threads", "4")
+      .set("celeborn.worker.storage.dirs", "/mnt/disk1:flushthread=9:disktype=HDD")
+    val workerBaseDirs = conf.workerBaseDirs
+    assert(workerBaseDirs.head._3 == 9)
   }
 
   test("zstd level") {
