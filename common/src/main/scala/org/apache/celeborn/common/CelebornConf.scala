@@ -755,11 +755,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       storageDirs.map { str =>
         var maxCapacity = defaultMaxCapacity
         var diskType = HDD
-        var flushThread = -1
+        var flushThread = get(WORKER_FLUSHER_THREADS)
         val (dir, attributes) = str.split(":").toList match {
           case _dir :: tail => (_dir, tail)
           case nil => throw new IllegalArgumentException(s"Illegal storage dir: $nil")
         }
+        var flushThreadsDefined = false
         attributes.foreach {
           case capacityStr if capacityStr.toLowerCase.startsWith("capacity=") =>
             maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
@@ -768,16 +769,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
             if (diskType == Type.MEMORY) {
               throw new IOException(s"Invalid diskType: $diskType")
             }
+            if (!flushThreadsDefined) {
+              flushThread = diskType match {
+                case HDD => hddFlusherThreads
+                case SSD => ssdFlusherThreads
+                case _ => flushThread
+              }
+            }
           case threadCountStr if threadCountStr.toLowerCase.startsWith("flushthread=") =>
             flushThread = threadCountStr.split("=")(1).toInt
+            flushThreadsDefined = true
           case illegal =>
             throw new IllegalArgumentException(s"Illegal attribute: $illegal")
-        }
-        if (flushThread == -1) {
-          flushThread = diskType match {
-            case HDD => hddFlusherThreads
-            case SSD => ssdFlusherThreads
-          }
         }
         (dir, maxCapacity, flushThread, diskType)
       }
@@ -1889,6 +1892,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val WORKER_FLUSHER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.threads")
+      .withAlternative("rss.flusher.thread.count")
+      .categories("worker")
+      .doc("Flusher's thread count per disk for unkown-type disks.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(2)
 
   val WORKER_FLUSHER_HDD_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.hdd.threads")
