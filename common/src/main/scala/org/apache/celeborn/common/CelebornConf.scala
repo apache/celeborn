@@ -2154,7 +2154,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.push.slowStart.maxSleepTime")
       .categories("client")
       .version("0.3.0")
-      .doc(s"If ${RPC_ASK_TIMEOUT.key} is set to SLOWSTART, push side will " +
+      .doc(s"If ${PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
         "take a sleep strategy for each batch of requests, this controls " +
         "the max sleep time if the max in flight requests limit is 1 for a long time")
       .timeConf(TimeUnit.MILLISECONDS)
