@@ -490,8 +490,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
   def workerReplicatePort: Int = get(WORKER_REPLICATE_PORT)
+
   def workerPushIoThreads: Option[Int] = get(WORKER_PUSH_IO_THREADS)
+
   def workerFetchIoThreads: Option[Int] = get(WORKER_FETCH_IO_THREADS)
+
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
@@ -514,6 +517,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Client                         //
   // //////////////////////////////////////////////////////
   def clientMaxTries: Int = get(CLIENT_MAX_RETRIES)
+  def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SHUFFLE_WRITER_MODE))
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
@@ -743,6 +747,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
+  def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -755,11 +760,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       storageDirs.map { str =>
         var maxCapacity = defaultMaxCapacity
         var diskType = HDD
-        var flushThread = -1
+        var flushThread = get(WORKER_FLUSHER_THREADS)
         val (dir, attributes) = str.split(":").toList match {
           case _dir :: tail => (_dir, tail)
           case nil => throw new IllegalArgumentException(s"Illegal storage dir: $nil")
         }
+        var flushThreadsDefined = false
         attributes.foreach {
           case capacityStr if capacityStr.toLowerCase.startsWith("capacity=") =>
             maxCapacity = Utils.byteStringAsBytes(capacityStr.split("=")(1))
@@ -768,16 +774,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
             if (diskType == Type.MEMORY) {
               throw new IOException(s"Invalid diskType: $diskType")
             }
+            if (!flushThreadsDefined) {
+              flushThread = diskType match {
+                case HDD => hddFlusherThreads
+                case SSD => ssdFlusherThreads
+                case _ => flushThread
+              }
+            }
           case threadCountStr if threadCountStr.toLowerCase.startsWith("flushthread=") =>
             flushThread = threadCountStr.split("=")(1).toInt
+            flushThreadsDefined = true
           case illegal =>
             throw new IllegalArgumentException(s"Illegal attribute: $illegal")
-        }
-        if (flushThread == -1) {
-          flushThread = diskType match {
-            case HDD => hddFlusherThreads
-            case SSD => ssdFlusherThreads
-          }
         }
         (dir, maxCapacity, flushThread, diskType)
       }
@@ -1755,7 +1763,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.push.io.threads")
       .categories("worker")
       .doc("Netty IO thread number of worker to handle client push data. " +
-        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+        s"The default threads number is the number of flush thread.")
       .version("0.2.0")
       .intConf
       .createOptional
@@ -1765,7 +1773,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.fetch.io.threads")
       .categories("worker")
       .doc("Netty IO thread number of worker to handle client fetch data. " +
-        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+        s"The default threads number is the number of flush thread.")
       .version("0.2.0")
       .intConf
       .createOptional
@@ -1775,7 +1783,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.replicate.io.threads")
       .categories("worker")
       .doc("Netty IO thread number of worker to replicate shuffle data. " +
-        s"The default threads number is `size(${WORKER_STORAGE_DIRS.key})*2`.")
+        s"The default threads number is the number of flush thread.")
       .version("0.2.0")
       .intConf
       .createOptional
@@ -1922,6 +1930,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val WORKER_FLUSHER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.threads")
+      .withAlternative("rss.flusher.thread.count")
+      .categories("worker")
+      .doc("Flusher's thread count per disk for unkown-type disks.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(2)
 
   val WORKER_FLUSHER_HDD_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.hdd.threads")
@@ -2300,6 +2317,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .intConf
       .createWithDefault(15)
+
+  val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.closeIdleConnections")
+      .categories("client")
+      .doc("Whether client will close idle connections.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
@@ -2800,4 +2825,12 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val MEMORY_PER_RESULT_PARTITION: ConfigEntry[String] =
+    buildConf("celeborn.client.network.memory.perResultPartition")
+      .categories("client")
+      .version("0.3.0")
+      .doc("The size of network buffers required per result partition. The minimum valid value is 8M. Usually, several hundreds of megabytes memory is enough for large scale batch jobs.")
+      .stringConf
+      .createWithDefault("64m")
 }

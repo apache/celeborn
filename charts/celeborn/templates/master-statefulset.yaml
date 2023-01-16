@@ -18,19 +18,25 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: celeborn-worker
+  name: celeborn-master
   labels:
-    app.kubernetes.io/name: celeborn-worker
-    app.kubernetes.io/role: worker
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/role: master
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: celeborn-worker
-      app.kubernetes.io/role: worker
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: { { .Release.Name } }
+      app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+      app.kubernetes.io/role: master
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
-  serviceName: celeborn-worker
-  replicas: {{ .Values.workerReplicas }}
+  serviceName: celeborn-master-svc
+  replicas: {{ .Values.masterReplicas }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -38,11 +44,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app.kubernetes.io/name: celeborn-worker
-        app.kubernetes.io/role: worker
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: { { .Release.Name } }
+        app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+        app.kubernetes.io/role: master
         {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.affinity.worker }}
+      {{- with .Values.affinity.master }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -69,37 +77,32 @@ spec:
           - "--"
           - "/bin/sh"
           - '-c'
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn/sbin/start-worker.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn/sbin/start-master.sh"
         resources:
-          {{- toYaml .Values.resources.worker | nindent 12 }}
+          {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
-          - containerPort: {{ get .Values.celeborn "celeborn.master.metrics.prometheus.port" | default 9096 }}
+          - containerPort: {{ .Values.service.port }}
+          - containerPort: {{ get .Values.celeborn "celeborn.master.metrics.prometheus.port" | default 9098 }}
             name: metrics
             protocol: TCP
         volumeMounts:
-          {{- if .Values.configmap }}
           - mountPath: /opt/celeborn/conf
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
-          {{- end }}
-          {{- $dirs := get .Values.celeborn "celeborn.worker.storage.dirs" | splitList "," -}}
-          {{- range $index, $dir := $dirs }}
-          - mountPath: {{ $dir }} 
-            name: vol-{{ $index }}
-          {{- end }}
+          - name: {{ include "celeborn.fullname" . }}-master-ratis
+            mountPath: {{get .Values.celeborn "celeborn.ha.master.ratis.raft.server.storage.dir"}}
         env:
           {{- range $key, $val := .Values.environments }}
           - name: {{ $key }}
             value: {{ $val | quote }}
           {{- end}}
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 30 
       volumes:
         - configMap:
             name: {{ .Values.configmap }}
           name: {{ include "celeborn.fullname" . }}-volume
-        {{- range $index, $dir := $dirs }}
+        {{- $dirs := get .Values.celeborn "celeborn.worker.storage.dirs" | splitList ","}}
         - hostPath:
-            path: {{ $dir }}/worker
+            path: {{ index $dirs 0 }}/ratis
             type: DirectoryOrCreate
-          name: vol-{{ $index }}
-        {{- end }} 
+          name: {{ include "celeborn.fullname" . }}-master-ratis

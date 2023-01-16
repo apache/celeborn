@@ -112,7 +112,11 @@ affinity:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                  - celeborn-master
+                  - celeborn
+              - key: app.kubernetes.io/role
+                operator: In
+                values:
+                  - master
           topologyKey: kubernetes.io/hostname
   worker:
     podAntiAffinity:
@@ -122,7 +126,11 @@ affinity:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                  - celeborn-worker
+                  - celeborn
+              - key: app.kubernetes.io/role
+                operator: In
+                values:
+                  - worker
           topologyKey: "kubernetes.io/hostname"
 
 tolerations: []

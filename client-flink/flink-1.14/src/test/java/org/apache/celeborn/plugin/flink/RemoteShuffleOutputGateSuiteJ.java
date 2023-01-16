@@ -26,14 +26,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Optional;
 
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -43,10 +42,15 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public class RemoteShuffleOutputGateSuiteJ {
   private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
   private ShuffleClientImpl shuffleClient = mock(ShuffleClientImpl.class);
+  private static final int BUFFER_SIZE = 20;
+  private NetworkBufferPool networkBufferPool;
+  private BufferPool bufferPool;
 
   @Before
-  public void setup() {
+  public void setup() throws IOException {
     remoteShuffleOutputGate.shuffleWriteClient = shuffleClient;
+    networkBufferPool = new NetworkBufferPool(10, BUFFER_SIZE);
+    bufferPool = networkBufferPool.createBufferPool(10, 10);
   }
 
   @Test
@@ -67,7 +71,7 @@ public class RemoteShuffleOutputGateSuiteJ {
         .thenAnswer(t -> Optional.empty());
     remoteShuffleOutputGate.regionStart(false);
 
-    remoteShuffleOutputGate.write(createBuffer(), 0);
+    remoteShuffleOutputGate.write(bufferPool.requestBuffer(), 0);
 
     doNothing()
         .when(remoteShuffleOutputGate.shuffleWriteClient)
@@ -83,19 +87,18 @@ public class RemoteShuffleOutputGateSuiteJ {
     remoteShuffleOutputGate.close();
   }
 
-  private Buffer createBuffer() throws IOException, InterruptedException {
-    int segmentSize = 32 * 1024;
-    NetworkBufferPool networkBufferPool =
-        new NetworkBufferPool(256, 32 * 1024, Duration.ofMillis(30000L));
-    BufferPool bufferPool =
-        networkBufferPool.createBufferPool(
-            8 * 1024 * 1024 / segmentSize, 8 * 1024 * 1024 / segmentSize);
-
-    MemorySegment memorySegment = bufferPool.requestMemorySegmentBlocking();
-
-    memorySegment.put(0, new byte[] {1, 2, 3});
-
-    Buffer buffer = new NetworkBuffer(memorySegment, bufferPool);
-    return buffer;
+  @Test
+  public void testNettyPoolTransfrom() {
+    Buffer buffer = bufferPool.requestBuffer();
+    ByteBuf byteBuf = buffer.asByteBuf();
+    byteBuf.writeByte(1);
+    Assert.assertEquals(1, byteBuf.refCnt());
+    io.netty.buffer.ByteBuf celebornByteBuf =
+        io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer());
+    Assert.assertEquals(1, celebornByteBuf.refCnt());
+    celebornByteBuf.release();
+    byteBuf.release();
+    Assert.assertEquals(0, byteBuf.refCnt());
+    Assert.assertEquals(0, celebornByteBuf.refCnt());
   }
 }
