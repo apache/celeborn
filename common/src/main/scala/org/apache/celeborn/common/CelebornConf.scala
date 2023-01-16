@@ -17,16 +17,15 @@
 
 package org.apache.celeborn.common
 
-import java.io.IOException
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import org.apache.celeborn.common.CelebornConf.PUSH_LIMIT_STRATEGY
 
+import java.io.IOException
+import java.util.{Collections, Locale, Collection => JCollection, HashMap => JHashMap, Map => JMap}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
-
 import org.apache.hadoop.security.UserGroupInformation
-
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -667,6 +666,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
+  def pushLimitStrategy: String = get(PUSH_LIMIT_STRATEGY)
+  def pushSlowStartMaxSleepMills: Long = get(PUSH_SLOW_START_MAX_SLEEP_TIME)
   def pushLimitInFlightTimeoutMs: Long =
     if (pushReplicateEnabled) {
       get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 4)
@@ -2142,6 +2143,24 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+  val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
+    buildConf("celeborn.push.limit.strategy")
+      .categories("client")
+      .doc("The strategy used to control the push speed.")
+      .version("0.3.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .createWithDefaultString("SIMPLE")
+
+  val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.slowStart.maxSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"If ${RPC_ASK_TIMEOUT.key} is set to SLOWSTART, push side will " +
+        "take a sleep strategy for each batch of requests, this controls " +
+        "the max sleep time if the max in flight requests limit is 1 for a long time")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.data.timeout")
