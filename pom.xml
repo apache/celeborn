@@ -960,6 +960,23 @@
     </profile>
 
     <profile>
+      <id>jdk-8</id>
+      <properties>
+        <java.version>8</java.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>jdk-11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <java.version>11</java.version>
+      </properties>
+    </profile>
+
+    <profile>
       <id>google-mirror</id>
       <properties>
         <mavenCentralId>gcs-maven-central-mirror</mavenCentralId>
