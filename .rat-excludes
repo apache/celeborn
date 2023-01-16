@@ -19,9 +19,9 @@
 **/*.json
 **/*.prefs
 **/*.log
+**/*.md
 **/*.iml
 **/target/**
-**/docs/configuration/*.md
 **/out/**
 **/spark-warehouse/**
 **/metastore_db/**
