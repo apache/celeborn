@@ -395,7 +395,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-
   protected void readChannelFully(FileChannel channel, ByteBuffer buffer, String path)
       throws IOException {
     while (buffer.hasRemaining()) {
@@ -647,9 +646,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-
     protected void readStreamBySize(
-            FSDataInputStream stream, ByteBuffer buffer, String path, int toRead) throws IOException {
+        FSDataInputStream stream, ByteBuffer buffer, String path, int toRead) throws IOException {
       int read = 0;
       if (toRead < buffer.capacity()) {
         buffer.limit(toRead);
@@ -658,12 +656,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int tmpRead = stream.read(buffer);
         if (-1 == tmpRead) {
           throw new IOException(
-                  "Unexpected EOF, file name : "
-                          + path
-                          + " position :"
-                          + stream.getPos()
-                          + " read size :"
-                          + read);
+              "Unexpected EOF, file name : "
+                  + path
+                  + " position :"
+                  + stream.getPos()
+                  + " read size :"
+                  + read);
         } else {
           read += tmpRead;
           if (!buffer.hasRemaining()) {
@@ -675,8 +673,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
     }
-    protected void readChannelBySize(FileChannel channel, ByteBuffer buffer, String path, int toRead)
-            throws IOException {
+
+    protected void readChannelBySize(
+        FileChannel channel, ByteBuffer buffer, String path, int toRead) throws IOException {
       int read = 0;
       if (toRead < buffer.capacity()) {
         buffer.limit(toRead);
@@ -685,12 +684,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int tmpRead = channel.read(buffer);
         if (-1 == tmpRead) {
           throw new IOException(
-                  "Unexpected EOF, file name : "
-                          + path
-                          + " position :"
-                          + channel.position()
-                          + " read size :"
-                          + read);
+              "Unexpected EOF, file name : "
+                  + path
+                  + " position :"
+                  + channel.position()
+                  + " read size :"
+                  + read);
         } else {
           read += tmpRead;
           if (!buffer.hasRemaining()) {
@@ -710,6 +709,5 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
       }
     }
-
   }
 }
