@@ -95,8 +95,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos, workerSource)
 
   // (mountPoint -> LocalFlusher)
-  private val localFlushers: ConcurrentHashMap[String, LocalFlusher] = {
+  private val (
+    localFlushers: ConcurrentHashMap[String, LocalFlusher],
+    _totalLocalFlusherThread: Int) = {
     val flushers = new ConcurrentHashMap[String, LocalFlusher]()
+    var totalThread = 0;
     disksSnapshot().foreach { diskInfo =>
       if (!flushers.containsKey(diskInfo.mountPoint)) {
         val flusher = new LocalFlusher(
@@ -108,9 +111,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           conf.avgFlushTimeSlidingWindowMinCount,
           diskInfo.storageType)
         flushers.put(diskInfo.mountPoint, flusher)
+        totalThread = totalThread + diskInfo.threadCount
       }
     }
-    flushers
+    (flushers, totalThread)
   }
 
   private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
@@ -124,7 +128,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
   val hdfsPermission = FsPermission.createImmutable(755)
   val hdfsWriters = new util.ArrayList[FileWriter]()
-  val hdfsFlusher =
+  val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (!hdfsDir.isEmpty) {
       val hdfsConfiguration = new Configuration
       hdfsConfiguration.set("fs.defaultFS", hdfsDir)
@@ -133,14 +137,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       logInfo("Celeborn will ignore cluster settings" +
         " about fs.hdfs.impl.disable.cache and set it to false")
       StorageManager.hadoopFs = FileSystem.get(hdfsConfiguration)
-      Some(new HdfsFlusher(
-        workerSource,
-        conf.hdfsFlusherThreads,
-        conf.avgFlushTimeSlidingWindowSize,
-        conf.avgFlushTimeSlidingWindowMinCount))
+      (
+        Some(new HdfsFlusher(
+          workerSource,
+          conf.hdfsFlusherThreads,
+          conf.avgFlushTimeSlidingWindowSize,
+          conf.avgFlushTimeSlidingWindowMinCount)),
+        conf.hdfsFlusherThreads)
     } else {
-      None
+      (None, 0)
     }
+
+  def totalFlusherThread: Int = _totalLocalFlusherThread + _totalHdfsFlusherThread
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.CRITICAL_ERROR) {
