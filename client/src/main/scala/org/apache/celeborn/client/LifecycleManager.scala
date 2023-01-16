@@ -1037,7 +1037,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
         res.status match {
           case StatusCode.SUCCESS => // do nothing
-          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.FAILED =>
+          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED =>
             logDebug(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
             commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
@@ -1623,7 +1623,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     CommitFilesResponse(
-      StatusCode.FAILED,
+      StatusCode.REQUEST_FAILED,
       List.empty.asJava,
       List.empty.asJava,
       message.masterIds,
