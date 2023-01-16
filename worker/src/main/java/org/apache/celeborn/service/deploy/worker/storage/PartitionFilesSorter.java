@@ -646,34 +646,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    protected void readStreamBySize(
-        FSDataInputStream stream, ByteBuffer buffer, String path, int toRead) throws IOException {
-      int read = 0;
-      if (toRead < buffer.capacity()) {
-        buffer.limit(toRead);
-      }
-      while (read != toRead) {
-        int tmpRead = stream.read(buffer);
-        if (-1 == tmpRead) {
-          throw new IOException(
-              "Unexpected EOF, file name : "
-                  + path
-                  + " position :"
-                  + stream.getPos()
-                  + " read size :"
-                  + read);
-        } else {
-          read += tmpRead;
-          if (!buffer.hasRemaining()) {
-            buffer.clear();
-            if (toRead - read < buffer.capacity()) {
-              buffer.limit(toRead - read);
-            }
-          }
-        }
-      }
-    }
-
     protected void readChannelBySize(
         FileChannel channel, ByteBuffer buffer, String path, int toRead) throws IOException {
       int read = 0;
@@ -704,7 +676,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void readBufferBySize(ByteBuffer buffer, int toRead) throws IOException {
       if (isHdfs) {
-        readStreamBySize(hdfsOriginInput, buffer, originFilePath, toRead);
+        // HDFS don't need warmup
+        hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
       } else {
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
       }
