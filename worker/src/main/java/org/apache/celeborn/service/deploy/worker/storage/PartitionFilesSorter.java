@@ -47,7 +47,6 @@ import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.nio.ch.DirectBuffer;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -353,7 +352,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       indexSize += entry.getValue().size() * 16;
     }
 
-    ByteBuffer indexBuf = ByteBuffer.allocateDirect(indexSize);
+    ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
     for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : indexMap.entrySet()) {
       int mapId = entry.getKey();
       List<ShuffleBlockInfo> list = entry.getValue();
@@ -379,7 +378,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
       indexFileChannel.close();
     }
-    ((DirectBuffer) indexBuf).cleaner().clean();
   }
 
   protected void readStreamFully(FSDataInputStream stream, ByteBuffer buffer, String path)
@@ -563,14 +561,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
-          if (compressedSize > reserveMemory) {
-            ((DirectBuffer) paddingBuf).cleaner().clean();
-            paddingBuf = expandBufferAndUpdateMemoryTracker(reserveMemory, compressedSize);
-            reserveMemory = compressedSize;
-          }
-          paddingBuf.limit(compressedSize);
-          // TODO: compare skip or read performance differential
-          readBufferFully(paddingBuf);
+          readBufferBySize(paddingBuf, compressedSize);
         }
 
         long fileIndex = 0;
@@ -591,7 +582,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
 
-        ((DirectBuffer) paddingBuf).cleaner().clean();
         memoryManager.releaseSortMemory(reserveMemory);
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
@@ -656,14 +646,41 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    private ByteBuffer expandBufferAndUpdateMemoryTracker(int oldCapacity, int newCapacity)
-        throws InterruptedException {
-      memoryManager.releaseSortMemory(oldCapacity);
-      memoryManager.reserveSortMemory(newCapacity);
-      while (!memoryManager.sortMemoryReady()) {
-        Thread.sleep(20);
+    protected void readChannelBySize(
+        FileChannel channel, ByteBuffer buffer, String path, int toRead) throws IOException {
+      int read = 0;
+      if (toRead < buffer.capacity()) {
+        buffer.limit(toRead);
       }
-      return ByteBuffer.allocateDirect(newCapacity);
+      while (read != toRead) {
+        int tmpRead = channel.read(buffer);
+        if (-1 == tmpRead) {
+          throw new IOException(
+              "Unexpected EOF, file name : "
+                  + path
+                  + " position :"
+                  + channel.position()
+                  + " read size :"
+                  + read);
+        } else {
+          read += tmpRead;
+          if (!buffer.hasRemaining()) {
+            buffer.clear();
+            if (toRead - read < buffer.capacity()) {
+              buffer.limit(toRead - read);
+            }
+          }
+        }
+      }
+    }
+
+    private void readBufferBySize(ByteBuffer buffer, int toRead) throws IOException {
+      if (isHdfs) {
+        // HDFS don't need warmup
+        hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
+      } else {
+        readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
+      }
     }
   }
 }
