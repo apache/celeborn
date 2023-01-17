@@ -18,11 +18,12 @@
 package org.apache.celeborn.client.write;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,15 +35,16 @@ import org.apache.celeborn.common.util.Utils;
 
 /*
  * Queue for push data,
- * it can take one special PushTask queue by partitionId,
- * and it can take one random PushTask queue.
- * workingQueuePerPartition: for PushTask queue per every partition.
+ * it can take one PushTask whose worker inflight request is not reach limit,
+ * and it can add one PushTask.
  *
  * */
 public class DataPushQueue {
   private static final Logger logger = LoggerFactory.getLogger(DataPushQueue.class);
 
-  private final List<LinkedBlockingQueue<PushTask>> workingQueuePerPartition;
+  private final long WAIT_TIME_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
+
+  private final LinkedBlockingQueue<PushTask> workingQueue;
   private final PushState pushState;
   private final DataPusher dataPusher;
   private final int maxInFlight;
@@ -52,7 +54,7 @@ public class DataPushQueue {
   private final int numMappers;
   private final int numPartitions;
   private final ShuffleClient client;
-  private int partitionIdIdx = 0;
+  private final Set<String> reachLimitWorker = new HashSet<>();
 
   public DataPushQueue(
       CelebornConf conf,
@@ -71,54 +73,46 @@ public class DataPushQueue {
     this.client = client;
     this.dataPusher = dataPusher;
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    this.pushState = client.getOrRegisterPushState(mapKey);
+    this.pushState = client.getPushState(mapKey);
     this.maxInFlight = conf.pushMaxReqsInFlight();
     final int capacity = conf.pushQueueCapacity();
-    workingQueuePerPartition = new ArrayList<>(numPartitions);
-    for (int i = 0; i < numPartitions; i++) {
-      workingQueuePerPartition.add(new LinkedBlockingQueue<>(capacity));
-    }
+    workingQueue = new LinkedBlockingQueue<>(capacity);
   }
 
-  public LinkedBlockingQueue<PushTask> takeAnyWorkingQueue() throws IOException {
-    while (!dataPusher.terminatedOrHasException()) {
-      int partitionId = nextPartitionId();
-      LinkedBlockingQueue<PushTask> pushTasks;
-      try {
-        pushTasks = workingQueuePerPartition.get(partitionId);
-      } catch (IndexOutOfBoundsException ex) {
-        if (dataPusher.terminatedOrHasException()) {
-          return null;
-        }
-        throw ex;
-      }
-      if (Objects.isNull(pushTasks) && dataPusher.terminatedOrHasException()) {
-        return null;
-      }
-      if (!pushTasks.isEmpty()) {
+  /*
+  * Now, `takePushTask` is only used by one thread,
+  * so it is not thread-safe.
+  * */
+  public PushTask takePushTask() throws IOException {
+    while (dataPusher.stillRunning()) {
+      reachLimitWorker.clear();
+      Iterator<PushTask> iterator = workingQueue.iterator();
+      while (iterator.hasNext()) {
+        PushTask task = iterator.next();
+        int partitionId = task.getPartitionId();
         Map<Integer, PartitionLocation> partitionLocationMap =
-            client.getOrRegisterShuffle(appId, shuffleId, numMappers, numPartitions);
+            client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
         PartitionLocation loc = partitionLocationMap.get(partitionId);
-        boolean reachLimit = pushState.limitMaxInFlight(loc.hostAndPushPort(), maxInFlight);
-        if (!reachLimit) {
-          return pushTasks;
+
+        if (!reachLimitWorker.contains(loc.hostAndPushPort())) {
+          boolean reachLimit = pushState.reachLimit(loc.hostAndPushPort(), maxInFlight);
+          if (!reachLimit) {
+            iterator.remove();
+            return task;
+          } else {
+            reachLimitWorker.add(loc.hostAndPushPort());
+          }
         }
       }
     }
     return null;
   }
 
-  public LinkedBlockingQueue<PushTask> takeWorkingQueue(int partitionId) {
-    return workingQueuePerPartition.get(partitionId);
+  public boolean addPushTask(PushTask pushTask) throws InterruptedException {
+    return workingQueue.offer(pushTask, WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
   }
 
   public void clear() {
-    workingQueuePerPartition.parallelStream().forEach(LinkedBlockingQueue::clear);
-    workingQueuePerPartition.clear();
-  }
-
-  private int nextPartitionId() {
-    partitionIdIdx = (partitionIdIdx + 1) % numPartitions;
-    return partitionIdIdx;
+    workingQueue.clear();
   }
 }

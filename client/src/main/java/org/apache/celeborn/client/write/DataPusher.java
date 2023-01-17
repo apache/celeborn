@@ -52,6 +52,7 @@ public class DataPusher {
 
   private volatile boolean terminated;
   private final LongAdder[] mapStatusLengths;
+  private Thread pushThread;
 
   public DataPusher(
       String appId,
@@ -93,44 +94,42 @@ public class DataPusher {
     this.afterPush = afterPush;
     this.mapStatusLengths = mapStatusLengths;
 
-    new Thread("DataPusher-" + taskId) {
-      private void reclaimTask(PushTask task) throws InterruptedException {
-        idleLock.lockInterruptibly();
-        try {
-          idleQueue.put(task);
-          if (idleQueue.remainingCapacity() == 0) {
-            idleFull.signal();
+    pushThread =
+        new Thread("DataPusher-" + taskId) {
+          private void reclaimTask(PushTask task) throws InterruptedException {
+            idleLock.lockInterruptibly();
+            try {
+              idleQueue.put(task);
+              if (idleQueue.remainingCapacity() == 0) {
+                idleFull.signal();
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              exceptionRef.set(new IOException(e));
+            } finally {
+              idleLock.unlock();
+            }
           }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          exceptionRef.set(new IOException(e));
-        } finally {
-          idleLock.unlock();
-        }
-      }
 
-      @Override
-      public void run() {
-        while (!terminated && exceptionRef.get() == null) {
-          try {
-            LinkedBlockingQueue<PushTask> workingQueue = dataPushQueue.takeAnyWorkingQueue();
-            if (workingQueue == null) {
-              continue;
+          @Override
+          public void run() {
+            while (stillRunning()) {
+              try {
+                PushTask task = dataPushQueue.takePushTask();
+                if (Objects.isNull(task)) {
+                  continue;
+                }
+                pushData(task);
+                reclaimTask(task);
+              } catch (InterruptedException e) {
+                exceptionRef.set(new IOException(e));
+              } catch (IOException e) {
+                exceptionRef.set(e);
+              }
             }
-            PushTask task = workingQueue.poll(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
-            if (task == null) {
-              continue;
-            }
-            pushData(task);
-            reclaimTask(task);
-          } catch (InterruptedException e) {
-            exceptionRef.set(new IOException(e));
-          } catch (IOException e) {
-            exceptionRef.set(e);
           }
-        }
-      }
-    }.start();
+        };
+    pushThread.start();
   }
 
   public void addTask(int partitionId, byte[] buffer, int size) throws IOException {
@@ -143,8 +142,7 @@ public class DataPusher {
       task.setSize(size);
       task.setPartitionId(partitionId);
       System.arraycopy(buffer, 0, task.getBuffer(), 0, size);
-      LinkedBlockingQueue<PushTask> workingQueue = dataPushQueue.takeWorkingQueue(partitionId);
-      while (!workingQueue.offer(task, WAIT_TIME_NANOS, TimeUnit.NANOSECONDS)) {
+      while (!dataPushQueue.addPushTask(task)) {
         checkException();
       }
     } catch (InterruptedException e) {
@@ -165,6 +163,10 @@ public class DataPusher {
     }
 
     terminated = true;
+    try {
+      pushThread.join();
+    } catch (InterruptedException ignored) {
+    }
     idleQueue.clear();
     dataPushQueue.clear();
     checkException();
@@ -206,7 +208,7 @@ public class DataPusher {
     }
   }
 
-  protected boolean terminatedOrHasException() {
-    return terminated || Objects.nonNull(exceptionRef.get());
+  protected boolean stillRunning() {
+    return !terminated && !Objects.nonNull(exceptionRef.get());
   }
 }

@@ -37,41 +37,43 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 public class InFlightRequestTracker {
   private static final Logger logger = LoggerFactory.getLogger(InFlightRequestTracker.class);
 
-  private final long timeoutMs;
-  private final long pushTimeout;
+  private final long waitInflightTimeoutMs;
+  private final long pushTimeoutMs;
   private final long delta;
   private final PushState pushState;
 
   private final AtomicInteger batchId = new AtomicInteger();
   private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, BatchInfo>>
-      batchIdPerAddressPair = new ConcurrentHashMap<>();
+      inflightBatchesPerAddress = new ConcurrentHashMap<>();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
-    this.timeoutMs = conf.pushLimitInFlightTimeoutMs();
-    this.pushTimeout = conf.pushDataTimeoutMs();
+    this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
+    this.pushTimeoutMs = conf.pushDataTimeoutMs();
     this.delta = conf.pushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
   }
 
-  public void addFlightBatches(int batchId, String hostAndPushPort) {
+  public void addFlightBatch(int batchId, String hostAndPushPort) {
     ConcurrentHashMap<Integer, BatchInfo> batchIdSetPerPair =
-        batchIdPerAddressPair.computeIfAbsent(hostAndPushPort, id -> new ConcurrentHashMap<>());
+        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new ConcurrentHashMap<>());
     batchIdSetPerPair.computeIfAbsent(batchId, id -> new BatchInfo());
   }
 
-  public void removeFlightBatches(int batchId, String hostAndPushPort) {
-    ConcurrentHashMap<Integer, BatchInfo> batchIdMap = batchIdPerAddressPair.get(hostAndPushPort);
+  public void removeFlightBatch(int batchId, String hostAndPushPort) {
+    ConcurrentHashMap<Integer, BatchInfo> batchIdMap =
+        inflightBatchesPerAddress.get(hostAndPushPort);
     BatchInfo info = batchIdMap.remove(batchId);
     if (info != null && info.channelFuture != null) {
       info.channelFuture.cancel(true);
     }
     if (batchIdMap.size() == 0) {
-      batchIdPerAddressPair.remove(hostAndPushPort);
+      inflightBatchesPerAddress.remove(hostAndPushPort);
     }
   }
 
   public ConcurrentHashMap<Integer, BatchInfo> getBatchIdSetByAddressPair(String hostAndPort) {
-    return batchIdPerAddressPair.computeIfAbsent(hostAndPort, pair -> new ConcurrentHashMap<>());
+    return inflightBatchesPerAddress.computeIfAbsent(
+        hostAndPort, pair -> new ConcurrentHashMap<>());
   }
 
   public boolean limitMaxInFlight(String hostAndPushPort, int maxInFlight) throws IOException {
@@ -80,7 +82,7 @@ public class InFlightRequestTracker {
     }
 
     ConcurrentHashMap<Integer, BatchInfo> batchIdMap = getBatchIdSetByAddressPair(hostAndPushPort);
-    long times = timeoutMs / delta;
+    long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
         if (batchIdMap.size() <= maxInFlight) {
@@ -103,7 +105,7 @@ public class InFlightRequestTracker {
               + "there are still {} batches in flight "
               + "for hostAndPushPort {}, "
               + "which exceeds the limit {}.",
-          timeoutMs,
+        waitInflightTimeoutMs,
           batchIdMap.size(),
           hostAndPushPort,
           maxInFlight);
@@ -120,13 +122,13 @@ public class InFlightRequestTracker {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
-    long times = timeoutMs / delta;
+    long times = waitInflightTimeoutMs / delta;
 
     int inFlightSize = 0;
     try {
       while (times > 0) {
         Optional<Integer> inFlightSizeOptional =
-            batchIdPerAddressPair.values().stream().map(Map::size).reduce(Integer::sum);
+            inflightBatchesPerAddress.values().stream().map(Map::size).reduce(Integer::sum);
         inFlightSize = inFlightSizeOptional.orElse(0);
         if (inFlightSize == 0) {
           break;
@@ -145,7 +147,7 @@ public class InFlightRequestTracker {
     if (times <= 0) {
       logger.error(
           "After waiting for {} ms, there are still {} batches in flight, expect 0 batches",
-          timeoutMs,
+        waitInflightTimeoutMs,
           inFlightSize);
     }
 
@@ -156,13 +158,22 @@ public class InFlightRequestTracker {
     return times <= 0;
   }
 
+  public boolean reachLimit(String hostAndPushPort, int maxInFlight) throws IOException {
+    if (pushState.exception.get() != null) {
+      throw pushState.exception.get();
+    }
+
+    ConcurrentHashMap<Integer, BatchInfo> batchIdMap = getBatchIdSetByAddressPair(hostAndPushPort);
+    return batchIdMap.size() > maxInFlight;
+  }
+
   protected int nextBatchId() {
     return batchId.incrementAndGet();
   }
 
   public synchronized void failExpiredBatch() {
     long currentTime = System.currentTimeMillis();
-    batchIdPerAddressPair
+    inflightBatchesPerAddress
         .values()
         .forEach(
             batchIdMap ->
@@ -170,7 +181,7 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
-                          if (currentTime - info.pushTime > pushTimeout) {
+                          if (currentTime - info.pushTime > pushTimeoutMs) {
                             if (info.callback != null) {
                               info.channelFuture.cancel(true);
                               info.callback.onFailure(
@@ -183,9 +194,9 @@ public class InFlightRequestTracker {
   }
 
   public void cleanup() {
-    if (!batchIdPerAddressPair.isEmpty()) {
-      logger.debug("Cancel all {} futures.", batchIdPerAddressPair.size());
-      batchIdPerAddressPair
+    if (!inflightBatchesPerAddress.isEmpty()) {
+      logger.debug("Cancel all {} futures.", inflightBatchesPerAddress.size());
+      inflightBatchesPerAddress
           .values()
           .forEach(
               batchIdMap ->
@@ -197,7 +208,7 @@ public class InFlightRequestTracker {
                               info.channelFuture.cancel(true);
                             }
                           }));
-      batchIdPerAddressPair.clear();
+      inflightBatchesPerAddress.clear();
     }
   }
 

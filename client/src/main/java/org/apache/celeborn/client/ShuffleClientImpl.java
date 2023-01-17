@@ -351,14 +351,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
+  public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       String applicationId, int shuffleId, int numMappers, int numPartitions) {
     return reducePartitionMap.computeIfAbsent(
         shuffleId, (id) -> registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
   }
 
   @Override
-  public PushState getOrRegisterPushState(String mapKey) {
+  public PushState getPushState(String mapKey) {
     return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
   }
 
@@ -552,7 +552,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     // register shuffle if not registered
     final ConcurrentHashMap<Integer, PartitionLocation> map =
-        getOrRegisterShuffle(applicationId, shuffleId, numMappers, numPartitions);
+        getPartitionLocation(applicationId, shuffleId, numMappers, numPartitions);
 
     if (map == null) {
       throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
@@ -598,7 +598,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               + " is NULL!");
     }
 
-    PushState pushState = getOrRegisterPushState(mapKey);
+    PushState pushState = getPushState(mapKey);
 
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
@@ -1159,7 +1159,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       Integer partitionId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    PushState pushState = getOrRegisterPushState(mapKey);
+    PushState pushState = getPushState(mapKey);
 
     try {
       limitZeroInFlight(mapKey, pushState);
@@ -1427,7 +1427,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    PushState pushState = getOrRegisterPushState(mapKey);
+    PushState pushState = getPushState(mapKey);
 
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
@@ -1531,7 +1531,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // makesure that messages have been sent by old client, in order to keep receiving data
       // orderly
       if (currentClient != null) {
-        limitMaxInFlight(mapKey, pushState, 0);
+        limitZeroInFlight(mapKey, pushState);
       }
       currentClient = client;
     }
@@ -1703,7 +1703,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             attemptId);
         return null;
       }
-      pushState = getOrRegisterPushState(mapKey);
+      pushState = getPushState(mapKey);
       // force data has been send
       limitZeroInFlight(mapKey, pushState);
 

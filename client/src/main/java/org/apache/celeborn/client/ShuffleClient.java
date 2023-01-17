@@ -238,8 +238,8 @@ public abstract class ShuffleClient {
   public abstract PartitionLocation registerMapPartitionTask(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId);
 
-  public abstract ConcurrentHashMap<Integer, PartitionLocation> getOrRegisterShuffle(
+  public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       String applicationId, int shuffleId, int numMappers, int numPartitions);
 
-  public abstract PushState getOrRegisterPushState(String mapKey);
+  public abstract PushState getPushState(String mapKey);
 }
