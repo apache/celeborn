@@ -21,7 +21,6 @@
 **/*.log
 **/*.md
 **/*.iml
-**/*.patch
 **/target/**
 **/out/**
 **/spark-warehouse/**
