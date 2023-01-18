@@ -270,19 +270,19 @@ org.slf4j:jcl-over-slf4j
 org.yaml:snakeyaml
 
 This project bundles the following dependencies under the CDDL 1.0 license.
-See license/LICENSE-CDDL.txt files for details.
+See license/LICENSE-CDDL.txt for details.
 ------------
 javax.servlet:javax.servlet-api
 
 The MIT License (MIT)
-See license/LICENSE-MIT.txt files for details.
+See license/LICENSE-MIT.txt for details.
 ------------
 See license/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
 
 BSD 3-clause
-See license/LICENSE-BSD-3.txt files for details.
+See license/LICENSE-BSD-3.txt for details.
 ------------
 See license/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
