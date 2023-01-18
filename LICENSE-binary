@@ -200,10 +200,9 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
---------------------------------------------------
+------------------------------------------------------------------------------------
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt):
 
-This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
---------------------------
 com.google.code.findbugs:jsr305
 com.google.guava:guava
 commons-io:commons-io
@@ -266,6 +265,8 @@ org.scala-lang:scala-reflect
 org.slf4j:jcl-over-slf4j
 org.yaml:snakeyaml
 
+
+------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.
 This section summarizes those components and their licenses. See licenses/
 for text of these licenses.
