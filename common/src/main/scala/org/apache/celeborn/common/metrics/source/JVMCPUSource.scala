@@ -45,7 +45,8 @@ class JVMCPUSource(conf: CelebornConf, role: String) extends AbstractSource(conf
           case NonFatal(_) => -1L
         }
       }
-    })
+    },
+    Map.empty[String, String])
   // start cleaner
   startCleaner()
 }

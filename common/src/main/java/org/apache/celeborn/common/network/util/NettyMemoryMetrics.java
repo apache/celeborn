@@ -21,6 +21,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 
+import scala.collection.immutable.Map$;
+
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.PoolArenaMetric;
@@ -87,10 +89,12 @@ public class NettyMemoryMetrics {
       logger.debug("setup netty metrics");
       source.addGauge(
           MetricRegistry.name(metricPrefix, "usedHeapMemory"),
-          pooledAllocatorMetric::usedHeapMemory);
+          pooledAllocatorMetric::usedHeapMemory,
+          Map$.MODULE$.<String, String>empty());
       source.addGauge(
           MetricRegistry.name(metricPrefix, "usedDirectMemory"),
-          pooledAllocatorMetric::usedDirectMemory);
+          pooledAllocatorMetric::usedDirectMemory,
+          Map$.MODULE$.<String, String>empty());
       if (verboseMetricsEnabled) {
         int directArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
@@ -133,7 +137,8 @@ public class NettyMemoryMetrics {
               } catch (Exception e) {
                 return -1; // Swallow the exceptions.
               }
-            });
+            },
+            Map$.MODULE$.<String, String>empty());
 
       } else if (returnType.equals(long.class)) {
         source.addGauge(
@@ -144,7 +149,8 @@ public class NettyMemoryMetrics {
               } catch (Exception e) {
                 return -1L; // Swallow the exceptions.
               }
-            });
+            },
+            Map$.MODULE$.<String, String>empty());
       }
     }
   }

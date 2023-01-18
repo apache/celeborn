@@ -36,7 +36,7 @@ class JVMSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
     new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer))
     .map { x =>
       x.getMetrics.asScala.map {
-        case (name: String, metric: Gauge[_]) => addGauge(name, metric)
+        case (name: String, metric: Gauge[_]) => addGauge(name, metric, Map.empty[String, String])
       }
     }
   // start cleaner
