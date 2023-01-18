@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.meta
 
 import java.time.{Instant, LocalDateTime, ZoneId}
+import java.util.Objects
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
@@ -95,6 +96,10 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
     obj.asInstanceOf[AppDiskUsageSnapShot].startSnapShotTime == startSnapShotTime &&
     obj.asInstanceOf[AppDiskUsageSnapShot].endSnapShotTime == endSnapShotTime &&
     obj.asInstanceOf[AppDiskUsageSnapShot].topNItems.zip(topNItems).forall { case (x, y) => x == y }
+  }
+
+  override def hashCode(): Int = {
+    Objects.hashCode(topItemCount, startSnapShotTime, endSnapShotTime, topNItems)
   }
 
   override def toString(): String = {
