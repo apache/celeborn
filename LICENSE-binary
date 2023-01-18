@@ -271,7 +271,7 @@ This product bundles various third-party components under other open source lice
 This section summarizes those components and their licenses. See licenses/
 for text of these licenses.
 
-This project bundles the following dependencies under the CDDL 1.0 license.
+This project bundles the following dependencies under the Common Development and Distribution License (CDDL) 1.0 license.
 See license/LICENSE-CDDL.txt for details.
 ------------
 javax.servlet:javax.servlet-api
