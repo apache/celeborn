@@ -30,13 +30,24 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.{ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
-case class NamedCounter(name: String, counter: Counter)
+private[source] trait MetricLabels {
+  val labels: Map[String, String]
+  def labelString: String = {
+    "{" + labels.map { case (key: String, value: String) => s"""$key="$value"""" }.mkString(
+      " ") + "}"
+  }
+}
 
-case class NamedGauge[T](name: String, gauge: Gauge[T])
+case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
+  extends MetricLabels
 
-case class NamedHistogram(name: String, histogram: Histogram)
+case class NamedGauge[T](name: String, gauge: Gauge[T], labels: Map[String, String])
+  extends MetricLabels
 
-case class NamedTimer(name: String, timer: Timer)
+case class NamedHistogram(name: String, histogram: Histogram, labels: Map[String, String])
+  extends MetricLabels
+
+case class NamedTimer(name: String, timer: Timer, labels: Map[String, String]) extends MetricLabels
 
 abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
@@ -57,32 +68,46 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val metricsCleaner: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"worker-metrics-cleaner")
 
+  val roleLabel = "role" -> role
+
   protected val namedGauges: java.util.List[NamedGauge[_]] =
     new java.util.ArrayList[NamedGauge[_]]()
 
-  def addGauge[T](name: String, f: Unit => T): Unit = {
+  def addGauge[T](name: String, f: Unit => T): Unit = addGauge(name, f, Map.empty[String, String])
+
+  def addGauge[T](
+      name: String,
+      f: Unit => T,
+      labels: Map[String, String]): Unit = {
     val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
     val gauge = metricRegistry.gauge(name, supplier)
-    namedGauges.add(NamedGauge(name, gauge))
+    namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
   }
 
-  def addGauge[T](name: String, guage: Gauge[T]): Unit = {
-    namedGauges.add(NamedGauge(name, guage))
+  def addGauge[T](name: String, gauge: Gauge[T]): Unit =
+    addGauge(name, gauge, Map.empty[String, String])
+
+  def addGauge[T](name: String, gauge: Gauge[T], labels: Map[String, String]): Unit = {
+    namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
   }
 
   protected val namedTimers =
     new ConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])]()
 
-  def addTimer(name: String): Unit = {
-    val namedTimer = NamedTimer(name, metricRegistry.timer(name, timerSupplier))
+  def addTimer(name: String): Unit = addTimer(name, Map.empty[String, String])
+
+  def addTimer(name: String, labels: Map[String, String]): Unit = {
+    val namedTimer = NamedTimer(name, metricRegistry.timer(name, timerSupplier), labels + roleLabel)
     namedTimers.putIfAbsent(name, (namedTimer, new ConcurrentHashMap[String, Long]()))
   }
 
   protected val namedCounters: ConcurrentHashMap[String, NamedCounter] =
     new ConcurrentHashMap[String, NamedCounter]()
 
-  def addCounter(name: String): Unit = {
-    namedCounters.put(name, NamedCounter(name, metricRegistry.counter(name)))
+  def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
+
+  def addCounter(name: String, labels: Map[String, String] = Map.empty[String, String]): Unit = {
+    namedCounters.put(name, NamedCounter(name, metricRegistry.counter(name), labels + roleLabel))
   }
 
   protected def counters(): List[NamedCounter] = {
@@ -208,12 +233,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def recordCounter(nc: NamedCounter): Unit = {
     val timestamp = System.currentTimeMillis
+    val label = nc.labelString
     updateInnerMetrics(s"${normalizeKey(nc.name)}Count$label ${nc.counter.getCount} $timestamp\n")
   }
 
   def recordGauge(ng: NamedGauge[_]): Unit = {
     val timestamp = System.currentTimeMillis
     val sb = new StringBuilder
+    val label = ng.labelString
     sb.append(s"${normalizeKey(ng.name)}Value$label ${ng.gauge.getValue} $timestamp\n")
 
     updateInnerMetrics(sb.toString())
@@ -224,6 +251,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val sb = new mutable.StringBuilder
     val snapshot = nh.histogram.getSnapshot
     val prefix = normalizeKey(nh.name)
+    val label = nh.labelString
     sb.append(s"${prefix}Count$label ${nh.histogram.getCount} $timestamp\n")
     sb.append(s"${prefix}Max$label ${reportNanosAsMills(snapshot.getMax)} $timestamp\n")
     sb.append(s"${prefix}Mean$label ${reportNanosAsMills(snapshot.getMean)} $timestamp\n")
@@ -249,6 +277,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val sb = new mutable.StringBuilder
     val snapshot = nt.timer.getSnapshot
     val prefix = normalizeKey(nt.name)
+    val label = nt.labelString
     sb.append(s"${prefix}Count$label ${nt.timer.getCount} $timestamp\n")
     sb.append(s"${prefix}Max$label ${reportNanosAsMills(snapshot.getMax)} $timestamp\n")
     sb.append(s"${prefix}Mean$label ${reportNanosAsMills(snapshot.getMean)} $timestamp\n")
@@ -299,8 +328,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected def reportNanosAsMills(value: Double): Double = {
     BigDecimal(value / 1000000).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
-
-  val label = s"""{role="$role"}"""
 }
 
 class TimerSupplier(val slidingWindowSize: Int)
