@@ -24,7 +24,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,12 +47,14 @@ public class DummyShuffleClient extends ShuffleClient {
   private static final Logger LOG = LoggerFactory.getLogger(DummyShuffleClient.class);
 
   private final OutputStream os;
+  private final CelebornConf conf;
 
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       new HashMap<>();
 
-  public DummyShuffleClient(File file) throws Exception {
+  public DummyShuffleClient(CelebornConf conf, File file) throws Exception {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
+    this.conf = conf;
   }
 
   @Override
@@ -203,14 +207,24 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public PushState getPushState(String mapKey) {
-    return new PushState(new CelebornConf());
+    return new PushState(conf);
   }
 
-  public void initReducePartitionMap(int shuffleId, int numPartitions, String host) {
+  public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
     ConcurrentHashMap<Integer, PartitionLocation> map = new ConcurrentHashMap<>();
+    String host = "host";
+    List<PartitionLocation> partitionLocationList = new ArrayList<>();
+    for (int i = 0; i < workerNum; i++) {
+      partitionLocationList.add(
+          new PartitionLocation(0, 0, host, 1000 + i, 2000 + i, 3000 + i, 4000 + i, MASTER));
+    }
     for (int i = 0; i < numPartitions; i++) {
-      map.put(i, new PartitionLocation(0, 0, host, 1000, 1001, 1002, 1003, MASTER));
+      map.put(i, partitionLocationList.get(i % workerNum));
     }
     reducePartitionMap.put(shuffleId, map);
+  }
+
+  public Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> getReducePartitionMap() {
+    return reducePartitionMap;
   }
 }

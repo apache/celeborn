@@ -129,6 +129,10 @@ public class DataPusher {
             }
           }
         };
+    pushThread.setDaemon(true);
+  }
+
+  public void startPushThread() {
     pushThread.start();
   }
 
@@ -210,5 +214,13 @@ public class DataPusher {
 
   protected boolean stillRunning() {
     return !terminated && !Objects.nonNull(exceptionRef.get());
+  }
+
+  public DataPushQueue getDataPushQueue() {
+    return dataPushQueue;
+  }
+
+  public Thread getPushThread() {
+    return pushThread;
   }
 }

@@ -80,9 +80,9 @@ public class DataPushQueue {
   }
 
   /*
-  * Now, `takePushTask` is only used by one thread,
-  * so it is not thread-safe.
-  * */
+   * Now, `takePushTask` is only used by one thread,
+   * so it is not thread-safe.
+   * */
   public PushTask takePushTask() throws IOException {
     while (dataPusher.stillRunning()) {
       reachLimitWorker.clear();

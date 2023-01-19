@@ -105,7 +105,7 @@ public class InFlightRequestTracker {
               + "there are still {} batches in flight "
               + "for hostAndPushPort {}, "
               + "which exceeds the limit {}.",
-        waitInflightTimeoutMs,
+          waitInflightTimeoutMs,
           batchIdMap.size(),
           hostAndPushPort,
           maxInFlight);
@@ -147,7 +147,7 @@ public class InFlightRequestTracker {
     if (times <= 0) {
       logger.error(
           "After waiting for {} ms, there are still {} batches in flight, expect 0 batches",
-        waitInflightTimeoutMs,
+          waitInflightTimeoutMs,
           inFlightSize);
     }
 
