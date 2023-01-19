@@ -27,16 +27,8 @@ import com.codahale.metrics._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.{ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
+import org.apache.celeborn.common.metrics.{MetricLabels, ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
-
-private[source] trait MetricLabels {
-  val labels: Map[String, String]
-  def labelString: String = {
-    "{" + labels.map { case (key: String, value: String) => s"""$key="$value"""" }.mkString(
-      " ") + "}"
-  }
-}
 
 case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
   extends MetricLabels
@@ -98,7 +90,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addTimer(name: String, labels: Map[String, String]): Unit = {
     val namedTimer = NamedTimer(name, metricRegistry.timer(name, timerSupplier), labels + roleLabel)
-    namedTimers.putIfAbsent(name, (namedTimer, new ConcurrentHashMap[String, Long]()))
+    namedTimers.putIfAbsent(
+      metricNameWithLabels(name, labels + roleLabel),
+      (namedTimer, new ConcurrentHashMap[String, Long]()))
   }
 
   protected val namedCounters: ConcurrentHashMap[String, NamedCounter] =
@@ -106,8 +100,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 
-  def addCounter(name: String, labels: Map[String, String] = Map.empty[String, String]): Unit = {
-    namedCounters.put(name, NamedCounter(name, metricRegistry.counter(name), labels + roleLabel))
+  def addCounter(name: String, labels: Map[String, String]): Unit = {
+    namedCounters.put(
+      metricNameWithLabels(name, labels + roleLabel),
+      NamedCounter(name, metricRegistry.counter(name), labels + roleLabel))
   }
 
   protected def counters(): List[NamedCounter] = {
@@ -137,43 +133,65 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
+    sample(metricsName, key, Map.empty[String, String])(f)
+  }
+
+  def sample[T](metricsName: String, key: String, labels: Map[String, String])(f: => T): T = {
     val sample = needSample()
     var r: Any = null
     try {
       if (sample) {
-        doStartTimer(metricsName, key)
+        doStartTimer(metricsName, key, labels)
       }
       r = f
     } finally {
       if (sample) {
-        doStopTimer(metricsName, key)
+        doStopTimer(metricsName, key, labels)
       }
     }
     r.asInstanceOf[T]
   }
 
   override def startTimer(metricsName: String, key: String): Unit = {
+    startTimer(metricsName, key, Map.empty[String, String])
+  }
+
+  def startTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
     if (needSample()) {
-      doStartTimer(metricsName, key)
+      doStartTimer(metricsName, key, labels)
     }
   }
 
   override def stopTimer(metricsName: String, key: String): Unit = {
-    doStopTimer(metricsName, key)
+    stopTimer(metricsName, key, Map.empty[String, String])
+  }
+
+  def stopTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
+    doStopTimer(metricsName, key, labels)
   }
 
   def doStartTimer(metricsName: String, key: String): Unit = {
-    val pair = namedTimers.get(metricsName)
+    doStartTimer(metricsName, key, Map.empty[String, String])
+  }
+
+  def doStartTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
+    val name = metricNameWithLabels(metricsName, labels + roleLabel)
+    val pair = namedTimers.get(name)
     if (pair != null) {
       pair._2.put(key, System.nanoTime())
     } else {
-      logWarning(s"Metric $metricsName not found!")
+      logWarning(s"Metric $name not found!")
     }
   }
 
   protected def doStopTimer(metricsName: String, key: String): Unit = {
+    doStopTimer(metricsName, key, Map.empty[String, String])
+  }
+
+  protected def doStopTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
+    val name = metricNameWithLabels(metricsName, labels + roleLabel)
     try {
-      val (namedTimer, map) = namedTimers.get(metricsName)
+      val (namedTimer, map) = namedTimers.get(name)
       val startTime = Option(map.remove(key))
       startTime match {
         case Some(t) =>
@@ -185,16 +203,25 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       }
     } catch {
       case e: Exception =>
-        logWarning("Exception encountered in Metrics StopTimer", e)
+        logWarning(s"Exception encountered during stop timer of metric $name", e)
     }
   }
 
-  override def incCounter(metricsName: String, incV: Long = 1): Unit = {
-    val counter = namedCounters.get(metricsName)
+  def incCounter(metricsName: String): Unit = {
+    incCounter(metricsName, 1)
+  }
+
+  override def incCounter(metricsName: String, incV: Long): Unit = {
+    incCounter(metricsName, incV, Map.empty[String, String])
+  }
+
+  def incCounter(metricsName: String, incV: Long, labels: Map[String, String]): Unit = {
+    val name = metricNameWithLabels(metricsName, labels + roleLabel)
+    val counter = namedCounters.get(name)
     if (counter != null) {
       counter.counter.inc(incV)
     } else {
-      logWarning(s"Metric $metricsName not found!")
+      logWarning(s"Metric $name not found!")
     }
   }
 
@@ -327,6 +354,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   protected def reportNanosAsMills(value: Double): Double = {
     BigDecimal(value / 1000000).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
+  }
+
+  protected def metricNameWithLabels(metricsName: String, labels: Map[String, String]): String = {
+    metricsName + MetricLabels.labelString(labels)
   }
 }
 

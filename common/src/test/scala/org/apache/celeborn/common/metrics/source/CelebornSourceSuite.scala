@@ -26,22 +26,32 @@ class CelebornSourceSuite extends CelebornFunSuite {
     val mockSource = new AbstractSource(new CelebornConf(), "mock") {
       override def sourceName: String = "mockSource"
     }
+    val user1 = Map("user" -> "user1")
+    val user2 = Map("user" -> "user2")
+    val user3 = Map("user" -> "user3")
     mockSource.addGauge("Gauge1", _ => 1000)
-    mockSource.addGauge("Gauge2", _ => 2000, Map("user" -> "user1"))
+    mockSource.addGauge("Gauge2", _ => 2000, user1)
     mockSource.addCounter("Counter1")
+    mockSource.addCounter("Counter2", user2)
+    // test operation with and without label
     mockSource.incCounter("Counter1", 3000)
-    mockSource.addCounter("Counter2", Map("user" -> "user2"))
-    mockSource.incCounter("Counter2", 4000)
+    mockSource.incCounter("Counter2", 4000, user2)
     mockSource.addTimer("Timer1")
-    mockSource.addTimer("Timer2", Map("user" -> "user3"))
+    mockSource.addTimer("Timer2", user3)
+    // ditto
+    mockSource.startTimer("Timer1", "key1")
+    mockSource.startTimer("Timer2", "key2", user3)
+    Thread.sleep(10)
+    mockSource.stopTimer("Timer1", "key1")
+    mockSource.stopTimer("Timer2", "key2", user3)
 
     val res = mockSource.getMetrics()
     val exp1 = "metrics_Gauge1_Value{role=\"mock\"} 1000"
     val exp2 = "metrics_Gauge2_Value{user=\"user1\" role=\"mock\"} 2000"
     val exp3 = "metrics_Counter1_Count{role=\"mock\"} 3000"
     val exp4 = "metrics_Counter2_Count{user=\"user2\" role=\"mock\"} 4000"
-    val exp5 = "metrics_Timer1_Count{role=\"mock\"} 0"
-    val exp6 = "metrics_Timer2_Count{user=\"user3\" role=\"mock\"} 0"
+    val exp5 = "metrics_Timer1_Count{role=\"mock\"} 1"
+    val exp6 = "metrics_Timer2_Count{user=\"user3\" role=\"mock\"} 1"
 
     assert(res.contains(exp1))
     assert(res.contains(exp2))
