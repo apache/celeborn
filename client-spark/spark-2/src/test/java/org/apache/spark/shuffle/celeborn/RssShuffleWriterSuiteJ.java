@@ -233,7 +233,8 @@ public class RssShuffleWriterSuiteJ {
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     final RssShuffleHandle<Integer, String, String> handle =
         new RssShuffleHandle<>(appId, host, port, userIdentifier, shuffleId, numMaps, dependency);
-    final ShuffleClient client = new DummyShuffleClient(tempFile);
+    final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
 
     if (hashWriter) {
       final HashBasedShuffleWriter<Integer, String, String> writer =

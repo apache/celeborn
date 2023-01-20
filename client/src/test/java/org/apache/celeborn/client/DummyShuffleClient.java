@@ -17,12 +17,19 @@
 
 package org.apache.celeborn.client;
 
+import static org.apache.celeborn.common.protocol.PartitionLocation.Mode.MASTER;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
 import io.netty.buffer.ByteBuf;
@@ -30,6 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.write.PushState;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 
@@ -38,9 +47,14 @@ public class DummyShuffleClient extends ShuffleClient {
   private static final Logger LOG = LoggerFactory.getLogger(DummyShuffleClient.class);
 
   private final OutputStream os;
+  private final CelebornConf conf;
 
-  public DummyShuffleClient(File file) throws Exception {
+  private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
+      new HashMap<>();
+
+  public DummyShuffleClient(CelebornConf conf, File file) throws Exception {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
+    this.conf = conf;
   }
 
   @Override
@@ -183,5 +197,34 @@ public class DummyShuffleClient extends ShuffleClient {
   public PartitionLocation registerMapPartitionTask(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
     return null;
+  }
+
+  @Override
+  public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
+      String applicationId, int shuffleId, int numMappers, int numPartitions) {
+    return reducePartitionMap.get(shuffleId);
+  }
+
+  @Override
+  public PushState getPushState(String mapKey) {
+    return new PushState(conf);
+  }
+
+  public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
+    ConcurrentHashMap<Integer, PartitionLocation> map = new ConcurrentHashMap<>();
+    String host = "host";
+    List<PartitionLocation> partitionLocationList = new ArrayList<>();
+    for (int i = 0; i < workerNum; i++) {
+      partitionLocationList.add(
+          new PartitionLocation(0, 0, host, 1000 + i, 2000 + i, 3000 + i, 4000 + i, MASTER));
+    }
+    for (int i = 0; i < numPartitions; i++) {
+      map.put(i, partitionLocationList.get(i % workerNum));
+    }
+    reducePartitionMap.put(shuffleId, map);
+  }
+
+  public Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> getReducePartitionMap() {
+    return reducePartitionMap;
   }
 }

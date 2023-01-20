@@ -161,6 +161,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rssShuffleClient,
             writeMetrics::incBytesWritten,
             mapStatusLengths);
+    dataPusher.startPushThread();
 
     if (conf.columnarShuffleEnabled()) {
       this.schema = SparkUtils.getSchema(dep);
