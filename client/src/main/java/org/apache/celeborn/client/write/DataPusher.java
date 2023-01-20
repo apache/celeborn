@@ -27,10 +27,11 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.CelebornConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.CelebornConf;
 
 public class DataPusher {
   private static final Logger logger = LoggerFactory.getLogger(DataPusher.class);
