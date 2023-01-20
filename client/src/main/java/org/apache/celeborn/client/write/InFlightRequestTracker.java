@@ -53,13 +53,13 @@ public class InFlightRequestTracker {
     this.pushState = pushState;
   }
 
-  public void addFlightBatch(int batchId, String hostAndPushPort) {
+  public void addBatch(int batchId, String hostAndPushPort) {
     ConcurrentHashMap<Integer, BatchInfo> batchIdSetPerPair =
         inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new ConcurrentHashMap<>());
     batchIdSetPerPair.computeIfAbsent(batchId, id -> new BatchInfo());
   }
 
-  public void removeFlightBatch(int batchId, String hostAndPushPort) {
+  public void removeBatch(int batchId, String hostAndPushPort) {
     ConcurrentHashMap<Integer, BatchInfo> batchIdMap =
         inflightBatchesPerAddress.get(hostAndPushPort);
     BatchInfo info = batchIdMap.remove(batchId);
