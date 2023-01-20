@@ -153,6 +153,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rssShuffleClient,
             writeMetrics::incBytesWritten,
             mapStatusLengths);
+    dataPusher.startPushThread();
   }
 
   @Override

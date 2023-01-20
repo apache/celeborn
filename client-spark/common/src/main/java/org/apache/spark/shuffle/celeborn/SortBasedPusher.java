@@ -109,6 +109,7 @@ public class SortBasedPusher extends MemoryConsumer {
             rssShuffleClient,
             afterPush,
             mapStatusLengths);
+    dataPusher.startPushThread();
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
     pushSortMemoryThreshold = conf.pushSortMemoryThreshold();
