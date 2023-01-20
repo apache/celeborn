@@ -147,6 +147,7 @@ public class PartitionLocation implements Serializable {
     this.peer = peer;
     this.storageInfo = hint;
     this.mapIdBitMap = mapIdBitMap;
+    this._hostPushPort = host + ":" + pushPort;
   }
 
   public int getId() {
