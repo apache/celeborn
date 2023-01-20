@@ -46,7 +46,6 @@ class PushdataTimeoutTest extends AnyFunSuite
   test("celeborn spark integration test - pushdata timeout") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
       .set("spark.celeborn.push.data.timeout", "10s")
-      .set("spark.celeborn.shuffle.register.maxRetries", "10")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
     val groupbyResult = groupBy(sparkSession)
