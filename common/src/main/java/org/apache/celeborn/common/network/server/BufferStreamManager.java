@@ -124,7 +124,8 @@ public class BufferStreamManager {
       int initialCredit,
       int startSubIndex,
       int endSubIndex,
-      FileInfo fileInfo) {
+      FileInfo fileInfo)
+      throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     streams.put(streamId, new StreamState(channel, bufferSize));
     addCredit(initialCredit, streamId);
@@ -173,16 +174,18 @@ public class BufferStreamManager {
     private final List<Long> activeStreamIds = new ArrayList<>();
     private final FileInfo fileInfo;
     private final Set<DataPartitionReader> readers = new HashSet<>();
-    private final ExecutorService readExecutor;;
+    private final ExecutorService readExecutor;
 
     public MapDataPartition(FileInfo fileInfo) {
       this.fileInfo = fileInfo;
       readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getMountPoint());
     }
 
-    public void setupDataPartitionReader(int startSubIndex, int endSubIndex, long streamId) {
+    public void setupDataPartitionReader(int startSubIndex, int endSubIndex, long streamId)
+        throws IOException {
       DataPartitionReader dataPartitionReader =
           new DataPartitionReader(startSubIndex, endSubIndex, fileInfo, streamId);
+      dataPartitionReader.open();
       readers.add(dataPartitionReader);
     }
 
@@ -202,11 +205,8 @@ public class BufferStreamManager {
                 throw new RuntimeException(e);
               }
             }
+            readers.removeIf(p -> p.isClosed);
           });
-    }
-
-    public void close() {
-      this.readExecutor.shutdownNow();
     }
 
     public void addStream(long streamId) {
