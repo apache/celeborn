@@ -140,8 +140,4 @@ public class TransportConf {
   public long maxChunksBeingTransferred() {
     return conf.networkIoMaxChunksBeingTransferred(module);
   }
-
-  public String decoderMode() {
-    return conf.networkIoDecoderMode(module);
-  }
 }

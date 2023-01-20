@@ -85,17 +85,17 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
-    val openBlocks = msg.asInstanceOf[OpenStream]
-    val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
-    val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
-    val startMapIndex = openBlocks.startMapIndex
-    val endMapIndex = openBlocks.endMapIndex
+    val openStream = msg.asInstanceOf[OpenStream]
+    val shuffleKey = new String(openStream.shuffleKey, StandardCharsets.UTF_8)
+    val fileName = new String(openStream.fileName, StandardCharsets.UTF_8)
     // metrics start
     workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       try fileInfo.getPartitionType() match {
         case PartitionType.REDUCE =>
+          val startMapIndex = openStream.asInstanceOf[OpenChunkStream].startMapIndex
+          val endMapIndex = openStream.asInstanceOf[OpenChunkStream].endMapIndex
           if (endMapIndex != Integer.MAX_VALUE) {
             fileInfo = partitionsSorter.getSortedFileInfo(
               shuffleKey,
@@ -127,8 +127,17 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           }
         case PartitionType.MAP =>
           // return stream id
+          val startSubIndex = openStream.asInstanceOf[OpenBufferStream].startSubIndex
+          val endSubIndex = openStream.asInstanceOf[OpenBufferStream].endSubIndex
+          val initialCredit = openStream.asInstanceOf[OpenBufferStream].initialCredit
           val streamId =
-            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
+            bufferStreamManager.registerStream(
+              client.getChannel,
+              fileInfo.getBufferSize,
+              initialCredit,
+              startSubIndex,
+              endSubIndex,
+              fileInfo)
           val res = ByteBuffer.allocate(8)
           res.putLong(streamId)
           client.getChannel.writeAndFlush(new RpcResponse(
@@ -157,6 +166,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {
     bufferStreamManager.addCredit(req.getCredit, req.getStreamId)
+    // return empty array as ack
+    client.send(ByteBuffer.wrap(Array[Byte]()))
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {

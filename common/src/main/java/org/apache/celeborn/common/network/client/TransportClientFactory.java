@@ -182,7 +182,7 @@ public class TransportClientFactory implements Closeable {
    *
    * <p>As with {@link #createClient(String, int)}, this method is blocking.
    */
-  private TransportClient internalCreateClient(InetSocketAddress address)
+  protected TransportClient internalCreateClient(InetSocketAddress address)
       throws IOException, InterruptedException {
     Bootstrap bootstrap = new Bootstrap();
     bootstrap

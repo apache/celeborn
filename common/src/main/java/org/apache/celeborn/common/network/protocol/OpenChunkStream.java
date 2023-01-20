@@ -17,29 +17,39 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
 /** Request to read a set of blocks. Returns {@link StreamHandle}. */
-public class OpenStream extends RequestMessage {
-  public byte[] shuffleKey;
-  public byte[] fileName;
+public final class OpenChunkStream extends OpenStream {
+  public int startMapIndex;
+  public int endMapIndex;
 
-  public OpenStream(byte[] shuffleKey, byte[] fileName) {
-    this.shuffleKey = shuffleKey;
-    this.fileName = fileName;
+  public OpenChunkStream(String shuffleKey, String fileName, int startMapIndex, int endMapIndex) {
+    this(
+        shuffleKey.getBytes(StandardCharsets.UTF_8),
+        fileName.getBytes(StandardCharsets.UTF_8),
+        startMapIndex,
+        endMapIndex);
+  }
+
+  public OpenChunkStream(byte[] shuffleKey, byte[] fileName, int startMapIndex, int endMapIndex) {
+    super(shuffleKey, fileName);
+    this.startMapIndex = startMapIndex;
+    this.endMapIndex = endMapIndex;
   }
 
   @Override
   public Type type() {
-    return Type.OPEN_STREAM;
+    return Type.OPEN_CHUNK_STREAM;
   }
 
   @Override
   public int encodedLength() {
-    return 4 + shuffleKey.length + 4 + fileName.length;
+    return 4 + shuffleKey.length + 4 + fileName.length + 4 + 4;
   }
 
   @Override
@@ -48,38 +58,44 @@ public class OpenStream extends RequestMessage {
     buf.writeBytes(shuffleKey);
     buf.writeInt(fileName.length);
     buf.writeBytes(fileName);
+    buf.writeInt(startMapIndex);
+    buf.writeInt(endMapIndex);
   }
 
-  public static OpenStream decode(ByteBuf buf) {
+  public static OpenChunkStream decode(ByteBuf buf) {
     int shuffleKeySize = buf.readInt();
     byte[] shuffleKey = new byte[shuffleKeySize];
     buf.readBytes(shuffleKey);
     int fileNameSize = buf.readInt();
     byte[] fileName = new byte[fileNameSize];
     buf.readBytes(fileName);
-    return new OpenStream(shuffleKey, fileName);
+    return new OpenChunkStream(shuffleKey, fileName, buf.readInt(), buf.readInt());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(shuffleKey, fileName);
+    return Objects.hashCode(shuffleKey, fileName, startMapIndex, endMapIndex);
   }
 
   @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    OpenStream that = (OpenStream) o;
-    return Arrays.equals(shuffleKey, that.shuffleKey) && Arrays.equals(fileName, that.fileName);
+  public boolean equals(Object other) {
+    if (other instanceof OpenChunkStream) {
+      OpenChunkStream o = (OpenChunkStream) other;
+      return startMapIndex == o.startMapIndex
+          && endMapIndex == o.endMapIndex
+          && Arrays.equals(shuffleKey, o.shuffleKey)
+          && Arrays.equals(fileName, o.fileName);
+    }
+    return false;
   }
 
   @Override
   public String toString() {
-    return "OpenStream{"
-        + "shuffleKey="
-        + Arrays.toString(shuffleKey)
-        + ", fileName="
-        + Arrays.toString(fileName)
-        + '}';
+    return Objects.toStringHelper(this)
+        .add("shuffleKey", new String(shuffleKey, StandardCharsets.UTF_8))
+        .add("fileName", new String(fileName, StandardCharsets.UTF_8))
+        .add("startMapIndex", startMapIndex)
+        .add("endMapIndex", endMapIndex)
+        .toString();
   }
 }

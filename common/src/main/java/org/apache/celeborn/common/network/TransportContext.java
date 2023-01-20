@@ -48,10 +48,10 @@ import org.apache.celeborn.common.network.util.TransportConf;
 public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
-  private final TransportConf conf;
-  private final BaseMessageHandler msgHandler;
+  protected final TransportConf conf;
+  protected final BaseMessageHandler msgHandler;
   private ChannelsLimiter channelsLimiter;
-  private final boolean closeIdleConnections;
+  protected final boolean closeIdleConnections;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
 
@@ -102,7 +102,7 @@ public class TransportContext {
       channel
           .pipeline()
           .addLast("encoder", ENCODER)
-          .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
+          .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
           .addLast(
               "idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
           .addLast("handler", channelHandler);
@@ -113,7 +113,7 @@ public class TransportContext {
     }
   }
 
-  private TransportChannelHandler createChannelHandler(
+  protected TransportChannelHandler createChannelHandler(
       Channel channel, BaseMessageHandler msgHandler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
@@ -125,5 +125,9 @@ public class TransportContext {
 
   public TransportConf getConf() {
     return conf;
+  }
+
+  public BaseMessageHandler getMsgHandler() {
+    return msgHandler;
   }
 }

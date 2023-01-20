@@ -65,7 +65,7 @@ import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenStream;
+import org.apache.celeborn.common.network.protocol.OpenChunkStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
@@ -184,7 +184,8 @@ public class FileWriterSuiteJ {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
 
-    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
+    OpenChunkStream openBlocks =
+        new OpenChunkStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
 
     return openBlocks.toByteBuffer();
   }
