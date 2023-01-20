@@ -87,11 +87,11 @@ public class PushState {
   }
 
   public void addBatch(int batchId, String hostAndPushPort) {
-    inFlightRequestTracker.addFlightBatch(batchId, hostAndPushPort);
+    inFlightRequestTracker.addBatch(batchId, hostAndPushPort);
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
-    inFlightRequestTracker.removeFlightBatch(batchId, hostAndPushPort);
+    inFlightRequestTracker.removeBatch(batchId, hostAndPushPort);
   }
 
   public boolean limitMaxInFlight(String hostAndPushPort, int maxInFlight) throws IOException {

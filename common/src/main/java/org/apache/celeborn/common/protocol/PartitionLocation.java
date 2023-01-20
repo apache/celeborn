@@ -60,6 +60,7 @@ public class PartitionLocation implements Serializable {
   private PartitionLocation peer;
   private StorageInfo storageInfo;
   private RoaringBitmap mapIdBitMap;
+  private transient String _hostPushPort;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -73,6 +74,7 @@ public class PartitionLocation implements Serializable {
     this.peer = loc.peer;
     this.storageInfo = loc.storageInfo;
     this.mapIdBitMap = loc.mapIdBitMap;
+    this._hostPushPort = host + ":" + pushPort;
   }
 
   public PartitionLocation(
@@ -145,6 +147,7 @@ public class PartitionLocation implements Serializable {
     this.peer = peer;
     this.storageInfo = hint;
     this.mapIdBitMap = mapIdBitMap;
+    this._hostPushPort = host + ":" + pushPort;
   }
 
   public int getId() {
@@ -201,7 +204,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public String hostAndPushPort() {
-    return host + ":" + pushPort;
+    return _hostPushPort;
   }
 
   public Mode getMode() {

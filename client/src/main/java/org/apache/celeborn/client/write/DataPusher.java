@@ -27,10 +27,15 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 
 public class DataPusher {
+  private static final Logger logger = LoggerFactory.getLogger(DataPusher.class);
+
   private final long WAIT_TIME_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
 
   private final LinkedBlockingQueue<PushTask> idleQueue;
@@ -130,9 +135,6 @@ public class DataPusher {
           }
         };
     pushThread.setDaemon(true);
-  }
-
-  public void startPushThread() {
     pushThread.start();
   }
 
@@ -170,6 +172,7 @@ public class DataPusher {
     try {
       pushThread.join();
     } catch (InterruptedException ignored) {
+      logger.info("Thread interrupted while joining pushThread");
     }
     idleQueue.clear();
     dataPushQueue.clear();
@@ -218,9 +221,5 @@ public class DataPusher {
 
   public DataPushQueue getDataPushQueue() {
     return dataPushQueue;
-  }
-
-  public Thread getPushThread() {
-    return pushThread;
   }
 }
