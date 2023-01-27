@@ -72,13 +72,13 @@ import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class ShuffleClientImpl extends ShuffleClient {
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
+  protected static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
   private static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
 
   private static final Random RND = new Random();
 
-  private final CelebornConf conf;
+  protected final CelebornConf conf;
 
   private final UserIdentifier userIdentifier;
 
@@ -121,8 +121,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       };
 
-  private static class ReduceFileGroups {
-    final Map<Integer, Set<PartitionLocation>> partitionGroups;
+  protected static class ReduceFileGroups {
+    public final Map<Integer, Set<PartitionLocation>> partitionGroups;
     final int[] mapAttempts;
 
     ReduceFileGroups(Map<Integer, Set<PartitionLocation>> partitionGroups, int[] mapAttempts) {
@@ -1227,7 +1227,28 @@ public class ShuffleClientImpl extends ShuffleClient {
       int endMapIndex)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-    ReduceFileGroups fileGroups =
+    ReduceFileGroups fileGroups = loadFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
+
+    if (fileGroups.partitionGroups.size() == 0
+        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
+      return RssInputStream.empty();
+    } else {
+      return RssInputStream.create(
+          conf,
+          dataClientFactory,
+          shuffleKey,
+          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),
+          fileGroups.mapAttempts,
+          attemptNumber,
+          startMapIndex,
+          endMapIndex);
+    }
+  }
+
+  protected ReduceFileGroups loadFileGroup(
+      String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
+    ReduceFileGroups reduceFileGroups =
         reduceFileGroupsMap.computeIfAbsent(
             shuffleId,
             (id) -> {
@@ -1273,26 +1294,12 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
               return null;
             });
-
-    if (fileGroups == null) {
+    if (reduceFileGroups == null) {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
       throw new IOException(msg);
-    } else if (fileGroups.partitionGroups.size() == 0
-        || !fileGroups.partitionGroups.containsKey(partitionId)) {
-      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
-      return RssInputStream.empty();
-    } else {
-      return RssInputStream.create(
-          conf,
-          dataClientFactory,
-          shuffleKey,
-          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),
-          fileGroups.mapAttempts,
-          attemptNumber,
-          startMapIndex,
-          endMapIndex);
     }
+    return reduceFileGroups;
   }
 
   @VisibleForTesting

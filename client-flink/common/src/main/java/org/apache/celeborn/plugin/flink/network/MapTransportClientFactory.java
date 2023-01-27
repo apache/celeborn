@@ -15,86 +15,39 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.client;
+package org.apache.celeborn.plugin.flink.network;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
-import com.google.common.base.Preconditions;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.TransportContext;
+import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
-import org.apache.celeborn.common.network.util.*;
 
-/**
- * Factory for creating {@link TransportClient}s by using createClient.
- *
- * <p>The factory maintains a connection pool to other hosts and should return the same
- * TransportClient for the same remote host. It also shares a single worker thread pool for all
- * TransportClients.
- *
- * <p>TransportClients will be reused whenever possible.
- */
-public class TransportClientFactory implements Closeable {
+public class MapTransportClientFactory extends TransportClientFactory {
+  private static final Logger logger = LoggerFactory.getLogger(MapTransportClientFactory.class);
+  protected final MapTransportContext mapTransportContext;
 
-  /** A simple data structure to track the pool of clients between two peer nodes. */
-  public static class ClientPool {
-    public TransportClient[] clients;
-    public Object[] locks;
-
-    public ClientPool(int size) {
-      clients = new TransportClient[size];
-      locks = new Object[size];
-      for (int i = 0; i < size; i++) {
-        locks[i] = new Object();
-      }
-    }
+  public MapTransportClientFactory(MapTransportContext context) {
+    super(((TransportContext) context));
+    this.mapTransportContext = context;
   }
 
-  private static final Logger logger = LoggerFactory.getLogger(TransportClientFactory.class);
-
-  private final TransportContext context;
-  protected final TransportConf conf;
-  protected final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
-
-  /** Random number generator for picking connections between peers. */
-  protected final Random rand;
-
-  protected final int numConnectionsPerPeer;
-
-  protected final Class<? extends Channel> socketChannelClass;
-  protected EventLoopGroup workerGroup;
-  protected PooledByteBufAllocator pooledAllocator;
-
-  public TransportClientFactory(TransportContext context) {
-    this.context = Preconditions.checkNotNull(context);
-    this.conf = context.getConf();
-    this.connectionPool = new ConcurrentHashMap<>();
-    this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
-    this.rand = new Random();
-
-    IOMode ioMode = IOMode.valueOf(conf.ioMode());
-    this.socketChannelClass = NettyUtils.getClientChannelClass(ioMode);
-    logger.info("mode " + ioMode + " threads " + conf.clientThreads());
-    this.workerGroup =
-        NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
-    this.pooledAllocator =
-        NettyUtils.createPooledByteBufAllocator(
-            conf.preferDirectBufs(), false /* allowCache */, conf.clientThreads());
-  }
-
-  public TransportClient createClient(String remoteHost, int remotePort, int partitionId)
+  public TransportClient createClient(
+      String remoteHost, int remotePort, int partitionId, Supplier<ByteBuf> supplier)
       throws IOException, InterruptedException {
     // Get connection from the connection pool first.
     // If it is not found or not active, create a new one.
@@ -152,23 +105,13 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      clientPool.clients[clientIndex] = internalCreateClient(resolvedAddress);
+      clientPool.clients[clientIndex] = internalCreateClient(resolvedAddress, supplier);
       return clientPool.clients[clientIndex];
     }
   }
 
-  public TransportClient createClient(String remoteHost, int remotePort)
-      throws IOException, InterruptedException {
-    return createClient(remoteHost, remotePort, -1);
-  }
-
-  /**
-   * Create a completely new {@link TransportClient} to the given remote host / port. This
-   * connection is not pooled.
-   *
-   * <p>As with {@link #createClient(String, int)}, this method is blocking.
-   */
-  protected TransportClient internalCreateClient(InetSocketAddress address)
+  protected TransportClient internalCreateClient(
+      InetSocketAddress address, Supplier<ByteBuf> supplier)
       throws IOException, InterruptedException {
     Bootstrap bootstrap = new Bootstrap();
     bootstrap
@@ -195,7 +138,8 @@ public class TransportClientFactory implements Closeable {
         new ChannelInitializer<SocketChannel>() {
           @Override
           public void initChannel(SocketChannel ch) {
-            TransportChannelHandler clientHandler = context.initializePipeline(ch);
+            TransportChannelHandler clientHandler =
+                mapTransportContext.initializePipeline(ch, supplier);
             clientRef.set(clientHandler.getClient());
             channelRef.set(ch);
           }
@@ -218,24 +162,7 @@ public class TransportClientFactory implements Closeable {
     return client;
   }
 
-  /** Close all connections in the connection pool, and shutdown the worker thread pool. */
-  @Override
-  public void close() {
-    // Go through all clients and close them if they are active.
-    for (ClientPool clientPool : connectionPool.values()) {
-      for (int i = 0; i < clientPool.clients.length; i++) {
-        TransportClient client = clientPool.clients[i];
-        if (client != null) {
-          clientPool.clients[i] = null;
-          JavaUtils.closeQuietly(client);
-        }
-      }
-    }
-    connectionPool.clear();
-
-    // SPARK-19147
-    if (workerGroup != null && !workerGroup.isShuttingDown()) {
-      workerGroup.shutdownGracefully();
-    }
+  public MapTransportContext getMapTransportContext() {
+    return mapTransportContext;
   }
 }

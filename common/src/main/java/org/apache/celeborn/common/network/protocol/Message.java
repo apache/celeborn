@@ -221,9 +221,6 @@ public abstract class Message implements Encodable {
       case READ_ADD_CREDIT:
         return ReadAddCredit.decode(in);
 
-      case READ_DATA:
-        return ReadData.decode(in);
-
       case OPEN_BUFFER_STREAM:
         return OpenBufferStream.decode(in);
 

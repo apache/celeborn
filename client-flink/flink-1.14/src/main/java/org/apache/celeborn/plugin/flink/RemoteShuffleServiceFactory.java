@@ -75,8 +75,15 @@ public class RemoteShuffleServiceFactory
         new RemoteShuffleResultPartitionFactory(
             celebornConf, resultPartitionManager, networkBufferPool, bufferSize);
 
+    RemoteShuffleInputGateFactory inputGateFactory =
+        new RemoteShuffleInputGateFactory(celebornConf, networkBufferPool, bufferSize);
+
     return new RemoteShuffleEnvironment(
-        networkBufferPool, resultPartitionManager, resultPartitionFactory, celebornConf);
+        networkBufferPool,
+        resultPartitionManager,
+        resultPartitionFactory,
+        inputGateFactory,
+        celebornConf);
   }
 
   private static int calculateNumberOfNetworkBuffers(MemorySize memorySize, int bufferSize) {

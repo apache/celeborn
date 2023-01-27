@@ -76,6 +76,7 @@ public class RemoteShuffleEnvironment
   private final Object lock = new Object();
 
   private final CelebornConf conf;
+  private final RemoteShuffleInputGateFactory inputGateFactory;
 
   /**
    * @param networkBufferPool Network buffer pool for shuffle read and shuffle write.
@@ -87,13 +88,13 @@ public class RemoteShuffleEnvironment
       NetworkBufferPool networkBufferPool,
       ResultPartitionManager resultPartitionManager,
       RemoteShuffleResultPartitionFactory resultPartitionFactory,
-      //        RemoteShuffleInputGateFactory inputGateFactory,
+      RemoteShuffleInputGateFactory inputGateFactory,
       CelebornConf conf) {
 
     this.networkBufferPool = networkBufferPool;
     this.resultPartitionManager = resultPartitionManager;
     this.resultPartitionFactory = resultPartitionFactory;
-    //    this.inputGateFactory = inputGateFactory;
+    this.inputGateFactory = inputGateFactory;
     this.conf = conf;
     this.isClosed = false;
   }

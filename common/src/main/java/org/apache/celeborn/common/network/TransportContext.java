@@ -50,10 +50,10 @@ public class TransportContext {
 
   protected final TransportConf conf;
   protected final BaseMessageHandler msgHandler;
-  private ChannelsLimiter channelsLimiter;
+  protected ChannelsLimiter channelsLimiter;
   protected final boolean closeIdleConnections;
 
-  private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
+  protected static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
 
   public TransportContext(
       TransportConf conf,

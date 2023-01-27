@@ -14,12 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.celeborn.common.network.protocol;
+
+package org.apache.celeborn.plugin.flink.protocol;
 
 import java.util.Objects;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+
+import org.apache.celeborn.common.network.protocol.RequestMessage;
 
 public class ReadData extends RequestMessage {
   private long streamId;
@@ -40,22 +42,12 @@ public class ReadData extends RequestMessage {
   }
 
   @Override
-  public void encode(ByteBuf buf) {
+  public void encode(io.netty.buffer.ByteBuf buf) {
     buf.writeLong(streamId);
     buf.writeInt(backlog);
     buf.writeLong(offset);
     buf.writeInt(this.buf.readableBytes());
-    buf.writeBytes(this.buf);
-  }
-
-  public static ReadData decode(ByteBuf buf) {
-    long streamId = buf.readLong();
-    int backlog = buf.readInt();
-    long offset = buf.readLong();
-    int tmpBufSize = buf.readInt();
-    ByteBuf tmpBuf = Unpooled.buffer(tmpBufSize, tmpBufSize);
-    buf.readBytes(tmpBuf);
-    return new ReadData(streamId, backlog, offset, tmpBuf);
+    buf.writeBytes(buf.nioBuffer());
   }
 
   public long getStreamId() {
