@@ -137,7 +137,6 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       CelebornConf celebornConf,
       String taskName,
       int gateIndex,
-      int networkBufferSize,
       InputGateDeploymentDescriptor gateDescriptor,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor) {
@@ -153,7 +152,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
     this.numSubPartitionsHasNotConsumed = new int[numChannels];
     this.bufferDecompressor = bufferDecompressor;
 
-    this.numUnconsumedSubpartitions = initShuffleReadClients(networkBufferSize);
+    this.numUnconsumedSubpartitions = initShuffleReadClients();
     this.pendingEndOfDataEvents = numUnconsumedSubpartitions;
     this.channelsInfo = createChannelInfos();
     if (gateDescriptor.getShuffleDescriptors().length > 0) {
@@ -169,7 +168,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
     }
   }
 
-  private long initShuffleReadClients(int bufferSize) {
+  private long initShuffleReadClients() {
     int startSubIdx = gateDescriptor.getConsumedSubpartitionIndex();
     int endSubIdx = gateDescriptor.getConsumedSubpartitionIndex();
     int numSubpartitionsPerChannel = endSubIdx - startSubIdx + 1;

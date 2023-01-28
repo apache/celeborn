@@ -37,8 +37,6 @@ public class RemoteBufferStreamReader extends CreditListener {
   private MapShuffleClientImpl client;
   private String applicationId;
   private int shuffleId;
-  private int mapId;
-  private int attemptId;
   private int partitionId;
   private int subPartitionIndexStart;
   private int subPartitionIndexEnd;
@@ -60,8 +58,6 @@ public class RemoteBufferStreamReader extends CreditListener {
     this.client = client;
     this.applicationId = applicationId;
     this.shuffleId = shuffleDescriptor.getShuffleId();
-    this.mapId = shuffleDescriptor.getMapId();
-    this.attemptId = shuffleDescriptor.getAttemptId();
     this.partitionId = shuffleDescriptor.getPartitionId();
     this.bufferPool = bufferPool;
     this.subPartitionIndexStart = startSubIdx;

@@ -113,13 +113,7 @@ public class RemoteShuffleInputGateFactory {
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor) {
     return new RemoteShuffleInputGate(
-        this.celebornConf,
-        owningTaskName,
-        gateIndex,
-        networkBufferSize,
-        igdd,
-        bufferPoolFactory,
-        bufferDecompressor);
+        this.celebornConf, owningTaskName, gateIndex, igdd, bufferPoolFactory, bufferDecompressor);
   }
 
   private SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
