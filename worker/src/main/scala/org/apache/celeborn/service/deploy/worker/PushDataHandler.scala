@@ -427,9 +427,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
-      callback.onFailure(new Exception(
-        s"$message! ${locations.map(_.toString).mkString("{", ", ", "}")}",
-        exception))
+      callback.onFailure(new Exception(s"$message! ${locations.head}", exception))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
