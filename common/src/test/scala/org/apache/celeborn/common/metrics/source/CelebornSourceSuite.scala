@@ -47,11 +47,11 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
     val res = mockSource.getMetrics()
     val exp1 = "metrics_Gauge1_Value{role=\"mock\"} 1000"
-    val exp2 = "metrics_Gauge2_Value{user=\"user1\" role=\"mock\"} 2000"
+    val exp2 = "metrics_Gauge2_Value{role=\"mock\" user=\"user1\"} 2000"
     val exp3 = "metrics_Counter1_Count{role=\"mock\"} 3000"
-    val exp4 = "metrics_Counter2_Count{user=\"user2\" role=\"mock\"} 4000"
+    val exp4 = "metrics_Counter2_Count{role=\"mock\" user=\"user2\"} 4000"
     val exp5 = "metrics_Timer1_Count{role=\"mock\"} 1"
-    val exp6 = "metrics_Timer2_Count{user=\"user3\" role=\"mock\"} 1"
+    val exp6 = "metrics_Timer2_Count{role=\"mock\" user=\"user3\"} 1"
 
     assert(res.contains(exp1))
     assert(res.contains(exp2))
