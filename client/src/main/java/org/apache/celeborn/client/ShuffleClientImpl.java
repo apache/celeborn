@@ -1380,12 +1380,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   private StatusCode getPushDataFailCause(String message) {
     logger.info("[getPushDataFailCause] message: " + message);
     StatusCode cause;
-    if (StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage().equals(message)) {
+    if (message.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage())) {
       cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
-    } else if (StatusCode.PUSH_DATA_FAIL_MASTER.getMessage().equals(message)
+    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_MASTER.getMessage())
         || connectFail(message)) {
       cause = StatusCode.PUSH_DATA_FAIL_MASTER;
-    } else if (StatusCode.PUSH_DATA_TIMEOUT.getMessage().equals(message)) {
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
       cause = StatusCode.PUSH_DATA_TIMEOUT;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
