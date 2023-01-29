@@ -42,7 +42,7 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 
-private[celeborn] class Master(
+class Master(
     override val conf: CelebornConf,
     val masterArgs: MasterArguments)
   extends HttpService with RpcEndpoint with Logging {
@@ -764,7 +764,7 @@ private[celeborn] class Master(
   }
 }
 
-private[deploy] object Master extends Logging {
+object Master extends Logging {
   def main(args: Array[String]): Unit = {
     val conf = new CelebornConf()
     val masterArgs = new MasterArguments(args, conf)

@@ -159,6 +159,7 @@ public class TransportClientFactory implements Closeable {
 
   public TransportClient createClient(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
+    logger.info("create client to {} {}", remoteHost, remotePort);
     return createClient(remoteHost, remotePort, -1);
   }
 
