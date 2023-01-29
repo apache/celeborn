@@ -185,7 +185,7 @@ public class InFlightRequestTracker {
                             if (info.callback != null) {
                               info.channelFuture.cancel(true);
                               info.callback.onFailure(
-                                  new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+                                  new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));
                               info.channelFuture = null;
                               info.callback = null;
                             }

@@ -533,8 +533,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         case StatusCode.PUSH_DATA_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
           blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
+        case StatusCode.PUSH_DATA_TIMEOUT =>
+          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT)
         case _ =>
       }
     }
@@ -1074,7 +1074,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           val (statusCode, registerTime) = entry
           statusCode match {
             case StatusCode.WORKER_SHUTDOWN | StatusCode.NO_AVAILABLE_WORKING_DIR |
-                StatusCode.RESERVE_SLOTS_FAILED | StatusCode.PUSH_DATA_TIMEOUT_MASTER
+                StatusCode.RESERVE_SLOTS_FAILED | StatusCode.PUSH_DATA_TIMEOUT
                 if current - registerTime < workerExcludedExpireTimeout =>
               true
             case StatusCode.UNKNOWN_WORKER => true

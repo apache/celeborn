@@ -1385,8 +1385,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_MASTER.getMessage())
         || connectFail(message)) {
       cause = StatusCode.PUSH_DATA_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }
