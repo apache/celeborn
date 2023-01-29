@@ -683,10 +683,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataTimeoutMs: Long = {
     if (pushReplicateEnabled) {
       get(PUSH_DATA_TIMEOUT).getOrElse(
-        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE).toLong * 2.5)
+        (networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 2.5).toLong)
     } else {
       get(PUSH_DATA_TIMEOUT).getOrElse(
-        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE).toLong * 1.5)
+        (networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 1.5).toLong)
     }
   }
 
