@@ -171,8 +171,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(
-          new Exception(s"${StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()}! ${e.getMessage}", e))
+        callback.onFailure(e)
       }
     }
 
@@ -269,11 +268,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             wrappedCallback.onFailure(
-              new Exception(s"Peer $peerWorker unavailable for $location!"))
+              new Exception(
+                s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
+          var client: TransportClient = null
           try {
-            val client =
+            client =
               pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
               PartitionLocation.Mode.SLAVE.mode(),
@@ -285,8 +286,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(
-                new Exception(s"Push data to peer $peerWorker failed for $location", e))
+              if (client == null) {
+                wrappedCallback.onFailure(
+                  new Exception(s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! $location"))
+              } else {
+                wrappedCallback.onFailure(
+                  new Exception(
+                    s"${StatusCode.PUSH_DATA_FAIL_SLAVE}! Push data to peer $peerWorker failed for $location",
+                    e))
+              }
           }
         }
       })
@@ -354,8 +362,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(
-          new Exception(s"${StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()}! ${e.getMessage}", e))
+        callback.onFailure(e)
       }
     }
 
@@ -447,11 +454,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
-            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable for $location!"))
+            wrappedCallback.onFailure(new Exception(
+              s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
+          var client: TransportClient = null
           try {
-            val client = pushClientFactory.createClient(
+            client = pushClientFactory.createClient(
               peer.getHost,
               peer.getReplicatePort,
               location.getId)
@@ -466,9 +475,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(new Exception(
-                s"Push data to peer $peerWorker failed for $location",
-                e))
+              if (client == null) {
+                wrappedCallback.onFailure(
+                  new Exception(s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! $location"))
+              } else {
+                wrappedCallback.onFailure(
+                  new Exception(
+                    s"${StatusCode.PUSH_DATA_FAIL_SLAVE}! Push data to peer $peerWorker failed for $location",
+                    e))
+              }
           }
         }
       })

@@ -786,10 +786,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           };
 
       // do push data
+      TransportClient client = null;
       try {
         if (!testRetryRevive) {
-          TransportClient client =
-              dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
+          client = dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
           ChannelFuture future = client.pushData(pushData, wrappedCallback);
           pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
         } else {
@@ -797,8 +797,14 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       } catch (Exception e) {
         logger.warn("PushData failed", e);
-        wrappedCallback.onFailure(
-            new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+        if (client == null) {
+          wrappedCallback.onFailure(
+              new Exception(
+                  StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage() + "! " + loc.toString()));
+        } else {
+          wrappedCallback.onFailure(
+              new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+        }
       }
     } else {
       // add batch data
@@ -1117,9 +1123,10 @@ public class ShuffleClientImpl extends ShuffleClient {
         };
 
     // do push merged data
+    TransportClient client = null;
     try {
       if (!testRetryRevive || remainReviveTimes < 1) {
-        TransportClient client = dataClientFactory.createClient(host, port);
+        client = dataClientFactory.createClient(host, port);
         ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
         pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
       } else {
@@ -1127,7 +1134,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     } catch (Exception e) {
       logger.warn("PushMergedData failed", e);
-      wrappedCallback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+      if (client == null) {
+        wrappedCallback.onFailure(
+            new Exception(StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage() + "! " + hostPort));
+      } else {
+        wrappedCallback.onFailure(
+            new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+      }
     }
   }
 
