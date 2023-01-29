@@ -683,13 +683,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataTimeoutMs: Long = {
     if (pushReplicateEnabled) {
       get(PUSH_DATA_TIMEOUT).getOrElse(
-        (networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 2.5).toLong)
+        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE).toLong * 2)
     } else {
       get(PUSH_DATA_TIMEOUT).getOrElse(
-        (networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 1.5).toLong)
+        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE).toLong * 1)
     }
   }
-
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
@@ -2128,11 +2127,31 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
+  val PUSH_DATA_TIMEOUT: OptionalConfigEntry[Long] =
+    buildConf("celeborn.push.data.timeout")
+      .withAlternative("rss.push.data.rpc.timeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Timeout for a task to push data rpc message." +
+        s"Default value should be `${NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", TransportModuleConstants.DATA_MODULE)} * 2` when enable replication and" +
+        s"the value should be `${NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", TransportModuleConstants.DATA_MODULE)}` when disable replication.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createOptional
+
+  val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushdataTimeout")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Wheter to test pushdata timeout")
+      .booleanConf
+      .createWithDefault(false)
+
   val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.push.limit.inFlight.timeout")
       .withAlternative("rss.limit.inflight.timeout")
       .categories("client")
-      .doc("Timeout for netty in-flight requests to be done.")
+      .doc("Timeout for netty in-flight requests to be done." +
+        s"Default value should be `${PUSH_DATA_TIMEOUT.key} * 2`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
@@ -2255,23 +2274,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
-
-  val PUSH_DATA_TIMEOUT: OptionalConfigEntry[Long] =
-    buildConf("celeborn.push.data.timeout")
-      .withAlternative("rss.push.data.rpc.timeout")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Timeout for a task to push data rpc message.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createOptional
-
-  val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushdataTimeout")
-      .categories("worker")
-      .version("0.2.0")
-      .doc("Wheter to test pushdata timeout")
-      .booleanConf
-      .createWithDefault(false)
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.registerShuffle.askTimeout")
