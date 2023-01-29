@@ -680,9 +680,15 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
-  def pushDataTimeoutMs: Long =
-    get(PUSH_DATA_TIMEOUT).getOrElse(
-      networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 2.5)
+  def pushDataTimeoutMs: Long = {
+    if (pushReplicateEnabled) {
+      get(PUSH_DATA_TIMEOUT).getOrElse(
+        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 2.5)
+    } else {
+      get(PUSH_DATA_TIMEOUT).getOrElse(
+        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE) * 1.5)
+    }
+  }
 
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
