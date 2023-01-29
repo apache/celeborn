@@ -39,7 +39,7 @@ public class MapShuffleClientImpl extends ShuffleClientImpl {
     super(conf, userIdentifier);
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn" + module + ".io.threads", 8));
+        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
     MapTransportContext context =
         new MapTransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());

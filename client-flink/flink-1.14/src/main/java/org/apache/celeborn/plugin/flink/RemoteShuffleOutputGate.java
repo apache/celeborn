@@ -91,9 +91,9 @@ public class RemoteShuffleOutputGate {
     this.shuffleDesc = shuffleDesc;
     this.numSubs = numSubs;
     this.bufferPoolFactory = bufferPoolFactory;
-    this.shuffleWriteClient = createWriteClient();
     this.bufferPacker = new BufferPacker(this::write);
     this.celebornConf = celebornConf;
+    this.shuffleWriteClient = createWriteClient();
     this.numMappers = numMappers;
     this.bufferSize = bufferSize;
     this.applicationId = shuffleDesc.getJobID().toString();
