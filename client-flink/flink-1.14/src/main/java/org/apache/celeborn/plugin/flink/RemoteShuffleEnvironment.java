@@ -124,7 +124,18 @@ public class RemoteShuffleEnvironment
       ShuffleIOOwnerContext ownerContext,
       PartitionProducerStateProvider producerStateProvider,
       List<InputGateDeploymentDescriptor> inputGateDescriptors) {
-    return null;
+    synchronized (lock) {
+      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
+
+      IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
+      for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
+        InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
+        RemoteShuffleInputGate inputGate =
+            inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
+        inputGates[gateIndex] = inputGate;
+      }
+      return Arrays.asList(inputGates);
+    }
   }
 
   @Override

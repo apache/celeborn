@@ -93,7 +93,6 @@ public class RemoteShuffleOutputGate {
     this.bufferPoolFactory = bufferPoolFactory;
     this.bufferPacker = new BufferPacker(this::write);
     this.celebornConf = celebornConf;
-    this.shuffleWriteClient = createWriteClient();
     this.numMappers = numMappers;
     this.bufferSize = bufferSize;
     this.applicationId = shuffleDesc.getJobID().toString();
@@ -106,6 +105,7 @@ public class RemoteShuffleOutputGate {
         ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServiceHost();
     this.rssMetaServicePort =
         ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServicePort();
+    this.shuffleWriteClient = createWriteClient();
   }
 
   /** Initialize transportation gate. */
