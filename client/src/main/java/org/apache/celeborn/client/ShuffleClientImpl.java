@@ -803,7 +803,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           ChannelFuture future = client.pushData(pushData, wrappedCallback);
           pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
         } else {
-          throw new RuntimeException("Mock push data first time failed.");
+          wrappedCallback.onFailure(
+              new Exception(
+                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.toString(),
+                  new RuntimeException("Mock push data first time failed.")));
         }
       } catch (Exception e) {
         logger.warn("PushData failed", e);
@@ -1146,7 +1149,10 @@ public class ShuffleClientImpl extends ShuffleClient {
         ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
         pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
       } else {
-        throw new RuntimeException("Mock push merge data failed");
+        wrappedCallback.onFailure(
+            new Exception(
+                StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.toString(),
+                new RuntimeException("Mock push merge data failed.")));
       }
     } catch (Exception e) {
       logger.warn("PushMergedData failed", e);
