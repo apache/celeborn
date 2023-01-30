@@ -295,7 +295,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               callback.onFailure(
                 new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location", e))
+                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
+                  e))
           }
         }
       })
@@ -486,7 +487,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               callback.onFailure(
                 new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location", e))
+                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
+                  e))
           }
         }
       })
