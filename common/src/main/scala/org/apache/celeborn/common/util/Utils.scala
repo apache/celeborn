@@ -894,6 +894,14 @@ object Utils extends Logging {
         StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
       case 31 =>
         StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED
+      case 38 =>
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
+      case 39 =>
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
+      case 40 =>
+        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER
+      case 41 =>
+        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
       case _ =>
         null
     }
