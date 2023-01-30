@@ -680,15 +680,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
-  def pushDataTimeoutMs: Long = {
-    if (pushReplicateEnabled) {
-      get(PUSH_DATA_TIMEOUT).getOrElse(
-        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE).toLong * 2)
-    } else {
-      get(PUSH_DATA_TIMEOUT).getOrElse(
-        networkIoConnectionTimeoutMs(TransportModuleConstants.DATA_MODULE).toLong * 1)
-    }
-  }
+  def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
@@ -2127,16 +2119,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
-  val PUSH_DATA_TIMEOUT: OptionalConfigEntry[Long] =
+  val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.data.timeout")
       .withAlternative("rss.push.data.rpc.timeout")
       .categories("client")
       .version("0.2.0")
-      .doc("Timeout for a task to push data rpc message." +
-        s"Default value should be `${NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", TransportModuleConstants.DATA_MODULE)} * 2` when enable replication and" +
-        s"the value should be `${NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", TransportModuleConstants.DATA_MODULE)}` when disable replication.")
+      .doc("Timeout for a task to push data rpc message.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createOptional
+      .createWithDefaultString("120s")
 
   val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.pushdataTimeout")

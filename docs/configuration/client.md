@@ -31,7 +31,7 @@ license: |
 | celeborn.push.buffer.initial.size | 8k |  | 0.2.0 | 
 | celeborn.push.buffer.max.size | 64k | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.2.0 | 
 | celeborn.push.data.slowStart | false | Whether to allow to slow increasing maxReqs to meet the max push capacity, worked when worker side enables rate limit mechanism | 0.3.0 | 
-| celeborn.push.data.timeout | &lt;undefined&gt; | Timeout for a task to push data rpc message.Default value should be `celeborn.data.io.connectionTimeout * 2` when enable replication andthe value should be `celeborn.data.io.connectionTimeout` when disable replication. | 0.2.0 | 
+| celeborn.push.data.timeout | 120s | Timeout for a task to push data rpc message. | 0.2.0 | 
 | celeborn.push.limit.inFlight.sleepInterval | 50ms | Sleep interval when check netty in-flight requests to be done. | 0.2.0 | 
 | celeborn.push.limit.inFlight.timeout | &lt;undefined&gt; | Timeout for netty in-flight requests to be done.Default value should be `celeborn.push.data.timeout * 2`. | 0.2.0 | 
 | celeborn.push.maxReqsInFlight | 4 | Amount of Netty in-flight requests per worker. The maximum memory is `celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib | 0.2.0 | 
