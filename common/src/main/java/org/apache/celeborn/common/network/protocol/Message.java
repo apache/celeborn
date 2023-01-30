@@ -49,6 +49,7 @@ public abstract class Message implements Encodable {
   public void setBody(ByteBuf buf) {
     this.body = new NettyManagedBuffer(buf);
   }
+
   /** Whether the body should be copied out in frame decoder. */
   public boolean needCopyOut() {
     return false;
@@ -217,7 +218,7 @@ public abstract class Message implements Encodable {
         return ReadAddCredit.decode(in);
 
       case READ_DATA:
-        // read data is implemented in plugin.
+        // ReadData is defined at flink plugin.
         return null;
 
       case OPEN_BUFFER_STREAM:

@@ -210,11 +210,11 @@ public class BufferStreamManager {
           });
     }
 
-    public void addStream(long streamId) {
+    public synchronized void addStream(long streamId) {
       activeStreamIds.add(streamId);
     }
 
-    public void removeStream(long streamId) {
+    public synchronized void removeStream(long streamId) {
       activeStreamIds.remove(streamId);
     }
   }
@@ -431,7 +431,7 @@ public class BufferStreamManager {
     public void sendData() {
       while (!buffersRead.isEmpty()) {
         ByteBuf readBuf = buffersRead.poll();
-        ByteBuf tmpBuf = Unpooled.buffer(8 + 4 + 4 + 8 + 4 + readBuf.readableBytes() + 1);
+        ByteBuf tmpBuf = Unpooled.buffer(1 + 8 + 4 + 4 + 8 + 4 + readBuf.readableBytes());
         tmpBuf.writeByte(Message.Type.READ_DATA.id());
         tmpBuf.writeLong(streamId);
         // write backlog
