@@ -100,7 +100,7 @@ public class RssHARetryClient {
 
   public void send(Message message) throws Throwable {
     // Send a one-way message. Because we need to know whether the leader between Masters has
-    // switched, we must adopt a synchronous method, but for a one-way message, we don’t care
+    // switched, we must adopt a synchronous method, but for a one-way message, we don't care
     // whether it can be sent successfully, so we adopt an asynchronous method. Therefore, we
     // choose to use one Thread pool to use synchronization.
     oneWayMessageSender.submit(
