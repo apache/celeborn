@@ -280,9 +280,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
-          var client: TransportClient = null
           try {
-            client =
+            val client =
               pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
               PartitionLocation.Mode.SLAVE.mode(),
@@ -469,9 +468,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
-          var client: TransportClient = null
           try {
-            client = pushClientFactory.createClient(
+            val client = pushClientFactory.createClient(
               peer.getHost,
               peer.getReplicatePort,
               location.getId)

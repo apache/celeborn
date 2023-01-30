@@ -786,10 +786,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           };
 
       // do push data
-      TransportClient client = null;
       try {
         if (!testRetryRevive) {
-          client = dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
+          TransportClient client =
+              dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
           ChannelFuture future = client.pushData(pushData, wrappedCallback);
           pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
         } else {
@@ -1122,10 +1122,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         };
 
     // do push merged data
-    TransportClient client = null;
     try {
       if (!testRetryRevive || remainReviveTimes < 1) {
-        client = dataClientFactory.createClient(host, port);
+        TransportClient client = dataClientFactory.createClient(host, port);
         ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
         pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
       } else {
@@ -1397,6 +1396,14 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_MASTER.getMessage())
         || connectFail(message)) {
       cause = StatusCode.PUSH_DATA_FAIL_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER;
     } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
       cause = StatusCode.PUSH_DATA_TIMEOUT;
     } else {
@@ -1528,7 +1535,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushState.pushStarted(nextBatchId, future, callback, location.hostAndPushPort());
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
-      callback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+      callback.onFailure(
+          new Exception(
+              StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage()
+                  + "! "
+                  + e.getMessage()
+                  + ". "
+                  + location.toString()));
     }
     return totalLength;
   }
