@@ -38,6 +38,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.PackedPartitionId
+import org.apache.celeborn.common.write.PushState
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
@@ -58,6 +59,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var storageManager: StorageManager = _
   var conf: CelebornConf = _
   @volatile var pushDataTimeoutTested = false
+  var pushState: PushState = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -75,6 +77,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     storageManager = worker.storageManager
     shutdown = worker.shutdown
     conf = worker.conf
+    pushState = new PushState(conf)
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -125,6 +128,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
+    val batchId = pushState.nextBatchId()
 
     // For test
     if (conf.testPushDataTimeout && !pushDataTimeoutTested) {
@@ -171,9 +175,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
         workerSource.incCounter(WorkerSource.PushDataFailCount)
+        pushState.removeBatch(batchId, location.hostAndPushPort())
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
           callback.onFailure(e)
+        } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage)) {
+          // Convert PUSH_DATA_TIMEOUT to PUSH_DATA_TIMEOUT_SLAVE in worker side.
+          callback.onFailure(new Exception(
+            s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of $location timeout: ${e.getMessage}",
+            e))
         } else {
           // Throw by connection
           callback.onFailure(new Exception(
@@ -281,6 +291,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
             return
           }
+          pushState.addBatch(batchId, location.hostAndPushPort())
           try {
             val client =
               pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
@@ -289,10 +300,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
-            client.pushData(newPushData, wrappedCallback)
+            val channelFuture = client.pushData(newPushData, wrappedCallback)
+            pushState.pushStarted(
+              batchId,
+              channelFuture,
+              wrappedCallback,
+              location.hostAndPushPort())
           } catch {
             case e: Exception =>
               pushData.body().release()
+              pushState.removeBatch(batchId, location.hostAndPushPort())
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               callback.onFailure(
@@ -332,6 +349,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
+    val batchId = pushState.nextBatchId()
 
     val key = s"${pushMergedData.requestId}"
     if (isMaster) {
@@ -374,9 +392,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
+        pushState.removeBatch(batchId, locations.head.hostAndPushPort())
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
           callback.onFailure(e)
+        } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage)) {
+          // Convert PUSH_DATA_TIMEOUT to PUSH_DATA_TIMEOUT_SLAVE in worker side.
+          callback.onFailure(new Exception(
+            s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${locations.head} timeout: ${e.getMessage}",
+            e))
         } else {
           // Throw by connection
           callback.onFailure(new Exception(
@@ -472,6 +496,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
             return
           }
+          pushState.addBatch(batchId, location.hostAndPushPort())
           try {
             val client = pushClientFactory.createClient(
               peer.getHost,
@@ -483,12 +508,18 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               pushMergedData.partitionUniqueIds,
               batchOffsets,
               pushMergedData.body)
-            client.pushMergedData(newPushMergedData, wrappedCallback)
+            val channelFuture = client.pushMergedData(newPushMergedData, wrappedCallback)
+            pushState.pushStarted(
+              batchId,
+              channelFuture,
+              wrappedCallback,
+              location.hostAndPushPort())
           } catch {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
+              pushState.removeBatch(batchId, location.hostAndPushPort())
               callback.onFailure(
                 new Exception(
                   s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",

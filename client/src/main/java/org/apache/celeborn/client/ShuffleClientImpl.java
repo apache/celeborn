@@ -41,8 +41,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
-import org.apache.celeborn.client.write.DataBatches;
-import org.apache.celeborn.client.write.PushState;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -70,6 +68,8 @@ import org.apache.celeborn.common.util.PackedPartitionId;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.DataBatches;
+import org.apache.celeborn.common.write.PushState;
 
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
@@ -1428,8 +1428,15 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
     } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage())) {
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage())) {
+      // Should behind PUSH_DATA_TIMEOUT
+      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage())) {
+      // Should behind PUSH_DATA_TIMEOUT
+      cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT;
+      // Convert PUSH_DATA_TIMEOUT to PUSH_DATA_TIMEOUT_MASTER in client side.
+      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
