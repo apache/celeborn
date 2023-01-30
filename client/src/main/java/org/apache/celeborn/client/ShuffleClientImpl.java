@@ -797,14 +797,13 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       } catch (Exception e) {
         logger.warn("PushData failed", e);
-        if (client == null) {
-          wrappedCallback.onFailure(
-              new Exception(
-                  StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage() + "! " + loc.toString()));
-        } else {
-          wrappedCallback.onFailure(
-              new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
-        }
+        wrappedCallback.onFailure(
+            new Exception(
+                StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage()
+                    + "! "
+                    + e.getMessage()
+                    + ". "
+                    + loc.toString()));
       }
     } else {
       // add batch data
@@ -1134,13 +1133,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     } catch (Exception e) {
       logger.warn("PushMergedData failed", e);
-      if (client == null) {
-        wrappedCallback.onFailure(
-            new Exception(StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage() + "! " + hostPort));
-      } else {
-        wrappedCallback.onFailure(
-            new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
-      }
+      wrappedCallback.onFailure(
+          new Exception(
+              StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage()
+                  + "! "
+                  + e.getMessage()
+                  + ". "
+                  + hostPort));
     }
   }
 

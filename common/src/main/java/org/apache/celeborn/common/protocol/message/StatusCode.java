@@ -70,7 +70,9 @@ public enum StatusCode {
 
   PUSH_DATA_CONNECT_FAIL_MASTER(38),
   PUSH_DATA_CONNECT_FAIL_SLAVE(39),
-  PUSH_DATA_TIMEOUT(40);
+  PUSH_DATA_CONNECTION_FAIL_MASTER(40),
+  PUSH_DATA_CONNECTION_FAIL_SLAVE(41),
+  PUSH_DATA_TIMEOUT(42);
 
   private final byte value;
 
@@ -89,6 +91,14 @@ public enum StatusCode {
       msg = "PushDataFailMaster";
     } else if (value == PUSH_DATA_FAIL_SLAVE.getValue()) {
       msg = "PushDataFailSlave";
+    } else if (value == PUSH_DATA_CONNECT_FAIL_MASTER.getValue()) {
+      msg = "PushDataConnectFailMaster";
+    } else if (value == PUSH_DATA_CONNECT_FAIL_SLAVE.getValue()) {
+      msg = "PushDataConnectFailSlave";
+    } else if (value == PUSH_DATA_CONNECTION_FAIL_MASTER.getValue()) {
+      msg = "PushDataConnectionFailMaster";
+    } else if (value == PUSH_DATA_CONNECTION_FAIL_SLAVE.getValue()) {
+      msg = "PushDataConnectionFailSlave";
     } else if (value == PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.getValue()) {
       msg = "PushDataFailNonCriticalCause";
     } else if (value == PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getValue()) {

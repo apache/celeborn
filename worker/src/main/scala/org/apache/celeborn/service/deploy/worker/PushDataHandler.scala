@@ -171,7 +171,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(e)
+        // Throw by slave peer worker
+        if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
+          callback.onFailure(e)
+        } else {
+          // Throw by connection
+          callback.onFailure(new Exception(
+            s"${StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE}! Push data to peer of $location failed: ${e.getMessage}",
+            e))
+        }
       }
     }
 
@@ -267,7 +275,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
-            wrappedCallback.onFailure(
+            callback.onFailure(
               new Exception(
                 s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
@@ -286,15 +294,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              if (client == null) {
-                wrappedCallback.onFailure(
-                  new Exception(s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! $location"))
-              } else {
-                wrappedCallback.onFailure(
-                  new Exception(
-                    s"${StatusCode.PUSH_DATA_FAIL_SLAVE}! Push data to peer $peerWorker failed for $location",
-                    e))
-              }
+              callback.onFailure(
+                new Exception(
+                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location"))
           }
         }
       })
@@ -342,6 +344,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
+    val locations = pushMergedData.partitionUniqueIds.map { id =>
+      if (isMaster) {
+        partitionLocationInfo.getMasterLocation(shuffleKey, id)
+      } else {
+        partitionLocationInfo.getSlaveLocation(shuffleKey, id)
+      }
+    }
+
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
@@ -362,18 +372,20 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(e)
+        // Throw by slave peer worker
+        if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
+          callback.onFailure(e)
+        } else {
+          // Throw by connection
+          callback.onFailure(new Exception(
+            s"${StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE}! Push data to peer of ${locations.head} failed: ${e.getMessage}",
+            e))
+        }
       }
     }
 
     // find FileWriters responsible for the data
-    val locations = pushMergedData.partitionUniqueIds.map { id =>
-      val loc =
-        if (isMaster) {
-          partitionLocationInfo.getMasterLocation(shuffleKey, id)
-        } else {
-          partitionLocationInfo.getSlaveLocation(shuffleKey, id)
-        }
+    locations.foreach { loc =>
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
@@ -404,7 +416,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           } else {
             val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
-              s" attempt $attemptId, uniqueId $id)."
+              s" attempt $attemptId, uniqueId ${loc.getUniqueId})."
             logWarning(s"[handlePushMergedData] $msg")
             callback.onFailure(
               new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
@@ -412,7 +424,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
         return
       }
-      loc
     }
 
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
@@ -454,7 +465,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
-            wrappedCallback.onFailure(new Exception(
+            callback.onFailure(new Exception(
               s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
@@ -475,15 +486,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              if (client == null) {
-                wrappedCallback.onFailure(
-                  new Exception(s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! $location"))
-              } else {
-                wrappedCallback.onFailure(
-                  new Exception(
-                    s"${StatusCode.PUSH_DATA_FAIL_SLAVE}! Push data to peer $peerWorker failed for $location",
-                    e))
-              }
+              callback.onFailure(
+                new Exception(
+                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location"))
           }
         }
       })
