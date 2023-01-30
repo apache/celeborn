@@ -155,17 +155,14 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
     this.numUnconsumedSubpartitions = initShuffleReadClients();
     this.pendingEndOfDataEvents = numUnconsumedSubpartitions;
     this.channelsInfo = createChannelInfos();
-    if (gateDescriptor.getShuffleDescriptors().length > 0) {
-      RemoteShuffleDescriptor remoteShuffleDescriptor =
-          (RemoteShuffleDescriptor) gateDescriptor.getShuffleDescriptors()[0];
-      celebornConf.set("celeborn.data.decoder.mode", "supplier");
-      this.shuffleClient =
-          new MapShuffleClientImpl(
-              remoteShuffleDescriptor.getShuffleResource().getRssMetaServiceHost(),
-              remoteShuffleDescriptor.getShuffleResource().getRssMetaServicePort(),
-              celebornConf,
-              new UserIdentifier("default", "default"));
-    }
+    RemoteShuffleDescriptor remoteShuffleDescriptor =
+        (RemoteShuffleDescriptor) gateDescriptor.getShuffleDescriptors()[0];
+    this.shuffleClient =
+        new MapShuffleClientImpl(
+            remoteShuffleDescriptor.getShuffleResource().getRssMetaServiceHost(),
+            remoteShuffleDescriptor.getShuffleResource().getRssMetaServicePort(),
+            celebornConf,
+            new UserIdentifier("default", "default"));
   }
 
   private long initShuffleReadClients() {
