@@ -35,10 +35,6 @@ public class NettyManagedBuffer extends ManagedBuffer {
     this.buf = buf;
   }
 
-  public NettyManagedBuffer(ByteBuffer buffer) {
-    this.buf = Unpooled.wrappedBuffer(buffer);
-  }
-
   public ByteBuf getBuf() {
     return buf.duplicate();
   }

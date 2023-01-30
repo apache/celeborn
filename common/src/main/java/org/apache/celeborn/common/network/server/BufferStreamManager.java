@@ -196,6 +196,7 @@ public class BufferStreamManager {
       }
       readExecutor.submit(
           () -> {
+            // Key for IO schedule.
             PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
             while (buffers.size() > 0 && !sortedReaders.isEmpty()) {
               DataPartitionReader reader = sortedReaders.poll();
@@ -255,9 +256,6 @@ public class BufferStreamManager {
     /** Whether this file reader is closed or not. A closed file reader can not read any data. */
     private boolean isClosed;
 
-    /** Whether this file reader is opened or not. */
-    private boolean isOpened;
-
     private FileInfo fileInfo;
     private int INDEX_ENTRY_SIZE = 16;
     private long streamId;
@@ -290,17 +288,14 @@ public class BufferStreamManager {
       int indexBufferSize = 16 * (endPartitionIndex - startPartitionIndex + 1);
       this.indexBuffer = ByteBuffer.allocateDirect(indexBufferSize);
 
-      int numReducerPartitions = fileInfo.getNumReducerPartitions();
       this.headerBuffer = ByteBuffer.allocateDirect(16);
       this.streamId = streamId;
 
       this.fileInfo = fileInfo;
       this.isClosed = false;
-      this.isOpened = false;
     }
 
     public void open() throws IOException {
-      isOpened = true;
       this.dataFileChannel = new FileInputStream(fileInfo.getFile()).getChannel();
       this.indexFileChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
 
@@ -494,6 +489,7 @@ public class BufferStreamManager {
 
     public ExecutorService getExecutorPool(String mountPoint) {
       // simplified implementation, the thread number will be adjustable.
+      // mount point might be UNKNOWN
       return executorPools.computeIfAbsent(mountPoint, k -> Executors.newFixedThreadPool(4));
     }
   }
