@@ -533,16 +533,20 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         case StatusCode.PUSH_DATA_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
           blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE
+        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
+          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
+        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE
+          blacklistPartitionWorker(
+            oldPartition.getPeer,
+            StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
+        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
+          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
+        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE)
+          blacklistPartitionWorker(
+            oldPartition.getPeer,
+            StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case _ =>
       }
     }
@@ -1084,10 +1088,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             case StatusCode.WORKER_SHUTDOWN |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
-                StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER |
-                StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE |
-                StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER |
-                StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER |
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE |
+                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER |
+                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
                 if current - registerTime < workerExcludedExpireTimeout =>
               true
             case StatusCode.UNKNOWN_WORKER => true

@@ -750,7 +750,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     new Exception(
                         cause.getMessage()
                             + "! Push data to master worker of "
-                            + loc.toString()
+                            + loc
                             + " failed: "
                             + e.getMessage(),
                         e));
@@ -812,11 +812,11 @@ public class ShuffleClientImpl extends ShuffleClient {
         logger.warn("PushData failed", e);
         wrappedCallback.onFailure(
             new Exception(
-                StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage()
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
                     + "! "
                     + e.getMessage()
                     + ". "
-                    + loc.toString()));
+                    + loc));
       }
     } else {
       // add batch data
@@ -1158,7 +1158,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.warn("PushMergedData failed", e);
       wrappedCallback.onFailure(
           new Exception(
-              StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage()
+              StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
                   + "! "
                   + e.getMessage()
                   + ". "
@@ -1419,19 +1419,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_MASTER.getMessage())) {
       cause = StatusCode.PUSH_DATA_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage())) {
-      cause = StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage())) {
-      cause = StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER.getMessage())) {
-      cause = StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE.getMessage())) {
-      cause = StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE;
+    } else if (message.startsWith(
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
       cause = StatusCode.PUSH_DATA_TIMEOUT;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
-      cause = StatusCode.PUSH_DATA_CONNECTION_FAIL_MASTER;
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }
@@ -1563,11 +1564,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(
           new Exception(
-              StatusCode.PUSH_DATA_CONNECT_FAIL_MASTER.getMessage()
+              StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
                   + "! "
                   + e.getMessage()
                   + ". "
-                  + location.toString()));
+                  + location));
     }
     return totalLength;
   }

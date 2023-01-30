@@ -177,7 +177,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           // Throw by connection
           callback.onFailure(new Exception(
-            s"${StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE.getMessage}! Push data to peer of $location failed: ${e.getMessage}",
+            s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of $location failed: ${e.getMessage}",
             e))
         }
       }
@@ -275,9 +275,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
+            workerSource.incCounter(WorkerSource.PushDataFailCount)
             callback.onFailure(
               new Exception(
-                s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
+                s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
             return
           }
           try {
@@ -293,9 +294,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
+              workerSource.incCounter(WorkerSource.PushDataFailCount)
               callback.onFailure(
                 new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
+                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
                   e))
           }
         }
@@ -378,7 +380,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           // Throw by connection
           callback.onFailure(new Exception(
-            s"${StatusCode.PUSH_DATA_CONNECTION_FAIL_SLAVE.getMessage}! Push data to peer of ${locations.head} failed: ${e.getMessage}",
+            s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of ${locations.head} failed: ${e.getMessage}",
             e))
         }
       }
@@ -465,8 +467,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
+            workerSource.incCounter(WorkerSource.PushDataFailCount)
             callback.onFailure(new Exception(
-              s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
+              s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
             return
           }
           try {
@@ -485,9 +488,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
+              workerSource.incCounter(WorkerSource.PushDataFailCount)
               callback.onFailure(
                 new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECT_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
+                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
                   e))
           }
         }
