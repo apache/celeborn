@@ -535,7 +535,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT =>
           blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT)
-          if (oldPartition.getPeer != null) {
+          if (oldPartition.getPeer != null && conf.blacklistSlaveEnabled) {
             blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_TIMEOUT)
           }
         case _ =>
