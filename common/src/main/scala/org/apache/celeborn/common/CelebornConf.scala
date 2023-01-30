@@ -831,6 +831,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
   def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
+  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
 }
 
 object CelebornConf extends Logging {
@@ -1293,6 +1294,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
+
+  val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.push.timeoutCheck.interval")
+      .categories("common")
+      .doc("Interval for checking push data timeout.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")

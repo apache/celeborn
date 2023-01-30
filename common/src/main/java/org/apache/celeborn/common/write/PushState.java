@@ -19,6 +19,8 @@ package org.apache.celeborn.common.write;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class PushState {
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
@@ -35,10 +38,13 @@ public class PushState {
   private final int pushBufferMaxSize;
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
+  private ScheduledExecutorService pushTimeoutChecker;
+  private long pushTimeoutCheckerInterval;
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
+    pushTimeoutCheckerInterval = conf.pushTimeoutCheckInterval();
   }
 
   public void pushStarted(
@@ -104,5 +110,19 @@ public class PushState {
 
   public boolean reachLimit(String hostAndPushPort, int maxInFlight) throws IOException {
     return inFlightRequestTracker.reachLimit(hostAndPushPort, maxInFlight);
+  }
+
+  public void startChecker() {
+    pushTimeoutChecker = ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker");
+    pushTimeoutChecker.scheduleAtFixedRate(
+        new Runnable() {
+          @Override
+          public void run() {
+            inFlightRequestTracker.failExpiredBatch();
+          }
+        },
+        pushTimeoutCheckerInterval,
+        pushTimeoutCheckerInterval,
+        TimeUnit.MILLISECONDS);
   }
 }

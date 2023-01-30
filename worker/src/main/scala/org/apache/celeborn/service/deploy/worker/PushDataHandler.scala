@@ -78,6 +78,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     shutdown = worker.shutdown
     conf = worker.conf
     pushState = new PushState(conf)
+    pushState.startChecker()
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
