@@ -169,9 +169,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
       override def onFailure(e: Throwable): Unit = {
-        logError(s"[handlePushData.onFailure] partitionLocation: $location")
+        logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage(), e))
+        callback.onFailure(
+          new Exception(s"${StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()}! ${e.getMessage}", e))
       }
     }
 
@@ -231,7 +232,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
-      callback.onFailure(new Exception(message, exception))
+      callback.onFailure(new Exception(s"$message! $location", exception))
       return
     }
     val diskFull =
@@ -267,7 +268,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
-            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
+            wrappedCallback.onFailure(
+              new Exception(s"Peer $peerWorker unavailable for $location!"))
             return
           }
           try {
@@ -283,7 +285,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(e)
+              wrappedCallback.onFailure(
+                new Exception(s"Push data to peer $peerWorker failed for $location", e))
           }
         }
       })
@@ -351,7 +354,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage, e))
+        callback.onFailure(
+          new Exception(s"${StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()}! ${e.getMessage}", e))
       }
     }
 
@@ -423,7 +427,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
-      callback.onFailure(new Exception(message, exception))
+      callback.onFailure(new Exception(s"$message! ${locations.head}", exception))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
@@ -443,7 +447,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
-            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable!"))
+            wrappedCallback.onFailure(new Exception(s"Peer $peerWorker unavailable for $location!"))
             return
           }
           try {
@@ -462,7 +466,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              wrappedCallback.onFailure(e)
+              wrappedCallback.onFailure(new Exception(
+                s"Push data to peer $peerWorker failed for $location",
+                e))
           }
         }
       })

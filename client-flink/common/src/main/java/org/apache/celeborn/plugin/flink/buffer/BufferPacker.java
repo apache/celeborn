@@ -69,7 +69,7 @@ public class BufferPacker {
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
     } else {
       /**
-       * this is an optimization。if cachedBuffer can contain other buffer, then other buffer can
+       * this is an optimization. if cachedBuffer can contain other buffer, then other buffer can
        * reuse the same HEADER_LENGTH_PREFIX of the cachedBuffer, so cachedbuffer just read datas
        * whose length is buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX
        */
