@@ -91,10 +91,13 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def addTimer(name: String): Unit = addTimer(name, Map.empty[String, String])
 
   def addTimer(name: String, labels: Map[String, String]): Unit = {
-    val namedTimer = NamedTimer(name, metricRegistry.timer(name, timerSupplier), labels + roleLabel)
-    namedTimers.putIfAbsent(
-      metricNameWithLabels(name, labels + roleLabel),
-      (namedTimer, new ConcurrentHashMap[String, Long]()))
+    if (!metricRegistry.getTimers.containsKey(metricNameWithLabels(name, labels + roleLabel))) {
+      val timer =
+        metricRegistry.timer(metricNameWithLabels(name, labels + roleLabel), timerSupplier)
+      namedTimers.putIfAbsent(
+        metricNameWithLabels(name, labels + roleLabel),
+        (NamedTimer(name, timer, labels + roleLabel), new ConcurrentHashMap[String, Long]()))
+    }
   }
 
   protected val namedCounters: ConcurrentHashMap[String, NamedCounter] =
@@ -103,9 +106,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 
   def addCounter(name: String, labels: Map[String, String]): Unit = {
-    namedCounters.put(
-      metricNameWithLabels(name, labels + roleLabel),
-      NamedCounter(name, metricRegistry.counter(name), labels + roleLabel))
+    if (!metricRegistry.getCounters.containsKey(metricNameWithLabels(name, labels + roleLabel))) {
+      val counter = metricRegistry.counter(metricNameWithLabels(name, labels + roleLabel))
+      namedCounters.put(
+        metricNameWithLabels(name, labels + roleLabel),
+        NamedCounter(name, counter, labels + roleLabel))
+    }
   }
 
   protected def counters(): List[NamedCounter] = {
