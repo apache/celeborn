@@ -162,11 +162,11 @@ public class TransportClient implements Closeable {
     }
 
     long requestId = requestId();
-    handler.addRpcRequest(requestId, callback);
+    handler.addPushRequest(requestId, callback);
 
     pushData.requestId = requestId;
 
-    RpcChannelListener listener = new RpcChannelListener(requestId, callback);
+    PushChannelListener listener = new PushChannelListener(requestId, callback);
     return channel.writeAndFlush(pushData).addListener(listener);
   }
 
@@ -176,11 +176,11 @@ public class TransportClient implements Closeable {
     }
 
     long requestId = requestId();
-    handler.addRpcRequest(requestId, callback);
+    handler.addPushRequest(requestId, callback);
 
     pushMergedData.requestId = requestId;
 
-    RpcChannelListener listener = new RpcChannelListener(requestId, callback);
+    PushChannelListener listener = new PushChannelListener(requestId, callback);
     return channel.writeAndFlush(pushMergedData).addListener(listener);
   }
 
@@ -318,6 +318,23 @@ public class TransportClient implements Closeable {
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
       handler.removeRpcRequest(rpcRequestId);
+      callback.onFailure(new IOException(errorMsg, cause));
+    }
+  }
+
+  private class PushChannelListener extends StdChannelListener {
+    final long rpcRequestId;
+    final RpcResponseCallback callback;
+
+    PushChannelListener(long rpcRequestId, RpcResponseCallback callback) {
+      super("PUSH " + rpcRequestId);
+      this.rpcRequestId = rpcRequestId;
+      this.callback = callback;
+    }
+
+    @Override
+    protected void handleFailure(String errorMsg, Throwable cause) {
+      handler.removePushRequest(rpcRequestId);
       callback.onFailure(new IOException(errorMsg, cause));
     }
   }
