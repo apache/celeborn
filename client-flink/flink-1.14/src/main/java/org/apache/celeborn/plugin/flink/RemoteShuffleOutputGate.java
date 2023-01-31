@@ -20,6 +20,7 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.util.Optional;
 
+import com.esotericsoftware.minlog.Log;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -34,6 +35,8 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A transportation gate used to spill buffers from {@link ResultPartitionWriter} to remote shuffle
@@ -53,7 +56,7 @@ import org.apache.celeborn.plugin.flink.utils.Utils;
  * </ul>
  */
 public class RemoteShuffleOutputGate {
-
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleOutputGate.class);
   private final RemoteShuffleDescriptor shuffleDesc;
   protected final int numSubs;
   protected ShuffleClient shuffleWriteClient;
@@ -74,6 +77,7 @@ public class RemoteShuffleOutputGate {
   private String rssMetaServiceHost;
   private int rssMetaServicePort;
   private UserIdentifier userIdentifier;
+  private boolean isFirstHandShake = true;
 
   /**
    * @param shuffleDesc Describes shuffle meta and shuffle worker address.
@@ -117,9 +121,6 @@ public class RemoteShuffleOutputGate {
 
     // guarantee that we have at least one buffer
     BufferUtils.reserveNumRequiredBuffers(bufferPool, 1);
-
-    // handshake
-    handshake();
   }
 
   /** Get transportation buffer pool. */
@@ -141,6 +142,12 @@ public class RemoteShuffleOutputGate {
   public void regionStart(boolean isBroadcast) {
     Optional<PartitionLocation> newPartitionLoc = null;
     try {
+      if (isFirstHandShake) {
+        handshake();
+        isFirstHandShake = false;
+        Log.info("send firstHandShake:" + isBroadcast);
+      }
+
       newPartitionLoc =
           shuffleWriteClient.regionStart(
               applicationId,
@@ -230,6 +237,7 @@ public class RemoteShuffleOutputGate {
       partitionLocation =
           shuffleWriteClient.registerMapPartitionTask(
               applicationId, shuffleId, numMappers, mapId, attemptId);
+      Utils.checkNotNull(partitionLocation);
     }
     currentRegionIndex = 0;
     try {
