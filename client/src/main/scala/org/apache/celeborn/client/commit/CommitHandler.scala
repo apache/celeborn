@@ -32,13 +32,13 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse, GetReducerFileGroupResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
@@ -211,54 +211,58 @@ abstract class CommitHandler(
 
   def parallelCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, PartitionLocationInfo],
+      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
       partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
     val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
     val commitFilesFailedWorkers = new ShuffleFailedWorkers()
+
+    if (CollectionUtils.isEmpty(allocatedWorkers)) {
+      return CommitResult(masterPartMap, slavePartMap, commitFilesFailedWorkers)
+    }
+
     val commitFileStartTime = System.nanoTime()
     val parallelism = Math.min(allocatedWorkers.size(), conf.rpcMaxParallelism)
     ThreadUtils.parmap(
       allocatedWorkers.asScala.to,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
-      if (partitionLocationInfo.containsShuffle(shuffleId.toString)) {
-        val masterParts =
-          partitionLocationInfo.getMasterLocations(shuffleId.toString, partitionIdOpt)
-        val slaveParts = partitionLocationInfo.getSlaveLocations(shuffleId.toString, partitionIdOpt)
-        masterParts.asScala.foreach { p =>
-          val partition = new PartitionLocation(p)
-          partition.setFetchPort(worker.fetchPort)
-          partition.setPeer(null)
-          masterPartMap.put(partition.getUniqueId, partition)
-        }
-        slaveParts.asScala.foreach { p =>
-          val partition = new PartitionLocation(p)
-          partition.setFetchPort(worker.fetchPort)
-          partition.setPeer(null)
-          slavePartMap.put(partition.getUniqueId, partition)
-        }
-
-        val (masterIds, slaveIds) = shuffleCommittedInfo.synchronized {
-          (
-            masterParts.asScala
-              .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
-              .map(_.getUniqueId).asJava,
-            slaveParts.asScala
-              .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
-              .map(_.getUniqueId).asJava)
-        }
-
-        commitFiles(
-          appId,
-          shuffleId,
-          shuffleCommittedInfo,
-          worker,
-          masterIds,
-          slaveIds,
-          commitFilesFailedWorkers)
+      val masterParts =
+        partitionLocationInfo.getMasterPartitions(partitionIdOpt)
+      val slaveParts = partitionLocationInfo.getSlavePartitions(partitionIdOpt)
+      masterParts.asScala.foreach { p =>
+        val partition = new PartitionLocation(p)
+        partition.setFetchPort(worker.fetchPort)
+        partition.setPeer(null)
+        masterPartMap.put(partition.getUniqueId, partition)
       }
+      slaveParts.asScala.foreach { p =>
+        val partition = new PartitionLocation(p)
+        partition.setFetchPort(worker.fetchPort)
+        partition.setPeer(null)
+        slavePartMap.put(partition.getUniqueId, partition)
+      }
+
+      val (masterIds, slaveIds) = shuffleCommittedInfo.synchronized {
+        (
+          masterParts.asScala
+            .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
+            .map(_.getUniqueId).asJava,
+          slaveParts.asScala
+            .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
+            .map(_.getUniqueId).asJava)
+      }
+
+      commitFiles(
+        appId,
+        shuffleId,
+        shuffleCommittedInfo,
+        worker,
+        masterIds,
+        slaveIds,
+        commitFilesFailedWorkers)
+
     }
 
     logInfo(s"Shuffle $shuffleId " +
@@ -276,6 +280,10 @@ abstract class CommitHandler(
       masterIds: util.List[String],
       slaveIds: util.List[String],
       commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
+
+    if (CollectionUtils.isEmpty(masterIds) && CollectionUtils.isEmpty(slaveIds)) {
+      return
+    }
 
     val res =
       if (!testRetryCommitFiles) {
