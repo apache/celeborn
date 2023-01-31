@@ -22,11 +22,11 @@ import java.io.IOException;
 import org.apache.celeborn.common.CelebornConf;
 
 /** A Simple strategy that control the push speed by a solid configure, pushMaxReqsInFlight. */
-public class SimplePushSpeedStrategy extends PushSpeedStrategy {
+public class SimplePushStrategy extends PushStrategy {
 
   private final int maxInFlight;
 
-  public SimplePushSpeedStrategy(CelebornConf conf) {
+  public SimplePushStrategy(CelebornConf conf) {
     super(conf);
     this.maxInFlight = conf.pushMaxReqsInFlight();
   }

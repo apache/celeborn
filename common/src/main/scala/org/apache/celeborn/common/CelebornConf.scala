@@ -2144,10 +2144,13 @@ object CelebornConf extends Logging {
   val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
     buildConf("celeborn.push.limit.strategy")
       .categories("client")
-      .doc("The strategy used to control the push speed.")
+      .doc("The strategy used to control the push speed. " +
+        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
+        "congest control mechanism in the worker side.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("SIMPLE", "SLOWSTART"))
       .createWithDefaultString("SIMPLE")
 
   val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =

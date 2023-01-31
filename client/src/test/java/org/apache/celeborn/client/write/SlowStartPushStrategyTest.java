@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 
-public class SlowStartPushSpeedStrategyTest {
+public class SlowStartPushStrategyTest {
 
   private final CelebornConf conf = new CelebornConf();
 
@@ -31,8 +31,7 @@ public class SlowStartPushSpeedStrategyTest {
     conf.set("celeborn.push.maxReqsInFlight", "32");
     conf.set("celeborn.push.limit.strategy", "slowstart");
     conf.set("celeborn.push.slowStart.maxSleepTime", "4s");
-    SlowStartPushSpeedStrategy strategy =
-        (SlowStartPushSpeedStrategy) PushSpeedStrategy.getStrategy(conf);
+    SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
 
     // If the currentReq is 0, not throw error
     strategy.getSleepTime(0);
@@ -66,8 +65,7 @@ public class SlowStartPushSpeedStrategyTest {
     conf.set("celeborn.push.maxReqsInFlight", "5");
     conf.set("celeborn.push.limit.strategy", "slowstart");
     conf.set("celeborn.push.slowStart.maxSleepTime", "4s");
-    SlowStartPushSpeedStrategy strategy =
-        (SlowStartPushSpeedStrategy) PushSpeedStrategy.getStrategy(conf);
+    SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
 
     // Slow start, should exponentially increase the currentReq
     strategy.onSuccess();

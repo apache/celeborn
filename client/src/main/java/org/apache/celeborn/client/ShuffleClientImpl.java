@@ -86,7 +86,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final long registerShuffleRetryWaitMs;
   private int maxReviveTimes;
   private boolean testRetryRevive;
-  private final PushSpeedStrategy pushStrategy;
+  private final PushStrategy pushStrategy;
   private final int pushBufferMaxSize;
   private final long pushDataTimeout;
 
@@ -143,7 +143,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
     maxReviveTimes = conf.pushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
-    pushStrategy = PushSpeedStrategy.getStrategy(conf);
+    pushStrategy = PushStrategy.getStrategy(conf);
     pushBufferMaxSize = conf.pushBufferMaxSize();
     if (conf.pushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;

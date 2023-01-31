@@ -26,9 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 
-public class SlowStartPushSpeedStrategy extends PushSpeedStrategy {
+public class SlowStartPushStrategy extends PushStrategy {
 
-  private static final Logger logger = LoggerFactory.getLogger(SlowStartPushSpeedStrategy.class);
+  private static final Logger logger = LoggerFactory.getLogger(SlowStartPushStrategy.class);
   private int maxInFlight;
   private final AtomicInteger currentMaxReqsInFlight;
 
@@ -38,7 +38,7 @@ public class SlowStartPushSpeedStrategy extends PushSpeedStrategy {
 
   private final long maxSleepMills;
 
-  public SlowStartPushSpeedStrategy(CelebornConf conf) {
+  public SlowStartPushStrategy(CelebornConf conf) {
     super(conf);
     this.currentMaxReqsInFlight = new AtomicInteger(0);
     this.continueCongestedNumber = new AtomicInteger(0);
@@ -50,7 +50,7 @@ public class SlowStartPushSpeedStrategy extends PushSpeedStrategy {
    * If `pushDataSlowStart` is enabled, will increase `currentMaxReqsInFlight` gradually to meet the
    * max push speed.
    *
-   * <p>1. slow start period: every RTT period, `currentMaxReqsInFlight` is multiplied.
+   * <p>1. slow start period: every RTT period, `currentMaxReqsInFlight` is doubled.
    *
    * <p>2. congestion avoidance: every RTT period, `currentMaxReqsInFlight` plus 1.
    *
@@ -94,7 +94,7 @@ public class SlowStartPushSpeedStrategy extends PushSpeedStrategy {
       return 0;
     }
 
-    long sleepInterval = 2000 - 60L * currentMaxReqs;
+    long sleepInterval = 500 - 60L * currentMaxReqs;
 
     if (currentMaxReqs == 1) {
       return Math.min(sleepInterval + continueCongestedNumber.get() * 1000L, maxSleepMills);

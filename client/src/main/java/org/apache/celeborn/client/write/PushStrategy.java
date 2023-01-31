@@ -24,25 +24,25 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 
-public abstract class PushSpeedStrategy {
+public abstract class PushStrategy {
 
-  private static final Logger logger = LoggerFactory.getLogger(PushSpeedStrategy.class);
+  private static final Logger logger = LoggerFactory.getLogger(PushStrategy.class);
 
   protected final CelebornConf conf;
 
-  public static PushSpeedStrategy getStrategy(CelebornConf conf) {
+  public static PushStrategy getStrategy(CelebornConf conf) {
     String strategyName = conf.pushLimitStrategy();
     switch (strategyName) {
       case "SIMPLE":
-        return new SimplePushSpeedStrategy(conf);
+        return new SimplePushStrategy(conf);
       case "SLOWSTART":
-        return new SlowStartPushSpeedStrategy(conf);
+        return new SlowStartPushStrategy(conf);
       default:
         throw new IllegalArgumentException("The strategy " + strategyName + " is not supported!");
     }
   }
 
-  public PushSpeedStrategy(CelebornConf conf) {
+  public PushStrategy(CelebornConf conf) {
     this.conf = conf;
   }
 
