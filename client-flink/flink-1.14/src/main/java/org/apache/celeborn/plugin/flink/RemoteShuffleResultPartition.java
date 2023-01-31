@@ -317,13 +317,37 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
   @Override
   public synchronized void close() {
-    releaseSortBuffer(unicastSortBuffer);
-    releaseSortBuffer(broadcastSortBuffer);
-    super.close();
+    Throwable closeException = null;
+    try {
+      releaseSortBuffer(unicastSortBuffer);
+    } catch (Throwable throwable) {
+      closeException = throwable;
+      LOG.error("Failed to release unicast sort buffer.", throwable);
+    }
+
+    try {
+      releaseSortBuffer(broadcastSortBuffer);
+    } catch (Throwable throwable) {
+      closeException = closeException == null ? throwable : closeException;
+      LOG.error("Failed to release broadcast sort buffer.", throwable);
+    }
+
+    try {
+      super.close();
+    } catch (Throwable throwable) {
+      closeException = closeException == null ? throwable : closeException;
+      LOG.error("Failed to call super#close() method.", throwable);
+    }
+
     try {
       outputGate.close();
-    } catch (Exception e) {
-      Utils.rethrowAsRuntimeException(e);
+    } catch (Throwable throwable) {
+      closeException = closeException == null ? throwable : closeException;
+      LOG.error("Failed to close remote shuffle output gate.", throwable);
+    }
+
+    if (closeException != null) {
+      ExceptionUtils.rethrowAsRuntimeException(closeException);
     }
   }
 
