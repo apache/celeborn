@@ -63,6 +63,8 @@ jobs:
         sleep 300
         helm list | grep celeborn
         kubectl get pods
+        kubectl logs celeborn-master-0 -f
+        kubectl logs celeborn-worker-0 -f
     - name: Run integration test
       run: >-
         ./build/mvn clean install 
