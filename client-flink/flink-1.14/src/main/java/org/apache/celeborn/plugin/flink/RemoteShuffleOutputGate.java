@@ -20,7 +20,6 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.util.Optional;
 
-import com.esotericsoftware.minlog.Log;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -145,7 +144,7 @@ public class RemoteShuffleOutputGate {
       if (isFirstHandShake) {
         handshake();
         isFirstHandShake = false;
-        Log.info("send firstHandShake:" + isBroadcast);
+        LOG.info("send firstHandShake:" + isBroadcast);
       }
 
       newPartitionLoc =
