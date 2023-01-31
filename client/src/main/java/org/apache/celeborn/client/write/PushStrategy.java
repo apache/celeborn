@@ -53,10 +53,11 @@ public abstract class PushStrategy {
   public abstract void onCongestControl();
 
   /** Control the push speed to meet the requirement. */
-  public abstract void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort) throws IOException;
+  public abstract void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort)
+      throws IOException;
 
-  public void awaitInFlightRequestsMatched(String mapKey, PushState pushState, int limit)
-      throws IOException {
+  public void awaitInFlightRequestsMatched(
+      String mapKey, PushState pushState, String hostAndPushPort, int limit) throws IOException {
     boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort, limit);
 
     if (reachLimit) {

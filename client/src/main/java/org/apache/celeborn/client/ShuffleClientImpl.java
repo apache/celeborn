@@ -415,10 +415,15 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private void awaitAllInflightFinished(String mapKey, PushState pushState) throws IOException {
-    pushStrategy.awaitInFlightRequestsMatched(mapKey, pushState, 0);
+    boolean reachLimit = pushState.limitZeroInFlight();
+
+    if (reachLimit) {
+      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
+    }
   }
 
-  private void limitMaxInFlight(String mapKey, PushState pushState, String hostAndPushPort) throws IOException {
+  private void limitMaxInFlight(String mapKey, PushState pushState, String hostAndPushPort)
+      throws IOException {
     pushStrategy.limitPushSpeed(mapKey, pushState, hostAndPushPort);
   }
 

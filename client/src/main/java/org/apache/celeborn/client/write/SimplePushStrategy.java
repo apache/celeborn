@@ -42,7 +42,8 @@ public class SimplePushStrategy extends PushStrategy {
   }
 
   @Override
-  public void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort) throws IOException {
-    awaitInFlightRequestsMatched(mapKey, pushState, this.maxInFlight);
+  public void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort)
+      throws IOException {
+    awaitInFlightRequestsMatched(mapKey, pushState, hostAndPushPort, this.maxInFlight);
   }
 }

@@ -104,7 +104,8 @@ public class SlowStartPushStrategy extends PushStrategy {
   }
 
   @Override
-  public void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort) throws IOException {
+  public void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort)
+      throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
@@ -119,7 +120,7 @@ public class SlowStartPushStrategy extends PushStrategy {
       }
     }
 
-    awaitInFlightRequestsMatched(mapKey, pushState, currentMaxReqsInFlight.get());
+    awaitInFlightRequestsMatched(mapKey, pushState, hostAndPushPort, currentMaxReqsInFlight.get());
   }
 
   @VisibleForTesting
