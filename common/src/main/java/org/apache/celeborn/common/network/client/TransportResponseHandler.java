@@ -190,12 +190,22 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       RpcResponse resp = (RpcResponse) message;
       RpcResponseCallback listener = outstandingRpcs.get(resp.requestId);
       if (listener == null) {
-        logger.warn(
-            "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
-            resp.requestId,
-            NettyUtils.getRemoteAddress(channel),
-            resp.body().size());
-        resp.body().release();
+        listener = outstandingPushs.get(resp.requestId);
+        if (listener == null) {
+          logger.warn(
+              "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
+              resp.requestId,
+              NettyUtils.getRemoteAddress(channel),
+              resp.body().size());
+          resp.body().release();
+        } else {
+          outstandingPushs.remove(resp.requestId);
+          try {
+            listener.onSuccess(resp.body().nioByteBuffer());
+          } finally {
+            resp.body().release();
+          }
+        }
       } else {
         outstandingRpcs.remove(resp.requestId);
         try {
@@ -208,17 +218,22 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       RpcFailure resp = (RpcFailure) message;
       RpcResponseCallback listener = outstandingRpcs.get(resp.requestId);
       if (listener == null) {
-        logger.warn(
-            "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
-            resp.requestId,
-            NettyUtils.getRemoteAddress(channel),
-            resp.errorString);
+        listener = outstandingPushs.get(resp.requestId);
+        if (listener == null) {
+          logger.warn(
+              "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
+              resp.requestId,
+              NettyUtils.getRemoteAddress(channel),
+              resp.errorString);
+        } else {
+          outstandingPushs.remove(resp.requestId);
+          listener.onFailure(new RuntimeException(resp.errorString));
+        }
       } else {
         outstandingRpcs.remove(resp.requestId);
         listener.onFailure(new RuntimeException(resp.errorString));
       }
     } else {
-      // TODO: Add PushDataResponse
       throw new IllegalStateException("Unknown response type: " + message.type());
     }
   }
