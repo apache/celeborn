@@ -20,10 +20,10 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.{FileNotFoundException, IOException}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.base.Throwables
-import io.netty.buffer.{ByteBuf, Unpooled}
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.exception.CelebornException
@@ -113,7 +113,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           } else {
             val buffers = new FileManagedBuffers(fileInfo, conf)
-            val streamId = chunkStreamManager.registerStream(buffers, client.getChannel)
+            val streamId = chunkStreamManager.registerStream(shuffleKey, buffers)
             val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
             if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
@@ -205,12 +205,21 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def checkRegistered: Boolean = registered.get
 
   override def channelInactive(client: TransportClient): Unit = {
-    chunkStreamManager.connectionTerminated(client.getChannel)
     bufferStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 
   override def exceptionCaught(cause: Throwable, client: TransportClient): Unit = {
     logWarning(s"exception caught ${client.getSocketAddress}", cause)
+  }
+
+  def shuffleKeySet(): util.HashSet[String] = {
+    val hashSet = new util.HashSet[String]()
+    hashSet.addAll(chunkStreamManager.shuffleKeySet())
+    hashSet
+  }
+
+  def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
+    chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 }

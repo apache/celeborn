@@ -230,6 +230,7 @@ private[celeborn] class Worker(
     val estimatedAppDiskUsage = new JHashMap[String, JLong]()
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     activeShuffleKeys.addAll(storageManager.shuffleKeySet())
+    activeShuffleKeys.addAll(fetchHandler.shuffleKeySet())
     storageManager.topAppDiskUsage.asScala.foreach { case (shuffleId, usage) =>
       estimatedAppDiskUsage.put(shuffleId, usage)
     }
@@ -432,6 +433,7 @@ private[celeborn] class Worker(
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
     storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
   override def getWorkerInfo: String = workerInfo.toString()
