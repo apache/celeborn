@@ -207,7 +207,7 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public PushState getPushState(String mapKey) {
-    return new PushState(conf);
+    return new PushState(conf, conf.pushDataTimeoutMs());
   }
 
   public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {

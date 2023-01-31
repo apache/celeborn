@@ -46,9 +46,9 @@ public class InFlightRequestTracker {
   private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, BatchInfo>>
       inflightBatchesPerAddress = new ConcurrentHashMap<>();
 
-  public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
+  public InFlightRequestTracker(CelebornConf conf, long pushTimeoutMs, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
-    this.pushTimeoutMs = conf.pushDataTimeoutMs();
+    this.pushTimeoutMs = pushTimeoutMs;
     this.delta = conf.pushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
   }

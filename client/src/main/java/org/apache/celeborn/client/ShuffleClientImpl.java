@@ -359,7 +359,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public PushState getPushState(String mapKey) {
-    return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
@@ -1608,7 +1608,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    final PushState pushState =
+        pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
     sendMessageInternal(
         shuffleId,
         mapId,
@@ -1648,7 +1649,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       boolean isBroadcast)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    final PushState pushState =
+        pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
     return sendMessageInternal(
         shuffleId,
         mapId,
@@ -1718,7 +1720,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    final PushState pushState =
+        pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
     sendMessageInternal(
         shuffleId,
         mapId,

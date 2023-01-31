@@ -41,9 +41,9 @@ public class PushState {
   private ScheduledExecutorService pushTimeoutChecker;
   private long pushTimeoutCheckerInterval;
 
-  public PushState(CelebornConf conf) {
+  public PushState(CelebornConf conf, long pushTimeoutMs) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
-    inFlightRequestTracker = new InFlightRequestTracker(conf, this);
+    inFlightRequestTracker = new InFlightRequestTracker(conf, pushTimeoutMs, this);
     pushTimeoutCheckerInterval = conf.pushTimeoutCheckInterval();
   }
 

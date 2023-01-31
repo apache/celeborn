@@ -681,6 +681,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
+  def replicateDataTimeoutMs: Long = get(REPLICATE_DATA_TIMEOUT)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
@@ -2145,6 +2146,14 @@ object CelebornConf extends Logging {
       .doc("Whether to test push master data timeout")
       .booleanConf
       .createWithDefault(false)
+
+  val REPLICATE_DATA_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.replicate.data.timeout")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Timeout for a worker to replicate data to slave.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
   val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.pushSlaveDataTimeout")
