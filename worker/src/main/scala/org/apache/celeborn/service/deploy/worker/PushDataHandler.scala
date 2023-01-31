@@ -58,7 +58,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var shutdown: AtomicBoolean = _
   var storageManager: StorageManager = _
   var conf: CelebornConf = _
-  @volatile var pushDataTimeoutTested = false
+  @volatile var pushMasterDataTimeoutTested = false
+  @volatile var pushSlaveDataTimeoutTested = false
   var pushState: PushState = _
 
   def init(worker: Worker): Unit = {
@@ -132,8 +133,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val batchId = pushState.nextBatchId()
 
     // For test
-    if (conf.testPushDataTimeout && !pushDataTimeoutTested) {
-      pushDataTimeoutTested = true
+    if (isMaster && conf.testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
+      pushMasterDataTimeoutTested = true
+      return
+    }
+
+    if (!isMaster && conf.testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
+      pushSlaveDataTimeoutTested = true
       return
     }
 
@@ -155,6 +161,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val softSplit = new AtomicBoolean(false)
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
+        pushState.removeBatch(batchId, location.hostAndPushPort())
         if (isMaster) {
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
@@ -360,8 +367,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
 
     // For test
-    if (conf.testPushDataTimeout && !PushDataHandler.pushDataTimeoutTested) {
-      PushDataHandler.pushDataTimeoutTested = true
+    if (isMaster && conf.testPushMasterDataTimeout && !PushDataHandler.pushMasterDataTimeoutTested) {
+      PushDataHandler.pushMasterDataTimeoutTested = true
+      return
+    }
+
+    if (!isMaster && conf.testPushSlaveDataTimeout && !PushDataHandler.pushSlaveDataTimeoutTested) {
+      PushDataHandler.pushSlaveDataTimeoutTested = true
       return
     }
 
@@ -375,6 +387,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
+        pushState.removeBatch(batchId, locations.head.hostAndPushPort())
         if (isMaster) {
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
@@ -977,5 +990,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 }
 
 object PushDataHandler {
-  @volatile var pushDataTimeoutTested = false
+  @volatile var pushMasterDataTimeoutTested = false
+  @volatile var pushSlaveDataTimeoutTested = false
 }

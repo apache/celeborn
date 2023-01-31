@@ -829,7 +829,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
-  def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
+  def testPushMasterDataTimeout: Boolean = get(TEST_PUSH_MASTER_DATA_TIMEOUT)
+  def testPushSlaveDataTimeout: Boolean = get(TEST_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
   def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
 }
@@ -2137,11 +2138,19 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
-  val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushdataTimeout")
+  val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushMasterDataTimeout")
       .categories("worker")
       .version("0.2.0")
-      .doc("Wheter to test pushdata timeout")
+      .doc("Whether to test push master data timeout")
+      .booleanConf
+      .createWithDefault(false)
+
+  val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushSlaveDataTimeout")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Whether to test push slave data timeout")
       .booleanConf
       .createWithDefault(false)
 

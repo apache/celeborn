@@ -24,14 +24,14 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 
-class PushdataTimeoutTest extends AnyFunSuite
+class PushMasterDataTimeoutTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
     val workerConf = Map(
-      "celeborn.test.pushdataTimeout" -> s"true")
+      "celeborn.test.pushMasterDataTimeout" -> s"true")
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
   }
 
@@ -43,7 +43,7 @@ class PushdataTimeoutTest extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - pushdata timeout") {
+  test("celeborn spark integration test - push master data timeout") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
       .set("spark.celeborn.push.data.timeout", "10s")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
@@ -69,6 +69,5 @@ class PushdataTimeoutTest extends AnyFunSuite
     assert(sqlResult.equals(rssSqlResult))
 
     rssSparkSession.stop()
-
   }
 }
