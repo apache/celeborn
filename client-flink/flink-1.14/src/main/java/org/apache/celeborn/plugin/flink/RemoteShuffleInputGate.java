@@ -216,15 +216,6 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
     bufferPool = bufferPoolFactory.get();
     BufferUtils.reserveNumRequiredBuffers(bufferPool, 16);
 
-    try {
-      for (int i = 0; i < gateDescriptor.getShuffleDescriptors().length; i++) {
-        bufferReaders.get(i).open(0);
-      }
-    } catch (Throwable throwable) {
-      LOG.error("Failed to setup remote input gate.", throwable);
-      throw throwable;
-    }
-
     tryRequestBuffers();
     // Complete availability future though handshake not fired yet, thus to allow fetcher to
     // 'pollNext' and fire handshake to remote. This mechanism is to avoid bookkeeping remote
@@ -372,6 +363,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   /** Try to open more readers to {@link #numConcurrentReading}. */
   private void tryOpenSomeChannels() throws IOException {
     List<RemoteBufferStreamReader> clientsToOpen = new ArrayList<>();
+
     synchronized (lock) {
       if (closed) {
         throw new IOException("Input gate already closed.");
@@ -380,6 +372,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       LOG.debug("Try open some partition readers.");
       int numOnGoing = 0;
       for (int i = 0; i < bufferReaders.size(); i++) {
+        bufferReaders.get(i).open(0);
         RemoteBufferStreamReader bufferStreamReader = bufferReaders.get(i);
         LOG.debug(
             "Trying reader: {}, isOpened={}, numSubPartitionsHasNotConsumed={}.",
