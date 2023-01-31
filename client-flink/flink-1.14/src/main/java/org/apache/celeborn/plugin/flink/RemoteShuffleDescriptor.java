@@ -56,4 +56,14 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
   public Optional<ResourceID> storesLocalResourcesOn() {
     return Optional.empty();
   }
+
+  @Override
+  public String toString() {
+    final StringBuilder sb = new StringBuilder("RemoteShuffleDescriptor{");
+    sb.append("resultPartitionID=").append(resultPartitionID);
+    sb.append(", jobID=").append(jobID);
+    sb.append(", shuffleResource=").append(shuffleResource);
+    sb.append('}');
+    return sb.toString();
+  }
 }
