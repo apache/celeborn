@@ -130,7 +130,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
-    val batchId = pushState.nextBatchId()
+    val batchId = if (isMaster) pushState.nextBatchId() else -1
 
     // For test
     if (isMaster && conf.testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
@@ -161,8 +161,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val softSplit = new AtomicBoolean(false)
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
-        pushState.removeBatch(batchId, location.hostAndPushPort())
         if (isMaster) {
+          // Only master data will push data to slave
+          pushState.removeBatch(batchId, location.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
@@ -183,7 +184,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        pushState.removeBatch(batchId, location.hostAndPushPort())
+        if (isMaster) {
+          pushState.removeBatch(batchId, location.hostAndPushPort())
+        }
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
           callback.onFailure(e)
@@ -357,7 +360,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
-    val batchId = pushState.nextBatchId()
+    val batchId = if (isMaster) pushState.nextBatchId() else -1
 
     val key = s"${pushMergedData.requestId}"
     if (isMaster) {
@@ -387,8 +390,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
-        pushState.removeBatch(batchId, locations.head.hostAndPushPort())
         if (isMaster) {
+          // Only master data will push data to slave
+          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
@@ -406,7 +410,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+        if (isMaster) {
+          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+        }
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
           callback.onFailure(e)
