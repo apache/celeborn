@@ -44,7 +44,7 @@ class PushMasterDataTimeoutTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - push master data timeout") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
+    val sparkConf = new SparkConf().setAppName("rss-demo-push-master-timeout").setMaster("local[4]")
       .set("spark.celeborn.push.data.timeout", "10s")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
