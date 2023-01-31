@@ -18,13 +18,12 @@
 package org.apache.celeborn.tests.flink;
 
 import org.apache.flink.api.common.{ExecutionMode, InputDependencyConstraint, RuntimeExecutionMode}
-import org.apache.flink.configuration.{Configuration, ExecutionOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature;
 
@@ -53,9 +52,10 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
     configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
+    configuration.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true)
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
-    val env = StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+    val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(1)
     env.getConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL)
