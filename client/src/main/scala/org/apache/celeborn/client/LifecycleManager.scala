@@ -384,7 +384,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             partitionType match {
               case PartitionType.MAP =>
                 val partitionLocations =
-                  response.getPartitionLocationsList.asScala.filter(_.getId == context.partitionId).map(r =>
+                  response.getPartitionLocationsList.asScala.filter(
+                    _.getId == context.partitionId).map(r =>
                     PbSerDeUtils.fromPbPartitionLocation(r)).toArray
                 processMapTaskReply(
                   applicationId,

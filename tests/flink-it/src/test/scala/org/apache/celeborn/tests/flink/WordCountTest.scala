@@ -17,15 +17,16 @@
 
 package org.apache.celeborn.tests.flink;
 
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.flink.api.common.{ExecutionMode, InputDependencyConstraint, RuntimeExecutionMode}
 import org.apache.flink.configuration.{Configuration, ExecutionOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.funsuite.AnyFunSuite;
+import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.service.deploy.MiniClusterFeature;
 
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
