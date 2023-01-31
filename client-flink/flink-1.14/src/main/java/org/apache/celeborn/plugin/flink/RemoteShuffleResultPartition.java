@@ -347,7 +347,7 @@ public class RemoteShuffleResultPartition extends ResultPartition {
     }
 
     if (closeException != null) {
-      ExceptionUtils.rethrowAsRuntimeException(closeException);
+      Utils.rethrowAsRuntimeException(closeException);
     }
   }
 
