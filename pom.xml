@@ -961,6 +961,9 @@
 
     <profile>
       <id>jdk-8</id>
+      <activation>
+        <jdk>1.8</jdk>
+      </activation>
       <properties>
         <java.version>8</java.version>
       </properties>
