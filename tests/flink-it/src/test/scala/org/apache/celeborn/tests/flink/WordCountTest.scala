@@ -52,6 +52,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       "shuffle-service-factory.class",
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
+    configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
     val env = StreamExecutionEnvironment.getExecutionEnvironment(configuration);

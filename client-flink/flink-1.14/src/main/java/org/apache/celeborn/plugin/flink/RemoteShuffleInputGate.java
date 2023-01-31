@@ -372,7 +372,6 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       LOG.debug("Try open some partition readers.");
       int numOnGoing = 0;
       for (int i = 0; i < bufferReaders.size(); i++) {
-        bufferReaders.get(i).open(0);
         RemoteBufferStreamReader bufferStreamReader = bufferReaders.get(i);
         LOG.debug(
             "Trying reader: {}, isOpened={}, numSubPartitionsHasNotConsumed={}.",
