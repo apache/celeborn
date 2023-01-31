@@ -33,9 +33,9 @@ license: |
 | celeborn.push.data.slowStart | false | Whether to allow to slow increasing maxReqs to meet the max push capacity, worked when worker side enables rate limit mechanism | 0.3.0 | 
 | celeborn.push.data.timeout | 120s | Timeout for a task to push data rpc message. This value should better be more than twice of `celeborn.push.timeoutCheck.interval` | 0.2.0 | 
 | celeborn.push.limit.inFlight.sleepInterval | 50ms | Sleep interval when check netty in-flight requests to be done. | 0.2.0 | 
-| celeborn.push.limit.inFlight.timeout | 240s | Timeout for netty in-flight requests to be done. | 0.2.0 | 
-| celeborn.push.limit.strategy | SIMPLE | The strategy used to control the push speed. | 0.3.0 | 
-| celeborn.push.maxReqsInFlight | 32 | Amount of Netty in-flight requests. The maximum memory is `celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib | 0.2.0 | 
+| celeborn.push.limit.inFlight.timeout | &lt;undefined&gt; | Timeout for netty in-flight requests to be done.Default value should be `celeborn.push.data.timeout * 2`. | 0.2.0 | 
+| celeborn.push.limit.strategy | SIMPLE | The strategy used to control the push speed. Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with congest control mechanism in the worker side. | 0.3.0 | 
+| celeborn.push.maxReqsInFlight | 4 | Amount of Netty in-flight requests per worker. The maximum memory is `celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib | 0.2.0 | 
 | celeborn.push.queue.capacity | 512 | Push buffer queue size for a task. The maximum memory is `celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, default: 64KiB * 512 = 32MiB | 0.2.0 | 
 | celeborn.push.replicate.enabled | true | When true, Celeborn worker will replicate shuffle data to another Celeborn worker asynchronously to ensure the pushed shuffle data won't be lost after the node failure. | 0.2.0 | 
 | celeborn.push.retry.threads | 8 | Thread number to process shuffle re-send push data requests. | 0.2.0 | 
