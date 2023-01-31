@@ -24,7 +24,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 
-class PushMasterDataTimeoutTest extends AnyFunSuite
+class PushMasterTimeoutTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
