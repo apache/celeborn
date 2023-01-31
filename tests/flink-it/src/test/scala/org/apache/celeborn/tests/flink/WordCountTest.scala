@@ -68,7 +68,11 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
-    setUpMiniCluster()
+    val masterConf = Map(
+      "celeborn.master.host" -> "localhost",
+      "celeborn.master.port" -> "9097")
+    val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
+    setUpMiniCluster(masterConf, workerConf)
   }
 
   override def afterAll(): Unit = {
@@ -84,6 +88,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    configuration.setString("taskmanager.memory.network.min", "1024m")
     val env = ExecutionEnvironment.createLocalEnvironment(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(4)
