@@ -22,6 +22,8 @@ if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
+. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
+
 if [ "$CELEBORN_WORKER_MEMORY" = "" ]; then
   CELEBORN_WORKER_MEMORY="1g"
 fi
