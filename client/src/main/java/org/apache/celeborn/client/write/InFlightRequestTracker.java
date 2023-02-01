@@ -181,7 +181,9 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
-                          if (currentTime - info.pushTime > pushTimeoutMs) {
+                          if (info.pushTime != -1 && (currentTime - info.pushTime > pushTimeoutMs)) {
+                            logger.info("Fail request since it is timeout, pushTime is {}, maxTime is {}",
+                                info.pushTime, pushTimeoutMs);
                             if (info.callback != null) {
                               info.channelFuture.cancel(true);
                               info.callback.onFailure(
@@ -214,7 +216,7 @@ public class InFlightRequestTracker {
 
   static class BatchInfo {
     ChannelFuture channelFuture;
-    long pushTime;
+    long pushTime = -1;
     RpcResponseCallback callback;
   }
 }
