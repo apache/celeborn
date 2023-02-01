@@ -199,6 +199,7 @@ public final class MapPartitionFileWriter extends FileWriter {
   public void pushDataHandShake(int numReducePartitions, int bufferSize) {
     this.numReducePartitions = numReducePartitions;
     fileInfo.setBufferSize(bufferSize);
+    fileInfo.setNumReducerPartitions(numReducePartitions);
   }
 
   public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
