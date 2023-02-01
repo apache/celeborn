@@ -35,7 +35,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, PartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
 import org.apache.celeborn.common.network.TransportContext
@@ -181,7 +181,7 @@ private[celeborn] class Worker(
   val shuffleMapperAttempts = new ConcurrentHashMap[String, AtomicIntegerArray]()
   val shufflePartitionType = new ConcurrentHashMap[String, PartitionType]
   var shufflePushDataTimeout = new ConcurrentHashMap[String, Long]
-  val partitionLocationInfo = new PartitionLocationInfo
+  val partitionLocationInfo = new WorkerPartitionLocationInfo
 
   val shuffleCommitInfos = new ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 

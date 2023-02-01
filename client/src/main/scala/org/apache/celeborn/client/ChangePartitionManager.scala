@@ -293,9 +293,9 @@ class ChangePartitionManager(
           lifecycleManager.workerSnapshots(shuffleId).asScala
             .get(workInfo)
             .foreach { partitionLocationInfo =>
-              partitionLocationInfo.addMasterPartitions(shuffleId.toString, masterLocations)
+              partitionLocationInfo.addMasterPartitions(masterLocations)
               lifecycleManager.updateLatestPartitionLocations(shuffleId, masterLocations)
-              partitionLocationInfo.addSlavePartitions(shuffleId.toString, slaveLocations)
+              partitionLocationInfo.addSlavePartitions(slaveLocations)
             }
           // partition location can be null when call reserveSlotsWithRetry().
           val locations = (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer))
