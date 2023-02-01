@@ -226,11 +226,11 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               NettyUtils.getRemoteAddress(channel),
               resp.errorString);
         } else {
-          outstandingPushes.remove(resp.requestId);
+          outstandingRpcs.remove(resp.requestId);
           listener.onFailure(new RuntimeException(resp.errorString));
         }
       } else {
-        outstandingRpcs.remove(resp.requestId);
+        outstandingPushes.remove(resp.requestId);
         listener.onFailure(new RuntimeException(resp.errorString));
       }
     } else {
