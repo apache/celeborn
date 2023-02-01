@@ -97,7 +97,7 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
-  private val computeResourceConsumptionInterval =conf.computeResourceConsumptionInterval
+  private val computeResourceConsumptionInterval = conf.computeResourceConsumptionInterval
   private val userResourceConsumption =
     new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
