@@ -155,7 +155,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
     if (conf.pushReplicateEnabled()) {
-      pushDataTimeout =  conf.pushDataTimeoutMs() * 2;
+      pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
       pushDataTimeout = conf.pushDataTimeoutMs();
     }
