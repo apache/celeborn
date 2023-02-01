@@ -141,17 +141,21 @@ public class RateLimitController {
     // The potential consume speed in average
     long avgConsumeSpeed = getPotentialConsumeSpeed();
 
-    if (!overHighWatermark.get() && pendingConsumed > highWatermark) {
+    if (pendingConsumed > highWatermark && overHighWatermark.compareAndSet(false, true)) {
       logger.info(
           "Pending consume bytes: {} higher than high watermark, need to congest it",
           pendingConsumed);
-      overHighWatermark.set(true);
     }
 
     if (overHighWatermark.get()) {
-      if (pendingConsumed < lowWatermark) {
+      MemoryManager.instance().trimAllListeners();
+      pendingConsumed = getTotalPendingBytes();
+
+      if (pendingConsumed < lowWatermark && overHighWatermark.compareAndSet(true, false)) {
         logger.info("Lower than low watermark, exit congestion control");
-        overHighWatermark.set(false);
+      }
+
+      if (!overHighWatermark.get()) {
         return false;
       }
 

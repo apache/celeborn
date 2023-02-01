@@ -295,6 +295,10 @@ public class MemoryManager {
     void onTrim();
   }
 
+  public void trimAllListeners() {
+    memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+  }
+
   public void reserveSortMemory(long fileLen) {
     sortMemoryCounter.addAndGet(fileLen);
   }
