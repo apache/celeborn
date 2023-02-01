@@ -31,8 +31,9 @@ import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class ReadClientHandler extends BaseMessageHandler {
   private static Logger logger = LoggerFactory.getLogger(ReadClientHandler.class);
-  private ConcurrentHashMap<Long, Consumer<RequestMessage>> streamHandlers;
-  private ConcurrentHashMap<Long, TransportClient> streamClients;
+  private ConcurrentHashMap<Long, Consumer<RequestMessage>> streamHandlers =
+      new ConcurrentHashMap<>();
+  private ConcurrentHashMap<Long, TransportClient> streamClients = new ConcurrentHashMap<>();
 
   public void registerHandler(
       long streamId, Consumer<RequestMessage> handle, TransportClient client) {

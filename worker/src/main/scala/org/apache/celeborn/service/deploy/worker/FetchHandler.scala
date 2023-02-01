@@ -139,10 +139,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               endSubIndex,
               fileInfo)
           val res = ByteBuffer.allocate(8)
-          res.putLong(streamId)
+          val bufferStreamHandle = new StreamHandle(streamId, 0)
           client.getChannel.writeAndFlush(new RpcResponse(
             request.requestId,
-            new NioManagedBuffer(res)))
+            new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
