@@ -97,6 +97,8 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
+  private val userResourceConsumption =
+    new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   // States
   private def workersSnapShot: util.List[WorkerInfo] =
@@ -627,9 +629,23 @@ private[celeborn] class Master(
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
       : ResourceConsumption = {
-    statusSystem.workers.asScala.flatMap { workerInfo =>
-      workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+    val current = System.currentTimeMillis()
+    if (userResourceConsumption.containsKey(userIdentifier)) {
+      val resourceConsumptionAndUpdateTime = userResourceConsumption.get(userIdentifier)
+      if (current - resourceConsumptionAndUpdateTime._2 > conf.computeUserResourceResourceConsumptionInterval) {
+        val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
+          workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+        }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+        userResourceConsumption.put(userIdentifier, (newResourceConsumption, current))._1
+      } else {
+        resourceConsumptionAndUpdateTime._1
+      }
+    } else {
+      val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
+        workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+      }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+      userResourceConsumption.put(userIdentifier, (newResourceConsumption, current))._1
+    }
   }
 
   private def handleCheckQuota(
