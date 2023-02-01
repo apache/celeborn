@@ -635,24 +635,24 @@ private[celeborn] class Master(
   private def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
+    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     resourceConsumptionSource.addGauge(
       "diskFIleCount",
-      _ => computeUserResourceConsumption(userIdentifier).diskFileCount,
+      _ => userResourceConsumption.diskFileCount,
       userIdentifier.toMap)
     resourceConsumptionSource.addGauge(
       "diskBytesWritten",
-      _ => computeUserResourceConsumption(userIdentifier).diskBytesWritten,
+      _ => userResourceConsumption.diskBytesWritten,
       userIdentifier.toMap)
     resourceConsumptionSource.addGauge(
       "hdfsFileCount",
-      _ => computeUserResourceConsumption(userIdentifier).hdfsFileCount,
+      _ => userResourceConsumption.hdfsFileCount,
       userIdentifier.toMap)
     resourceConsumptionSource.addGauge(
       "hdfsBytesWritten",
-      _ => computeUserResourceConsumption(userIdentifier).hdfsBytesWritten,
+      _ => userResourceConsumption.hdfsBytesWritten,
       userIdentifier.toMap)
 
-    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     val quota = quotaManager.getQuota(userIdentifier)
     val (isAvailable, reason) =
       quota.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
