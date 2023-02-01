@@ -157,7 +157,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   public void handle(ResponseMessage message) throws Exception {
     if (message instanceof ChunkFetchSuccess) {
       ChunkFetchSuccess resp = (ChunkFetchSuccess) message;
-      ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkSlice);
+      ChunkReceivedCallback listener = outstandingFetches.remove(resp.streamChunkSlice);
       if (listener == null) {
         logger.warn(
             "Ignoring response for block {} from {} since it is not outstanding",
@@ -165,13 +165,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             NettyUtils.getRemoteAddress(channel));
         resp.body().release();
       } else {
-        outstandingFetches.remove(resp.streamChunkSlice);
         listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
         resp.body().release();
       }
     } else if (message instanceof ChunkFetchFailure) {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
-      ChunkReceivedCallback listener = outstandingFetches.get(resp.streamChunkSlice);
+      ChunkReceivedCallback listener = outstandingFetches.remove(resp.streamChunkSlice);
       if (listener == null) {
         logger.warn(
             "Ignoring response for block {} from {} ({}) since it is not outstanding",
@@ -179,7 +178,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             NettyUtils.getRemoteAddress(channel),
             resp.errorString);
       } else {
-        outstandingFetches.remove(resp.streamChunkSlice);
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
         listener.onFailure(
             resp.streamChunkSlice.chunkIndex,
@@ -188,9 +186,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
-      RpcResponseCallback listener = outstandingPushes.get(resp.requestId);
+      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId);
       if (listener == null) {
-        listener = outstandingRpcs.get(resp.requestId);
+        listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
@@ -199,7 +197,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               resp.body().size());
           resp.body().release();
         } else {
-          outstandingRpcs.remove(resp.requestId);
           try {
             listener.onSuccess(resp.body().nioByteBuffer());
           } finally {
@@ -207,7 +204,6 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           }
         }
       } else {
-        outstandingPushes.remove(resp.requestId);
         try {
           listener.onSuccess(resp.body().nioByteBuffer());
         } finally {
@@ -216,9 +212,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcFailure) {
       RpcFailure resp = (RpcFailure) message;
-      RpcResponseCallback listener = outstandingPushes.get(resp.requestId);
+      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId);
       if (listener == null) {
-        listener = outstandingRpcs.get(resp.requestId);
+        listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
@@ -226,11 +222,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               NettyUtils.getRemoteAddress(channel),
               resp.errorString);
         } else {
-          outstandingRpcs.remove(resp.requestId);
           listener.onFailure(new RuntimeException(resp.errorString));
         }
       } else {
-        outstandingPushes.remove(resp.requestId);
         listener.onFailure(new RuntimeException(resp.errorString));
       }
     } else {
