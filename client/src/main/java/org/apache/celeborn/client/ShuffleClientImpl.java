@@ -90,6 +90,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final AtomicInteger currentMaxReqsInFlight;
   private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
+  private final long pushDataTimeout;
 
   private final RpcEnv rpcEnv;
 
@@ -153,6 +154,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
+    pushDataTimeout = conf.pushDataTimeoutMs();
 
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
@@ -209,7 +211,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           PushData newPushData =
               new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
           ChannelFuture future = client.pushData(newPushData, callback);
-          pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort());
+          pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort(), pushDataTimeout);
         } else {
           throw new RuntimeException(
               "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
@@ -359,7 +361,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public PushState getPushState(String mapKey) {
-    return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
+    return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
@@ -801,7 +803,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           TransportClient client =
               dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
           ChannelFuture future = client.pushData(pushData, wrappedCallback);
-          pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
+          pushState.pushStarted(
+              nextBatchId, future, wrappedCallback, loc.hostAndPushPort(), pushDataTimeout);
         } else {
           wrappedCallback.onFailure(
               new Exception(
@@ -1147,7 +1150,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       if (!testRetryRevive || remainReviveTimes < 1) {
         TransportClient client = dataClientFactory.createClient(host, port);
         ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
-        pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
+        pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort, pushDataTimeout);
       } else {
         wrappedCallback.onFailure(
             new Exception(
@@ -1566,7 +1569,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
       ChannelFuture future = client.pushData(pushData, callback);
-      pushState.pushStarted(nextBatchId, future, callback, location.hostAndPushPort());
+      pushState.pushStarted(
+          nextBatchId, future, callback, location.hostAndPushPort(), pushDataTimeout);
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(
@@ -1608,8 +1612,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final PushState pushState =
-        pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
+    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
     sendMessageInternal(
         shuffleId,
         mapId,
@@ -1649,8 +1652,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       boolean isBroadcast)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final PushState pushState =
-        pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
+    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
     return sendMessageInternal(
         shuffleId,
         mapId,
@@ -1720,8 +1722,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final PushState pushState =
-        pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf, conf.pushDataTimeoutMs()));
+    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
     sendMessageInternal(
         shuffleId,
         mapId,

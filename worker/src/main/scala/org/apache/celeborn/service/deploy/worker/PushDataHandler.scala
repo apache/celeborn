@@ -48,6 +48,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var partitionLocationInfo: PartitionLocationInfo = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
+  var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
   var replicateThreadPool: ThreadPoolExecutor = _
   var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   var pushClientFactory: TransportClientFactory = _
@@ -67,6 +68,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     rpcSource = worker.rpcSource
     partitionLocationInfo = worker.partitionLocationInfo
     shufflePartitionType = worker.shufflePartitionType
+    shufflePushDataTimeout = worker.shufflePushDataTimeout
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     replicateThreadPool = worker.replicateThreadPool
     unavailablePeers = worker.unavailablePeers

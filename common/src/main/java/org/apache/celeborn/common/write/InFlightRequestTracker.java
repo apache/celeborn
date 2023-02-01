@@ -38,7 +38,6 @@ public class InFlightRequestTracker {
   private static final Logger logger = LoggerFactory.getLogger(InFlightRequestTracker.class);
 
   private final long waitInflightTimeoutMs;
-  private final long pushTimeoutMs;
   private final long delta;
   private final PushState pushState;
 
@@ -46,9 +45,8 @@ public class InFlightRequestTracker {
   private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, BatchInfo>>
       inflightBatchesPerAddress = new ConcurrentHashMap<>();
 
-  public InFlightRequestTracker(CelebornConf conf, long pushTimeoutMs, PushState pushState) {
+  public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
-    this.pushTimeoutMs = pushTimeoutMs;
     this.delta = conf.pushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
   }
@@ -183,7 +181,7 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
-                          if (currentTime - info.pushTime > pushTimeoutMs) {
+                          if (currentTime - info.pushTime > info.pushDataTimeout) {
                             if (info.callback != null) {
                               info.channelFuture.cancel(true);
                               info.callback.onFailure(
@@ -217,6 +215,8 @@ public class InFlightRequestTracker {
   static class BatchInfo {
     ChannelFuture channelFuture;
     long pushTime;
+
+    long pushDataTimeout;
     RpcResponseCallback callback;
   }
 }

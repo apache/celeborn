@@ -742,7 +742,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             partitionSplitMode,
             getPartitionType(shuffleId),
             rangeReadFilter,
-            userIdentifier))
+            userIdentifier,
+            conf.pushDataTimeoutMs))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +

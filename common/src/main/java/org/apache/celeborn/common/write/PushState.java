@@ -41,14 +41,18 @@ public class PushState {
   private ScheduledExecutorService pushTimeoutChecker;
   private long pushTimeoutCheckerInterval;
 
-  public PushState(CelebornConf conf, long pushTimeoutMs) {
+  public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
-    inFlightRequestTracker = new InFlightRequestTracker(conf, pushTimeoutMs, this);
+    inFlightRequestTracker = new InFlightRequestTracker(conf, this);
     pushTimeoutCheckerInterval = conf.pushTimeoutCheckInterval();
   }
 
   public void pushStarted(
-      int batchId, ChannelFuture future, RpcResponseCallback callback, String hostAndPort) {
+      int batchId,
+      ChannelFuture future,
+      RpcResponseCallback callback,
+      String hostAndPort,
+      long pushDataTimeout) {
     InFlightRequestTracker.BatchInfo info =
         inFlightRequestTracker.getBatchIdSetByAddressPair(hostAndPort).get(batchId);
     // In rare cases info could be null. For example, a speculative task has one thread pushing,
@@ -57,6 +61,7 @@ public class PushState {
     // at this time info will be null
     if (info != null) {
       info.pushTime = System.currentTimeMillis();
+      info.pushDataTimeout = pushDataTimeout;
       info.channelFuture = future;
       info.callback = callback;
     }
