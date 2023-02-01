@@ -154,7 +154,11 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
-    pushDataTimeout = conf.pushDataTimeoutMs();
+    if (conf.pushReplicateEnabled()) {
+      pushDataTimeout =  conf.pushDataTimeoutMs() * 2;
+    } else {
+      pushDataTimeout = conf.pushDataTimeoutMs();
+    }
 
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);

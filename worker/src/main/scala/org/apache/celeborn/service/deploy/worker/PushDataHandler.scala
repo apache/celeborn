@@ -395,7 +395,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
           // Only master data will push data to slave
-          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+          pushState.removeBatch(batchId, locations.filter(_ != null).head.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
@@ -414,7 +414,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
         if (isMaster) {
-          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+          pushState.removeBatch(batchId, locations.filter(_ != null).head.hostAndPushPort())
         }
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
@@ -494,7 +494,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
-      callback.onFailure(new Exception(s"$message! ${locations.head}", exception))
+      callback.onFailure(new Exception(s"$message! ${locations.filter(_ != null).head}", exception))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
