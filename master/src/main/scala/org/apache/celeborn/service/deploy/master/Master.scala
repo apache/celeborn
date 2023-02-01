@@ -98,7 +98,7 @@ private[celeborn] class Master(
 
   private val quotaManager = QuotaManager.instantiate(conf)
   private val computeResourceConsumptionInterval = conf.computeResourceConsumptionInterval
-  private val userResourceConsumption =
+  private val userResourceConsumptions =
     new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   // States
@@ -631,13 +631,13 @@ private[celeborn] class Master(
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
       : ResourceConsumption = {
     val current = System.currentTimeMillis()
-    if (userResourceConsumption.containsKey(userIdentifier)) {
-      val resourceConsumptionAndUpdateTime = userResourceConsumption.get(userIdentifier)
+    if (userResourceConsumptions.containsKey(userIdentifier)) {
+      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
       if (current - resourceConsumptionAndUpdateTime._2 > computeResourceConsumptionInterval) {
         val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
           workerInfo.userResourceConsumption.asScala.get(userIdentifier)
         }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-        userResourceConsumption.put(userIdentifier, (newResourceConsumption, current))._1
+        userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
       } else {
         resourceConsumptionAndUpdateTime._1
       }
@@ -645,7 +645,7 @@ private[celeborn] class Master(
       val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
         workerInfo.userResourceConsumption.asScala.get(userIdentifier)
       }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-      userResourceConsumption.put(userIdentifier, (newResourceConsumption, current))._1
+      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
     }
   }
 
