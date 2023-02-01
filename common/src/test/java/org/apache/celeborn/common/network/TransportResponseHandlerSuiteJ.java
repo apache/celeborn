@@ -109,4 +109,36 @@ public class TransportResponseHandlerSuiteJ {
     verify(callback, times(1)).onFailure(any());
     assertEquals(0, handler.numOutstandingRequests());
   }
+
+  @Test
+  public void handleSuccessfulPush() throws Exception {
+    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    RpcResponseCallback callback = mock(RpcResponseCallback.class);
+    handler.addPushRequest(12345, callback);
+    assertEquals(1, handler.numOutstandingRequests());
+
+    // This response should be ignored.
+    handler.handle(new RpcResponse(54321, new NioManagedBuffer(ByteBuffer.allocate(7))));
+    assertEquals(1, handler.numOutstandingRequests());
+
+    ByteBuffer resp = ByteBuffer.allocate(10);
+    handler.handle(new RpcResponse(12345, new NioManagedBuffer(resp)));
+    verify(callback, times(1)).onSuccess(eq(ByteBuffer.allocate(10)));
+    assertEquals(0, handler.numOutstandingRequests());
+  }
+
+  @Test
+  public void handleFailedPush() throws Exception {
+    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    RpcResponseCallback callback = mock(RpcResponseCallback.class);
+    handler.addPushRequest(12345, callback);
+    assertEquals(1, handler.numOutstandingRequests());
+
+    handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
+    assertEquals(1, handler.numOutstandingRequests());
+
+    handler.handle(new RpcFailure(12345, "oh no"));
+    verify(callback, times(1)).onFailure(any());
+    assertEquals(0, handler.numOutstandingRequests());
+  }
 }
