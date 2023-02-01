@@ -323,18 +323,18 @@ public class TransportClient implements Closeable {
   }
 
   private class PushChannelListener extends StdChannelListener {
-    final long rpcRequestId;
+    final long pushRequestId;
     final RpcResponseCallback callback;
 
-    PushChannelListener(long rpcRequestId, RpcResponseCallback callback) {
-      super("PUSH " + rpcRequestId);
-      this.rpcRequestId = rpcRequestId;
+    PushChannelListener(long pushRequestId, RpcResponseCallback callback) {
+      super("PUSH " + pushRequestId);
+      this.pushRequestId = pushRequestId;
       this.callback = callback;
     }
 
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
-      handler.removePushRequest(rpcRequestId);
+      handler.removePushRequest(pushRequestId);
       callback.onFailure(new IOException(errorMsg, cause));
     }
   }

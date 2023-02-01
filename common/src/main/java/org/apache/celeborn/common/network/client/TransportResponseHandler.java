@@ -44,7 +44,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final Map<StreamChunkSlice, ChunkReceivedCallback> outstandingFetches;
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
-  private final Map<Long, RpcResponseCallback> outstandingPushs;
+  private final Map<Long, RpcResponseCallback> outstandingPushes;
 
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
@@ -53,7 +53,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.channel = channel;
     this.outstandingFetches = new ConcurrentHashMap<>();
     this.outstandingRpcs = new ConcurrentHashMap<>();
-    this.outstandingPushs = new ConcurrentHashMap<>();
+    this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
   }
 
@@ -83,14 +83,14 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   public void addPushRequest(long requestId, RpcResponseCallback callback) {
     updateTimeOfLastRequest();
-    if (outstandingPushs.containsKey(requestId)) {
+    if (outstandingPushes.containsKey(requestId)) {
       logger.warn("[addPushRequest] requestId {} already exists!", requestId);
     }
-    outstandingPushs.put(requestId, callback);
+    outstandingPushes.put(requestId, callback);
   }
 
   public void removePushRequest(long requestId) {
-    outstandingPushs.remove(requestId);
+    outstandingPushes.remove(requestId);
   }
 
   /**
@@ -112,7 +112,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
     }
-    for (Map.Entry<Long, RpcResponseCallback> entry : outstandingPushs.entrySet()) {
+    for (Map.Entry<Long, RpcResponseCallback> entry : outstandingPushes.entrySet()) {
       try {
         entry.getValue().onFailure(cause);
       } catch (Exception e) {
@@ -123,7 +123,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     // It's OK if new fetches appear, as they will fail immediately.
     outstandingFetches.clear();
     outstandingRpcs.clear();
-    outstandingPushs.clear();
+    outstandingPushes.clear();
   }
 
   @Override
@@ -188,9 +188,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
-      RpcResponseCallback listener = outstandingRpcs.get(resp.requestId);
+      RpcResponseCallback listener = outstandingPushes.get(resp.requestId);
       if (listener == null) {
-        listener = outstandingPushs.get(resp.requestId);
+        listener = outstandingRpcs.get(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
@@ -199,7 +199,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               resp.body().size());
           resp.body().release();
         } else {
-          outstandingPushs.remove(resp.requestId);
+          outstandingRpcs.remove(resp.requestId);
           try {
             listener.onSuccess(resp.body().nioByteBuffer());
           } finally {
@@ -207,7 +207,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           }
         }
       } else {
-        outstandingRpcs.remove(resp.requestId);
+        outstandingPushes.remove(resp.requestId);
         try {
           listener.onSuccess(resp.body().nioByteBuffer());
         } finally {
@@ -216,9 +216,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcFailure) {
       RpcFailure resp = (RpcFailure) message;
-      RpcResponseCallback listener = outstandingRpcs.get(resp.requestId);
+      RpcResponseCallback listener = outstandingPushes.get(resp.requestId);
       if (listener == null) {
-        listener = outstandingPushs.get(resp.requestId);
+        listener = outstandingRpcs.get(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
@@ -226,7 +226,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               NettyUtils.getRemoteAddress(channel),
               resp.errorString);
         } else {
-          outstandingPushs.remove(resp.requestId);
+          outstandingPushes.remove(resp.requestId);
           listener.onFailure(new RuntimeException(resp.errorString));
         }
       } else {
@@ -240,7 +240,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   /** Returns total number of outstanding requests (fetch requests + rpcs) */
   public int numOutstandingRequests() {
-    return outstandingFetches.size() + outstandingRpcs.size() + outstandingPushs.size();
+    return outstandingFetches.size() + outstandingRpcs.size() + outstandingPushes.size();
   }
 
   /** Returns the time in nanoseconds of when the last request was sent out. */
