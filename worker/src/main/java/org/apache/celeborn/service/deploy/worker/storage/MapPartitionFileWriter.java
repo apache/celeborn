@@ -157,9 +157,7 @@ public final class MapPartitionFileWriter extends FileWriter {
   public synchronized long close() throws IOException {
     return super.close(
         () -> {
-          if (flushBufferIndex.readableBytes() > 0) {
-            flushIndex();
-          }
+          flushIndex();
         },
         () -> {
           if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
@@ -198,6 +196,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
   public void pushDataHandShake(int numReducePartitions, int bufferSize) {
     this.numReducePartitions = numReducePartitions;
+    fileInfo.setNumReducerPartitions(numReducePartitions);
     fileInfo.setBufferSize(bufferSize);
     fileInfo.setNumReducerPartitions(numReducePartitions);
   }
@@ -261,21 +260,26 @@ public final class MapPartitionFileWriter extends FileWriter {
   }
 
   private void flushIndex() throws IOException {
-    indexBuffer.flip();
-    notifier.checkException();
-    notifier.numPendingFlushes.incrementAndGet();
-    if (indexBuffer.hasRemaining()) {
-      FlushTask task = null;
-      if (channelIndex != null) {
-        Unpooled.wrappedBuffer(indexBuffer);
-        task = new LocalFlushTask(flushBufferIndex, channelIndex, notifier);
-      } else if (fileInfo.isHdfs()) {
-        task = new HdfsFlushTask(flushBufferIndex, fileInfo.getHdfsIndexPath(), notifier);
+    logger.debug("flushIndex :" + fileInfo.getIndexPath());
+    if (indexBuffer != null) {
+      indexBuffer.flip();
+      notifier.checkException();
+      notifier.numPendingFlushes.incrementAndGet();
+      if (indexBuffer.hasRemaining()) {
+        FlushTask task = null;
+        if (channelIndex != null) {
+          ByteBuf wrappedByteBuf = Unpooled.wrappedBuffer(indexBuffer);
+          wrappedByteBuf.retain();
+          flushBufferIndex.addComponent(true, wrappedByteBuf);
+          task = new LocalFlushTask(flushBufferIndex, channelIndex, notifier);
+        } else if (fileInfo.isHdfs()) {
+          task = new HdfsFlushTask(flushBufferIndex, fileInfo.getHdfsIndexPath(), notifier);
+        }
+        addTask(task);
+        flushBufferIndex = null;
+        indexBuffer = null;
       }
-      addTask(task);
-      flushBufferIndex = null;
     }
-    indexBuffer.clear();
   }
 
   private ByteBuffer allocateIndexBuffer(int numPartitions) {
