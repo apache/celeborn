@@ -181,6 +181,7 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
+                          // Compatible with older versions of client
                           if (info.pushDataTimeout > 0) {
                             if (currentTime - info.pushTime > info.pushDataTimeout) {
                               if (info.callback != null) {
