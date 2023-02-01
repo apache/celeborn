@@ -181,13 +181,15 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
-                          if (currentTime - info.pushTime > info.pushDataTimeout) {
-                            if (info.callback != null) {
-                              info.channelFuture.cancel(true);
-                              info.callback.onFailure(
-                                  new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));
-                              info.channelFuture = null;
-                              info.callback = null;
+                          if (info.pushDataTimeout > 0) {
+                            if (currentTime - info.pushTime > info.pushDataTimeout) {
+                              if (info.callback != null) {
+                                info.channelFuture.cancel(true);
+                                info.callback.onFailure(
+                                    new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));
+                                info.channelFuture = null;
+                                info.callback = null;
+                              }
                             }
                           }
                         }));

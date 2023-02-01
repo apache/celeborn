@@ -242,12 +242,7 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterLocs)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slaveLocs)
     shufflePartitionType.put(shuffleKey, partitionType)
-    // Compatible with older versions of client.
-    if (pushDataTimeout == null) {
-      shufflePushDataTimeout.put(shuffleKey, pushDataTimeout)
-    } else {
-      shufflePushDataTimeout.put(shuffleKey, conf.pushDataTimeoutMs)
-    }
+    shufflePushDataTimeout.put(shuffleKey, pushDataTimeout)
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(requestMasterLocs, requestSlaveLocs))
 
     logInfo(s"Reserved ${masterLocs.size()} master location" +
