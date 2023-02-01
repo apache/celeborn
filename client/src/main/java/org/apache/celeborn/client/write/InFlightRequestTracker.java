@@ -181,7 +181,8 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
-                          if (info.pushTime != -1 && (currentTime - info.pushTime > pushTimeoutMs)) {
+                          if (info.pushTime != -1
+                              && (currentTime - info.pushTime > pushTimeoutMs)) {
                             if (info.callback != null) {
                               info.channelFuture.cancel(true);
                               info.callback.onFailure(
