@@ -151,7 +151,7 @@ class MapPartitionCommitHandler(
         parallelCommitResult.slavePartitionLocationMap)
     }
 
-    (dataLost, parallelCommitResult.commitFilesFailedWorkers)
+    (!dataLost, parallelCommitResult.commitFilesFailedWorkers)
   }
 
   private def waitInflightRequestComplete(
