@@ -80,7 +80,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     storageManager = worker.storageManager
     shutdown = worker.shutdown
     conf = worker.conf
-    pushState = new PushState(conf, conf.replicateDataTimeoutMs)
+    pushState = new PushState(conf)
     pushState.startChecker()
 
     logInfo(s"diskReserveSize $diskReserveSize")
@@ -318,7 +318,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               batchId,
               channelFuture,
               wrappedCallback,
-              location.hostAndPushPort())
+              location.hostAndPushPort(),
+              shufflePushDataTimeout.get(shuffleKey))
           } catch {
             case e: Exception =>
               pushData.body().release()
@@ -535,7 +536,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               batchId,
               channelFuture,
               wrappedCallback,
-              location.hostAndPushPort())
+              location.hostAndPushPort(),
+              shufflePushDataTimeout.get(shuffleKey))
           } catch {
             case e: Exception =>
               pushMergedData.body().release()
