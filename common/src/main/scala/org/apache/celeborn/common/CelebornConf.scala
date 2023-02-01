@@ -666,8 +666,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
-  def pushLimitInFlightTimeoutMs: Long =
+  def pushLimitInFlightTimeoutMs: Long = if (pushReplicateEnabled) {
+    get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 4)
+  } else {
     get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 2)
+  }
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
   def partitionSplitMode: PartitionSplitMode = PartitionSplitMode.valueOf(get(PARTITION_SPLIT_MODE))
