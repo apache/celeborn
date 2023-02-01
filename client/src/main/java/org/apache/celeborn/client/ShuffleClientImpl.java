@@ -739,12 +739,22 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void onFailure(Throwable e) {
+              StatusCode cause = getPushDataFailCause(e.getMessage());
+
               if (pushState.exception.get() != null) {
                 return;
               }
 
               if (remainReviveTimes <= 0) {
-                callback.onFailure(e);
+                callback.onFailure(
+                    new Exception(
+                        cause.getMessage()
+                            + "! Push data to master worker of "
+                            + loc
+                            + " failed: "
+                            + e.getMessage(),
+                        e));
+
                 return;
               }
 
@@ -771,7 +781,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             loc,
                             this,
                             pushState,
-                            getPushDataFailCause(e.getMessage()),
+                            cause,
                             remainReviveTimes));
               } else {
                 pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
@@ -793,12 +803,20 @@ public class ShuffleClientImpl extends ShuffleClient {
           ChannelFuture future = client.pushData(pushData, wrappedCallback);
           pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
         } else {
-          throw new RuntimeException("Mock push data first time failed.");
+          wrappedCallback.onFailure(
+              new Exception(
+                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.toString(),
+                  new RuntimeException("Mock push data first time failed.")));
         }
       } catch (Exception e) {
         logger.warn("PushData failed", e);
         wrappedCallback.onFailure(
-            new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+            new Exception(
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
+                    + "! "
+                    + e.getMessage()
+                    + ". "
+                    + loc));
       }
     } else {
       // add batch data
@@ -1079,11 +1097,19 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           @Override
           public void onFailure(Throwable e) {
+            StatusCode cause = getPushDataFailCause(e.getMessage());
             if (pushState.exception.get() != null) {
               return;
             }
             if (remainReviveTimes <= 0) {
-              callback.onFailure(e);
+              callback.onFailure(
+                  new Exception(
+                      cause.getMessage()
+                          + "! Push data to master worker of "
+                          + hostPort
+                          + " failed: "
+                          + e.getMessage(),
+                      e));
               return;
             }
             logger.error(
@@ -1109,7 +1135,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           mapId,
                           attemptId,
                           batches,
-                          getPushDataFailCause(e.getMessage()),
+                          cause,
                           groupedBatchId,
                           remainReviveTimes - 1));
             }
@@ -1123,11 +1149,20 @@ public class ShuffleClientImpl extends ShuffleClient {
         ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
         pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
       } else {
-        throw new RuntimeException("Mock push merge data failed");
+        wrappedCallback.onFailure(
+            new Exception(
+                StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.toString(),
+                new RuntimeException("Mock push merge data failed.")));
       }
     } catch (Exception e) {
       logger.warn("PushMergedData failed", e);
-      wrappedCallback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+      wrappedCallback.onFailure(
+          new Exception(
+              StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
+                  + "! "
+                  + e.getMessage()
+                  + ". "
+                  + hostPort));
     }
   }
 
@@ -1382,11 +1417,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode cause;
     if (message.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage())) {
       cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_MASTER.getMessage())
-        || connectFail(message)) {
+    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_MASTER.getMessage())) {
       cause = StatusCode.PUSH_DATA_FAIL_MASTER;
+    } else if (message.startsWith(
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
       cause = StatusCode.PUSH_DATA_TIMEOUT;
+    } else if (connectFail(message)) {
+      // Throw when push to master worker connection causeException.
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }
@@ -1516,7 +1562,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushState.pushStarted(nextBatchId, future, callback, location.hostAndPushPort());
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
-      callback.onFailure(new Exception(getPushDataFailCause(e.getMessage()).toString(), e));
+      callback.onFailure(
+          new Exception(
+              StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
+                  + "! "
+                  + e.getMessage()
+                  + ". "
+                  + location));
     }
     return totalLength;
   }

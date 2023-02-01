@@ -26,11 +26,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
+import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -123,7 +123,7 @@ class MapPartitionCommitHandler(
 
   private def handleFinalPartitionCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, PartitionLocationInfo],
+      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
       partitionId: Int): (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     // commit files
@@ -190,7 +190,7 @@ class MapPartitionCommitHandler(
     inProcessingPartitionIds.add(partitionId)
 
     val partitionAllocatedWorkers = allocatedWorkers.get(shuffleId).asScala.filter(p =>
-      p._2.containsPartition(shuffleId.toString, partitionId)).asJava
+      p._2.containsPartition(partitionId)).asJava
 
     var dataCommitSuccess = true
     if (!partitionAllocatedWorkers.isEmpty) {
@@ -205,7 +205,7 @@ class MapPartitionCommitHandler(
 
     // release resources and clear related info
     partitionAllocatedWorkers.asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removeRelatedPartitions(shuffleId.toString, partitionId)
+      partitionLocationInfo.removePartitions(partitionId)
     }
 
     inProcessingPartitionIds.remove(partitionId)
