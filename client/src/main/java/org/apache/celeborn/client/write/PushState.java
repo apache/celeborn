@@ -34,7 +34,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 public class PushState {
   class BatchInfo {
     ChannelFuture channelFuture;
-    long pushTime;
+    long pushTime = -1;
     RpcResponseCallback callback;
   }
 
@@ -74,7 +74,7 @@ public class PushState {
         .values()
         .forEach(
             info -> {
-              if (currentTime - info.pushTime > pushTimeout) {
+              if (info.pushTime != -1 && currentTime - info.pushTime > pushTimeout) {
                 if (info.callback != null) {
                   info.channelFuture.cancel(true);
                   info.callback.onFailure(
