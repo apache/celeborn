@@ -193,7 +193,8 @@ public class RemoteShuffleOutputGate {
 
   /** Indicates the writing/spilling is finished. */
   public void finish() throws InterruptedException, IOException {
-    shuffleWriteClient.mapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers);
+    shuffleWriteClient.mapPartitionMapperEnd(
+        applicationId, shuffleId, mapId, attemptId, numMappers, partitionLocation.getId());
   }
 
   /** Close the transportation gate. */

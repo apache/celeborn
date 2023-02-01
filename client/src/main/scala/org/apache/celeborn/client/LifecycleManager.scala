@@ -654,8 +654,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId,
       mapId,
       attemptId,
-      partitionId,
-      numMappers)
+      numMappers,
+      partitionId)
     reply(mapperAttemptFinishedSuccess)
   }
 

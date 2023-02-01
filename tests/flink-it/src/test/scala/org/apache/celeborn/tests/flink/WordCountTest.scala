@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature;
 

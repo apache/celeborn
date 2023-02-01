@@ -124,7 +124,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   /** Number of pending {@link EndOfData} events to be received. */
   private long pendingEndOfDataEvents;
   /** Max concurrent reader count */
-  private int numConcurrentReading;
+  private int numConcurrentReading = Integer.MAX_VALUE;
   /** Keep compatibility with streaming mode. */
   private boolean shouldDrainOnEndOfData = true;
 
@@ -395,9 +395,9 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       }
     }
 
-    for (RemoteBufferStreamReader reader : clientsToOpen) {
-      reader.open(0);
-    }
+    //    for (RemoteBufferStreamReader reader : clientsToOpen) {
+    //      reader.open(0);
+    //    }
   }
 
   private void tryRequestBuffers() {
