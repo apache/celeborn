@@ -395,9 +395,9 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       }
     }
 
-    //    for (RemoteBufferStreamReader reader : clientsToOpen) {
-    //      reader.open(0);
-    //    }
+    for (RemoteBufferStreamReader reader : clientsToOpen) {
+      reader.open(0);
+    }
   }
 
   private void tryRequestBuffers() {
