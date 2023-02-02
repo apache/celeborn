@@ -29,7 +29,7 @@ class PushdataTimeoutTest extends AnyFunSuite
   with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
+    logInfo("test initialized , setup celeborn mini cluster")
     val workerConf = Map(
       "celeborn.test.pushdataTimeout" -> s"true")
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
