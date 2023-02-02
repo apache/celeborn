@@ -164,10 +164,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          // Only master data will push data to slave
-          pushState.removeBatch(batchId, location.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
+            response.get() match {
+              case StatusCode.STAGE_ENDED.getValue | StatusCode.HARD_SPLIT.getValue =>
+              // Do nothing
+              case _ =>
+                // Only master data will push data to slave
+                pushState.removeBatch(batchId, location.hostAndPushPort())
+            }
+            response.rewind()
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
             resp.flip()
@@ -393,10 +399,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          // Only master data will push data to slave
-          pushState.removeBatch(batchId, locations.filter(_ != null).head.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
+            response.get() match {
+              case StatusCode.STAGE_ENDED.getValue | StatusCode.HARD_SPLIT.getValue =>
+              // Do nothing
+              case _ =>
+                // Only master data will push data to slave
+                pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+            }
+            response.rewind()
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
             resp.flip()
