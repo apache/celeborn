@@ -183,7 +183,7 @@ public class InFlightRequestTracker {
                         info -> {
                           // Compatible with older versions of client
                           if (info.pushDataTimeout > 0) {
-                            if (currentTime - info.pushTime > info.pushDataTimeout) {
+                            if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
                               if (info.callback != null) {
                                 info.channelFuture.cancel(true);
                                 info.callback.onFailure(
@@ -217,8 +217,7 @@ public class InFlightRequestTracker {
 
   static class BatchInfo {
     ChannelFuture channelFuture;
-    long pushTime;
-
+    long pushTime = -1;
     long pushDataTimeout;
     RpcResponseCallback callback;
   }

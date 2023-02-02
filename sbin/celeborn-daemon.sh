@@ -203,7 +203,7 @@ case $option in
         echo "stopping $command"
         kill "$TARGET_ID" && rm -f "$pid"
         wait_time=0
-        # keep same with `celeborn.worker.shutdown.timeout`
+        # keep same with `celeborn.worker.graceful.shutdown.timeout`
         wait_timeout=600
         while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
         do
