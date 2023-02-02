@@ -82,12 +82,14 @@ public class SlowStartPushStrategy extends PushStrategy {
   private static final Logger logger = LoggerFactory.getLogger(SlowStartPushStrategy.class);
 
   private final int maxInFlight;
+  private final long initialSleepMills;
   private final long maxSleepMills;
   private final ConcurrentHashMap<String, CongestControlContext> congestControlInfoPerAddress;
 
   public SlowStartPushStrategy(CelebornConf conf) {
     super(conf);
     this.maxInFlight = conf.pushMaxReqsInFlight();
+    this.initialSleepMills = conf.pushSlowStartInitialSleepTime();
     this.maxSleepMills = conf.pushSlowStartMaxSleepMills();
     this.congestControlInfoPerAddress = new ConcurrentHashMap<>();
   }
@@ -129,7 +131,7 @@ public class SlowStartPushStrategy extends PushStrategy {
       return 0;
     }
 
-    long sleepInterval = 500 - 60L * currentMaxReqs;
+    long sleepInterval = initialSleepMills - 60L * currentMaxReqs;
 
     if (currentMaxReqs == 1) {
       return Math.min(sleepInterval + context.getContinueCongestedNumber() * 1000L, maxSleepMills);

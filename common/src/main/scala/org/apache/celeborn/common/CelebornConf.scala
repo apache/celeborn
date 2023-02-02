@@ -669,6 +669,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
   def pushLimitStrategy: String = get(PUSH_LIMIT_STRATEGY)
+  def pushSlowStartInitialSleepTime: Long = get(PUSH_SLOW_START_INITIAL_SLEEP_TIME)
   def pushSlowStartMaxSleepMills: Long = get(PUSH_SLOW_START_MAX_SLEEP_TIME)
   def pushLimitInFlightTimeoutMs: Long =
     if (pushReplicateEnabled) {
@@ -2154,6 +2155,14 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("SIMPLE", "SLOWSTART"))
       .createWithDefaultString("SIMPLE")
+
+  val PUSH_SLOW_START_INITIAL_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.slowStart.initialSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"The initial sleep time if the current max in flight requests is 0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("500ms")
 
   val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
     buildConf("celeborn.push.slowStart.maxSleepTime")
