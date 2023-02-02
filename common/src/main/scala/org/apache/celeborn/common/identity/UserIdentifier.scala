@@ -26,6 +26,10 @@ case class UserIdentifier(tenantId: String, name: String) {
     "UserIdentifier's tenantId should not be null or empty.")
   assert(name != null && name.nonEmpty, "UserIdentifier's name should not be null or empty.")
 
+  def toMap: Map[String, String] = {
+    Map("tenantId" -> tenantId, "name" -> name)
+  }
+
   override def toString: String = {
     s"`$tenantId`.`$name`"
   }
