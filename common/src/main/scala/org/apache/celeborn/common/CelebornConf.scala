@@ -2163,7 +2163,7 @@ object CelebornConf extends Logging {
         "take a sleep strategy for each batch of requests, this controls " +
         "the max sleep time if the max in flight requests limit is 1 for a long time")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("2s")
 
   val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.data.timeout")
