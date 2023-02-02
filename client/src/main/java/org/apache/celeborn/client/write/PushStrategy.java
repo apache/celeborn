@@ -19,14 +19,9 @@ package org.apache.celeborn.client.write;
 
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.celeborn.common.CelebornConf;
 
 public abstract class PushStrategy {
-
-  private static final Logger logger = LoggerFactory.getLogger(PushStrategy.class);
 
   protected final CelebornConf conf;
 
@@ -47,21 +42,16 @@ public abstract class PushStrategy {
   }
 
   /** Handle the response is successful. */
-  public abstract void onSuccess();
+  public abstract void onSuccess(String hostAndPushPort);
 
   /** Handle the response is congested controlled. */
-  public abstract void onCongestControl();
+  public abstract void onCongestControl(String hostAndPushPort);
+
+  public abstract void clear();
 
   /** Control the push speed to meet the requirement. */
-  public abstract void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort)
+  public abstract void limitPushSpeed(PushState pushState, String hostAndPushPort)
       throws IOException;
 
-  public void awaitInFlightRequestsMatched(
-      String mapKey, PushState pushState, String hostAndPushPort, int limit) throws IOException {
-    boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort, limit);
-
-    if (reachLimit) {
-      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
-    }
-  }
+  public abstract int getCurrentMaxReqsInFlight(String hostAndPushPort);
 }

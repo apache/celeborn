@@ -32,18 +32,27 @@ public class SimplePushStrategy extends PushStrategy {
   }
 
   @Override
-  public void onSuccess() {
+  public void onSuccess(String hostAndPushPort) {
     // No op
   }
 
   @Override
-  public void onCongestControl() {
+  public void onCongestControl(String hostAndPushPort) {
     // No op
   }
 
   @Override
-  public void limitPushSpeed(String mapKey, PushState pushState, String hostAndPushPort)
-      throws IOException {
-    awaitInFlightRequestsMatched(mapKey, pushState, hostAndPushPort, this.maxInFlight);
+  public void clear() {
+    // No op
+  }
+
+  @Override
+  public void limitPushSpeed(PushState pushState, String hostAndPushPort) throws IOException {
+    // No op
+  }
+
+  @Override
+  public int getCurrentMaxReqsInFlight(String hostAndPushPort) {
+    return maxInFlight;
   }
 }

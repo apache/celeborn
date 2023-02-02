@@ -30,34 +30,56 @@ public class SlowStartPushStrategyTest {
   public void testSleepTime() {
     conf.set("celeborn.push.maxReqsInFlight", "32");
     conf.set("celeborn.push.limit.strategy", "slowstart");
-    conf.set("celeborn.push.slowStart.maxSleepTime", "4s");
+    conf.set("celeborn.push.slowStart.maxSleepTime", "3s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
+    String dummyHostPort = "test:9087";
+    SlowStartPushStrategy.CongestControlContext context =
+        strategy.getCongestControlContextByAddress(dummyHostPort);
 
     // If the currentReq is 0, not throw error
-    strategy.getSleepTime(0);
+    strategy.getSleepTime(context);
 
-    // If the currentReq is 1, should sleep 1940 ms
-    Assert.assertEquals(1940, strategy.getSleepTime(1));
+    // If the currentReq is 1, should sleep 440 ms
+    Assert.assertEquals(440, strategy.getSleepTime(context));
 
-    // Keep congest the requests, should increase the sleep time
-    strategy.onCongestControl();
-    Assert.assertEquals(2940, strategy.getSleepTime(1));
-    strategy.onCongestControl();
-    Assert.assertEquals(3940, strategy.getSleepTime(1));
+    // If the currentReq is 8, should sleep 20 ms
+    for (int i = 0; i < 7; i++) {
+      strategy.onSuccess(dummyHostPort);
+    }
+    Assert.assertEquals(20, strategy.getSleepTime(context));
+
+    // If the currentReq is 16, should sleep 0 ms
+    for (int i = 0; i < 8; i++) {
+      strategy.onSuccess(dummyHostPort);
+    }
+    Assert.assertEquals(0, strategy.getSleepTime(context));
+
+    // Congest the requests, the currentReq reduced to 8, should sleep 20 ms
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(20, strategy.getSleepTime(context));
+
+    // Congest the requests, the currentReq reduced to 4, should sleep 20 ms
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(260, strategy.getSleepTime(context));
+    // Congest the requests, the currentReq reduced to 2, should sleep 20 ms
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(380, strategy.getSleepTime(context));
+    // Congest the requests, the currentReq reduced to 1, should sleep 20 ms
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(440, strategy.getSleepTime(context));
+    // Keep congest the requests even the currentReq reduced to 1, will increase the sleep time 1s
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(1440, strategy.getSleepTime(context));
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(2440, strategy.getSleepTime(context));
 
     // Cannot exceed the max sleep time
-    strategy.onCongestControl();
-    Assert.assertEquals(4000, strategy.getSleepTime(1));
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(3000, strategy.getSleepTime(context));
 
-    // If not congested, should not increase the sleep time
-    strategy.onSuccess();
-    Assert.assertEquals(1940, strategy.getSleepTime(1));
-
-    // If the currentReq is 16, should sleep 1040 ms
-    Assert.assertEquals(1040, strategy.getSleepTime(16));
-
-    // If the currentReq is 32, should sleep 0 ms
-    Assert.assertEquals(0, strategy.getSleepTime(32));
+    // If start to return success, the currentReq is increased to 2, should sleep 380 ms
+    strategy.onSuccess(dummyHostPort);
+    Assert.assertEquals(380, strategy.getSleepTime(context));
   }
 
   @Test
@@ -66,37 +88,59 @@ public class SlowStartPushStrategyTest {
     conf.set("celeborn.push.limit.strategy", "slowstart");
     conf.set("celeborn.push.slowStart.maxSleepTime", "4s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
-
+    String dummyHostPort = "test:9087";
     // Slow start, should exponentially increase the currentReq
-    strategy.onSuccess();
-    Assert.assertEquals(1, strategy.getCurrentMaxReqsInFlight());
-    strategy.onSuccess();
-    Assert.assertEquals(2, strategy.getCurrentMaxReqsInFlight());
-    strategy.onSuccess();
-    strategy.onSuccess();
-    Assert.assertEquals(4, strategy.getCurrentMaxReqsInFlight());
-    strategy.onSuccess();
-    strategy.onSuccess();
-    strategy.onSuccess();
-    strategy.onSuccess();
-    Assert.assertEquals(5, strategy.getCurrentMaxReqsInFlight());
+    strategy.onSuccess(dummyHostPort);
+    Assert.assertEquals(2, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    Assert.assertEquals(4, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
 
     // Will linearly increase the currentReq if meet the maxReqsInFlight
-    strategy.onSuccess();
-    strategy.onSuccess();
-    strategy.onSuccess();
-    strategy.onSuccess();
-    strategy.onSuccess();
-    Assert.assertEquals(6, strategy.getCurrentMaxReqsInFlight());
+    Assert.assertEquals(5, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    strategy.onSuccess(dummyHostPort);
+    Assert.assertEquals(6, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
 
     // Congest controlled, should half the currentReq
-    strategy.onCongestControl();
-    Assert.assertEquals(3, strategy.getCurrentMaxReqsInFlight());
-    strategy.onCongestControl();
-    Assert.assertEquals(1, strategy.getCurrentMaxReqsInFlight());
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(3, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(1, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
 
     // Cannot lower than 1
-    strategy.onCongestControl();
-    Assert.assertEquals(1, strategy.getCurrentMaxReqsInFlight());
+    strategy.onCongestControl(dummyHostPort);
+    Assert.assertEquals(1, strategy.getCurrentMaxReqsInFlight(dummyHostPort));
+  }
+
+  @Test
+  public void testMultiHosts() {
+    conf.set("celeborn.push.maxReqsInFlight", "3");
+    conf.set("celeborn.push.limit.strategy", "slowstart");
+    conf.set("celeborn.push.slowStart.maxSleepTime", "3s");
+    SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
+    String dummyHostPort1 = "test1:9087";
+    String dummyHostPort2 = "test2:9087";
+    SlowStartPushStrategy.CongestControlContext context1 =
+        strategy.getCongestControlContextByAddress(dummyHostPort1);
+    SlowStartPushStrategy.CongestControlContext context2 =
+        strategy.getCongestControlContextByAddress(dummyHostPort2);
+
+    Assert.assertEquals(440, strategy.getSleepTime(context1));
+    Assert.assertEquals(440, strategy.getSleepTime(context2));
+
+    // Control the dummyHostPort1, should not affect dummyHostPort2
+    for (int i = 0; i < 3; i++) {
+      strategy.onSuccess(dummyHostPort1);
+    }
+    Assert.assertEquals(0, strategy.getSleepTime(context1));
+    Assert.assertEquals(440, strategy.getSleepTime(context2));
   }
 }

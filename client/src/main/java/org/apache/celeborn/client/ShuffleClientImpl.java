@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
-import org.apache.celeborn.client.write.PushSpeedStrategy;
+import org.apache.celeborn.client.write.PushStrategy;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -86,7 +86,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final long registerShuffleRetryWaitMs;
   private int maxReviveTimes;
   private boolean testRetryRevive;
-  private final PushStrategy pushStrategy;
   private final int pushBufferMaxSize;
   private final long pushDataTimeout;
 
@@ -143,7 +142,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
     maxReviveTimes = conf.pushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
-    pushStrategy = PushStrategy.getStrategy(conf);
     pushBufferMaxSize = conf.pushBufferMaxSize();
     if (conf.pushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
@@ -414,17 +412,21 @@ public class ShuffleClientImpl extends ShuffleClient {
     return null;
   }
 
-  private void awaitAllInflightFinished(String mapKey, PushState pushState) throws IOException {
-    boolean reachLimit = pushState.limitZeroInFlight();
+  private void limitMaxInFlight(String mapKey, PushState pushState, String hostAndPushPort)
+      throws IOException {
+    boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort);
 
     if (reachLimit) {
       throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
   }
 
-  private void limitMaxInFlight(String mapKey, PushState pushState, String hostAndPushPort)
-      throws IOException {
-    pushStrategy.limitPushSpeed(mapKey, pushState, hostAndPushPort);
+  private void limitZeroInFlight(String mapKey, PushState pushState) throws IOException {
+    boolean reachLimit = pushState.limitZeroInFlight();
+
+    if (reachLimit) {
+      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
+    }
   }
 
   private boolean waitRevivedLocation(
@@ -681,7 +683,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, applicationId, loc);
-                  pushStrategy.onSuccess();
+                  pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
@@ -709,7 +711,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       nextBatchId);
-                  pushStrategy.onCongestControl();
+                  pushState.onCongestControl(nextBatchId, loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                   logger.debug(
@@ -717,15 +719,15 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       nextBatchId);
-                  pushStrategy.onCongestControl();
+                  pushState.onCongestControl(nextBatchId, loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else {
                   response.rewind();
-                  pushStrategy.onSuccess();
+                  pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
                   callback.onSuccess(response);
                 }
               } else {
-                pushStrategy.onSuccess();
+                pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
                 callback.onSuccess(response);
               }
             }
@@ -895,7 +897,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.get(mapKey);
     if (pushState != null) {
-      awaitAllInflightFinished(mapKey, pushState);
+      limitZeroInFlight(mapKey, pushState);
     }
   }
 
@@ -1066,7 +1068,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     mapId,
                     attemptId,
                     Arrays.toString(batchIds));
-                pushStrategy.onCongestControl();
+                pushState.onCongestControl(groupedBatchId, hostPort);
                 callback.onSuccess(response);
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                 logger.debug(
@@ -1074,17 +1076,17 @@ public class ShuffleClientImpl extends ShuffleClient {
                     mapId,
                     attemptId,
                     Arrays.toString(batchIds));
-                pushStrategy.onCongestControl();
+                pushState.onCongestControl(groupedBatchId, hostPort);
                 callback.onSuccess(response);
               } else {
                 // Should not happen in current architecture.
                 response.rewind();
                 logger.error("Push merged data should not receive this response");
-                pushStrategy.onSuccess();
+                pushState.onSuccess(groupedBatchId, hostPort);
                 callback.onSuccess(response);
               }
             } else {
-              pushStrategy.onSuccess();
+              pushState.onSuccess(groupedBatchId, hostPort);
               callback.onSuccess(response);
             }
           }
@@ -1191,7 +1193,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     PushState pushState = getPushState(mapKey);
 
     try {
-      awaitAllInflightFinished(mapKey, pushState);
+      limitZeroInFlight(mapKey, pushState);
 
       MapperEndResponse response =
           driverRssMetaService.askSync(
@@ -1539,7 +1541,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // makesure that messages have been sent by old client, in order to keep receiving data
       // orderly
       if (currentClient != null) {
-        awaitAllInflightFinished(mapKey, pushState);
+        limitZeroInFlight(mapKey, pushState);
       }
       currentClient = client;
     }
@@ -1713,7 +1715,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
       pushState = getPushState(mapKey);
       // force data has been send
-      awaitAllInflightFinished(mapKey, pushState);
+      limitZeroInFlight(mapKey, pushState);
 
       // add inFlight requests
       batchId = pushState.nextBatchId();
