@@ -91,7 +91,7 @@ public class InFlightRequestTracker {
         if (pushState.exception.get() != null) {
           throw pushState.exception.get();
         }
-        failExpiredBatch();
+        failExpiredBatch(true);
         Thread.sleep(delta);
         times--;
       }
@@ -136,7 +136,7 @@ public class InFlightRequestTracker {
         if (pushState.exception.get() != null) {
           throw pushState.exception.get();
         }
-        failExpiredBatch();
+        failExpiredBatch(true);
         Thread.sleep(delta);
         times--;
       }
@@ -171,7 +171,12 @@ public class InFlightRequestTracker {
     return batchId.incrementAndGet();
   }
 
-  public synchronized void failExpiredBatch() {
+  /**
+   * Trigger expired push request.
+   *
+   * @param isMaster When true means push data, when false means replicate data.
+   */
+  public synchronized void failExpiredBatch(boolean isMaster) {
     long currentTime = System.currentTimeMillis();
     inflightBatchesPerAddress
         .values()
@@ -187,8 +192,15 @@ public class InFlightRequestTracker {
                                 && (currentTime - info.pushTime > info.pushDataTimeout)) {
                               if (info.callback != null) {
                                 info.channelFuture.cancel(true);
-                                info.callback.onFailure(
-                                    new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));
+                                if (isMaster) {
+                                  info.callback.onFailure(
+                                      new IOException(
+                                          StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+                                } else {
+                                  info.callback.onFailure(
+                                      new IOException(
+                                          StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+                                }
                                 info.channelFuture = null;
                                 info.callback = null;
                               }

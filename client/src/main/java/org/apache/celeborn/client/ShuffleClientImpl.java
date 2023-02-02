@@ -1436,14 +1436,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage())) {
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage())) {
-      // Should behind PUSH_DATA_TIMEOUT
       cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
     } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage())) {
-      // Should behind PUSH_DATA_TIMEOUT
       cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
-      // Convert PUSH_DATA_TIMEOUT to PUSH_DATA_TIMEOUT_MASTER in client side.
-      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;

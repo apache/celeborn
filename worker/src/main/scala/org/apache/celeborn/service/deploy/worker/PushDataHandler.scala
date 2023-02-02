@@ -81,7 +81,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     shutdown = worker.shutdown
     conf = worker.conf
     pushState = new PushState(conf)
-    pushState.startChecker()
+    pushState.startChecker(false)
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -192,8 +192,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
           callback.onFailure(e)
-        } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage)) {
-          // Convert PUSH_DATA_TIMEOUT to PUSH_DATA_TIMEOUT_SLAVE in worker side.
+        } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage)) {
           callback.onFailure(new Exception(
             s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of $location timeout: ${e.getMessage}",
             e))
@@ -419,8 +418,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
           callback.onFailure(e)
-        } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage)) {
-          // Convert PUSH_DATA_TIMEOUT to PUSH_DATA_TIMEOUT_SLAVE in worker side.
+        } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage)) {
           callback.onFailure(new Exception(
             s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${locations.head} timeout: ${e.getMessage}",
             e))

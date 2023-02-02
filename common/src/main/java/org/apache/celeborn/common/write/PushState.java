@@ -117,13 +117,13 @@ public class PushState {
     return inFlightRequestTracker.reachLimit(hostAndPushPort, maxInFlight);
   }
 
-  public void startChecker() {
+  public void startChecker(boolean isMaster) {
     pushTimeoutChecker = ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker");
     pushTimeoutChecker.scheduleAtFixedRate(
         new Runnable() {
           @Override
           public void run() {
-            inFlightRequestTracker.failExpiredBatch();
+            inFlightRequestTracker.failExpiredBatch(isMaster);
           }
         },
         pushTimeoutCheckerInterval,
