@@ -183,7 +183,8 @@ public class InFlightRequestTracker {
                         info -> {
                           // Compatible with older versions of client
                           if (info.pushDataTimeout > 0) {
-                            if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
+                            if (info.pushTime != -1
+                                && (currentTime - info.pushTime > info.pushDataTimeout)) {
                               if (info.callback != null) {
                                 info.channelFuture.cancel(true);
                                 info.callback.onFailure(
