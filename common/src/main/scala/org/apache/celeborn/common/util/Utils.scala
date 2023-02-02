@@ -499,6 +499,9 @@ object Utils extends Logging {
     val numThreads = defaultNumThreads(numUsableCores)
     conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
     conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    // TODO remove after releasing 0.2.0
+    conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
+    conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
 
     new TransportConf(module, conf)
   }
