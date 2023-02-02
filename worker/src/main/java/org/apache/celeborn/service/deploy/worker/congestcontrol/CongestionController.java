@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.ratelimit;
+package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -31,10 +31,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 
-public class RateLimitController {
+public class CongestionController {
 
-  private static final Logger logger = LoggerFactory.getLogger(RateLimitController.class);
-  private static volatile RateLimitController _INSTANCE = null;
+  private static final Logger logger = LoggerFactory.getLogger(CongestionController.class);
+  private static volatile CongestionController _INSTANCE = null;
 
   private final int sampleTimeWindowSeconds;
   private final long highWatermark;
@@ -43,25 +43,24 @@ public class RateLimitController {
 
   private final AtomicBoolean overHighWatermark = new AtomicBoolean(false);
 
-  private final BufferStatusHub totalBufferStatusHub;
+  private final BufferStatusHub consumedBufferStatusHub;
 
   private final ConcurrentHashMap<UserIdentifier, UserBufferInfo> userBufferStatuses;
 
   private final ScheduledExecutorService removeUserExecutorService;
 
-  protected RateLimitController(
+  protected CongestionController(
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
-      long userInactiveTimeMills,
-      long checkInterval) {
+      long userInactiveTimeMills) {
     assert (highWatermark > lowWatermark);
 
     this.sampleTimeWindowSeconds = sampleTimeWindowSeconds;
     this.highWatermark = highWatermark;
     this.lowWatermark = lowWatermark;
     this.userInactiveTimeMills = userInactiveTimeMills;
-    this.totalBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
+    this.consumedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.userBufferStatuses = new ConcurrentHashMap<>();
 
     this.removeUserExecutorService =
@@ -73,29 +72,24 @@ public class RateLimitController {
             });
 
     this.removeUserExecutorService.scheduleWithFixedDelay(
-        this::removeInactiveUsers, 0, checkInterval, TimeUnit.SECONDS);
+        this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.SECONDS);
   }
 
-  public static synchronized RateLimitController initialize(
+  public static synchronized CongestionController initialize(
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
-      long userInactiveTimeMills,
-      long checkInterval) {
+      long userInactiveTimeMills) {
     if (_INSTANCE == null) {
       _INSTANCE =
-          new RateLimitController(
-              sampleTimeWindowSeconds,
-              highWatermark,
-              lowWatermark,
-              userInactiveTimeMills,
-              checkInterval);
+          new CongestionController(
+              sampleTimeWindowSeconds, highWatermark, lowWatermark, userInactiveTimeMills);
     }
 
     return _INSTANCE;
   }
 
-  public static RateLimitController instance() {
+  public static CongestionController instance() {
     return _INSTANCE;
   }
 
@@ -148,7 +142,7 @@ public class RateLimitController {
     }
 
     if (overHighWatermark.get()) {
-      MemoryManager.instance().trimAllListeners();
+      trimMemoryUsage();
       pendingConsumed = getTotalPendingBytes();
 
       if (pendingConsumed < lowWatermark && overHighWatermark.compareAndSet(true, false)) {
@@ -182,7 +176,7 @@ public class RateLimitController {
     return false;
   }
 
-  public void incrementBytes(UserIdentifier userIdentifier, int numBytes) {
+  public void produceBytes(UserIdentifier userIdentifier, int numBytes) {
     long currentTimeMillis = System.currentTimeMillis();
     UserBufferInfo userBufferInfo =
         userBufferStatuses.computeIfAbsent(
@@ -197,14 +191,18 @@ public class RateLimitController {
     userBufferInfo.updateInfo(currentTimeMillis, node);
   }
 
-  public void decrementBytes(int numBytes) {
+  public void consumeBytes(int numBytes) {
     long currentTimeMillis = System.currentTimeMillis();
     BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes);
-    totalBufferStatusHub.add(currentTimeMillis, node);
+    consumedBufferStatusHub.add(currentTimeMillis, node);
   }
 
   public long getTotalPendingBytes() {
     return MemoryManager.instance().getMemoryUsage();
+  }
+
+  public void trimMemoryUsage() {
+    MemoryManager.instance().trimAllListeners();
   }
 
   public long getPotentialConsumeSpeed() {
@@ -212,7 +210,7 @@ public class RateLimitController {
       return 0;
     }
 
-    BufferStatusHub.BufferStatusNode totalBufferStatus = totalBufferStatusHub.sum();
+    BufferStatusHub.BufferStatusNode totalBufferStatus = consumedBufferStatusHub.sum();
     // The potential consume speed in average
     return totalBufferStatus.numBytes()
         / ((long) sampleTimeWindowSeconds * userBufferStatuses.size());
@@ -243,7 +241,7 @@ public class RateLimitController {
   public void close() {
     this.removeUserExecutorService.shutdownNow();
     this.userBufferStatuses.clear();
-    this.totalBufferStatusHub.clear();
+    this.consumedBufferStatusHub.clear();
   }
 
   public static synchronized void destroy() {

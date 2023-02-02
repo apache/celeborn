@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.ratelimit;
+package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.celeborn.common.util.collection.TimeSlidingHub;
 
 public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatusNode> {
 
@@ -38,13 +36,13 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
     @Override
     public void combineNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      this.numBytes.addAndGet(needToCombined.numBytes.get());
+      numBytes.addAndGet(needToCombined.numBytes.get());
     }
 
     @Override
     public void separateNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      this.numBytes.addAndGet(-needToCombined.numBytes.get());
+      numBytes.addAndGet(-needToCombined.numBytes.get());
     }
 
     @Override
@@ -53,7 +51,7 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
     }
 
     public long numBytes() {
-      return this.numBytes.get();
+      return numBytes.get();
     }
 
     @Override

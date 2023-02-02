@@ -27,14 +27,13 @@ import scala.util.Random
 
 import io.netty.buffer.{CompositeByteBuf, Unpooled}
 
-import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.DiskStatus
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.memory.MemoryManager
-import org.apache.celeborn.common.network.server.ratelimit.RateLimitController
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.service.deploy.worker.WorkerSource
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
@@ -144,9 +143,9 @@ abstract private[worker] class Flusher(
 
   def returnBuffer(buffer: CompositeByteBuf): Unit = {
     MemoryManager.instance().releaseDiskBuffer(buffer.readableBytes())
-    Option(RateLimitController.instance())
+    Option(CongestionController.instance())
       .foreach(
-        _.decrementBytes(buffer.readableBytes()))
+        _.consumeBytes(buffer.readableBytes()))
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 

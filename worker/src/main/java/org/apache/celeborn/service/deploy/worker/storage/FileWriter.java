@@ -38,12 +38,12 @@ import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
-import org.apache.celeborn.common.network.server.ratelimit.RateLimitController;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -186,10 +186,10 @@ public abstract class FileWriter implements DeviceObserver {
     final int numBytes = data.readableBytes();
     MemoryManager.instance().incrementDiskBuffer(numBytes);
 
-    Optional.ofNullable(RateLimitController.instance())
+    Optional.ofNullable(CongestionController.instance())
         .ifPresent(
-            rateLimitController ->
-                rateLimitController.incrementBytes(fileInfo.getUserIdentifier(), numBytes));
+            congestionController ->
+                congestionController.produceBytes(fileInfo.getUserIdentifier(), numBytes));
 
     synchronized (this) {
       if (closed) {

@@ -40,13 +40,13 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSo
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.server.ChannelsLimiter
 import org.apache.celeborn.common.network.server.memory.MemoryManager
-import org.apache.celeborn.common.network.server.ratelimit.RateLimitController
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
@@ -104,20 +104,19 @@ private[celeborn] class Worker(
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
 
-  if (conf.workerRateLimitEnabled) {
-    if (conf.workerRateLimitLowWatermark.isEmpty || conf.workerRateLimitHighWatermark.isEmpty) {
+  if (conf.workerCongestionControlEnabled) {
+    if (conf.workerCongestionControlLowWatermark.isEmpty || conf.workerCongestionControlHighWatermark.isEmpty) {
       throw new IllegalArgumentException("High watermark and low watermark must be set" +
         " when enabling rate limit")
     }
 
-    RateLimitController.initialize(
-      conf.workerRateLimitSampleTimeWindowSeconds.toInt,
-      conf.workerRateLimitHighWatermark.get,
-      conf.workerRateLimitLowWatermark.get,
-      conf.workerRateLimitUserInactiveIntervalMs,
-      conf.workerRateLimitCheckUserStatusIntervalSeconds)
+    CongestionController.initialize(
+      conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
+      conf.workerCongestionControlHighWatermark.get,
+      conf.workerCongestionControlLowWatermark.get,
+      conf.workerCongestionControlUserInactiveIntervalMs)
 
-    val rateLimitController = RateLimitController.instance()
+    val rateLimitController = CongestionController.instance()
     workerSource.addGauge(
       WorkerSource.PotentialConsumeSpeed,
       _ => rateLimitController.getPotentialConsumeSpeed)

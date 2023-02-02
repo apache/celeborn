@@ -34,11 +34,11 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse}
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
-import org.apache.celeborn.common.network.server.ratelimit.RateLimitController
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.PackedPartitionId
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.common.write.PushState
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
@@ -338,7 +338,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      Option(RateLimitController.instance()) match {
+      Option(CongestionController.instance()) match {
         case Some(rateLimitController) =>
           if (rateLimitController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
             if (isMaster) {
@@ -576,7 +576,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      Option(RateLimitController.instance()) match {
+      Option(CongestionController.instance()) match {
         case Some(rateLimitController) if fileWriters.nonEmpty =>
           if (rateLimitController.isUserCongested(fileWriters.head.getFileInfo.getUserIdentifier)) {
             if (isMaster) {

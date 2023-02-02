@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util.collection;
+package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

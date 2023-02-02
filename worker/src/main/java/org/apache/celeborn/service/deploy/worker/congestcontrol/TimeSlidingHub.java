@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util.collection;
+package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -25,7 +25,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * A time sliding list that group different {@link TimeSlidingNode} with corresponding timestamp by
- * exact interval 1 second. Internally hold a {@link sumValue} to get the sum of the nodes in the
+ * exact interval 1 second. Internally hold a {@link sumNode} to get the sum of the nodes in the
  * list.
  *
  * <p>This list is thread-safe, but {@link TimeSlidingNode} returned by the method {@link sum}
@@ -52,14 +52,12 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
   // 1 second.
   private final int intervalPerBucketInMills = 1000;
-  private final long timeWindowsInSecs;
   private final int maxQueueSize;
   private N sumNode;
 
   private final LinkedBlockingDeque<Pair<Long, N>> _deque;
 
   public TimeSlidingHub(int timeWindowsInSecs) {
-    this.timeWindowsInSecs = timeWindowsInSecs;
     this._deque = new LinkedBlockingDeque<>();
     this.maxQueueSize = timeWindowsInSecs * 1000 / intervalPerBucketInMills;
     this.sumNode = newEmptyNode();
