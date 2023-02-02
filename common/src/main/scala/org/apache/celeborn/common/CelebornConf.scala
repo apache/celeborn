@@ -687,6 +687,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
+  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL).getOrElse(pushDataTimeoutMs / 2)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
@@ -838,7 +839,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushMasterDataTimeout: Boolean = get(TEST_PUSH_MASTER_DATA_TIMEOUT)
   def testPushSlaveDataTimeout: Boolean = get(TEST_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
-  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
 }
 
 object CelebornConf extends Logging {
@@ -1302,13 +1302,13 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
+  val PUSH_TIMEOUT_CHECK_INTERVAL: OptionalConfigEntry[Long] =
     buildConf("celeborn.push.timeoutCheck.interval")
       .categories("common")
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("3s")
+      .createOptional
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
