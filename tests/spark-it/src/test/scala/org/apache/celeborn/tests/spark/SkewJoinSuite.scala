@@ -41,8 +41,8 @@ class SkewJoinSuite extends AnyFunSuite
 
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.rss.master.address", masterInfo._1.rpcEnv.address.toString)
-      .set("spark.rss.shuffle.split.threshold", "10MB")
+      .set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
+      .set("celeborn.shuffle.partitionSplit.threshold", "10MB")
   }
 
   CompressionCodec.values.foreach { codec =>

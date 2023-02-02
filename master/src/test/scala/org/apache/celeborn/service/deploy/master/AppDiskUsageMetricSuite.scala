@@ -62,8 +62,8 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     Thread.sleep(5000)
 
     val conf = new CelebornConf()
-    conf.set("rss.metrics.app.topDiskUsage.windowSize", "5")
-    conf.set("rss.metrids.app.topDiskUsage.interval", "2s")
+    conf.set("celeborn.metrics.app.topDiskUsage.windowSize", "5")
+    conf.set("celeborn.metrics.app.topDiskUsage.interval", "2s")
     val usageMetric = new AppDiskUsageMetric(conf)
 
     val map1 = new util.HashMap[String, java.lang.Long]()
