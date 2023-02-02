@@ -41,8 +41,7 @@ class ShuffleFallbackSuite extends AnyFunSuite
 
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.rss.master.address", masterInfo._1.rpcEnv.address.toString)
-      .set("spark.rss.shuffle.split.threshold", "10MB")
+      .set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
   }
 
   test(s"celeborn spark integration test - fallback") {
@@ -53,7 +52,6 @@ class ShuffleFallbackSuite extends AnyFunSuite
     enableRss(sparkConf)
 
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    import sparkSession.implicits._
     val df = sparkSession.sparkContext.parallelize(1 to 120000, 8)
       .repartition(100)
     df.collect()
