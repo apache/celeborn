@@ -20,7 +20,6 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.application.heartbeat.timeout | 120s | Application heartbeat timeout. | 0.2.0 | 
-| celeborn.compute.userResourceConsumption.interval | 30s | Time length for a window about compute user resource consumption. | 0.3.0 | 
 | celeborn.ha.enabled | false | When true, master nodes run as Raft cluster mode. | 0.2.0 | 
 | celeborn.ha.master.node.&lt;id&gt;.host | &lt;required&gt; | Host to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.ha.master.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.2.0 | 
@@ -39,6 +38,7 @@ license: |
 | celeborn.metrics.enabled | true | When true, enable metrics system. | 0.2.0 | 
 | celeborn.metrics.sample.rate | 1.0 | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | The sliding window size of timer metric. | 0.2.0 | 
+| celeborn.metrics.userResourceConsumption.update.interval | 30s | Time length for a window about compute user resource consumption. | 0.3.0 | 
 | celeborn.shuffle.estimatedPartitionSize.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.2.0 | 
 | celeborn.shuffle.estimatedPartitionSize.update.interval | 10min | Interval of updating partition size for estimation. | 0.2.0 | 
 | celeborn.shuffle.initialEstimatedPartitionSize | 64mb | Initial partition size for estimation, it will change according to runtime stats. | 0.2.0 | 
