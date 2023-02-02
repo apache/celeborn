@@ -638,6 +638,7 @@ private[celeborn] class Master(
           workerInfo.userResourceConsumption.asScala.get(userIdentifier)
         }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
         userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
+        newResourceConsumption
       } else {
         resourceConsumptionAndUpdateTime._1
       }
@@ -646,6 +647,7 @@ private[celeborn] class Master(
         workerInfo.userResourceConsumption.asScala.get(userIdentifier)
       }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
       userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
+      newResourceConsumption
     }
   }
 
@@ -654,7 +656,7 @@ private[celeborn] class Master(
       context: RpcCallContext): Unit = {
 
     resourceConsumptionSource.addGauge(
-      "diskFIleCount",
+      "diskFileCount",
       _ => computeUserResourceConsumption(userIdentifier).diskFileCount,
       userIdentifier.toMap)
     resourceConsumptionSource.addGauge(

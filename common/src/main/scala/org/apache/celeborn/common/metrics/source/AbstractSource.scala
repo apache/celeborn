@@ -78,11 +78,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     }
   }
 
-  def addGauge[T](name: String, gauge: Gauge[T]): Unit =
-    addGauge(name, gauge, Map.empty[String, String])
-
-  def addGauge[T](name: String, gauge: Gauge[T], labels: Map[String, String]): Unit = {
-    namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
+  def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
+    namedGauges.add(NamedGauge(name, gauge, Map(roleLabel)))
   }
 
   protected val namedTimers =
