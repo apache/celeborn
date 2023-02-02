@@ -97,7 +97,7 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
-  private val computeResourceConsumptionInterval = conf.computeResourceConsumptionInterval
+  private val metricsResourceConsumptionInterval = conf.metricsResourceConsumptionInterval
   private val userResourceConsumptions =
     new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
@@ -633,7 +633,7 @@ private[celeborn] class Master(
     val current = System.currentTimeMillis()
     if (userResourceConsumptions.containsKey(userIdentifier)) {
       val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 > computeResourceConsumptionInterval) {
+      if (current - resourceConsumptionAndUpdateTime._2 > metricsResourceConsumptionInterval) {
         val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
           workerInfo.userResourceConsumption.asScala.get(userIdentifier)
         }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)

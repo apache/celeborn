@@ -482,7 +482,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
   def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
-  def computeResourceConsumptionInterval: Long = get(COMPUTE_RESOURCE_CONSUMPTION_INTERVAL)
+  def metricsResourceConsumptionInterval: Long = get(METRICS_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -2111,8 +2111,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10min")
 
-  val COMPUTE_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.compute.userResourceConsumption.interval")
+  val METRICS_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.userResourceConsumption.update.interval")
       .categories("master")
       .doc("Time length for a window about compute user resource consumption.")
       .version("0.3.0")
