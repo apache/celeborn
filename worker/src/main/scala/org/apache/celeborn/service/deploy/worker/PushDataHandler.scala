@@ -164,16 +164,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
+          // Only master data will push data to slave
+          pushState.removeBatch(batchId, location.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
-            response.get() match {
-              case StatusCode.STAGE_ENDED.getValue | StatusCode.HARD_SPLIT.getValue =>
-              // Do nothing
-              case _ =>
-                // Only master data will push data to slave
-                pushState.removeBatch(batchId, location.hostAndPushPort())
-            }
-            response.rewind()
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
             resp.flip()
@@ -222,12 +216,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           // partition data has already been committed
           logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
             s" attempt $attemptId), but this mapper has already been ended.")
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
         } else {
           logInfo(
             s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
               s"map $mapId attempt $attemptId)")
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         }
       } else {
         if (storageManager.shuffleKeySet().contains(shuffleKey)) {
@@ -399,16 +393,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
+          // Only master data will push data to slave
+          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
-            response.get() match {
-              case StatusCode.STAGE_ENDED.getValue | StatusCode.HARD_SPLIT.getValue =>
-              // Do nothing
-              case _ =>
-                // Only master data will push data to slave
-                pushState.removeBatch(batchId, locations.head.hostAndPushPort())
-            }
-            response.rewind()
             val resp = ByteBuffer.allocate(response.remaining())
             resp.put(response)
             resp.flip()
@@ -425,7 +413,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
         if (isMaster) {
-          pushState.removeBatch(batchId, locations.filter(_ != null).head.hostAndPushPort())
+          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
         }
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
@@ -457,12 +445,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               s"Receive push merged data from speculative task(shuffle $shuffleKey, map $mapId," +
                 s" attempt $attemptId), but this mapper has already been ended."
             logInfo(msg)
-            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
           } else {
             logInfo(
               s"Receive push merged data for committed hard split partition of (shuffle $shuffleKey, " +
                 s"map $mapId attempt $attemptId)")
-            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           }
         } else {
           if (storageManager.shuffleKeySet().contains(shuffleKey)) {
@@ -472,7 +460,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             logInfo(
               s"Receive push merged data for committed hard split partition of (shuffle $shuffleKey, " +
                 s"map $mapId attempt $attemptId)")
-            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           } else {
             val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
               s" attempt $attemptId, uniqueId ${loc.getUniqueId})."
