@@ -31,7 +31,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, RPCSource}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -97,6 +97,9 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
+  private val metricsResourceConsumptionInterval = conf.metricsResourceConsumptionInterval
+  private val userResourceConsumptions =
+    new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   // States
   private def workersSnapShot: util.List[WorkerInfo] =
@@ -128,6 +131,7 @@ private[celeborn] class Master(
 
   // init and register master metrics
   val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
+  val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
   masterSource.addGauge(
     MasterSource.RegisteredShuffleCount,
@@ -624,12 +628,51 @@ private[celeborn] class Master(
     context.reply(OneWayMessageResponse)
   }
 
+  private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
+      : ResourceConsumption = {
+    val current = System.currentTimeMillis()
+    if (userResourceConsumptions.containsKey(userIdentifier)) {
+      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
+      if (current - resourceConsumptionAndUpdateTime._2 > metricsResourceConsumptionInterval) {
+        val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
+          workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+        }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+        userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
+        newResourceConsumption
+      } else {
+        resourceConsumptionAndUpdateTime._1
+      }
+    } else {
+      val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
+        workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+      }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
+      newResourceConsumption
+    }
+  }
+
   private def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-    val userResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
-      workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
+
+    resourceConsumptionSource.addGauge(
+      "diskFileCount",
+      _ => computeUserResourceConsumption(userIdentifier).diskFileCount,
+      userIdentifier.toMap)
+    resourceConsumptionSource.addGauge(
+      "diskBytesWritten",
+      _ => computeUserResourceConsumption(userIdentifier).diskBytesWritten,
+      userIdentifier.toMap)
+    resourceConsumptionSource.addGauge(
+      "hdfsFileCount",
+      _ => computeUserResourceConsumption(userIdentifier).hdfsFileCount,
+      userIdentifier.toMap)
+    resourceConsumptionSource.addGauge(
+      "hdfsBytesWritten",
+      _ => computeUserResourceConsumption(userIdentifier).hdfsBytesWritten,
+      userIdentifier.toMap)
+
+    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     val quota = quotaManager.getQuota(userIdentifier)
     val (isAvailable, reason) =
       quota.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)

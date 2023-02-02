@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.common.metrics.source
 
-import java.util.List;
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.metrics.MetricsSystem
 
-import io.netty.buffer.ByteBuf;
-
-// Do not execute blocking task here.
-public interface ReadBufferListener {
-  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
+class ResourceConsumptionSource(conf: CelebornConf)
+  extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) with Logging {
+  override val sourceName = "ResourceConsumption"
 }

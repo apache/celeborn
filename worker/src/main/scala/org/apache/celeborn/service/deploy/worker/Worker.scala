@@ -24,7 +24,6 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -47,7 +46,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
-import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
     override val conf: CelebornConf,
@@ -410,19 +409,22 @@ private[celeborn] class Worker(
     // If worker register still failed after retry, throw exception to stop worker process
     throw new CelebornException("Register worker failed.", exception)
   }
-
-  private def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
+  @VisibleForTesting
+  def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
         fileWriter.destroy(new IOException(
           s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
+        removeExpiredWorkingDirWriters(fileWriter)
       }
       partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
         val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
         fileWriter.destroy(new IOException(
           s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
+        removeExpiredWorkingDirWriters(fileWriter)
       }
+
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
@@ -434,6 +436,16 @@ private[celeborn] class Worker(
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
     storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+  }
+
+  @VisibleForTesting
+  def removeExpiredWorkingDirWriters(fileWriter: FileWriter): Unit = {
+    // filepath is dir/appId/shuffleId/filename
+    val dir = fileWriter.getFile.getParentFile.getParentFile.getParentFile
+    storageManager.workingDirWriters.asScala.get(dir).map(f =>
+      f.synchronized {
+        f.remove(fileWriter)
+      })
   }
 
   override def getWorkerInfo: String = workerInfo.toString()
