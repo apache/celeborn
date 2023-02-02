@@ -260,8 +260,8 @@ public class RssShuffleManager implements ShuffleManager {
     return SparkUtils.getReader(
         sortShuffleManager(),
         handle,
-        0,
-        Integer.MAX_VALUE,
+        startMapIndex,
+        endMapIndex,
         startPartition,
         endPartition,
         context,
