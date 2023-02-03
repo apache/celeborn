@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.write;
+package org.apache.celeborn.common.write;
 
 import java.io.IOException;
 import java.util.Map;
@@ -38,7 +38,6 @@ public class InFlightRequestTracker {
   private static final Logger logger = LoggerFactory.getLogger(InFlightRequestTracker.class);
 
   private final long waitInflightTimeoutMs;
-  private final long pushTimeoutMs;
   private final long delta;
   private final PushState pushState;
 
@@ -48,7 +47,6 @@ public class InFlightRequestTracker {
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
-    this.pushTimeoutMs = conf.pushDataTimeoutMs();
     this.delta = conf.pushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
   }
@@ -91,7 +89,7 @@ public class InFlightRequestTracker {
         if (pushState.exception.get() != null) {
           throw pushState.exception.get();
         }
-        failExpiredBatch();
+        failExpiredBatch(true);
         Thread.sleep(delta);
         times--;
       }
@@ -136,7 +134,7 @@ public class InFlightRequestTracker {
         if (pushState.exception.get() != null) {
           throw pushState.exception.get();
         }
-        failExpiredBatch();
+        failExpiredBatch(true);
         Thread.sleep(delta);
         times--;
       }
@@ -171,7 +169,12 @@ public class InFlightRequestTracker {
     return batchId.incrementAndGet();
   }
 
-  public synchronized void failExpiredBatch() {
+  /**
+   * Trigger expired push request.
+   *
+   * @param isMaster When true means push data, when false means replicate data.
+   */
+  public synchronized void failExpiredBatch(boolean isMaster) {
     long currentTime = System.currentTimeMillis();
     inflightBatchesPerAddress
         .values()
@@ -181,14 +184,24 @@ public class InFlightRequestTracker {
                     .values()
                     .forEach(
                         info -> {
-                          if (info.pushTime != -1
-                              && (currentTime - info.pushTime > pushTimeoutMs)) {
-                            if (info.callback != null) {
-                              info.channelFuture.cancel(true);
-                              info.callback.onFailure(
-                                  new IOException(StatusCode.PUSH_DATA_TIMEOUT.getMessage()));
-                              info.channelFuture = null;
-                              info.callback = null;
+                          // Compatible with older versions of client
+                          if (info.pushDataTimeout > 0) {
+                            if (info.pushTime != -1
+                                && (currentTime - info.pushTime > info.pushDataTimeout)) {
+                              if (info.callback != null) {
+                                info.channelFuture.cancel(true);
+                                if (isMaster) {
+                                  info.callback.onFailure(
+                                      new IOException(
+                                          StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+                                } else {
+                                  info.callback.onFailure(
+                                      new IOException(
+                                          StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+                                }
+                                info.channelFuture = null;
+                                info.callback = null;
+                              }
                             }
                           }
                         }));
@@ -216,6 +229,7 @@ public class InFlightRequestTracker {
   static class BatchInfo {
     ChannelFuture channelFuture;
     long pushTime = -1;
+    long pushDataTimeout;
     RpcResponseCallback callback;
   }
 }

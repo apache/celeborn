@@ -322,6 +322,7 @@ message PbReserveSlots {
   int32 partitionType = 7;
   bool rangeReadFilter = 8;
   PbUserIdentifier userIdentifier = 9;
+  int64 pushDataTimeout = 10;
 }
 
 message PbReserveSlotsResponse {

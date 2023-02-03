@@ -41,8 +41,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
-import org.apache.celeborn.client.write.DataBatches;
-import org.apache.celeborn.client.write.PushState;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -70,6 +68,8 @@ import org.apache.celeborn.common.util.PackedPartitionId;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.DataBatches;
+import org.apache.celeborn.common.write.PushState;
 
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
@@ -90,6 +90,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final AtomicInteger currentMaxReqsInFlight;
   private int congestionAvoidanceFlag = 0;
   private final int pushBufferMaxSize;
+  private final long pushDataTimeout;
 
   private final RpcEnv rpcEnv;
 
@@ -153,6 +154,11 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
+    if (conf.pushReplicateEnabled()) {
+      pushDataTimeout = conf.pushDataTimeoutMs() * 2;
+    } else {
+      pushDataTimeout = conf.pushDataTimeoutMs();
+    }
 
     // init rpc env and master endpointRef
     rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
@@ -209,7 +215,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           PushData newPushData =
               new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
           ChannelFuture future = client.pushData(newPushData, callback);
-          pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort());
+          pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort(), pushDataTimeout);
         } else {
           throw new RuntimeException(
               "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
@@ -801,7 +807,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           TransportClient client =
               dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
           ChannelFuture future = client.pushData(pushData, wrappedCallback);
-          pushState.pushStarted(nextBatchId, future, wrappedCallback, loc.hostAndPushPort());
+          pushState.pushStarted(
+              nextBatchId, future, wrappedCallback, loc.hostAndPushPort(), pushDataTimeout);
         } else {
           wrappedCallback.onFailure(
               new Exception(
@@ -1147,7 +1154,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       if (!testRetryRevive || remainReviveTimes < 1) {
         TransportClient client = dataClientFactory.createClient(host, port);
         ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
-        pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort);
+        pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort, pushDataTimeout);
       } else {
         wrappedCallback.onFailure(
             new Exception(
@@ -1428,8 +1435,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
     } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage())) {
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT.getMessage())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
@@ -1559,7 +1568,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
       ChannelFuture future = client.pushData(pushData, callback);
-      pushState.pushStarted(nextBatchId, future, callback, location.hostAndPushPort());
+      pushState.pushStarted(
+          nextBatchId, future, callback, location.hostAndPushPort(), pushDataTimeout);
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(

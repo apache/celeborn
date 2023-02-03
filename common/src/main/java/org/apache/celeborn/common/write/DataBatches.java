@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.write;
+package org.apache.celeborn.common.write;
 
 import java.util.ArrayList;
 

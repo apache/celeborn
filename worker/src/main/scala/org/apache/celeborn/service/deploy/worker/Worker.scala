@@ -179,6 +179,7 @@ private[celeborn] class Worker(
   val registered = new AtomicBoolean(false)
   val shuffleMapperAttempts = new ConcurrentHashMap[String, AtomicIntegerArray]()
   val shufflePartitionType = new ConcurrentHashMap[String, PartitionType]
+  var shufflePushDataTimeout = new ConcurrentHashMap[String, Long]
   val partitionLocationInfo = new WorkerPartitionLocationInfo
 
   val shuffleCommitInfos = new ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
@@ -427,6 +428,7 @@ private[celeborn] class Worker(
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
+      shufflePushDataTimeout.remove(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
       shuffleCommitInfos.remove(shuffleKey)
       workerInfo.releaseSlots(shuffleKey)

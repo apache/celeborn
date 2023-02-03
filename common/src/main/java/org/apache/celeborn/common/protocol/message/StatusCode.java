@@ -72,7 +72,8 @@ public enum StatusCode {
   PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE(39),
   PUSH_DATA_CONNECTION_EXCEPTION_MASTER(40),
   PUSH_DATA_CONNECTION_EXCEPTION_SLAVE(41),
-  PUSH_DATA_TIMEOUT(42);
+  PUSH_DATA_TIMEOUT_MASTER(42),
+  PUSH_DATA_TIMEOUT_SLAVE(43);
 
   private final byte value;
 
@@ -117,8 +118,10 @@ public enum StatusCode {
       msg = "RegionFinishFailMaster";
     } else if (value == REGION_FINISH_FAIL_SLAVE.getValue()) {
       msg = "RegionFinishFailSlave";
-    } else if (value == PUSH_DATA_TIMEOUT.getValue()) {
-      msg = "PushDataTimeout";
+    } else if (value == PUSH_DATA_TIMEOUT_MASTER.getValue()) {
+      msg = "PushDataTimeoutMaster";
+    } else if (value == PUSH_DATA_TIMEOUT_SLAVE.getValue()) {
+      msg = "PushDataTimeoutSlave";
     }
 
     return msg;
