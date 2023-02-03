@@ -436,6 +436,7 @@ private[celeborn] class Worker(
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
     storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
   @VisibleForTesting
