@@ -231,7 +231,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           logInfo(
             s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
               s"map $mapId attempt $attemptId)")
-          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         } else {
           val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
             s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
@@ -492,7 +492,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
-      callback.onFailure(new Exception(s"$message! ${locations.filter(_ != null).head}", exception))
+      callback.onFailure(new Exception(s"$message! ${locations.head}", exception))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
