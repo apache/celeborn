@@ -132,6 +132,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
+    // Fetch real batchId from body will add more cost and no meaning for replicate.
     val batchId = if (isMaster) pushState.nextBatchId() else -1
 
     // For test
@@ -362,6 +363,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
     val isMaster = mode == PartitionLocation.Mode.MASTER
+    // Fetch real batchId from body will add more cost and no meaning for replicate.
     val batchId = if (isMaster) pushState.nextBatchId() else -1
 
     val key = s"${pushMergedData.requestId}"
