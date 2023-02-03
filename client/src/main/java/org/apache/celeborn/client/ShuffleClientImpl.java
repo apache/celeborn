@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
-import org.apache.celeborn.client.write.PushStrategy;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
