@@ -545,6 +545,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           blacklistPartitionWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
+        case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
+          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
+        case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
+            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
+          blacklistPartitionWorker(
+            oldPartition.getPeer,
+            StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
         case _ =>
       }
     }
@@ -1085,7 +1092,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER |
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE |
                 StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER |
-                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE |
+                StatusCode.PUSH_DATA_TIMEOUT_MASTER |
+                StatusCode.PUSH_DATA_TIMEOUT_SLAVE
                 if current - registerTime < workerExcludedExpireTimeout =>
               true
             case StatusCode.UNKNOWN_WORKER => true
