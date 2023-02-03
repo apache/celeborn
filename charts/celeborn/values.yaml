@@ -36,7 +36,8 @@ workerReplicas: 5
 # celeborn release version
 celebornVersion: 0.1.1
 
-gid: 10006
+securityContext:
+  fsGroup: 10006
 
 # celeborn configurations
 celeborn:

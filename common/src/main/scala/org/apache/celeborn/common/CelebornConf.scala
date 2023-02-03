@@ -31,7 +31,7 @@ import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentif
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
-import org.apache.celeborn.common.protocol.{CompressionCodec, PartitionSplitMode, PartitionType, ShuffleMode, SlotsAssignPolicy}
+import org.apache.celeborn.common.protocol.{CompressionCodec, PartitionSplitMode, PartitionType, ShuffleMode, SlotsAssignPolicy, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
@@ -482,6 +482,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
   def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
+  def metricsResourceConsumptionInterval: Long = get(METRICS_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -574,6 +575,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
     getAllWithPrefix(nodeConfPrefix)
       .map(_._1)
+      .filterNot(_.equals("id"))
       .map(k => extractPrefix(k, "."))
       .distinct
   }
@@ -665,7 +667,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
-  def pushLimitInFlightTimeoutMs: Long = get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT)
+  def pushLimitInFlightTimeoutMs: Long =
+    if (pushReplicateEnabled) {
+      get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 4)
+    } else {
+      get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 2)
+    }
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
   def partitionSplitMode: PartitionSplitMode = PartitionSplitMode.valueOf(get(PARTITION_SPLIT_MODE))
@@ -679,8 +686,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
-  def pushDataTimeoutMs = get(PUSH_DATA_TIMEOUT)
-
+  def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
+  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
@@ -829,7 +836,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_RETRY_COMMIT_FILE)
-  def testPushDataTimeout: Boolean = get(TEST_PUSHDATA_TIMEOUT)
+  def testPushMasterDataTimeout: Boolean = get(TEST_PUSH_MASTER_DATA_TIMEOUT)
+  def testPushSlaveDataTimeout: Boolean = get(TEST_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
 }
 
@@ -1293,6 +1301,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
+
+  val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.push.timeoutCheck.interval")
+      .categories("common")
+      .doc("Interval for checking push data timeout.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
@@ -2109,6 +2125,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10min")
 
+  val METRICS_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.userResourceConsumption.update.interval")
+      .categories("master")
+      .doc("Time length for a window about compute user resource consumption.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
   val PUSH_STAGE_END_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.push.stageEnd.timeout")
       .withAlternative("rss.stage.end.timeout")
@@ -2119,14 +2143,40 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
-  val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: ConfigEntry[Long] =
+  val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.push.data.timeout")
+      .withAlternative("rss.push.data.rpc.timeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushMasterDataTimeout")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("Whether to test push master data timeout")
+      .booleanConf
+      .createWithDefault(false)
+
+  val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.pushSlaveDataTimeout")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Whether to test push slave data timeout")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.push.limit.inFlight.timeout")
       .withAlternative("rss.limit.inflight.timeout")
       .categories("client")
-      .doc("Timeout for netty in-flight requests to be done.")
+      .doc("Timeout for netty in-flight requests to be done." +
+        s"Default value should be `${PUSH_DATA_TIMEOUT.key} * 2`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("240s")
+      .createOptional
 
   val PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.push.limit.inFlight.sleepInterval")
@@ -2246,23 +2296,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
-
-  val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.push.data.timeout")
-      .withAlternative("rss.push.data.rpc.timeout")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Timeout for a task to push data rpc message.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("120s")
-
-  val TEST_PUSHDATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushdataTimeout")
-      .categories("worker")
-      .version("0.2.0")
-      .doc("Wheter to test pushdata timeout")
-      .booleanConf
-      .createWithDefault(false)
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.registerShuffle.askTimeout")

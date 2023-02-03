@@ -31,7 +31,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{PartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -52,8 +52,9 @@ private[deploy] class Controller(
   // shuffleKe -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
+  var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
   var workerInfo: WorkerInfo = _
-  var partitionLocationInfo: PartitionLocationInfo = _
+  var partitionLocationInfo: WorkerPartitionLocationInfo = _
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
@@ -66,6 +67,7 @@ private[deploy] class Controller(
     workerSource = worker.workerSource
     storageManager = worker.storageManager
     shufflePartitionType = worker.shufflePartitionType
+    shufflePushDataTimeout = worker.shufflePushDataTimeout
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     shuffleCommitInfos = worker.shuffleCommitInfos
     workerInfo = worker.workerInfo
@@ -86,7 +88,8 @@ private[deploy] class Controller(
           splitMode,
           partitionType,
           rangeReadFilter,
-          userIdentifier) =>
+          userIdentifier,
+          pushDataTimeout) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
@@ -102,7 +105,8 @@ private[deploy] class Controller(
           splitMode,
           partitionType,
           rangeReadFilter,
-          userIdentifier)
+          userIdentifier,
+          pushDataTimeout)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -136,7 +140,8 @@ private[deploy] class Controller(
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
-      userIdentifier: UserIdentifier): Unit = {
+      userIdentifier: UserIdentifier,
+      pushDataTimeout: Long): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -237,6 +242,7 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterLocs)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slaveLocs)
     shufflePartitionType.put(shuffleKey, partitionType)
+    shufflePushDataTimeout.put(shuffleKey, pushDataTimeout)
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(requestMasterLocs, requestSlaveLocs))
 
     logInfo(s"Reserved ${masterLocs.size()} master location" +

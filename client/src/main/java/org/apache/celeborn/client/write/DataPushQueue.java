@@ -32,6 +32,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushState;
 
 /*
  * Queue for push data,

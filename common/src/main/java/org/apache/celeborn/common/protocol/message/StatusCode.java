@@ -68,7 +68,12 @@ public enum StatusCode {
   REGION_FINISH_FAIL_SLAVE(36),
   REGION_FINISH_FAIL_MASTER(37),
 
-  PUSH_DATA_TIMEOUT(38);
+  PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER(38),
+  PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE(39),
+  PUSH_DATA_CONNECTION_EXCEPTION_MASTER(40),
+  PUSH_DATA_CONNECTION_EXCEPTION_SLAVE(41),
+  PUSH_DATA_TIMEOUT_MASTER(42),
+  PUSH_DATA_TIMEOUT_SLAVE(43);
 
   private final byte value;
 
@@ -87,6 +92,14 @@ public enum StatusCode {
       msg = "PushDataFailMaster";
     } else if (value == PUSH_DATA_FAIL_SLAVE.getValue()) {
       msg = "PushDataFailSlave";
+    } else if (value == PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getValue()) {
+      msg = "PushDataCreateConnectionFailMaster";
+    } else if (value == PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getValue()) {
+      msg = "PushDataCreateConnectionFailSlave";
+    } else if (value == PUSH_DATA_CONNECTION_EXCEPTION_MASTER.getValue()) {
+      msg = "PushDataConnectionExceptionMaster";
+    } else if (value == PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getValue()) {
+      msg = "PushDataConnectionExceptionSlave";
     } else if (value == PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.getValue()) {
       msg = "PushDataFailNonCriticalCause";
     } else if (value == PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getValue()) {
@@ -105,8 +118,10 @@ public enum StatusCode {
       msg = "RegionFinishFailMaster";
     } else if (value == REGION_FINISH_FAIL_SLAVE.getValue()) {
       msg = "RegionFinishFailSlave";
-    } else if (value == PUSH_DATA_TIMEOUT.getValue()) {
-      msg = "PushDataTimeout";
+    } else if (value == PUSH_DATA_TIMEOUT_MASTER.getValue()) {
+      msg = "PushDataTimeoutMaster";
+    } else if (value == PUSH_DATA_TIMEOUT_SLAVE.getValue()) {
+      msg = "PushDataTimeoutSlave";
     }
 
     return msg;

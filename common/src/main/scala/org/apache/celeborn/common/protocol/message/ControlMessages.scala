@@ -357,7 +357,8 @@ object ControlMessages extends Logging {
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
-      userIdentifier: UserIdentifier)
+      userIdentifier: UserIdentifier,
+      pushDataTimeout: Long)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -668,7 +669,8 @@ object ControlMessages extends Logging {
           splitMode,
           partType,
           rangeReadFilter,
-          userIdentifier) =>
+          userIdentifier,
+          pushDataTimeout) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -681,6 +683,7 @@ object ControlMessages extends Logging {
         .setPartitionType(partType.getValue)
         .setRangeReadFilter(rangeReadFilter)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+        .setPushDataTimeout(pushDataTimeout)
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -983,7 +986,8 @@ object ControlMessages extends Logging {
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
           Utils.toPartitionType(pbReserveSlots.getPartitionType),
           pbReserveSlots.getRangeReadFilter,
-          userIdentifier)
+          userIdentifier,
+          pbReserveSlots.getPushDataTimeout)
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
