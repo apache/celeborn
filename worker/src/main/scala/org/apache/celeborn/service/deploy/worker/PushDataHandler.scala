@@ -165,8 +165,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          // Only master data will push data to slave
-          pushState.removeBatch(batchId, location.hostAndPushPort())
+          if (location.getPeer != null) {
+            // Only master data will push data to slave
+            pushState.removeBatch(batchId, location.hostAndPushPort())
+          }
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
@@ -395,8 +397,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          // Only master data will push data to slave
-          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+          // Only master data enable replication will push data to slave
+          if (locations.head.getPeer != null) {
+            pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+          }
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
             val resp = ByteBuffer.allocate(response.remaining())
