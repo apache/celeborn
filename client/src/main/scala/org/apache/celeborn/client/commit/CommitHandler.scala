@@ -218,10 +218,10 @@ abstract class CommitHandler(
         (
           masterParts.asScala
             .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
-            .map(_.getUniqueId).asJava,
+            .map(_.getUniqueId).toList.asJava,
           slaveParts.asScala
             .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
-            .map(_.getUniqueId).asJava)
+            .map(_.getUniqueId).toList.asJava)
       }
 
       commitFiles(
@@ -462,4 +462,11 @@ abstract class CommitHandler(
   }
 
   def commitMetrics(): (Long, Long) = (totalWritten.sumThenReset(), fileCount.sumThenReset())
+
+  def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
+    val fileGroups = reducerFileGroupsMap.get(shuffleId)
+    if (fileGroups != null) {
+      fileGroups.remove(partitionId)
+    }
+  }
 }

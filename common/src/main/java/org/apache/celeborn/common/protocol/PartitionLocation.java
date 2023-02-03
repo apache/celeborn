@@ -49,6 +49,10 @@ public class PartitionLocation implements Serializable {
     }
   }
 
+  public static String getFileName(String uniqueId, Mode mode) {
+    return uniqueId + "-" + mode.mode();
+  }
+
   private int id;
   private int epoch;
   private String host;
@@ -227,6 +231,7 @@ public class PartitionLocation implements Serializable {
     return id + "-" + epoch;
   }
 
+  /** @see PartitionLocation#getFileName */
   public String getFileName() {
     return id + "-" + epoch + "-" + mode.mode;
   }

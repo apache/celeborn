@@ -141,7 +141,30 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
   @Override
   public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
-    // TODO
+    executor.execute(
+        () -> {
+          if (!(shuffleDescriptor instanceof RemoteShuffleDescriptor)) {
+            LOG.error(
+                "Only RemoteShuffleDescriptor is supported {}.",
+                shuffleDescriptor.getClass().getName());
+            shuffleMasterContext.onFatalError(
+                new RuntimeException("Illegal shuffle descriptor type."));
+            return;
+          }
+          try {
+            RemoteShuffleDescriptor descriptor = (RemoteShuffleDescriptor) shuffleDescriptor;
+            RemoteShuffleResource shuffleResource = descriptor.getShuffleResource();
+            ShuffleResourceDescriptor resourceDescriptor =
+                shuffleResource.getMapPartitionShuffleDescriptor();
+            LOG.debug("release partition resource: {}.", resourceDescriptor);
+            lifecycleManager.releasePartition(
+                resourceDescriptor.getShuffleId(), resourceDescriptor.getPartitionId());
+          } catch (Throwable throwable) {
+            // it is not a problem if we failed to release the target data partition
+            // because the session timeout mechanism will do the work for us latter
+            LOG.debug("Failed to release data partition {}.", shuffleDescriptor, throwable);
+          }
+        });
   }
 
   @Override

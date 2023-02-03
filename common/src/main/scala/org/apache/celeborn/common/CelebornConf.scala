@@ -691,6 +691,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleCommitPartitionEnabled: Boolean = get(BATCH_HANDLE_COMMIT_PARTITION_ENABLED)
   def batchHandleCommitPartitionNumThreads: Int = get(BATCH_HANDLE_COMMIT_PARTITION_THREADS)
   def batchHandleCommitPartitionRequestInterval: Long = get(BATCH_HANDLED_COMMIT_PARTITION_INTERVAL)
+  def batchHandleReleasePartitionEnabled: Boolean = get(BATCH_HANDLE_RELEASE_PARTITION_ENABLED)
+  def batchHandleReleasePartitionNumThreads: Int = get(BATCH_HANDLE_RELEASE_PARTITION_THREADS)
+  def batchHandleReleasePartitionRequestInterval: Long =
+    get(BATCH_HANDLED_RELEASE_PARTITION_INTERVAL)
   def rpcCacheSize: Int = get(RPC_CACHE_SIZE)
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
@@ -2411,6 +2415,32 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Interval for LifecycleManager to schedule handling commit partition requests in batch.")
       .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val BATCH_HANDLE_RELEASE_PARTITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.shuffle.batchHandleReleasePartition.enabled")
+      .categories("client")
+      .doc("When true, LifecycleManager will handle release partition request in batch. " +
+        "Otherwise, LifecycleManager will process release partition request immediately")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val BATCH_HANDLE_RELEASE_PARTITION_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.shuffle.batchHandleReleasePartition.threads")
+      .categories("client")
+      .doc("Threads number for LifecycleManager to handle release partition request in batch.")
+      .version("0.3.0")
+      .intConf
+      .createWithDefault(8)
+
+  val BATCH_HANDLED_RELEASE_PARTITION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.batchHandleReleasePartition.interval")
+      .categories("client")
+      .doc(
+        "Interval for LifecycleManager to schedule handling release partition requests in batch.")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 

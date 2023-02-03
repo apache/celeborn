@@ -424,6 +424,40 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }.toSeq.sortBy(_._2).reverse.take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
   }
 
+  def cleanFile(shuffleKey: String, fileName: String): Unit = {
+    val fileInfo = getFileInfo(shuffleKey, fileName)
+    if (fileInfo != null) {
+      cleanFileInternal(shuffleKey, fileInfo)
+    }
+  }
+
+  def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
+    var isHdfsExpired = false
+    if (fileInfo.isHdfs) {
+      isHdfsExpired = true
+      val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
+      if (hdfsFileWriter != null) {
+        hdfsFileWriter.destroy(new IOException(
+          s"Destroy FileWriter ${hdfsFileWriter} caused by shuffle ${shuffleKey} expired."))
+        hdfsWriters.remove(fileInfo.getFilePath)
+      }
+    } else {
+      val workingDir =
+        fileInfo.getFile.getParentFile.getParentFile.getParentFile
+      val writers = workingDirWriters.get(workingDir)
+      if (writers != null) {
+        val fileWriter = writers.get(fileInfo.getFilePath)
+        if (fileWriter != null) {
+          fileWriter.destroy(new IOException(
+            s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
+          writers.remove(fileInfo.getFilePath)
+        }
+      }
+    }
+
+    isHdfsExpired
+  }
+
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
@@ -432,30 +466,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         var isHdfsExpired = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
-            case (_, fileInfo) => {
-              if (fileInfo.isHdfs) {
+            case (_, fileInfo) =>
+              if (cleanFileInternal(shuffleKey, fileInfo)) {
                 isHdfsExpired = true
-                val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
-                if (hdfsFileWriter != null) {
-                  hdfsFileWriter.destroy(new IOException(
-                    s"Destroy FileWriter ${hdfsFileWriter} caused by shuffle ${shuffleKey} expired."))
-                }
-                fileInfo.deleteAllFiles(StorageManager.hadoopFs)
-                hdfsWriters.remove(fileInfo.getFilePath)
-              } else {
-                val workingDir =
-                  fileInfo.getFile.getParentFile.getParentFile.getParentFile
-                val writers = workingDirWriters.get(workingDir)
-                if (writers != null) {
-                  val fileWriter = writers.get(fileInfo.getFilePath)
-                  if (fileWriter != null) {
-                    fileWriter.destroy(new IOException(
-                      s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
-                    writers.remove(fileInfo.getFilePath)
-                  }
-                }
               }
-            }
           }
         }
         val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)

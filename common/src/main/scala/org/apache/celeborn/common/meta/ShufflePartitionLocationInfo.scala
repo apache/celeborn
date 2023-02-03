@@ -25,10 +25,10 @@ import scala.collection.JavaConverters._
 import org.apache.celeborn.common.protocol.PartitionLocation
 
 class ShufflePartitionLocationInfo {
-
-  type PartitionInfo = ConcurrentHashMap[Int, util.List[PartitionLocation]]
+  type PartitionInfo = ConcurrentHashMap[Int, util.Set[PartitionLocation]]
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
+  implicit val partitionOrdering: Ordering[PartitionLocation] = Ordering.by(_.getEpoch)
 
   def addMasterPartitions(masterLocations: util.List[PartitionLocation]) = {
     addPartitions(masterPartitionLocations, masterLocations)
@@ -38,11 +38,11 @@ class ShufflePartitionLocationInfo {
     addPartitions(slavePartitionLocations, slaveLocations)
   }
 
-  def getMasterPartitions(partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
+  def getMasterPartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
     getPartitions(masterPartitionLocations, partitionIdOpt)
   }
 
-  def getSlavePartitions(partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
+  def getSlavePartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
     getPartitions(slavePartitionLocations, partitionIdOpt)
   }
 
@@ -51,23 +51,29 @@ class ShufflePartitionLocationInfo {
     slavePartitionLocations.containsKey(partitionId)
   }
 
-  def removePartitions(partitionId: Int): Unit = {
-    masterPartitionLocations.remove(partitionId)
-    slavePartitionLocations.remove(partitionId)
+  def removeMasterPartitions(partitionId: Int): util.Set[PartitionLocation] = {
+    removePartitions(masterPartitionLocations, partitionId)
   }
 
-  def getAllMasterLocationsWithMinEpoch(): util.List[PartitionLocation] = {
-    def order(a: Int, b: Int): Boolean = a < b
+  def removeSlavePartitions(partitionId: Int): util.Set[PartitionLocation] = {
+    removePartitions(slavePartitionLocations, partitionId)
+  }
 
-    masterPartitionLocations.values().asScala.map { list =>
-      var loc = list.get(0)
-      1 until list.size() foreach (ind => {
-        if (order(list.get(ind).getEpoch, loc.getEpoch)) {
-          loc = list.get(ind)
-        }
-      })
-      loc
-    }.toList.asJava
+  private def removePartitions(
+      partitionInfo: PartitionInfo,
+      partitionId: Int): util.Set[PartitionLocation] = {
+    val partitionLocations = partitionInfo.remove(partitionId)
+    if (partitionLocations != null) {
+      partitionLocations
+    } else {
+      new util.HashSet[PartitionLocation]()
+    }
+  }
+
+  def getAllMasterLocationsWithMinEpoch(): util.Set[PartitionLocation] = {
+    masterPartitionLocations.values().asScala.map { partitionLocations =>
+      partitionLocations.asScala.min
+    }.toSet.asJava
   }
 
   private def addPartitions(
@@ -75,20 +81,22 @@ class ShufflePartitionLocationInfo {
       locations: util.List[PartitionLocation]): Unit = synchronized {
     if (locations != null && locations.size() > 0) {
       locations.asScala.foreach { loc =>
-        partitionInfo.putIfAbsent(loc.getId, new util.ArrayList)
-        val locations = partitionInfo.get(loc.getId)
-        locations.add(loc)
+        partitionInfo.putIfAbsent(loc.getId, ConcurrentHashMap.newKeySet())
+        val partitionLocations = partitionInfo.get(loc.getId)
+        if (partitionLocations != null) {
+          partitionLocations.add(loc)
+        }
       }
     }
   }
 
   private def getPartitions(
       partitionInfo: PartitionInfo,
-      partitionIdOpt: Option[Int]): util.List[PartitionLocation] = {
+      partitionIdOpt: Option[Int]): util.Set[PartitionLocation] = {
     partitionIdOpt match {
       case Some(partitionId) =>
-        partitionInfo.getOrDefault(partitionId, new util.ArrayList)
-      case _ => partitionInfo.values().asScala.flatMap(_.asScala).toList.asJava
+        partitionInfo.getOrDefault(partitionId, new util.HashSet)
+      case _ => partitionInfo.values().asScala.flatMap(_.asScala).toSet.asJava
     }
   }
 }

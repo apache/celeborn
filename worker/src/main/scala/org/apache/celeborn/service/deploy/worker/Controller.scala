@@ -588,15 +588,15 @@ private[deploy] class Controller(
 
     // destroy master locations
     if (masterLocations != null && !masterLocations.isEmpty) {
-      masterLocations.asScala.foreach { loc =>
-        val allocatedLoc = partitionLocationInfo.getMasterLocation(shuffleKey, loc)
-        if (allocatedLoc == null) {
-          failedMasters.add(loc)
-        } else {
-          val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
-          fileWriter.destroy(
-            new IOException(
-              s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
+      masterLocations.asScala.foreach { uniqueId =>
+        try {
+          storageManager.cleanFile(
+            shuffleKey,
+            PartitionLocation.getFileName(uniqueId, PartitionLocation.Mode.MASTER))
+        } catch {
+          case e: Exception =>
+            failedMasters.add(uniqueId)
+            logDebug(s"Destroy master file $uniqueId for $shuffleKey failed.", e)
         }
       }
       // remove master locations from WorkerInfo
@@ -606,15 +606,15 @@ private[deploy] class Controller(
     }
     // destroy slave locations
     if (slaveLocations != null && !slaveLocations.isEmpty) {
-      slaveLocations.asScala.foreach { loc =>
-        val allocatedLoc = partitionLocationInfo.getSlaveLocation(shuffleKey, loc)
-        if (allocatedLoc == null) {
-          failedSlaves.add(loc)
-        } else {
-          val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
-          fileWriter.destroy(
-            new IOException(
-              s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
+      slaveLocations.asScala.foreach { uniqueId =>
+        try {
+          storageManager.cleanFile(
+            shuffleKey,
+            PartitionLocation.getFileName(uniqueId, PartitionLocation.Mode.SLAVE))
+        } catch {
+          case e: Exception =>
+            failedSlaves.add(uniqueId)
+            logDebug(s"Destroy slave file $uniqueId for $shuffleKey failed.", e)
         }
       }
       // remove slave locations from worker info

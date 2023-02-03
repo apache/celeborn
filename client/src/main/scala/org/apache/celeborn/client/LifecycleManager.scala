@@ -126,6 +126,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val heartbeater =
     new ApplicationHeartbeater(appId, conf, rssHARetryClient, () => commitManager.commitMetrics())
   private val changePartitionManager = new ChangePartitionManager(conf, this)
+  private val releasePartitionManager = new ReleasePartitionManager(appId, conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -137,6 +138,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     commitManager.start()
     heartbeater.start()
     changePartitionManager.start()
+    releasePartitionManager.start()
   }
 
   override def onStart(): Unit = {
@@ -172,6 +174,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     commitManager.stop()
     changePartitionManager.stop()
+    releasePartitionManager.stop()
     heartbeater.stop()
 
     rssHARetryClient.close()
@@ -982,7 +985,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     success
   }
 
-  private val newLocationFunc =
+  val newLocationFunc =
     new util.function.Function[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] {
       override def apply(w: WorkerInfo): (JList[PartitionLocation], JList[PartitionLocation]) =
         (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
@@ -1053,7 +1056,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
    * @param slotsToDestroy worker resource to be destroyed
    * @return destroy failed master and slave location unique id
    */
-  private def destroySlotsWithRetry(
+  def destroySlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
@@ -1229,6 +1232,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private def shuffleResourceExists(shuffleId: Int): Boolean = {
     val workers = workerSnapshots(shuffleId)
     workers != null && !workers.isEmpty
+  }
+
+  // Once a partition is released, it will be never needed anymore
+  def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
+    releasePartitionManager.releasePartition(shuffleId, partitionId)
+    val partitionLocation = latestPartitionLocation.get(shuffleId)
+    if (partitionLocation != null) {
+      partitionLocation.remove(partitionId)
+    }
   }
 
   // Initialize at the end of LifecycleManager construction.

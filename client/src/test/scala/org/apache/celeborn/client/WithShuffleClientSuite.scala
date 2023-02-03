@@ -44,7 +44,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private val mapId = 1
   private val attemptId = 0
 
-  test("test register map partition task") {
+  test("test register & release map partition task") {
     Assert.assertNotNull(lifecycleManager)
     Assert.assertNotNull(shuffleClient)
     val shuffleId = 1
@@ -80,6 +80,22 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     count =
       partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
     Assert.assertEquals(count, numMappers + 1)
+
+    celebornConf.set(CelebornConf.BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "false")
+    lifecycleManager.releasePartition(
+      shuffleId,
+      PackedPartitionId.packedPartitionId(mapId + 1, attemptId + 1))
+
+    // check all allocated all slots after release one slot
+    partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
+    logInfo(partitionLocationInfos.toString())
+    count =
+      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
+    Assert.assertEquals(count, numMappers)
+
+    count =
+      partitionLocationInfos.map(r => r.getSlavePartitions().size()).sum
+    Assert.assertEquals(count, numMappers)
   }
 
   test("test map end & get reducer file group") {
