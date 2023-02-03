@@ -92,7 +92,7 @@ public class ChunkStreamManager {
     if (state.buffers.isFullyRead()) {
       // Normally, when all chunks are returned to the client, the stream should be removed here.
       // But if there is a switch on the client side, it will not go here at this time, so we need
-      // to remove the stream when the connection is terminated, and release the unused buffer.
+      // to remove the stream when the shuffle is expired, and release the unused buffer.
       logger.trace("Removing stream id {}", streamId);
       streams.remove(streamId);
       Set<Long> streamIds = shuffleStreamIds.get(state.shuffleKey);
@@ -168,17 +168,13 @@ public class ChunkStreamManager {
     return myStreamId;
   }
 
-  public Set<String> shuffleKeySet() {
-    return shuffleStreamIds.keySet();
-  }
-
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
     for (String expiredShuffleKey : expiredShuffleKeys) {
-      Set<Long> removedStreamId = shuffleStreamIds.remove(expiredShuffleKey);
+      Set<Long> expiredStreamIds = shuffleStreamIds.remove(expiredShuffleKey);
 
-      // normally removedStreamId set will be empty as streamId will be removed when be fully read
-      if (removedStreamId != null && !removedStreamId.isEmpty()) {
-        streams.keySet().removeAll(removedStreamId);
+      // normally expiredStreamIds set will be empty as streamId will be removed when be fully read
+      if (expiredStreamIds != null && !expiredStreamIds.isEmpty()) {
+        streams.keySet().removeAll(expiredStreamIds);
       }
     }
   }

@@ -213,12 +213,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     logWarning(s"exception caught ${client.getSocketAddress}", cause)
   }
 
-  def shuffleKeySet(): util.HashSet[String] = {
-    val hashSet = new util.HashSet[String]()
-    hashSet.addAll(chunkStreamManager.shuffleKeySet())
-    hashSet
-  }
-
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
