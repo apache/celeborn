@@ -166,7 +166,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val wrappedCallback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
         if (isMaster) {
-          if (location.getPeer != null) {
+          if (doReplicate) {
             // Only master data will push data to slave
             pushState.removeBatch(batchId, location.hostAndPushPort())
           }
@@ -421,7 +421,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
-        if (isMaster) {
+        if (doReplicate) {
           pushState.removeBatch(batchId, locations.head.hostAndPushPort())
         }
         // Throw by slave peer worker
