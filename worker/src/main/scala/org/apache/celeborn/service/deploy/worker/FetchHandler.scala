@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
+import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.base.Throwables
@@ -108,8 +109,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           } else {
             val buffers = new FileManagedBuffers(fileInfo, conf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
-            val streamId =
-              chunkStreamManager.registerStream(buffers, client.getChannel, fetchTimeMetrics)
+            val streamId = chunkStreamManager.registerStream(shuffleKey, buffers, fetchTimeMetrics)
             val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
             if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
@@ -193,11 +193,14 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def checkRegistered: Boolean = registered.get
 
   override def channelInactive(client: TransportClient): Unit = {
-    chunkStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 
   override def exceptionCaught(cause: Throwable, client: TransportClient): Unit = {
     logWarning(s"exception caught ${client.getSocketAddress}", cause)
+  }
+
+  def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
+    chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 }
