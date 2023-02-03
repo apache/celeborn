@@ -687,8 +687,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
-  def pushTimeoutCheckInterval: Long =
-    get(PUSH_TIMEOUT_CHECK_INTERVAL).getOrElse(pushDataTimeoutMs / 2)
+  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
@@ -1303,13 +1302,13 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val PUSH_TIMEOUT_CHECK_INTERVAL: OptionalConfigEntry[Long] =
+  val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.push.timeoutCheck.interval")
       .categories("common")
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createOptional
+      .createWithDefaultString("60s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
@@ -2149,7 +2148,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.push.data.rpc.timeout")
       .categories("client")
       .version("0.2.0")
-      .doc("Timeout for a task to push data rpc message.")
+      .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
