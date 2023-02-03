@@ -46,30 +46,34 @@ class PushDataTimeoutTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - pushdata timeout") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-      .set("spark.celeborn.push.data.timeout", "5s")
-    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    val combineResult = combine(sparkSession)
-    val groupbyResult = groupBy(sparkSession)
-    val repartitionResult = repartition(sparkSession)
-    val sqlResult = runsql(sparkSession)
+    Seq("false", "true").foreach { enabled =>
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
+        .set("spark.celeborn.push.data.timeout", "5s")
+        .set("spark.celeborn.push.replicate.enabled", enabled)
+      val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+      val combineResult = combine(sparkSession)
+      val groupbyResult = groupBy(sparkSession)
+      val repartitionResult = repartition(sparkSession)
+      val sqlResult = runsql(sparkSession)
 
-    Thread.sleep(3000L)
-    sparkSession.stop()
+      Thread.sleep(3000L)
+      sparkSession.stop()
 
-    val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate()
-    val rssCombineResult = combine(rssSparkSession)
-    val rssGroupbyResult = groupBy(rssSparkSession)
-    val rssRepartitionResult = repartition(rssSparkSession)
-    val rssSqlResult = runsql(rssSparkSession)
+      val rssSparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, false)).getOrCreate()
+      val rssCombineResult = combine(rssSparkSession)
+      val rssGroupbyResult = groupBy(rssSparkSession)
+      val rssRepartitionResult = repartition(rssSparkSession)
+      val rssSqlResult = runsql(rssSparkSession)
 
-    assert(combineResult.equals(rssCombineResult))
-    assert(groupbyResult.equals(rssGroupbyResult))
-    assert(repartitionResult.equals(rssRepartitionResult))
-    assert(combineResult.equals(rssCombineResult))
-    assert(sqlResult.equals(rssSqlResult))
+      assert(combineResult.equals(rssCombineResult))
+      assert(groupbyResult.equals(rssGroupbyResult))
+      assert(repartitionResult.equals(rssRepartitionResult))
+      assert(combineResult.equals(rssCombineResult))
+      assert(sqlResult.equals(rssSqlResult))
 
-    rssSparkSession.stop()
+      rssSparkSession.stop()
+      ShuffleClient.reset()
+    }
   }
 }
