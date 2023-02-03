@@ -51,6 +51,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.PbWorkerResource
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
+import org.apache.celeborn.common.unsafe.Platform
 
 object Utils extends Logging {
 
@@ -1026,7 +1027,7 @@ object Utils extends Logging {
       buffer: ByteBuf,
       headerSize: Int): Int = {
     readBuffer(fileChannel, header, headerSize)
-    val bufferLength = header.getInt()
+    val bufferLength = header.getInt(12)
     if (bufferLength <= 0 || bufferLength > buffer.capacity) {
       logError(s"Incorrect buffer header, buffer length: ${bufferLength}.")
       throw new RuntimeException(s"File ${fileChannel} is corrupted")

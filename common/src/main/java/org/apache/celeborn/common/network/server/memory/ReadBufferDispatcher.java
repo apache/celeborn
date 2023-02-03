@@ -47,8 +47,8 @@ public class ReadBufferDispatcher extends Thread {
   }
 
   public void recycle(ByteBuf buf) {
-    buf.release();
     int bufferSize = buf.capacity();
+    buf.release();
     memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
 

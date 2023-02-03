@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.GuardedBy;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import org.apache.commons.io.IOUtils;
@@ -39,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
-import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.Utils;
 
@@ -187,6 +186,12 @@ public class BufferStreamManager {
           new DataPartitionReader(startSubIndex, endSubIndex, fileInfo, streamId);
       dataPartitionReader.open();
       readers.add(dataPartitionReader);
+      // create initial buffers for read
+      memoryManager.requestReadBuffers(
+          8,
+          64,
+          fileInfo.getBufferSize(),
+          (allocatedBuffers, throwable) -> MapDataPartition.this.onBuffer(allocatedBuffers));
     }
 
     // Read logic is executed on another thread.
@@ -288,7 +293,7 @@ public class BufferStreamManager {
       int indexBufferSize = 16 * (endPartitionIndex - startPartitionIndex + 1);
       this.indexBuffer = ByteBuffer.allocateDirect(indexBufferSize);
 
-      this.headerBuffer = ByteBuffer.allocateDirect(16);
+      this.headerBuffer = ByteBuffer.allocateDirect(22);
       this.streamId = streamId;
 
       this.fileInfo = fileInfo;
@@ -303,6 +308,8 @@ public class BufferStreamManager {
       // index is (offset,length)
       long indexRegionSize = fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
       this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
+
+      currentPartitionRemainingBytes = dataFileChannel.size();
     }
 
     public long getIndexRegionSize() {
@@ -431,20 +438,11 @@ public class BufferStreamManager {
     public void sendData() {
       while (!buffersRead.isEmpty()) {
         ByteBuf readBuf = buffersRead.poll();
-        ByteBuf tmpBuf = Unpooled.buffer(1 + 8 + 4 + 4 + 8 + 4 + readBuf.readableBytes());
-        tmpBuf.writeByte(Message.Type.READ_DATA.id());
-        tmpBuf.writeLong(streamId);
-        // write backlog
-        tmpBuf.writeInt(buffersRead.size());
-        // write offset
-        tmpBuf.writeLong(0);
-        // write bytebuf
-        tmpBuf.writeInt(readBuf.readableBytes());
-        tmpBuf.writeBytes(readBuf);
+        ReadData readData = new ReadData(streamId, buffersRead.size(), 0, readBuf);
         streams
             .get(streamId)
             .associatedChannel
-            .writeAndFlush(tmpBuf)
+            .writeAndFlush(readData)
             .addListener(
                 (ChannelFutureListener)
                     future -> {

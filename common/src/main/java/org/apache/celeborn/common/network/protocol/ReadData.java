@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.plugin.flink.protocol;
+package org.apache.celeborn.common.network.protocol;
 
 import java.util.Objects;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBuf;
 
-import org.apache.celeborn.common.network.protocol.RequestMessage;
-
+// This class is used in celeborn worker only.
 public class ReadData extends RequestMessage {
   private long streamId;
   private int backlog;
@@ -41,14 +40,13 @@ public class ReadData extends RequestMessage {
     return 8 + 4 + 4 + 4 + buf.readableBytes();
   }
 
-  // This method will not be called because ReadData won't be created at flink client.
   @Override
   public void encode(io.netty.buffer.ByteBuf buf) {
     buf.writeLong(streamId);
     buf.writeInt(backlog);
     buf.writeLong(offset);
     buf.writeInt(this.buf.readableBytes());
-    buf.writeBytes(this.buf.nioBuffer());
+    buf.writeBytes(this.buf);
   }
 
   public long getStreamId() {
