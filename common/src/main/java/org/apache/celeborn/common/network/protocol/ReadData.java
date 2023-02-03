@@ -37,7 +37,7 @@ public class ReadData extends RequestMessage {
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 4 + 4 + buf.readableBytes();
+    return 8 + 4 + 8 + 4 + buf.readableBytes();
   }
 
   @Override

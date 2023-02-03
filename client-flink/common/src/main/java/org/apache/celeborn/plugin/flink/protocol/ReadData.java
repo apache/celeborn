@@ -38,7 +38,7 @@ public class ReadData extends RequestMessage {
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 4 + 4 + buf.readableBytes();
+    return 8 + 4 + 8 + 4 + buf.readableBytes();
   }
 
   // This method will not be called because ReadData won't be created at flink client.
