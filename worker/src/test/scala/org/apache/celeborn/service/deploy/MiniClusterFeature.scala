@@ -98,7 +98,7 @@ trait MiniClusterFeature extends Logging {
   def setUpMiniCluster(
       masterConfs: Map[String, String] = null,
       workerConfs: Map[String, String] = null,
-      workerNum: Int = 3): Unit = {
+      workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     val master = createMaster(masterConfs)
     val masterThread = runnerWrap(master.rpcEnv.awaitTermination())
     masterThread.start()
@@ -111,12 +111,12 @@ trait MiniClusterFeature extends Logging {
       workerThread.start()
       workerInfos.put(worker, workerThread)
     }
-
     Thread.sleep(5000L)
 
     workerInfos.foreach {
       case (worker, _) => assert(worker.isRegistered())
     }
+    (master, workerInfos.keySet)
   }
 
   def shutdownMiniCluster(): Unit = {
