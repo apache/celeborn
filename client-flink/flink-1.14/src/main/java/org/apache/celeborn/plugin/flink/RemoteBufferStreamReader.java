@@ -116,9 +116,9 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void dataReceived(ReadData readData) {
     logger.trace("(remote: {}, channel: {}) Received {}.", readData);
     if (closed) {
-      readData.getBuf().release();
+      readData.body().release();
       return;
     }
-    dataListener.accept(readData.getBuf());
+    dataListener.accept(readData.getFlinkBuffer());
   }
 }

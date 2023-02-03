@@ -21,23 +21,24 @@ import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
 
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
+
 // This class is used in celeborn worker only.
 public class ReadData extends RequestMessage {
   private long streamId;
   private int backlog;
   private long offset;
-  private ByteBuf buf;
 
   public ReadData(long streamId, int backlog, long offset, ByteBuf buf) {
+    super(new NettyManagedBuffer(buf));
     this.streamId = streamId;
     this.backlog = backlog;
     this.offset = offset;
-    this.buf = buf;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 8 + 4 + buf.readableBytes();
+    return 8 + 4 + 8;
   }
 
   @Override
@@ -45,8 +46,6 @@ public class ReadData extends RequestMessage {
     buf.writeLong(streamId);
     buf.writeInt(backlog);
     buf.writeLong(offset);
-    buf.writeInt(this.buf.readableBytes());
-    buf.writeBytes(this.buf);
   }
 
   public long getStreamId() {
@@ -61,10 +60,6 @@ public class ReadData extends RequestMessage {
     return offset;
   }
 
-  public ByteBuf getBuf() {
-    return buf;
-  }
-
   @Override
   public Type type() {
     return Type.READ_DATA;
@@ -77,13 +72,12 @@ public class ReadData extends RequestMessage {
     ReadData readData = (ReadData) o;
     return streamId == readData.streamId
         && backlog == readData.backlog
-        && offset == readData.offset
-        && Objects.equals(buf, readData.buf);
+        && offset == readData.offset;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(streamId, backlog, offset, buf);
+    return Objects.hash(streamId, backlog, offset);
   }
 
   @Override
@@ -95,8 +89,6 @@ public class ReadData extends RequestMessage {
         + backlog
         + ", offset="
         + offset
-        + ", buf="
-        + buf
         + '}';
   }
 }

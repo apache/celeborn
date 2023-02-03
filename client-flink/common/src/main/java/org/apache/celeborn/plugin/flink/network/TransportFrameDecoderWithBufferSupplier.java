@@ -26,6 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
+import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
@@ -71,7 +72,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       copyByteBuf(buf, msgBuf, msgSize);
     }
     if (msgBuf.readableBytes() == msgSize) {
-      curMsg = MessageDecoderExt.decode(curType, msgBuf, false);
+      curMsg = MessageDecoderExt.decode(curType, msgBuf, true);
       if (bodySize <= 0) {
         ctx.fireChannelRead(curMsg);
         clear();
@@ -116,7 +117,11 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
-      curMsg.setBody(externalBuf.nioBuffer());
+      if (curMsg instanceof ReadData) {
+        ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+      } else {
+        curMsg.setBody(externalBuf.nioBuffer());
+      }
       ctx.fireChannelRead(curMsg);
       clear();
     }

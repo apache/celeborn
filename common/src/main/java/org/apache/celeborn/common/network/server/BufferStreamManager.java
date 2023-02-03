@@ -451,7 +451,8 @@ public class BufferStreamManager {
                         errorCause = future.cause();
                         throw new RuntimeException(future.cause());
                       } else {
-                        memoryManager.recycleReadBuffer(readBuf);
+                        // if write data success, there is no need to release again.
+                        // memoryManager.recycleReadBuffer(readBuf);
                       }
                     });
         streamCredits.put(streamId, streamCredits.get(streamId) - 1);

@@ -20,7 +20,6 @@ package org.apache.celeborn.plugin.flink.network;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
@@ -76,10 +75,7 @@ public class MessageDecoderExt {
         streamId = in.readLong();
         int backlog = in.readInt();
         long offset = in.readLong();
-        int tmpBufSize = in.readInt();
-        ByteBuf tmpBuf = Unpooled.buffer(tmpBufSize, tmpBufSize);
-        in.readBytes(tmpBuf);
-        return new ReadData(streamId, backlog, offset, tmpBuf);
+        return new ReadData(streamId, backlog, offset);
 
       case BACKLOG_ANNOUNCEMENT:
         streamId = in.readLong();

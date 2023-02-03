@@ -1032,6 +1032,8 @@ object Utils extends Logging {
       logError(s"Incorrect buffer header, buffer length: ${bufferLength}.")
       throw new RuntimeException(s"File ${fileChannel} is corrupted")
     }
+    // attach header buffer to data buffer.
+    buffer.writeBytes(header)
     readBuffer(fileChannel, buffer, bufferLength)
     bufferLength + headerSize
   }
