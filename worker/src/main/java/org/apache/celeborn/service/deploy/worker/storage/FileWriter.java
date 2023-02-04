@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -74,7 +73,6 @@ public abstract class FileWriter implements DeviceObserver {
   private final PartitionSplitMode splitMode;
   private final PartitionType partitionType;
   private final boolean rangeReadFilter;
-  private Runnable destroyHook;
   protected boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
   protected final FlushNotifier notifier = new FlushNotifier();
@@ -304,18 +302,7 @@ public abstract class FileWriter implements DeviceObserver {
       if (!fileInfo.isHdfs()) {
         deviceMonitor.unregisterFileWriter(this);
       }
-      destroyHook.run();
     }
-  }
-
-  public void registerDestroyHook(List<FileWriter> fileWriters) {
-    FileWriter thisFileWriter = this;
-    destroyHook =
-        () -> {
-          synchronized (fileWriters) {
-            fileWriters.remove(thisFileWriter);
-          }
-        };
   }
 
   public IOException getException() {

@@ -412,19 +412,6 @@ private[celeborn] class Worker(
   @VisibleForTesting
   def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
-      partitionLocationInfo.getAllMasterLocations(shuffleKey).asScala.foreach { partition =>
-        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(
-          s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
-        removeExpiredWorkingDirWriters(fileWriter)
-      }
-      partitionLocationInfo.getAllSlaveLocations(shuffleKey).asScala.foreach { partition =>
-        val fileWriter = partition.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(
-          s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
-        removeExpiredWorkingDirWriters(fileWriter)
-      }
-
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
@@ -437,16 +424,6 @@ private[celeborn] class Worker(
     partitionsSorter.cleanup(expiredShuffleKeys)
     storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
     fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
-  }
-
-  @VisibleForTesting
-  def removeExpiredWorkingDirWriters(fileWriter: FileWriter): Unit = {
-    // filepath is dir/appId/shuffleId/filename
-    val dir = fileWriter.getFile.getParentFile.getParentFile.getParentFile
-    storageManager.workingDirWriters.asScala.get(dir).map(f =>
-      f.synchronized {
-        f.remove(fileWriter)
-      })
   }
 
   override def getWorkerInfo: String = workerInfo.toString()
