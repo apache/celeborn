@@ -293,7 +293,7 @@ public class BufferStreamManager {
       int indexBufferSize = 16 * (endPartitionIndex - startPartitionIndex + 1);
       this.indexBuffer = ByteBuffer.allocateDirect(indexBufferSize);
 
-      this.headerBuffer = ByteBuffer.allocateDirect(22);
+      this.headerBuffer = ByteBuffer.allocateDirect(16);
       this.streamId = streamId;
 
       this.fileInfo = fileInfo;
