@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
@@ -50,7 +51,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hdfsFs
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> filewriter
-  val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
+  val workingDirWriters = new ConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
 
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -123,7 +124,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     logInfo(s"Initialize HDFS support with path ${hdfsDir}")
   }
   val hdfsPermission = FsPermission.createImmutable(755)
-  val hdfsWriters = new util.ArrayList[FileWriter]()
+  val hdfsWriters = new ConcurrentHashMap[String, FileWriter]()
   val hdfsFlusher =
     if (!hdfsDir.isEmpty) {
       val hdfsConfiguration = new Configuration
@@ -242,8 +243,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
   private val workingDirWriterListFunc =
-    new java.util.function.Function[File, util.ArrayList[FileWriter]]() {
-      override def apply(t: File): util.ArrayList[FileWriter] = new util.ArrayList[FileWriter]()
+    new java.util.function.Function[File, ConcurrentHashMap[String, FileWriter]]() {
+      override def apply(t: File): ConcurrentHashMap[String, FileWriter] =
+        new ConcurrentHashMap[String, FileWriter]()
     }
 
   @throws[IOException]
@@ -295,10 +297,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionType,
           rangeReadFilter)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
-        hdfsWriters.synchronized {
-          hdfsWriters.add(hdfsWriter)
-        }
-        hdfsWriter.registerDestroyHook(hdfsWriters)
+        hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
         return hdfsWriter
       } else {
         val dir = dirs(getNextIndex() % dirs.size)
@@ -329,11 +328,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             partitionType,
             rangeReadFilter)
           deviceMonitor.registerFileWriter(fileWriter)
-          val list = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
-          list.synchronized {
-            list.add(fileWriter)
-          }
-          fileWriter.registerDestroyHook(list)
+          val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
+          map.put(fileInfo.getFilePath, fileWriter)
           fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           location.getStorageInfo.setMountPoint(mountPoint)
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
@@ -391,7 +387,35 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (fileInfos.containsKey(shuffleKey)) {
-        val hdfsInfos = fileInfos.remove(shuffleKey).asScala.filter(_._2.isHdfs)
+        val removedFileInfos = fileInfos.remove(shuffleKey)
+        var isHdfsExpired = false
+        if (removedFileInfos != null) {
+          removedFileInfos.asScala.foreach {
+            case (_, fileInfo) =>
+              if (fileInfo.isHdfs) {
+                isHdfsExpired = true
+                val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
+                if (hdfsFileWriter != null) {
+                  hdfsFileWriter.destroy(new IOException(
+                    s"Destroy FileWriter ${hdfsFileWriter} caused by shuffle ${shuffleKey} expired."))
+                  fileInfo.deleteAllFiles(StorageManager.hdfsFs)
+                  hdfsWriters.remove(fileInfo.getFilePath)
+                }
+              } else {
+                val workingDir =
+                  fileInfo.getFile.getParentFile.getParentFile.getParentFile
+                val writers = workingDirWriters.get(workingDir)
+                if (writers != null) {
+                  val fileWriter = writers.get(fileInfo.getFilePath)
+                  if (fileWriter != null) {
+                    fileWriter.destroy(new IOException(
+                      s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
+                    writers.remove(fileInfo.getFilePath)
+                  }
+                }
+              }
+          }
+        }
         val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
         disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
           diskInfo.dirs.foreach { dir =>
@@ -399,7 +423,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
           }
         }
-        hdfsInfos.foreach(item => item._2.deleteAllFiles(StorageManager.hdfsFs))
       }
     }
   }
@@ -568,9 +591,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     workingDirWriters.asScala.foreach { case (_, writers) =>
       writers.synchronized {
         // Filter out FileWriter that already has IOException to avoid printing too many error logs
-        allWriters.addAll(writers.asScala.filter(_.getException == null).asJava)
+        allWriters.addAll(writers.values().asScala.filter(_.getException == null).asJavaCollection)
       }
     }
+
     allWriters.asScala.foreach { writer =>
       try {
         writer.flushOnMemoryPressure()
@@ -601,7 +625,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val writers = workingDirWriters.get(dir)
         if (writers != null) {
           writers.synchronized {
-            writers.asScala.map(_.getFileInfo.getFileLength).sum
+            writers.values.asScala.map(_.getFileInfo.getFileLength).sum
           }
         } else {
           0
@@ -611,6 +635,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         Paths.get(diskInfo.mountPoint)).getUsableSpace
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
+      logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
       val flushTimeAverage = localFlushers.get(diskInfo.mountPoint).averageFlushTime()
       diskInfo.setUsableSpace(workingDirUsableSpace)
       diskInfo.setFlushTime(flushTimeAverage)
