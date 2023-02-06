@@ -81,7 +81,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     shutdown = worker.shutdown
     conf = worker.conf
     pushState = new PushState(conf)
-    pushState.startChecker(false)
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -316,7 +315,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
-            val channelFuture = client.pushData(newPushData, wrappedCallback)
+            val channelFuture =
+              client.pushData(newPushData, shufflePushDataTimeout.get(shuffleKey), wrappedCallback)
             pushState.pushStarted(
               batchId,
               channelFuture,
@@ -538,7 +538,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               pushMergedData.partitionUniqueIds,
               batchOffsets,
               pushMergedData.body)
-            val channelFuture = client.pushMergedData(newPushMergedData, wrappedCallback)
+            val channelFuture = client.pushMergedData(
+              newPushMergedData,
+              shufflePushDataTimeout.get(shuffleKey),
+              wrappedCallback)
             pushState.pushStarted(
               batchId,
               channelFuture,

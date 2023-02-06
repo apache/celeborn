@@ -144,4 +144,8 @@ public class TransportConf {
   public String decoderMode() {
     return conf.networkIoDecoderMode(module);
   }
+
+  public long pushDataTimeoutCheckIntervalMs() {
+    return conf.pushDataTimeoutMs();
+  }
 }

@@ -214,7 +214,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           PushData newPushData =
               new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-          ChannelFuture future = client.pushData(newPushData, callback);
+          ChannelFuture future = client.pushData(newPushData, pushDataTimeout, callback);
           pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort(), pushDataTimeout);
         } else {
           throw new RuntimeException(
@@ -806,7 +806,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         if (!testRetryRevive) {
           TransportClient client =
               dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
-          ChannelFuture future = client.pushData(pushData, wrappedCallback);
+          ChannelFuture future = client.pushData(pushData, pushDataTimeout, wrappedCallback);
           pushState.pushStarted(
               nextBatchId, future, wrappedCallback, loc.hostAndPushPort(), pushDataTimeout);
         } else {
@@ -1153,7 +1153,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       if (!testRetryRevive || remainReviveTimes < 1) {
         TransportClient client = dataClientFactory.createClient(host, port);
-        ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
+        ChannelFuture future = client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
         pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort, pushDataTimeout);
       } else {
         wrappedCallback.onFailure(
@@ -1567,7 +1567,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // do push data
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-      ChannelFuture future = client.pushData(pushData, callback);
+      ChannelFuture future = client.pushData(pushData, pushDataTimeout, callback);
       pushState.pushStarted(
           nextBatchId, future, callback, location.hostAndPushPort(), pushDataTimeout);
     } catch (Exception e) {

@@ -20,7 +20,6 @@ package org.apache.celeborn.common.write;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.ChannelFuture;
@@ -30,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.util.ThreadUtils;
 
 public class PushState {
   private static final Logger logger = LoggerFactory.getLogger(PushState.class);
@@ -53,7 +51,7 @@ public class PushState {
       RpcResponseCallback callback,
       String hostAndPort,
       long pushDataTimeout) {
-    InFlightRequestTracker.BatchInfo info =
+    PushBatchInfo info =
         inFlightRequestTracker.getBatchIdSetByAddressPair(hostAndPort).get(batchId);
     // In rare cases info could be null. For example, a speculative task has one thread pushing,
     // and other thread retry-pushing. At time 1 thread 1 find StageEnded, then it cleans up
@@ -115,19 +113,5 @@ public class PushState {
 
   public boolean reachLimit(String hostAndPushPort, int maxInFlight) throws IOException {
     return inFlightRequestTracker.reachLimit(hostAndPushPort, maxInFlight);
-  }
-
-  public void startChecker(boolean isMaster) {
-    pushTimeoutChecker = ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker");
-    pushTimeoutChecker.scheduleAtFixedRate(
-        new Runnable() {
-          @Override
-          public void run() {
-            inFlightRequestTracker.failExpiredBatch(isMaster);
-          }
-        },
-        pushTimeoutCheckerInterval,
-        pushTimeoutCheckerInterval,
-        TimeUnit.MILLISECONDS);
   }
 }

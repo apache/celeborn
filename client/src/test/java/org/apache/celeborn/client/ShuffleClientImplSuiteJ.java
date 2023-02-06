@@ -56,7 +56,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufSuccess() throws IOException {
     ByteBuf byteBuf = createByteBuf();
-    when(client.pushData(any(), any()))
+    when(client.pushData(any(), any(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -82,7 +82,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufHardSplit() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), any()))
+    when(client.pushData(any(), any(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -107,7 +107,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufFail() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), any()))
+    when(client.pushData(any(), any(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =

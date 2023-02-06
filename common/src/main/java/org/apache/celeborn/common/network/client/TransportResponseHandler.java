@@ -19,16 +19,25 @@ package org.apache.celeborn.common.network.client;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.MessageHandler;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.common.write.PushBatchInfo;
 
 /**
  * Handler that processes server responses, in response to requests issued from a
@@ -39,22 +48,70 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private static final Logger logger = LoggerFactory.getLogger(TransportResponseHandler.class);
 
+  private final TransportConf conf;
   private final Channel channel;
 
   private final Map<StreamChunkSlice, ChunkReceivedCallback> outstandingFetches;
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
-  private final Map<Long, RpcResponseCallback> outstandingPushes;
+  private final Map<Long, PushBatchInfo> outstandingPushes;
 
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
 
-  public TransportResponseHandler(Channel channel) {
+  private final ScheduledExecutorService pushTimeoutChecker;
+  private final long pushTimeoutCheckerInterval;
+
+  public TransportResponseHandler(TransportConf conf, Channel channel) {
+    this.conf = conf;
     this.channel = channel;
     this.outstandingFetches = new ConcurrentHashMap<>();
     this.outstandingRpcs = new ConcurrentHashMap<>();
     this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
+    pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
+    pushTimeoutChecker = ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker");
+    pushTimeoutChecker.scheduleAtFixedRate(
+        new Runnable() {
+          @Override
+          public void run() {
+            failExpiredBatch();
+          }
+        },
+        pushTimeoutCheckerInterval,
+        pushTimeoutCheckerInterval,
+        TimeUnit.MILLISECONDS);
+  }
+
+  public void failExpiredBatch() {
+    long currentTime = System.currentTimeMillis();
+    for (Map.Entry<Long, PushBatchInfo> entry : outstandingPushes.entrySet()) {
+      try {
+        long requestId = entry.getKey();
+        PushBatchInfo info = entry.getValue();
+        if (info.pushDataTimeout > 0) {
+          if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
+            if (info.callback != null && !info.channelFuture.isDone()) {
+              info.channelFuture.cancel(true);
+              // When module name equals to DATA_MODULE, mean shuffle client push data, else means
+              // do data replication.
+              if (Objects.equals(conf.getModuleName(), TransportModuleConstants.DATA_MODULE)) {
+                info.callback.onFailure(
+                    new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+              } else {
+                info.callback.onFailure(
+                    new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+              }
+              info.channelFuture = null;
+              info.callback = null;
+              removePushRequest(requestId);
+            }
+          }
+        }
+      } catch (Exception e) {
+        logger.warn("RpcResponseCallback.onFailure throws exception", e);
+      }
+    }
   }
 
   public void addFetchRequest(StreamChunkSlice streamChunkSlice, ChunkReceivedCallback callback) {
@@ -81,12 +138,18 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingRpcs.remove(requestId);
   }
 
-  public void addPushRequest(long requestId, RpcResponseCallback callback) {
+  public void addPushRequest(
+      long requestId,
+      ChannelFuture channelFuture,
+      long pushDataTimeout,
+      RpcResponseCallback callback) {
     updateTimeOfLastRequest();
     if (outstandingPushes.containsKey(requestId)) {
       logger.warn("[addPushRequest] requestId {} already exists!", requestId);
     }
-    outstandingPushes.put(requestId, callback);
+    outstandingPushes.put(
+        requestId,
+        new PushBatchInfo(channelFuture, System.currentTimeMillis(), pushDataTimeout, callback));
   }
 
   public void removePushRequest(long requestId) {
@@ -112,9 +175,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
     }
-    for (Map.Entry<Long, RpcResponseCallback> entry : outstandingPushes.entrySet()) {
+    for (Map.Entry<Long, PushBatchInfo> entry : outstandingPushes.entrySet()) {
       try {
-        entry.getValue().onFailure(cause);
+        entry.getValue().callback.onFailure(cause);
       } catch (Exception e) {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
@@ -186,7 +249,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
-      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId);
+      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId).callback;
       if (listener == null) {
         listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {
@@ -212,7 +275,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcFailure) {
       RpcFailure resp = (RpcFailure) message;
-      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId);
+      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId).callback;
       if (listener == null) {
         listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {

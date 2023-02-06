@@ -156,32 +156,34 @@ public class TransportClient implements Closeable {
     return requestId;
   }
 
-  public ChannelFuture pushData(PushData pushData, RpcResponseCallback callback) {
+  public ChannelFuture pushData(
+      PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
     }
 
     long requestId = requestId();
-    handler.addPushRequest(requestId, callback);
-
     pushData.requestId = requestId;
 
     PushChannelListener listener = new PushChannelListener(requestId, callback);
-    return channel.writeAndFlush(pushData).addListener(listener);
+    ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
+    handler.addPushRequest(requestId, channelFuture, pushDataTimeout, callback);
+    return channelFuture;
   }
 
-  public ChannelFuture pushMergedData(PushMergedData pushMergedData, RpcResponseCallback callback) {
+  public ChannelFuture pushMergedData(
+      PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
 
     long requestId = requestId();
-    handler.addPushRequest(requestId, callback);
-
     pushMergedData.requestId = requestId;
 
     PushChannelListener listener = new PushChannelListener(requestId, callback);
-    return channel.writeAndFlush(pushMergedData).addListener(listener);
+    ChannelFuture channelFuture = channel.writeAndFlush(pushMergedData).addListener(listener);
+    handler.addPushRequest(requestId, channelFuture, pushDataTimeout, callback);
+    return channelFuture;
   }
 
   /**
