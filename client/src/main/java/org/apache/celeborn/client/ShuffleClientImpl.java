@@ -134,7 +134,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
-  private TransportClient currentClient;
+  private ConcurrentHashMap<String, TransportClient> currentClient = new ConcurrentHashMap<>();
 
   public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier) {
     super();
@@ -1531,17 +1531,18 @@ public class ShuffleClientImpl extends ShuffleClient {
   private TransportClient createClientWaitingInFlightRequest(
       PartitionLocation location, String mapKey, PushState pushState)
       throws IOException, InterruptedException {
-    return dataClientFactory.createClient(
-        location.getHost(), location.getPushPort(), location.getId());
-    //    if (currentClient != client) {
-    //      // makesure that messages have been sent by old client, in order to keep receiving data
-    //      // orderly
-    //      if (currentClient != null) {
-    //        limitZeroInFlight(mapKey, pushState);
-    //      }
-    //      currentClient = client;
-    //    }
-    //    return currentClient;
+    TransportClient client =
+        dataClientFactory.createClient(
+            location.getHost(), location.getPushPort(), location.getId());
+    if (currentClient.get(mapKey) != client) {
+      // makesure that messages have been sent by old client, in order to keep receiving data
+      // orderly
+      if (currentClient.get(mapKey) != null) {
+        limitZeroInFlight(mapKey, pushState);
+      }
+      currentClient.put(mapKey, client);
+    }
+    return currentClient.get(mapKey);
   }
 
   @Override
