@@ -638,7 +638,7 @@ private[celeborn] class Master(
         val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
           workerInfo.userResourceConsumption.asScala.get(userIdentifier)
         }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-        userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
+        userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
         newResourceConsumption
       } else {
         resourceConsumptionAndUpdateTime._1
@@ -647,7 +647,7 @@ private[celeborn] class Master(
       val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
         workerInfo.userResourceConsumption.asScala.get(userIdentifier)
       }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))._1
+      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
       newResourceConsumption
     }
   }
