@@ -260,11 +260,11 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
     Pair<Buffer, InputChannelInfo> pair = getReceived();
     Optional<BufferOrEvent> bufferOrEvent = Optional.empty();
-    LOG.info("pollNext called with pair null {}", pair == null);
+    LOG.debug("pollNext called with pair null {}", pair == null);
     while (pair != null) {
       Buffer buffer = pair.getLeft();
       InputChannelInfo channelInfo = pair.getRight();
-      LOG.info("get buffer {} on channel {}", buffer, channelInfo);
+      LOG.debug("get buffer {} on channel {}", buffer, channelInfo);
       if (buffer.isBuffer()) {
         bufferOrEvent = transformBuffer(buffer, channelInfo);
       } else {
@@ -427,7 +427,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
         boolean wasEmpty = receivedBuffers.isEmpty();
         InputChannelInfo channelInfo = channelsInfo.get(channelIdx);
         checkState(channelInfo.getInputChannelIdx() == channelIdx, "Illegal channel index.");
-        LOG.info("ReceivedBuffers is adding buffer {} on {}", buffer, channelInfo);
+        LOG.debug("ReceivedBuffers is adding buffer {} on {}", buffer, channelInfo);
         receivedBuffers.add(Pair.of(buffer, channelInfo));
         needRecycle = false;
         if (wasEmpty) {

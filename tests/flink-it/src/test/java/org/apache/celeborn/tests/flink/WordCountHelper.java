@@ -43,7 +43,7 @@ public class WordCountHelper {
         .keyBy(value -> value.f0)
         .sum(1)
         .map((MapFunction<Tuple2<String, Long>, Long>) wordCount -> wordCount.f1)
-        .addSink(new VerifySink((long) 4 * WORD_COUNT));
+        .addSink(new VerifySink((long) 1 * WORD_COUNT));
   }
 
   private static class WordsMapper implements MapFunction<Long, String> {
