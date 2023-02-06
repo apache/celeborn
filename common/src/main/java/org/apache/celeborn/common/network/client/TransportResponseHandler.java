@@ -249,9 +249,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
-      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId).callback;
-      if (listener == null) {
-        listener = outstandingRpcs.remove(resp.requestId);
+      PushBatchInfo info = outstandingPushes.remove(resp.requestId);
+      if (info == null) {
+        RpcResponseCallback listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
@@ -268,16 +268,16 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         }
       } else {
         try {
-          listener.onSuccess(resp.body().nioByteBuffer());
+          info.callback.onSuccess(resp.body().nioByteBuffer());
         } finally {
           resp.body().release();
         }
       }
     } else if (message instanceof RpcFailure) {
       RpcFailure resp = (RpcFailure) message;
-      RpcResponseCallback listener = outstandingPushes.remove(resp.requestId).callback;
-      if (listener == null) {
-        listener = outstandingRpcs.remove(resp.requestId);
+      PushBatchInfo info = outstandingPushes.remove(resp.requestId);
+      if (info == null) {
+        RpcResponseCallback listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
@@ -288,7 +288,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           listener.onFailure(new RuntimeException(resp.errorString));
         }
       } else {
-        listener.onFailure(new RuntimeException(resp.errorString));
+        info.callback.onFailure(new RuntimeException(resp.errorString));
       }
     } else {
       throw new IllegalStateException("Unknown response type: " + message.type());
