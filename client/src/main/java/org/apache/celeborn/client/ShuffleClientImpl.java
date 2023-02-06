@@ -1441,13 +1441,14 @@ public class ShuffleClientImpl extends ShuffleClient {
     int totalLength = data.readableBytes();
     data.markWriterIndex();
     data.writerIndex(0);
-    data.writeInt(mapId);
+    data.writeInt(partitionId);
     data.writeInt(attemptId);
     data.writeInt(nextBatchId);
     data.writeInt(totalLength - BATCH_HEADER_SIZE);
     data.resetWriterIndex();
     logger.debug(
-        "Do push data byteBuf for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
+        "Do push data byteBuf size {} for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
+        totalLength,
         applicationId,
         shuffleId,
         mapId,
