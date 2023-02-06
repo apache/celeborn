@@ -48,6 +48,7 @@ public class ReadBufferDispatcher extends Thread {
 
   public void recycle(ByteBuf buf) {
     int bufferSize = buf.capacity();
+    buf.clear();
     buf.release();
     memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
@@ -69,6 +70,7 @@ public class ReadBufferDispatcher extends Thread {
             memoryManager.incrementDiskBuffer(bufferSize);
             ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
             buf.retain();
+            buf.retain();
             buffers.add(buf);
           } else {
             try {
@@ -84,6 +86,7 @@ public class ReadBufferDispatcher extends Thread {
             && buffers.size() < request.getMax()) {
           memoryManager.changeReadBufferCounter(bufferSize);
           ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+          buf.retain();
           buf.retain();
           buffers.add(buf);
         }

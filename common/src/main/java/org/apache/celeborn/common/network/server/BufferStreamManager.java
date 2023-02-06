@@ -80,7 +80,7 @@ public class BufferStreamManager {
                                   throw new RuntimeException(throwable);
                                 }
                                 if (servingStreams.contains(streamId)) {
-                                  servingStreams.get(streamId).onBuffer(allocatedBuffers);
+                                  servingStreams.get(streamId).onBuffer(new ArrayDeque<>(allocatedBuffers));
                                 } else {
                                   throw new RuntimeException("Serving stream should not be null.");
                                 }
@@ -199,11 +199,11 @@ public class BufferStreamManager {
           minReadBuffers,
           maxReadBuffers,
           fileInfo.getBufferSize(),
-          (allocatedBuffers, throwable) -> MapDataPartition.this.onBuffer(allocatedBuffers));
+          (allocatedBuffers, throwable) -> MapDataPartition.this.onBuffer(new ArrayDeque<>(allocatedBuffers)));
     }
 
     // Read logic is executed on another thread.
-    public void onBuffer(List<ByteBuf> buffers) {
+    public void onBuffer(Queue<ByteBuf> buffers) {
       if (readers.isEmpty()) {
         return;
       }
@@ -380,8 +380,7 @@ public class BufferStreamManager {
       return currentPartitionRemainingBytes > 0;
     }
 
-    public boolean readAndSend(List<ByteBuf> buffers) throws IOException {
-      Queue<ByteBuf> bufferQueue = new ArrayDeque<>(buffers);
+    public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue) throws IOException {
       boolean hasReaming = hasRemaining();
       boolean continueReading = hasReaming;
       int numDataBuffers = 0;
@@ -429,6 +428,7 @@ public class BufferStreamManager {
 
         if (!recycleBuffer) {
           notifyDataAvailable = buffersRead.isEmpty();
+          logger.info("BuffersRead read");
           buffersRead.add(buffer);
         }
       }
@@ -462,6 +462,7 @@ public class BufferStreamManager {
                       } else {
                         // we have manually controlled the lifecycle of a buffer,
                         // so here is no need to release
+                        memoryManager.recycleReadBuffer(readBuf);
                       }
                     });
         streamCredits.put(streamId, streamCredits.get(streamId) - 1);
