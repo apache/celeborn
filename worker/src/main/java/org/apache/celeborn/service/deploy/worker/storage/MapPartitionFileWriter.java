@@ -217,9 +217,15 @@ public final class MapPartitionFileWriter extends FileWriter {
     for (int partitionIndex = 0; partitionIndex < numReducePartitions; ++partitionIndex) {
       indexBuffer.putLong(fileOffset);
       if (!isBroadcastRegion) {
+        logger.info(
+            "flush index : fileOffset:{}, size:{} ",
+            fileOffset,
+            numReducePartitionBytes[partitionIndex]);
         indexBuffer.putLong(numReducePartitionBytes[partitionIndex]);
         fileOffset += numReducePartitionBytes[partitionIndex];
       } else {
+        logger.info(
+            "flush index : fileOffset:{}, size:{} ", fileOffset, numReducePartitionBytes[0]);
         indexBuffer.putLong(numReducePartitionBytes[0]);
       }
     }

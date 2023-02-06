@@ -69,6 +69,10 @@ public class BufferPacker {
       cachedBuffer = buffer;
       int targetSubIdx = currentSubIdx;
       currentSubIdx = subIdx;
+      logger.debug(
+          "cachedBuffer pack1: type,{}, length:{}",
+          dumpedBuffer.getDataType(),
+          dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
     } else {
       /**
@@ -84,10 +88,19 @@ public class BufferPacker {
                 buffer.asByteBuf(),
                 BufferUtils.HEADER_LENGTH_PREFIX,
                 buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+        logger.info(
+            "cachedBuffer pack: type,{}, length:{}",
+            buffer.getDataType(),
+            buffer.getSize(),
+            buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
         buffer.recycleBuffer();
       } else {
         Buffer dumpedBuffer = cachedBuffer;
         cachedBuffer = buffer;
+        logger.debug(
+            "cachedBuffer pack2:type,{}, length:{} ",
+            dumpedBuffer.getDataType(),
+            dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
         handleRipeBuffer(dumpedBuffer, currentSubIdx);
       }
     }
@@ -134,7 +147,6 @@ public class BufferPacker {
           bufferHeader = BufferUtils.getBufferHeader(buffer, position);
           position += BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX;
         }
-
         Buffer slice = buffer.readOnlySlice(position, bufferHeader.getSize());
         position += bufferHeader.getSize();
 
