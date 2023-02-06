@@ -80,7 +80,6 @@ public class BufferUtils {
   public static BufferHeader getBufferHeader(Buffer buffer, int position, boolean isFirst) {
     ByteBuf byteBuf = buffer.asByteBuf();
     byteBuf.readerIndex(position);
-    logger.info("buffer size:{} reader position:{}", byteBuf.readableBytes(), position);
 
     if (!isFirst) {
       return new BufferHeader(
