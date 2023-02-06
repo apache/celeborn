@@ -337,7 +337,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     }
 
     try {
@@ -559,7 +559,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     }
 
     var index = 0
