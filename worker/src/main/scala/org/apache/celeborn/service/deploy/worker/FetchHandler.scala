@@ -70,9 +70,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
-      case r: ReadAddCredit =>
-        rpcSource.updateMessageMetrics(r, 0)
-        handleReadAddCredit(client, r)
       case r: ChunkFetchRequest =>
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
@@ -85,6 +82,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
+    if (msg.isInstanceOf[ReadAddCredit]) {
+      rpcSource.updateMessageMetrics(msg, 0)
+      handleReadAddCredit(client, msg.asInstanceOf[ReadAddCredit])
+      return
+    }
     val openStream = msg.asInstanceOf[OpenStream]
     val shuffleKey = new String(openStream.shuffleKey, StandardCharsets.UTF_8)
     val fileName = new String(openStream.fileName, StandardCharsets.UTF_8)

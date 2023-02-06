@@ -119,6 +119,10 @@ public class RemoteBufferStreamReader extends CreditListener {
       readData.body().release();
       return;
     }
+    int backLogInData = readData.getBacklog();
+    if (backLogInData > 0) {
+      backlogReceived(backLogInData);
+    }
     dataListener.accept(readData.getFlinkBuffer());
   }
 }
