@@ -27,11 +27,14 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 
 /** Utility methods to process flink buffers. */
 public class BufferUtils {
+  private static Logger logger = LoggerFactory.getLogger(BufferUtils.class);
 
   // subpartitionid(4) + attemptId(4) + nextBatchId(4) + compressedsize
   public static final int HEADER_LENGTH_PREFIX = 4 * 4;
@@ -77,6 +80,8 @@ public class BufferUtils {
   public static BufferHeader getBufferHeader(Buffer buffer, int position, boolean isFirst) {
     ByteBuf byteBuf = buffer.asByteBuf();
     byteBuf.readerIndex(position);
+    logger.info("buffer size:{} reader position:{}", byteBuf.readableBytes(), position);
+
     if (!isFirst) {
       return new BufferHeader(
           Buffer.DataType.values()[byteBuf.readByte()], byteBuf.readBoolean(), byteBuf.readInt());

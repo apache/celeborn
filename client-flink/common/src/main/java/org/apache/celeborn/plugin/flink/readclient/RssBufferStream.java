@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
@@ -33,7 +34,7 @@ import org.apache.celeborn.plugin.flink.network.MapTransportClientFactory;
 
 public class RssBufferStream {
 
-  private static Logger logger;
+  private static Logger logger = LoggerFactory.getLogger(RssBufferStream.class);
   private CelebornConf conf;
   private MapTransportClientFactory clientFactory;
   private String shuffleKey;

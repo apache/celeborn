@@ -439,6 +439,7 @@ public class BufferStreamManager {
     public void sendData() {
       while (!buffersRead.isEmpty()) {
         ByteBuf readBuf = buffersRead.poll();
+        logger.info("send " + readBuf.readableBytes() + " to stream " + streamId);
         ReadData readData = new ReadData(streamId, buffersRead.size(), 0, readBuf);
         streams
             .get(streamId)
@@ -465,6 +466,7 @@ public class BufferStreamManager {
       IOUtils.closeQuietly(indexFileChannel);
       IOUtils.closeQuietly(dataFileChannel);
       cleanResource(this.streamId);
+      logger.info("Closed read for stream {}", this.streamId);
     }
 
     protected void notifyBacklog(int backlog) {
