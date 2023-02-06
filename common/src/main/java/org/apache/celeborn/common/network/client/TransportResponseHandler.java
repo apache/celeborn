@@ -91,16 +91,18 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         PushBatchInfo info = entry.getValue();
         if (info.pushDataTimeout > 0) {
           if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
-            if (info.callback != null && !info.channelFuture.isDone()) {
-              info.channelFuture.cancel(true);
-              // When module name equals to DATA_MODULE, mean shuffle client push data, else means
-              // do data replication.
-              if (Objects.equals(conf.getModuleName(), TransportModuleConstants.DATA_MODULE)) {
-                info.callback.onFailure(
-                    new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
-              } else {
-                info.callback.onFailure(
-                    new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+            if (info.callback != null) {
+              if (!info.channelFuture.isDone()) {
+                info.channelFuture.cancel(true);
+                // When module name equals to DATA_MODULE, mean shuffle client push data, else means
+                // do data replication.
+                if (Objects.equals(conf.getModuleName(), TransportModuleConstants.DATA_MODULE)) {
+                  info.callback.onFailure(
+                      new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+                } else {
+                  info.callback.onFailure(
+                      new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+                }
               }
               info.channelFuture = null;
               info.callback = null;
