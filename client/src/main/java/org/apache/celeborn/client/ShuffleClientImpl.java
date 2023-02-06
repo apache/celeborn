@@ -1469,7 +1469,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         new RpcResponseCallback() {
           @Override
           public void onSuccess(ByteBuffer response) {
-            closeCallBack.getAsBoolean();
             pushState.removeBatch(nextBatchId, location.hostAndPushPort());
             if (response.remaining() > 0) {
               byte reason = response.get();
@@ -1490,7 +1489,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           @Override
           public void onFailure(Throwable e) {
-            closeCallBack.getAsBoolean();
             pushState.removeBatch(nextBatchId, location.hostAndPushPort());
             if (pushState.exception.get() != null) {
               return;
@@ -1520,6 +1518,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
       ChannelFuture future = client.pushData(pushData, callback);
+      closeCallBack.getAsBoolean();
       pushState.pushStarted(nextBatchId, future, callback, location.hostAndPushPort());
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
