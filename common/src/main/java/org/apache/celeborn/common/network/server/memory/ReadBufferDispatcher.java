@@ -83,7 +83,9 @@ public class ReadBufferDispatcher extends Thread {
         while (memoryManager.readBufferAvailable(request.getBufferSize())
             && buffers.size() < request.getMax()) {
           memoryManager.changeReadBufferCounter(bufferSize);
-          buffers.add(readBufferAllocator.buffer(bufferSize, bufferSize));
+          ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+          buf.retain();
+          buffers.add(buf);
         }
         request.getBufferListener().notifyBuffers(buffers, null);
       } else {

@@ -158,6 +158,7 @@ public class BufferStreamManager {
   }
 
   public void cleanResource(long streamId) {
+    logger.info("clean stream:" + streamId);
     streams.remove(streamId);
     streamCredits.remove(streamId);
     FileInfo fileInfo = servingStreams.remove(streamId).fileInfo;

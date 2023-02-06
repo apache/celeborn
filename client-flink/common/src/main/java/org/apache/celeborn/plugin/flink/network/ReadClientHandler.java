@@ -66,8 +66,7 @@ public class ReadClientHandler extends BaseMessageHandler {
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.
-        //        OneWayMessage message = (OneWayMessage) msg;
-        //        System.out.println(message.toString());
+        break;
       default:
         logger.error("Unexpected msg type {} content {}", msg.type(), msg);
     }
