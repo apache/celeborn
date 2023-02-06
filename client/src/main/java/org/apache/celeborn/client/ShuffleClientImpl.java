@@ -1776,6 +1776,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             || (e.getCause() != null && e.getCause() instanceof TimeoutException)
             || (e.getCause() != null && e.getCause() instanceof IOException)
             || (e instanceof RuntimeException
+                && e.getMessage() != null
                 && e.getMessage().startsWith(IOException.class.getName()));
     return isIOException;
   }
