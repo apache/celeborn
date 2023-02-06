@@ -141,6 +141,7 @@ private[celeborn] class Worker(
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
+    fetchHandler.bufferStreamManager.setInitialReadBuffers(conf.minReadBuffers, conf.maxReadBuffers)
     val transportContext: TransportContext =
       new TransportContext(transportConf, fetchHandler, closeIdleConnections)
     transportContext.createServer(conf.workerFetchPort)
@@ -224,6 +225,7 @@ private[celeborn] class Worker(
   workerSource.addGauge(
     WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
+  workerSource.addGauge(WorkerSource.ReadBuffer, _ => memoryTracker.getReadBufferCounter.get())
 
   private def heartBeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()

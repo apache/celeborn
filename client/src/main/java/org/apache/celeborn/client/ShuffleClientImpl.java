@@ -1531,18 +1531,17 @@ public class ShuffleClientImpl extends ShuffleClient {
   private TransportClient createClientWaitingInFlightRequest(
       PartitionLocation location, String mapKey, PushState pushState)
       throws IOException, InterruptedException {
-    TransportClient client =
-        dataClientFactory.createClient(
-            location.getHost(), location.getPushPort(), location.getId());
-    if (currentClient != client) {
-      // makesure that messages have been sent by old client, in order to keep receiving data
-      // orderly
-      if (currentClient != null) {
-        limitZeroInFlight(mapKey, pushState);
-      }
-      currentClient = client;
-    }
-    return currentClient;
+    return dataClientFactory.createClient(
+        location.getHost(), location.getPushPort(), location.getId());
+    //    if (currentClient != client) {
+    //      // makesure that messages have been sent by old client, in order to keep receiving data
+    //      // orderly
+    //      if (currentClient != null) {
+    //        limitZeroInFlight(mapKey, pushState);
+    //      }
+    //      currentClient = client;
+    //    }
+    //    return currentClient;
   }
 
   @Override

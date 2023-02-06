@@ -334,6 +334,10 @@ public class MemoryManager {
     return diskBufferCounter;
   }
 
+  public AtomicLong getReadBufferCounter() {
+    return readBufferCounter;
+  }
+
   public long getPausePushDataCounter() {
     return pausePushDataCounter.sum();
   }

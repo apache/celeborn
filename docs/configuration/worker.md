@@ -20,6 +20,8 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
+| celeborn.fetch.readBuffers.Max | 8 | Max number of initial read buffers | 0.3.0 | 
+| celeborn.fetch.readBuffers.Min | 8 | Min number of initial read buffers | 0.3.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.metrics.capacity | 4096 | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 | 
 | celeborn.metrics.collectPerfCritical.enabled | false | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 | 

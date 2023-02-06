@@ -51,6 +51,8 @@ public class BufferStreamManager {
   protected final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
   protected final MemoryManager memoryManager = MemoryManager.instance();
   protected final StorageFetcherPool storageFetcherPool = new StorageFetcherPool();
+  protected int minReadBuffers;
+  protected int maxReadBuffers;
 
   private Thread readScheduler =
       new Thread(
@@ -115,6 +117,11 @@ public class BufferStreamManager {
     servingStreams = new ConcurrentHashMap<>();
     activeMapPartitions = new ConcurrentHashMap<>();
     readScheduler.start();
+  }
+
+  public void setInitialReadBuffers(int minReadBuffers, int maxReadBuffers) {
+    this.minReadBuffers = minReadBuffers;
+    this.maxReadBuffers = maxReadBuffers;
   }
 
   public long registerStream(
@@ -189,8 +196,8 @@ public class BufferStreamManager {
       readers.add(dataPartitionReader);
       // create initial buffers for read
       memoryManager.requestReadBuffers(
-          8,
-          64,
+          minReadBuffers,
+          maxReadBuffers,
           fileInfo.getBufferSize(),
           (allocatedBuffers, throwable) -> MapDataPartition.this.onBuffer(allocatedBuffers));
     }
@@ -453,8 +460,8 @@ public class BufferStreamManager {
                         errorCause = future.cause();
                         throw new RuntimeException(future.cause());
                       } else {
-                        // if write data success, there is no need to release again.
-                        // memoryManager.recycleReadBuffer(readBuf);
+                        // we have manually controlled the lifecycle of a buffer,
+                        // so here is no need to release
                       }
                     });
         streamCredits.put(streamId, streamCredits.get(streamId) - 1);

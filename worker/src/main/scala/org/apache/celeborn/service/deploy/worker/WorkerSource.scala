@@ -98,6 +98,7 @@ object WorkerSource {
   val DiskBuffer = "DiskBuffer"
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
+  val ReadBuffer = "ReadBuffer"
 
   // local device
   val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"

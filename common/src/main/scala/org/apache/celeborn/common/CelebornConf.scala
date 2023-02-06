@@ -743,6 +743,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
+  def minReadBuffers: Int = get(FETCH_READBUFFERS_MIN)
+  def maxReadBuffers: Int = get(FETCH_READBUFFERS_MAX)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -2820,4 +2822,20 @@ object CelebornConf extends Logging {
       .doc("The size of network buffers required per result partition. The minimum valid value is 8M. Usually, several hundreds of megabytes memory is enough for large scale batch jobs.")
       .stringConf
       .createWithDefault("64m")
+
+  val FETCH_READBUFFERS_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.fetch.readBuffers.Min")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Min number of initial read buffers")
+      .intConf
+      .createWithDefault(8)
+
+  val FETCH_READBUFFERS_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.fetch.readBuffers.Max")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Max number of initial read buffers")
+      .intConf
+      .createWithDefault(8)
 }
