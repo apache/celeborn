@@ -80,7 +80,9 @@ public class BufferStreamManager {
                                   throw new RuntimeException(throwable);
                                 }
                                 if (servingStreams.contains(streamId)) {
-                                  servingStreams.get(streamId).onBuffer(new ArrayDeque<>(allocatedBuffers));
+                                  servingStreams
+                                      .get(streamId)
+                                      .onBuffer(new ArrayDeque<>(allocatedBuffers));
                                 } else {
                                   throw new RuntimeException("Serving stream should not be null.");
                                 }
@@ -199,7 +201,8 @@ public class BufferStreamManager {
           minReadBuffers,
           maxReadBuffers,
           fileInfo.getBufferSize(),
-          (allocatedBuffers, throwable) -> MapDataPartition.this.onBuffer(new ArrayDeque<>(allocatedBuffers)));
+          (allocatedBuffers, throwable) ->
+              MapDataPartition.this.onBuffer(new ArrayDeque<>(allocatedBuffers)));
     }
 
     // Read logic is executed on another thread.
