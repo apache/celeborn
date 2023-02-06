@@ -145,6 +145,7 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
 
   metricsSystem.registerSource(rpcSource)
+  metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
