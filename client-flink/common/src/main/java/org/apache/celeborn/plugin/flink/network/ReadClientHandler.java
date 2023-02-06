@@ -53,13 +53,21 @@ public class ReadClientHandler extends BaseMessageHandler {
       case READ_DATA:
         ReadData readData = (ReadData) msg;
         streamId = readData.getStreamId();
-        streamHandlers.get(streamId).accept(msg);
+        if (streamHandlers.containsKey(streamId)) {
+          streamHandlers.get(streamId).accept(msg);
+        }
         break;
       case BACKLOG_ANNOUNCEMENT:
         BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
         streamId = backlogAnnouncement.getStreamId();
-        streamHandlers.get(streamId).accept(msg);
+        if (streamHandlers.containsKey(streamId)) {
+          streamHandlers.get(streamId).accept(msg);
+        }
         break;
+      case ONE_WAY_MESSAGE:
+        // ignore it.
+        //        OneWayMessage message = (OneWayMessage) msg;
+        //        System.out.println(message.toString());
       default:
         logger.error("Unexpected msg type {} content {}", msg.type(), msg);
     }

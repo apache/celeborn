@@ -463,6 +463,7 @@ public class BufferStreamManager {
       isClosed = true;
       IOUtils.closeQuietly(indexFileChannel);
       IOUtils.closeQuietly(dataFileChannel);
+      cleanResource(this.streamId);
     }
 
     protected void notifyBacklog(int backlog) {

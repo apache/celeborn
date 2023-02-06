@@ -72,7 +72,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       copyByteBuf(buf, msgBuf, msgSize);
     }
     if (msgBuf.readableBytes() == msgSize) {
-      curMsg = MessageDecoderExt.decode(curType, msgBuf, true);
+      curMsg = MessageDecoderExt.decode(curType, msgBuf, false);
       if (bodySize <= 0) {
         ctx.fireChannelRead(curMsg);
         clear();
