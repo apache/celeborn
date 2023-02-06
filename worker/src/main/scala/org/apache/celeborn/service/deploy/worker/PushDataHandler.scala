@@ -168,7 +168,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         if (isMaster) {
           if (doReplicate) {
             // Only master data will push data to slave
-            pushState.removeBatch(batchId, location.hostAndPushPort())
+            pushState.removeBatch(batchId, location.getPeer.hostAndPushPort())
           }
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
@@ -191,7 +191,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
         workerSource.incCounter(WorkerSource.PushDataFailCount)
         if (doReplicate) {
-          pushState.removeBatch(batchId, location.hostAndPushPort())
+          pushState.removeBatch(batchId, location.getPeer.hostAndPushPort())
         }
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
@@ -307,7 +307,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
             return
           }
-          pushState.addBatch(batchId, location.hostAndPushPort())
+          pushState.addBatch(batchId, location.getPeer.hostAndPushPort())
           try {
             val client =
               pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
@@ -321,12 +321,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               batchId,
               channelFuture,
               wrappedCallback,
-              location.hostAndPushPort(),
+              location.getPeer.hostAndPushPort(),
               shufflePushDataTimeout.get(shuffleKey))
           } catch {
             case e: Exception =>
               pushData.body().release()
-              pushState.removeBatch(batchId, location.hostAndPushPort())
+              pushState.removeBatch(batchId, location.getPeer.hostAndPushPort())
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               callback.onFailure(
@@ -402,7 +402,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         if (isMaster) {
           // Only master data enable replication will push data to slave
           if (doReplicate) {
-            pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+            pushState.removeBatch(batchId, locations.head.getPeer.hostAndPushPort())
           }
           workerSource.stopTimer(WorkerSource.MasterPushDataTime, key)
           if (response.remaining() > 0) {
@@ -422,7 +422,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       override def onFailure(e: Throwable): Unit = {
         workerSource.incCounter(WorkerSource.PushDataFailCount)
         if (doReplicate) {
-          pushState.removeBatch(batchId, locations.head.hostAndPushPort())
+          pushState.removeBatch(batchId, locations.head.getPeer.hostAndPushPort())
         }
         // Throw by slave peer worker
         if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
@@ -526,7 +526,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
             return
           }
-          pushState.addBatch(batchId, location.hostAndPushPort())
+          pushState.addBatch(batchId, location.getPeer.hostAndPushPort())
           try {
             val client = pushClientFactory.createClient(
               peer.getHost,
@@ -543,14 +543,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               batchId,
               channelFuture,
               wrappedCallback,
-              location.hostAndPushPort(),
+              location.getPeer.hostAndPushPort(),
               shufflePushDataTimeout.get(shuffleKey))
           } catch {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
-              pushState.removeBatch(batchId, location.hostAndPushPort())
+              pushState.removeBatch(batchId, location.getPeer.hostAndPushPort())
               callback.onFailure(
                 new Exception(
                   s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
