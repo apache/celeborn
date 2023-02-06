@@ -49,6 +49,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     Seq("false", "true").foreach { enabled =>
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
         .set("spark.celeborn.push.data.timeout", "5s")
+        .set("spark.celeborn.push.timeoutCheck.interval", "2s")
         .set("spark.celeborn.push.replicate.enabled", enabled)
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val combineResult = combine(sparkSession)

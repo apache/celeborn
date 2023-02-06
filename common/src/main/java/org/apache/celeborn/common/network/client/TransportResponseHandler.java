@@ -70,7 +70,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
-    pushTimeoutChecker = ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker");
+    pushTimeoutChecker =
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+            "push-timeout-checker-" + this.toString());
     pushTimeoutChecker.scheduleAtFixedRate(
         new Runnable() {
           @Override
@@ -92,7 +94,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         if (info.pushDataTimeout > 0) {
           if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
             if (info.callback != null) {
-              if (!info.channelFuture.isDone()) {
+              if (!info.channelFuture.isCancellable()) {
                 info.channelFuture.cancel(true);
                 // When module name equals to DATA_MODULE, mean shuffle client push data, else means
                 // do data replication.

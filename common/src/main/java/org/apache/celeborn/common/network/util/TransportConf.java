@@ -146,6 +146,6 @@ public class TransportConf {
   }
 
   public long pushDataTimeoutCheckIntervalMs() {
-    return conf.pushDataTimeoutMs();
+    return conf.pushTimeoutCheckInterval();
   }
 }
