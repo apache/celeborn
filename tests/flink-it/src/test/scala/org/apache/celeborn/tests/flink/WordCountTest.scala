@@ -18,7 +18,7 @@
 package org.apache.celeborn.tests.flink;
 
 import org.apache.flink.api.common.{ExecutionMode, InputDependencyConstraint, RuntimeExecutionMode}
-import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions, RestOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
@@ -56,6 +56,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true)
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
+    configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(4)
