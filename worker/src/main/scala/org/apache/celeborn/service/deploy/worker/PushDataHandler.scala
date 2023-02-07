@@ -148,9 +148,17 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val key = s"${pushData.requestId}"
     val callbackWithTimer =
       if (isMaster) {
-        new RpcResponseCallbackWithTimer(workerSource, WorkerSource.MasterPushDataTime, key, callback)
+        new RpcResponseCallbackWithTimer(
+          workerSource,
+          WorkerSource.MasterPushDataTime,
+          key,
+          callback)
       } else {
-        new RpcResponseCallbackWithTimer(workerSource, WorkerSource.SlavePushDataTime, key, callback)
+        new RpcResponseCallbackWithTimer(
+          workerSource,
+          WorkerSource.SlavePushDataTime,
+          key,
+          callback)
       }
 
     // find FileWriter responsible for the data
@@ -381,9 +389,17 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val key = s"${pushMergedData.requestId}"
     val callbackWithTimer =
       if (isMaster) {
-        new RpcResponseCallbackWithTimer(workerSource, WorkerSource.MasterPushDataTime, key, callback)
+        new RpcResponseCallbackWithTimer(
+          workerSource,
+          WorkerSource.MasterPushDataTime,
+          key,
+          callback)
       } else {
-        new RpcResponseCallbackWithTimer(workerSource, WorkerSource.SlavePushDataTime, key, callback)
+        new RpcResponseCallbackWithTimer(
+          workerSource,
+          WorkerSource.SlavePushDataTime,
+          key,
+          callback)
       }
 
     // For test
