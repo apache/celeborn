@@ -27,7 +27,6 @@ import scala.util.Try
 
 import org.apache.hadoop.security.UserGroupInformation
 
-import org.apache.celeborn.common.CelebornConf.PUSH_LIMIT_STRATEGY
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
