@@ -57,7 +57,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufSuccess() throws IOException {
     ByteBuf byteBuf = createByteBuf();
-    when(client.pushData(any(), any(), any()))
+    when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
