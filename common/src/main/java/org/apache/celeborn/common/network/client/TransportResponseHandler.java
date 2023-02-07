@@ -71,8 +71,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
     pushTimeoutChecker =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-            "push-timeout-checker-" + this.toString());
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker-" + this);
     pushTimeoutChecker.scheduleAtFixedRate(
         new Runnable() {
           @Override

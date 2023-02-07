@@ -1308,7 +1308,7 @@ object CelebornConf extends Logging {
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("30s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
