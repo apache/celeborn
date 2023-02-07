@@ -383,7 +383,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (isMaster) {
         new WrappedTimeMetric(workerSource, WorkerSource.MasterPushDataTime, key, callback)
       } else {
-        new WrappedTimeMetric(workerSource, WorkerSource.MasterPushDataTime, key, callback)
+        new WrappedTimeMetric(workerSource, WorkerSource.SlavePushDataTime, key, callback)
       }
 
     // For test
@@ -653,6 +653,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       source.stopTimer(metricName, key)
     }
   }
+
   class SimpleRpcResponseCallback(
       messageType: Message.Type,
       client: TransportClient,
