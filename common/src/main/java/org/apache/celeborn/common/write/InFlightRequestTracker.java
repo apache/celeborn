@@ -40,6 +40,7 @@ public class InFlightRequestTracker {
   private final long waitInflightTimeoutMs;
   private final long delta;
   private final PushState pushState;
+  private final PushStrategy pushStrategy;
 
   private final AtomicInteger batchId = new AtomicInteger();
   private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, BatchInfo>>
@@ -49,12 +50,21 @@ public class InFlightRequestTracker {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
     this.delta = conf.pushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
+    this.pushStrategy = PushStrategy.getStrategy(conf);
   }
 
   public void addBatch(int batchId, String hostAndPushPort) {
     ConcurrentHashMap<Integer, BatchInfo> batchIdSetPerPair =
         inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new ConcurrentHashMap<>());
     batchIdSetPerPair.computeIfAbsent(batchId, id -> new BatchInfo());
+  }
+
+  public void onSuccess(int batchId, String hostAndPushPort) {
+    pushStrategy.onSuccess(hostAndPushPort);
+  }
+
+  public void onCongestControl(int batchId, String hostAndPushPort) {
+    pushStrategy.onCongestControl(hostAndPushPort);
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
@@ -74,16 +84,19 @@ public class InFlightRequestTracker {
         hostAndPort, pair -> new ConcurrentHashMap<>());
   }
 
-  public boolean limitMaxInFlight(String hostAndPushPort, int maxInFlight) throws IOException {
+  public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
+
+    pushStrategy.limitPushSpeed(pushState, hostAndPushPort);
+    int currentMaxReqsInFlight = pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort);
 
     ConcurrentHashMap<Integer, BatchInfo> batchIdMap = getBatchIdSetByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
-        if (batchIdMap.size() <= maxInFlight) {
+        if (batchIdMap.size() <= currentMaxReqsInFlight) {
           break;
         }
         if (pushState.exception.get() != null) {
@@ -102,11 +115,11 @@ public class InFlightRequestTracker {
           "After waiting for {} ms, "
               + "there are still {} batches in flight "
               + "for hostAndPushPort {}, "
-              + "which exceeds the limit {}.",
+              + "which exceeds the current limit {}.",
           waitInflightTimeoutMs,
           batchIdMap.size(),
           hostAndPushPort,
-          maxInFlight);
+          currentMaxReqsInFlight);
     }
 
     if (pushState.exception.get() != null) {
@@ -224,6 +237,7 @@ public class InFlightRequestTracker {
                           }));
       inflightBatchesPerAddress.clear();
     }
+    pushStrategy.clear();
   }
 
   static class BatchInfo {

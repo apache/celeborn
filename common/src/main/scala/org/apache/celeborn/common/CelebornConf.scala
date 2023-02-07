@@ -667,6 +667,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
+  def pushLimitStrategy: String = get(PUSH_LIMIT_STRATEGY)
+  def pushSlowStartInitialSleepTime: Long = get(PUSH_SLOW_START_INITIAL_SLEEP_TIME)
+  def pushSlowStartMaxSleepMills: Long = get(PUSH_SLOW_START_MAX_SLEEP_TIME)
   def pushLimitInFlightTimeoutMs: Long =
     if (pushReplicateEnabled) {
       get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 4)
@@ -703,8 +706,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
         .getOrElse(rpcAskTimeout.duration * (requestCommitFilesMaxRetries + 2)),
       GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
-
-  def pushDataSlowStart: Boolean = get(PUSH_DATA_SLOW_START)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -2158,6 +2159,35 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+  val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
+    buildConf("celeborn.push.limit.strategy")
+      .categories("client")
+      .doc("The strategy used to control the push speed. " +
+        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
+        "congest control mechanism in the worker side.")
+      .version("0.3.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("SIMPLE", "SLOWSTART"))
+      .createWithDefaultString("SIMPLE")
+
+  val PUSH_SLOW_START_INITIAL_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.slowStart.initialSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"The initial sleep time if the current max in flight requests is 0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("500ms")
+
+  val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.slowStart.maxSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"If ${PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
+        "take a sleep strategy for each batch of requests, this controls " +
+        "the max sleep time if the max in flight requests limit is 1 for a long time")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("2s")
 
   val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.data.timeout")
@@ -2339,15 +2369,6 @@ object CelebornConf extends Logging {
         s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1 + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
-
-  val PUSH_DATA_SLOW_START: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.data.slowStart")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Whether to allow to slow increasing maxReqs to meet the max push capacity, " +
-        "worked when worker side enables rate limit mechanism")
-      .booleanConf
-      .createWithDefault(false)
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
