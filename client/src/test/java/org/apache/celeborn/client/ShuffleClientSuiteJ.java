@@ -18,6 +18,7 @@
 package org.apache.celeborn.client;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -312,12 +313,12 @@ public class ShuffleClientSuiteJ {
           }
         };
 
-    when(client.pushData(any(), any(), any())).thenAnswer(t -> mockedFuture);
+    when(client.pushData(any(), anyLong(), any())).thenAnswer(t -> mockedFuture);
     when(clientFactory.createClient(
             masterLocation.getHost(), masterLocation.getPushPort(), TEST_REDUCRE_ID))
         .thenAnswer(t -> client);
 
-    when(client.pushMergedData(any(), any(), any())).thenAnswer(t -> mockedFuture);
+    when(client.pushMergedData(any(), anyLong(), any())).thenAnswer(t -> mockedFuture);
     when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort()))
         .thenAnswer(t -> client);
 
