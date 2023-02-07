@@ -17,16 +17,19 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatusNode> {
 
   public static class BufferStatusNode implements TimeSlidingHub.TimeSlidingNode {
 
-    private final AtomicLong numBytes;
+    private final LongAdder numBytes;
 
     public BufferStatusNode(long numBytes) {
-      this.numBytes = new AtomicLong(numBytes);
+      this.numBytes = new LongAdder();
+      if (numBytes != 0L) {
+        this.numBytes.add(numBytes);
+      }
     }
 
     public BufferStatusNode() {
@@ -36,13 +39,13 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
     @Override
     public void combineNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      numBytes.addAndGet(needToCombined.numBytes.get());
+      numBytes.add(needToCombined.numBytes());
     }
 
     @Override
     public void separateNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      numBytes.addAndGet(-needToCombined.numBytes.get());
+      numBytes.add(-needToCombined.numBytes());
     }
 
     @Override
@@ -51,12 +54,12 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
     }
 
     public long numBytes() {
-      return numBytes.get();
+      return numBytes.sum();
     }
 
     @Override
     public String toString() {
-      return String.format("BufferStatusNode: {bytes: %s}", numBytes.get());
+      return String.format("BufferStatusNode: {bytes: %s}", numBytes.sum());
     }
   }
 

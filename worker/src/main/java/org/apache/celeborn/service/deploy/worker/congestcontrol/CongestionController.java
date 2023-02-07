@@ -20,7 +20,6 @@ package org.apache.celeborn.service.deploy.worker.congestcontrol;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class CongestionController {
 
@@ -64,12 +64,7 @@ public class CongestionController {
     this.userBufferStatuses = new ConcurrentHashMap<>();
 
     this.removeUserExecutorService =
-        Executors.newSingleThreadScheduledExecutor(
-            r -> {
-              Thread thread = new Thread(r, "remove-inactive-user");
-              thread.setDaemon(true);
-              return thread;
-            });
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("remove-inactive-user");
 
     this.removeUserExecutorService.scheduleWithFixedDelay(
         this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.SECONDS);
@@ -80,12 +75,9 @@ public class CongestionController {
       long highWatermark,
       long lowWatermark,
       long userInactiveTimeMills) {
-    if (_INSTANCE == null) {
-      _INSTANCE =
-          new CongestionController(
-              sampleTimeWindowSeconds, highWatermark, lowWatermark, userInactiveTimeMills);
-    }
-
+    _INSTANCE =
+        new CongestionController(
+            sampleTimeWindowSeconds, highWatermark, lowWatermark, userInactiveTimeMills);
     return _INSTANCE;
   }
 
