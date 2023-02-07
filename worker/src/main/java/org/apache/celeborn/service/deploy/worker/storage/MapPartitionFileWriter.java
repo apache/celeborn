@@ -35,7 +35,6 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
-import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
@@ -115,7 +114,8 @@ public final class MapPartitionFileWriter extends FileWriter {
     data.markReaderIndex();
     data.readBytes(header);
     data.resetReaderIndex();
-    int partitionId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
+    ByteBuffer byteBuffer = ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN);
+    int partitionId = byteBuffer.getInt();
     collectPartitionDataLength(partitionId, data);
 
     super.write(data);
