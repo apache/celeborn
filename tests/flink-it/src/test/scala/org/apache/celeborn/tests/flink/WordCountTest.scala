@@ -58,7 +58,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString("taskmanager.memory.network.min", "1024m")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
-    env.getConfig.setParallelism(1)
+    env.getConfig.setParallelism(4)
     env.getConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL)
     env.disableOperatorChaining()
     // make parameters available in the web interface

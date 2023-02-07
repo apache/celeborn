@@ -67,28 +67,34 @@ public class BufferStreamManager {
                     throw new RuntimeException(e);
                   }
                 } else {
-                  streamCredits.forEach(
-                      (streamId, credit) -> {
-                        if (credit >= 1) {
-                          memoryManager.requestReadBuffers(
-                              1,
-                              credit,
-                              streams.get(streamId).bufferSize,
-                              (allocatedBuffers, throwable) -> {
-                                if (throwable != null) {
-                                  allocatedBuffers.forEach(memoryManager::recycleReadBuffer);
-                                  throw new RuntimeException(throwable);
-                                }
-                                if (servingStreams.contains(streamId)) {
-                                  servingStreams
-                                      .get(streamId)
-                                      .onBuffer(new ArrayDeque<>(allocatedBuffers));
-                                } else {
-                                  throw new RuntimeException("Serving stream should not be null.");
-                                }
-                              });
-                        }
-                      });
+                  synchronized (this) {
+                    streamCredits.forEach(
+                        (streamId, credit) -> {
+                          if (credit >= 1) {
+                            StreamState streamState = streams.get(streamId);
+                            if (streamState != null) {
+                              memoryManager.requestReadBuffers(
+                                  1,
+                                  credit,
+                                  streamState.bufferSize,
+                                  (allocatedBuffers, throwable) -> {
+                                    if (throwable != null) {
+                                      allocatedBuffers.forEach(memoryManager::recycleReadBuffer);
+                                      throw new RuntimeException(throwable);
+                                    }
+                                    if (servingStreams.contains(streamId)) {
+                                      servingStreams
+                                          .get(streamId)
+                                          .onBuffer(new ArrayDeque<>(allocatedBuffers));
+                                    } else {
+                                      throw new RuntimeException(
+                                          "Serving stream should not be null.");
+                                    }
+                                  });
+                            }
+                          }
+                        });
+                  }
                 }
               }
             }
@@ -166,7 +172,7 @@ public class BufferStreamManager {
     }
   }
 
-  public void cleanResource(long streamId) {
+  public synchronized void cleanResource(long streamId) {
     logger.info("clean stream:" + streamId);
     streams.remove(streamId);
     streamCredits.remove(streamId);
@@ -431,7 +437,6 @@ public class BufferStreamManager {
 
         if (!recycleBuffer) {
           notifyDataAvailable = buffersRead.isEmpty();
-          logger.info("BuffersRead read");
           buffersRead.add(buffer);
         }
       }
@@ -449,7 +454,7 @@ public class BufferStreamManager {
     public void sendData() {
       while (!buffersRead.isEmpty()) {
         ByteBuf readBuf = buffersRead.poll();
-        logger.info("send " + readBuf.readableBytes() + " to stream " + streamId);
+        logger.debug("send " + readBuf.readableBytes() + " to stream " + streamId);
         ReadData readData = new ReadData(streamId, buffersRead.size(), 0, readBuf);
         streams
             .get(streamId)

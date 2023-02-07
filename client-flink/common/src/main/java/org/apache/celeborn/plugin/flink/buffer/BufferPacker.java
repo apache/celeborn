@@ -159,7 +159,7 @@ public class BufferPacker {
         slice.retainBuffer();
         isFirst = false;
       }
-      logger.info(
+      logger.debug(
           "Unpack buffer size {} get sliced buffers {} detail {}",
           buffer.getSize(),
           buffers.size(),
