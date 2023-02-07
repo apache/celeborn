@@ -33,6 +33,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.memory.MemoryManager
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.service.deploy.worker.WorkerSource
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
@@ -142,6 +143,9 @@ abstract private[worker] class Flusher(
 
   def returnBuffer(buffer: CompositeByteBuf): Unit = {
     MemoryManager.instance().releaseDiskBuffer(buffer.readableBytes())
+    Option(CongestionController.instance())
+      .foreach(
+        _.consumeBytes(buffer.readableBytes()))
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
 

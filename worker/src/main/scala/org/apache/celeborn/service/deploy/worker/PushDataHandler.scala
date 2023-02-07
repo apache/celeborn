@@ -39,6 +39,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.PackedPartitionId
 import org.apache.celeborn.common.write.PushState
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
 class PushDataHandler extends BaseMessageHandler with Logging {
@@ -337,7 +338,23 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      Option(CongestionController.instance()) match {
+        case Some(rateLimitController) =>
+          if (rateLimitController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
+            if (isMaster) {
+              callback.onSuccess(
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+            } else {
+              callback.onSuccess(
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+            }
+          } else {
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+          }
+        case None =>
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      }
     }
 
     try {
@@ -559,7 +576,23 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       })
     } else {
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      Option(CongestionController.instance()) match {
+        case Some(rateLimitController) if fileWriters.nonEmpty =>
+          if (rateLimitController.isUserCongested(fileWriters.head.getFileInfo.getUserIdentifier)) {
+            if (isMaster) {
+              callback.onSuccess(
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+            } else {
+              callback.onSuccess(
+                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+            }
+          } else {
+            callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+          }
+        case None =>
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      }
     }
 
     var index = 0

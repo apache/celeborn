@@ -262,7 +262,7 @@ public class MemoryManager {
   }
 
   public MemoryManagerStat currentMemoryAction() {
-    long memoryUsage = nettyMemoryCounter.get() + sortMemoryCounter.get();
+    long memoryUsage = getMemoryUsage();
     boolean pausePushData = memoryUsage > pausePushDataThreshold;
     boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
     if (pausePushData) {
@@ -295,6 +295,10 @@ public class MemoryManager {
     void onTrim();
   }
 
+  public void trimAllListeners() {
+    memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+  }
+
   public void reserveSortMemory(long fileLen) {
     sortMemoryCounter.addAndGet(fileLen);
   }
@@ -324,6 +328,10 @@ public class MemoryManager {
 
   public AtomicLong getNettyMemoryCounter() {
     return nettyMemoryCounter;
+  }
+
+  public long getMemoryUsage() {
+    return nettyMemoryCounter.get() + sortMemoryCounter.get();
   }
 
   public AtomicLong getSortMemoryCounter() {

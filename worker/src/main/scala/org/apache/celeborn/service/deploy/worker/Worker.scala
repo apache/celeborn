@@ -46,6 +46,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
@@ -102,6 +103,24 @@ private[celeborn] class Worker(
   memoryTracker.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryTracker, conf, workerSource)
+
+  if (conf.workerCongestionControlEnabled) {
+    if (conf.workerCongestionControlLowWatermark.isEmpty || conf.workerCongestionControlHighWatermark.isEmpty) {
+      throw new IllegalArgumentException("High watermark and low watermark must be set" +
+        " when enabling rate limit")
+    }
+
+    CongestionController.initialize(
+      conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
+      conf.workerCongestionControlHighWatermark.get,
+      conf.workerCongestionControlLowWatermark.get,
+      conf.workerCongestionControlUserInactiveIntervalMs)
+
+    val rateLimitController = CongestionController.instance()
+    workerSource.addGauge(
+      WorkerSource.PotentialConsumeSpeed,
+      _ => rateLimitController.getPotentialConsumeSpeed)
+  }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller, Some(rpcSource))

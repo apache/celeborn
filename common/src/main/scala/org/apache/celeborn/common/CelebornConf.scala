@@ -756,6 +756,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
 
+  // //////////////////////////////////////////////////////
+  //                  Rate Limit controller              //
+  // //////////////////////////////////////////////////////
+  def workerCongestionControlEnabled: Boolean = get(WORKER_CONGESTION_CONTROL_ENABLED)
+  def workerCongestionControlSampleTimeWindowSeconds: Long =
+    get(WORKER_CONGESTION_CONTROL_SAMPLE_TIME_WINDOW)
+  // TODO related to `WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE`,
+  // `WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE`and `WORKER_DIRECT_MEMORY_RATIO_RESUME`,
+  // we'd better refine the logic among them
+  def workerCongestionControlLowWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_LOW_WATERMARK)
+  def workerCongestionControlHighWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_HIGH_WATERMARK)
+  def workerCongestionControlUserInactiveIntervalMs: Long =
+    get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
+
   /**
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
@@ -2703,6 +2719,51 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
+
+  val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.congestionControl.enabled")
+      .categories("worker")
+      .doc("Whether to enable congestion control or not.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_CONGESTION_CONTROL_SAMPLE_TIME_WINDOW: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.sample.time.window")
+      .categories("worker")
+      .doc("The worker holds a time sliding list to calculate users' produce/consume rate")
+      .version("0.3.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
+
+  val WORKER_CONGESTION_CONTROL_LOW_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.low.watermark")
+      .categories("worker")
+      .doc("Will stop congest users if the total pending bytes of disk buffer is lower than " +
+        "this configuration")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_HIGH_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.high.watermark")
+      .categories("worker")
+      .doc("If the total bytes in disk buffer exceeds this configure, will start to congest" +
+        "users whose produce rate is higher than the potential average consume rate. " +
+        "The congestion will stop if the produce rate is lower or equal to the " +
+        "average consume rate, or the total pending bytes lower than " +
+        s"${WORKER_CONGESTION_CONTROL_LOW_WATERMARK.key}")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.user.inactive.interval")
+      .categories("worker")
+      .doc("How long will consider this user is inactive if it doesn't send data")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10min")
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")
