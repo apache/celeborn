@@ -1,0 +1,74 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: integration test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  celeborn_integration_test:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-java@v2
+      name: Setup JDK with Maven
+      with:
+        distribution: zulu
+        java-version: 8
+        cache: maven
+        check-latest: false
+    - name: Build Celeborn Binary
+      run:
+        ./build/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Build Celeborn Docker Image
+      uses: docker/build-push-action@v2
+      with:
+        context: ./dist
+        file: ./docker/Dockerfile
+        load: true
+        tags: apache/celeborn:latest
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.10.0
+    - name: Setup Minikube
+      uses: manusa/actions-setup-minikube@v2.7.1
+      with:
+        minikube version: 'v1.25.2'
+        kubernetes version: 'v1.23.3'
+    - name: Deploy Celeborn In Single Mode
+      run: helm install celeborn docker/helm -f ./tests/kubernetes-it/docker/helm/values.yaml
+    - name: Check Celeborn Release And Pods
+      run: |
+        sleep 300
+        helm list | grep celeborn
+        kubectl get pods
+        kubectl logs celeborn-master-0 -f
+        kubectl logs celeborn-worker-0 -f
+    - name: Run integration test
+      run: >-
+        ./build/mvn clean install 
+        -Pkubernetes-it 
+        -Pspark-3.3
+        -Dtest=none 
+        -DwildcardSuites=org.apache.celeborn.integration.test.ShuffleClientSuite

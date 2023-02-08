@@ -46,6 +46,7 @@ jobs:
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.14
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-2.4
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-3.3
+          build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,kubernetes-it
       - name: Upload rat report
         if: failure()
         uses: actions/upload-artifact@v2

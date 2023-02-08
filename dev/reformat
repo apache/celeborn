@@ -22,3 +22,4 @@ PROJECT_DIR="$(cd "`dirname "$0"`/.."; pwd)"
 ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.14
 ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-2.4
 ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
+${PROJECT_DIR}/build/mvn spotless:apply -Pkubernetes-it

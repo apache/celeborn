@@ -1,0 +1,93 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# For Integration Test
+
+image:
+  repository: apache/celeborn
+  pullPolicy: IfNotPresent
+  tag: latest
+
+masterReplicas: 1
+workerReplicas: 1
+
+celeborn:
+  celeborn.worker.storage.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+  celeborn.push.replicate.enabled: false
+  celeborn.master.metrics.prometheus.port: 9098
+  celeborn.worker.monitor.disk.enabled: false
+  rss.rpc.io.serverThreads: 64
+  rss.worker.fetch.chunk.size: 8m
+  rss.rpc.io.numConnectionsPerPeer: 2
+  celeborn.worker.flush.buffer.size: 256K
+  celeborn.metrics.enabled: true
+  rss.push.io.threads: 32
+  celeborn.worker.fetch.io.threads: 32
+  celeborn.push.stageEnd.timeout: 120s
+  celeborn.worker.metrics.prometheus.port: 9096
+  rss.rpc.io.clientThreads: 64
+  celeborn.application.heartbeat.timeout: 120s
+  rss.rpc.dispatcher.numThreads: 4
+  celeborn.worker.heartbeat.timeout: 120s
+  celeborn.ha.enabled: false
+
+environments:
+  CELEBORN_MASTER_MEMORY: 2g
+  CELEBORN_WORKER_MEMORY: 2g
+  CELEBORN_WORKER_OFFHEAP_MEMORY: 2g
+  CELEBORN_NO_DAEMONIZE: "yes"
+  # To align with the timezone settings in RssFunSuite
+  TZ: "America/Los_Angeles"
+
+podMonitor:
+  enable: false
+
+service:
+  type: ClusterIP
+  port: 9097
+
+configmap: celeborn-conf
+
+resources: {}
+
+podAnnotations: {}
+
+affinity:
+  master:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - celeborn-master
+          topologyKey: kubernetes.io/hostname
+  worker:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - celeborn-worker
+          topologyKey: kubernetes.io/hostname
+
+tolerations: []
+
+nodeSelector: {}
