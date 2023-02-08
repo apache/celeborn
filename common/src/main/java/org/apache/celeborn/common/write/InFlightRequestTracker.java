@@ -88,7 +88,7 @@ public class InFlightRequestTracker {
 
     pushStrategy.limitPushSpeed(pushState, hostAndPushPort);
     int currentMaxReqsInFlight = pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort);
-    
+
     ConcurrentHashMap<Integer, PushBatchInfo> batchIdMap =
         getBatchIdSetByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
