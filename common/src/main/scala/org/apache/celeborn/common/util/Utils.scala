@@ -902,6 +902,10 @@ object Utils extends Logging {
         StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER
       case 41 =>
         StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+      case 42 =>
+        StatusCode.PUSH_DATA_TIMEOUT_MASTER
+      case 43 =>
+        StatusCode.PUSH_DATA_TIMEOUT_SLAVE
       case _ =>
         null
     }

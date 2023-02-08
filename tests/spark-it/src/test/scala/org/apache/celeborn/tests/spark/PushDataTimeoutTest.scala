@@ -50,6 +50,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
         .set("spark.celeborn.push.data.timeout", "5s")
         .set("spark.celeborn.push.replicate.enabled", enabled)
+        .set("spark.celeborn.client.blacklistSlave.enabled", "false")
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val combineResult = combine(sparkSession)
       val groupbyResult = groupBy(sparkSession)
@@ -75,5 +76,24 @@ class PushDataTimeoutTest extends AnyFunSuite
       rssSparkSession.stop()
       ShuffleClient.reset()
     }
+  }
+
+  test("celeborn spark integration test - pushdata timeout will add to balcklist") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
+      .set("spark.celeborn.push.data.timeout", "5s")
+      .set("spark.celeborn.push.replicate.enabled", "true")
+      .set("spark.celeborn.client.blacklistSlave.enabled", "true")
+    val rssSparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, false)).getOrCreate()
+    try {
+      combine(rssSparkSession)
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        e.getMessage.concat("Revive Failed in retry push merged data for location")
+    }
+
+    rssSparkSession.stop()
+    ShuffleClient.reset()
   }
 }
