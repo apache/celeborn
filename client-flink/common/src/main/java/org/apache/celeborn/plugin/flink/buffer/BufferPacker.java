@@ -70,7 +70,8 @@ public class BufferPacker {
       int targetSubIdx = currentSubIdx;
       currentSubIdx = subIdx;
       logger.debug(
-          "cachedBuffer pack1: type,{}, length:{}",
+          "cachedBuffer pack partition:{} type:{}, length:{}",
+          currentSubIdx,
           dumpedBuffer.getDataType(),
           dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
@@ -88,8 +89,9 @@ public class BufferPacker {
                 buffer.asByteBuf(),
                 BufferUtils.HEADER_LENGTH_PREFIX,
                 buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
-        logger.info(
-            "cachedBuffer pack: type,{}, length:{}",
+        logger.debug(
+            "cachedBuffer pack partition:{} type:{}, length:{}",
+            currentSubIdx,
             buffer.getDataType(),
             buffer.getSize(),
             buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
@@ -98,7 +100,8 @@ public class BufferPacker {
         Buffer dumpedBuffer = cachedBuffer;
         cachedBuffer = buffer;
         logger.debug(
-            "cachedBuffer pack2:type,{}, length:{} ",
+            "cachedBuffer pack partition:{} type:{}, length:{}",
+            currentSubIdx,
             dumpedBuffer.getDataType(),
             dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
         handleRipeBuffer(dumpedBuffer, currentSubIdx);
@@ -107,6 +110,11 @@ public class BufferPacker {
   }
 
   public void drain() throws InterruptedException {
+    logger.debug(
+        "cachedBuffer drain partition:{} type:{}, length:{}",
+        currentSubIdx,
+        cachedBuffer.getDataType(),
+        cachedBuffer.readableBytes());
     if (cachedBuffer != null) {
       handleRipeBuffer(cachedBuffer, currentSubIdx);
     }
