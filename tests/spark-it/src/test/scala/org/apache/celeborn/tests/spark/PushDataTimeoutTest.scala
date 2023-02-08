@@ -78,7 +78,6 @@ class PushDataTimeoutTest extends AnyFunSuite
     }
   }
 
-
   test("celeborn spark integration test - pushdata timeout will add to balcklist") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
       .set("spark.celeborn.push.data.timeout", "5s")
