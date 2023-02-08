@@ -110,12 +110,19 @@ public final class MapPartitionFileWriter extends FileWriter {
   }
 
   public void write(ByteBuf data) throws IOException {
-    byte[] header = new byte[16];
     data.markReaderIndex();
-    data.readBytes(header);
+    int partitionId = data.readInt();
+    int attemptId = data.readInt();
+    int batchId = data.readInt();
+    int size = data.readInt();
     data.resetReaderIndex();
-    ByteBuffer byteBuffer = ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN);
-    int partitionId = byteBuffer.getInt();
+    logger.debug(
+        "mappartition filename:{} write partition:{} attemptId:{} batchId:{} size:{}",
+        Utils.getShortFormattedFileName(fileInfo),
+        partitionId,
+        attemptId,
+        batchId,
+        size);
     collectPartitionDataLength(partitionId, data);
 
     super.write(data);
