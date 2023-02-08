@@ -23,6 +23,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
@@ -167,6 +168,19 @@ public class TransportClient implements Closeable {
     pushData.requestId = requestId;
 
     RpcChannelListener listener = new RpcChannelListener(requestId, callback);
+    return channel.writeAndFlush(pushData).addListener(listener);
+  }
+
+  public ChannelFuture pushDataWithCompleteCallback(
+      PushData pushData, RpcResponseCallback callback, BooleanSupplier closeCallback) {
+    if (logger.isTraceEnabled()) {
+      logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
+    }
+    long requestId = requestId();
+    handler.addRpcRequest(requestId, callback);
+    pushData.requestId = requestId;
+    RpcChannelListenerWithCompleteCallback listener =
+        new RpcChannelListenerWithCompleteCallback(requestId, callback, closeCallback);
     return channel.writeAndFlush(pushData).addListener(listener);
   }
 
@@ -319,6 +333,28 @@ public class TransportClient implements Closeable {
     protected void handleFailure(String errorMsg, Throwable cause) {
       handler.removeRpcRequest(rpcRequestId);
       callback.onFailure(new IOException(errorMsg, cause));
+    }
+  }
+
+  private class RpcChannelListenerWithCompleteCallback extends RpcChannelListener {
+    final BooleanSupplier closeCallBack;
+
+    RpcChannelListenerWithCompleteCallback(
+        long rpcRequestId, RpcResponseCallback callback, BooleanSupplier closeCallBack) {
+      super(rpcRequestId, callback);
+      this.closeCallBack = closeCallBack;
+    }
+
+    @Override
+    protected void handleFailure(String errorMsg, Throwable cause) {
+      super.handleFailure(errorMsg, cause);
+      closeCallBack.getAsBoolean();
+    }
+
+    @Override
+    public void operationComplete(Future<? super Void> future) throws Exception {
+      super.operationComplete(future);
+      closeCallBack.getAsBoolean();
     }
   }
 }
