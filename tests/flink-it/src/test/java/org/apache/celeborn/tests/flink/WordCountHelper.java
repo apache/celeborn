@@ -33,7 +33,7 @@ public class WordCountHelper {
 
   private static final int WORD_COUNT = 200;
 
-  public static void execute(StreamExecutionEnvironment env) {
+  public static void execute(StreamExecutionEnvironment env, int parallelism) {
     DataStream<Tuple2<String, Long>> words =
         env.fromSequence(0, NUM_WORDS)
             .broadcast()
@@ -43,7 +43,7 @@ public class WordCountHelper {
         .keyBy(value -> value.f0)
         .sum(1)
         .map((MapFunction<Tuple2<String, Long>, Long>) wordCount -> wordCount.f1)
-        .addSink(new VerifySink((long) 1 * WORD_COUNT));
+        .addSink(new VerifySink((long) parallelism * WORD_COUNT));
   }
 
   private static class WordsMapper implements MapFunction<Long, String> {

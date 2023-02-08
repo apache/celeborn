@@ -48,6 +48,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   test("celeborn flink integration test - word count") {
     // set up execution environment
     val configuration = new Configuration
+    val parallelism = 4
     configuration.setString(
       "shuffle-service-factory.class",
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
@@ -59,11 +60,11 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
-    env.getConfig.setParallelism(4)
+    env.getConfig.setParallelism(parallelism)
     env.getConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL)
     env.disableOperatorChaining()
     // make parameters available in the web interface
-    WordCountHelper.execute(env)
+    WordCountHelper.execute(env, parallelism)
 
     val graph = env.getStreamGraph
     graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
