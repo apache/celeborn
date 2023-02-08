@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -41,6 +42,7 @@ import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -182,6 +184,12 @@ public abstract class FileWriter implements DeviceObserver {
 
     final int numBytes = data.readableBytes();
     MemoryManager.instance().incrementDiskBuffer(numBytes);
+
+    Optional.ofNullable(CongestionController.instance())
+        .ifPresent(
+            congestionController ->
+                congestionController.produceBytes(fileInfo.getUserIdentifier(), numBytes));
+
     synchronized (this) {
       if (closed) {
         String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();

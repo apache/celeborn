@@ -34,6 +34,11 @@ license: |
 | celeborn.test.pushSlaveDataTimeout | false | Whether to test push slave data timeout | 0.3.0 | 
 | celeborn.worker.closeIdleConnections | false | Whether worker will close idle connections. | 0.2.0 | 
 | celeborn.worker.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
+| celeborn.worker.congestionControl.enabled | false | Whether to enable congestion control or not. | 0.3.0 | 
+| celeborn.worker.congestionControl.high.watermark | &lt;undefined&gt; | If the total bytes in disk buffer exceeds this configure, will start to congestusers whose produce rate is higher than the potential average consume rate. The congestion will stop if the produce rate is lower or equal to the average consume rate, or the total pending bytes lower than celeborn.worker.congestionControl.low.watermark | 0.3.0 | 
+| celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
+| celeborn.worker.congestionControl.sample.time.window | 10s | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 | 
+| celeborn.worker.congestionControl.user.inactive.interval | 10min | How long will consider this user is inactive if it doesn't send data | 0.3.0 | 
 | celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.1 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | Max ratio of direct memory for read buffer | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 | 

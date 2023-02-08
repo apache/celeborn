@@ -92,12 +92,20 @@ public class PushState {
     inFlightRequestTracker.addBatch(batchId, hostAndPushPort);
   }
 
+  public void onSuccess(int batchId, String hostAndPushPort) {
+    inFlightRequestTracker.onSuccess(batchId, hostAndPushPort);
+  }
+
+  public void onCongestControl(int batchId, String hostAndPushPort) {
+    inFlightRequestTracker.onCongestControl(batchId, hostAndPushPort);
+  }
+
   public void removeBatch(int batchId, String hostAndPushPort) {
     inFlightRequestTracker.removeBatch(batchId, hostAndPushPort);
   }
 
-  public boolean limitMaxInFlight(String hostAndPushPort, int maxInFlight) throws IOException {
-    return inFlightRequestTracker.limitMaxInFlight(hostAndPushPort, maxInFlight);
+  public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {
+    return inFlightRequestTracker.limitMaxInFlight(hostAndPushPort);
   }
 
   public boolean limitZeroInFlight() throws IOException {

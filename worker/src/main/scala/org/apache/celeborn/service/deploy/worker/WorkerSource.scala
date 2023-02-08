@@ -97,4 +97,7 @@ object WorkerSource {
   val DeviceOSTotalCapacity = "DeviceOSTotalCapacity(B)"
   val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity(B)"
   val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity(B)"
+
+  // Rate limit
+  val PotentialConsumeSpeed = "PotentialConsumeSpeed"
 }

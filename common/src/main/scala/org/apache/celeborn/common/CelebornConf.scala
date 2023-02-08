@@ -667,6 +667,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
+  def pushLimitStrategy: String = get(PUSH_LIMIT_STRATEGY)
+  def pushSlowStartInitialSleepTime: Long = get(PUSH_SLOW_START_INITIAL_SLEEP_TIME)
+  def pushSlowStartMaxSleepMills: Long = get(PUSH_SLOW_START_MAX_SLEEP_TIME)
   def pushLimitInFlightTimeoutMs: Long =
     if (pushReplicateEnabled) {
       get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 4)
@@ -703,8 +706,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
         .getOrElse(rpcAskTimeout.duration * (requestCommitFilesMaxRetries + 2)),
       GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
-
-  def pushDataSlowStart: Boolean = get(PUSH_DATA_SLOW_START)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -755,6 +756,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
+
+  // //////////////////////////////////////////////////////
+  //                  Rate Limit controller              //
+  // //////////////////////////////////////////////////////
+  def workerCongestionControlEnabled: Boolean = get(WORKER_CONGESTION_CONTROL_ENABLED)
+  def workerCongestionControlSampleTimeWindowSeconds: Long =
+    get(WORKER_CONGESTION_CONTROL_SAMPLE_TIME_WINDOW)
+  // TODO related to `WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE`,
+  // `WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE`and `WORKER_DIRECT_MEMORY_RATIO_RESUME`,
+  // we'd better refine the logic among them
+  def workerCongestionControlLowWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_LOW_WATERMARK)
+  def workerCongestionControlHighWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_HIGH_WATERMARK)
+  def workerCongestionControlUserInactiveIntervalMs: Long =
+    get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -2142,6 +2159,35 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+  val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
+    buildConf("celeborn.push.limit.strategy")
+      .categories("client")
+      .doc("The strategy used to control the push speed. " +
+        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
+        "congest control mechanism in the worker side.")
+      .version("0.3.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("SIMPLE", "SLOWSTART"))
+      .createWithDefaultString("SIMPLE")
+
+  val PUSH_SLOW_START_INITIAL_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.slowStart.initialSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"The initial sleep time if the current max in flight requests is 0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("500ms")
+
+  val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.slowStart.maxSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"If ${PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
+        "take a sleep strategy for each batch of requests, this controls " +
+        "the max sleep time if the max in flight requests limit is 1 for a long time")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("2s")
 
   val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.data.timeout")
@@ -2323,15 +2369,6 @@ object CelebornConf extends Logging {
         s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1 + 1)`.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
-
-  val PUSH_DATA_SLOW_START: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.data.slowStart")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Whether to allow to slow increasing maxReqs to meet the max push capacity, " +
-        "worked when worker side enables rate limit mechanism")
-      .booleanConf
-      .createWithDefault(false)
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
@@ -2703,6 +2740,51 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
+
+  val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.congestionControl.enabled")
+      .categories("worker")
+      .doc("Whether to enable congestion control or not.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_CONGESTION_CONTROL_SAMPLE_TIME_WINDOW: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.sample.time.window")
+      .categories("worker")
+      .doc("The worker holds a time sliding list to calculate users' produce/consume rate")
+      .version("0.3.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
+
+  val WORKER_CONGESTION_CONTROL_LOW_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.low.watermark")
+      .categories("worker")
+      .doc("Will stop congest users if the total pending bytes of disk buffer is lower than " +
+        "this configuration")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_HIGH_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.high.watermark")
+      .categories("worker")
+      .doc("If the total bytes in disk buffer exceeds this configure, will start to congest" +
+        "users whose produce rate is higher than the potential average consume rate. " +
+        "The congestion will stop if the produce rate is lower or equal to the " +
+        "average consume rate, or the total pending bytes lower than " +
+        s"${WORKER_CONGESTION_CONTROL_LOW_WATERMARK.key}")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.user.inactive.interval")
+      .categories("worker")
+      .doc("How long will consider this user is inactive if it doesn't send data")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10min")
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")
