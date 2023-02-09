@@ -58,53 +58,6 @@ public class BufferStreamManager {
   protected int minReadBuffers;
   protected int maxReadBuffers;
 
-  private Thread readScheduler =
-      new Thread(
-          new Runnable() {
-            @Override
-            public void run() {
-              while (true) {
-                if (streamCredits.isEmpty()) {
-                  try {
-                    Thread.sleep(10);
-                  } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                  }
-                } else {
-                  synchronized (this) {
-                    streamCredits.forEach(
-                        (streamId, credit) -> {
-                          // logger.info("streamId: {}, loop credit: {}", streamId, credit.get());
-                          if (credit.get() >= 1) {
-                            StreamState streamState = streams.get(streamId);
-                            if (streamState != null) {
-                              memoryManager.requestReadBuffers(
-                                  1,
-                                  credit.get(),
-                                  streamState.bufferSize,
-                                  (allocatedBuffers, throwable) -> {
-                                    if (throwable != null) {
-                                      allocatedBuffers.forEach(memoryManager::recycleReadBuffer);
-                                      throw new RuntimeException(throwable);
-                                    }
-                                    if (servingStreams.containsKey(streamId)) {
-                                      servingStreams
-                                          .get(streamId)
-                                          .onBuffer(new ArrayDeque<>(allocatedBuffers));
-                                    } else {
-                                      logger.warn("Serving stream is null, streamId: {}", streamId);
-                                    }
-                                  });
-                            }
-                          }
-                        });
-                  }
-                }
-              }
-            }
-          },
-          "map-partition-readScheduler");
-
   protected class StreamState {
     private Channel associatedChannel;
     private int bufferSize;
@@ -129,7 +82,6 @@ public class BufferStreamManager {
     streamCredits = new ConcurrentHashMap<>();
     servingStreams = new ConcurrentHashMap<>();
     activeMapPartitions = new ConcurrentHashMap<>();
-    // readScheduler.start();
   }
 
   public void setInitialReadBuffers(int minReadBuffers, int maxReadBuffers) {
@@ -211,7 +163,6 @@ public class BufferStreamManager {
     private final ExecutorService readExecutor;
     private final ConcurrentHashMap<Long, DataPartitionReader> streamReaders =
         new ConcurrentHashMap<>();
-    private volatile boolean closed = false;
 
     /** All available buffers can be used by the partition readers for reading. */
     protected Queue<ByteBuf> buffers;
@@ -262,15 +213,17 @@ public class BufferStreamManager {
       readExecutor.submit(
           () -> {
             // Key for IO schedule.
-            PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
-            while (buffers.size() > 0 && !sortedReaders.isEmpty()) {
-              DataPartitionReader reader = sortedReaders.poll();
-              try {
-                if (!reader.readAndSend(buffers, (buffer) -> this.recycle(buffer, buffers))) {
-                  readers.remove(reader);
+            synchronized (MapDataPartition.this) {
+              PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
+              while (buffers.size() > 0 && !sortedReaders.isEmpty()) {
+                DataPartitionReader reader = sortedReaders.poll();
+                try {
+                  if (!reader.readAndSend(buffers, (buffer) -> this.recycle(buffer, buffers))) {
+                    readers.remove(reader);
+                  }
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
                 }
-              } catch (IOException e) {
-                throw new RuntimeException(e);
               }
             }
           });
@@ -482,6 +435,7 @@ public class BufferStreamManager {
       while (continueReading) {
 
         ByteBuf buffer = bufferQueue.poll();
+        buffer.retain();
         if (buffer == null) {
           break;
         }
@@ -560,9 +514,10 @@ public class BufferStreamManager {
                         if (!future.isSuccess()) {
                           isError = true;
                           errorCause = future.cause();
+                          memoryManager.recycleReadBuffer(readBuf.byteBuf);
                           throw new RuntimeException(future.cause());
                         } else {
-                          memoryManager.recycleReadBuffer(readBuf.byteBuf);
+                          // netty has release the reference
                         }
                         logger.debug(
                             "recycle "
@@ -632,7 +587,7 @@ public class BufferStreamManager {
           mountPoint,
           k ->
               Executors.newFixedThreadPool(
-                  1, new ThreadFactoryBuilder().setNameFormat("reader-thread-%d").build()));
+                  4, new ThreadFactoryBuilder().setNameFormat("reader-thread-%d").build()));
     }
   }
 }

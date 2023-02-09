@@ -48,7 +48,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   test("celeborn flink integration test - word count") {
     // set up execution environment
     val configuration = new Configuration
-    val parallelism = 4
+    val parallelism = 8
     configuration.setString(
       "shuffle-service-factory.class",
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
