@@ -37,7 +37,7 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.common.write.PushBatchInfo;
+import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
  * Handler that processes server responses, in response to requests issued from a
@@ -54,7 +54,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final Map<StreamChunkSlice, ChunkReceivedCallback> outstandingFetches;
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
-  private final Map<Long, PushBatchInfo> outstandingPushes;
+  private final Map<Long, PushRequestInfo> outstandingPushes;
 
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
@@ -76,7 +76,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         new Runnable() {
           @Override
           public void run() {
-            failExpiredBatch();
+            failExpiredPushRequest();
           }
         },
         pushTimeoutCheckerInterval,
@@ -84,12 +84,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         TimeUnit.MILLISECONDS);
   }
 
-  public void failExpiredBatch() {
+  public void failExpiredPushRequest() {
     long currentTime = System.currentTimeMillis();
-    for (Map.Entry<Long, PushBatchInfo> entry : outstandingPushes.entrySet()) {
+    for (Map.Entry<Long, PushRequestInfo> entry : outstandingPushes.entrySet()) {
       try {
         long requestId = entry.getKey();
-        PushBatchInfo info = entry.getValue();
+        PushRequestInfo info = entry.getValue();
         if (info.pushDataTimeout > 0) {
           if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
             if (info.callback != null) {
@@ -152,7 +152,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     }
     outstandingPushes.put(
         requestId,
-        new PushBatchInfo(channelFuture, System.currentTimeMillis(), pushDataTimeout, callback));
+        new PushRequestInfo(channelFuture, System.currentTimeMillis(), pushDataTimeout, callback));
   }
 
   public void removePushRequest(long requestId) {
@@ -178,7 +178,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
     }
-    for (Map.Entry<Long, PushBatchInfo> entry : outstandingPushes.entrySet()) {
+    for (Map.Entry<Long, PushRequestInfo> entry : outstandingPushes.entrySet()) {
       try {
         entry.getValue().callback.onFailure(cause);
       } catch (Exception e) {
@@ -252,7 +252,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
-      PushBatchInfo info = outstandingPushes.remove(resp.requestId);
+      PushRequestInfo info = outstandingPushes.remove(resp.requestId);
       if (info == null) {
         RpcResponseCallback listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {
@@ -278,7 +278,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcFailure) {
       RpcFailure resp = (RpcFailure) message;
-      PushBatchInfo info = outstandingPushes.remove(resp.requestId);
+      PushRequestInfo info = outstandingPushes.remove(resp.requestId);
       if (info == null) {
         RpcResponseCallback listener = outstandingRpcs.remove(resp.requestId);
         if (listener == null) {

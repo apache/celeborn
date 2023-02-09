@@ -21,15 +21,15 @@ import io.netty.channel.ChannelFuture;
 
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 
-public class PushBatchInfo {
+public class PushRequestInfo {
   public ChannelFuture channelFuture;
   public long pushTime = -1;
   public long pushDataTimeout;
   public RpcResponseCallback callback;
 
-  public PushBatchInfo() {}
+  public PushRequestInfo() {}
 
-  public PushBatchInfo(
+  public PushRequestInfo(
       ChannelFuture channelFuture,
       long currentTimeMillis,
       long pushDataTimeout,
