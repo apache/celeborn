@@ -369,7 +369,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                     Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
               } else {
                 callbackWithTimer.onSuccess(
-                  ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+                  ByteBuffer.wrap(
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
               }
             } else {
               callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
