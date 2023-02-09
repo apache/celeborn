@@ -62,6 +62,9 @@ public class InFlightRequestTracker {
   public void removeBatch(int batchId, String hostAndPushPort) {
     ConcurrentHashMap<Integer, BatchInfo> batchIdMap =
         inflightBatchesPerAddress.get(hostAndPushPort);
+    if (batchIdMap == null) {
+      return;
+    }
     BatchInfo info = batchIdMap.remove(batchId);
     if (info != null && info.channelFuture != null) {
       info.channelFuture.cancel(true);
