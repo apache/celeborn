@@ -194,16 +194,11 @@ public class BufferStreamManager {
     streamCredits.remove(streamId);
     FileInfo fileInfo = servingStreams.remove(streamId).fileInfo;
     MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
-    DataPartitionReader streamReader = mapDataPartition.getStreamReader(streamId);
-    mapDataPartition.readers.remove(streamReader);
-    if (mapDataPartition.readers.isEmpty()) {
+    mapDataPartition.removeStream(streamId);
+    if (mapDataPartition.activeStreamIds.isEmpty()) {
       for (ByteBuf buffer : mapDataPartition.buffers) {
         memoryManager.recycleReadBuffer(buffer);
       }
-    }
-
-    mapDataPartition.removeStream(streamId);
-    if (mapDataPartition.activeStreamIds.isEmpty()) {
       activeMapPartitions.remove(fileInfo);
     }
   }
@@ -271,7 +266,9 @@ public class BufferStreamManager {
             while (buffers.size() > 0 && !sortedReaders.isEmpty()) {
               DataPartitionReader reader = sortedReaders.poll();
               try {
-                reader.readAndSend(buffers, (buffer) -> this.recycle(buffer, buffers));
+                if (!reader.readAndSend(buffers, (buffer) -> this.recycle(buffer, buffers))) {
+                  readers.remove(reader);
+                }
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -285,7 +282,6 @@ public class BufferStreamManager {
 
     public synchronized void removeStream(long streamId) {
       activeStreamIds.remove(streamId);
-      streamReaders.remove(streamId);
     }
   }
 
