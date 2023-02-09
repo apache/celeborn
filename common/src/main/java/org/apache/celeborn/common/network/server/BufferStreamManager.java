@@ -105,9 +105,9 @@ public class BufferStreamManager {
     activeMapPartitions.put(fileInfo, mapDataPartition);
 
     mapDataPartition.addStream(streamId);
-    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId);
-    servingStreams.put(streamId, mapDataPartition);
     addCredit(initialCredit, streamId);
+    servingStreams.put(streamId, mapDataPartition);
+    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId);
 
     logger.info("streamId: {}, fileInfo: {}", streamId, fileInfo);
 
@@ -115,19 +115,24 @@ public class BufferStreamManager {
   }
 
   public void addCredit(int numCredit, long streamId) {
-    logger.debug("streamId: {}, add credit: {}", streamId, numCredit);
-    if (streamCredits.containsKey(streamId)) {
-      streamCredits.get(streamId).getAndAdd(numCredit);
-      MapDataPartition mapDataPartition = servingStreams.get(streamId);
-      if (mapDataPartition != null) {
-        DataPartitionReader streamReader = mapDataPartition.getStreamReader(streamId);
-        if (streamReader != null) {
-          streamReader.sendData();
-        }
+    logger.info("streamId: {}, add credit: {}", streamId, numCredit);
+    streamCredits.compute(
+        streamId,
+        (aLong, atomicInteger) -> {
+          if (atomicInteger == null) {
+            return new AtomicInteger(numCredit);
+          } else {
+            atomicInteger.getAndAdd(numCredit);
+            return atomicInteger;
+          }
+        });
+
+    MapDataPartition mapDataPartition = servingStreams.get(streamId);
+    if (mapDataPartition != null) {
+      DataPartitionReader streamReader = mapDataPartition.getStreamReader(streamId);
+      if (streamReader != null) {
+        streamReader.sendData();
       }
-    } else {
-      // register stream
-      streamCredits.put(streamId, new AtomicInteger(numCredit));
     }
   }
 
@@ -190,6 +195,8 @@ public class BufferStreamManager {
             fileInfo.getBufferSize(),
             (allocatedBuffers, throwable) ->
                 MapDataPartition.this.onBuffer(new LinkedBlockingDeque<>(allocatedBuffers)));
+      } else {
+        process();
       }
     }
 
@@ -222,6 +229,7 @@ public class BufferStreamManager {
                     readers.remove(reader);
                   }
                 } catch (IOException e) {
+                  logger.error("Read thread error occurred, {}", e);
                   throw new RuntimeException(e);
                 }
               }
@@ -451,7 +459,6 @@ public class BufferStreamManager {
         addBuffer(buffer, hasReaming, consumer);
         ++numDataBuffers;
       }
-
       if (numDataBuffers > 0) {
         notifyBacklog(numDataBuffers);
       }
@@ -470,7 +477,6 @@ public class BufferStreamManager {
       final boolean recycleBuffer;
       boolean notifyDataAvailable = false;
       final Throwable throwable;
-
       synchronized (lock) {
         recycleBuffer = isReleased || isFinished || isError;
         throwable = errorCause;
@@ -486,17 +492,17 @@ public class BufferStreamManager {
         memoryManager.recycleReadBuffer(buffer);
         throw new RuntimeException("Partition reader has been failed or finished.", throwable);
       }
-
-      if (notifyDataAvailable) {
+      if (!buffersRead.isEmpty()) {
         sendData();
       }
     }
 
     public synchronized void sendData() {
       while (!buffersRead.isEmpty()) {
+        logger.debug("senddata streamid:{}, {}", streamId, streamCredits.get(streamId));
         if (streamCredits.get(streamId).get() > 0) {
           Buffer readBuf = buffersRead.poll();
-          logger.debug(
+          logger.info(
               "send "
                   + readBuf.byteBuf.readableBytes()
                   + " to stream "
@@ -560,6 +566,7 @@ public class BufferStreamManager {
     }
 
     protected void notifyBacklog(int backlog) {
+      logger.info("stream manager streamid {} backlog:{}", streamId, backlog);
       StreamState streamState = streams.get(streamId);
       if (streamState == null) {
         throw new RuntimeException("StreamId " + streamId + " should not be null");
@@ -587,7 +594,14 @@ public class BufferStreamManager {
           mountPoint,
           k ->
               Executors.newFixedThreadPool(
-                  4, new ThreadFactoryBuilder().setNameFormat("reader-thread-%d").build()));
+                  4,
+                  new ThreadFactoryBuilder()
+                      .setNameFormat("reader-thread-%d")
+                      .setUncaughtExceptionHandler(
+                          (t1, t2) -> {
+                            logger.info("thread:{}:{}", t1, t2);
+                          })
+                      .build()));
     }
   }
 }

@@ -108,6 +108,7 @@ public class RssBufferStream {
           }
         });
     latch.await(timeoutMs, TimeUnit.MILLISECONDS);
+    logger.info("rssbufferstream streamid:{}", streamId);
   }
 
   public void addCredit(ReadAddCredit addCredit) {
