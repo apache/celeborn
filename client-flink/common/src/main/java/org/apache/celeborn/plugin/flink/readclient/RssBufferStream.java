@@ -19,6 +19,8 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -85,14 +87,27 @@ public class RssBufferStream {
             subIndexEnd,
             initialCredit);
     long timeoutMs = conf.fetchTimeoutMs();
-    ByteBuffer response = client.sendRpcSync(openBufferStream.toByteBuffer(), timeoutMs);
-    StreamHandle streamHandle = (StreamHandle) Message.decode(response);
-    this.streamId = streamHandle.streamId;
+    CountDownLatch latch = new CountDownLatch(1);
+    client.sendRpc(
+        openBufferStream.toByteBuffer(),
+        new RpcResponseCallback() {
 
-    logger.info(
-        "open stream: {}, fileName: {}", this.streamId, new String(openBufferStream.fileName));
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            StreamHandle streamHandle = (StreamHandle) Message.decode(response);
+            RssBufferStream.this.streamId = streamHandle.streamId;
+            mapShuffleClient
+                .getReadClientHandler()
+                .registerHandler(streamId, messageConsumer, client);
+            latch.countDown();
+          }
 
-    return streamHandle.streamId;
+          @Override
+          public void onFailure(Throwable e) {
+            throw new RuntimeException("OpenStream failed.", e);
+          }
+        });
+    latch.await(timeoutMs, TimeUnit.MILLISECONDS);
   }
 
   public void addCredit(ReadAddCredit addCredit) {
