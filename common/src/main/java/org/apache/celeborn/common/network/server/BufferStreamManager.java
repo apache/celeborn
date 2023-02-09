@@ -562,9 +562,7 @@ public class BufferStreamManager {
                           errorCause = future.cause();
                           throw new RuntimeException(future.cause());
                         } else {
-                          // we have manually controlled the lifecycle of a buffer,
-                          // so here is no need to release
-                          // memoryManager.recycleReadBuffer(readBuf.byteBuf);
+                          memoryManager.recycleReadBuffer(readBuf.byteBuf);
                         }
                         logger.debug(
                             "recycle "
