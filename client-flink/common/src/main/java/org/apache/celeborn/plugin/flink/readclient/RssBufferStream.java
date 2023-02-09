@@ -121,7 +121,7 @@ public class RssBufferStream {
 
           @Override
           public void onFailure(Throwable e) {
-            logger.error(
+            logger.warn(
                 "Send Add Credit {} failed to {}", addCredit, client.getSocketAddress().toString());
           }
         });
