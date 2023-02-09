@@ -18,8 +18,9 @@
 package org.apache.celeborn.common.write;
 
 import java.io.IOException;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,8 +41,8 @@ public class InFlightRequestTracker {
   private final PushStrategy pushStrategy;
 
   private final AtomicInteger batchId = new AtomicInteger();
-  private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, PushBatchInfo>>
-      inflightBatchesPerAddress = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, HashSet<Integer>> inflightBatchesPerAddress =
+      new ConcurrentHashMap<>();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
@@ -51,9 +52,17 @@ public class InFlightRequestTracker {
   }
 
   public void addBatch(int batchId, String hostAndPushPort) {
-    ConcurrentHashMap<Integer, PushBatchInfo> batchIdSetPerPair =
-        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new ConcurrentHashMap<>());
-    batchIdSetPerPair.computeIfAbsent(batchId, id -> new PushBatchInfo());
+    HashSet<Integer> batchIdSetPerPair =
+        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new HashSet<>());
+    batchIdSetPerPair.add(batchId);
+  }
+
+  public void removeBatch(int batchId, String hostAndPushPort) {
+    HashSet<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
+    batchIdSet.remove(batchId);
+    if (batchIdSet.size() == 0) {
+      inflightBatchesPerAddress.remove(hostAndPushPort);
+    }
   }
 
   public void onSuccess(int batchId, String hostAndPushPort) {
@@ -64,21 +73,8 @@ public class InFlightRequestTracker {
     pushStrategy.onCongestControl(hostAndPushPort);
   }
 
-  public void removeBatch(int batchId, String hostAndPushPort) {
-    ConcurrentHashMap<Integer, PushBatchInfo> batchIdMap =
-        inflightBatchesPerAddress.get(hostAndPushPort);
-    PushBatchInfo info = batchIdMap.remove(batchId);
-    if (info != null && info.channelFuture != null) {
-      info.channelFuture.cancel(true);
-    }
-    if (batchIdMap.size() == 0) {
-      inflightBatchesPerAddress.remove(hostAndPushPort);
-    }
-  }
-
-  public ConcurrentHashMap<Integer, PushBatchInfo> getBatchIdSetByAddressPair(String hostAndPort) {
-    return inflightBatchesPerAddress.computeIfAbsent(
-        hostAndPort, pair -> new ConcurrentHashMap<>());
+  public HashSet<Integer> getBatchIdSetByAddressPair(String hostAndPort) {
+    return inflightBatchesPerAddress.computeIfAbsent(hostAndPort, pair -> new HashSet<Integer>());
   }
 
   public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {
@@ -89,12 +85,11 @@ public class InFlightRequestTracker {
     pushStrategy.limitPushSpeed(pushState, hostAndPushPort);
     int currentMaxReqsInFlight = pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort);
 
-    ConcurrentHashMap<Integer, PushBatchInfo> batchIdMap =
-        getBatchIdSetByAddressPair(hostAndPushPort);
+    HashSet batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
-        if (batchIdMap.size() <= currentMaxReqsInFlight) {
+        if (batchIdSet.size() <= currentMaxReqsInFlight) {
           break;
         }
         if (pushState.exception.get() != null) {
@@ -114,7 +109,7 @@ public class InFlightRequestTracker {
               + "for hostAndPushPort {}, "
               + "which exceeds the current limit {}.",
           waitInflightTimeoutMs,
-          batchIdMap.size(),
+          batchIdSet.size(),
           hostAndPushPort,
           currentMaxReqsInFlight);
     }
@@ -136,7 +131,7 @@ public class InFlightRequestTracker {
     try {
       while (times > 0) {
         Optional<Integer> inFlightSizeOptional =
-            inflightBatchesPerAddress.values().stream().map(Map::size).reduce(Integer::sum);
+            inflightBatchesPerAddress.values().stream().map(Set::size).reduce(Integer::sum);
         inFlightSize = inFlightSizeOptional.orElse(0);
         if (inFlightSize == 0) {
           break;
@@ -170,9 +165,8 @@ public class InFlightRequestTracker {
       throw pushState.exception.get();
     }
 
-    ConcurrentHashMap<Integer, PushBatchInfo> batchIdMap =
-        getBatchIdSetByAddressPair(hostAndPushPort);
-    return batchIdMap.size() > maxInFlight;
+    HashSet<Integer> batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
+    return batchIdSet.size() > maxInFlight;
   }
 
   protected int nextBatchId() {
@@ -181,19 +175,6 @@ public class InFlightRequestTracker {
 
   public void cleanup() {
     if (!inflightBatchesPerAddress.isEmpty()) {
-      logger.debug("Cancel all {} futures.", inflightBatchesPerAddress.size());
-      inflightBatchesPerAddress
-          .values()
-          .forEach(
-              batchIdMap ->
-                  batchIdMap
-                      .values()
-                      .forEach(
-                          info -> {
-                            if (info.channelFuture != null) {
-                              info.channelFuture.cancel(true);
-                            }
-                          }));
       inflightBatchesPerAddress.clear();
     }
     pushStrategy.clear();

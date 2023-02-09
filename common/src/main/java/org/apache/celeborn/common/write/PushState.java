@@ -21,10 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.netty.channel.ChannelFuture;
-
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class PushState {
@@ -36,26 +33,6 @@ public class PushState {
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.pushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
-  }
-
-  public void pushStarted(
-      int batchId,
-      ChannelFuture future,
-      RpcResponseCallback callback,
-      String hostAndPort,
-      long pushDataTimeout) {
-    PushBatchInfo info =
-        inFlightRequestTracker.getBatchIdSetByAddressPair(hostAndPort).get(batchId);
-    // In rare cases info could be null. For example, a speculative task has one thread pushing,
-    // and other thread retry-pushing. At time 1 thread 1 find StageEnded, then it cleans up
-    // PushState, at the same time thread 2 pushes data and calles pushStarted,
-    // at this time info will be null
-    if (info != null) {
-      info.pushTime = System.currentTimeMillis();
-      info.pushDataTimeout = pushDataTimeout;
-      info.channelFuture = future;
-      info.callback = callback;
-    }
   }
 
   public void cleanup() {
@@ -92,16 +69,16 @@ public class PushState {
     inFlightRequestTracker.addBatch(batchId, hostAndPushPort);
   }
 
+  public void removeBatch(int batchId, String hostAndPushPort) {
+    inFlightRequestTracker.removeBatch(batchId, hostAndPushPort);
+  }
+
   public void onSuccess(int batchId, String hostAndPushPort) {
     inFlightRequestTracker.onSuccess(batchId, hostAndPushPort);
   }
 
   public void onCongestControl(int batchId, String hostAndPushPort) {
     inFlightRequestTracker.onCongestControl(batchId, hostAndPushPort);
-  }
-
-  public void removeBatch(int batchId, String hostAndPushPort) {
-    inFlightRequestTracker.removeBatch(batchId, hostAndPushPort);
   }
 
   public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {

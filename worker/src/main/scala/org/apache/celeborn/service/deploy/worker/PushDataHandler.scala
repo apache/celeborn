@@ -332,14 +332,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
-            val channelFuture =
-              client.pushData(newPushData, shufflePushDataTimeout.get(shuffleKey), wrappedCallback)
-            pushState.pushStarted(
-              batchId,
-              channelFuture,
-              wrappedCallback,
-              location.getPeer.hostAndPushPort(),
-              shufflePushDataTimeout.get(shuffleKey))
+
+            client.pushData(newPushData, shufflePushDataTimeout.get(shuffleKey), wrappedCallback)
           } catch {
             case e: Exception =>
               pushData.body().release()
@@ -592,16 +586,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               pushMergedData.partitionUniqueIds,
               batchOffsets,
               pushMergedData.body)
-            val channelFuture = client.pushMergedData(
+            client.pushMergedData(
               newPushMergedData,
               shufflePushDataTimeout.get(shuffleKey),
               wrappedCallback)
-            pushState.pushStarted(
-              batchId,
-              channelFuture,
-              wrappedCallback,
-              location.getPeer.hostAndPushPort(),
-              shufflePushDataTimeout.get(shuffleKey))
           } catch {
             case e: Exception =>
               pushMergedData.body().release()
