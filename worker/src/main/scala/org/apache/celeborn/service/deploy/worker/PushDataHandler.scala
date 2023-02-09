@@ -357,22 +357,26 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the master worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
-      Option(CongestionController.instance()) match {
-        case Some(congestionController) =>
-          if (congestionController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
-            if (isMaster) {
-              callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(
-                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+      if (softSplit.get()) {
+        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+      } else {
+        Option(CongestionController.instance()) match {
+          case Some(congestionController) =>
+            if (congestionController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
+              if (isMaster) {
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+              } else {
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+              }
             } else {
-              callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+              callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
             }
-          } else {
+          case None =>
             callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-          }
-        case None =>
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        }
       }
     }
 
