@@ -25,7 +25,6 @@ import java.util.*;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import org.apache.celeborn.plugin.flink.readclient.RssBufferStream;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +107,6 @@ public class TransferBufferPool implements BufferRecycler {
       }
 
       logger.warn("reserveBuffers,numCredits: {}, required: {}", numCredits, numRequiredBuffers);
-
     }
     if (listener != null) {
       listener.notifyAvailableCredits(numCredits);

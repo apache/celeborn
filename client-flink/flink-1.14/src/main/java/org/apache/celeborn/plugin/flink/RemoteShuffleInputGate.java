@@ -541,7 +541,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       } else {
         // the real end.
         bufferReaders.get(clientIndexMap[channelInfo.getInputChannelIdx()]).close();
-       // tryOpenSomeChannels();
+        // tryOpenSomeChannels();
         if (allReadersEOF()) {
           availabilityHelper.getUnavailableToResetAvailable().complete(null);
         }

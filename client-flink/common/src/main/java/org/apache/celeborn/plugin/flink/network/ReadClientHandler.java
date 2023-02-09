@@ -63,10 +63,12 @@ public class ReadClientHandler extends BaseMessageHandler {
         streamId = backlogAnnouncement.getStreamId();
         waitStreamReady(streamId);
         if (streamHandlers.containsKey(streamId)) {
-          logger.debug("received streamId1: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
+          logger.debug(
+              "received streamId1: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
           streamHandlers.get(streamId).accept(msg);
         }
-        logger.debug("received streamId2: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
+        logger.debug(
+            "received streamId2: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.

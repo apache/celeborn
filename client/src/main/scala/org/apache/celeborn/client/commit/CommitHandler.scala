@@ -407,7 +407,7 @@ abstract class CommitHandler(
       val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
         partition.getId,
         (k: Integer) => new util.HashSet[PartitionLocation]())
-        partitionLocations.add(partition)
+      partitionLocations.add(partition)
       logInfo(s"Shuffle $shuffleId, commit file groups: ${reducerFileGroupsMap.get(shuffleId)}.")
     }
   }

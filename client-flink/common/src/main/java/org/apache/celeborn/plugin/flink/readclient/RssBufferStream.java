@@ -19,6 +19,7 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -62,7 +63,11 @@ public class RssBufferStream {
     this.subIndexEnd = subIndexEnd;
   }
 
-  public long open(Supplier<ByteBuf> supplier, int initialCredit)
+  public void open(
+      Supplier<ByteBuf> supplier,
+      int initialCredit,
+      MapShuffleClientImpl mapShuffleClient,
+      Consumer<RequestMessage> messageConsumer)
       throws IOException, InterruptedException {
     if (locations.length >= 1) {
       this.client =
@@ -84,7 +89,8 @@ public class RssBufferStream {
     StreamHandle streamHandle = (StreamHandle) Message.decode(response);
     this.streamId = streamHandle.streamId;
 
-    logger.info("open stream: {}, fileName: {}", this.streamId, new String(openBufferStream.fileName));
+    logger.info(
+        "open stream: {}, fileName: {}", this.streamId, new String(openBufferStream.fileName));
 
     return streamHandle.streamId;
   }

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadAddCredit;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -45,6 +46,7 @@ public class RemoteBufferStreamReader extends CreditListener {
   private Consumer<Throwable> failureListener;
   private RssBufferStream bufferStream;
   private boolean closed = false;
+  private Consumer<RequestMessage> messageConsumer;
 
   public RemoteBufferStreamReader(
       MapShuffleClientImpl client,
@@ -64,29 +66,25 @@ public class RemoteBufferStreamReader extends CreditListener {
     this.subPartitionIndexEnd = endSubIdx;
     this.dataListener = dataListener;
     this.failureListener = failureListener;
+    this.messageConsumer =
+        requestMessage -> {
+          if (requestMessage instanceof ReadData) {
+            dataReceived((ReadData) requestMessage);
+          } else if (requestMessage instanceof BacklogAnnouncement) {
+            backlogReceived(((BacklogAnnouncement) requestMessage).getBacklog());
+          }
+        };
   }
 
   public void open(int initialCredit) throws IOException {
-    this.bufferStream =
-        client.readBufferedPartition(
-            applicationId, shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
     try {
-      long streamId =
-          bufferStream.open(RemoteBufferStreamReader.this::requestBuffer, initialCredit);
-      client
-          .getReadClientHandler()
-          .registerHandler(
-              streamId,
-              requestMessage -> {
-                if (requestMessage instanceof ReadData) {
-                  dataReceived((ReadData) requestMessage);
-                } else if (requestMessage instanceof BacklogAnnouncement) {
-                  backlogReceived(((BacklogAnnouncement) requestMessage).getBacklog());
-                }
-              },
-              bufferStream.getClient());
+      this.bufferStream =
+          client.readBufferedPartition(
+              applicationId, shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
+      bufferStream.open(
+          RemoteBufferStreamReader.this::requestBuffer, initialCredit, client, messageConsumer);
     } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to openStream.", e);
     }
     isOpen = true;
   }
