@@ -285,6 +285,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 resp.flip()
                 callbackWithTimer.onSuccess(resp)
               } else if (softSplit.get()) {
+                // TODO Currently if the worker is in soft split status, given the guess that the client
+                // will fast stop pushing data to the worker, we won't return congest status. But
+                // in the long term, especially if this issue could frequently happen, we may need to return
+                // congest&softSplit status together
                 callbackWithTimer.onSuccess(
                   ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
               } else {
@@ -357,22 +361,31 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the master worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
-      Option(CongestionController.instance()) match {
-        case Some(congestionController) =>
-          if (congestionController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
-            if (isMaster) {
-              callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(
-                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+      // TODO Currently if the worker is in soft split status, given the guess that the client
+      // will fast stop pushing data to the worker, we won't return congest status. But
+      // in the long term, especially if this issue could frequently happen, we may need to return
+      // congest&softSplit status together
+      if (softSplit.get()) {
+        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+      } else {
+        Option(CongestionController.instance()) match {
+          case Some(congestionController) =>
+            if (congestionController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
+              if (isMaster) {
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+              } else {
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+              }
             } else {
-              callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+              callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
             }
-          } else {
+          case None =>
             callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-          }
-        case None =>
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        }
       }
     }
 
