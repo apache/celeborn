@@ -93,7 +93,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         if (info.pushDataTimeout > 0) {
           if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
             if (info.callback != null) {
-              if (!info.channelFuture.isCancellable()) {
+              if (!info.channelFuture.isCancelled()) {
                 info.channelFuture.cancel(true);
                 // When module name equals to DATA_MODULE, mean shuffle client push data, else means
                 // do data replication.
