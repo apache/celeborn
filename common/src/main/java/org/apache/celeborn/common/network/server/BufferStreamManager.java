@@ -25,10 +25,15 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -46,7 +51,7 @@ public class BufferStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(BufferStreamManager.class);
   private final AtomicLong nextStreamId;
   protected final ConcurrentHashMap<Long, StreamState> streams;
-  protected final ConcurrentHashMap<Long, Integer> streamCredits;
+  protected final ConcurrentHashMap<Long, AtomicInteger> streamCredits;
   protected final ConcurrentHashMap<Long, MapDataPartition> servingStreams;
   protected final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
   protected final MemoryManager memoryManager = MemoryManager.instance();
@@ -70,25 +75,25 @@ public class BufferStreamManager {
                   synchronized (this) {
                     streamCredits.forEach(
                         (streamId, credit) -> {
-                          if (credit >= 1) {
+                           // logger.info("streamId: {}, loop credit: {}", streamId, credit.get());
+                          if (credit.get() >= 1) {
                             StreamState streamState = streams.get(streamId);
                             if (streamState != null) {
                               memoryManager.requestReadBuffers(
                                   1,
-                                  credit,
+                                  credit.get(),
                                   streamState.bufferSize,
                                   (allocatedBuffers, throwable) -> {
                                     if (throwable != null) {
                                       allocatedBuffers.forEach(memoryManager::recycleReadBuffer);
                                       throw new RuntimeException(throwable);
                                     }
-                                    if (servingStreams.contains(streamId)) {
+                                    if (servingStreams.containsKey(streamId)) {
                                       servingStreams
                                           .get(streamId)
                                           .onBuffer(new ArrayDeque<>(allocatedBuffers));
                                     } else {
-                                      throw new RuntimeException(
-                                          "Serving stream should not be null.");
+                                      logger.warn("Serving stream is null, streamId: {}", streamId);
                                     }
                                   });
                             }
@@ -98,7 +103,7 @@ public class BufferStreamManager {
                 }
               }
             }
-          });
+          }, "map-partition-readScheduler");
 
   protected class StreamState {
     private Channel associatedChannel;
@@ -124,7 +129,7 @@ public class BufferStreamManager {
     streamCredits = new ConcurrentHashMap<>();
     servingStreams = new ConcurrentHashMap<>();
     activeMapPartitions = new ConcurrentHashMap<>();
-    readScheduler.start();
+    // readScheduler.start();
   }
 
   public void setInitialReadBuffers(int minReadBuffers, int maxReadBuffers) {
@@ -142,31 +147,41 @@ public class BufferStreamManager {
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     streams.put(streamId, new StreamState(channel, bufferSize));
-    addCredit(initialCredit, streamId);
-    MapDataPartition mapDataPartition;
-    if (activeMapPartitions.containsKey(fileInfo)) {
-      mapDataPartition = activeMapPartitions.get(fileInfo);
-    } else {
-      mapDataPartition = new MapDataPartition(fileInfo);
-      activeMapPartitions.put(fileInfo, mapDataPartition);
-    }
+
+    MapDataPartition mapDataPartition = activeMapPartitions.computeIfAbsent(fileInfo, (f) -> new MapDataPartition(fileInfo));
+    activeMapPartitions.put(fileInfo, mapDataPartition);
+
     mapDataPartition.addStream(streamId);
     mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId);
     servingStreams.put(streamId, mapDataPartition);
+    addCredit(initialCredit, streamId);
+
+    logger.info("streamId: {}, fileInfo: {}", streamId, fileInfo);
+
     return streamId;
   }
 
   public void addCredit(int numCredit, long streamId) {
+    logger.debug("streamId: {}, add credit: {}", streamId, numCredit);
     if (streamCredits.containsKey(streamId)) {
-      streamCredits.put(streamId, streamCredits.get(streamId) + numCredit);
+      streamCredits.get(streamId).getAndAdd(numCredit);
+      MapDataPartition mapDataPartition = servingStreams.get(streamId);
+      if (mapDataPartition != null) {
+        DataPartitionReader streamReader = mapDataPartition.getStreamReader(streamId);
+        if (streamReader != null) {
+          streamReader.sendData();
+        }
+      }
     } else {
-      streamCredits.put(streamId, numCredit);
+      // register stream
+      streamCredits.put(streamId, new AtomicInteger(numCredit));
     }
   }
 
   public void connectionTerminated(Channel channel) {
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
       if (entry.getValue().getAssociatedChannel() == channel) {
+        logger.info("connection closed, streamId: {}", entry.getKey());
         cleanResource(entry.getKey());
       }
     }
@@ -178,6 +193,14 @@ public class BufferStreamManager {
     streamCredits.remove(streamId);
     FileInfo fileInfo = servingStreams.remove(streamId).fileInfo;
     MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
+    DataPartitionReader streamReader = mapDataPartition.getStreamReader(streamId);
+    mapDataPartition.readers.remove(streamReader);
+    if (mapDataPartition.readers.isEmpty()) {
+      for (ByteBuf buffer : mapDataPartition.buffers) {
+        memoryManager.recycleReadBuffer(buffer);
+      }
+    }
+
     mapDataPartition.removeStream(streamId);
     if (mapDataPartition.activeStreamIds.isEmpty()) {
       activeMapPartitions.remove(fileInfo);
@@ -190,32 +213,56 @@ public class BufferStreamManager {
     private final FileInfo fileInfo;
     private final Set<DataPartitionReader> readers = new HashSet<>();
     private final ExecutorService readExecutor;
+    private final ConcurrentHashMap<Long, DataPartitionReader> streamReaders = new ConcurrentHashMap<>();
+    private volatile boolean closed = false;
+
+    /** All available buffers can be used by the partition readers for reading. */
+    protected Queue<ByteBuf> buffers;
 
     public MapDataPartition(FileInfo fileInfo) {
       this.fileInfo = fileInfo;
-      readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getMountPoint());
+      readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getFilePath());
     }
 
-    public void setupDataPartitionReader(int startSubIndex, int endSubIndex, long streamId)
+    public synchronized void setupDataPartitionReader(int startSubIndex, int endSubIndex, long streamId)
         throws IOException {
       DataPartitionReader dataPartitionReader =
           new DataPartitionReader(startSubIndex, endSubIndex, fileInfo, streamId);
       dataPartitionReader.open();
+      // allocate resources when the first reader is registered
+      boolean allocateResources = readers.isEmpty();
       readers.add(dataPartitionReader);
+      streamReaders.put(streamId, dataPartitionReader);
+
       // create initial buffers for read
-      memoryManager.requestReadBuffers(
-          minReadBuffers,
-          maxReadBuffers,
-          fileInfo.getBufferSize(),
-          (allocatedBuffers, throwable) ->
-              MapDataPartition.this.onBuffer(new ArrayDeque<>(allocatedBuffers)));
+      if (allocateResources) {
+        memoryManager.requestReadBuffers(
+            minReadBuffers,
+            maxReadBuffers,
+            fileInfo.getBufferSize(),
+            (allocatedBuffers, throwable) ->
+                MapDataPartition.this.onBuffer(new LinkedBlockingDeque<>(allocatedBuffers)));
+      }
+    }
+
+    public DataPartitionReader getStreamReader(long streamId) {
+      return streamReaders.get(streamId);
     }
 
     // Read logic is executed on another thread.
     public void onBuffer(Queue<ByteBuf> buffers) {
-      if (readers.isEmpty()) {
-        return;
-      }
+      this.buffers = buffers;
+      process();
+    }
+
+
+    public void recycle(ByteBuf buffer, Queue<ByteBuf> bufferQueue) {
+      buffer.clear();
+      bufferQueue.add(buffer);
+      process();
+    }
+
+    public void process() {
       readExecutor.submit(
           () -> {
             // Key for IO schedule.
@@ -223,12 +270,11 @@ public class BufferStreamManager {
             while (buffers.size() > 0 && !sortedReaders.isEmpty()) {
               DataPartitionReader reader = sortedReaders.poll();
               try {
-                reader.readAndSend(buffers);
+                reader.readAndSend(buffers, (buffer) -> this.recycle(buffer, buffers));
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
             }
-            readers.removeIf(p -> p.isClosed);
           });
     }
 
@@ -238,6 +284,18 @@ public class BufferStreamManager {
 
     public synchronized void removeStream(long streamId) {
       activeStreamIds.remove(streamId);
+      streamReaders.remove(streamId);
+    }
+
+  }
+
+  private class Buffer {
+    private ByteBuf byteBuf;
+    private Consumer<ByteBuf> byteBufferConsumer;
+
+    public Buffer(ByteBuf byteBuf, Consumer<ByteBuf> byteBufferConsumer) {
+      this.byteBuf = byteBuf;
+      this.byteBufferConsumer = byteBufferConsumer;
     }
   }
 
@@ -273,7 +331,7 @@ public class BufferStreamManager {
     private long dataConsumingOffset;
 
     /** Number of remaining bytes to read from the current reduce partition. */
-    private long currentPartitionRemainingBytes;
+    private volatile long currentPartitionRemainingBytes;
 
     /** Whether this file reader is closed or not. A closed file reader can not read any data. */
     private boolean isClosed;
@@ -284,7 +342,7 @@ public class BufferStreamManager {
     protected final Object lock = new Object();
 
     @GuardedBy("lock")
-    protected final Queue<ByteBuf> buffersRead = new ArrayDeque<>();
+    protected final Queue<Buffer> buffersRead = new ArrayDeque<>();
 
     /** Whether all the data has been successfully read or not. */
     @GuardedBy("lock")
@@ -326,7 +384,7 @@ public class BufferStreamManager {
       long indexRegionSize = fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
       this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
 
-      currentPartitionRemainingBytes = dataFileChannel.size();
+      updateConsumingOffset();
     }
 
     public long getIndexRegionSize() {
@@ -352,6 +410,8 @@ public class BufferStreamManager {
         currentPartitionRemainingBytes = indexBuffer.getLong();
         --numRemainingPartitions;
 
+        logger.info("readBuffer updateConsumingOffset, {},  {}, {}, {}", streamId, dataFileChannel.size(), dataConsumingOffset, currentPartitionRemainingBytes);
+
         // if these checks fail, the partition file must be corrupted
         if (dataConsumingOffset < 0
             || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannel.size()
@@ -364,19 +424,25 @@ public class BufferStreamManager {
     public boolean readBuffer(ByteBuf buffer) throws IOException {
       try {
         dataFileChannel.position(dataConsumingOffset);
-        currentPartitionRemainingBytes -=
-            Utils.readBuffer(dataFileChannel, headerBuffer, buffer, headerBuffer.capacity());
+
+        int readSize = Utils.readBuffer(dataFileChannel, headerBuffer, buffer, headerBuffer.capacity());
+        currentPartitionRemainingBytes -= readSize;
+
+        logger.info("readBuffer data: {}, {}, {}, {}, {}, {}", streamId, currentPartitionRemainingBytes, readSize, dataConsumingOffset, Utils.getShortFormattedFileName(fileInfo), System.identityHashCode(buffer));
 
         // if this check fails, the partition file must be corrupted
         if (currentPartitionRemainingBytes < 0) {
           throw new RuntimeException("File is corrupted");
         } else if (currentPartitionRemainingBytes == 0) {
+          logger.info("readBuffer end, {},  {}, {}, {}", streamId, dataFileChannel.size(), dataConsumingOffset, currentPartitionRemainingBytes);
           int prevDataRegion = currentDataRegion;
           updateConsumingOffset();
           return prevDataRegion == currentDataRegion && currentPartitionRemainingBytes > 0;
         }
 
         dataConsumingOffset = dataFileChannel.position();
+
+        logger.info("readBuffer run: {}, {}, {}, {}", streamId, dataFileChannel.size(), dataConsumingOffset, currentPartitionRemainingBytes);
         return true;
       } catch (Throwable throwable) {
         logger.debug("Failed to read partition file.", throwable);
@@ -389,11 +455,12 @@ public class BufferStreamManager {
       return currentPartitionRemainingBytes > 0;
     }
 
-    public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue) throws IOException {
+    public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Consumer<ByteBuf> consumer) throws IOException {
       boolean hasReaming = hasRemaining();
       boolean continueReading = hasReaming;
       int numDataBuffers = 0;
       while (continueReading) {
+
         ByteBuf buffer = bufferQueue.poll();
         if (buffer == null) {
           break;
@@ -407,7 +474,7 @@ public class BufferStreamManager {
         }
 
         hasReaming = hasRemaining();
-        addBuffer(buffer, hasReaming);
+        addBuffer(buffer, hasReaming, consumer);
         ++numDataBuffers;
       }
 
@@ -422,7 +489,7 @@ public class BufferStreamManager {
       return hasReaming;
     }
 
-    protected void addBuffer(ByteBuf buffer, boolean hasRemaining) {
+    protected void addBuffer(ByteBuf buffer, boolean hasRemaining, Consumer<ByteBuf> consumer) {
       if (buffer == null) {
         return;
       }
@@ -437,7 +504,7 @@ public class BufferStreamManager {
 
         if (!recycleBuffer) {
           notifyDataAvailable = buffersRead.isEmpty();
-          buffersRead.add(buffer);
+          buffersRead.add(new Buffer(buffer, consumer));
         }
       }
 
@@ -451,29 +518,42 @@ public class BufferStreamManager {
       }
     }
 
-    public void sendData() {
+    public synchronized void sendData() {
       while (!buffersRead.isEmpty()) {
-        ByteBuf readBuf = buffersRead.poll();
-        logger.debug("send " + readBuf.readableBytes() + " to stream " + streamId);
-        ReadData readData = new ReadData(streamId, buffersRead.size(), 0, readBuf);
-        streams
-            .get(streamId)
-            .associatedChannel
-            .writeAndFlush(readData)
-            .addListener(
-                (ChannelFutureListener)
-                    future -> {
-                      if (!future.isSuccess()) {
-                        isError = true;
-                        errorCause = future.cause();
-                        throw new RuntimeException(future.cause());
-                      } else {
-                        // we have manually controlled the lifecycle of a buffer,
-                        // so here is no need to release
-                        memoryManager.recycleReadBuffer(readBuf);
-                      }
-                    });
-        streamCredits.put(streamId, streamCredits.get(streamId) - 1);
+        if (streamCredits.get(streamId).get() > 0) {
+          Buffer readBuf = buffersRead.poll();
+          logger.debug("send " + readBuf.byteBuf.readableBytes() + " to stream " + streamId + ", fileInfo: " + Utils.getShortFormattedFileName(fileInfo));
+          ReadData readData = new ReadData(streamId, buffersRead.size(), 0, readBuf.byteBuf);
+          streams
+              .get(streamId)
+              .associatedChannel
+              .writeAndFlush(readData)
+              .addListener(
+                  (ChannelFutureListener) future -> {
+                        if (!future.isSuccess()) {
+                          isError = true;
+                          errorCause = future.cause();
+                          throw new RuntimeException(future.cause());
+                        } else {
+                          // we have manually controlled the lifecycle of a buffer,
+                          // so here is no need to release
+                          // memoryManager.recycleReadBuffer(readBuf.byteBuf);
+                        }
+                    logger.debug("recycle " + readBuf.byteBuf.readableBytes() + "," + System.identityHashCode(readBuf.byteBuf) + " to stream " + streamId + ", fileInfo: " + Utils.getShortFormattedFileName(fileInfo));
+                    readBuf.byteBufferConsumer.accept(readBuf.byteBuf);
+                      });
+          logger.info("streamId: {}, decrement credit: {}", streamId, streamCredits.get(streamId).decrementAndGet());
+        } else {
+          logger.info("streamId: {}, no credit: {}", streamId, streamCredits.get(streamId));
+          // no credit
+          break;
+        }
+      }
+
+      logger.info("streamId: {}, remaining: {}, bufferSize: {}", streamId, currentPartitionRemainingBytes, buffersRead.size());
+
+      if (isClosed && buffersRead.isEmpty()) {
+        cleanResource(streamId);
       }
     }
 
@@ -481,7 +561,6 @@ public class BufferStreamManager {
       isClosed = true;
       IOUtils.closeQuietly(indexFileChannel);
       IOUtils.closeQuietly(dataFileChannel);
-      cleanResource(this.streamId);
       logger.info("Closed read for stream {}", this.streamId);
     }
 
@@ -509,7 +588,7 @@ public class BufferStreamManager {
     public ExecutorService getExecutorPool(String mountPoint) {
       // simplified implementation, the thread number will be adjustable.
       // mount point might be UNKNOWN
-      return executorPools.computeIfAbsent(mountPoint, k -> Executors.newFixedThreadPool(4));
+      return executorPools.computeIfAbsent(mountPoint, k -> Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("reader-thread-%d").build()));
     }
   }
 }

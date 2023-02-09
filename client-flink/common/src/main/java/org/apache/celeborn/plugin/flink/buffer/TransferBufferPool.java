@@ -25,10 +25,14 @@ import java.util.*;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import org.apache.celeborn.plugin.flink.readclient.RssBufferStream;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A buffer pool which will dispatch buffers to all {@link CreditListener}s. */
 public class TransferBufferPool implements BufferRecycler {
+  private static Logger logger = LoggerFactory.getLogger(TransferBufferPool.class);
 
   private static final int MIN_CREDITS_TO_NOTIFY = 2;
 
@@ -102,6 +106,9 @@ public class TransferBufferPool implements BufferRecycler {
         numAvailableBuffers -= numCredits;
         listener = creditListener;
       }
+
+      logger.warn("reserveBuffers,numCredits: {}, required: {}", numCredits, numRequiredBuffers);
+
     }
     if (listener != null) {
       listener.notifyAvailableCredits(numCredits);

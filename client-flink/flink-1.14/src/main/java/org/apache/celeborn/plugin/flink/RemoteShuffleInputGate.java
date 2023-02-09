@@ -269,6 +269,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
         bufferOrEvent = transformBuffer(buffer, channelInfo);
       } else {
         bufferOrEvent = transformEvent(buffer, channelInfo);
+        LOG.info("recevied event: " + bufferOrEvent.get().getEvent().getClass().getName());
       }
 
       if (bufferOrEvent.isPresent()) {
@@ -540,7 +541,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       } else {
         // the real end.
         bufferReaders.get(clientIndexMap[channelInfo.getInputChannelIdx()]).close();
-        tryOpenSomeChannels();
+       // tryOpenSomeChannels();
         if (allReadersEOF()) {
           availabilityHelper.getUnavailableToResetAvailable().complete(null);
         }

@@ -83,6 +83,9 @@ public class RssBufferStream {
     ByteBuffer response = client.sendRpcSync(openBufferStream.toByteBuffer(), timeoutMs);
     StreamHandle streamHandle = (StreamHandle) Message.decode(response);
     this.streamId = streamHandle.streamId;
+
+    logger.info("open stream: {}, fileName: {}", this.streamId, new String(openBufferStream.fileName));
+
     return streamHandle.streamId;
   }
 

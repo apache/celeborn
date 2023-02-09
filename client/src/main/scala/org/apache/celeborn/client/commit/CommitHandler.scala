@@ -166,18 +166,22 @@ abstract class CommitHandler(
           reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
           getMapperAttempts(shuffleId)))
       } else {
-        val cachedMsg = getReducerFileGroupRpcCache.get(
-          shuffleId,
-          new Callable[ByteBuffer]() {
-            override def call(): ByteBuffer = {
-              val returnedMsg = GetReducerFileGroupResponse(
-                StatusCode.SUCCESS,
-                reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
-                getMapperAttempts(shuffleId))
-              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
-            }
-          })
-        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+        context.reply(GetReducerFileGroupResponse(
+          StatusCode.SUCCESS,
+          reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+          getMapperAttempts(shuffleId)))
+//        val cachedMsg = getReducerFileGroupRpcCache.get(
+//          shuffleId,
+//          new Callable[ByteBuffer]() {
+//            override def call(): ByteBuffer = {
+//              val returnedMsg = GetReducerFileGroupResponse(
+//                StatusCode.SUCCESS,
+//                reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+//                getMapperAttempts(shuffleId))
+//              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+//            }
+//          })
+//        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
       }
     }
   }
@@ -206,7 +210,7 @@ abstract class CommitHandler(
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
   def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
-    reducerFileGroupsMap.put(shuffleId, new ConcurrentHashMap())
+    reducerFileGroupsMap.putIfAbsent(shuffleId, new ConcurrentHashMap())
   }
 
   def parallelCommitFiles(
@@ -403,7 +407,8 @@ abstract class CommitHandler(
       val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
         partition.getId,
         (k: Integer) => new util.HashSet[PartitionLocation]())
-      partitionLocations.add(partition)
+        partitionLocations.add(partition)
+      logInfo(s"Shuffle $shuffleId, commit file groups: ${reducerFileGroupsMap.get(shuffleId)}.")
     }
   }
 

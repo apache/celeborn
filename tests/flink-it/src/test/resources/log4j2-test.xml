@@ -16,12 +16,12 @@
   ~ limitations under the License.
   -->
 
-<Configuration status="INFO">
+<Configuration status="DEBUG">
     <Appenders>
         <Console name="stdout" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
             <Filters>
-                <ThresholdFilter level="INFO"/>
+                <ThresholdFilter level="DEBUG"/>
             </Filters>
         </Console>
         <File name="file" fileName="target/unit-tests.log">
@@ -29,7 +29,7 @@
         </File>
     </Appenders>
     <Loggers>
-        <Root level="INFO">
+        <Root level="DEBUG">
             <AppenderRef ref="stdout"/>
             <AppenderRef ref="file"/>
         </Root>

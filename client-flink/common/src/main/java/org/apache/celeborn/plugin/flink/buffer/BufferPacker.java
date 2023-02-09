@@ -152,6 +152,7 @@ public class BufferPacker {
         } else {
           // in the remaining datas, the headlength is BufferUtils.HEADER_LENGTH -
           // BufferUtils.HEADER_LENGTH_PREFIX
+          logger.info("readbuffer: total: {}, position: {}", totalBytes, position);
           bufferHeader = BufferUtils.getBufferHeader(buffer, position);
           position += BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX;
         }
