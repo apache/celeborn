@@ -86,7 +86,9 @@ public abstract class Message implements Encodable {
     REGION_FINISH(14),
     PUSH_DATA_HAND_SHAKE(15),
     READ_ADD_CREDIT(16),
-    READ_DATA(17);
+    READ_DATA(17),
+    OPEN_BUFFER_STREAM(18),
+    OPEN_CHUNK_STREAM(19);
 
     private final byte id;
 
@@ -144,6 +146,10 @@ public abstract class Message implements Encodable {
           return READ_ADD_CREDIT;
         case 17:
           return READ_DATA;
+        case 18:
+          return OPEN_BUFFER_STREAM;
+        case 19:
+          return OPEN_CHUNK_STREAM;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -205,6 +211,12 @@ public abstract class Message implements Encodable {
 
       case READ_DATA:
         return ReadData.decode(in);
+
+      case OPEN_BUFFER_STREAM:
+        return OpenBufferStream.decode(in);
+
+      case OPEN_CHUNK_STREAM:
+        return OpenChunkStream.decode(in);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);
