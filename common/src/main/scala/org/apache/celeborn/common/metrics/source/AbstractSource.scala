@@ -145,10 +145,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def removeGauge(name: String, labels: Map[String, String]): Unit = {
-    metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
-    namedGauges.removeIf(namedGauge =>
-      namedGauge.name.equals(name) &&
-        namedGauge.labelString.equals(MetricLabels.labelString(labels + roleLabel)))
+    if (namedGauges.removeIf(namedGauge =>
+        namedGauge.name.equals(name) &&
+          namedGauge.labelString.equals(MetricLabels.labelString(labels + roleLabel)))) {
+      metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
+    }
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
