@@ -65,21 +65,28 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected val namedGauges: java.util.List[NamedGauge[_]] =
     new java.util.ArrayList[NamedGauge[_]]()
 
-  def addGauge[T](name: String, f: Unit => T): Unit = addGauge(name, f, Map.empty[String, String])
+  def addGauge[T](
+      name: String,
+      gauge: Gauge[T],
+      labels: Map[String, String]): Unit = {
+    namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
+  }
 
   def addGauge[T](
       name: String,
       f: Unit => T,
       labels: Map[String, String]): Unit = {
-    val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
     if (!metricRegistry.getGauges.containsKey(metricNameWithLabels(name, labels + roleLabel))) {
+      val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
       val gauge = metricRegistry.gauge(metricNameWithLabels(name, labels + roleLabel), supplier)
-      namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
+      addGauge(name, gauge, labels)
     }
   }
 
+  def addGauge[T](name: String, f: Unit => T): Unit = addGauge(name, f, Map.empty[String, String])
+
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
-    namedGauges.add(NamedGauge(name, gauge, Map(roleLabel)))
+    addGauge(name, gauge, Map.empty[String, String])
   }
 
   protected val namedTimers =
@@ -135,6 +142,13 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     } else {
       Random.nextDouble() <= metricsSampleRate
     }
+  }
+
+  def remove(name: String, labels: Map[String, String]): Unit = {
+    metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
+    namedGauges.removeIf(namedGauge =>
+      namedGauge.name.equals(name) &&
+        namedGauge.labelString.equals(MetricLabels.labelString(labels + roleLabel)))
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
@@ -351,6 +365,15 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       innerMetrics.clear()
     }
     sb.toString()
+  }
+
+  override def destroy(): Unit = {
+    metricsCleaner.shutdown()
+    namedCounters.clear()
+    namedGauges.clear()
+    namedTimers.clear()
+    innerMetrics.clear()
+    metricRegistry.removeMatching((_, _) => true)
   }
 
   protected def normalizeKey(key: String): String = {

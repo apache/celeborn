@@ -22,18 +22,23 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 public class TestCongestionController {
 
   private CongestionController controller;
+  private WorkerSource source = new WorkerSource(new CelebornConf());
+
   private long pendingBytes = 0L;
+  private final long userInactiveTimeMills = 2000L;
 
   @Before
   public void initialize() {
     // Make sampleTimeWindow a bit larger in case the tests run time exceed this window.
     controller =
-        new CongestionController(10, 1000, 500, 1000) {
+        new CongestionController(source, 10, 1000, 500, userInactiveTimeMills) {
           @Override
           public long getTotalPendingBytes() {
             return pendingBytes;
@@ -49,6 +54,7 @@ public class TestCongestionController {
   @After
   public void clear() {
     controller.close();
+    source.destroy();
   }
 
   @Test
@@ -96,5 +102,32 @@ public class TestCongestionController {
     pendingBytes = 0;
     Assert.assertFalse(controller.isUserCongested(user1));
     Assert.assertFalse(controller.isUserCongested(user2));
+  }
+
+  @Test
+  public void testUserMetrics() throws InterruptedException {
+    UserIdentifier user = new UserIdentifier("test", "celeborn");
+    Assert.assertFalse(controller.isUserCongested(user));
+
+    // If pendingBytes exceed the high watermark, user1 produce speed > avg consume speed
+    // While user2 produce speed < avg consume speed
+    controller.produceBytes(user, 800);
+    Assert.assertTrue(
+        source
+            .gauges()
+            .exists(
+                gauge ->
+                    gauge.name().equals(WorkerSource.UserProduceSpeed())
+                        && gauge.labelString().contains("celeborn")));
+
+    Thread.sleep(userInactiveTimeMills * 2);
+
+    Assert.assertFalse(
+        source
+            .gauges()
+            .exists(
+                gauge ->
+                    gauge.name().equals(WorkerSource.UserProduceSpeed())
+                        && gauge.labelString().contains("celeborn")));
   }
 }
