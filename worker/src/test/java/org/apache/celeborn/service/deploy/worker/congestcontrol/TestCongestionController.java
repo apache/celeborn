@@ -108,10 +108,8 @@ public class TestCongestionController {
   public void testUserMetrics() throws InterruptedException {
     UserIdentifier user = new UserIdentifier("test", "celeborn");
     Assert.assertFalse(controller.isUserCongested(user));
-
-    // If pendingBytes exceed the high watermark, user1 produce speed > avg consume speed
-    // While user2 produce speed < avg consume speed
     controller.produceBytes(user, 800);
+
     Assert.assertTrue(
         source
             .gauges()
