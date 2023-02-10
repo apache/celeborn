@@ -1206,7 +1206,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
         "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
-        "when memory pressure is high or shuffle partition count it huge.")
+        "when memory pressure is high or shuffle partition count is huge.")
       .version("0.2.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
@@ -1305,7 +1305,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.test.fetchFailure")
       .categories("client")
       .version("0.2.0")
-      .doc("Wheter to test fetch chunk failure")
+      .doc("Whether to test fetch chunk failure")
       .booleanConf
       .createWithDefault(false)
 
