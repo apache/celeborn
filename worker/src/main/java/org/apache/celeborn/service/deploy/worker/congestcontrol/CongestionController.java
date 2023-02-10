@@ -240,7 +240,7 @@ public class CongestionController {
         UserBufferInfo userBufferInfo = next.getValue();
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
           userBufferStatuses.remove(userIdentifier);
-          workerSource.remove(WorkerSource.UserProduceSpeed(), userIdentifier.toMap());
+          workerSource.removeGauge(WorkerSource.UserProduceSpeed(), userIdentifier.toMap());
           logger.info(
               String.format(
                   "User: %s has been expired, remove it from rate limit list", userIdentifier));

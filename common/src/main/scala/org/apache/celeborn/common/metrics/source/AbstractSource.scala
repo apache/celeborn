@@ -144,7 +144,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     }
   }
 
-  def remove(name: String, labels: Map[String, String]): Unit = {
+  def removeGauge(name: String, labels: Map[String, String]): Unit = {
     metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
     namedGauges.removeIf(namedGauge =>
       namedGauge.name.equals(name) &&
