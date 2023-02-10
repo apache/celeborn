@@ -145,10 +145,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def removeGauge(name: String, labels: Map[String, String]): Unit = {
-    if (namedGauges.removeIf(namedGauge =>
-        namedGauge.name.equals(name) &&
-          namedGauge.labelString.equals(MetricLabels.labelString(labels + roleLabel)))) {
-      metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
+    val labelString = MetricLabels.labelString(labels + roleLabel)
+
+    val iter = namedGauges.iterator()
+    while (iter.hasNext) {
+      val namedGauge = iter.next()
+      if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
+        iter.remove()
+        metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
+        return
+      }
     }
   }
 
@@ -374,7 +380,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGauges.clear()
     namedTimers.clear()
     innerMetrics.clear()
-    metricRegistry.removeMatching((_, _) => true)
+    metricRegistry.removeMatching(new MetricFilter {
+      override def matches(s: String, metric: Metric): Boolean = true
+    })
   }
 
   protected def normalizeKey(key: String): String = {

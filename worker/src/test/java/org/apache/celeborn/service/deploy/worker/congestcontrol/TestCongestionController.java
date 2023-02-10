@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
+import java.util.Map;
+
+import scala.collection.JavaConverters;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -111,21 +115,41 @@ public class TestCongestionController {
     controller.produceBytes(user, 800);
 
     Assert.assertTrue(
-        source
-            .gauges()
-            .exists(
-                gauge ->
-                    gauge.name().equals(WorkerSource.UserProduceSpeed())
-                        && gauge.labelString().contains("celeborn")));
+        isGaugeExist(
+            WorkerSource.UserProduceSpeed(),
+            JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
 
     Thread.sleep(userInactiveTimeMills * 2);
 
     Assert.assertFalse(
-        source
-            .gauges()
-            .exists(
-                gauge ->
-                    gauge.name().equals(WorkerSource.UserProduceSpeed())
-                        && gauge.labelString().contains("celeborn")));
+        isGaugeExist(
+            WorkerSource.UserProduceSpeed(),
+            JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
+  }
+
+  private boolean isGaugeExist(String name, Map<String, String> labels) {
+    return source.namedGauges().stream()
+            .filter(
+                gauge -> {
+                  if (gauge.name().equals(name)) {
+                    return labels.entrySet().stream()
+                        .noneMatch(
+                            entry -> {
+                              // Filter entry not exist in the gauge's labels
+                              if (gauge.labels().get(entry.getKey()).nonEmpty()) {
+                                return !gauge
+                                    .labels()
+                                    .get(entry.getKey())
+                                    .get()
+                                    .equals(entry.getValue());
+                              } else {
+                                return true;
+                              }
+                            });
+                  }
+                  return false;
+                })
+            .count()
+        == 1;
   }
 }
