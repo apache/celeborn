@@ -72,7 +72,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     pushTimeoutChecker =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker-" + this);
     pushTimeoutChecker.scheduleAtFixedRate(
-      () -> failExpiredPushRequest(),
+        () -> failExpiredPushRequest(),
         pushTimeoutCheckerInterval,
         pushTimeoutCheckerInterval,
         TimeUnit.MILLISECONDS);
@@ -93,10 +93,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           // do data replication.
           if (TransportModuleConstants.DATA_MODULE.equals(conf.getModuleName())) {
             info.callback.onFailure(
-              new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+                new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
           } else if (TransportModuleConstants.PUSH_MODULE.equals(conf.getModuleName())) {
             info.callback.onFailure(
-              new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+                new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
           }
           info.channelFuture = null;
           info.callback = null;
@@ -129,9 +129,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingRpcs.remove(requestId);
   }
 
-  public void addPushRequest(
-      long requestId,
-      PushRequestInfo info) {
+  public void addPushRequest(long requestId, PushRequestInfo info) {
     updateTimeOfLastRequest();
     if (outstandingPushes.containsKey(requestId)) {
       logger.warn("[addPushRequest] requestId {} already exists!", requestId);

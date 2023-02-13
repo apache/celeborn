@@ -32,13 +32,13 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.apache.celeborn.common.write.PushRequestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
  * Client for fetching consecutive chunks of a pre-negotiated stream. This API is intended to allow

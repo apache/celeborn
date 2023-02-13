@@ -74,7 +74,8 @@ public class InFlightRequestTracker {
   }
 
   public Set<Integer> getBatchIdSetByAddressPair(String hostAndPort) {
-    return inflightBatchesPerAddress.computeIfAbsent(hostAndPort, pair -> ConcurrentHashMap.newKeySet());
+    return inflightBatchesPerAddress.computeIfAbsent(
+        hostAndPort, pair -> ConcurrentHashMap.newKeySet());
   }
 
   public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {

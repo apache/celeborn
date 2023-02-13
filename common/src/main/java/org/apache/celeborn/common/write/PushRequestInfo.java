@@ -26,9 +26,7 @@ public class PushRequestInfo {
   public long dueTime;
   public RpcResponseCallback callback;
 
-  public PushRequestInfo(
-      long dueTime,
-      RpcResponseCallback callback) {
+  public PushRequestInfo(long dueTime, RpcResponseCallback callback) {
     this.dueTime = dueTime;
     this.callback = callback;
   }

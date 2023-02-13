@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.local.LocalChannel;
-import org.apache.celeborn.common.write.PushRequestInfo;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -35,6 +34,7 @@ import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushRequestInfo;
 
 public class TransportResponseHandlerSuiteJ {
   @Test
