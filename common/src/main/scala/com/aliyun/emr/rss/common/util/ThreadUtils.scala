@@ -18,7 +18,6 @@
 package com.aliyun.emr.rss.common.util
 
 import java.util.concurrent._
-
 import scala.collection.TraversableLike
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
@@ -26,10 +25,10 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.forkjoin.{ForkJoinPool => SForkJoinPool, ForkJoinWorkerThread => SForkJoinWorkerThread}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
-
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
-
 import com.aliyun.emr.rss.common.exception.RssException
+
+import java.lang.Thread.UncaughtExceptionHandler
 
 object ThreadUtils {
 
@@ -104,6 +103,13 @@ object ThreadUtils {
     // elapses. We have to enable it manually.
     executor.setRemoveOnCancelPolicy(true)
     executor
+  }
+
+  def newDaemonSingleThreadExecutorWithUncaughtExceptionHandler(
+      threadName: String,handler: UncaughtExceptionHandler): ExecutorService = {
+    val threadFactory = new ThreadFactoryBuilder().setDaemon(true).setNameFormat(
+      threadName).setUncaughtExceptionHandler(handler).build()
+    Executors.newSingleThreadExecutor(threadFactory)
   }
 
   /**

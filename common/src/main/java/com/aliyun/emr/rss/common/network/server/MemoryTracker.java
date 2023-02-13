@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.aliyun.emr.rss.common.util.ThreadUtils;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,15 +45,14 @@ public class MemoryTracker {
   private final long maxSortMemory;
   private final List<MemoryTrackerListener> memoryTrackerListeners = new ArrayList<>();
 
-  private final ScheduledExecutorService checkService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-check-thread").build());
-  private final ScheduledExecutorService reportService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-report-thread").build());
-  private final ExecutorService actionService = Executors
-    .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("MemoryTracker-action-thread").build());
+  private final ScheduledExecutorService checkService =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("MemoryTracker-check-thread");
+  private final ScheduledExecutorService reportService =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("MemoryTracker-report-thread");
+  private final ExecutorService actionService =
+      ThreadUtils.newDaemonSingleThreadExecutorWithUncaughtExceptionHandler(
+          "MemoryTracker-action-thread", (t, e) ->
+              logger.error("memory-manager-actor thread {} has exception {}", t, e));
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -61,7 +60,7 @@ public class MemoryTracker {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryTrackerStat memoryTrackerStat = MemoryTrackerStat.resumeAll;
-  private boolean underPressure;
+  private volatile boolean underPressure;
   private int trimCount = 0;
 
   public static MemoryTracker initialize(
@@ -115,8 +114,10 @@ public class MemoryTracker {
         MemoryTrackerStat lastAction = memoryTrackerStat;
         memoryTrackerStat = currentMemoryAction();
         if (lastAction != memoryTrackerStat) {
+          logger.info("MemoryTrackerStat changed {} -> {}", lastAction, memoryTrackerStat);
           if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndResumeReplicate) {
             pausePushDataCounter.increment();
+            logger.info("Submit trigger pausePushDataAndResumeReplicate action");
             actionService.submit(() -> {
               logger.info("Trigger pausePushDataAndResumeReplicate action");
               memoryTrackerListeners.forEach(memoryTrackerListener ->
@@ -127,6 +128,7 @@ public class MemoryTracker {
             });
           } else if (memoryTrackerStat == MemoryTrackerStat.pausePushDataAndReplicate) {
             pausePushDataAndReplicateCounter.increment();
+            logger.info("Submit trigger pausePushDataAndReplicate action");
             actionService.submit(() -> {
               logger.info("Trigger pausePushDataAndReplicate action");
               memoryTrackerListeners.forEach(memoryTrackerListener ->
@@ -136,6 +138,7 @@ public class MemoryTracker {
               memoryTrackerListeners.forEach(MemoryTrackerListener::onTrim);
             });
           } else {
+            logger.info("Submit trigger resume action");
             actionService.submit(() -> {
               logger.info("Trigger resume action");
               memoryTrackerListeners.forEach(memoryTrackerListener ->
@@ -200,26 +203,37 @@ public class MemoryTracker {
     long memoryUsage =  nettyMemoryCounter.get() + sortMemoryCounter.get();
     boolean pausePushData = memoryUsage > pausePushDataThreshold;
     boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
+    MemoryTrackerStat statToReture = MemoryTrackerStat.resumeAll;
+    boolean resume = false;
     if (pausePushData) {
       underPressure = true;
       if (pauseReplication) {
-        return MemoryTrackerStat.pausePushDataAndReplicate;
+        statToReture= MemoryTrackerStat.pausePushDataAndReplicate;
       } else {
-        return MemoryTrackerStat.pausePushDataAndResumeReplicate;
+        statToReture= MemoryTrackerStat.pausePushDataAndResumeReplicate;
       }
     } else {
-      boolean resume = memoryUsage < resumeThreshold;
+      resume = memoryUsage < resumeThreshold;
       if (resume) {
         underPressure = false;
-        return MemoryTrackerStat.resumeAll;
+        statToReture= MemoryTrackerStat.resumeAll;
       } else {
         if (underPressure) {
-          return MemoryTrackerStat.pausePushDataAndResumeReplicate;
+          statToReture= MemoryTrackerStat.pausePushDataAndResumeReplicate;
         } else {
-          return MemoryTrackerStat.resumeAll;
+          statToReture= MemoryTrackerStat.resumeAll;
         }
       }
     }
+    logger.debug(
+      "memory action result stack {},{},{},{},{},{}",
+      memoryUsage,
+      pausePushData,
+      pauseReplication,
+      resume,
+      statToReture,
+      underPressure);
+    return statToReture;
   }
 
   public interface MemoryTrackerListener {
