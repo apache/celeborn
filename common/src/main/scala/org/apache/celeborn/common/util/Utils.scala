@@ -22,6 +22,7 @@ import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
@@ -35,6 +36,7 @@ import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
+import io.netty.buffer.ByteBuf
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.roaringbitmap.RoaringBitmap
@@ -42,7 +44,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
@@ -992,6 +994,66 @@ object Utils extends Logging {
     } else {
       null
     }
+  }
+
+  def checkedDownCast(value: Long): Int = {
+    val downCast = value.toInt
+    if (downCast.toLong != value) {
+      throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.")
+    }
+    downCast
+  }
+
+  @throws[IOException]
+  def checkFileIntegrity(fileChannel: FileChannel, length: Int): Unit = {
+    val remainingBytes = fileChannel.size - fileChannel.position
+    if (remainingBytes < length) {
+      logError(
+        s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
+      throw new RuntimeException(s"File is corrupted ${fileChannel}")
+    }
+  }
+
+  @throws[IOException]
+  def readBuffer(fileChannel: FileChannel, buffer: ByteBuffer, length: Int): Unit = {
+    checkFileIntegrity(fileChannel, length)
+    buffer.clear
+    buffer.limit(length)
+    while (buffer.hasRemaining) fileChannel.read(buffer)
+    buffer.flip
+  }
+
+  def readBuffer(fileChannel: FileChannel, buffer: ByteBuf, length: Int): Unit = {
+    checkFileIntegrity(fileChannel, length)
+    val tmpBuffer = ByteBuffer.allocate(length)
+    while (tmpBuffer.hasRemaining) fileChannel.read(tmpBuffer)
+    tmpBuffer.flip()
+    buffer.writeBytes(tmpBuffer)
+  }
+
+  @throws[IOException]
+  def readBuffer(
+      fileChannel: FileChannel,
+      header: ByteBuffer,
+      buffer: ByteBuf,
+      headerSize: Int): Int = {
+    readBuffer(fileChannel, header, headerSize)
+    val bufferLength = header.getInt(12)
+    if (bufferLength <= 0 || bufferLength > buffer.capacity) {
+      logError(s"Incorrect buffer header, buffer length: ${bufferLength}.")
+      throw new RuntimeException(s"File ${fileChannel} is corrupted")
+    }
+    // attach header buffer to data buffer.
+    buffer.writeBytes(header)
+    readBuffer(fileChannel, buffer, bufferLength)
+    bufferLength + headerSize
+  }
+
+  def getShortFormattedFileName(fileInfo: FileInfo): String = {
+    val parentFile = fileInfo.getFile.getParent
+    parentFile.substring(
+      parentFile.lastIndexOf("/"),
+      parentFile.length) + "/" + fileInfo.getFile.getName
   }
 
 }

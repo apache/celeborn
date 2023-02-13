@@ -47,8 +47,8 @@ public class ReadBufferDispatcher extends Thread {
   }
 
   public void recycle(ByteBuf buf) {
-    buf.release();
     int bufferSize = buf.capacity();
+    buf.release();
     memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
 
@@ -67,9 +67,13 @@ public class ReadBufferDispatcher extends Thread {
         while (buffers.size() < request.getMin()) {
           if (memoryManager.readBufferAvailable(bufferSize)) {
             memoryManager.incrementDiskBuffer(bufferSize);
-            buffers.add(readBufferAllocator.buffer(bufferSize, bufferSize));
+            ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+            buf.retain(2);
+            buffers.add(buf);
           } else {
             try {
+              // If dispatcher can not allocate minimum buffers, it will wait here until necessary
+              // buffers are get.
               Thread.sleep(3);
             } catch (InterruptedException e) {
               logger.info("Buffer dispatcher is closing");
@@ -81,7 +85,9 @@ public class ReadBufferDispatcher extends Thread {
         while (memoryManager.readBufferAvailable(request.getBufferSize())
             && buffers.size() < request.getMax()) {
           memoryManager.changeReadBufferCounter(bufferSize);
-          buffers.add(readBufferAllocator.buffer(bufferSize, bufferSize));
+          ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+          buf.retain(2);
+          buffers.add(buf);
         }
         request.getBufferListener().notifyBuffers(buffers, null);
       } else {

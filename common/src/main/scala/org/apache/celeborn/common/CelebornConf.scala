@@ -27,6 +27,7 @@ import scala.util.Try
 
 import org.apache.hadoop.security.UserGroupInformation
 
+import org.apache.celeborn.common.CelebornConf.{PARTITION_READ_BUFFERS_MAX, PARTITION_READ_BUFFERS_MIN}
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -756,6 +757,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
+
+  def partitionReadBuffersMin: Int = get(PARTITION_READ_BUFFERS_MIN)
+
+  def partitionReadBuffersMax: Int = get(PARTITION_READ_BUFFERS_MAX)
+  def bufferStreamThreadsPerMountpoint = get(BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -2948,4 +2954,28 @@ object CelebornConf extends Logging {
       .doc("The size of network buffers required per result partition. The minimum valid value is 8M. Usually, several hundreds of megabytes memory is enough for large scale batch jobs.")
       .stringConf
       .createWithDefault("64m")
+
+  val PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.partition.initial.readBufferMin")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Min number of initial read buffers")
+      .intConf
+      .createWithDefault(8)
+
+  val PARTITION_READ_BUFFERS_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.partition.initial.readBufferMax")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Max number of initial read buffers")
+      .intConf
+      .createWithDefault(8)
+
+  val BUFFERSTREAM_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
+    buildConf("celeborn.bufferStream.threadsPerMountpoint")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Threads count for read buffer per mount point.")
+      .intConf
+      .createWithDefault(8)
 }

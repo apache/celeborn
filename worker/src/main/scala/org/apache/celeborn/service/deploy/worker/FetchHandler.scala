@@ -41,7 +41,10 @@ import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, 
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
-  val bufferStreamManager = new BufferStreamManager()
+  val bufferStreamManager = new BufferStreamManager(
+    conf.getCelebornConf.partitionReadBuffersMin,
+    conf.getCelebornConf.partitionReadBuffersMax,
+    conf.getCelebornConf.bufferStreamThreadsPerMountpoint)
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
@@ -136,16 +139,17 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           }
         case PartitionType.MAP =>
-          // return stream id
-          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
-          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
-          val streamId =
-            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
-          val res = ByteBuffer.allocate(8)
-          res.putLong(streamId)
-          client.getChannel.writeAndFlush(new RpcResponse(
-            request.requestId,
-            new NioManagedBuffer(res)))
+//          TODO:waiting for another PR.
+        // return stream id
+//          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
+//          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
+//          val streamId =
+//            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
+//          val res = ByteBuffer.allocate(8)
+//          res.putLong(streamId)
+//          client.getChannel.writeAndFlush(new RpcResponse(
+//            request.requestId,
+//            new NioManagedBuffer(res)))
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
