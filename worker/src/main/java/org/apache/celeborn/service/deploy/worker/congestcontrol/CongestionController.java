@@ -30,11 +30,13 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 public class CongestionController {
 
   private static final Logger logger = LoggerFactory.getLogger(CongestionController.class);
   private static volatile CongestionController _INSTANCE = null;
+  private final WorkerSource workerSource;
 
   private final int sampleTimeWindowSeconds;
   private final long highWatermark;
@@ -50,12 +52,14 @@ public class CongestionController {
   private final ScheduledExecutorService removeUserExecutorService;
 
   protected CongestionController(
+      WorkerSource workerSource,
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
       long userInactiveTimeMills) {
     assert (highWatermark > lowWatermark);
 
+    this.workerSource = workerSource;
     this.sampleTimeWindowSeconds = sampleTimeWindowSeconds;
     this.highWatermark = highWatermark;
     this.lowWatermark = lowWatermark;
@@ -67,17 +71,25 @@ public class CongestionController {
         ThreadUtils.newDaemonSingleThreadScheduledExecutor("remove-inactive-user");
 
     this.removeUserExecutorService.scheduleWithFixedDelay(
-        this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.SECONDS);
+        this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.MILLISECONDS);
+
+    this.workerSource.addGauge(
+        WorkerSource.PotentialConsumeSpeed(), this::getPotentialConsumeSpeed);
   }
 
   public static synchronized CongestionController initialize(
+      WorkerSource workSource,
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
       long userInactiveTimeMills) {
     _INSTANCE =
         new CongestionController(
-            sampleTimeWindowSeconds, highWatermark, lowWatermark, userInactiveTimeMills);
+            workSource,
+            sampleTimeWindowSeconds,
+            highWatermark,
+            lowWatermark,
+            userInactiveTimeMills);
     return _INSTANCE;
   }
 
@@ -145,24 +157,18 @@ public class CongestionController {
         return false;
       }
 
-      UserBufferInfo userBufferInfo = userBufferStatuses.get(userIdentifier);
-      if (userBufferInfo != null) {
-        BufferStatusHub.BufferStatusNode userBufferStatus =
-            userBufferInfo.getBufferStatusHub().sum();
-
-        // If the user produce speed is higher that the avg consume speed, will congest it
-        long userProduceSpeed = userBufferStatus.numBytes() / sampleTimeWindowSeconds;
-        if (logger.isDebugEnabled()) {
-          logger.debug(
-              "The user {}, produceSpeed is {},"
-                  + " while consumeSpeed is {}, need to congest it: {}",
-              userIdentifier,
-              userProduceSpeed,
-              avgConsumeSpeed,
-              userProduceSpeed > avgConsumeSpeed);
-        }
-        return userProduceSpeed > avgConsumeSpeed;
+      // If the user produce speed is higher that the avg consume speed, will congest it
+      long userProduceSpeed = getUserProduceSpeed(userBufferStatuses.get(userIdentifier));
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "The user {}, produceSpeed is {},"
+                + " while consumeSpeed is {}, need to congest it: {}",
+            userIdentifier,
+            userProduceSpeed,
+            avgConsumeSpeed,
+            userProduceSpeed > avgConsumeSpeed);
       }
+      return userProduceSpeed > avgConsumeSpeed;
     }
 
     return false;
@@ -176,7 +182,12 @@ public class CongestionController {
             user -> {
               logger.info("New user {} comes, initializing its rate status", user);
               BufferStatusHub bufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
-              return new UserBufferInfo(currentTimeMillis, bufferStatusHub);
+              UserBufferInfo userInfo = new UserBufferInfo(currentTimeMillis, bufferStatusHub);
+              workerSource.addGauge(
+                  WorkerSource.UserProduceSpeed(),
+                  () -> getUserProduceSpeed(userInfo),
+                  userIdentifier.toMap());
+              return userInfo;
             });
 
     BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes);
@@ -208,6 +219,15 @@ public class CongestionController {
         / ((long) sampleTimeWindowSeconds * userBufferStatuses.size());
   }
 
+  private long getUserProduceSpeed(UserBufferInfo userBufferInfo) {
+    if (userBufferInfo != null) {
+      BufferStatusHub.BufferStatusNode userBufferStatus = userBufferInfo.getBufferStatusHub().sum();
+      return userBufferStatus.numBytes() / sampleTimeWindowSeconds;
+    }
+
+    return 0L;
+  }
+
   private void removeInactiveUsers() {
     try {
       long currentTimeMillis = System.currentTimeMillis();
@@ -220,6 +240,7 @@ public class CongestionController {
         UserBufferInfo userBufferInfo = next.getValue();
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
           userBufferStatuses.remove(userIdentifier);
+          workerSource.removeGauge(WorkerSource.UserProduceSpeed(), userIdentifier.toMap());
           logger.info(
               String.format(
                   "User: %s has been expired, remove it from rate limit list", userIdentifier));

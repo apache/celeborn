@@ -65,21 +65,28 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected val namedGauges: java.util.List[NamedGauge[_]] =
     new java.util.ArrayList[NamedGauge[_]]()
 
-  def addGauge[T](name: String, f: Unit => T): Unit = addGauge(name, f, Map.empty[String, String])
+  def addGauge[T](
+      name: String,
+      gauge: Gauge[T],
+      labels: Map[String, String]): Unit = {
+    namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
+  }
 
   def addGauge[T](
       name: String,
       f: Unit => T,
       labels: Map[String, String]): Unit = {
-    val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
     if (!metricRegistry.getGauges.containsKey(metricNameWithLabels(name, labels + roleLabel))) {
+      val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
       val gauge = metricRegistry.gauge(metricNameWithLabels(name, labels + roleLabel), supplier)
-      namedGauges.add(NamedGauge(name, gauge, labels + roleLabel))
+      addGauge(name, gauge, labels)
     }
   }
 
+  def addGauge[T](name: String, f: Unit => T): Unit = addGauge(name, f, Map.empty[String, String])
+
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
-    namedGauges.add(NamedGauge(name, gauge, Map(roleLabel)))
+    addGauge(name, gauge, Map.empty[String, String])
   }
 
   protected val namedTimers =
@@ -134,6 +141,20 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       false
     } else {
       Random.nextDouble() <= metricsSampleRate
+    }
+  }
+
+  def removeGauge(name: String, labels: Map[String, String]): Unit = {
+    val labelString = MetricLabels.labelString(labels + roleLabel)
+
+    val iter = namedGauges.iterator()
+    while (iter.hasNext) {
+      val namedGauge = iter.next()
+      if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
+        iter.remove()
+        metricRegistry.remove(metricNameWithLabels(name, labels + roleLabel))
+        return
+      }
     }
   }
 
@@ -351,6 +372,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       innerMetrics.clear()
     }
     sb.toString()
+  }
+
+  override def destroy(): Unit = {
+    metricsCleaner.shutdown()
+    namedCounters.clear()
+    namedGauges.clear()
+    namedTimers.clear()
+    innerMetrics.clear()
+    metricRegistry.removeMatching(new MetricFilter {
+      override def matches(s: String, metric: Metric): Boolean = true
+    })
   }
 
   protected def normalizeKey(key: String): String = {
