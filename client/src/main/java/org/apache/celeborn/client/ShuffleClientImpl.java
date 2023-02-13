@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.BooleanSupplier;
 
 import scala.reflect.ClassTag$;
 
@@ -130,7 +129,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
-  private TransportClient currentClient;
+  private ConcurrentHashMap<String, TransportClient> currentClient = new ConcurrentHashMap<>();
 
   public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier) {
     super();
@@ -1209,6 +1208,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushState.exception.compareAndSet(null, new IOException("Cleaned Up"));
       pushState.cleanup();
     }
+    if (currentClient != null) {
+      currentClient.remove(mapKey);
+    }
   }
 
   @Override
@@ -1404,7 +1406,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int partitionId,
       ByteBuf data,
       PartitionLocation location,
-      BooleanSupplier closeCallBack)
+      Runnable closeCallBack)
       throws IOException {
     // mapKey
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
@@ -1431,13 +1433,14 @@ public class ShuffleClientImpl extends ShuffleClient {
     int totalLength = data.readableBytes();
     data.markWriterIndex();
     data.writerIndex(0);
-    data.writeInt(mapId);
+    data.writeInt(partitionId);
     data.writeInt(attemptId);
     data.writeInt(nextBatchId);
     data.writeInt(totalLength - BATCH_HEADER_SIZE);
     data.resetWriterIndex();
     logger.debug(
-        "Do push data byteBuf for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
+        "Do push data byteBuf size {} for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
+        totalLength,
         applicationId,
         shuffleId,
         mapId,
@@ -1459,7 +1462,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         new RpcResponseCallback() {
           @Override
           public void onSuccess(ByteBuffer response) {
-            closeCallBack.getAsBoolean();
             pushState.removeBatch(nextBatchId, location.hostAndPushPort());
             if (response.remaining() > 0) {
               byte reason = response.get();
@@ -1480,7 +1482,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           @Override
           public void onFailure(Throwable e) {
-            closeCallBack.getAsBoolean();
             pushState.removeBatch(nextBatchId, location.hostAndPushPort());
             if (pushState.exception.get() != null) {
               return;
@@ -1509,7 +1510,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     // do push data
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-      client.pushData(pushData, pushDataTimeout, callback);
+      ChannelFuture future = client.pushDataWithCompleteCallback(pushData, callback, closeCallBack);
+      pushState.pushStarted(
+          nextBatchId, future, callback, location.hostAndPushPort(), pushDataTimeout);
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(
@@ -1529,15 +1532,15 @@ public class ShuffleClientImpl extends ShuffleClient {
     TransportClient client =
         dataClientFactory.createClient(
             location.getHost(), location.getPushPort(), location.getId());
-    if (currentClient != client) {
+    if (currentClient.get(mapKey) != client) {
       // makesure that messages have been sent by old client, in order to keep receiving data
       // orderly
-      if (currentClient != null) {
+      if (currentClient.get(mapKey) != null) {
         limitZeroInFlight(mapKey, pushState);
       }
-      currentClient = client;
+      currentClient.put(mapKey, client);
     }
-    return currentClient;
+    return currentClient.get(mapKey);
   }
 
   @Override
@@ -1601,7 +1604,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         () -> {
           String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
-              "regionStart shuffleKey:{}, attemptId:{}, locationId:{}",
+              "regionStart regionId:{}, shuffleKey:{}, attemptId:{}, locationId:{}",
+              currentRegionIdx,
               shuffleKey,
               attemptId,
               location.getUniqueId());
@@ -1735,7 +1739,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (!Thread.currentThread().isInterrupted()
         && !isSuccess
         && retryTimes < conf.networkIoMaxRetries(TransportModuleConstants.PUSH_MODULE)) {
-      logger.info("retrySendMessage times: {}", retryTimes);
+      logger.debug("retrySendMessage times: {}", retryTimes);
       try {
         result = supplier.get();
         isSuccess = true;
@@ -1771,6 +1775,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             || (e.getCause() != null && e.getCause() instanceof TimeoutException)
             || (e.getCause() != null && e.getCause() instanceof IOException)
             || (e instanceof RuntimeException
+                && e.getMessage() != null
                 && e.getMessage().startsWith(IOException.class.getName()));
     return isIOException;
   }

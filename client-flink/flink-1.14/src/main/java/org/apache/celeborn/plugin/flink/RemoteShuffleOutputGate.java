@@ -203,6 +203,7 @@ public class RemoteShuffleOutputGate {
       bufferPool.lazyDestroy();
     }
     bufferPacker.close();
+    shuffleWriteClient.cleanup(applicationId, shuffleId, mapId, attemptId);
   }
 
   /** Returns shuffle descriptor. */
