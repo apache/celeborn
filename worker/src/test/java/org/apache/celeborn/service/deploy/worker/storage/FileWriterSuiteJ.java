@@ -65,7 +65,7 @@ import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenChunkStream;
+import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
@@ -180,18 +180,17 @@ public class FileWriterSuiteJ {
     }
   }
 
-  public ByteBuffer createOpenChunkMessage() {
+  public ByteBuffer createOpenMessage() {
     byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
     byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
 
-    OpenChunkStream openBlocks =
-        new OpenChunkStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
+    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
 
     return openBlocks.toByteBuffer();
   }
 
   private void setUpConn(TransportClient client) throws IOException {
-    ByteBuffer resp = client.sendRpcSync(createOpenChunkMessage(), 10000);
+    ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
     StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
     streamId = streamHandle.streamId;
     numChunks = streamHandle.numChunks;

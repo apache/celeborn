@@ -17,32 +17,37 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import static org.apache.celeborn.common.network.protocol.Message.Type.OPEN_BUFFER_STREAM;
+import static org.apache.celeborn.common.network.protocol.Message.Type.OPEN_STREAM_WITH_CREDIT;
 
 import java.nio.charset.StandardCharsets;
 
 import io.netty.buffer.ByteBuf;
 
 /** Buffer stream used in Map partition scenario. */
-public class OpenBufferStream extends OpenStream {
-  public int startSubIndex;
-  public int endSubIndex;
-  public int initialCredit;
+public final class OpenStreamWithCredit extends RequestMessage {
+  public final byte[] shuffleKey;
+  public final byte[] fileName;
+  public final int startIndex;
+  public final int endIndex;
+  public final int initialCredit;
 
-  public OpenBufferStream(
-      byte[] shuffleKey, byte[] fileName, int startSubIndex, int endSubIndex, int initialCredit) {
-    super(shuffleKey, fileName);
-    this.startSubIndex = startSubIndex;
-    this.endSubIndex = endSubIndex;
+  public OpenStreamWithCredit(
+      byte[] shuffleKey, byte[] fileName, int startIndex, int endIndex, int initialCredit) {
+    this.shuffleKey = shuffleKey;
+    this.fileName = fileName;
+    this.startIndex = startIndex;
+    this.endIndex = endIndex;
     this.initialCredit = initialCredit;
   }
 
-  public OpenBufferStream(
-      String shuffleKey, String fileName, int startSubIndex, int endSubIndex, int initialCredit) {
-    super(shuffleKey.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
-    this.startSubIndex = startSubIndex;
-    this.endSubIndex = endSubIndex;
-    this.initialCredit = initialCredit;
+  public OpenStreamWithCredit(
+      String shuffleKey, String fileName, int startIndex, int endIndex, int initialCredit) {
+    this(
+        shuffleKey.getBytes(StandardCharsets.UTF_8),
+        fileName.getBytes(StandardCharsets.UTF_8),
+        startIndex,
+        endIndex,
+        initialCredit);
   }
 
   @Override
@@ -56,17 +61,17 @@ public class OpenBufferStream extends OpenStream {
     buf.writeBytes(shuffleKey);
     buf.writeInt(fileName.length);
     buf.writeBytes(fileName);
-    buf.writeInt(startSubIndex);
-    buf.writeInt(endSubIndex);
+    buf.writeInt(startIndex);
+    buf.writeInt(endIndex);
     buf.writeInt(initialCredit);
   }
 
   @Override
-  public Type type() {
-    return OPEN_BUFFER_STREAM;
+  public Message.Type type() {
+    return OPEN_STREAM_WITH_CREDIT;
   }
 
-  public static OpenBufferStream decode(ByteBuf in) {
+  public static OpenStreamWithCredit decode(ByteBuf in) {
     int shuffleKeyLength = in.readInt();
     byte[] tmpShuffleKey = new byte[shuffleKeyLength];
     in.readBytes(tmpShuffleKey);
@@ -76,7 +81,7 @@ public class OpenBufferStream extends OpenStream {
     int startSubIndex = in.readInt();
     int endSubIndex = in.readInt();
     int initialCredit = in.readInt();
-    return new OpenBufferStream(
+    return new OpenStreamWithCredit(
         tmpShuffleKey, tmpFileName, startSubIndex, endSubIndex, initialCredit);
   }
 }

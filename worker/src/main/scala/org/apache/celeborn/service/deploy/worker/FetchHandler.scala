@@ -33,6 +33,7 @@ import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
+import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.{BaseMessageHandler, BufferStreamManager, ChunkStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
@@ -77,25 +78,34 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-        handleOpenStream(client, r)
+        handleOpenStreamLikeRpcs(client, r)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
-  def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
+  def handleOpenStreamLikeRpcs(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
-    val openStream = msg.asInstanceOf[OpenStream]
-    val shuffleKey = new String(openStream.shuffleKey, StandardCharsets.UTF_8)
-    val fileName = new String(openStream.fileName, StandardCharsets.UTF_8)
+    val (shuffleKey, fileName) = msg.`type`() match {
+      case Type.OPEN_STREAM =>
+        val openStream = msg.asInstanceOf[OpenStream]
+        (
+          new String(openStream.shuffleKey, StandardCharsets.UTF_8),
+          new String(openStream.fileName, StandardCharsets.UTF_8))
+      case Type.OPEN_STREAM_WITH_CREDIT =>
+        val openStreamWithCredit = msg.asInstanceOf[OpenStreamWithCredit]
+        (
+          new String(openStreamWithCredit.shuffleKey, StandardCharsets.UTF_8),
+          new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
+    }
     // metrics start
-    workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
+      workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       try fileInfo.getPartitionType() match {
         case PartitionType.REDUCE =>
-          val startMapIndex = openStream.asInstanceOf[OpenChunkStream].startMapIndex
-          val endMapIndex = openStream.asInstanceOf[OpenChunkStream].endMapIndex
+          val startMapIndex = msg.asInstanceOf[OpenStream].startMapIndex
+          val endMapIndex = msg.asInstanceOf[OpenStream].endMapIndex
           if (endMapIndex != Integer.MAX_VALUE) {
             fileInfo = partitionsSorter.getSortedFileInfo(
               shuffleKey,
@@ -127,8 +137,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           }
         case PartitionType.MAP =>
           // return stream id
-          val startSubIndex = openStream.asInstanceOf[OpenBufferStream].startSubIndex
-          val endSubIndex = openStream.asInstanceOf[OpenBufferStream].endSubIndex
+          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
+          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
           val streamId =
             bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
           val res = ByteBuffer.allocate(8)

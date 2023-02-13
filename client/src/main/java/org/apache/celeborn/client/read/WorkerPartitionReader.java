@@ -35,7 +35,7 @@ import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenChunkStream;
+import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.ExceptionUtils;
@@ -101,8 +101,8 @@ public class WorkerPartitionReader implements PartitionReader {
     } catch (InterruptedException ie) {
       throw new IOException("Interrupted when createClient", ie);
     }
-    OpenChunkStream openBlocks =
-        new OpenChunkStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+    OpenStream openBlocks =
+        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
     long timeoutMs = conf.fetchTimeoutMs();
     ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
     streamHandle = (StreamHandle) Message.decode(response);
