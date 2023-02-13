@@ -23,10 +23,10 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 
-public class ReadData extends RequestMessage {
-  private long streamId;
-  private int backlog;
-  private long offset;
+public final class ReadData extends RequestMessage {
+  private final long streamId;
+  private final int backlog;
+  private final long offset;
   private ByteBuf flinkBuffer;
 
   public ReadData(long streamId, int backlog, long offset) {
