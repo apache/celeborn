@@ -18,6 +18,7 @@
 package org.apache.celeborn.client;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -56,7 +57,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufSuccess() throws IOException {
     ByteBuf byteBuf = createByteBuf();
-    when(client.pushData(any(), any()))
+    when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -82,7 +83,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufHardSplit() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), any()))
+    when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -107,7 +108,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufFail() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), any()))
+    when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =

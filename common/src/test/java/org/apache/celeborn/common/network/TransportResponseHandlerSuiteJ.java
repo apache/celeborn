@@ -22,21 +22,29 @@ import static org.mockito.Mockito.*;
 
 import java.nio.ByteBuffer;
 
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.local.LocalChannel;
+import org.apache.celeborn.common.write.PushRequestInfo;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.util.Utils;
 
 public class TransportResponseHandlerSuiteJ {
   @Test
   public void handleSuccessfulFetch() throws Exception {
     StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
 
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
+            new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
     handler.addFetchRequest(streamChunkSlice, callback);
     assertEquals(1, handler.numOutstandingRequests());
@@ -49,7 +57,10 @@ public class TransportResponseHandlerSuiteJ {
   @Test
   public void handleFailedFetch() throws Exception {
     StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
+            new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
     handler.addFetchRequest(streamChunkSlice, callback);
     assertEquals(1, handler.numOutstandingRequests());
@@ -61,7 +72,10 @@ public class TransportResponseHandlerSuiteJ {
 
   @Test
   public void clearAllOutstandingRequests() throws Exception {
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
     handler.addFetchRequest(new StreamChunkSlice(1, 0), callback);
     handler.addFetchRequest(new StreamChunkSlice(1, 1), callback);
@@ -80,7 +94,10 @@ public class TransportResponseHandlerSuiteJ {
 
   @Test
   public void handleSuccessfulRPC() throws Exception {
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.RPC_MODULE, 8),
+            new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
     handler.addRpcRequest(12345, callback);
     assertEquals(1, handler.numOutstandingRequests());
@@ -97,7 +114,10 @@ public class TransportResponseHandlerSuiteJ {
 
   @Test
   public void handleFailedRPC() throws Exception {
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.RPC_MODULE, 8),
+            new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
     handler.addRpcRequest(12345, callback);
     assertEquals(1, handler.numOutstandingRequests());
@@ -112,9 +132,14 @@ public class TransportResponseHandlerSuiteJ {
 
   @Test
   public void handleSuccessfulPush() throws Exception {
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
-    handler.addPushRequest(12345, callback);
+    PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000, callback);
+    info.setChannelFuture(mock(ChannelFuture.class));
+    handler.addPushRequest(12345, info);
     assertEquals(1, handler.numOutstandingRequests());
 
     // This response should be ignored.
@@ -129,9 +154,14 @@ public class TransportResponseHandlerSuiteJ {
 
   @Test
   public void handleFailedPush() throws Exception {
-    TransportResponseHandler handler = new TransportResponseHandler(new LocalChannel());
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
-    handler.addPushRequest(12345, callback);
+    PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000L, callback);
+    info.setChannelFuture(mock(ChannelFuture.class));
+    handler.addPushRequest(12345, info);
     assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
