@@ -18,15 +18,14 @@
 package org.apache.celeborn.common.network.client;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +53,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final Map<StreamChunkSlice, ChunkReceivedCallback> outstandingFetches;
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
-  private final Map<Long, PushRequestInfo> outstandingPushes;
+  private final ConcurrentHashMap<Long, PushRequestInfo> outstandingPushes;
 
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
@@ -73,12 +72,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     pushTimeoutChecker =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker-" + this);
     pushTimeoutChecker.scheduleAtFixedRate(
-        new Runnable() {
-          @Override
-          public void run() {
-            failExpiredPushRequest();
-          }
-        },
+        () -> failExpiredPushRequest(),
         pushTimeoutCheckerInterval,
         pushTimeoutCheckerInterval,
         TimeUnit.MILLISECONDS);
@@ -86,33 +80,27 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   public void failExpiredPushRequest() {
     long currentTime = System.currentTimeMillis();
-    for (Map.Entry<Long, PushRequestInfo> entry : outstandingPushes.entrySet()) {
-      try {
-        long requestId = entry.getKey();
-        PushRequestInfo info = entry.getValue();
-        if (info.pushDataTimeout > 0) {
-          if (info.pushTime != -1 && (currentTime - info.pushTime > info.pushDataTimeout)) {
-            if (info.callback != null) {
-              if (!info.channelFuture.isCancelled()) {
-                info.channelFuture.cancel(true);
-                // When module name equals to DATA_MODULE, mean shuffle client push data, else means
-                // do data replication.
-                if (Objects.equals(conf.getModuleName(), TransportModuleConstants.DATA_MODULE)) {
-                  info.callback.onFailure(
-                      new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
-                } else {
-                  info.callback.onFailure(
-                      new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
-                }
-              }
-              info.channelFuture = null;
-              info.callback = null;
-              removePushRequest(requestId);
-            }
+    Iterator<Map.Entry<Long, PushRequestInfo>> iter = outstandingPushes.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry<Long, PushRequestInfo> entry = iter.next();
+      if (entry.getValue().dueTime > currentTime) {
+        PushRequestInfo info = outstandingPushes.remove(entry.getKey());
+        if (info != null) {
+          if (info.channelFuture != null) {
+            info.channelFuture.cancel(true);
           }
+          // When module name equals to DATA_MODULE, mean shuffle client push data, else means
+          // do data replication.
+          if (TransportModuleConstants.DATA_MODULE.equals(conf.getModuleName())) {
+            info.callback.onFailure(
+                new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
+          } else if (TransportModuleConstants.PUSH_MODULE.equals(conf.getModuleName())) {
+            info.callback.onFailure(
+                new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
+          }
+          info.channelFuture = null;
+          info.callback = null;
         }
-      } catch (Exception e) {
-        logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
     }
   }
@@ -141,18 +129,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingRpcs.remove(requestId);
   }
 
-  public void addPushRequest(
-      long requestId,
-      ChannelFuture channelFuture,
-      long pushDataTimeout,
-      RpcResponseCallback callback) {
+  public void addPushRequest(long requestId, PushRequestInfo info) {
     updateTimeOfLastRequest();
     if (outstandingPushes.containsKey(requestId)) {
       logger.warn("[addPushRequest] requestId {} already exists!", requestId);
     }
-    outstandingPushes.put(
-        requestId,
-        new PushRequestInfo(channelFuture, System.currentTimeMillis(), pushDataTimeout, callback));
+    outstandingPushes.put(requestId, info);
   }
 
   public void removePushRequest(long requestId) {
