@@ -48,12 +48,12 @@ import org.apache.celeborn.common.network.util.TransportConf;
 public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
-  private final TransportConf conf;
-  private final BaseMessageHandler msgHandler;
-  private ChannelsLimiter channelsLimiter;
-  private final boolean closeIdleConnections;
+  protected final TransportConf conf;
+  protected final BaseMessageHandler msgHandler;
+  protected ChannelsLimiter channelsLimiter;
+  protected final boolean closeIdleConnections;
 
-  private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
+  protected static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
 
   public TransportContext(
       TransportConf conf,
