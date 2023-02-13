@@ -26,12 +26,15 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Harness used to pack multiple partial buffers together as a full one. */
 public class BufferPacker {
+  private static Logger logger = LoggerFactory.getLogger(BufferPacker.class);
 
   public interface BiConsumerWithException<T, U, E extends Throwable> {
     void accept(T var1, U var2) throws E;
@@ -66,6 +69,11 @@ public class BufferPacker {
       cachedBuffer = buffer;
       int targetSubIdx = currentSubIdx;
       currentSubIdx = subIdx;
+      logger.debug(
+          "cachedBuffer pack partition:{} type:{}, length:{}",
+          currentSubIdx,
+          dumpedBuffer.getDataType(),
+          dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
     } else {
       /**
@@ -81,16 +89,32 @@ public class BufferPacker {
                 buffer.asByteBuf(),
                 BufferUtils.HEADER_LENGTH_PREFIX,
                 buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+        logger.debug(
+            "cachedBuffer pack partition:{} type:{}, length:{}",
+            currentSubIdx,
+            buffer.getDataType(),
+            buffer.getSize(),
+            buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
         buffer.recycleBuffer();
       } else {
         Buffer dumpedBuffer = cachedBuffer;
         cachedBuffer = buffer;
+        logger.debug(
+            "cachedBuffer pack partition:{} type:{}, length:{}",
+            currentSubIdx,
+            dumpedBuffer.getDataType(),
+            dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
         handleRipeBuffer(dumpedBuffer, currentSubIdx);
       }
     }
   }
 
   public void drain() throws InterruptedException {
+    logger.debug(
+        "cachedBuffer drain partition:{} type:{}, length:{}",
+        currentSubIdx,
+        cachedBuffer.getDataType(),
+        cachedBuffer.readableBytes());
     if (cachedBuffer != null) {
       handleRipeBuffer(cachedBuffer, currentSubIdx);
     }
@@ -128,10 +152,10 @@ public class BufferPacker {
         } else {
           // in the remaining datas, the headlength is BufferUtils.HEADER_LENGTH -
           // BufferUtils.HEADER_LENGTH_PREFIX
+          logger.info("readbuffer: total: {}, position: {}", totalBytes, position);
           bufferHeader = BufferUtils.getBufferHeader(buffer, position);
           position += BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX;
         }
-
         Buffer slice = buffer.readOnlySlice(position, bufferHeader.getSize());
         position += bufferHeader.getSize();
 
@@ -144,6 +168,11 @@ public class BufferPacker {
         slice.retainBuffer();
         isFirst = false;
       }
+      logger.debug(
+          "Unpack buffer size {} get sliced buffers {} detail {}",
+          buffer.getSize(),
+          buffers.size(),
+          buffers);
       return buffers;
     } catch (Throwable throwable) {
       buffers.forEach(Buffer::recycleBuffer);
@@ -288,6 +317,20 @@ public class BufferPacker {
     @Override
     public int refCnt() {
       return buffer.refCnt();
+    }
+
+    @Override
+    public String toString() {
+      return "UnpackSlicedBuffer{"
+          + "dataType="
+          + dataType
+          + ", isCompressed="
+          + isCompressed
+          + ", size="
+          + size
+          + ", hash="
+          + System.identityHashCode(this)
+          + '}';
     }
   }
 }

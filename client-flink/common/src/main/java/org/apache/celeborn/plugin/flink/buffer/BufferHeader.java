@@ -19,7 +19,7 @@ package org.apache.celeborn.plugin.flink.buffer;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-/** Header information for a {@link org.apache.flink.runtime.io.network.buffer.Buffer}. */
+/** Header information for a {@link Buffer}. */
 public class BufferHeader {
 
   private final Buffer.DataType dataType;
