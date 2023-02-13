@@ -18,7 +18,6 @@
 package org.apache.celeborn.common.write;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +52,7 @@ public class InFlightRequestTracker {
 
   public void addBatch(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSetPerPair =
-        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new HashSet<>());
+        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
   }
 
