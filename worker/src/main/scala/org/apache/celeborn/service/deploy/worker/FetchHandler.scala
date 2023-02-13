@@ -99,8 +99,8 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
     }
     // metrics start
+    workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
-      workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       try fileInfo.getPartitionType() match {
         case PartitionType.REDUCE =>
