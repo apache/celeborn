@@ -56,7 +56,11 @@ public class MemoryManager {
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-reporter");
 
   private final ExecutorService actionService =
-      ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-actor");
+      ThreadUtils.newDaemonSingleThreadExecutorWithUncaughtExceptionHandler(
+          "memory-manager-actor",
+          (t, e) -> {
+            logger.error("memory-manager-actor thread {} has exception {}", t, e);
+          });
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -64,7 +68,7 @@ public class MemoryManager {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryManagerStat memoryManagerStat = MemoryManagerStat.resumeAll;
-  private boolean underPressure;
+  private volatile boolean underPressure;
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   // For read buffer
@@ -160,8 +164,10 @@ public class MemoryManager {
             MemoryManagerStat lastAction = memoryManagerStat;
             memoryManagerStat = currentMemoryAction();
             if (lastAction != memoryManagerStat) {
+              logger.info("MemoryStat changed {} -> {}", lastAction, memoryManagerStat);
               if (memoryManagerStat == MemoryManagerStat.pausePushDataAndResumeReplicate) {
                 pausePushDataCounter.increment();
+                logger.info("Submit trigger pausePushDataAndResumeReplicate action");
                 actionService.submit(
                     () -> {
                       logger.info("Trigger pausePushDataAndResumeReplicate action");
@@ -176,6 +182,7 @@ public class MemoryManager {
                     });
               } else if (memoryManagerStat == MemoryManagerStat.pausePushDataAndReplicate) {
                 pausePushDataAndReplicateCounter.increment();
+                logger.info("Submit trigger pausePushDataAndReplicate action");
                 actionService.submit(
                     () -> {
                       logger.info("Trigger pausePushDataAndReplicate action");
@@ -189,6 +196,7 @@ public class MemoryManager {
                       memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
                     });
               } else {
+                logger.info("Submit trigger resume action");
                 actionService.submit(
                     () -> {
                       logger.info("Trigger resume action");
@@ -265,26 +273,37 @@ public class MemoryManager {
     long memoryUsage = getMemoryUsage();
     boolean pausePushData = memoryUsage > pausePushDataThreshold;
     boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
+    MemoryManagerStat statToReture = MemoryManagerStat.resumeAll;
+    boolean resume = false;
     if (pausePushData) {
       underPressure = true;
       if (pauseReplication) {
-        return MemoryManagerStat.pausePushDataAndReplicate;
+        statToReture = MemoryManagerStat.pausePushDataAndReplicate;
       } else {
-        return MemoryManagerStat.pausePushDataAndResumeReplicate;
+        statToReture = MemoryManagerStat.pausePushDataAndResumeReplicate;
       }
     } else {
-      boolean resume = memoryUsage < resumeThreshold;
+      resume = memoryUsage < resumeThreshold;
       if (resume) {
         underPressure = false;
-        return MemoryManagerStat.resumeAll;
+        statToReture = MemoryManagerStat.resumeAll;
       } else {
         if (underPressure) {
-          return MemoryManagerStat.pausePushDataAndResumeReplicate;
+          statToReture = MemoryManagerStat.pausePushDataAndResumeReplicate;
         } else {
-          return MemoryManagerStat.resumeAll;
+          statToReture = MemoryManagerStat.resumeAll;
         }
       }
     }
+    logger.debug(
+        "memory action result stack {},{},{},{},{},{}",
+        memoryUsage,
+        pausePushData,
+        pauseReplication,
+        resume,
+        statToReture,
+        underPressure);
+    return statToReture;
   }
 
   public interface MemoryPressureListener {

@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.util
 
+import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent._
 
 import scala.collection.TraversableLike
@@ -93,6 +94,14 @@ object ThreadUtils {
    */
   def newDaemonSingleThreadExecutor(threadName: String): ExecutorService = {
     val threadFactory = new ThreadFactoryBuilder().setDaemon(true).setNameFormat(threadName).build()
+    Executors.newSingleThreadExecutor(threadFactory)
+  }
+
+  def newDaemonSingleThreadExecutorWithUncaughtExceptionHandler(
+      threadName: String,
+      handler: UncaughtExceptionHandler): ExecutorService = {
+    val threadFactory = new ThreadFactoryBuilder().setDaemon(true).setNameFormat(
+      threadName).setUncaughtExceptionHandler(handler).build()
     Executors.newSingleThreadExecutor(threadFactory)
   }
 
