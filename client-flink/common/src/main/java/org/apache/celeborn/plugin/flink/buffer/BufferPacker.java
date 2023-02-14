@@ -72,7 +72,7 @@ public class BufferPacker {
       logBufferPack(
           false,
           dumpedBuffer.getDataType(),
-          dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+          dumpedBuffer.readableBytes());
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
     } else {
       /**
@@ -98,7 +98,7 @@ public class BufferPacker {
         logBufferPack(
             false,
             dumpedBuffer.getDataType(),
-            dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+            dumpedBuffer.readableBytes());
 
         handleRipeBuffer(dumpedBuffer, currentSubIdx);
       }
