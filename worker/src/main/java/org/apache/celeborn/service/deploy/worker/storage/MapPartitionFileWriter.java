@@ -277,7 +277,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
   private void flushIndex() throws IOException {
     if (indexBuffer != null) {
-      logger.debug("flushIndex start:" + fileInfo.getIndexPath());
+      logger.debug("flushIndex start:{}", fileInfo.getIndexPath());
       long startTime = System.currentTimeMillis();
       indexBuffer.flip();
       notifier.checkException();
