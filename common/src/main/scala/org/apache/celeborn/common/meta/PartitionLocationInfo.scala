@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.meta
 
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
@@ -27,31 +28,25 @@ import org.apache.celeborn.common.protocol.PartitionLocation
 
 class PartitionLocationInfo extends Logging {
 
-  // key: ShuffleKey, values: (partitionId -> partition locations)
-  type PartitionInfo = util.HashMap[String, util.Map[Int, util.List[PartitionLocation]]]
+  // key: ShuffleKey, values: (encodeUniqueId -> partition location)
+  type PartitionInfo = ConcurrentHashMap[String, ConcurrentHashMap[Long, PartitionLocation]]
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
 
+  def encode(partitionId: Int, epoch: Int): Long = {
+    partitionId.toLong << 32 | epoch
+  }
+
   def shuffleKeySet: util.HashSet[String] = {
     val shuffleKeySet = new util.HashSet[String]()
-    this.synchronized {
-      shuffleKeySet.addAll(masterPartitionLocations.keySet())
-      shuffleKeySet.addAll(slavePartitionLocations.keySet())
-    }
+    shuffleKeySet.addAll(masterPartitionLocations.keySet())
+    shuffleKeySet.addAll(slavePartitionLocations.keySet())
     shuffleKeySet
   }
 
-  def containsShuffle(shuffleKey: String): Boolean = this.synchronized {
+  def containsShuffle(shuffleKey: String): Boolean = {
     masterPartitionLocations.containsKey(shuffleKey) ||
     slavePartitionLocations.containsKey(shuffleKey)
-  }
-
-  def addMasterPartition(shuffleKey: String, location: PartitionLocation): Int = {
-    addPartition(shuffleKey, location, masterPartitionLocations)
-  }
-
-  def addSlavePartition(shuffleKey: String, location: PartitionLocation): Int = {
-    addPartition(shuffleKey, location, slavePartitionLocations)
   }
 
   def addMasterPartitions(
@@ -74,27 +69,20 @@ class PartitionLocationInfo extends Logging {
     getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.SLAVE)
   }
 
-  def getAllMasterLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
-    if (masterPartitionLocations.containsKey(shuffleKey)) {
-      masterPartitionLocations.get(shuffleKey)
-        .values()
-        .asScala
-        .flatMap(_.asScala)
-        .toList
-        .asJava
-    } else {
-      new util.ArrayList[PartitionLocation]()
-    }
+  def getAllMasterLocations(shuffleKey: String): util.List[PartitionLocation] = {
+    getAllLocations(shuffleKey, masterPartitionLocations)
   }
 
-  def getAllSlaveLocations(shuffleKey: String): util.List[PartitionLocation] = this.synchronized {
-    if (slavePartitionLocations.containsKey(shuffleKey)) {
-      slavePartitionLocations.get(shuffleKey)
-        .values()
-        .asScala
-        .flatMap(_.asScala)
-        .toList
-        .asJava
+  def getAllSlaveLocations(shuffleKey: String): util.List[PartitionLocation] = {
+    getAllLocations(shuffleKey, slavePartitionLocations)
+  }
+
+  def getAllLocations(
+      shuffleKey: String,
+      partitionInfo: PartitionInfo): util.List[PartitionLocation] = {
+    val partitionMap = partitionInfo.get(shuffleKey)
+    if (partitionMap != null) {
+      new util.ArrayList(partitionMap.values())
     } else {
       new util.ArrayList[PartitionLocation]()
     }
@@ -122,81 +110,42 @@ class PartitionLocationInfo extends Logging {
     removePartitions(shuffleKey, uniqueIds, slavePartitionLocations)
   }
 
-  def getAllMasterLocationsWithMinEpoch(shuffleKey: String): util.List[PartitionLocation] =
-    this.synchronized {
-      getAllMasterLocationsWithExtremeEpoch(shuffleKey, (a, b) => a < b)
-    }
+  def getAllMasterLocationsWithMinEpoch(shuffleKey: String): util.List[PartitionLocation] = {
+    getAllMasterLocationsWithExtremeEpoch(shuffleKey, (a, b) => a < b)
+  }
 
+  // TODO: UT
   def getAllMasterLocationsWithExtremeEpoch(
       shuffleKey: String,
-      order: (Int, Int) => Boolean): util.List[PartitionLocation] = this.synchronized {
-    if (masterPartitionLocations.containsKey(shuffleKey)) {
-      masterPartitionLocations.get(shuffleKey)
-        .values()
-        .asScala
-        .map { list =>
-          var loc = list.get(0)
-          1 until list.size() foreach (ind => {
-            if (order(list.get(ind).getEpoch, loc.getEpoch)) {
-              loc = list.get(ind)
-            }
-          })
-          loc
-        }.toList.asJava
+      order: (Int, Int) => Boolean): util.List[PartitionLocation] = {
+    val partitionMap = masterPartitionLocations.get(shuffleKey)
+    if (partitionMap != null) {
+      val resMap = new util.HashMap[Int, PartitionLocation]()
+      partitionMap.values().asScala.foreach(loc => {
+        val old = resMap.get(loc.getId)
+        if (old == null) {
+          resMap.put(loc.getId, loc)
+        } else {
+          if (order(loc.getEpoch, old.getEpoch)) {
+            resMap.put(loc.getId, loc)
+          }
+        }
+      })
+      new util.ArrayList(resMap.values())
     } else {
       new util.ArrayList[PartitionLocation]()
-    }
-  }
-
-  def getLocationWithMaxEpoch(
-      shuffleKey: String,
-      partitionId: Int): Option[PartitionLocation] = this.synchronized {
-    if (!masterPartitionLocations.containsKey(shuffleKey) ||
-      !masterPartitionLocations.get(shuffleKey).containsKey(partitionId)) {
-      return None
-    }
-    val locations = masterPartitionLocations.get(shuffleKey).get(partitionId)
-    if (locations == null || locations.size() == 0) {
-      return None
-    }
-    var currentEpoch = -1
-    var currentPartition: PartitionLocation = null
-    locations.asScala.foreach(loc => {
-      if (loc.getEpoch > currentEpoch) {
-        currentEpoch = loc.getEpoch
-        currentPartition = loc
-      }
-    })
-    Some(currentPartition)
-  }
-
-  private def addPartition(
-      shuffleKey: String,
-      location: PartitionLocation,
-      partitionInfo: PartitionInfo): Int = this.synchronized {
-    if (location != null) {
-      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
-      val reduceLocMap = partitionInfo.get(shuffleKey)
-      reduceLocMap.putIfAbsent(location.getId, new util.ArrayList[PartitionLocation]())
-      val locations = reduceLocMap.get(location.getId)
-      locations.add(location)
-      1
-    } else {
-      0
     }
   }
 
   private def addPartitions(
       shuffleKey: String,
       locations: util.List[PartitionLocation],
-      partitionInfo: PartitionInfo): Unit = this.synchronized {
+      partitionInfo: PartitionInfo): Unit = {
     if (locations != null && locations.size() > 0) {
-      partitionInfo.putIfAbsent(shuffleKey, new util.HashMap[Int, util.List[PartitionLocation]]())
-      val reduceLocMap = partitionInfo.get(shuffleKey)
+      partitionInfo.putIfAbsent(shuffleKey, new ConcurrentHashMap[Long, PartitionLocation]())
+      val partitionMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
-        reduceLocMap.putIfAbsent(loc.getId, new util.ArrayList[PartitionLocation]())
-        val locations = reduceLocMap.get(loc.getId)
-        locations.add(loc)
+        partitionMap.put(encode(loc.getId, loc.getEpoch), loc)
       }
     }
   }
@@ -210,38 +159,31 @@ class PartitionLocationInfo extends Logging {
   private def removePartitions(
       shuffleKey: String,
       uniqueIds: util.Collection[String],
-      partitionInfo: PartitionInfo): (util.Map[String, Integer], Integer) = this.synchronized {
-    if (!partitionInfo.containsKey(shuffleKey)) {
+      partitionInfo: PartitionInfo): (util.Map[String, Integer], Integer) = {
+    val partitionMap = partitionInfo.get(shuffleKey)
+    if (partitionMap == null) {
       return (Map.empty[String, Integer].asJava, 0)
     }
     val locMap = new util.HashMap[String, Integer]()
     var numSlotsReleased: Int = 0
-    val reduceLocMap = partitionInfo.get(shuffleKey)
     uniqueIds.asScala.foreach { id =>
       val tokens = id.split("-", 2)
       val partitionId = tokens(0).toInt
       val epoch = tokens(1).toInt
-      val locations = reduceLocMap.get(partitionId)
-      if (locations != null) {
-        val targetLocation = locations.asScala.find(_.getEpoch == epoch).orNull
-        if (targetLocation != null) {
-          locations.remove(targetLocation)
-          numSlotsReleased += 1
-          locMap.compute(
-            targetLocation.getStorageInfo.getMountPoint,
-            new BiFunction[String, Integer, Integer] {
-              override def apply(t: String, u: Integer): Integer = {
-                if (u == null) 1 else u + 1
-              }
-            })
-        }
-      }
-      if (locations == null || locations.size() == 0) {
-        reduceLocMap.remove(partitionId)
+      val loc = partitionMap.remove(encode(partitionId, epoch))
+      if (loc != null) {
+        numSlotsReleased += 1
+        locMap.compute(
+          loc.getStorageInfo.getMountPoint,
+          new BiFunction[String, Integer, Integer] {
+            override def apply(t: String, u: Integer): Integer = {
+              if (u == null) 1 else u + 1
+            }
+          })
       }
     }
 
-    if (reduceLocMap.size() == 0) {
+    if (partitionMap.size() == 0) {
       partitionInfo.remove(shuffleKey)
     }
     // some locations might have no disk hint
@@ -252,9 +194,6 @@ class PartitionLocationInfo extends Logging {
       shuffleKey: String,
       uniqueId: String,
       mode: PartitionLocation.Mode): PartitionLocation = {
-    val tokens = uniqueId.split("-", 2)
-    val partitionId = tokens(0).toInt
-    val epoch = tokens(1).toInt
     val partitionInfo =
       if (mode == PartitionLocation.Mode.MASTER) {
         masterPartitionLocations
@@ -262,32 +201,22 @@ class PartitionLocationInfo extends Logging {
         slavePartitionLocations
       }
 
-    this.synchronized {
-      if (!partitionInfo.containsKey(shuffleKey)
-        || !partitionInfo.get(shuffleKey).containsKey(partitionId)) {
-        return null
-      }
-      partitionInfo.get(shuffleKey)
-        .get(partitionId)
-        .asScala
-        .find(loc => loc.getEpoch == epoch)
-        .orNull
-    }
+    val partitionMap = partitionInfo.get(shuffleKey)
+    if (partitionMap != null) {
+      val tokens = uniqueId.split("-", 2)
+      val partitionId = tokens(0).toInt
+      val epoch = tokens(1).toInt
+      partitionMap.get(encode(partitionId, epoch))
+    } else null
   }
 
   private def getAllIds(
       shuffleKey: String,
-      partitionInfo: PartitionInfo): util.List[String] = this.synchronized {
-    if (!partitionInfo.containsKey(shuffleKey)) {
-      return null
-    }
-    partitionInfo.get(shuffleKey)
-      .values()
-      .asScala
-      .flatMap(_.asScala)
-      .map(_.getUniqueId)
-      .toList
-      .asJava
+      partitionInfo: PartitionInfo): util.List[String] = {
+    val partitionMap = partitionInfo.get(shuffleKey)
+    if (partitionMap != null) {
+      partitionMap.values().asScala.map(_.getUniqueId).toList.asJava
+    } else null
   }
 
   private def getAllMasterIds(shuffleKey: String): util.List[String] = {
@@ -298,11 +227,11 @@ class PartitionLocationInfo extends Logging {
     getAllIds(shuffleKey, slavePartitionLocations)
   }
 
-  def isEmpty: Boolean = this.synchronized {
+  def isEmpty: Boolean = {
     masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
   }
 
-  override def toString: String = this.synchronized {
+  override def toString: String = {
     s"""
        | Partition Location Info:
        | master: ${masterPartitionLocations.asScala}
