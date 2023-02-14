@@ -680,7 +680,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, applicationId, loc);
-                  pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
+                  pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
@@ -708,7 +708,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       nextBatchId);
-                  pushState.onCongestControl(nextBatchId, loc.hostAndPushPort());
+                  pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                   logger.debug(
@@ -716,15 +716,15 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       nextBatchId);
-                  pushState.onCongestControl(nextBatchId, loc.hostAndPushPort());
+                  pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else {
                   response.rewind();
-                  pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
+                  pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 }
               } else {
-                pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
+                pushState.onSuccess(loc.hostAndPushPort());
                 callback.onSuccess(response);
               }
             }
@@ -1063,7 +1063,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     mapId,
                     attemptId,
                     Arrays.toString(batchIds));
-                pushState.onCongestControl(groupedBatchId, hostPort);
+                pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                 logger.debug(
@@ -1071,17 +1071,17 @@ public class ShuffleClientImpl extends ShuffleClient {
                     mapId,
                     attemptId,
                     Arrays.toString(batchIds));
-                pushState.onCongestControl(groupedBatchId, hostPort);
+                pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else {
                 // Should not happen in current architecture.
                 response.rewind();
                 logger.error("Push merged data should not receive this response");
-                pushState.onSuccess(groupedBatchId, hostPort);
+                pushState.onSuccess(hostPort);
                 callback.onSuccess(response);
               }
             } else {
-              pushState.onSuccess(groupedBatchId, hostPort);
+              pushState.onSuccess(hostPort);
               callback.onSuccess(response);
             }
           }

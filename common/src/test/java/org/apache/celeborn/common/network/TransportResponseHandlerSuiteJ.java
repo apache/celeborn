@@ -34,6 +34,7 @@ import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushRequestInfo;
 
 public class TransportResponseHandlerSuiteJ {
   @Test
@@ -136,7 +137,9 @@ public class TransportResponseHandlerSuiteJ {
             Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
             new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
-    handler.addPushRequest(12345, mock(ChannelFuture.class), 30000L, callback);
+    PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000, callback);
+    info.setChannelFuture(mock(ChannelFuture.class));
+    handler.addPushRequest(12345, info);
     assertEquals(1, handler.numOutstandingRequests());
 
     // This response should be ignored.
@@ -156,7 +159,9 @@ public class TransportResponseHandlerSuiteJ {
             Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
             new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
-    handler.addPushRequest(12345, mock(ChannelFuture.class), 30000L, callback);
+    PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000L, callback);
+    info.setChannelFuture(mock(ChannelFuture.class));
+    handler.addPushRequest(12345, info);
     assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored

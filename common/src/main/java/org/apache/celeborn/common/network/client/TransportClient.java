@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
  * Client for fetching consecutive chunks of a pre-negotiated stream. This API is intended to allow
@@ -163,11 +164,14 @@ public class TransportClient implements Closeable {
     }
 
     long requestId = requestId();
+    long dueTime = System.currentTimeMillis() + pushDataTimeout;
+    PushRequestInfo info = new PushRequestInfo(dueTime, callback);
+    handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
 
     PushChannelListener listener = new PushChannelListener(requestId, callback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
-    handler.addPushRequest(requestId, channelFuture, pushDataTimeout, callback);
+    info.setChannelFuture(channelFuture);
     return channelFuture;
   }
 
@@ -178,11 +182,14 @@ public class TransportClient implements Closeable {
     }
 
     long requestId = requestId();
+    long dueTime = System.currentTimeMillis() + pushDataTimeout;
+    PushRequestInfo info = new PushRequestInfo(dueTime, callback);
+    handler.addPushRequest(requestId, info);
     pushMergedData.requestId = requestId;
 
     PushChannelListener listener = new PushChannelListener(requestId, callback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushMergedData).addListener(listener);
-    handler.addPushRequest(requestId, channelFuture, pushDataTimeout, callback);
+    info.setChannelFuture(channelFuture);
     return channelFuture;
   }
 

@@ -23,20 +23,15 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 
 public class PushRequestInfo {
   public ChannelFuture channelFuture;
-  public long pushTime = -1;
-  public long pushDataTimeout;
+  public long dueTime;
   public RpcResponseCallback callback;
 
-  public PushRequestInfo() {}
-
-  public PushRequestInfo(
-      ChannelFuture channelFuture,
-      long currentTimeMillis,
-      long pushDataTimeout,
-      RpcResponseCallback callback) {
-    this.channelFuture = channelFuture;
-    this.pushTime = currentTimeMillis;
-    this.pushDataTimeout = pushDataTimeout;
+  public PushRequestInfo(long dueTime, RpcResponseCallback callback) {
+    this.dueTime = dueTime;
     this.callback = callback;
+  }
+
+  public void setChannelFuture(ChannelFuture future) {
+    this.channelFuture = future;
   }
 }
