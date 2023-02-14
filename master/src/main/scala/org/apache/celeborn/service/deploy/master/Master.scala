@@ -117,8 +117,11 @@ private[celeborn] class Master(
   partitionSizeUpdateService.scheduleAtFixedRate(
     new Runnable {
       override def run(): Unit = {
-        statusSystem.handleUpdatePartitionSize()
-        logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
+        executeWithLeaderChecker(
+          null, {
+            statusSystem.handleUpdatePartitionSize()
+            logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
+          })
       }
     },
     estimatedPartitionSizeUpdaterInitialDelay,
