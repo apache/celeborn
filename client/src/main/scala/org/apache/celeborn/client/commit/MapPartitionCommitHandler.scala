@@ -194,13 +194,13 @@ class MapPartitionCommitHandler(
 
     var dataCommitSuccess = true
     if (!partitionAllocatedWorkers.isEmpty) {
-      val result =
+      val (dataLost, commitFailedWorkers) =
         handleFinalPartitionCommitFiles(
           shuffleId,
           partitionAllocatedWorkers,
           partitionId)
-      dataCommitSuccess = result._1
-      recordWorkerFailure(result._2)
+      dataCommitSuccess = !dataLost
+      recordWorkerFailure(commitFailedWorkers)
     }
 
     // release resources and clear related info
