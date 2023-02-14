@@ -52,7 +52,8 @@ public class InFlightRequestTracker {
 
   public void addBatch(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSetPerPair =
-        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
+        inflightBatchesPerAddress.computeIfAbsent(
+            hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
   }
 
