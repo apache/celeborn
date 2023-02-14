@@ -44,10 +44,10 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource;
 public final class MapPartitionFileWriter extends FileWriter {
   private static final Logger logger = LoggerFactory.getLogger(MapPartitionFileWriter.class);
 
-  private int numReducePartitions;
+  private int numReducerPartitions;
   private int currentDataRegionIndex;
   private boolean isBroadcastRegion;
-  private long[] numReducePartitionBytes;
+  private long[] numReducerPartitionBytes;
   private ByteBuffer indexBuffer;
   private int currentReducePartition;
   private long totalBytes;
@@ -119,7 +119,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     data.resetReaderIndex();
     logger.debug(
         "mappartition filename:{} write partition:{} attemptId:{} batchId:{} size:{}",
-        Utils.getShortFormattedFileName(fileInfo),
+        fileInfo.getFilePath(),
         partitionId,
         attemptId,
         batchId,
@@ -131,8 +131,8 @@ public final class MapPartitionFileWriter extends FileWriter {
   }
 
   private void collectPartitionDataLength(int partitionId, ByteBuf data) throws IOException {
-    if (numReducePartitionBytes == null) {
-      numReducePartitionBytes = new long[numReducePartitions];
+    if (numReducerPartitionBytes == null) {
+      numReducerPartitionBytes = new long[numReducerPartitions];
     }
     if (partitionId < currentReducePartition) {
       throw new IOException(
@@ -147,7 +147,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     }
     long length = data.readableBytes();
     totalBytes += length;
-    numReducePartitionBytes[partitionId] += length;
+    numReducerPartitionBytes[partitionId] += length;
   }
 
   @Override
@@ -190,20 +190,22 @@ public final class MapPartitionFileWriter extends FileWriter {
     super.destroy(ioException);
   }
 
-  public void pushDataHandShake(int numReducePartitions, int bufferSize) {
+  public void pushDataHandShake(int numReducerPartitions, int bufferSize) {
     logger.debug(
-        "FileWriter pushDataHandShake numReducePartitions:{} bufferSize:{}",
-        numReducePartitions,
+        "FileWriter:{} pushDataHandShake numReducePartitions:{} bufferSize:{}",
+        fileInfo.getFilePath(),
+        numReducerPartitions,
         bufferSize);
 
-    this.numReducePartitions = numReducePartitions;
+    this.numReducerPartitions = numReducerPartitions;
     fileInfo.setBufferSize(bufferSize);
-    fileInfo.setNumReducerPartitions(numReducePartitions);
+    fileInfo.setNumReducerPartitions(numReducerPartitions);
   }
 
   public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
     logger.debug(
-        "FileWriter regionStart currentDataRegionIndex:{} isBroadcastRegion:{}",
+        "FileWriter:{} regionStart currentDataRegionIndex:{} isBroadcastRegion:{}",
+        fileInfo.getFilePath(),
         currentDataRegionIndex,
         isBroadcastRegion);
 
@@ -213,40 +215,40 @@ public final class MapPartitionFileWriter extends FileWriter {
   }
 
   public void regionFinish() throws IOException {
-    logger.debug("FileWriter regionFinish");
+    logger.debug("FileWriter:{} regionFinish", fileInfo.getFilePath());
     if (regionStartingOffset == totalBytes) {
       return;
     }
 
     long fileOffset = regionStartingOffset;
     if (indexBuffer == null) {
-      indexBuffer = allocateIndexBuffer(numReducePartitions);
+      indexBuffer = allocateIndexBuffer(numReducerPartitions);
     }
 
     // write the index information of the current data region
-    for (int partitionIndex = 0; partitionIndex < numReducePartitions; ++partitionIndex) {
+    for (int partitionIndex = 0; partitionIndex < numReducerPartitions; ++partitionIndex) {
       indexBuffer.putLong(fileOffset);
       if (!isBroadcastRegion) {
-        logger.info(
+        logger.debug(
             "flush index filename:{} region:{} partitionid:{} flush index fileOffset:{}, size:{} ",
-            Utils.getShortFormattedFileName(fileInfo),
+            fileInfo.getFilePath(),
             currentDataRegionIndex,
             partitionIndex,
             fileOffset,
-            numReducePartitionBytes[partitionIndex]);
+            numReducerPartitionBytes[partitionIndex]);
 
-        indexBuffer.putLong(numReducePartitionBytes[partitionIndex]);
-        fileOffset += numReducePartitionBytes[partitionIndex];
+        indexBuffer.putLong(numReducerPartitionBytes[partitionIndex]);
+        fileOffset += numReducerPartitionBytes[partitionIndex];
       } else {
-        logger.info(
+        logger.debug(
             "flush index broadcast filename:{} region:{} partitionid:{}  fileOffset:{}, size:{} ",
-            Utils.getShortFormattedFileName(fileInfo),
+            fileInfo.getFilePath(),
             currentDataRegionIndex,
             partitionIndex,
             fileOffset,
-            numReducePartitionBytes[0]);
+            numReducerPartitionBytes[0]);
 
-        indexBuffer.putLong(numReducePartitionBytes[0]);
+        indexBuffer.putLong(numReducerPartitionBytes[0]);
       }
     }
 
@@ -257,7 +259,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
     ++numDataRegions;
     regionStartingOffset = totalBytes;
-    Arrays.fill(numReducePartitionBytes, 0);
+    Arrays.fill(numReducerPartitionBytes, 0);
   }
 
   private synchronized void destroyIndex() {
