@@ -497,7 +497,7 @@ object Utils extends Logging {
     // assuming we have all the machine's cores).
     // NB: Only set if serverThreads/clientThreads not already set.
     val numThreads = defaultNumThreads(numUsableCores)
-    conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    conf.setIfMissing(s"celeborn.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
     // TODO remove after releasing 0.2.0
     conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
