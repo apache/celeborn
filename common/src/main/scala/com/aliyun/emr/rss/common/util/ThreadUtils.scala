@@ -27,7 +27,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.forkjoin.{ForkJoinPool => SForkJoinPool, ForkJoinWorkerThread => SForkJoinWorkerThread}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
+
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
+
 import com.aliyun.emr.rss.common.exception.RssException
 
 object ThreadUtils {
