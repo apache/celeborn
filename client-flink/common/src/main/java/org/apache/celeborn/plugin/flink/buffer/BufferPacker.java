@@ -69,10 +69,7 @@ public class BufferPacker {
       cachedBuffer = buffer;
       int targetSubIdx = currentSubIdx;
       currentSubIdx = subIdx;
-      logBufferPack(
-          false,
-          dumpedBuffer.getDataType(),
-          dumpedBuffer.readableBytes());
+      logBufferPack(false, dumpedBuffer.getDataType(), dumpedBuffer.readableBytes());
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
     } else {
       /**
@@ -95,10 +92,7 @@ public class BufferPacker {
       } else {
         Buffer dumpedBuffer = cachedBuffer;
         cachedBuffer = buffer;
-        logBufferPack(
-            false,
-            dumpedBuffer.getDataType(),
-            dumpedBuffer.readableBytes());
+        logBufferPack(false, dumpedBuffer.getDataType(), dumpedBuffer.readableBytes());
 
         handleRipeBuffer(dumpedBuffer, currentSubIdx);
       }
