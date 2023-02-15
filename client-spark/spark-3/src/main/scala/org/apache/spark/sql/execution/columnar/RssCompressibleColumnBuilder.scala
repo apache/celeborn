@@ -44,7 +44,7 @@ trait RssCompressibleColumnBuilder[T <: AtomicType]
 
   // The various compression schemes, while saving memory use, cause all of the data within
   // the row to become unaligned, thus causing crashes.  Until a way of fixing the compression
-  // is found to also allow aligned accesses this must be disabled for SPARC.
+  // is found to also allow aligned accesses this must be disabled for SPARK.
 
   protected def isWorthCompressing(encoder: Encoder[T]) = {
     RssCompressibleColumnBuilder.unaligned && encoder.compressionRatio < 0.8
