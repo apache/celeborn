@@ -21,11 +21,7 @@ import static org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,7 +47,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   // Meta data for master service
   public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  public final ArrayList<WorkerInfo> workers = new ArrayList<>();
+  public final Set<WorkerInfo> workers = new HashSet<>();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = new ConcurrentHashMap<>();
   // blacklist
   public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
@@ -225,6 +221,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
 
     try {
+      // if some master failed, other master not, sync state will be broken.
       workerInfo.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
     } catch (Exception e) {
       LOG.error("Worker register failed", e);
