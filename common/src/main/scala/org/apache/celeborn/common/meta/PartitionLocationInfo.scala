@@ -37,6 +37,13 @@ class PartitionLocationInfo extends Logging {
     partitionId.toLong << 32 | epoch
   }
 
+  def encodeUniqueId(uniqueId: String): Long = {
+    val tokens = uniqueId.split("-", 2)
+    val partitionId = tokens(0).toInt
+    val epoch = tokens(1).toInt
+    encode(partitionId, epoch)
+  }
+
   def shuffleKeySet: util.HashSet[String] = {
     val shuffleKeySet = new util.HashSet[String]()
     shuffleKeySet.addAll(masterPartitionLocations.keySet())
@@ -110,6 +117,11 @@ class PartitionLocationInfo extends Logging {
     removePartitions(shuffleKey, uniqueIds, slavePartitionLocations)
   }
 
+  def removeShuffle(shuffleKey: String): Unit = {
+    masterPartitionLocations.remove(shuffleKey)
+    slavePartitionLocations.remove(shuffleKey)
+  }
+
   def getAllMasterLocationsWithMinEpoch(shuffleKey: String): util.List[PartitionLocation] = {
     getAllMasterLocationsWithExtremeEpoch(shuffleKey, (a, b) => a < b)
   }
@@ -167,10 +179,7 @@ class PartitionLocationInfo extends Logging {
     val locMap = new util.HashMap[String, Integer]()
     var numSlotsReleased: Int = 0
     uniqueIds.asScala.foreach { id =>
-      val tokens = id.split("-", 2)
-      val partitionId = tokens(0).toInt
-      val epoch = tokens(1).toInt
-      val loc = partitionMap.remove(encode(partitionId, epoch))
+      val loc = partitionMap.remove(encodeUniqueId(id))
       if (loc != null) {
         numSlotsReleased += 1
         locMap.compute(
@@ -183,9 +192,6 @@ class PartitionLocationInfo extends Logging {
       }
     }
 
-    if (partitionMap.size() == 0) {
-      partitionInfo.remove(shuffleKey)
-    }
     // some locations might have no disk hint
     (locMap, numSlotsReleased)
   }
@@ -203,10 +209,7 @@ class PartitionLocationInfo extends Logging {
 
     val partitionMap = partitionInfo.get(shuffleKey)
     if (partitionMap != null) {
-      val tokens = uniqueId.split("-", 2)
-      val partitionId = tokens(0).toInt
-      val epoch = tokens(1).toInt
-      partitionMap.get(encode(partitionId, epoch))
+      partitionMap.get(encodeUniqueId(uniqueId))
     } else null
   }
 

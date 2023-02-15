@@ -224,10 +224,6 @@ public class PartitionLocation implements Serializable {
     return id + "-" + epoch;
   }
 
-  public long encodeUniqueId() {
-    return ((long) id) << 32 | epoch;
-  }
-
   public String getFileName() {
     return id + "-" + epoch + "-" + mode.mode;
   }
