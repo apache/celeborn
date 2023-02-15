@@ -83,7 +83,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     Iterator<Map.Entry<Long, PushRequestInfo>> iter = outstandingPushes.entrySet().iterator();
     while (iter.hasNext()) {
       Map.Entry<Long, PushRequestInfo> entry = iter.next();
-      if (entry.getValue().dueTime > currentTime) {
+      if (entry.getValue().dueTime <= currentTime) {
         PushRequestInfo info = outstandingPushes.remove(entry.getKey());
         if (info != null) {
           if (info.channelFuture != null) {
