@@ -21,6 +21,7 @@ import static org.apache.celeborn.common.network.protocol.Message.Type.BACKLOG_A
 
 import io.netty.buffer.ByteBuf;
 
+// This RPC is sent to flink plugin to tell flink client to be ready for buffers.
 public class BacklogAnnouncement extends RequestMessage {
   private long streamId;
   private int backlog;
