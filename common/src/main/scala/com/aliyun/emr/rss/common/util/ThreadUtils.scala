@@ -17,7 +17,9 @@
 
 package com.aliyun.emr.rss.common.util
 
+import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent._
+
 import scala.collection.TraversableLike
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
@@ -27,8 +29,6 @@ import scala.language.higherKinds
 import scala.util.control.NonFatal
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 import com.aliyun.emr.rss.common.exception.RssException
-
-import java.lang.Thread.UncaughtExceptionHandler
 
 object ThreadUtils {
 
