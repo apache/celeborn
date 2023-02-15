@@ -323,11 +323,13 @@ public class RemoteShuffleResultPartition extends ResultPartition {
             () -> releaseSortBuffer(unicastSortBuffer),
             closeException,
             "Failed to release unicast sort buffer.");
+
     closeException =
         checkException(
             () -> releaseSortBuffer(broadcastSortBuffer),
             closeException,
             "Failed to release broadcast sort buffer.");
+
     closeException =
         checkException(() -> super.close(), closeException, "Failed to call super#close() method.");
 
