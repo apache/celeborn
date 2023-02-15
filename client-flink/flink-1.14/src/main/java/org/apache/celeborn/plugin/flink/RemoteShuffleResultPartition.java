@@ -318,26 +318,19 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   @Override
   public synchronized void close() {
     Throwable closeException = null;
-    try {
-      releaseSortBuffer(unicastSortBuffer);
-    } catch (Throwable throwable) {
-      closeException = throwable;
-      LOG.error("Failed to release unicast sort buffer.", throwable);
-    }
+    closeException =
+        checkException(
+            () -> releaseSortBuffer(unicastSortBuffer),
+            closeException,
+            "Failed to release unicast sort buffer.");
+    closeException =
+        checkException(
+            () -> releaseSortBuffer(broadcastSortBuffer),
+            closeException,
+            "Failed to release broadcast sort buffer.");
+    closeException =
+        checkException(() -> super.close(), closeException, "Failed to call super#close() method.");
 
-    try {
-      releaseSortBuffer(broadcastSortBuffer);
-    } catch (Throwable throwable) {
-      closeException = closeException == null ? throwable : closeException;
-      LOG.error("Failed to release broadcast sort buffer.", throwable);
-    }
-
-    try {
-      super.close();
-    } catch (Throwable throwable) {
-      closeException = closeException == null ? throwable : closeException;
-      LOG.error("Failed to call super#close() method.", throwable);
-    }
     try {
       outputGate.close();
     } catch (Throwable throwable) {
@@ -348,6 +341,17 @@ public class RemoteShuffleResultPartition extends ResultPartition {
     if (closeException != null) {
       Utils.rethrowAsRuntimeException(closeException);
     }
+  }
+
+  private Throwable checkException(Runnable runnable, Throwable exception, String errorMessage) {
+    Throwable newException = null;
+    try {
+      runnable.run();
+    } catch (Throwable throwable) {
+      newException = exception == null ? throwable : exception;
+      LOG.error(errorMessage, throwable);
+    }
+    return newException;
   }
 
   @Override
