@@ -39,11 +39,11 @@ import org.apache.celeborn.common.network.server.TransportChannelHandler;
 
 public class MapTransportClientFactory extends TransportClientFactory {
   private static final Logger logger = LoggerFactory.getLogger(MapTransportClientFactory.class);
-  protected final MapTransportContext mapTransportContext;
+  protected final FlinkTransportContext flinkTransportContext;
 
-  public MapTransportClientFactory(MapTransportContext context) {
+  public MapTransportClientFactory(FlinkTransportContext context) {
     super(((TransportContext) context));
-    this.mapTransportContext = context;
+    this.flinkTransportContext = context;
   }
 
   public TransportClient createClient(
@@ -139,7 +139,7 @@ public class MapTransportClientFactory extends TransportClientFactory {
           @Override
           public void initChannel(SocketChannel ch) {
             TransportChannelHandler clientHandler =
-                mapTransportContext.initializePipeline(ch, supplier);
+                flinkTransportContext.initializePipeline(ch, supplier);
             clientRef.set(clientHandler.getClient());
             channelRef.set(ch);
           }
@@ -162,7 +162,7 @@ public class MapTransportClientFactory extends TransportClientFactory {
     return client;
   }
 
-  public MapTransportContext getMapTransportContext() {
-    return mapTransportContext;
+  public FlinkTransportContext getMapTransportContext() {
+    return flinkTransportContext;
   }
 }

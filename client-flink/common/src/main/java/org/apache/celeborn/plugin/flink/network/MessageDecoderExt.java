@@ -29,10 +29,10 @@ import org.apache.celeborn.plugin.flink.protocol.ReadData;
 public class MessageDecoderExt {
   public static Message decode(Message.Type type, ByteBuf in, boolean decodeBody) {
     long requestId;
+    // cannot use actual class decode method because common module cannot refer flink shaded netty.
     switch (type) {
       case RPC_REQUEST:
         requestId = in.readLong();
-        // See comment in encodedLength().
         in.readInt();
         if (decodeBody) {
           return new RpcRequest(requestId, new FlinkNettyManagedBuffer(in));
@@ -42,7 +42,6 @@ public class MessageDecoderExt {
 
       case RPC_RESPONSE:
         requestId = in.readLong();
-        // See comment in encodedLength().
         in.readInt();
         if (decodeBody) {
           return new RpcResponse(requestId, new FlinkNettyManagedBuffer(in));

@@ -17,13 +17,6 @@
 
 package org.apache.celeborn.plugin.flink.utils;
 
-import java.util.function.Supplier;
-
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-
-import org.apache.celeborn.plugin.flink.network.TransportFrameDecoderWithBufferSupplier;
-
 /** Utility methods can be used by all modules. */
 public class Utils {
   /**
@@ -76,10 +69,5 @@ public class Utils {
     } else {
       throw new RuntimeException(t);
     }
-  }
-
-  public static ChannelInboundHandlerAdapter createFrameDecoderWithBufferSupplier(
-      Supplier<ByteBuf> bufSupplier) {
-    return new TransportFrameDecoderWithBufferSupplier(bufSupplier);
   }
 }

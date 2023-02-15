@@ -34,13 +34,12 @@ import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.server.TransportRequestHandler;
 import org.apache.celeborn.common.network.util.FrameDecoder;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
-public class MapTransportContext extends TransportContext {
+public class FlinkTransportContext extends TransportContext {
 
-  private static final Logger logger = LoggerFactory.getLogger(MapTransportContext.class);
+  private static final Logger logger = LoggerFactory.getLogger(FlinkTransportContext.class);
 
-  public MapTransportContext(
+  public FlinkTransportContext(
       TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
     super(conf, msgHandler, closeIdleConnections);
   }
@@ -66,7 +65,7 @@ public class MapTransportContext extends TransportContext {
           .pipeline()
           .addLast("encoder", ENCODER)
           .addLast(
-              FrameDecoder.HANDLER_NAME, Utils.createFrameDecoderWithBufferSupplier(bufSupplier))
+              FrameDecoder.HANDLER_NAME, new TransportFrameDecoderWithBufferSupplier(bufSupplier))
           .addLast(
               "idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
           .addLast("handler", channelHandler);

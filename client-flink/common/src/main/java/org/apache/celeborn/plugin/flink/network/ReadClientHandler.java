@@ -52,7 +52,6 @@ public class ReadClientHandler extends BaseMessageHandler {
       case READ_DATA:
         ReadData readData = (ReadData) msg;
         streamId = readData.getStreamId();
-        waitStreamReady(streamId);
         if (streamHandlers.containsKey(streamId)) {
           streamHandlers.get(streamId).accept(msg);
         }
@@ -61,7 +60,6 @@ public class ReadClientHandler extends BaseMessageHandler {
         //      case BACKLOG_ANNOUNCEMENT:
         //        BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
         //        streamId = backlogAnnouncement.getStreamId();
-        //        waitStreamReady(streamId);
         //        if (streamHandlers.containsKey(streamId)) {
         //          logger.debug(
         //              "received streamId1: {}, backlog: {}", streamId,
@@ -77,16 +75,6 @@ public class ReadClientHandler extends BaseMessageHandler {
         break;
       default:
         logger.error("Unexpected msg type {} content {}", msg.type(), msg);
-    }
-  }
-
-  public void waitStreamReady(long streamId) {
-    while (!streamHandlers.containsKey(streamId)) {
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        // ignore
-      }
     }
   }
 
