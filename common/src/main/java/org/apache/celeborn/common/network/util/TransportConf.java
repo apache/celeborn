@@ -148,4 +148,8 @@ public class TransportConf {
   public CelebornConf getCelebornConf() {
     return celebornConf;
   }
+
+  public long pushDataTimeoutCheckIntervalMs() {
+    return conf.pushTimeoutCheckInterval();
+  }
 }

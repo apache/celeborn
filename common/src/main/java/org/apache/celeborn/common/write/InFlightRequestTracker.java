@@ -18,18 +18,15 @@
 package org.apache.celeborn.common.write;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.client.RpcResponseCallback;
-import org.apache.celeborn.common.protocol.message.StatusCode;
 
 /*
  * This class is for track in flight request and limit request.
@@ -43,8 +40,8 @@ public class InFlightRequestTracker {
   private final PushStrategy pushStrategy;
 
   private final AtomicInteger batchId = new AtomicInteger();
-  private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, BatchInfo>>
-      inflightBatchesPerAddress = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Set<Integer>> inflightBatchesPerAddress =
+      new ConcurrentHashMap<>();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
@@ -54,34 +51,31 @@ public class InFlightRequestTracker {
   }
 
   public void addBatch(int batchId, String hostAndPushPort) {
-    ConcurrentHashMap<Integer, BatchInfo> batchIdSetPerPair =
-        inflightBatchesPerAddress.computeIfAbsent(hostAndPushPort, id -> new ConcurrentHashMap<>());
-    batchIdSetPerPair.computeIfAbsent(batchId, id -> new BatchInfo());
-  }
-
-  public void onSuccess(int batchId, String hostAndPushPort) {
-    pushStrategy.onSuccess(hostAndPushPort);
-  }
-
-  public void onCongestControl(int batchId, String hostAndPushPort) {
-    pushStrategy.onCongestControl(hostAndPushPort);
+    Set<Integer> batchIdSetPerPair =
+        inflightBatchesPerAddress.computeIfAbsent(
+            hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
+    batchIdSetPerPair.add(batchId);
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
-    ConcurrentHashMap<Integer, BatchInfo> batchIdMap =
-        inflightBatchesPerAddress.get(hostAndPushPort);
-    BatchInfo info = batchIdMap.remove(batchId);
-    if (info != null && info.channelFuture != null) {
-      info.channelFuture.cancel(true);
-    }
-    if (batchIdMap.size() == 0) {
+    Set<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
+    batchIdSet.remove(batchId);
+    if (batchIdSet.size() == 0) {
       inflightBatchesPerAddress.remove(hostAndPushPort);
     }
   }
 
-  public ConcurrentHashMap<Integer, BatchInfo> getBatchIdSetByAddressPair(String hostAndPort) {
+  public void onSuccess(String hostAndPushPort) {
+    pushStrategy.onSuccess(hostAndPushPort);
+  }
+
+  public void onCongestControl(String hostAndPushPort) {
+    pushStrategy.onCongestControl(hostAndPushPort);
+  }
+
+  public Set<Integer> getBatchIdSetByAddressPair(String hostAndPort) {
     return inflightBatchesPerAddress.computeIfAbsent(
-        hostAndPort, pair -> new ConcurrentHashMap<>());
+        hostAndPort, pair -> ConcurrentHashMap.newKeySet());
   }
 
   public boolean limitMaxInFlight(String hostAndPushPort) throws IOException {
@@ -92,17 +86,16 @@ public class InFlightRequestTracker {
     pushStrategy.limitPushSpeed(pushState, hostAndPushPort);
     int currentMaxReqsInFlight = pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort);
 
-    ConcurrentHashMap<Integer, BatchInfo> batchIdMap = getBatchIdSetByAddressPair(hostAndPushPort);
+    Set batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
-        if (batchIdMap.size() <= currentMaxReqsInFlight) {
+        if (batchIdSet.size() <= currentMaxReqsInFlight) {
           break;
         }
         if (pushState.exception.get() != null) {
           throw pushState.exception.get();
         }
-        failExpiredBatch(true);
         Thread.sleep(delta);
         times--;
       }
@@ -117,7 +110,7 @@ public class InFlightRequestTracker {
               + "for hostAndPushPort {}, "
               + "which exceeds the current limit {}.",
           waitInflightTimeoutMs,
-          batchIdMap.size(),
+          batchIdSet.size(),
           hostAndPushPort,
           currentMaxReqsInFlight);
     }
@@ -139,7 +132,7 @@ public class InFlightRequestTracker {
     try {
       while (times > 0) {
         Optional<Integer> inFlightSizeOptional =
-            inflightBatchesPerAddress.values().stream().map(Map::size).reduce(Integer::sum);
+            inflightBatchesPerAddress.values().stream().map(Set::size).reduce(Integer::sum);
         inFlightSize = inFlightSizeOptional.orElse(0);
         if (inFlightSize == 0) {
           break;
@@ -147,7 +140,6 @@ public class InFlightRequestTracker {
         if (pushState.exception.get() != null) {
           throw pushState.exception.get();
         }
-        failExpiredBatch(true);
         Thread.sleep(delta);
         times--;
       }
@@ -174,76 +166,18 @@ public class InFlightRequestTracker {
       throw pushState.exception.get();
     }
 
-    ConcurrentHashMap<Integer, BatchInfo> batchIdMap = getBatchIdSetByAddressPair(hostAndPushPort);
-    return batchIdMap.size() > maxInFlight;
+    Set<Integer> batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
+    return batchIdSet.size() > maxInFlight;
   }
 
   protected int nextBatchId() {
     return batchId.incrementAndGet();
   }
 
-  /**
-   * Trigger expired push request.
-   *
-   * @param isMaster When true means push data, when false means replicate data.
-   */
-  public synchronized void failExpiredBatch(boolean isMaster) {
-    long currentTime = System.currentTimeMillis();
-    inflightBatchesPerAddress
-        .values()
-        .forEach(
-            batchIdMap ->
-                batchIdMap
-                    .values()
-                    .forEach(
-                        info -> {
-                          // Compatible with older versions of client
-                          if (info.pushDataTimeout > 0) {
-                            if (info.pushTime != -1
-                                && (currentTime - info.pushTime > info.pushDataTimeout)) {
-                              if (info.callback != null) {
-                                info.channelFuture.cancel(true);
-                                if (isMaster) {
-                                  info.callback.onFailure(
-                                      new IOException(
-                                          StatusCode.PUSH_DATA_TIMEOUT_MASTER.getMessage()));
-                                } else {
-                                  info.callback.onFailure(
-                                      new IOException(
-                                          StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage()));
-                                }
-                                info.channelFuture = null;
-                                info.callback = null;
-                              }
-                            }
-                          }
-                        }));
-  }
-
   public void cleanup() {
     if (!inflightBatchesPerAddress.isEmpty()) {
-      logger.debug("Cancel all {} futures.", inflightBatchesPerAddress.size());
-      inflightBatchesPerAddress
-          .values()
-          .forEach(
-              batchIdMap ->
-                  batchIdMap
-                      .values()
-                      .forEach(
-                          info -> {
-                            if (info.channelFuture != null) {
-                              info.channelFuture.cancel(true);
-                            }
-                          }));
       inflightBatchesPerAddress.clear();
     }
     pushStrategy.clear();
-  }
-
-  static class BatchInfo {
-    ChannelFuture channelFuture;
-    long pushTime = -1;
-    long pushDataTimeout;
-    RpcResponseCallback callback;
   }
 }
