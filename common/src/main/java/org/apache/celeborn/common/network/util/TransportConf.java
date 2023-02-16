@@ -150,6 +150,6 @@ public class TransportConf {
   }
 
   public long pushDataTimeoutCheckIntervalMs() {
-    return conf.pushTimeoutCheckInterval();
+    return celebornConf.pushTimeoutCheckInterval();
   }
 }
