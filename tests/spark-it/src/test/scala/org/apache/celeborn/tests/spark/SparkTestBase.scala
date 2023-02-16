@@ -36,7 +36,7 @@ trait SparkTestBase extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
-    setUpMiniCluster()
+    setUpMiniCluster(workerNum = 5)
   }
 
   override def afterAll(): Unit = {

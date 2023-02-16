@@ -140,4 +140,8 @@ public class TransportConf {
   public long maxChunksBeingTransferred() {
     return conf.networkIoMaxChunksBeingTransferred(module);
   }
+
+  public long pushDataTimeoutCheckIntervalMs() {
+    return conf.pushTimeoutCheckInterval();
+  }
 }
