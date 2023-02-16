@@ -34,7 +34,6 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -202,8 +201,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           PushData newPushData =
               new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-          ChannelFuture future = client.pushData(newPushData, callback);
-          pushState.pushStarted(batchId, future, callback, loc.hostAndPushPort(), pushDataTimeout);
+          client.pushData(newPushData, pushDataTimeout, callback);
         } else {
           throw new RuntimeException(
               "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
@@ -682,7 +680,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, applicationId, loc);
-                  pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
+                  pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
@@ -710,7 +708,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       nextBatchId);
-                  pushState.onCongestControl(nextBatchId, loc.hostAndPushPort());
+                  pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                   logger.debug(
@@ -718,15 +716,15 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       nextBatchId);
-                  pushState.onCongestControl(nextBatchId, loc.hostAndPushPort());
+                  pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else {
                   response.rewind();
-                  pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
+                  pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 }
               } else {
-                pushState.onSuccess(nextBatchId, loc.hostAndPushPort());
+                pushState.onSuccess(loc.hostAndPushPort());
                 callback.onSuccess(response);
               }
             }
@@ -794,9 +792,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         if (!testRetryRevive) {
           TransportClient client =
               dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
-          ChannelFuture future = client.pushData(pushData, wrappedCallback);
-          pushState.pushStarted(
-              nextBatchId, future, wrappedCallback, loc.hostAndPushPort(), pushDataTimeout);
+          client.pushData(pushData, pushDataTimeout, wrappedCallback);
         } else {
           wrappedCallback.onFailure(
               new Exception(
@@ -1067,7 +1063,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     mapId,
                     attemptId,
                     Arrays.toString(batchIds));
-                pushState.onCongestControl(groupedBatchId, hostPort);
+                pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                 logger.debug(
@@ -1075,17 +1071,17 @@ public class ShuffleClientImpl extends ShuffleClient {
                     mapId,
                     attemptId,
                     Arrays.toString(batchIds));
-                pushState.onCongestControl(groupedBatchId, hostPort);
+                pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else {
                 // Should not happen in current architecture.
                 response.rewind();
                 logger.error("Push merged data should not receive this response");
-                pushState.onSuccess(groupedBatchId, hostPort);
+                pushState.onSuccess(hostPort);
                 callback.onSuccess(response);
               }
             } else {
-              pushState.onSuccess(groupedBatchId, hostPort);
+              pushState.onSuccess(hostPort);
               callback.onSuccess(response);
             }
           }
@@ -1141,8 +1137,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       if (!testRetryRevive || remainReviveTimes < 1) {
         TransportClient client = dataClientFactory.createClient(host, port);
-        ChannelFuture future = client.pushMergedData(mergedData, wrappedCallback);
-        pushState.pushStarted(groupedBatchId, future, wrappedCallback, hostPort, pushDataTimeout);
+        client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
       } else {
         wrappedCallback.onFailure(
             new Exception(
@@ -1521,9 +1516,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // do push data
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-      ChannelFuture future = client.pushData(pushData, callback);
-      pushState.pushStarted(
-          nextBatchId, future, callback, location.hostAndPushPort(), pushDataTimeout);
+      client.pushData(pushData, pushDataTimeout, callback);
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(

@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
  * Client for fetching consecutive chunks of a pre-negotiated stream. This API is intended to allow
@@ -156,32 +157,40 @@ public class TransportClient implements Closeable {
     return requestId;
   }
 
-  public ChannelFuture pushData(PushData pushData, RpcResponseCallback callback) {
+  public ChannelFuture pushData(
+      PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
     }
 
     long requestId = requestId();
-    handler.addPushRequest(requestId, callback);
-
+    long dueTime = System.currentTimeMillis() + pushDataTimeout;
+    PushRequestInfo info = new PushRequestInfo(dueTime, callback);
+    handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
 
     PushChannelListener listener = new PushChannelListener(requestId, callback);
-    return channel.writeAndFlush(pushData).addListener(listener);
+    ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
+    info.setChannelFuture(channelFuture);
+    return channelFuture;
   }
 
-  public ChannelFuture pushMergedData(PushMergedData pushMergedData, RpcResponseCallback callback) {
+  public ChannelFuture pushMergedData(
+      PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
 
     long requestId = requestId();
-    handler.addPushRequest(requestId, callback);
-
+    long dueTime = System.currentTimeMillis() + pushDataTimeout;
+    PushRequestInfo info = new PushRequestInfo(dueTime, callback);
+    handler.addPushRequest(requestId, info);
     pushMergedData.requestId = requestId;
 
     PushChannelListener listener = new PushChannelListener(requestId, callback);
-    return channel.writeAndFlush(pushMergedData).addListener(listener);
+    ChannelFuture channelFuture = channel.writeAndFlush(pushMergedData).addListener(listener);
+    info.setChannelFuture(channelFuture);
+    return channelFuture;
   }
 
   /**
