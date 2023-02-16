@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -56,20 +57,17 @@ public class ReadClientHandler extends BaseMessageHandler {
           streamHandlers.get(streamId).accept(msg);
         }
         break;
-        //        TODO: waiting for another PR
-        //      case BACKLOG_ANNOUNCEMENT:
-        //        BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
-        //        streamId = backlogAnnouncement.getStreamId();
-        //        if (streamHandlers.containsKey(streamId)) {
-        //          logger.debug(
-        //              "received streamId1: {}, backlog: {}", streamId,
-        // backlogAnnouncement.getBacklog());
-        //          streamHandlers.get(streamId).accept(msg);
-        //        }
-        //        logger.debug(
-        //            "received streamId2: {}, backlog: {}", streamId,
-        // backlogAnnouncement.getBacklog());
-        //        break;
+      case BACKLOG_ANNOUNCEMENT:
+        BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
+        streamId = backlogAnnouncement.getStreamId();
+        if (streamHandlers.containsKey(streamId)) {
+          logger.debug(
+              "received streamId1: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
+          streamHandlers.get(streamId).accept(msg);
+        }
+        logger.debug(
+            "received streamId2: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
+        break;
       case ONE_WAY_MESSAGE:
         // ignore it.
         break;

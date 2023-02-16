@@ -76,11 +76,10 @@ public class MessageDecoderExt {
         long offset = in.readLong();
         return new ReadData(streamId, backlog, offset);
 
-        // TODO: waiting for anothrer pr
-        //      case BACKLOG_ANNOUNCEMENT:
-        //        streamId = in.readLong();
-        //        backlog = in.readInt();
-        //        return new BacklogAnnouncement(streamId, backlog);
+      case BACKLOG_ANNOUNCEMENT:
+        streamId = in.readLong();
+        backlog = in.readInt();
+        return new BacklogAnnouncement(streamId, backlog);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + type);
