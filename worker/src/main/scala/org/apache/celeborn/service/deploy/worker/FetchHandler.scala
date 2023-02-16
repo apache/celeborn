@@ -89,6 +89,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
+    if (msg.`type`() == Type.BACKLOG_ANNOUNCEMENT) {
+      rpcSource.updateMessageMetrics(msg, 0)
+      handleReadAddCredit(client, msg.asInstanceOf[ReadAddCredit])
+      return
+    }
     val (shuffleKey, fileName) =
       if (msg.`type`() == Type.OPEN_STREAM) {
         val openStream = msg.asInstanceOf[OpenStream]
