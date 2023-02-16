@@ -60,9 +60,6 @@ public class InFlightRequestTracker {
   public void removeBatch(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
     batchIdSet.remove(batchId);
-    if (batchIdSet.size() == 0) {
-      inflightBatchesPerAddress.remove(hostAndPushPort);
-    }
   }
 
   public void onSuccess(String hostAndPushPort) {
