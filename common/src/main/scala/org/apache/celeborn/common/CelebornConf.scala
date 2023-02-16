@@ -1325,7 +1325,7 @@ object CelebornConf extends Logging {
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("30s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
@@ -2196,6 +2196,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "celeborn.push.data.timeout must be positive!")
       .createWithDefaultString("120s")
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
