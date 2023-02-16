@@ -54,7 +54,13 @@ public class ReadClientHandler extends BaseMessageHandler {
         ReadData readData = (ReadData) msg;
         streamId = readData.getStreamId();
         if (streamHandlers.containsKey(streamId)) {
+          logger.debug(
+              "received streamId: {}, readData size:{}",
+              streamId,
+              readData.getFlinkBuffer().readableBytes());
           streamHandlers.get(streamId).accept(msg);
+        } else {
+          logger.warn("Unexpected streamId received: {}", streamId);
         }
         break;
       case BACKLOG_ANNOUNCEMENT:
@@ -62,11 +68,11 @@ public class ReadClientHandler extends BaseMessageHandler {
         streamId = backlogAnnouncement.getStreamId();
         if (streamHandlers.containsKey(streamId)) {
           logger.debug(
-              "received streamId1: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
+              "received streamId: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
           streamHandlers.get(streamId).accept(msg);
+        } else {
+          logger.warn("Unexpected streamId received: {}", streamId);
         }
-        logger.debug(
-            "received streamId2: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.
