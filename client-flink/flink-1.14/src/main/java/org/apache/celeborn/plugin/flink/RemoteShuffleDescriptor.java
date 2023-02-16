@@ -30,10 +30,10 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
 
   private final JobID jobID;
 
-  private final ShuffleResource shuffleResource;
+  private final RemoteShuffleResource shuffleResource;
 
   public RemoteShuffleDescriptor(
-      JobID jobID, ResultPartitionID resultPartitionID, ShuffleResource shuffleResource) {
+      JobID jobID, ResultPartitionID resultPartitionID, RemoteShuffleResource shuffleResource) {
     this.jobID = jobID;
     this.resultPartitionID = resultPartitionID;
     this.shuffleResource = shuffleResource;
@@ -48,7 +48,7 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
     return jobID;
   }
 
-  public ShuffleResource getShuffleResource() {
+  public RemoteShuffleResource getShuffleResource() {
     return shuffleResource;
   }
 
