@@ -37,11 +37,11 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 
-public class MapTransportClientFactory extends TransportClientFactory {
-  private static final Logger logger = LoggerFactory.getLogger(MapTransportClientFactory.class);
+public class FlinkTransportClientFactory extends TransportClientFactory {
+  private static final Logger logger = LoggerFactory.getLogger(FlinkTransportClientFactory.class);
   protected final FlinkTransportContext flinkTransportContext;
 
-  public MapTransportClientFactory(FlinkTransportContext context) {
+  public FlinkTransportClientFactory(FlinkTransportContext context) {
     super(((TransportContext) context));
     this.flinkTransportContext = context;
   }
