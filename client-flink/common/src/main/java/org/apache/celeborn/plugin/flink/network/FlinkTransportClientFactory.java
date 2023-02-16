@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.function.Supplier;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.TransportClient;

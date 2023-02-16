@@ -132,4 +132,8 @@ public class TransportContext {
   public TransportConf getConf() {
     return conf;
   }
+
+  public BaseMessageHandler getMsgHandler() {
+    return msgHandler;
+  }
 }

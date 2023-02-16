@@ -49,11 +49,11 @@ import org.apache.celeborn.common.network.util.*;
 public class TransportClientFactory implements Closeable {
 
   /** A simple data structure to track the pool of clients between two peer nodes. */
-  protected static class ClientPool {
-    public TransportClient[] clients;
-    public Object[] locks;
+  private static class ClientPool {
+    TransportClient[] clients;
+    Object[] locks;
 
-    public ClientPool(int size) {
+    ClientPool(int size) {
       clients = new TransportClient[size];
       locks = new Object[size];
       for (int i = 0; i < size; i++) {
@@ -64,18 +64,18 @@ public class TransportClientFactory implements Closeable {
 
   private static final Logger logger = LoggerFactory.getLogger(TransportClientFactory.class);
 
-  protected final TransportContext context;
-  protected final TransportConf conf;
-  protected final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
+  private final TransportContext context;
+  private final TransportConf conf;
+  private final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
 
   /** Random number generator for picking connections between peers. */
-  protected final Random rand;
+  private final Random rand;
 
-  protected final int numConnectionsPerPeer;
+  private final int numConnectionsPerPeer;
 
-  protected final Class<? extends Channel> socketChannelClass;
-  protected EventLoopGroup workerGroup;
-  protected PooledByteBufAllocator pooledAllocator;
+  private final Class<? extends Channel> socketChannelClass;
+  private EventLoopGroup workerGroup;
+  private PooledByteBufAllocator pooledAllocator;
 
   public TransportClientFactory(TransportContext context) {
     this.context = Preconditions.checkNotNull(context);
@@ -182,6 +182,12 @@ public class TransportClientFactory implements Closeable {
     return createClient(remoteHost, remotePort, -1);
   }
 
+  /**
+   * Create a completely new {@link TransportClient} to the given remote host / port. This
+   * connection is not pooled.
+   *
+   * <p>As with {@link #createClient(String, int)}, this method is blocking.
+   */
   private TransportClient internalCreateClient(
       InetSocketAddress address, ChannelInboundHandlerAdapter decoder)
       throws IOException, InterruptedException {
