@@ -142,7 +142,7 @@ public class RemoteShuffleOutputGate {
     Optional<PartitionLocation> newPartitionLoc = null;
     try {
       if (isFirstHandShake) {
-        handshake();
+        handshake(isFirstHandShake);
         isFirstHandShake = false;
         LOG.info("send firstHandShake:" + isBroadcast);
       }
@@ -160,7 +160,7 @@ public class RemoteShuffleOutputGate {
       if (newPartitionLoc.isPresent()) {
         partitionLocation = newPartitionLoc.get();
         // send handshake again
-        handshake();
+        handshake(false);
         // send regionstart again
         shuffleWriteClient.regionStart(
             applicationId,
@@ -232,14 +232,16 @@ public class RemoteShuffleOutputGate {
     }
   }
 
-  public void handshake() {
+  public void handshake(boolean isFirstHandShake) {
     if (partitionLocation == null) {
       partitionLocation =
           shuffleWriteClient.registerMapPartitionTask(
               applicationId, shuffleId, numMappers, mapId, attemptId);
       Utils.checkNotNull(partitionLocation);
     }
-    currentRegionIndex = 0;
+    if (isFirstHandShake) {
+      currentRegionIndex = 0;
+    }
     try {
       shuffleWriteClient.pushDataHandShake(
           applicationId, shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
