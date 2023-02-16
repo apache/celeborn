@@ -49,12 +49,12 @@ import org.apache.celeborn.common.network.util.TransportFrameDecoder;
 public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
-  protected final TransportConf conf;
-  protected final BaseMessageHandler msgHandler;
-  protected ChannelsLimiter channelsLimiter;
-  protected final boolean closeIdleConnections;
+  private final TransportConf conf;
+  private final BaseMessageHandler msgHandler;
+  private ChannelsLimiter channelsLimiter;
+  private final boolean closeIdleConnections;
 
-  protected static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
+  private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
 
   public TransportContext(
       TransportConf conf,
@@ -119,7 +119,7 @@ public class TransportContext {
     }
   }
 
-  protected TransportChannelHandler createChannelHandler(
+  private TransportChannelHandler createChannelHandler(
       Channel channel, BaseMessageHandler msgHandler) {
     TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
     TransportClient client = new TransportClient(channel, responseHandler);
