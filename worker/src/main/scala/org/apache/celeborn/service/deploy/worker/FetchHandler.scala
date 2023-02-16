@@ -139,17 +139,20 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           }
         case PartitionType.MAP =>
-//          TODO:waiting for another PR.
-        // return stream id
-//          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
-//          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
-//          val streamId =
-//            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
-//          val res = ByteBuffer.allocate(8)
-//          res.putLong(streamId)
-//          client.getChannel.writeAndFlush(new RpcResponse(
-//            request.requestId,
-//            new NioManagedBuffer(res)))
+          val initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
+          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
+          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
+          val streamId =
+            bufferStreamManager.registerStream(
+              client.getChannel,
+              initialCredit,
+              startIndex,
+              endIndex,
+              fileInfo)
+          val bufferStreamHandle = new StreamHandle(streamId, 0)
+          client.getChannel.writeAndFlush(new RpcResponse(
+            request.requestId,
+            new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>

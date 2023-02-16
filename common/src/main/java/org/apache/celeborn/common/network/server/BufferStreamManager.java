@@ -88,15 +88,10 @@ public class BufferStreamManager {
   }
 
   public long registerStream(
-      Channel channel,
-      int bufferSize,
-      int initialCredit,
-      int startSubIndex,
-      int endSubIndex,
-      FileInfo fileInfo)
+      Channel channel, int initialCredit, int startSubIndex, int endSubIndex, FileInfo fileInfo)
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
-    streams.put(streamId, new StreamState(channel, bufferSize));
+    streams.put(streamId, new StreamState(channel, fileInfo.getBufferSize()));
 
     MapDataPartition mapDataPartition =
         activeMapPartitions.computeIfAbsent(fileInfo, (f) -> new MapDataPartition(fileInfo));
