@@ -21,6 +21,7 @@ _config.yml export-ignore
 codecov.yml export-ignore
 LICENSE-binary export-ignore
 NOTICE-binary export-ignore
+licenses-binary export-ignore
 assets/slides/* export-ignore
 assets/diagram/* export-ignore
 assets/img/* export-ignore

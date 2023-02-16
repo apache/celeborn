@@ -313,7 +313,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return registerShuffleInternal(
         shuffleId,
         numMappers,
-        numMappers,
+        numPartitions,
         () ->
             driverRssMetaService.askSync(
                 RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),

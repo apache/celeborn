@@ -199,7 +199,7 @@ public abstract class ShuffleClient {
 
   // Write data to a specific map partition, input data's type is Bytebuf.
   // data's type is Bytebuf to avoid copy between application and netty
-  // closecallback will do some clean opertions like memory release.
+  // closecallback will do some clean operations like memory release.
   public abstract int pushDataToLocation(
       String applicationId,
       int shuffleId,
@@ -209,7 +209,7 @@ public abstract class ShuffleClient {
       ByteBuf data,
       PartitionLocation location,
       BooleanSupplier closeCallBack)
-      throws IOException;;
+      throws IOException;
 
   public abstract Optional<PartitionLocation> regionStart(
       String applicationId,

@@ -98,6 +98,7 @@ object WorkerSource {
   val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity(B)"
   val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity(B)"
 
-  // Rate limit
+  // Congestion control
   val PotentialConsumeSpeed = "PotentialConsumeSpeed"
+  val UserProduceSpeed = "UserProduceSpeed"
 }
