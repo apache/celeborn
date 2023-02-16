@@ -324,7 +324,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
-
             client.pushData(newPushData, shufflePushDataTimeout.get(shuffleKey), wrappedCallback)
           } catch {
             case e: Exception =>
