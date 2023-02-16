@@ -1033,6 +1033,7 @@ object Utils extends Logging {
 
   @throws[IOException]
   def readBuffer(
+      fileName: String,
       fileChannel: FileChannel,
       header: ByteBuffer,
       buffer: ByteBuf,
@@ -1041,7 +1042,7 @@ object Utils extends Logging {
     val bufferLength = header.getInt(12)
     if (bufferLength <= 0 || bufferLength > buffer.capacity) {
       logError(s"Incorrect buffer header, buffer length: ${bufferLength}.")
-      throw new RuntimeException(s"File ${fileChannel} is corrupted")
+      throw new RuntimeException(s"File ${fileName} is corrupted")
     }
     // attach header buffer to data buffer.
     buffer.writeBytes(header)

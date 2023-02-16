@@ -27,7 +27,6 @@ import scala.util.Try
 
 import org.apache.hadoop.security.UserGroupInformation
 
-import org.apache.celeborn.common.CelebornConf.{PARTITION_READ_BUFFERS_MAX, PARTITION_READ_BUFFERS_MIN}
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -761,7 +760,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def partitionReadBuffersMin: Int = get(PARTITION_READ_BUFFERS_MIN)
 
   def partitionReadBuffersMax: Int = get(PARTITION_READ_BUFFERS_MAX)
-  def bufferStreamThreadsPerMountpoint = get(BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
+  def bufferStreamThreadsPerMountpoint: Int = get(BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -2956,7 +2955,7 @@ object CelebornConf extends Logging {
       .createWithDefault("64m")
 
   val PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
-    buildConf("celeborn.partition.initial.readBufferMin")
+    buildConf("celeborn.partition.initial.readBuffersMin")
       .categories("worker")
       .version("0.3.0")
       .doc("Min number of initial read buffers")
@@ -2964,7 +2963,7 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val PARTITION_READ_BUFFERS_MAX: ConfigEntry[Int] =
-    buildConf("celeborn.partition.initial.readBufferMax")
+    buildConf("celeborn.partition.initial.readBuffersMax")
       .categories("worker")
       .version("0.3.0")
       .doc("Max number of initial read buffers")

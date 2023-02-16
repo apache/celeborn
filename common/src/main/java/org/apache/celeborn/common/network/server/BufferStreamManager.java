@@ -363,7 +363,12 @@ public class BufferStreamManager {
         dataFileChannel.position(dataConsumingOffset);
 
         int readSize =
-            Utils.readBuffer(dataFileChannel, headerBuffer, buffer, headerBuffer.capacity());
+            Utils.readBuffer(
+                fileInfo.getFilePath(),
+                dataFileChannel,
+                headerBuffer,
+                buffer,
+                headerBuffer.capacity());
         currentPartitionRemainingBytes -= readSize;
 
         logger.debug(

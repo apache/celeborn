@@ -43,7 +43,7 @@ public class ReadData extends RequestMessage {
   }
 
   @Override
-  public void encode(io.netty.buffer.ByteBuf buf) {
+  public void encode(ByteBuf buf) {
     buf.writeLong(streamId);
     buf.writeInt(backlog);
     buf.writeLong(offset);
