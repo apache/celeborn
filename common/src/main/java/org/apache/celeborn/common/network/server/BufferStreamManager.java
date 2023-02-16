@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.Utils;
@@ -377,7 +378,7 @@ public class BufferStreamManager {
             currentPartitionRemainingBytes,
             readSize,
             dataConsumingOffset,
-            Utils.getShortFormattedFileName(fileInfo),
+            fileInfo.getFilePath(),
             System.identityHashCode(buffer));
 
         // if this check fails, the partition file must be corrupted
@@ -484,12 +485,10 @@ public class BufferStreamManager {
         if (streamCredits.get(streamId).get() > 0) {
           Buffer readBuf = buffersRead.poll();
           logger.debug(
-              "send "
-                  + readBuf.byteBuf.readableBytes()
-                  + " to stream "
-                  + streamId
-                  + ", fileInfo: "
-                  + Utils.getShortFormattedFileName(fileInfo));
+              "send {} to stream {} ,fileInfo: {}",
+              readBuf.byteBuf.readableBytes(),
+              streamId,
+              fileInfo.getFilePath());
           ReadData readData = new ReadData(streamId, buffersRead.size(), 0, readBuf.byteBuf);
           streams
               .get(streamId)
@@ -507,14 +506,11 @@ public class BufferStreamManager {
                           // netty has release the reference
                         }
                         logger.debug(
-                            "recycle "
-                                + readBuf.byteBuf.readableBytes()
-                                + ","
-                                + System.identityHashCode(readBuf.byteBuf)
-                                + " to stream "
-                                + streamId
-                                + ", fileInfo: "
-                                + Utils.getShortFormattedFileName(fileInfo));
+                            "recycle {} , {} to stream {} ,fileinfo {}",
+                            readBuf.byteBuf.readableBytes(),
+                            System.identityHashCode(readBuf.byteBuf),
+                            streamId,
+                            fileInfo.getFilePath());
                         readBuf.byteBufferConsumer.accept(readBuf.byteBuf);
                       });
           logger.debug(
@@ -552,7 +548,7 @@ public class BufferStreamManager {
       if (streamState == null) {
         throw new RuntimeException("StreamId " + streamId + " should not be null");
       }
-      // TODO: waiting for another pull request to be merged first
+      streamState.associatedChannel.writeAndFlush(new BacklogAnnouncement(streamId, backlog));
     }
 
     public long getPriority() {

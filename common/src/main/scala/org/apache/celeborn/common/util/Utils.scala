@@ -1049,12 +1049,4 @@ object Utils extends Logging {
     readBuffer(fileChannel, buffer, bufferLength)
     bufferLength + headerSize
   }
-
-  def getShortFormattedFileName(fileInfo: FileInfo): String = {
-    val parentFile = fileInfo.getFile.getParent
-    parentFile.substring(
-      parentFile.lastIndexOf("/"),
-      parentFile.length) + "/" + fileInfo.getFile.getName
-  }
-
 }
