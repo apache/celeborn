@@ -160,7 +160,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int partitionId,
       ByteBuf data,
       PartitionLocation location,
-      BooleanSupplier closeCallBack) {
+      Runnable closeCallBack) {
     return 0;
   }
 
