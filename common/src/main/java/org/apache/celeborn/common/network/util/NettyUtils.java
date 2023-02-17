@@ -21,7 +21,6 @@ import java.util.concurrent.ThreadFactory;
 
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -75,20 +74,6 @@ public class NettyUtils {
         return EpollServerSocketChannel.class;
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
-    }
-  }
-
-  /**
-   * Creates a LengthFieldBasedFrameDecoder where the first 8 bytes are the length of the frame.
-   * This is used before all decoders.
-   */
-  public static ChannelInboundHandlerAdapter createFrameDecoder(TransportConf conf) {
-    if (conf.decoderMode().equals("default")) {
-      return new TransportFrameDecoder();
-    } else if (conf.decoderMode().equals("supplier")) {
-      return new TransportFrameDecoderWithBufferSupplier();
-    } else {
-      return new TransportFrameDecoder();
     }
   }
 

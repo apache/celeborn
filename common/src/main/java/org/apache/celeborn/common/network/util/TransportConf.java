@@ -141,10 +141,6 @@ public class TransportConf {
     return celebornConf.networkIoMaxChunksBeingTransferred(module);
   }
 
-  public String decoderMode() {
-    return celebornConf.networkIoDecoderMode(module);
-  }
-
   public CelebornConf getCelebornConf() {
     return celebornConf;
   }
