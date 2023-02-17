@@ -20,7 +20,6 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BooleanSupplier;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
@@ -208,7 +207,7 @@ public abstract class ShuffleClient {
       int partitionId,
       ByteBuf data,
       PartitionLocation location,
-      BooleanSupplier closeCallBack)
+      Runnable closeCallBack)
       throws IOException;
 
   public abstract Optional<PartitionLocation> regionStart(

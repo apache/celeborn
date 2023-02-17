@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BooleanSupplier;
 
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -160,7 +159,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int partitionId,
       ByteBuf data,
       PartitionLocation location,
-      BooleanSupplier closeCallBack) {
+      Runnable closeCallBack) {
     return 0;
   }
 
