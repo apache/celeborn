@@ -40,6 +40,7 @@ public class FileInfo {
   private final UserIdentifier userIdentifier;
   private final PartitionType partitionType;
   private int bufferSize;
+  private int numReducerPartitions;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
@@ -185,5 +186,13 @@ public class FileInfo {
 
   public int getBufferSize() {
     return bufferSize;
+  }
+
+  public int getNumReducerPartitions() {
+    return numReducerPartitions;
+  }
+
+  public void setNumReducerPartitions(int numReducerPartitions) {
+    this.numReducerPartitions = numReducerPartitions;
   }
 }

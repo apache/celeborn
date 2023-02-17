@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +47,6 @@ import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
@@ -145,10 +146,11 @@ public class MapPartitionFileWriterSuiteJ {
     int len = (int) (Math.ceil(1.0 * tempLen / hello.length) * hello.length) + headerLength;
 
     byte[] data = new byte[len];
-    Platform.putInt(data, Platform.BYTE_ARRAY_OFFSET, partitionId);
-    Platform.putInt(data, Platform.BYTE_ARRAY_OFFSET + 4, 0);
-    Platform.putInt(data, Platform.BYTE_ARRAY_OFFSET + 8, rand.nextInt());
-    Platform.putInt(data, Platform.BYTE_ARRAY_OFFSET + 12, len);
+    ByteBuffer byteBuffer = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
+    byteBuffer.putInt(0, partitionId);
+    byteBuffer.putInt(4, 0);
+    byteBuffer.putInt(8, rand.nextInt());
+    byteBuffer.putInt(12, len);
 
     for (int i = headerLength; i < len; i += hello.length) {
       System.arraycopy(hello, 0, data, i, hello.length);
