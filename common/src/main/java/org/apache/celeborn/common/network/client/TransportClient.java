@@ -188,7 +188,8 @@ public class TransportClient implements Closeable {
     return channel.writeAndFlush(pushData).addListener(listener);
   }
 
-  public ChannelFuture pushMergedData(PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
+  public ChannelFuture pushMergedData(
+      PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
