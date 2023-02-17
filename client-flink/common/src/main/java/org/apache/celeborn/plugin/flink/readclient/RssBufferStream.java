@@ -106,7 +106,7 @@ public class RssBufferStream {
           }
         });
     if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) {
-      throw new RuntimeException("Send openStream RPC failed to " + client.getSocketAddress());
+      throw new IOException("Send openStream RPC failed to " + client.getSocketAddress());
     }
     logger.debug("rssbufferstream streamid:{}", streamId);
   }
