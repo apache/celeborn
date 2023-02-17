@@ -64,7 +64,7 @@ public class RemoteShuffleOutputGateSuiteJ {
         .when(remoteShuffleOutputGate.shuffleWriteClient)
         .pushDataHandShake(anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
 
-    remoteShuffleOutputGate.handshake();
+    remoteShuffleOutputGate.handshake(true);
 
     when(remoteShuffleOutputGate.shuffleWriteClient.regionStart(
             any(), anyInt(), anyInt(), anyInt(), any(), anyInt(), anyBoolean()))

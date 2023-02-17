@@ -69,11 +69,7 @@ public class BufferPacker {
       cachedBuffer = buffer;
       int targetSubIdx = currentSubIdx;
       currentSubIdx = subIdx;
-      logger.debug(
-          "cachedBuffer pack partition:{} type:{}, length:{}",
-          currentSubIdx,
-          dumpedBuffer.getDataType(),
-          dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+      logBufferPack(false, dumpedBuffer.getDataType(), dumpedBuffer.readableBytes());
       handleRipeBuffer(dumpedBuffer, targetSubIdx);
     } else {
       /**
@@ -89,32 +85,32 @@ public class BufferPacker {
                 buffer.asByteBuf(),
                 BufferUtils.HEADER_LENGTH_PREFIX,
                 buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
-        logger.debug(
-            "cachedBuffer pack partition:{} type:{}, length:{}",
-            currentSubIdx,
-            buffer.getDataType(),
-            buffer.getSize(),
-            buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+        logBufferPack(
+            false, buffer.getDataType(), buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+
         buffer.recycleBuffer();
       } else {
         Buffer dumpedBuffer = cachedBuffer;
         cachedBuffer = buffer;
-        logger.debug(
-            "cachedBuffer pack partition:{} type:{}, length:{}",
-            currentSubIdx,
-            dumpedBuffer.getDataType(),
-            dumpedBuffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX);
+        logBufferPack(false, dumpedBuffer.getDataType(), dumpedBuffer.readableBytes());
+
         handleRipeBuffer(dumpedBuffer, currentSubIdx);
       }
     }
   }
 
-  public void drain() throws InterruptedException {
+  private void logBufferPack(boolean isDrain, Buffer.DataType dataType, int length) {
     logger.debug(
-        "cachedBuffer drain partition:{} type:{}, length:{}",
+        "isDrain:{}, cachedBuffer pack partition:{} type:{}, length:{}",
+        isDrain,
         currentSubIdx,
-        cachedBuffer.getDataType(),
-        cachedBuffer.readableBytes());
+        dataType,
+        length);
+  }
+
+  public void drain() throws InterruptedException {
+    logBufferPack(true, cachedBuffer.getDataType(), cachedBuffer.readableBytes());
+
     if (cachedBuffer != null) {
       handleRipeBuffer(cachedBuffer, currentSubIdx);
     }
@@ -152,7 +148,7 @@ public class BufferPacker {
         } else {
           // in the remaining datas, the headlength is BufferUtils.HEADER_LENGTH -
           // BufferUtils.HEADER_LENGTH_PREFIX
-          logger.info("readbuffer: total: {}, position: {}", totalBytes, position);
+          logger.debug("readbuffer: total: {}, position: {}", totalBytes, position);
           bufferHeader = BufferUtils.getBufferHeader(buffer, position);
           position += BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX;
         }
@@ -173,6 +169,7 @@ public class BufferPacker {
           buffer.getSize(),
           buffers.size(),
           buffers);
+
       return buffers;
     } catch (Throwable throwable) {
       buffers.forEach(Buffer::recycleBuffer);

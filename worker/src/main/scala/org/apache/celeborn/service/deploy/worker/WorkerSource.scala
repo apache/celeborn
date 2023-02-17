@@ -36,6 +36,13 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addTimer(MasterPushDataTime)
   addTimer(SlavePushDataTime)
 
+  addTimer(MasterPushDataHandshakeTime)
+  addTimer(SlavePushDataHandshakeTime)
+  addTimer(MasterRegionStartTime)
+  addTimer(SlaveRegionStartTime)
+  addTimer(MasterRegionFinishTime)
+  addTimer(SlaveRegionFinishTime)
+
   addTimer(FetchChunkTime)
   addTimer(OpenStreamTime)
   addTimer(TakeBufferTime)
@@ -91,6 +98,7 @@ object WorkerSource {
   val DiskBuffer = "DiskBuffer"
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
+  val BufferStreamReadBuffer = "BufferStreamReadBuffer"
 
   // local device
   val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"
@@ -98,6 +106,7 @@ object WorkerSource {
   val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity(B)"
   val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity(B)"
 
-  // Rate limit
+  // Congestion control
   val PotentialConsumeSpeed = "PotentialConsumeSpeed"
+  val UserProduceSpeed = "UserProduceSpeed"
 }

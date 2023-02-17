@@ -111,15 +111,11 @@ private[celeborn] class Worker(
     }
 
     CongestionController.initialize(
+      workerSource,
       conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
       conf.workerCongestionControlHighWatermark.get,
       conf.workerCongestionControlLowWatermark.get,
       conf.workerCongestionControlUserInactiveIntervalMs)
-
-    val rateLimitController = CongestionController.instance()
-    workerSource.addGauge(
-      WorkerSource.PotentialConsumeSpeed,
-      _ => rateLimitController.getPotentialConsumeSpeed)
   }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
@@ -243,6 +239,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(
     WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
+  workerSource.addGauge(
+    WorkerSource.BufferStreamReadBuffer,
+    _ => memoryTracker.getReadBufferCounter.get())
 
   private def heartBeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()

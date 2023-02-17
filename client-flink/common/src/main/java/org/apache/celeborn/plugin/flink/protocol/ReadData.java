@@ -15,23 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.protocol;
+package org.apache.celeborn.plugin.flink.protocol;
 
 import java.util.Objects;
 
-import io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
 
-// This is buffer wrapper used in celeborn worker only
-// It doesn't need decode in worker.
-public class ReadData extends RequestMessage {
-  private long streamId;
-  private int backlog;
-  private long offset;
+public final class ReadData extends RequestMessage {
+  private final long streamId;
+  private final int backlog;
+  private final long offset;
+  private ByteBuf flinkBuffer;
 
-  public ReadData(long streamId, int backlog, long offset, ByteBuf buf) {
-    super(new NettyManagedBuffer(buf));
+  public ReadData(long streamId, int backlog, long offset) {
     this.streamId = streamId;
     this.backlog = backlog;
     this.offset = offset;
@@ -42,8 +40,9 @@ public class ReadData extends RequestMessage {
     return 8 + 4 + 8;
   }
 
+  // This method will not be called because ReadData won't be created at flink client.
   @Override
-  public void encode(ByteBuf buf) {
+  public void encode(io.netty.buffer.ByteBuf buf) {
     buf.writeLong(streamId);
     buf.writeInt(backlog);
     buf.writeLong(offset);
@@ -91,5 +90,13 @@ public class ReadData extends RequestMessage {
         + ", offset="
         + offset
         + '}';
+  }
+
+  public ByteBuf getFlinkBuffer() {
+    return flinkBuffer;
+  }
+
+  public void setFlinkBuffer(ByteBuf flinkBuffer) {
+    this.flinkBuffer = flinkBuffer;
   }
 }

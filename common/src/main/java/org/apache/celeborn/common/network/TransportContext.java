@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.network;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
@@ -29,8 +30,8 @@ import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.MessageEncoder;
 import org.apache.celeborn.common.network.server.*;
 import org.apache.celeborn.common.network.util.FrameDecoder;
-import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.network.util.TransportFrameDecoder;
 
 /**
  * Contains the context to create a {@link TransportServer}, {@link TransportClientFactory}, and to
@@ -94,6 +95,11 @@ public class TransportContext {
   }
 
   public TransportChannelHandler initializePipeline(SocketChannel channel) {
+    return initializePipeline(channel, new TransportFrameDecoder());
+  }
+
+  public TransportChannelHandler initializePipeline(
+      SocketChannel channel, ChannelInboundHandlerAdapter decoder) {
     try {
       if (channelsLimiter != null) {
         channel.pipeline().addLast("limiter", channelsLimiter);
@@ -102,7 +108,7 @@ public class TransportContext {
       channel
           .pipeline()
           .addLast("encoder", ENCODER)
-          .addLast(FrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder(conf))
+          .addLast(FrameDecoder.HANDLER_NAME, decoder)
           .addLast(
               "idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
           .addLast("handler", channelHandler);
@@ -115,7 +121,7 @@ public class TransportContext {
 
   private TransportChannelHandler createChannelHandler(
       Channel channel, BaseMessageHandler msgHandler) {
-    TransportResponseHandler responseHandler = new TransportResponseHandler(channel);
+    TransportResponseHandler responseHandler = new TransportResponseHandler(conf, channel);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler =
         new TransportRequestHandler(channel, client, msgHandler);
@@ -125,5 +131,9 @@ public class TransportContext {
 
   public TransportConf getConf() {
     return conf;
+  }
+
+  public BaseMessageHandler getMsgHandler() {
+    return msgHandler;
   }
 }

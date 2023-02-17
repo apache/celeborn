@@ -22,7 +22,7 @@ celeborn.rpc.io.serverThreads                    8
 celeborn.rpc.io.numConnectionsPerPeer            2
 
 celeborn.push.io.numConnectionsPerPeer           2
-celeborn.push.io.threads                         8
+celeborn.worker.push.io.threads                  8
 
 celeborn.push.replicate.enabled                  true
 

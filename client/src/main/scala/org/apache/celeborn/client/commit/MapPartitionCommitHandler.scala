@@ -32,6 +32,9 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
+import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.rpc.RpcCallContext
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.Utils
@@ -194,13 +197,13 @@ class MapPartitionCommitHandler(
 
     var dataCommitSuccess = true
     if (!partitionAllocatedWorkers.isEmpty) {
-      val result =
+      val (dataLost, commitFailedWorkers) =
         handleFinalPartitionCommitFiles(
           shuffleId,
           partitionAllocatedWorkers,
           partitionId)
-      dataCommitSuccess = result._1
-      recordWorkerFailure(result._2)
+      dataCommitSuccess = !dataLost
+      recordWorkerFailure(commitFailedWorkers)
     }
 
     // release resources and clear related info
@@ -210,5 +213,12 @@ class MapPartitionCommitHandler(
 
     inProcessingPartitionIds.remove(partitionId)
     (dataCommitSuccess, false)
+  }
+
+  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    context.reply(GetReducerFileGroupResponse(
+      StatusCode.SUCCESS,
+      reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+      getMapperAttempts(shuffleId)))
   }
 }

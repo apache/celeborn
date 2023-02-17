@@ -15,17 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.metrics.source
+package org.apache.celeborn.common.write;
 
-import com.codahale.metrics.MetricRegistry
+import io.netty.channel.ChannelFuture;
 
-trait Source {
-  def sourceName: String
-  def metricRegistry: MetricRegistry
-  def sample[T](metricsName: String, key: String)(f: => T): T
-  def startTimer(metricsName: String, key: String): Unit
-  def stopTimer(metricsName: String, key: String): Unit
-  def incCounter(metricsName: String, incV: Long): Unit
-  def getMetrics(): String
-  def destroy(): Unit
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
+
+public class PushRequestInfo {
+  public ChannelFuture channelFuture;
+  public long dueTime;
+  public RpcResponseCallback callback;
+
+  public PushRequestInfo(long dueTime, RpcResponseCallback callback) {
+    this.dueTime = dueTime;
+    this.callback = callback;
+  }
+
+  public void setChannelFuture(ChannelFuture future) {
+    this.channelFuture = future;
+  }
 }

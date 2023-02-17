@@ -461,11 +461,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getSizeAsBytes(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValueString)
   }
 
-  def networkIoDecoderMode(module: String): String = {
-    val key = NETWORK_IO_DECODER_MODE.key.replace("<module>", module)
-    get(key, NETWORK_IO_DECODER_MODE.defaultValue.get)
-  }
-
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -756,6 +751,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
+
+  def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
+
+  def partitionReadBuffersMax: Int = get(WORKER_PARTITION_READ_BUFFERS_MAX)
+  def bufferStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -1089,15 +1089,6 @@ object CelebornConf extends Logging {
       .checkValues(Set("NIO", "EPOLL"))
       .createWithDefault("NIO")
 
-  val NETWORK_IO_DECODER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.<module>.decoder.mode")
-      .categories("network")
-      .doc("Netty TransportFrameDecoder implementation, available options: default, supplier.")
-      .stringConf
-      .transform(_.toLowerCase)
-      .checkValues(Set("default", "supplier"))
-      .createWithDefault("default")
-
   val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =
     buildConf("celeborn.<module>.io.preferDirectBufs")
       .categories("network")
@@ -1325,7 +1316,7 @@ object CelebornConf extends Logging {
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("30s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
@@ -2196,6 +2187,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "celeborn.push.data.timeout must be positive!")
       .createWithDefaultString("120s")
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
@@ -2948,4 +2940,28 @@ object CelebornConf extends Logging {
       .doc("The size of network buffers required per result partition. The minimum valid value is 8M. Usually, several hundreds of megabytes memory is enough for large scale batch jobs.")
       .stringConf
       .createWithDefault("64m")
+
+  val WORKER_PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.worker.partition.initial.readBuffersMin")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Min number of initial read buffers")
+      .intConf
+      .createWithDefault(8)
+
+  val WORKER_PARTITION_READ_BUFFERS_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.worker.partition.initial.readBuffersMax")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Max number of initial read buffers")
+      .intConf
+      .createWithDefault(8)
+
+  val WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.bufferStream.threadsPerMountpoint")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Threads count for read buffer per mount point.")
+      .intConf
+      .createWithDefault(8)
 }

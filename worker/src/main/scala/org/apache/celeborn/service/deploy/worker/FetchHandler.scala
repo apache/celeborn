@@ -33,6 +33,7 @@ import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
+import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.{BaseMessageHandler, BufferStreamManager, ChunkStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
@@ -40,7 +41,10 @@ import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, 
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
-  val bufferStreamManager = new BufferStreamManager()
+  val bufferStreamManager = new BufferStreamManager(
+    conf.getCelebornConf.partitionReadBuffersMin,
+    conf.getCelebornConf.partitionReadBuffersMax,
+    conf.getCelebornConf.bufferStreamThreadsPerMountpoint)
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
@@ -77,25 +81,40 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-        handleOpenStream(client, r)
+        handleRpcs(client, r)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
-  def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
+  // here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
+  def handleRpcs(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
-    val openBlocks = msg.asInstanceOf[OpenStream]
-    val shuffleKey = new String(openBlocks.shuffleKey, StandardCharsets.UTF_8)
-    val fileName = new String(openBlocks.fileName, StandardCharsets.UTF_8)
-    val startMapIndex = openBlocks.startMapIndex
-    val endMapIndex = openBlocks.endMapIndex
+    if (msg.`type`() == Type.BACKLOG_ANNOUNCEMENT) {
+      rpcSource.updateMessageMetrics(msg, 0)
+      handleReadAddCredit(client, msg.asInstanceOf[ReadAddCredit])
+      return
+    }
+    val (shuffleKey, fileName) =
+      if (msg.`type`() == Type.OPEN_STREAM) {
+        val openStream = msg.asInstanceOf[OpenStream]
+        (
+          new String(openStream.shuffleKey, StandardCharsets.UTF_8),
+          new String(openStream.fileName, StandardCharsets.UTF_8))
+      } else {
+        val openStreamWithCredit = msg.asInstanceOf[OpenStreamWithCredit]
+        (
+          new String(openStreamWithCredit.shuffleKey, StandardCharsets.UTF_8),
+          new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
+      }
     // metrics start
     workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       try fileInfo.getPartitionType() match {
         case PartitionType.REDUCE =>
+          val startMapIndex = msg.asInstanceOf[OpenStream].startMapIndex
+          val endMapIndex = msg.asInstanceOf[OpenStream].endMapIndex
           if (endMapIndex != Integer.MAX_VALUE) {
             fileInfo = partitionsSorter.getSortedFileInfo(
               shuffleKey,
@@ -126,14 +145,20 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           }
         case PartitionType.MAP =>
-          // return stream id
+          val initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
+          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
+          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
           val streamId =
-            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
-          val res = ByteBuffer.allocate(8)
-          res.putLong(streamId)
+            bufferStreamManager.registerStream(
+              client.getChannel,
+              initialCredit,
+              startIndex,
+              endIndex,
+              fileInfo)
+          val bufferStreamHandle = new StreamHandle(streamId, 0)
           client.getChannel.writeAndFlush(new RpcResponse(
             request.requestId,
-            new NioManagedBuffer(res)))
+            new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>

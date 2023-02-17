@@ -59,6 +59,10 @@
               <pattern>org.apache.commons</pattern>
               <shadedPattern>${shading.prefix}.org.apache.commons</shadedPattern>
             </relocation>
+            <relocation>
+              <pattern>org.roaringbitmap</pattern>
+              <shadedPattern>${shading.prefix}.org.roaringbitmap</shadedPattern>
+            </relocation>
           </relocations>
           <artifactSet>
             <includes>
@@ -67,6 +71,7 @@
               <include>com.google.guava:guava</include>
               <include>io.netty:*</include>
               <include>org.apache.commons:commons-lang3</include>
+              <include>org.roaringbitmap:RoaringBitmap</include>
             </includes>
           </artifactSet>
           <filters>
