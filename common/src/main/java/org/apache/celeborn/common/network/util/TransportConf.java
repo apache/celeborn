@@ -22,13 +22,13 @@ import org.apache.celeborn.common.CelebornConf;
 /** A central location that tracks all the settings we expose to users. */
 public class TransportConf {
 
-  private final CelebornConf conf;
+  private final CelebornConf celebornConf;
 
   private final String module;
 
-  public TransportConf(String module, CelebornConf conf) {
+  public TransportConf(String module, CelebornConf celebornConf) {
     this.module = module;
-    this.conf = conf;
+    this.celebornConf = celebornConf;
   }
 
   public String getModuleName() {
@@ -37,42 +37,42 @@ public class TransportConf {
 
   /** IO mode: nio or epoll */
   public String ioMode() {
-    return conf.networkIoMode(module);
+    return celebornConf.networkIoMode(module);
   }
 
   /** If true, we will prefer allocating off-heap byte buffers within Netty. */
   public boolean preferDirectBufs() {
-    return conf.networkIoPreferDirectBufs(module);
+    return celebornConf.networkIoPreferDirectBufs(module);
   }
 
   /** Connect timeout in milliseconds. Default 10 secs. */
   public int connectTimeoutMs() {
-    return conf.networkIoConnectTimeoutMs(module);
+    return celebornConf.networkIoConnectTimeoutMs(module);
   }
 
   /** Connection active timeout in milliseconds. Default 240 secs. */
   public int connectionTimeoutMs() {
-    return conf.networkIoConnectionTimeoutMs(module);
+    return celebornConf.networkIoConnectionTimeoutMs(module);
   }
 
   /** Number of concurrent connections between two nodes for fetching data. */
   public int numConnectionsPerPeer() {
-    return conf.networkIoNumConnectionsPerPeer(module);
+    return celebornConf.networkIoNumConnectionsPerPeer(module);
   }
 
   /** Requested maximum length of the queue of incoming connections. Default 0 for no backlog. */
   public int backLog() {
-    return conf.networkIoBacklog(module);
+    return celebornConf.networkIoBacklog(module);
   }
 
   /** Number of threads used in the server thread pool. Default to 0, which is 2x#cores. */
   public int serverThreads() {
-    return conf.networkIoServerThreads(module);
+    return celebornConf.networkIoServerThreads(module);
   }
 
   /** Number of threads used in the client thread pool. Default to 0, which is 2x#cores. */
   public int clientThreads() {
-    return conf.networkIoClientThreads(module);
+    return celebornConf.networkIoClientThreads(module);
   }
 
   /**
@@ -81,12 +81,12 @@ public class TransportConf {
    * buffer size should be ~ 1.25MB
    */
   public int receiveBuf() {
-    return conf.networkIoReceiveBuf(module);
+    return celebornConf.networkIoReceiveBuf(module);
   }
 
   /** Send buffer size (SO_SNDBUF). */
   public int sendBuf() {
-    return conf.networkIoSendBuf(module);
+    return celebornConf.networkIoSendBuf(module);
   }
 
   /**
@@ -94,7 +94,7 @@ public class TransportConf {
    * to 0, we will not do any retries.
    */
   public int maxIORetries() {
-    return conf.networkIoMaxRetries(module);
+    return celebornConf.networkIoMaxRetries(module);
   }
 
   /**
@@ -102,7 +102,7 @@ public class TransportConf {
    * relevant if maxIORetries &gt; 0.
    */
   public int ioRetryWaitTimeMs() {
-    return conf.networkIoRetryWaitMs(module);
+    return celebornConf.networkIoRetryWaitMs(module);
   }
 
   /**
@@ -111,7 +111,7 @@ public class TransportConf {
    * memory mapping has high overhead for blocks close to or below the page size of the OS.
    */
   public int memoryMapBytes() {
-    return conf.networkIoMemoryMapBytes(module);
+    return celebornConf.networkIoMemoryMapBytes(module);
   }
 
   /**
@@ -119,7 +119,7 @@ public class TransportConf {
    * when data is going to be transferred. This can reduce the number of open files.
    */
   public boolean lazyFileDescriptor() {
-    return conf.networkIoLazyFileDescriptor(module);
+    return celebornConf.networkIoLazyFileDescriptor(module);
   }
 
   /**
@@ -127,7 +127,7 @@ public class TransportConf {
    * PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.
    */
   public boolean verboseMetrics() {
-    return conf.networkIoVerboseMetrics(module);
+    return celebornConf.networkIoVerboseMetrics(module);
   }
 
   /**
@@ -138,10 +138,14 @@ public class TransportConf {
    * failure.
    */
   public long maxChunksBeingTransferred() {
-    return conf.networkIoMaxChunksBeingTransferred(module);
+    return celebornConf.networkIoMaxChunksBeingTransferred(module);
+  }
+
+  public CelebornConf getCelebornConf() {
+    return celebornConf;
   }
 
   public long pushDataTimeoutCheckIntervalMs() {
-    return conf.pushTimeoutCheckInterval();
+    return celebornConf.pushTimeoutCheckInterval();
   }
 }

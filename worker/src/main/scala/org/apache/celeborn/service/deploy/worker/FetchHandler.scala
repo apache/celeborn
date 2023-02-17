@@ -41,7 +41,10 @@ import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, 
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
-  val bufferStreamManager = new BufferStreamManager()
+  val bufferStreamManager = new BufferStreamManager(
+    conf.getCelebornConf.partitionReadBuffersMin,
+    conf.getCelebornConf.partitionReadBuffersMax,
+    conf.getCelebornConf.bufferStreamThreadsPerMountpoint)
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
@@ -78,14 +81,20 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-        handleOpenStream(client, r)
+        handleRpcs(client, r)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
-  def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
+  // here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
+  def handleRpcs(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
+    if (msg.`type`() == Type.BACKLOG_ANNOUNCEMENT) {
+      rpcSource.updateMessageMetrics(msg, 0)
+      handleReadAddCredit(client, msg.asInstanceOf[ReadAddCredit])
+      return
+    }
     val (shuffleKey, fileName) =
       if (msg.`type`() == Type.OPEN_STREAM) {
         val openStream = msg.asInstanceOf[OpenStream]
@@ -136,16 +145,20 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           }
         case PartitionType.MAP =>
-          // return stream id
+          val initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
           val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
           val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
           val streamId =
-            bufferStreamManager.registerStream(client.getChannel, fileInfo.getBufferSize)
-          val res = ByteBuffer.allocate(8)
-          res.putLong(streamId)
+            bufferStreamManager.registerStream(
+              client.getChannel,
+              initialCredit,
+              startIndex,
+              endIndex,
+              fileInfo)
+          val bufferStreamHandle = new StreamHandle(streamId, 0)
           client.getChannel.writeAndFlush(new RpcResponse(
             request.requestId,
-            new NioManagedBuffer(res)))
+            new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>

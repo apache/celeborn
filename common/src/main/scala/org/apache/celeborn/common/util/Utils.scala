@@ -22,6 +22,7 @@ import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util
@@ -44,9 +45,8 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
-import org.apache.celeborn.common.network.util.{ConfigProvider, JavaUtils, TransportConf}
+import org.apache.celeborn.common.network.util.{JavaUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.protocol.PbWorkerResource
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
@@ -994,11 +994,28 @@ object Utils extends Logging {
     }
   }
 
+  def checkedDownCast(value: Long): Int = {
+    val downCast = value.toInt
+    if (downCast.toLong != value) {
+      throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.")
+    }
+    downCast
+  }
+
+  @throws[IOException]
+  def checkFileIntegrity(fileChannel: FileChannel, length: Int): Unit = {
+    val remainingBytes = fileChannel.size - fileChannel.position
+    if (remainingBytes < length) {
+      logError(
+        s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
+      throw new RuntimeException(s"File is corrupted ${fileChannel}")
+    }
+  }
+
   def getShortFormattedFileName(fileInfo: FileInfo): String = {
     val parentFile = fileInfo.getFile.getParent
     parentFile.substring(
       parentFile.lastIndexOf("/"),
       parentFile.length) + "/" + fileInfo.getFile.getName
   }
-
 }
