@@ -94,14 +94,15 @@ public class BufferStreamManager {
     long streamId = nextStreamId.getAndIncrement();
     streams.put(streamId, new StreamState(channel, fileInfo.getBufferSize()));
 
-    MapDataPartition mapDataPartition =
-        activeMapPartitions.computeIfAbsent(fileInfo, (f) -> new MapDataPartition(fileInfo));
-    activeMapPartitions.put(fileInfo, mapDataPartition);
+    synchronized (activeMapPartitions) {
+      MapDataPartition mapDataPartition =
+          activeMapPartitions.computeIfAbsent(fileInfo, (f) -> new MapDataPartition(fileInfo));
 
-    mapDataPartition.addStream(streamId);
-    addCredit(initialCredit, streamId);
-    servingStreams.put(streamId, mapDataPartition);
-    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId);
+      mapDataPartition.addStream(streamId);
+      addCredit(initialCredit, streamId);
+      servingStreams.put(streamId, mapDataPartition);
+      mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId);
+    }
 
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);
 
@@ -125,7 +126,9 @@ public class BufferStreamManager {
     if (mapDataPartition != null) {
       DataPartitionReader streamReader = mapDataPartition.getStreamReader(streamId);
       if (streamReader != null) {
-        streamReader.sendData();
+        storageFetcherPool
+            .getExecutorPool(streamReader.fileInfo.getMountPoint())
+            .submit(() -> streamReader.sendData());
       }
     }
   }
@@ -139,18 +142,20 @@ public class BufferStreamManager {
     }
   }
 
-  public synchronized void cleanResource(long streamId) {
-    logger.debug("clean stream:" + streamId);
+  public void cleanResource(long streamId) {
+    logger.debug("clean stream: {}", streamId);
     streams.remove(streamId);
     streamCredits.remove(streamId);
     FileInfo fileInfo = servingStreams.remove(streamId).fileInfo;
     MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
     mapDataPartition.removeStream(streamId);
-    if (mapDataPartition.activeStreamIds.isEmpty()) {
-      for (ByteBuf buffer : mapDataPartition.buffers) {
-        memoryManager.recycleReadBuffer(buffer);
+    synchronized (activeMapPartitions) {
+      if (mapDataPartition.activeStreamIds.isEmpty()) {
+        for (ByteBuf buffer : mapDataPartition.buffers) {
+          memoryManager.recycleReadBuffer(buffer);
+        }
+        activeMapPartitions.remove(fileInfo);
       }
-      activeMapPartitions.remove(fileInfo);
     }
   }
 
@@ -324,6 +329,44 @@ public class BufferStreamManager {
       return fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
     }
 
+    private void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
+        throws IOException {
+      Utils.checkFileIntegrity(channel, length);
+      buffer.clear();
+      buffer.limit(length);
+      while (buffer.hasRemaining()) {
+        channel.read(buffer);
+      }
+      buffer.flip();
+    }
+
+    private void readBufferIntoReadBuffer(FileChannel channel, ByteBuf buf, int length)
+        throws IOException {
+      Utils.checkFileIntegrity(channel, length);
+      ByteBuffer tmpBuffer = ByteBuffer.allocate(length);
+      while (tmpBuffer.hasRemaining()) {
+        channel.read(tmpBuffer);
+      }
+      tmpBuffer.flip();
+      buf.writeBytes(tmpBuffer);
+    }
+
+    private int readBuffer(
+        String filename, FileChannel channel, ByteBuffer header, ByteBuf buffer, int headerSize)
+        throws IOException {
+      readHeaderOrIndexBuffer(channel, header, headerSize);
+      // header is combined of mapId(4),attemptId(4),nextBatchId(4) and totcalCompresszedLength(4)
+      // we need size here,so we read length directly
+      int bufferLenght = header.getInt(12);
+      if (bufferLenght <= 0 || bufferLenght > buffer.capacity()) {
+        logger.error("Incorrect buffer header, buffer length: {}.", bufferLenght);
+        throw new RuntimeException("File " + filename + " is corrupted");
+      }
+      buffer.writeBytes(header);
+      readBufferIntoReadBuffer(channel, buffer, bufferLenght);
+      return bufferLenght + headerSize;
+    }
+
     private void updateConsumingOffset() throws IOException {
       while (currentPartitionRemainingBytes == 0
           && (currentDataRegion < numRegions - 1 || numRemainingPartitions > 0)) {
@@ -335,7 +378,7 @@ public class BufferStreamManager {
           indexFileChannel.position(
               currentDataRegion * getIndexRegionSize()
                   + (long) startPartitionIndex * INDEX_ENTRY_SIZE);
-          Utils.readBuffer(indexFileChannel, indexBuffer, indexBuffer.capacity());
+          readHeaderOrIndexBuffer(indexFileChannel, indexBuffer, indexBuffer.capacity());
         }
 
         // get the data file offset and the data size
@@ -364,7 +407,7 @@ public class BufferStreamManager {
         dataFileChannel.position(dataConsumingOffset);
 
         int readSize =
-            Utils.readBuffer(
+            readBuffer(
                 fileInfo.getFilePath(),
                 dataFileChannel,
                 headerBuffer,

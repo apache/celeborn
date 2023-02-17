@@ -1013,40 +1013,4 @@ object Utils extends Logging {
       throw new RuntimeException(s"File is corrupted ${fileChannel}")
     }
   }
-
-  @throws[IOException]
-  def readBuffer(fileChannel: FileChannel, buffer: ByteBuffer, length: Int): Unit = {
-    checkFileIntegrity(fileChannel, length)
-    buffer.clear
-    buffer.limit(length)
-    while (buffer.hasRemaining) fileChannel.read(buffer)
-    buffer.flip
-  }
-
-  def readBuffer(fileChannel: FileChannel, buffer: ByteBuf, length: Int): Unit = {
-    checkFileIntegrity(fileChannel, length)
-    val tmpBuffer = ByteBuffer.allocate(length)
-    while (tmpBuffer.hasRemaining) fileChannel.read(tmpBuffer)
-    tmpBuffer.flip()
-    buffer.writeBytes(tmpBuffer)
-  }
-
-  @throws[IOException]
-  def readBuffer(
-      fileName: String,
-      fileChannel: FileChannel,
-      header: ByteBuffer,
-      buffer: ByteBuf,
-      headerSize: Int): Int = {
-    readBuffer(fileChannel, header, headerSize)
-    val bufferLength = header.getInt(12)
-    if (bufferLength <= 0 || bufferLength > buffer.capacity) {
-      logError(s"Incorrect buffer header, buffer length: ${bufferLength}.")
-      throw new RuntimeException(s"File ${fileName} is corrupted")
-    }
-    // attach header buffer to data buffer.
-    buffer.writeBytes(header)
-    readBuffer(fileChannel, buffer, bufferLength)
-    bufferLength + headerSize
-  }
 }
