@@ -239,6 +239,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(
     WorkerSource.PausePushDataAndReplicateCount,
     _ => memoryTracker.getPausePushDataAndReplicateCounter)
+  workerSource.addGauge(
+    WorkerSource.BufferStreamReadBuffer,
+    _ => memoryTracker.getReadBufferCounter.get())
 
   private def heartBeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
