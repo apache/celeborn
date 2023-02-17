@@ -994,7 +994,6 @@ object Utils extends Logging {
     }
   }
 
-
   def checkedDownCast(value: Long): Int = {
     val downCast = value.toInt
     if (downCast.toLong != value) {
