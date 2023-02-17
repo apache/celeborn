@@ -67,7 +67,7 @@ public class MemoryManager {
   private boolean underPressure;
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
-  // For read buffer
+  // For buffer stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
   private long readBufferThreshold = 0;
   private final ReadBufferDispatcher readBufferDispatcher;
@@ -340,6 +340,10 @@ public class MemoryManager {
 
   public AtomicLong getDiskBufferCounter() {
     return diskBufferCounter;
+  }
+
+  public AtomicLong getReadBufferCounter() {
+    return readBufferCounter;
   }
 
   public long getPausePushDataCounter() {

@@ -128,7 +128,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   // key: shuffleId
-  private final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
+  protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
 
   private TransportClient currentClient;
 
@@ -1242,54 +1242,60 @@ public class ShuffleClientImpl extends ShuffleClient {
         applicationId, shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
   }
 
+  protected ReduceFileGroups loadFileGroupInternal(
+      String applicationId, String shuffleKey, int shuffleId) {
+    {
+      long getReducerFileGroupStartTime = System.nanoTime();
+      try {
+        if (driverRssMetaService == null) {
+          logger.warn("Driver endpoint is null!");
+          return null;
+        }
+
+        GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(applicationId, shuffleId);
+
+        GetReducerFileGroupResponse response =
+            driverRssMetaService.askSync(
+                getReducerFileGroup,
+                conf.getReducerFileGroupRpcAskTimeout(),
+                ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
+
+        if (response.status() == StatusCode.SUCCESS) {
+          logger.info(
+              "Shuffle {} request reducer file group success using time:{} ms, result partition ids: {}",
+              shuffleId,
+              (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
+              response.fileGroup().keySet());
+          return new ReduceFileGroups(response.fileGroup(), response.attempts());
+        } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
+          logger.warn(
+              "Request {} return {} for {}",
+              getReducerFileGroup,
+              StatusCode.STAGE_END_TIME_OUT.toString(),
+              shuffleKey);
+        } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
+          logger.warn(
+              "Request {} return {} for {}",
+              getReducerFileGroup,
+              StatusCode.SHUFFLE_DATA_LOST.toString(),
+              shuffleKey);
+        }
+      } catch (Exception e) {
+        logger.error("Exception raised while call GetReducerFileGroup for " + shuffleKey + ".", e);
+      }
+      return null;
+    }
+  }
+
+  protected ReduceFileGroups updateFileGroup(
+      String applicationId, String shuffleKey, int shuffleId) {
+    return reduceFileGroupsMap.computeIfAbsent(
+        shuffleId, (id) -> loadFileGroupInternal(applicationId, shuffleKey, shuffleId));
+  }
+
   protected ReduceFileGroups loadFileGroup(
       String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
-    ReduceFileGroups reduceFileGroups =
-        reduceFileGroupsMap.computeIfAbsent(
-            shuffleId,
-            (id) -> {
-              long getReducerFileGroupStartTime = System.nanoTime();
-              try {
-                if (driverRssMetaService == null) {
-                  logger.warn("Driver endpoint is null!");
-                  return null;
-                }
-
-                GetReducerFileGroup getReducerFileGroup =
-                    new GetReducerFileGroup(applicationId, shuffleId);
-
-                GetReducerFileGroupResponse response =
-                    driverRssMetaService.askSync(
-                        getReducerFileGroup,
-                        conf.getReducerFileGroupRpcAskTimeout(),
-                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
-
-                if (response.status() == StatusCode.SUCCESS) {
-                  logger.info(
-                      "Shuffle {} request reducer file group success using time:{} ms, result partition ids: {}",
-                      shuffleId,
-                      (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
-                      response.fileGroup().keySet());
-                  return new ReduceFileGroups(response.fileGroup(), response.attempts());
-                } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
-                  logger.warn(
-                      "Request {} return {} for {}",
-                      getReducerFileGroup,
-                      StatusCode.STAGE_END_TIME_OUT.toString(),
-                      shuffleKey);
-                } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
-                  logger.warn(
-                      "Request {} return {} for {}",
-                      getReducerFileGroup,
-                      StatusCode.SHUFFLE_DATA_LOST.toString(),
-                      shuffleKey);
-                }
-              } catch (Exception e) {
-                logger.error(
-                    "Exception raised while call GetReducerFileGroup for " + shuffleKey + ".", e);
-              }
-              return null;
-            });
+    ReduceFileGroups reduceFileGroups = updateFileGroup(applicationId, shuffleKey, shuffleId);
     if (reduceFileGroups == null) {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
