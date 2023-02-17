@@ -19,6 +19,9 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.client.ShuffleClientImpl;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -31,8 +34,41 @@ import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 import org.apache.celeborn.plugin.flink.network.ReadClientHandler;
 
 public class FlinkShuffleClientImpl extends ShuffleClientImpl {
+  public static final Logger logger = LoggerFactory.getLogger(FlinkShuffleClientImpl.class);
+  private static volatile FlinkShuffleClientImpl _instance;
+  private static volatile boolean initialized = false;
   private FlinkTransportClientFactory flinkTransportClientFactory;
   private ReadClientHandler readClientHandler = new ReadClientHandler();
+
+  public static FlinkShuffleClientImpl get(
+      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
+    if (null == _instance || !initialized) {
+      synchronized (FlinkShuffleClientImpl.class) {
+        if (null == _instance) {
+          _instance = new FlinkShuffleClientImpl(driverHost, port, conf, userIdentifier);
+          _instance.setupMetaServiceRef(driverHost, port);
+          initialized = true;
+        } else if (!initialized) {
+          _instance.shutdown();
+          _instance = new FlinkShuffleClientImpl(driverHost, port, conf, userIdentifier);
+          _instance.setupMetaServiceRef(driverHost, port);
+          initialized = true;
+        }
+      }
+    }
+    return _instance;
+  }
+
+  @Override
+  public void shutdown() {
+    super.shutdown();
+    if (flinkTransportClientFactory != null) {
+      flinkTransportClientFactory.close();
+    }
+    if (readClientHandler != null) {
+      readClientHandler.close();
+    }
+  }
 
   public FlinkShuffleClientImpl(
       String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {

@@ -101,4 +101,12 @@ public class ReadClientHandler extends BaseMessageHandler {
   public void exceptionCaught(Throwable cause, TransportClient client) {
     logger.warn("exception caught {}", client.getSocketAddress(), cause);
   }
+
+  public void close() {
+    streamHandlers.clear();
+    for (TransportClient value : streamClients.values()) {
+      value.close();
+    }
+    streamClients.clear();
+  }
 }

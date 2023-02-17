@@ -155,7 +155,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
     RemoteShuffleDescriptor remoteShuffleDescriptor =
         (RemoteShuffleDescriptor) gateDescriptor.getShuffleDescriptors()[0];
     this.shuffleClient =
-        new FlinkShuffleClientImpl(
+        FlinkShuffleClientImpl.get(
             remoteShuffleDescriptor.getShuffleResource().getRssMetaServiceHost(),
             remoteShuffleDescriptor.getShuffleResource().getRssMetaServicePort(),
             celebornConf,
