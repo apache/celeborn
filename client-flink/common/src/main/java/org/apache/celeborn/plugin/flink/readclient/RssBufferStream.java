@@ -71,14 +71,12 @@ public class RssBufferStream {
       FlinkShuffleClientImpl mapShuffleClient,
       Consumer<RequestMessage> messageConsumer)
       throws IOException, InterruptedException {
-    if (locations.length >= 1) {
-      this.client =
-          clientFactory.createClient(
-              locations[currentLocationIndex].getHost(),
-              locations[currentLocationIndex].getFetchPort(),
-              -1,
-              supplier);
-    }
+    this.client =
+        clientFactory.createClient(
+            locations[currentLocationIndex].getHost(),
+            locations[currentLocationIndex].getFetchPort(),
+            -1,
+            supplier);
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(
             shuffleKey,
@@ -107,7 +105,9 @@ public class RssBufferStream {
             throw new RuntimeException("OpenStream failed.", e);
           }
         });
-    latch.await(timeoutMs, TimeUnit.MILLISECONDS);
+    if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) {
+      throw new RuntimeException("Send openStream RPC failed to " + client.getSocketAddress());
+    }
     logger.debug("rssbufferstream streamid:{}", streamId);
   }
 
