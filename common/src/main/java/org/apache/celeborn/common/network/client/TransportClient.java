@@ -159,6 +159,14 @@ public class TransportClient implements Closeable {
 
   public ChannelFuture pushData(
       PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
+    return pushData(pushData, pushDataTimeout, callback, null);
+  }
+
+  public ChannelFuture pushData(
+      PushData pushData,
+      long pushDataTimeout,
+      RpcResponseCallback callback,
+      Runnable rpcSendoutCallback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
     }
@@ -168,8 +176,7 @@ public class TransportClient implements Closeable {
     PushRequestInfo info = new PushRequestInfo(dueTime, callback);
     handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
-
-    PushChannelListener listener = new PushChannelListener(requestId, callback);
+    PushChannelListener listener = new PushChannelListener(requestId, callback, rpcSendoutCallback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
@@ -334,11 +341,26 @@ public class TransportClient implements Closeable {
   private class PushChannelListener extends StdChannelListener {
     final long pushRequestId;
     final RpcResponseCallback callback;
+    Runnable rpcSendOutCallback;
 
     PushChannelListener(long pushRequestId, RpcResponseCallback callback) {
+      this(pushRequestId, callback, null);
+    }
+
+    PushChannelListener(
+        long pushRequestId, RpcResponseCallback callback, Runnable rpcSendOutCallback) {
       super("PUSH " + pushRequestId);
       this.pushRequestId = pushRequestId;
       this.callback = callback;
+      this.rpcSendOutCallback = rpcSendOutCallback;
+    }
+
+    @Override
+    public void operationComplete(Future<? super Void> future) throws Exception {
+      super.operationComplete(future);
+      if (rpcSendOutCallback != null) {
+        rpcSendOutCallback.run();
+      }
     }
 
     @Override

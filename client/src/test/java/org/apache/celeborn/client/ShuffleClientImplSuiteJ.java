@@ -76,7 +76,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
             TEST_REDUCRE_ID,
             byteBuf,
             masterLocation,
-            () -> true);
+            () -> {});
     Assert.assertEquals(BufferSize, pushDataLen);
   }
 
@@ -102,13 +102,13 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
             TEST_REDUCRE_ID,
             byteBuf,
             masterLocation,
-            () -> true);
+            () -> {});
   }
 
   @Test
   public void testPushDataByteBufFail() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), anyLong(), any()))
+    when(client.pushData(any(), anyLong(), any(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -125,7 +125,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
         TEST_REDUCRE_ID,
         byteBuf,
         masterLocation,
-        () -> true);
+        () -> {});
 
     boolean isFailed = false;
     // second push will throw exception
@@ -138,7 +138,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
           TEST_REDUCRE_ID,
           byteBuf,
           masterLocation,
-          () -> true);
+          () -> {});
     } catch (IOException e) {
       isFailed = true;
     } finally {
