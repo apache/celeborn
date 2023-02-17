@@ -81,13 +81,14 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-        handleOpenStream(client, r)
+        handleRpcs(client, r)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
-  def handleOpenStream(client: TransportClient, request: RpcRequest): Unit = {
+  // here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
+  def handleRpcs(client: TransportClient, request: RpcRequest): Unit = {
     val msg = Message.decode(request.body().nioByteBuffer())
     if (msg.`type`() == Type.BACKLOG_ANNOUNCEMENT) {
       rpcSource.updateMessageMetrics(msg, 0)

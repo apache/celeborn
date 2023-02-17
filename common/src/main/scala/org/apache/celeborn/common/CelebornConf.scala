@@ -757,10 +757,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def memoryPerResultPartition: String = get(MEMORY_PER_RESULT_PARTITION)
 
-  def partitionReadBuffersMin: Int = get(PARTITION_READ_BUFFERS_MIN)
+  def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
 
-  def partitionReadBuffersMax: Int = get(PARTITION_READ_BUFFERS_MAX)
-  def bufferStreamThreadsPerMountpoint: Int = get(BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
+  def partitionReadBuffersMax: Int = get(WORKER_PARTITION_READ_BUFFERS_MAX)
+  def bufferStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -2955,24 +2955,24 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault("64m")
 
-  val PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
-    buildConf("celeborn.partition.initial.readBuffersMin")
+  val WORKER_PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.worker.partition.initial.readBuffersMin")
       .categories("worker")
       .version("0.3.0")
       .doc("Min number of initial read buffers")
       .intConf
       .createWithDefault(8)
 
-  val PARTITION_READ_BUFFERS_MAX: ConfigEntry[Int] =
-    buildConf("celeborn.partition.initial.readBuffersMax")
+  val WORKER_PARTITION_READ_BUFFERS_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.worker.partition.initial.readBuffersMax")
       .categories("worker")
       .version("0.3.0")
       .doc("Max number of initial read buffers")
       .intConf
       .createWithDefault(8)
 
-  val BUFFERSTREAM_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
-    buildConf("celeborn.bufferStream.threadsPerMountpoint")
+  val WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.bufferStream.threadsPerMountpoint")
       .categories("worker")
       .version("0.3.0")
       .doc("Threads count for read buffer per mount point.")
