@@ -36,6 +36,13 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addTimer(MasterPushDataTime)
   addTimer(SlavePushDataTime)
 
+  addTimer(MasterPushDataHandshakeTime)
+  addTimer(SlavePushDataHandshakeTime)
+  addTimer(MasterRegionStartTime)
+  addTimer(SlaveRegionStartTime)
+  addTimer(MasterRegionFinishTime)
+  addTimer(SlaveRegionFinishTime)
+
   addTimer(FetchChunkTime)
   addTimer(OpenStreamTime)
   addTimer(TakeBufferTime)
