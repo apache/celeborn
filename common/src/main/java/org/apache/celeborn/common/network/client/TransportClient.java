@@ -23,6 +23,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
@@ -159,6 +160,18 @@ public class TransportClient implements Closeable {
 
   public ChannelFuture pushData(
       PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
+    return pushDataWithListener(
+        pushData,
+        pushDataTimeout,
+        callback,
+        (requestId) -> new PushChannelListener(requestId, callback));
+  }
+
+  private ChannelFuture pushDataWithListener(
+      PushData pushData,
+      long pushDataTimeout,
+      RpcResponseCallback callback,
+      Function<Long, GenericFutureListener<Future<? super Void>>> listenerFunction) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
     }
@@ -168,24 +181,23 @@ public class TransportClient implements Closeable {
     PushRequestInfo info = new PushRequestInfo(dueTime, callback);
     handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
-
-    PushChannelListener listener = new PushChannelListener(requestId, callback);
+    GenericFutureListener listener = listenerFunction.apply(requestId);
     ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
   }
 
   public ChannelFuture pushDataWithCompleteCallback(
-      PushData pushData, RpcResponseCallback callback, Runnable closeCallback) {
-    if (logger.isTraceEnabled()) {
-      logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
-    }
-    long requestId = requestId();
-    handler.addRpcRequest(requestId, callback);
-    pushData.requestId = requestId;
-    RpcChannelListenerWithCompleteCallback listener =
-        new RpcChannelListenerWithCompleteCallback(requestId, callback, closeCallback);
-    return channel.writeAndFlush(pushData).addListener(listener);
+      PushData pushData,
+      long pushDataTimeout,
+      RpcResponseCallback callback,
+      Runnable closeCallback) {
+    return pushDataWithListener(
+        pushData,
+        pushDataTimeout,
+        callback,
+        (requestId) ->
+            new RpcChannelListenerWithCompleteCallback(requestId, callback, closeCallback));
   }
 
   public ChannelFuture pushMergedData(
