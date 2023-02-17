@@ -110,6 +110,12 @@ public class TransportClientFactory implements Closeable {
    */
   public TransportClient createClient(String remoteHost, int remotePort, int partitionId)
       throws IOException, InterruptedException {
+    return createClient(remoteHost, remotePort, partitionId, new TransportFrameDecoder());
+  }
+
+  public TransportClient createClient(
+      String remoteHost, int remotePort, int partitionId, ChannelInboundHandlerAdapter decoder)
+      throws IOException, InterruptedException {
     // Get connection from the connection pool first.
     // If it is not found or not active, create a new one.
     // Use unresolved address here to avoid DNS resolution each time we creates a client.
@@ -166,7 +172,7 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      clientPool.clients[clientIndex] = internalCreateClient(resolvedAddress);
+      clientPool.clients[clientIndex] = internalCreateClient(resolvedAddress, decoder);
       return clientPool.clients[clientIndex];
     }
   }
@@ -182,7 +188,8 @@ public class TransportClientFactory implements Closeable {
    *
    * <p>As with {@link #createClient(String, int)}, this method is blocking.
    */
-  private TransportClient internalCreateClient(InetSocketAddress address)
+  private TransportClient internalCreateClient(
+      InetSocketAddress address, ChannelInboundHandlerAdapter decoder)
       throws IOException, InterruptedException {
     Bootstrap bootstrap = new Bootstrap();
     bootstrap
@@ -209,7 +216,7 @@ public class TransportClientFactory implements Closeable {
         new ChannelInitializer<SocketChannel>() {
           @Override
           public void initChannel(SocketChannel ch) {
-            TransportChannelHandler clientHandler = context.initializePipeline(ch);
+            TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder);
             clientRef.set(clientHandler.getClient());
             channelRef.set(ch);
           }
@@ -251,5 +258,9 @@ public class TransportClientFactory implements Closeable {
     if (workerGroup != null && !workerGroup.isShuttingDown()) {
       workerGroup.shutdownGracefully();
     }
+  }
+
+  public TransportContext getContext() {
+    return context;
   }
 }

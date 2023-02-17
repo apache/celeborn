@@ -50,6 +50,10 @@ public abstract class Message implements Encodable {
     this.body = new NettyManagedBuffer(buf);
   }
 
+  public void setBody(ByteBuffer buf) {
+    this.body = new NettyManagedBuffer(buf);
+  }
+
   /** Whether the body should be copied out in frame decoder. */
   public boolean needCopyOut() {
     return false;
@@ -89,7 +93,6 @@ public abstract class Message implements Encodable {
     READ_DATA(17),
     OPEN_STREAM_WITH_CREDIT(18),
     BACKLOG_ANNOUNCEMENT(19);
-
     private final byte id;
 
     Type(int id) {
@@ -109,6 +112,11 @@ public abstract class Message implements Encodable {
     @Override
     public void encode(ByteBuf buf) {
       buf.writeByte(id);
+    }
+
+    public static Type decode(ByteBuffer buffer) {
+      ByteBuf buf = Unpooled.wrappedBuffer(buffer);
+      return decode(buf);
     }
 
     public static Type decode(ByteBuf buf) {

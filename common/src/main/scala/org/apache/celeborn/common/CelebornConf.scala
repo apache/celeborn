@@ -461,11 +461,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getSizeAsBytes(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValueString)
   }
 
-  def networkIoDecoderMode(module: String): String = {
-    val key = NETWORK_IO_DECODER_MODE.key.replace("<module>", module)
-    get(key, NETWORK_IO_DECODER_MODE.defaultValue.get)
-  }
-
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -1088,15 +1083,6 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase)
       .checkValues(Set("NIO", "EPOLL"))
       .createWithDefault("NIO")
-
-  val NETWORK_IO_DECODER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.<module>.decoder.mode")
-      .categories("network")
-      .doc("Netty TransportFrameDecoder implementation, available options: default, supplier.")
-      .stringConf
-      .transform(_.toLowerCase)
-      .checkValues(Set("default", "supplier"))
-      .createWithDefault("default")
 
   val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =
     buildConf("celeborn.<module>.io.preferDirectBufs")

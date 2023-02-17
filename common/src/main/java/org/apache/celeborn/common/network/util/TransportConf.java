@@ -141,10 +141,6 @@ public class TransportConf {
     return conf.networkIoMaxChunksBeingTransferred(module);
   }
 
-  public String decoderMode() {
-    return conf.networkIoDecoderMode(module);
-  }
-
   public long pushDataTimeoutCheckIntervalMs() {
     return conf.pushTimeoutCheckInterval();
   }

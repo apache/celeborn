@@ -15,57 +15,43 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.util;
+package org.apache.celeborn.plugin.flink.network;
 
-import java.util.function.Function;
 import java.util.function.Supplier;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 
 import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.util.FrameDecoder;
+import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
-  private final Function<Integer, Supplier<ByteBuf>> bufferSuppliers;
+  private final Supplier<ByteBuf> bufferSupplier;
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
   private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
-  private CompositeByteBuf bodyBuf = null;
+  private io.netty.buffer.CompositeByteBuf bodyBuf = null;
   private ByteBuf externalBuf = null;
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
 
-  public TransportFrameDecoderWithBufferSupplier() {
-    this.bufferSuppliers =
-        new Function<Integer, Supplier<ByteBuf>>() {
-          @Override
-          public Supplier<ByteBuf> apply(Integer size) {
-            return new Supplier<ByteBuf>() {
-              @Override
-              public ByteBuf get() {
-                return Unpooled.buffer(size);
-              }
-            };
-          }
-        };
+  public TransportFrameDecoderWithBufferSupplier(Supplier<ByteBuf> bufferSupplier) {
+    this.bufferSupplier = bufferSupplier;
   }
 
-  public TransportFrameDecoderWithBufferSupplier(
-      Function<Integer, Supplier<ByteBuf>> bufferSuppliers) {
-    this.bufferSuppliers = bufferSuppliers;
-  }
-
-  private void copyByteBuf(ByteBuf source, ByteBuf target, int targetSize) {
+  private void copyByteBuf(io.netty.buffer.ByteBuf source, ByteBuf target, int targetSize) {
     int bytes = Math.min(source.readableBytes(), targetSize - target.readableBytes());
-    target.writeBytes(source, bytes);
+    for (int i = 0; i < bytes; i++) {
+      target.writeByte(source.readByte());
+    }
   }
 
-  private void decodeHeader(ByteBuf buf, ChannelHandlerContext ctx) {
+  private void decodeHeader(io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     copyByteBuf(buf, headerBuf, HEADER_SIZE);
     if (!headerBuf.isWritable()) {
       msgSize = headerBuf.readInt();
@@ -73,18 +59,20 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
         msgBuf.capacity(msgSize);
       }
       msgBuf.clear();
-      curType = Message.Type.decode(headerBuf);
+      curType = Message.Type.decode(headerBuf.nioBuffer());
+      // type byte is read
+      headerBuf.readByte();
       bodySize = headerBuf.readInt();
       decodeMsg(buf, ctx);
     }
   }
 
-  private void decodeMsg(ByteBuf buf, ChannelHandlerContext ctx) {
+  private void decodeMsg(io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     if (msgBuf.readableBytes() < msgSize) {
       copyByteBuf(buf, msgBuf, msgSize);
     }
     if (msgBuf.readableBytes() == msgSize) {
-      curMsg = Message.decode(curType, msgBuf, false);
+      curMsg = MessageDecoderExt.decode(curType, msgBuf, false);
       if (bodySize <= 0) {
         ctx.fireChannelRead(curMsg);
         clear();
@@ -92,11 +80,12 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
   }
 
-  private ByteBuf decodeBody(ByteBuf buf, ChannelHandlerContext ctx) {
+  private io.netty.buffer.ByteBuf decodeBody(
+      io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     if (bodyBuf == null) {
       if (buf.readableBytes() >= bodySize) {
-        ByteBuf body = buf.retain().readSlice(bodySize);
-        curMsg.setBody(body);
+        io.netty.buffer.ByteBuf body = buf.retain().readSlice(bodySize);
+        curMsg.setBody(body.nioBuffer());
         ctx.fireChannelRead(curMsg);
         clear();
         return buf;
@@ -105,7 +94,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       }
     }
     int remaining = bodySize - bodyBuf.readableBytes();
-    ByteBuf next;
+    io.netty.buffer.ByteBuf next;
     if (remaining >= buf.readableBytes()) {
       next = buf;
       buf = null;
@@ -114,20 +103,25 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
     bodyBuf.addComponent(next).writerIndex(bodyBuf.writerIndex() + next.readableBytes());
     if (bodyBuf.readableBytes() == bodySize) {
-      curMsg.setBody(bodyBuf);
+      curMsg.setBody(bodyBuf.nioBuffer());
       ctx.fireChannelRead(curMsg);
       clear();
     }
     return buf;
   }
 
-  private ByteBuf decodeBodyCopyOut(ByteBuf buf, ChannelHandlerContext ctx) {
+  private io.netty.buffer.ByteBuf decodeBodyCopyOut(
+      io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     if (externalBuf == null) {
-      externalBuf = bufferSuppliers.apply(bodySize).get();
+      externalBuf = bufferSupplier.get();
     }
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
-      curMsg.setBody(externalBuf);
+      if (curMsg instanceof ReadData) {
+        ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+      } else {
+        curMsg.setBody(externalBuf.nioBuffer());
+      }
       ctx.fireChannelRead(curMsg);
       clear();
     }
@@ -135,24 +129,24 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   }
 
   public void channelRead(ChannelHandlerContext ctx, Object data) {
-    ByteBuf buf = (ByteBuf) data;
+    io.netty.buffer.ByteBuf nettyBuf = (io.netty.buffer.ByteBuf) data;
     try {
-      while (buf != null && buf.isReadable()) {
+      while (nettyBuf != null && nettyBuf.isReadable()) {
         if (headerBuf.isWritable()) {
-          decodeHeader(buf, ctx);
+          decodeHeader(nettyBuf, ctx);
         } else if (curMsg == null) {
-          decodeMsg(buf, ctx);
+          decodeMsg(nettyBuf, ctx);
         } else if (bodySize > 0) {
           if (curMsg.needCopyOut()) {
-            buf = decodeBodyCopyOut(buf, ctx);
+            nettyBuf = decodeBodyCopyOut(nettyBuf, ctx);
           } else {
-            buf = decodeBody(buf, ctx);
+            nettyBuf = decodeBody(nettyBuf, ctx);
           }
         }
       }
     } finally {
-      if (buf != null) {
-        buf.release();
+      if (nettyBuf != null) {
+        nettyBuf.release();
       }
     }
   }
