@@ -152,6 +152,7 @@ public class BufferPacker {
           bufferHeader = BufferUtils.getBufferHeader(buffer, position);
           position += BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX;
         }
+
         Buffer slice = buffer.readOnlySlice(position, bufferHeader.getSize());
         position += bufferHeader.getSize();
 
