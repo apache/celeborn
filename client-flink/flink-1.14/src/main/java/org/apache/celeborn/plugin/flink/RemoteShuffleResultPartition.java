@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -72,6 +73,9 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
   /** Utility to spill data to shuffle workers. */
   private final RemoteShuffleOutputGate outputGate;
+
+  /** Whether {@link #notifyEndOfData()} has been called or not. */
+  private boolean endOfDataNotified;
 
   public RemoteShuffleResultPartition(
       String owningTaskName,
@@ -313,14 +317,43 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
   @Override
   public synchronized void close() {
-    releaseSortBuffer(unicastSortBuffer);
-    releaseSortBuffer(broadcastSortBuffer);
-    super.close();
+    Throwable closeException = null;
+    closeException =
+        checkException(
+            () -> releaseSortBuffer(unicastSortBuffer),
+            closeException,
+            "Failed to release unicast sort buffer.");
+
+    closeException =
+        checkException(
+            () -> releaseSortBuffer(broadcastSortBuffer),
+            closeException,
+            "Failed to release broadcast sort buffer.");
+
+    closeException =
+        checkException(() -> super.close(), closeException, "Failed to call super#close() method.");
+
     try {
       outputGate.close();
-    } catch (Exception e) {
-      Utils.rethrowAsRuntimeException(e);
+    } catch (Throwable throwable) {
+      closeException = closeException == null ? throwable : closeException;
+      LOG.error("Failed to close remote shuffle output gate.", throwable);
     }
+
+    if (closeException != null) {
+      Utils.rethrowAsRuntimeException(closeException);
+    }
+  }
+
+  private Throwable checkException(Runnable runnable, Throwable exception, String errorMessage) {
+    Throwable newException = null;
+    try {
+      runnable.run();
+    } catch (Throwable throwable) {
+      newException = exception == null ? throwable : exception;
+      LOG.error(errorMessage, throwable);
+    }
+    return newException;
   }
 
   @Override
@@ -363,6 +396,19 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   public ResultSubpartitionView createSubpartitionView(
       int index, BufferAvailabilityListener availabilityListener) {
     throw new UnsupportedOperationException("Not supported.");
+  }
+
+  @Override
+  public void notifyEndOfData() throws IOException {
+    if (!endOfDataNotified) {
+      broadcastEvent(EndOfData.INSTANCE, false);
+      endOfDataNotified = true;
+    }
+  }
+
+  @Override
+  public CompletableFuture<Void> getAllDataProcessedFuture() {
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

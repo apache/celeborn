@@ -26,6 +26,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.util.function.SupplierWithException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
@@ -53,7 +55,7 @@ import org.apache.celeborn.plugin.flink.utils.Utils;
  * </ul>
  */
 public class RemoteShuffleOutputGate {
-
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleOutputGate.class);
   private final RemoteShuffleDescriptor shuffleDesc;
   protected final int numSubs;
   protected ShuffleClient shuffleWriteClient;
@@ -74,6 +76,7 @@ public class RemoteShuffleOutputGate {
   private String rssMetaServiceHost;
   private int rssMetaServicePort;
   private UserIdentifier userIdentifier;
+  private boolean isFirstHandShake = true;
 
   /**
    * @param shuffleDesc Describes shuffle meta and shuffle worker address.
@@ -91,7 +94,6 @@ public class RemoteShuffleOutputGate {
     this.shuffleDesc = shuffleDesc;
     this.numSubs = numSubs;
     this.bufferPoolFactory = bufferPoolFactory;
-    this.shuffleWriteClient = createWriteClient();
     this.bufferPacker = new BufferPacker(this::write);
     this.celebornConf = celebornConf;
     this.numMappers = numMappers;
@@ -106,6 +108,7 @@ public class RemoteShuffleOutputGate {
         ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServiceHost();
     this.rssMetaServicePort =
         ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServicePort();
+    this.shuffleWriteClient = createWriteClient();
   }
 
   /** Initialize transportation gate. */
@@ -117,9 +120,6 @@ public class RemoteShuffleOutputGate {
 
     // guarantee that we have at least one buffer
     BufferUtils.reserveNumRequiredBuffers(bufferPool, 1);
-
-    // handshake
-    handshake();
   }
 
   /** Get transportation buffer pool. */
@@ -141,6 +141,12 @@ public class RemoteShuffleOutputGate {
   public void regionStart(boolean isBroadcast) {
     Optional<PartitionLocation> newPartitionLoc = null;
     try {
+      if (isFirstHandShake) {
+        handshake(isFirstHandShake);
+        isFirstHandShake = false;
+        LOG.info("send firstHandShake:" + isBroadcast);
+      }
+
       newPartitionLoc =
           shuffleWriteClient.regionStart(
               applicationId,
@@ -154,7 +160,7 @@ public class RemoteShuffleOutputGate {
       if (newPartitionLoc.isPresent()) {
         partitionLocation = newPartitionLoc.get();
         // send handshake again
-        handshake();
+        handshake(false);
         // send regionstart again
         shuffleWriteClient.regionStart(
             applicationId,
@@ -187,7 +193,8 @@ public class RemoteShuffleOutputGate {
 
   /** Indicates the writing/spilling is finished. */
   public void finish() throws InterruptedException, IOException {
-    shuffleWriteClient.mapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers);
+    shuffleWriteClient.mapPartitionMapperEnd(
+        applicationId, shuffleId, mapId, attemptId, numMappers, partitionLocation.getId());
   }
 
   /** Close the transportation gate. */
@@ -196,7 +203,6 @@ public class RemoteShuffleOutputGate {
       bufferPool.lazyDestroy();
     }
     bufferPacker.close();
-    shuffleWriteClient.shutdown();
   }
 
   /** Returns shuffle descriptor. */
@@ -226,13 +232,16 @@ public class RemoteShuffleOutputGate {
     }
   }
 
-  public void handshake() {
+  public void handshake(boolean isFirstHandShake) {
     if (partitionLocation == null) {
       partitionLocation =
           shuffleWriteClient.registerMapPartitionTask(
               applicationId, shuffleId, numMappers, mapId, attemptId);
+      Utils.checkNotNull(partitionLocation);
     }
-    currentRegionIndex = 0;
+    if (isFirstHandShake) {
+      currentRegionIndex = 0;
+    }
     try {
       shuffleWriteClient.pushDataHandShake(
           applicationId, shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
