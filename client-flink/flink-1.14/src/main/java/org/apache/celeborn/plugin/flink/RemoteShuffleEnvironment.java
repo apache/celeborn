@@ -77,6 +77,8 @@ public class RemoteShuffleEnvironment
 
   private final CelebornConf conf;
 
+  private final RemoteShuffleInputGateFactory inputGateFactory;
+
   /**
    * @param networkBufferPool Network buffer pool for shuffle read and shuffle write.
    * @param resultPartitionManager A trivial {@link ResultPartitionManager}.
@@ -87,13 +89,13 @@ public class RemoteShuffleEnvironment
       NetworkBufferPool networkBufferPool,
       ResultPartitionManager resultPartitionManager,
       RemoteShuffleResultPartitionFactory resultPartitionFactory,
-      //        RemoteShuffleInputGateFactory inputGateFactory,
+      RemoteShuffleInputGateFactory inputGateFactory,
       CelebornConf conf) {
 
     this.networkBufferPool = networkBufferPool;
     this.resultPartitionManager = resultPartitionManager;
     this.resultPartitionFactory = resultPartitionFactory;
-    //    this.inputGateFactory = inputGateFactory;
+    this.inputGateFactory = inputGateFactory;
     this.conf = conf;
     this.isClosed = false;
   }
@@ -123,7 +125,18 @@ public class RemoteShuffleEnvironment
       ShuffleIOOwnerContext ownerContext,
       PartitionProducerStateProvider producerStateProvider,
       List<InputGateDeploymentDescriptor> inputGateDescriptors) {
-    return null;
+    synchronized (lock) {
+      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
+
+      IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
+      for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
+        InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
+        RemoteShuffleInputGate inputGate =
+            inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
+        inputGates[gateIndex] = inputGate;
+      }
+      return Arrays.asList(inputGates);
+    }
   }
 
   @Override
