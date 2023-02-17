@@ -70,7 +70,7 @@ import org.apache.celeborn.common.write.DataBatches;
 import org.apache.celeborn.common.write.PushState;
 
 public class ShuffleClientImpl extends ShuffleClient {
-  protected static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
   private static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
 
