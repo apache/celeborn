@@ -71,7 +71,7 @@
               <include>com.google.guava:guava</include>
               <include>io.netty:*</include>
               <include>org.apache.commons:commons-lang3</include>
-              <include>org.roaringbitmap</include>
+              <include>org.roaringbitmap:RoaringBitmap</include>
             </includes>
           </artifactSet>
           <filters>
