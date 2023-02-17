@@ -107,6 +107,14 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     }
   }
 
+  @Override
+  protected ReduceFileGroups updateFileGroup(
+      String applicationId, String shuffleKey, int shuffleId) {
+    ReduceFileGroups newGroup = loadFileGroupInternal(applicationId, shuffleKey, shuffleId);
+    reduceFileGroupsMap.put(shuffleId, newGroup);
+    return newGroup;
+  }
+
   public ReadClientHandler getReadClientHandler() {
     return readClientHandler;
   }
