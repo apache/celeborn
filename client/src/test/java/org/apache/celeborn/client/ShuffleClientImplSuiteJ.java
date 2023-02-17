@@ -138,7 +138,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
           TEST_REDUCRE_ID,
           byteBuf,
           masterLocation,
-          () -> { });
+          () -> {});
     } catch (IOException e) {
       isFailed = true;
     } finally {
