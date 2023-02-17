@@ -1510,9 +1510,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // do push data
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-      ChannelFuture future = client.pushDataWithCompleteCallback(pushData, callback, closeCallBack);
-      pushState.pushStarted(
-          nextBatchId, future, callback, location.hostAndPushPort(), pushDataTimeout);
+      client.pushDataWithCompleteCallback(pushData, callback, closeCallBack);
     } catch (Exception e) {
       logger.warn("PushData byteBuf failed", e);
       callback.onFailure(
