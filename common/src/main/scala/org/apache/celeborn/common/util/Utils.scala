@@ -43,7 +43,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.{JavaUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
@@ -994,6 +994,7 @@ object Utils extends Logging {
     }
   }
 
+
   def checkedDownCast(value: Long): Int = {
     val downCast = value.toInt
     if (downCast.toLong != value) {
@@ -1010,5 +1011,12 @@ object Utils extends Logging {
         s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
       throw new RuntimeException(s"File is corrupted ${fileChannel}")
     }
+  }
+
+  def getShortFormattedFileName(fileInfo: FileInfo): String = {
+    val parentFile = fileInfo.getFile.getParent
+    parentFile.substring(
+      parentFile.lastIndexOf("/"),
+      parentFile.length) + "/" + fileInfo.getFile.getName
   }
 }

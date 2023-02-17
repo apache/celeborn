@@ -17,11 +17,14 @@
 
 package org.apache.celeborn.client.commit
 
+import java.nio.ByteBuffer
 import java.util
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{Callable, ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
@@ -33,6 +36,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 
 /**
  * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
@@ -54,6 +58,17 @@ class ReducePartitionCommitHandler(
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
   private val stageEndTimeout = conf.pushStageEndTimeout
+
+  private val rpcCacheSize = conf.rpcCacheSize
+  private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
+  private val rpcCacheExpireTime = conf.rpcCacheExpireTime
+
+  // noinspection UnstableApiUsage
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+    .concurrencyLevel(rpcCacheConcurrencyLevel)
+    .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(rpcCacheSize)
+    .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE
@@ -244,7 +259,34 @@ class ReducePartitionCommitHandler(
     } else {
       logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
         s" ${cost}ms")
-      super.handleGetReducerFileGroup(context, shuffleId)
+      if (isStageDataLost(shuffleId)) {
+        context.reply(
+          GetReducerFileGroupResponse(
+            StatusCode.SHUFFLE_DATA_LOST,
+            new ConcurrentHashMap(),
+            Array.empty))
+      } else {
+        // LocalNettyRpcCallContext is for the UTs
+        if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+          context.reply(GetReducerFileGroupResponse(
+            StatusCode.SUCCESS,
+            reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+            getMapperAttempts(shuffleId)))
+        } else {
+          val cachedMsg = getReducerFileGroupRpcCache.get(
+            shuffleId,
+            new Callable[ByteBuffer]() {
+              override def call(): ByteBuffer = {
+                val returnedMsg = GetReducerFileGroupResponse(
+                  StatusCode.SUCCESS,
+                  reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+                  getMapperAttempts(shuffleId))
+                context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+              }
+            })
+          context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+        }
+      }
     }
   }
 
