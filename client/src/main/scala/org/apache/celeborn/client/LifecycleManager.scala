@@ -381,15 +381,22 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           .foreach(_.asScala.foreach(context => {
             partitionType match {
               case PartitionType.MAP =>
-                val partitionLocations =
-                  response.getPartitionLocationsList.asScala.filter(_.getId == partitionId).map(r =>
-                    PbSerDeUtils.fromPbPartitionLocation(r)).toArray
-                processMapTaskReply(
-                  applicationId,
-                  shuffleId,
-                  context.context,
-                  partitionId,
-                  partitionLocations)
+                if (response.getStatus == 0) {
+                  val partitionLocations =
+                    response.getPartitionLocationsList.asScala.filter(_.getId == context.partitionId).map(
+                      r =>
+                        PbSerDeUtils.fromPbPartitionLocation(r)).toArray
+                  processMapTaskReply(
+                    applicationId,
+                    shuffleId,
+                    context.context,
+                    partitionId,
+                    partitionLocations)
+                } else {
+                  // when register not success, need reply origin response,
+                  // otherwise will lost original exception message
+                  context.reply(response)
+                }
               case PartitionType.REDUCE => context.reply(response)
             }
           }))

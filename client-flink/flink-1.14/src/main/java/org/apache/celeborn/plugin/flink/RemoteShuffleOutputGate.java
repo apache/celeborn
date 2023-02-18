@@ -233,7 +233,7 @@ public class RemoteShuffleOutputGate {
     }
   }
 
-  public void handshake(boolean isFirstHandShake) {
+  public void handshake(boolean isFirstHandShake) throws IOException {
     if (partitionLocation == null) {
       partitionLocation =
           shuffleWriteClient.registerMapPartitionTask(

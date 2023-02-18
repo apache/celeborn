@@ -17,7 +17,10 @@
 
 package org.apache.celeborn.tests.client
 
-import org.apache.celeborn.client.WithShuffleClientSuite
+import java.io.IOException
+
+import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl, WithShuffleClientSuite}
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
@@ -35,6 +38,23 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     val workerConf = Map(
       "celeborn.master.endpoints" -> s"localhost:$masterPort")
     setUpMiniCluster(masterConf, workerConf)
+  }
+
+  test("test register when master not available") {
+    val celebornConf: CelebornConf = new CelebornConf()
+    celebornConf.set("celeborn.master.endpoints", s"localhost:19098")
+    celebornConf.set("celeborn.client.maxRetries", s"0")
+
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
+    val shuffleClient: ShuffleClientImpl = {
+      val client = new ShuffleClientImpl(celebornConf, userIdentifier)
+      client.setupMetaServiceRef(lifecycleManager.self)
+      client
+    }
+
+    assertThrows[IOException] {
+      () -> shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0)
+    }
   }
 
   override def afterAll(): Unit = {
