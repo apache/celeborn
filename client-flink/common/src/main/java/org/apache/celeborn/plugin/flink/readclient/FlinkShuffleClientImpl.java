@@ -109,10 +109,29 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   @Override
   protected ReduceFileGroups updateFileGroup(
-      String applicationId, String shuffleKey, int shuffleId) {
-    ReduceFileGroups newGroup = loadFileGroupInternal(applicationId, shuffleKey, shuffleId);
-    reduceFileGroupsMap.put(shuffleId, newGroup);
-    return newGroup;
+      String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
+    ReduceFileGroups reduceFileGroups =
+        reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> new ReduceFileGroups());
+    synchronized (reduceFileGroups) {
+      if (reduceFileGroups.partitionIds != null
+          && reduceFileGroups.partitionIds.contains(partitionId)) {
+        logger.debug(
+            "use cached file groups for partition: {}",
+            Utils.makeReducerKey(applicationId, shuffleId, partitionId));
+        return reduceFileGroups;
+      } else {
+        // refresh file groups
+        ReduceFileGroups newGroups = loadFileGroupInternal(applicationId, shuffleKey, shuffleId);
+        if (newGroups == null || !newGroups.partitionIds.contains(partitionId)) {
+          throw new IOException(
+              "shuffle data lost for partition: "
+                  + Utils.makeReducerKey(applicationId, shuffleId, partitionId));
+        }
+
+        reduceFileGroupsMap.put(shuffleId, newGroups);
+        return newGroups;
+      }
+    }
   }
 
   public ReadClientHandler getReadClientHandler() {

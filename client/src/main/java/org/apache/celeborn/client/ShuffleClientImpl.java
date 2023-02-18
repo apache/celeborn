@@ -120,10 +120,21 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected static class ReduceFileGroups {
     public final Map<Integer, Set<PartitionLocation>> partitionGroups;
     public final int[] mapAttempts;
+    public final Set<Integer> partitionIds;
 
-    ReduceFileGroups(Map<Integer, Set<PartitionLocation>> partitionGroups, int[] mapAttempts) {
+    ReduceFileGroups(
+        Map<Integer, Set<PartitionLocation>> partitionGroups,
+        int[] mapAttempts,
+        Set<Integer> partitionIds) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
+      this.partitionIds = partitionIds;
+    }
+
+    public ReduceFileGroups() {
+      this.partitionGroups = null;
+      this.mapAttempts = null;
+      this.partitionIds = null;
     }
   }
 
@@ -1365,11 +1376,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
         if (response.status() == StatusCode.SUCCESS) {
           logger.info(
-              "Shuffle {} request reducer file group success using {} ms, result partition ids {}.",
+              "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
               shuffleId,
               (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
-              response.fileGroup().keySet());
-          return new ReduceFileGroups(response.fileGroup(), response.attempts());
+              response.fileGroup().size());
+          return new ReduceFileGroups(
+              response.fileGroup(), response.attempts(), response.partitionIds());
         } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
           logger.warn(
               "Request {} return {} for {}.",
@@ -1391,14 +1403,15 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   protected ReduceFileGroups updateFileGroup(
-      String applicationId, String shuffleKey, int shuffleId) {
+      String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
     return reduceFileGroupsMap.computeIfAbsent(
         shuffleId, (id) -> loadFileGroupInternal(applicationId, shuffleKey, shuffleId));
   }
 
   protected ReduceFileGroups loadFileGroup(
       String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
-    ReduceFileGroups reduceFileGroups = updateFileGroup(applicationId, shuffleKey, shuffleId);
+    ReduceFileGroups reduceFileGroups =
+        updateFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
     if (reduceFileGroups == null) {
       String msg =
           "Shuffle data lost for shuffle " + shuffleId + " partitionId " + partitionId + "!";
