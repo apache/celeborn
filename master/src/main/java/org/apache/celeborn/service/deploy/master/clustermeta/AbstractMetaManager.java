@@ -235,7 +235,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
-      workers.add(workerInfo);
+      if (!workers.contains(workerInfo)) {
+        workers.add(workerInfo);
+      }
     }
   }
 

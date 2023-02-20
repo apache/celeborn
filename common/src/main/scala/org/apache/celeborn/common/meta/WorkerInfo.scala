@@ -268,13 +268,12 @@ class WorkerInfo(
         rpcPort == that.rpcPort &&
         pushPort == that.pushPort &&
         fetchPort == that.fetchPort &&
-        replicatePort == that.replicatePort &&
-        userResourceConsumption == that.userResourceConsumption
+        replicatePort == that.replicatePort
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption)
+    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
