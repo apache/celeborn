@@ -26,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -58,6 +60,12 @@ public class BufferStreamManager {
   protected int minReadBuffers;
   protected int maxReadBuffers;
   protected int threadsPerMountPoint;
+  private final LinkedBlockingQueue<Long> recycleStreamIds = new LinkedBlockingQueue<>();
+
+  @GuardedBy("lock")
+  private Thread recycleThread;
+
+  private final Object lock = new Object();
 
   protected class StreamState {
     private Channel associatedChannel;
@@ -137,24 +145,60 @@ public class BufferStreamManager {
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
       if (entry.getValue().getAssociatedChannel() == channel) {
         logger.info("connection closed, clean streamId: {}", entry.getKey());
-        cleanResource(entry.getKey());
+        recycleStream(entry.getKey());
       }
     }
   }
 
-  public void cleanResource(long streamId) {
+  public void recycleStream(long streamId) {
+    recycleStreamIds.add(streamId);
+    startRecycleThread(); // lazy start thread
+  }
+
+  private void startRecycleThread() {
+    if (recycleThread == null) {
+      synchronized (lock) {
+        if (recycleThread == null) {
+          recycleThread =
+              new Thread(
+                  () -> {
+                    while (true) {
+                      try {
+                        Long streamIds = recycleStreamIds.poll(100, TimeUnit.MILLISECONDS);
+                        if (streamIds != null) {
+                          cleanResource(streamIds);
+                        }
+                      } catch (InterruptedException e) {
+                        logger.warn(e.getMessage(), e);
+                        throw new RuntimeException(e);
+                      }
+                    }
+                  },
+                  "recycle-thread");
+          recycleThread.setDaemon(true);
+          recycleThread.start();
+
+          logger.info("start stream recycle thread");
+        }
+      }
+    }
+  }
+
+  public void cleanResource(Long streamId) {
     logger.debug("clean stream: {}", streamId);
     streams.remove(streamId);
     streamCredits.remove(streamId);
-    FileInfo fileInfo = servingStreams.remove(streamId).fileInfo;
-    MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
-    mapDataPartition.removeStream(streamId);
-    synchronized (activeMapPartitions) {
-      if (mapDataPartition.activeStreamIds.isEmpty()) {
-        for (ByteBuf buffer : mapDataPartition.buffers) {
-          memoryManager.recycleReadBuffer(buffer);
+    MapDataPartition mapDataPartition = servingStreams.remove(streamId);
+    if (mapDataPartition != null) {
+      FileInfo fileInfo = mapDataPartition.fileInfo;
+      mapDataPartition.removeStream(streamId);
+      synchronized (activeMapPartitions) {
+        if (mapDataPartition.activeStreamIds.isEmpty()) {
+          for (ByteBuf buffer : mapDataPartition.buffers) {
+            memoryManager.recycleReadBuffer(buffer);
+          }
+          activeMapPartitions.remove(fileInfo);
         }
-        activeMapPartitions.remove(fileInfo);
       }
     }
   }
@@ -468,9 +512,10 @@ public class BufferStreamManager {
 
         ByteBuf buffer = bufferQueue.poll();
         // this is used for control bytebuf manually.
-        buffer.retain();
         if (buffer == null) {
           break;
+        } else {
+          buffer.retain();
         }
 
         try {
@@ -574,7 +619,7 @@ public class BufferStreamManager {
           buffersRead.size());
 
       if (isClosed && buffersRead.isEmpty()) {
-        cleanResource(streamId);
+        recycleStream(streamId);
       }
     }
 
@@ -589,9 +634,10 @@ public class BufferStreamManager {
       logger.debug("stream manager streamid {} backlog:{}", streamId, backlog);
       StreamState streamState = streams.get(streamId);
       if (streamState == null) {
-        throw new RuntimeException("StreamId " + streamId + " should not be null");
+        logger.warn("StreamId :{} already closed", streamId);
+      } else {
+        streamState.associatedChannel.writeAndFlush(new BacklogAnnouncement(streamId, backlog));
       }
-      streamState.associatedChannel.writeAndFlush(new BacklogAnnouncement(streamId, backlog));
     }
 
     public long getPriority() {
