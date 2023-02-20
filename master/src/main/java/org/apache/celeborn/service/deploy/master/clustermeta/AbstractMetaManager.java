@@ -47,7 +47,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   // Meta data for master service
   public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  public final Set<WorkerInfo> workers = new HashSet<>();
+  public final ArrayList<WorkerInfo> workers = new ArrayList<>();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = new ConcurrentHashMap<>();
   // blacklist
   public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();

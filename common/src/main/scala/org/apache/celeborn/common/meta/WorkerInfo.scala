@@ -259,12 +259,9 @@ class WorkerInfo(
        |""".stripMargin
   }
 
-  private def canEqual(other: Any): Boolean = other.isInstanceOf[WorkerInfo]
-
   override def equals(other: Any): Boolean = other match {
     case that: WorkerInfo =>
-      that.canEqual(this) &&
-        host == that.host &&
+      host == that.host &&
         rpcPort == that.rpcPort &&
         pushPort == that.pushPort &&
         fetchPort == that.fetchPort &&
