@@ -751,32 +751,36 @@ private[celeborn] class Master(
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
     try {
-      endpoint.askSync[GetWorkerInfosResponse](GetWorkerInfos)
+      if (endpoint != null) {
+        return endpoint.askSync[GetWorkerInfosResponse](GetWorkerInfos)
+      }
     } catch {
       case e: Exception =>
         logError(s"AskSync GetWorkerInfos failed.", e)
-        val result = new util.ArrayList[WorkerInfo]
-        result.add(new WorkerInfo(
-          "unknown",
-          -1,
-          -1,
-          -1,
-          -1,
-          new util.HashMap[String, DiskInfo](),
-          new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-          null))
-        GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
     }
+    val result = new util.ArrayList[WorkerInfo]
+    result.add(new WorkerInfo(
+      "unknown",
+      -1,
+      -1,
+      -1,
+      -1,
+      new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      null))
+    GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
   }
 
   private def requestThreadDump(endpoint: RpcEndpointRef): ThreadDumpResponse = {
     try {
-      endpoint.askSync[ThreadDumpResponse](ThreadDump)
+      if (endpoint != null) {
+        return endpoint.askSync[ThreadDumpResponse](ThreadDump)
+      }
     } catch {
       case e: Exception =>
         logError(s"AskSync ThreadDump failed.", e)
-        ThreadDumpResponse("Unknown")
     }
+    ThreadDumpResponse("Unknown")
   }
 
   private def isMasterActive: Int = {
