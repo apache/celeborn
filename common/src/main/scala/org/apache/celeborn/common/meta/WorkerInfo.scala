@@ -259,7 +259,6 @@ class WorkerInfo(
        |""".stripMargin
   }
 
-
   private def canEqual(other: Any): Boolean = other.isInstanceOf[WorkerInfo]
 
   override def equals(other: Any): Boolean = other match {
