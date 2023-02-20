@@ -109,9 +109,8 @@ public class BufferPacker {
   }
 
   public void drain() throws InterruptedException {
-    logBufferPack(true, cachedBuffer.getDataType(), cachedBuffer.readableBytes());
-
     if (cachedBuffer != null) {
+      logBufferPack(true, cachedBuffer.getDataType(), cachedBuffer.readableBytes());
       handleRipeBuffer(cachedBuffer, currentSubIdx);
     }
     cachedBuffer = null;
