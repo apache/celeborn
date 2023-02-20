@@ -770,7 +770,9 @@ private[celeborn] class Master(
 
   private def requestThreadDump(endpoint: RpcEndpointRef): ThreadDumpResponse = {
     try {
-      return endpoint.askSync[ThreadDumpResponse](ThreadDump)
+      if (endpoint != null) {
+        return endpoint.askSync[ThreadDumpResponse](ThreadDump)
+      }
     } catch {
       case e: Exception =>
         logError(s"AskSync ThreadDump failed.", e)
