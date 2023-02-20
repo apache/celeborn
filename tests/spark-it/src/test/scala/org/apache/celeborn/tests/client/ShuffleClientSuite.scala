@@ -42,8 +42,8 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
 
   test("test register when master not available") {
     val celebornConf: CelebornConf = new CelebornConf()
-    celebornConf.set("celeborn.master.endpoints", s"localhost:19098")
-    celebornConf.set("celeborn.client.maxRetries", s"0")
+    celebornConf.set("celeborn.master.endpoints", "localhost:19098")
+    celebornConf.set("celeborn.client.maxRetries", "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
     val shuffleClient: ShuffleClientImpl = {
@@ -55,6 +55,8 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     assertThrows[IOException] {
       () -> shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0)
     }
+
+    lifecycleManager.stop()
   }
 
   override def afterAll(): Unit = {

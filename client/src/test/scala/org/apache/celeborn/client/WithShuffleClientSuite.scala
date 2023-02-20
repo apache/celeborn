@@ -44,7 +44,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private val mapId = 1
   private val attemptId = 0
 
-  test(s"test register map partition task") {
+  test("test register map partition task") {
     Assert.assertNotNull(lifecycleManager)
     Assert.assertNotNull(shuffleClient)
     val shuffleId = 1
@@ -82,7 +82,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     Assert.assertEquals(count, numMappers + 1)
   }
 
-  test(s"test map end & get reducer file group") {
+  test("test map end & get reducer file group") {
     val shuffleId = 2
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
