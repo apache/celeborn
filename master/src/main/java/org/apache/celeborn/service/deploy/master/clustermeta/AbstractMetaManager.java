@@ -221,7 +221,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
 
     try {
-      // if some master failed, other master not, sync state will be broken.
       workerInfo.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
     } catch (Exception e) {
       LOG.warn("Worker register setupEndpoint failed {}, will retry", e);
