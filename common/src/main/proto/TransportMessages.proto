@@ -66,6 +66,7 @@ enum MessageType {
   STAGE_END = 45;
   STAGE_END_RESPONSE = 46;
   PARTITION_SPLIT = 47;
+  REGISTER_MAP_PARTITION_TASK = 48;
 }
 
 message PbStorageInfo {

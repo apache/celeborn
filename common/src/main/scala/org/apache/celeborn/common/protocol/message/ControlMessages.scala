@@ -468,6 +468,9 @@ object ControlMessages extends Logging {
     case pb: PbRegisterShuffle =>
       new TransportMessage(MessageType.REGISTER_SHUFFLE, pb.toByteArray)
 
+    case pb: PbRegisterMapPartitionTask =>
+      new TransportMessage(MessageType.REGISTER_MAP_PARTITION_TASK, pb.toByteArray)
+
     case pb: PbRegisterShuffleResponse =>
       new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
@@ -830,6 +833,9 @@ object ControlMessages extends Logging {
 
       case REGISTER_SHUFFLE =>
         PbRegisterShuffle.parseFrom(message.getPayload)
+
+      case REGISTER_MAP_PARTITION_TASK =>
+        PbRegisterMapPartitionTask.parseFrom(message.getPayload)
 
       case REGISTER_SHUFFLE_RESPONSE =>
         PbRegisterShuffleResponse.parseFrom(message.getPayload)
