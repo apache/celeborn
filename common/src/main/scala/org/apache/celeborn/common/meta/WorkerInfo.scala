@@ -259,17 +259,24 @@ class WorkerInfo(
        |""".stripMargin
   }
 
-  override def equals(obj: Any): Boolean = {
-    val other = obj.asInstanceOf[WorkerInfo]
-    host == other.host &&
-    rpcPort == other.rpcPort &&
-    pushPort == other.pushPort &&
-    fetchPort == other.fetchPort &&
-    replicatePort == other.replicatePort
+
+  private def canEqual(other: Any): Boolean = other.isInstanceOf[WorkerInfo]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: WorkerInfo =>
+      that.canEqual(this) &&
+        host == that.host &&
+        rpcPort == that.rpcPort &&
+        pushPort == that.pushPort &&
+        fetchPort == that.fetchPort &&
+        replicatePort == that.replicatePort &&
+        userResourceConsumption == that.userResourceConsumption
+    case _ => false
   }
 
   override def hashCode(): Int = {
-    Objects.hashCode(host, rpcPort, pushPort, fetchPort, replicatePort)
+    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
