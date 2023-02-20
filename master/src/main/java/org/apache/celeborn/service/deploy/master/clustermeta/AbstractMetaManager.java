@@ -227,13 +227,20 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     try {
       workerInfo.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
     } catch (Exception e) {
-      LOG.error("Worker register failed", e);
-      return;
+      LOG.warn("Worker register setupEndpoint failed {}, will retry", e);
+      try {
+        workerInfo.setupEndpoint(
+            rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
+      } catch (Exception e1) {
+        workerInfo.setupEndpoint(null);
+      }
     }
 
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
-      workers.add(workerInfo);
+      if (!workers.contains(workerInfo)) {
+        workers.add(workerInfo);
+      }
     }
   }
 
