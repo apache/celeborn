@@ -29,11 +29,6 @@ public final class ReadData extends RequestMessage {
   private final long offset;
   private ByteBuf flinkBuffer;
 
-  @Override
-  public boolean needCopyOut() {
-    return true;
-  }
-
   public ReadData(long streamId, int backlog, long offset) {
     this.streamId = streamId;
     this.backlog = backlog;

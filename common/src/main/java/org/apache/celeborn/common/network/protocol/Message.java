@@ -56,7 +56,7 @@ public abstract class Message implements Encodable {
 
   /** Whether the body should be copied out in frame decoder. */
   public boolean needCopyOut() {
-    return false;
+    return true;
   }
 
   protected boolean equals(Message other) {
