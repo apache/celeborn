@@ -111,20 +111,20 @@ public class RssBufferStream {
   }
 
   public void addCredit(ReadAddCredit addCredit) {
-    this.client.sendRpc(
-        addCredit.toByteBuffer(),
-        new RpcResponseCallback() {
-          @Override
-          public void onSuccess(ByteBuffer response) {
-            // ignore response
-          }
-
-          @Override
-          public void onFailure(Throwable e) {
-            logger.warn(
-                "Send Add Credit {} failed to {}", addCredit, client.getSocketAddress().toString());
-          }
-        });
+    this.client
+        .getChannel()
+        .writeAndFlush(addCredit)
+        .addListener(
+            future -> {
+              if (future.isSuccess()) {
+                // Send ReadAddCredit do not expect response.
+              } else {
+                logger.warn(
+                    "Send ReadAddCredit to {} failed, detail {}",
+                    this.client.getSocketAddress().toString(),
+                    future.cause());
+              }
+            });
   }
 
   public static RssBufferStream empty() {
