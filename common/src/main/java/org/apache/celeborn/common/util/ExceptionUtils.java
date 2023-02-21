@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.common.util;
 
-import org.apache.celeborn.common.exception.CelebornIOException;
-
 import java.io.IOException;
+
+import org.apache.celeborn.common.exception.CelebornIOException;
 
 public class ExceptionUtils {
 
