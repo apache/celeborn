@@ -260,7 +260,7 @@ public class BufferStreamManager {
       readBuffers();
     }
 
-    public void readBuffers() {
+    public synchronized void readBuffers() {
       PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
       while (buffers.size() > 0 && !sortedReaders.isEmpty()) {
         DataPartitionReader reader = sortedReaders.poll();
@@ -279,9 +279,7 @@ public class BufferStreamManager {
       readExecutor.submit(
           () -> {
             // Key for IO schedule.
-            synchronized (MapDataPartition.this) {
-              readBuffers();
-            }
+            readBuffers();
           });
     }
 
