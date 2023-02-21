@@ -24,10 +24,10 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 public class ExceptionUtils {
 
   public static void wrapAndThrowIOException(Exception exception) throws IOException {
-    if (exception instanceof IOException) {
-      throw new CelebornIOException(exception);
-    } else if (exception instanceof CelebornIOException) {
+    if (exception instanceof CelebornIOException) {
       throw (CelebornIOException) exception;
+    } else if (exception instanceof IOException) {
+      throw new CelebornIOException(exception);
     } else {
       throw new CelebornIOException(exception.getMessage(), exception);
     }
