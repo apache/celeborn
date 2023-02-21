@@ -157,9 +157,6 @@ public class RssBufferStream {
   }
 
   public void close() {
-    if (client != null) {
-      client.close();
-    }
     clientFactory.unregisterSupplier(this.getStreamId());
   }
 }

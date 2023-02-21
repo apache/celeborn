@@ -24,8 +24,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
@@ -33,8 +31,6 @@ import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
-  public static final Logger logger =
-      LoggerFactory.getLogger(TransportFrameDecoderWithBufferSupplier.class);
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
@@ -118,23 +114,15 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   private io.netty.buffer.ByteBuf decodeBodyCopyOut(
       io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
-    try {
-      ReadData readData = (ReadData) curMsg;
-      if (externalBuf == null) {
-        externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
-      }
-      copyByteBuf(buf, externalBuf, bodySize);
-      if (externalBuf.readableBytes() == bodySize) {
-        if (curMsg instanceof ReadData) {
-          ((ReadData) curMsg).setFlinkBuffer(externalBuf);
-        } else {
-          curMsg.setBody(externalBuf.nioBuffer());
-        }
-        ctx.fireChannelRead(curMsg);
-        clear();
-      }
-    } catch (Exception e) {
-      logger.error("decode failed {} ", e);
+    ReadData readData = (ReadData) curMsg;
+    if (externalBuf == null) {
+      externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
+    }
+    copyByteBuf(buf, externalBuf, bodySize);
+    if (externalBuf.readableBytes() == bodySize) {
+      ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+      ctx.fireChannelRead(curMsg);
+      clear();
     }
     return buf;
   }
