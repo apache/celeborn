@@ -17,15 +17,19 @@
 
 package org.apache.celeborn.common.util;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
+
 import java.io.IOException;
 
 public class ExceptionUtils {
 
   public static void wrapAndThrowIOException(Exception exception) throws IOException {
     if (exception instanceof IOException) {
-      throw (IOException) exception;
+      throw new CelebornIOException(exception);
+    } else if (exception instanceof CelebornIOException) {
+      throw (CelebornIOException) exception;
     } else {
-      throw new IOException(exception.getMessage(), exception);
+      throw new CelebornIOException(exception.getMessage(), exception);
     }
   }
 }
