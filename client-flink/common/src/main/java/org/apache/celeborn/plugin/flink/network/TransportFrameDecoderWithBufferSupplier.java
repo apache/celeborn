@@ -17,12 +17,15 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
@@ -30,7 +33,8 @@ import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
-  private final Supplier<ByteBuf> bufferSupplier;
+  public static final Logger logger =
+      LoggerFactory.getLogger(TransportFrameDecoderWithBufferSupplier.class);
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
@@ -39,9 +43,11 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private ByteBuf externalBuf = null;
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
+  private final ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
 
-  public TransportFrameDecoderWithBufferSupplier(Supplier<ByteBuf> bufferSupplier) {
-    this.bufferSupplier = bufferSupplier;
+  public TransportFrameDecoderWithBufferSupplier(
+      ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers) {
+    this.bufferSuppliers = bufferSuppliers;
   }
 
   private void copyByteBuf(io.netty.buffer.ByteBuf source, ByteBuf target, int targetSize) {
@@ -112,18 +118,23 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   private io.netty.buffer.ByteBuf decodeBodyCopyOut(
       io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
-    if (externalBuf == null) {
-      externalBuf = bufferSupplier.get();
-    }
-    copyByteBuf(buf, externalBuf, bodySize);
-    if (externalBuf.readableBytes() == bodySize) {
-      if (curMsg instanceof ReadData) {
-        ((ReadData) curMsg).setFlinkBuffer(externalBuf);
-      } else {
-        curMsg.setBody(externalBuf.nioBuffer());
+    try {
+      ReadData readData = (ReadData) curMsg;
+      if (externalBuf == null) {
+        externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
       }
-      ctx.fireChannelRead(curMsg);
-      clear();
+      copyByteBuf(buf, externalBuf, bodySize);
+      if (externalBuf.readableBytes() == bodySize) {
+        if (curMsg instanceof ReadData) {
+          ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+        } else {
+          curMsg.setBody(externalBuf.nioBuffer());
+        }
+        ctx.fireChannelRead(curMsg);
+        clear();
+      }
+    } catch (Exception e) {
+      logger.error("decode failed {} ", e);
     }
     return buf;
   }
@@ -138,6 +149,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
           decodeMsg(nettyBuf, ctx);
         } else if (bodySize > 0) {
           if (curMsg.needCopyOut()) {
+            // Only readdata will enter this branch
             nettyBuf = decodeBodyCopyOut(nettyBuf, ctx);
           } else {
             nettyBuf = decodeBody(nettyBuf, ctx);
