@@ -18,6 +18,7 @@
 package org.apache.celeborn.plugin.flink.network;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.function.Supplier;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -31,10 +32,10 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
     super(context);
   }
 
-  public TransportClient createClient(
-      String remoteHost, int remotePort, int partitionId, Supplier<ByteBuf> supplier)
+  public TransportClient createClient(String remoteHost, int remotePort, Supplier<ByteBuf> supplier)
       throws IOException, InterruptedException {
-    return createClient(
-        remoteHost, remotePort, partitionId, new TransportFrameDecoderWithBufferSupplier(supplier));
+    final InetSocketAddress resolvedAddress = new InetSocketAddress(remoteHost, remotePort);
+    return internalCreateClient(
+        resolvedAddress, new TransportFrameDecoderWithBufferSupplier(supplier));
   }
 }

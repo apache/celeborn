@@ -75,7 +75,6 @@ public class RssBufferStream {
         clientFactory.createClient(
             locations[currentLocationIndex].getHost(),
             locations[currentLocationIndex].getFetchPort(),
-            -1,
             supplier);
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(
@@ -155,5 +154,11 @@ public class RssBufferStream {
 
   public TransportClient getClient() {
     return client;
+  }
+
+  public void close() {
+    if (client != null) {
+      client.close();
+    }
   }
 }

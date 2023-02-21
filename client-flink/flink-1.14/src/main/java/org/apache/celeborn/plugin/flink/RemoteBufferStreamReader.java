@@ -92,6 +92,7 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void close() {
     isOpen = false;
     client.getReadClientHandler().removeHandler(this.bufferStream.getStreamId());
+    bufferStream.close();
   }
 
   public boolean isOpened() {
