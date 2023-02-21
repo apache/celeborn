@@ -93,16 +93,19 @@ public class DataPushQueue {
         int partitionId = task.getPartitionId();
         Map<Integer, PartitionLocation> partitionLocationMap =
             client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
-        PartitionLocation loc = partitionLocationMap.get(partitionId);
-
-        if (!reachLimitWorker.contains(loc.hostAndPushPort())) {
-          boolean reachLimit = pushState.reachLimit(loc.hostAndPushPort(), maxInFlight);
-          if (!reachLimit) {
-            iterator.remove();
-            return task;
-          } else {
-            reachLimitWorker.add(loc.hostAndPushPort());
+        if (partitionLocationMap != null) {
+          PartitionLocation loc = partitionLocationMap.get(partitionId);
+          if (!reachLimitWorker.contains(loc.hostAndPushPort())) {
+            boolean reachLimit = pushState.reachLimit(loc.hostAndPushPort(), maxInFlight);
+            if (!reachLimit) {
+              iterator.remove();
+              return task;
+            } else {
+              reachLimitWorker.add(loc.hostAndPushPort());
+            }
           }
+        } else {
+          return task;
         }
       }
     }
