@@ -120,7 +120,9 @@ public class RssBufferStream {
                 // Send ReadAddCredit do not expect response.
               } else {
                 logger.warn(
-                    "Send ReadAddCredit to {} failed", this.client.getSocketAddress().toString());
+                    "Send ReadAddCredit to {} failed, detail {}",
+                    this.client.getSocketAddress().toString(),
+                    future.cause());
               }
             });
   }
