@@ -320,7 +320,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @VisibleForTesting
   public PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId) {
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException {
     int partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
     logger.info(
         "register mapPartitionTask, mapId: {}, attemptId: {}, partitionId: {}",
@@ -338,6 +338,12 @@ public class ShuffleClientImpl extends ShuffleClient {
                         appId, shuffleId, numMappers, mapId, attemptId, partitionId),
                     conf.registerShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
+
+    if (partitionLocationMap == null) {
+      String shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
+      throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
+    }
+
     return partitionLocationMap.get(partitionId);
   }
 

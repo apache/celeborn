@@ -235,7 +235,7 @@ public abstract class ShuffleClient {
       throws IOException;
 
   public abstract PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId);
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException;
 
   public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       String applicationId, int shuffleId, int numMappers, int numPartitions);
