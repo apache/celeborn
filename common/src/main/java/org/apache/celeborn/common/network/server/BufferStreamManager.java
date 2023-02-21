@@ -217,7 +217,7 @@ public class BufferStreamManager {
 
     public MapDataPartition(FileInfo fileInfo) {
       this.fileInfo = fileInfo;
-      readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getFilePath());
+      readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getMountPoint());
     }
 
     public synchronized void setupDataPartitionReader(

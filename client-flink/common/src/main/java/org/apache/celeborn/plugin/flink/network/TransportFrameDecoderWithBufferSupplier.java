@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -30,7 +31,6 @@ import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
-  private final Supplier<ByteBuf> bufferSupplier;
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
@@ -39,9 +39,11 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private ByteBuf externalBuf = null;
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
+  private final ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
 
-  public TransportFrameDecoderWithBufferSupplier(Supplier<ByteBuf> bufferSupplier) {
-    this.bufferSupplier = bufferSupplier;
+  public TransportFrameDecoderWithBufferSupplier(
+      ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers) {
+    this.bufferSuppliers = bufferSuppliers;
   }
 
   private void copyByteBuf(io.netty.buffer.ByteBuf source, ByteBuf target, int targetSize) {
@@ -112,16 +114,13 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   private io.netty.buffer.ByteBuf decodeBodyCopyOut(
       io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
+    ReadData readData = (ReadData) curMsg;
     if (externalBuf == null) {
-      externalBuf = bufferSupplier.get();
+      externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
     }
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
-      if (curMsg instanceof ReadData) {
-        ((ReadData) curMsg).setFlinkBuffer(externalBuf);
-      } else {
-        curMsg.setBody(externalBuf.nioBuffer());
-      }
+      ((ReadData) curMsg).setFlinkBuffer(externalBuf);
       ctx.fireChannelRead(curMsg);
       clear();
     }
@@ -138,6 +137,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
           decodeMsg(nettyBuf, ctx);
         } else if (bodySize > 0) {
           if (curMsg.needCopyOut()) {
+            // Only readdata will enter this branch
             nettyBuf = decodeBodyCopyOut(nettyBuf, ctx);
           } else {
             nettyBuf = decodeBody(nettyBuf, ctx);

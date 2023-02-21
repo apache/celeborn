@@ -18,7 +18,7 @@
 package org.apache.celeborn.plugin.flink.network;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -28,14 +28,25 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 
 public class FlinkTransportClientFactory extends TransportClientFactory {
+
+  private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
+
   public FlinkTransportClientFactory(TransportContext context) {
     super(context);
+    bufferSuppliers = new ConcurrentHashMap<>();
   }
 
-  public TransportClient createClient(String remoteHost, int remotePort, Supplier<ByteBuf> supplier)
+  public TransportClient createClient(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
-    final InetSocketAddress resolvedAddress = new InetSocketAddress(remoteHost, remotePort);
-    return internalCreateClient(
-        resolvedAddress, new TransportFrameDecoderWithBufferSupplier(supplier));
+    return createClient(
+        remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
+  }
+
+  public void registerSupplier(long streamId, Supplier<ByteBuf> supplier) {
+    bufferSuppliers.put(streamId, supplier);
+  }
+
+  public void unregisterSupplier(long streamId) {
+    bufferSuppliers.remove(streamId);
   }
 }

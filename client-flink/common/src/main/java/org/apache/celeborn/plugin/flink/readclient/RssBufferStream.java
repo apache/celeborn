@@ -74,8 +74,7 @@ public class RssBufferStream {
     this.client =
         clientFactory.createClient(
             locations[currentLocationIndex].getHost(),
-            locations[currentLocationIndex].getFetchPort(),
-            supplier);
+            locations[currentLocationIndex].getFetchPort());
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(
             shuffleKey,
@@ -93,6 +92,7 @@ public class RssBufferStream {
           public void onSuccess(ByteBuffer response) {
             StreamHandle streamHandle = (StreamHandle) Message.decode(response);
             RssBufferStream.this.streamId = streamHandle.streamId;
+            clientFactory.registerSupplier(RssBufferStream.this.streamId, supplier);
             mapShuffleClient
                 .getReadClientHandler()
                 .registerHandler(streamId, messageConsumer, client);
@@ -157,8 +157,6 @@ public class RssBufferStream {
   }
 
   public void close() {
-    if (client != null) {
-      client.close();
-    }
+    clientFactory.unregisterSupplier(this.getStreamId());
   }
 }
