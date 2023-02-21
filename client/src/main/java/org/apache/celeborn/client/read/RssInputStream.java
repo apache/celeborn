@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -242,7 +243,7 @@ public abstract class RssInputStream extends InputStream {
           }
         }
       }
-      throw new IOException("createPartitionReader failed!");
+      throw new CelebornIOException("createPartitionReader failed!");
     }
 
     private ByteBuf getNextChunk() throws IOException {
@@ -254,7 +255,8 @@ public abstract class RssInputStream extends InputStream {
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
             logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt);
-            throw new IOException("Fetch chunk failed for " + fetchChunkRetryCnt + " times");
+            throw new CelebornIOException(
+                "Fetch chunk failed for " + fetchChunkRetryCnt + " times");
           } else {
             if (currentReader.getLocation().getPeer() != null) {
               logger.warn(
@@ -270,7 +272,7 @@ public abstract class RssInputStream extends InputStream {
           }
         }
       }
-      throw new IOException("Fetch chunk failed!");
+      throw new CelebornIOException("Fetch chunk failed!");
     }
 
     private PartitionReader createReader(
@@ -304,7 +306,7 @@ public abstract class RssInputStream extends InputStream {
             conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
       }
 
-      throw new IOException(
+      throw new CelebornIOException(
           "Unknown storage info " + storageInfo + " to read location " + location);
     }
 

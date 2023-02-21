@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 
 /*
  * This class is for track in flight request and limit request.
@@ -97,7 +98,7 @@ public class InFlightRequestTracker {
         times--;
       }
     } catch (InterruptedException e) {
-      pushState.exception.set(new IOException(e));
+      pushState.exception.set(new CelebornIOException(e));
     }
 
     if (times <= 0) {
@@ -141,7 +142,7 @@ public class InFlightRequestTracker {
         times--;
       }
     } catch (InterruptedException e) {
-      pushState.exception.set(new IOException(e));
+      pushState.exception.set(new CelebornIOException(e));
     }
 
     if (times <= 0) {

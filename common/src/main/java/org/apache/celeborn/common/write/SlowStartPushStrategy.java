@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 
 public class SlowStartPushStrategy extends PushStrategy {
 
@@ -153,7 +154,7 @@ public class SlowStartPushStrategy extends PushStrategy {
         logger.debug("Will sleep {} ms to control the push speed.", sleepInterval);
         Thread.sleep(sleepInterval);
       } catch (InterruptedException e) {
-        pushState.exception.set(new IOException(e));
+        pushState.exception.set(new CelebornIOException(e));
       }
     }
   }

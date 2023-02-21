@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 
 public class DataPusher {
   private static final Logger logger = LoggerFactory.getLogger(DataPusher.class);
@@ -85,7 +86,7 @@ public class DataPusher {
         idleQueue.put(new PushTask(pushBufferMaxSize));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new IOException(e);
+        throw new CelebornIOException(e);
       }
     }
 
@@ -110,7 +111,7 @@ public class DataPusher {
               }
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              exceptionRef.set(new IOException(e));
+              exceptionRef.set(new CelebornIOException(e));
             } finally {
               idleLock.unlock();
             }
@@ -126,10 +127,8 @@ public class DataPusher {
                 }
                 pushData(task);
                 reclaimTask(task);
-              } catch (InterruptedException e) {
-                exceptionRef.set(new IOException(e));
-              } catch (IOException e) {
-                exceptionRef.set(e);
+              } catch (InterruptedException | IOException e) {
+                exceptionRef.set(new CelebornIOException(e));
               }
             }
           }
@@ -153,7 +152,7 @@ public class DataPusher {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      IOException ioe = new IOException(e);
+      IOException ioe = new CelebornIOException(e);
       exceptionRef.set(ioe);
       throw ioe;
     }
@@ -165,7 +164,7 @@ public class DataPusher {
       waitIdleQueueFullWithLock();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      exceptionRef.set(new IOException(e));
+      exceptionRef.set(new CelebornIOException(e));
     }
 
     terminated = true;
@@ -209,7 +208,7 @@ public class DataPusher {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      exceptionRef.set(new IOException(e));
+      exceptionRef.set(new CelebornIOException(e));
     } finally {
       idleLock.unlock();
     }
