@@ -45,8 +45,8 @@ public class FlinkUtils {
     return jobID.toString();
   }
 
-  public static String toShuffleId(IntermediateDataSetID dataSetID) {
-    return dataSetID.toString();
+  public static String toShuffleId(JobID jobID, IntermediateDataSetID dataSetID) {
+    return jobID.toString() + "-" + dataSetID.toString();
   }
 
   public static String toAttemptId(ExecutionAttemptID attemptID) {

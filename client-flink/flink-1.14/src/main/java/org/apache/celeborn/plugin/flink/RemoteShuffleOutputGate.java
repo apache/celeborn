@@ -98,7 +98,7 @@ public class RemoteShuffleOutputGate {
     this.celebornConf = celebornConf;
     this.numMappers = numMappers;
     this.bufferSize = bufferSize;
-    this.applicationId = shuffleDesc.getJobID().toString();
+    this.applicationId = shuffleDesc.getCelebornAppId();
     this.shuffleId =
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getShuffleId();
     this.mapId = shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getMapId();

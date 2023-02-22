@@ -47,4 +47,14 @@ public class RemoteShuffleResource implements ShuffleResource {
   public int getRssMetaServicePort() {
     return rssMetaServicePort;
   }
+
+  @Override
+  public String toString() {
+    final StringBuilder sb = new StringBuilder("RemoteShuffleResource{");
+    sb.append("rssMetaServiceHost='").append(rssMetaServiceHost).append('\'');
+    sb.append(", rssMetaServicePort=").append(rssMetaServicePort);
+    sb.append(", shuffleResourceDescriptor=").append(shuffleResourceDescriptor);
+    sb.append('}');
+    return sb.toString();
+  }
 }
