@@ -379,7 +379,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           }
           return result;
         } else if (StatusCode.SLOT_NOT_AVAILABLE.equals(respStatus)) {
-          logger.warn(
+          logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}",
               StatusCode.SLOT_NOT_AVAILABLE,
               numRetries - 1);
