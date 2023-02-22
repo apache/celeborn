@@ -15,21 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util;
+package org.apache.celeborn.common.exception
 
-import java.io.IOException;
+import java.io.IOException
 
-import org.apache.celeborn.common.exception.CelebornIOException;
+class CelebornIOException(message: String, cause: Throwable)
+  extends IOException(message, cause) {
 
-public class ExceptionUtils {
+  def this(message: String) = this(message, null)
 
-  public static void wrapAndThrowIOException(Exception exception) throws IOException {
-    if (exception instanceof CelebornIOException) {
-      throw (CelebornIOException) exception;
-    } else if (exception instanceof IOException) {
-      throw new CelebornIOException(exception);
-    } else {
-      throw new CelebornIOException(exception.getMessage(), exception);
-    }
-  }
+  def this(cause: Throwable) = this(cause.getMessage, cause)
 }

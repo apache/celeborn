@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
@@ -183,7 +184,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (!revive(
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
       callback.onFailure(
-          new IOException("Revive Failed, remain revive times " + remainReviveTimes));
+          new CelebornIOException("Revive Failed, remain revive times " + remainReviveTimes));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
           "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
@@ -247,7 +248,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else {
           pushState.exception.compareAndSet(
               null,
-              new IOException(
+              new CelebornIOException(
                   "Revive Failed in retry push merged data for location: " + batch.loc));
           return;
         }
@@ -419,7 +420,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort);
 
     if (reachLimit) {
-      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
+      throw new CelebornIOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
   }
 
@@ -427,7 +428,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     boolean reachLimit = pushState.limitZeroInFlight();
 
     if (reachLimit) {
-      throw new IOException("wait timeout for task " + mapKey, pushState.exception.get());
+      throw new CelebornIOException("wait timeout for task " + mapKey, pushState.exception.get());
     }
   }
 
@@ -552,7 +553,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         getPartitionLocation(applicationId, shuffleId, numMappers, numPartitions);
 
     if (map == null) {
-      throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
+      throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleKey);
     }
 
     // get location
@@ -567,7 +568,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           -1,
           null,
           StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
-        throw new IOException(
+        throw new CelebornIOException(
             "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
       }
     }
@@ -587,7 +588,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     final PartitionLocation loc = map.get(partitionId);
     if (loc == null) {
-      throw new IOException(
+      throw new CelebornIOException(
           "Partition location for shuffle "
               + shuffleKey
               + " partitionId "
@@ -658,7 +659,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onFailure(Throwable e) {
               pushState.exception.compareAndSet(
-                  null, new IOException("Revived PushData failed!", e));
+                  null, new CelebornIOException("Revived PushData failed!", e));
               logger.error(
                   "Push data to {}:{} failed for map {} attempt {} batch {}.",
                   loc.getHost(),
@@ -1025,7 +1026,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + " batches "
                     + Arrays.toString(batchIds)
                     + ".";
-            pushState.exception.compareAndSet(null, new IOException(errorMsg, e));
+            pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             if (logger.isDebugEnabled()) {
               for (int batchId : batchIds) {
                 logger.debug(
@@ -1199,7 +1200,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
-        throw new IOException("MapperEnd failed! StatusCode: " + response.status());
+        throw new CelebornIOException("MapperEnd failed! StatusCode: " + response.status());
       }
     } finally {
       pushStates.remove(mapKey);
@@ -1211,7 +1212,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.remove(mapKey);
     if (pushState != null) {
-      pushState.exception.compareAndSet(null, new IOException("Cleaned Up"));
+      pushState.exception.compareAndSet(null, new CelebornIOException("Cleaned Up"));
       pushState.cleanup();
     }
     if (currentClient != null) {
@@ -1307,7 +1308,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (reduceFileGroups == null) {
       String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
       logger.error(msg);
-      throw new IOException(msg);
+      throw new CelebornIOException(msg);
     }
     return reduceFileGroups;
   }
@@ -1507,7 +1508,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             }
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               pushState.exception.compareAndSet(
-                  null, new IOException("PushData byteBuf failed!", e));
+                  null, new CelebornIOException("PushData byteBuf failed!", e));
               logger.error(
                   "Push data byteBuf to {}:{} failed for map {} attempt {} batch {}.",
                   location.getHost(),
@@ -1670,7 +1671,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   shuffleId,
                   location.getId(),
                   location.getEpoch());
-              throw new IOException("regiontstart revive failed");
+              throw new CelebornIOException("regiontstart revive failed");
             }
           }
           return Optional.empty();
@@ -1779,7 +1780,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       if (currentException instanceof IOException) {
         throw (IOException) currentException;
       } else {
-        throw new IOException(currentException.getMessage(), currentException);
+        throw new CelebornIOException(currentException.getMessage(), currentException);
       }
     }
     return result;

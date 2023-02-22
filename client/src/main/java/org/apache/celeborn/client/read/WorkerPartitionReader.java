@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -92,14 +93,14 @@ public class WorkerPartitionReader implements PartitionReader {
           public void onFailure(int chunkIndex, Throwable e) {
             String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
             logger.error(errorMsg, e);
-            exception.set(new IOException(errorMsg, e));
+            exception.set(new CelebornIOException(errorMsg, e));
           }
         };
     TransportClient client;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
-      throw new IOException("Interrupted when createClient", ie);
+      throw new CelebornIOException("Interrupted when createClient", ie);
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
@@ -131,7 +132,7 @@ public class WorkerPartitionReader implements PartitionReader {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      IOException ioe = new IOException(e);
+      IOException ioe = new CelebornIOException(e);
       exception.set(ioe);
       throw ioe;
     }
@@ -161,7 +162,7 @@ public class WorkerPartitionReader implements PartitionReader {
           Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.numChunks - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
         if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
-          callback.onFailure(chunkIndex, new IOException("Test fetch chunk failure"));
+          callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
         } else {
           try {
             TransportClient client =
