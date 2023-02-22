@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.apache.flink.api.common.JobID;
@@ -74,45 +72,30 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       }
     }
 
-    Future<?> submit =
-        executor.submit(
-            () -> {
-              if (jobShuffleIds.containsKey(jobID)) {
-                throw new RuntimeException("Duplicated registration job: " + jobID);
-              } else {
-                jobShuffleIds.computeIfAbsent(jobID, (s) -> new HashSet<>());
-              }
-            });
-
-    try {
-      submit.get();
-    } catch (InterruptedException e) {
-      LOG.error("Encounter interruptedException when registration job: {}.", jobID, e);
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      LOG.error("Encounter an error when registration job: {}.", jobID, e);
-      throw new RuntimeException(e.getCause());
+    Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
+    if (previousShuffleIds != null) {
+      throw new RuntimeException("Duplicated registration job: " + jobID);
     }
   }
 
   @Override
   public void unregisterJob(JobID jobID) {
-    executor.execute(
-        () -> {
-          try {
-            LOG.info("Unregister job: {}.", jobID);
-            Set<Integer> shuffleIds = jobShuffleIds.remove(jobID);
-            if (shuffleIds != null) {
+    LOG.info("Unregister job: {}.", jobID);
+    Set<Integer> shuffleIds = jobShuffleIds.remove(jobID);
+    if (shuffleIds != null) {
+      executor.execute(
+          () -> {
+            try {
               synchronized (shuffleIds) {
                 for (Integer shuffleId : shuffleIds) {
                   lifecycleManager.handleUnregisterShuffle(celebornAppId, shuffleId);
                 }
               }
+            } catch (Throwable throwable) {
+              LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
             }
-          } catch (Throwable throwable) {
-            LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
-          }
-        });
+          });
+    }
   }
 
   @Override
