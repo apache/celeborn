@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
@@ -24,11 +25,13 @@ import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class FlinkResultPartitionInfo {
+  private final JobID jobID;
   private final PartitionDescriptor partitionDescriptor;
   private final ProducerDescriptor producerDescriptor;
 
   public FlinkResultPartitionInfo(
-      PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+      JobID jobId, PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+    this.jobID = jobId;
     this.partitionDescriptor = partitionDescriptor;
     this.producerDescriptor = producerDescriptor;
   }
@@ -39,7 +42,7 @@ public class FlinkResultPartitionInfo {
   }
 
   public String getShuffleId() {
-    return FlinkUtils.toShuffleId(partitionDescriptor.getResultId());
+    return FlinkUtils.toShuffleId(jobID, partitionDescriptor.getResultId());
   }
 
   public int getTaskId() {
@@ -48,5 +51,15 @@ public class FlinkResultPartitionInfo {
 
   public String getAttemptId() {
     return FlinkUtils.toAttemptId(producerDescriptor.getProducerExecutionId());
+  }
+
+  @Override
+  public String toString() {
+    final StringBuilder sb = new StringBuilder("FlinkResultPartitionInfo{");
+    sb.append("jobID=").append(jobID);
+    sb.append(", partitionDescriptor=").append(partitionDescriptor.getPartitionId());
+    sb.append(", producerDescriptor=").append(producerDescriptor.getProducerExecutionId());
+    sb.append('}');
+    return sb.toString();
   }
 }

@@ -185,7 +185,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
           remoteDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
 
       LOG.debug("create shuffle reader for descriptor {}", shuffleDescriptor);
-      String applicationId = remoteDescriptor.getJobID().toString();
+      String applicationId = remoteDescriptor.getCelebornAppId();
 
       RemoteBufferStreamReader reader =
           new RemoteBufferStreamReader(

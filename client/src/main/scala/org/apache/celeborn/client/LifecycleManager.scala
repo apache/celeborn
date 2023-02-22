@@ -682,7 +682,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     reply(mapperAttemptFinishedSuccess)
   }
 
-  private def handleUnregisterShuffle(
+  def handleUnregisterShuffle(
       appId: String,
       shuffleId: Int): Unit = {
     if (getPartitionType(shuffleId) == PartitionType.REDUCE) {

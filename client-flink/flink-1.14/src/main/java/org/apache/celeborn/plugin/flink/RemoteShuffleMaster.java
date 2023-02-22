@@ -17,11 +17,11 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.apache.flink.api.common.JobID;
@@ -41,10 +41,12 @@ import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
 
 public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescriptor> {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
-
   private final ShuffleMasterContext shuffleMasterContext;
-  // Flink JobId -> Celeborn LifecycleManager
-  private Map<JobID, LifecycleManager> lifecycleManagers = new ConcurrentHashMap<>();
+  // Flink JobId -> Celeborn register shuffleIds
+  private Map<JobID, Set<Integer>> jobShuffleIds = new ConcurrentHashMap<>();
+  private String celebornAppId;
+  private volatile LifecycleManager lifecycleManager;
+
   private final ScheduledThreadPoolExecutor executor =
       new ScheduledThreadPoolExecutor(
           1,
@@ -57,46 +59,43 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
   @Override
   public void registerJob(JobShuffleContext context) {
-    JobID jobId = context.getJobId();
-    Future<?> submit =
-        executor.submit(
-            () -> {
-              if (lifecycleManagers.containsKey(jobId)) {
-                throw new RuntimeException("Duplicated registration job: " + jobId);
-              } else {
-                CelebornConf celebornConf =
-                    FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
-                LifecycleManager lifecycleManager =
-                    new LifecycleManager(FlinkUtils.toCelebornAppId(jobId), celebornConf);
-                lifecycleManagers.put(jobId, lifecycleManager);
-              }
-            });
+    JobID jobID = context.getJobId();
+    if (lifecycleManager == null) {
+      synchronized (RemoteShuffleMaster.class) {
+        if (lifecycleManager == null) {
+          // use first jobID as celeborn shared appId for all other flink jobs
+          celebornAppId = FlinkUtils.toCelebornAppId(jobID);
+          CelebornConf celebornConf =
+              FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
+          lifecycleManager = new LifecycleManager(celebornAppId, celebornConf);
+        }
+      }
+    }
 
-    try {
-      submit.get();
-    } catch (InterruptedException e) {
-      LOG.error("Encounter interruptedException when registration job: {}.", jobId, e);
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      LOG.error("Encounter an error when registration job: {}.", jobId, e);
-      throw new RuntimeException(e.getCause());
+    Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
+    if (previousShuffleIds != null) {
+      throw new RuntimeException("Duplicated registration job: " + jobID);
     }
   }
 
   @Override
   public void unregisterJob(JobID jobID) {
-    executor.execute(
-        () -> {
-          try {
-            LOG.info("Unregister job: {}.", jobID);
-            LifecycleManager lifecycleManager = lifecycleManagers.remove(jobID);
-            if (lifecycleManager != null) {
-              lifecycleManager.stop();
+    LOG.info("Unregister job: {}.", jobID);
+    Set<Integer> shuffleIds = jobShuffleIds.remove(jobID);
+    if (shuffleIds != null) {
+      executor.execute(
+          () -> {
+            try {
+              synchronized (shuffleIds) {
+                for (Integer shuffleId : shuffleIds) {
+                  lifecycleManager.handleUnregisterShuffle(celebornAppId, shuffleId);
+                }
+              }
+            } catch (Throwable throwable) {
+              LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
             }
-          } catch (Throwable throwable) {
-            LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
-          }
-        });
+          });
+    }
   }
 
   @Override
@@ -105,14 +104,23 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     CompletableFuture<RemoteShuffleDescriptor> completableFuture =
         CompletableFuture.supplyAsync(
             () -> {
-              LifecycleManager lifecycleManager = lifecycleManagers.get(jobID);
+              Set<Integer> shuffleIds = jobShuffleIds.get(jobID);
+              if (shuffleIds == null) {
+                throw new RuntimeException("Can not find job in lifecycleManager, job: " + jobID);
+              }
+
               FlinkResultPartitionInfo resultPartitionInfo =
-                  new FlinkResultPartitionInfo(partitionDescriptor, producerDescriptor);
+                  new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
               LifecycleManager.ShuffleTask shuffleTask =
                   lifecycleManager.encodeExternalShuffleTask(
                       resultPartitionInfo.getShuffleId(),
                       resultPartitionInfo.getTaskId(),
                       resultPartitionInfo.getAttemptId());
+
+              synchronized (shuffleIds) {
+                shuffleIds.add(shuffleTask.shuffleId());
+              }
+
               ShuffleResourceDescriptor shuffleResourceDescriptor =
                   new ShuffleResourceDescriptor(shuffleTask);
               RemoteShuffleResource remoteShuffleResource =
@@ -121,7 +129,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
                       lifecycleManager.getRssMetaServicePort(),
                       shuffleResourceDescriptor);
               return new RemoteShuffleDescriptor(
-                  jobID, resultPartitionInfo.getResultPartitionId(), remoteShuffleResource);
+                  celebornAppId,
+                  resultPartitionInfo.getShuffleId(),
+                  resultPartitionInfo.getResultPartitionId(),
+                  remoteShuffleResource);
             },
             executor);
 
@@ -136,9 +147,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   @Override
   public void close() throws Exception {
     try {
-      for (LifecycleManager lifecycleManager : lifecycleManagers.values()) {
-        lifecycleManager.stop();
-      }
+      jobShuffleIds.clear();
+      lifecycleManager.stop();
     } catch (Exception e) {
       LOG.warn("Encounter exception when shutdown: " + e.getMessage(), e);
     }
