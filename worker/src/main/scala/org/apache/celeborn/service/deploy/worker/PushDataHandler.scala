@@ -20,10 +20,8 @@ package org.apache.celeborn.service.deploy.worker
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
-
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
@@ -322,7 +320,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           }
           try {
             val client =
-              pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
+              pushClientFactory.createClient(peer.getHost, peer.getReplicatePort)
             val newPushData = new PushData(
               PartitionLocation.Mode.SLAVE.mode(),
               shuffleKey,
@@ -581,8 +579,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           try {
             val client = pushClientFactory.createClient(
               peer.getHost,
-              peer.getReplicatePort,
-              location.getId)
+              peer.getReplicatePort)
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.SLAVE.mode(),
               shuffleKey,

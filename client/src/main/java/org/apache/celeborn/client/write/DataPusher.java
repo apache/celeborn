@@ -178,7 +178,11 @@ public class DataPusher {
     checkException();
   }
 
-  private void checkException() throws IOException {
+  public void setException(IOException ie) {
+    exceptionRef.compareAndSet(null, ie);
+  }
+
+  public void checkException() throws IOException {
     if (exceptionRef.get() != null) {
       throw exceptionRef.get();
     }

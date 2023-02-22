@@ -18,6 +18,10 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
@@ -63,6 +67,9 @@ public class SortBasedPusher extends MemoryConsumer {
   CelebornConf conf;
   Consumer<Integer> afterPush;
   LongAdder[] mapStatusLengths;
+  Object pushLock;
+  int[] shuffledPartitions;
+  int[] reverseShuffledPartitions;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -76,7 +83,8 @@ public class SortBasedPusher extends MemoryConsumer {
       int numPartitions,
       CelebornConf conf,
       Consumer<Integer> afterPush,
-      LongAdder[] mapStatusLengths)
+      LongAdder[] mapStatusLengths,
+      Object pushLock)
       throws IOException {
     super(
         memoryManager,
@@ -92,6 +100,20 @@ public class SortBasedPusher extends MemoryConsumer {
     this.taskAttemptId = taskAttemptId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
+
+    shuffledPartitions = new int[numPartitions];
+    reverseShuffledPartitions = new int[numPartitions];
+    ArrayList<Integer> list = new ArrayList(numPartitions);
+    for (int i = 0; i < numPartitions; i++) {
+      list.add(i);
+    }
+    Collections.shuffle(list);
+    for (int i = 0; i < numPartitions; i++) {
+      int mapped = list.get(i);
+      shuffledPartitions[i] = mapped;
+      reverseShuffledPartitions[mapped] = i;
+    }
+
     this.conf = conf;
     this.afterPush = afterPush;
     this.mapStatusLengths = mapStatusLengths;
@@ -114,70 +136,83 @@ public class SortBasedPusher extends MemoryConsumer {
     pushSortMemoryThreshold = conf.pushSortMemoryThreshold();
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
+    this.pushLock = pushLock;
+  }
+
+  public long pushData() throws IOException {
+    // pushData should be synchronized between pushers
+    synchronized (pushLock) {
+      final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
+          inMemSorter.getSortedIterator();
+
+      byte[] dataBuf = new byte[pushBufferMaxSize];
+      int offSet = 0;
+      int currentPartition = -1;
+      while (sortedRecords.hasNext()) {
+        sortedRecords.loadNext();
+        final int partition = reverseShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
+        assert (partition >= currentPartition);
+        if (partition != currentPartition) {
+          if (currentPartition == -1) {
+            currentPartition = partition;
+          } else {
+            int bytesWritten =
+                rssShuffleClient.mergeData(
+                    appId,
+                    shuffleId,
+                    mapId,
+                    attemptNumber,
+                    currentPartition,
+                    dataBuf,
+                    0,
+                    offSet,
+                    numMappers,
+                    numPartitions);
+            mapStatusLengths[currentPartition].add(bytesWritten);
+            afterPush.accept(bytesWritten);
+            currentPartition = partition;
+            offSet = 0;
+          }
+        }
+        final long recordPointer = sortedRecords.packedRecordPointer.getRecordPointer();
+        final Object recordPage = taskMemoryManager.getPage(recordPointer);
+        final long recordOffsetInPage = taskMemoryManager.getOffsetInPage(recordPointer);
+        int recordSize = UnsafeAlignedOffset.getSize(recordPage, recordOffsetInPage);
+
+        if (offSet + recordSize > dataBuf.length) {
+          dataPusher.addTask(partition, dataBuf, offSet);
+          offSet = 0;
+        }
+
+        long recordReadPosition = recordOffsetInPage + uaoSize;
+        Platform.copyMemory(
+            recordPage,
+            recordReadPosition,
+            dataBuf,
+            Platform.BYTE_ARRAY_OFFSET + offSet,
+            recordSize);
+        offSet += recordSize;
+      }
+      if (offSet > 0) {
+        dataPusher.addTask(currentPartition, dataBuf, offSet);
+      }
+
+      long freedBytes = freeMemory();
+      inMemSorter.freeMemory();
+      return freedBytes;
+    }
   }
 
   /**
-   * @return bytes of memory freed
+   * @param recordBase
+   * @param recordOffset
+   * @param recordSize
+   * @param partitionId
+   * @param copySize
+   * @return false if reaches capacity threshold
    * @throws IOException
    */
-  public long pushData() throws IOException {
-    final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
-        inMemSorter.getSortedIterator();
-
-    byte[] dataBuf = new byte[pushBufferMaxSize];
-    int offSet = 0;
-    int currentPartition = -1;
-    while (sortedRecords.hasNext()) {
-      sortedRecords.loadNext();
-      final int partition = sortedRecords.packedRecordPointer.getPartitionId();
-      assert (partition >= currentPartition);
-      if (partition != currentPartition) {
-        if (currentPartition == -1) {
-          currentPartition = partition;
-        } else {
-          int bytesWritten =
-              rssShuffleClient.mergeData(
-                  appId,
-                  shuffleId,
-                  mapId,
-                  attemptNumber,
-                  currentPartition,
-                  dataBuf,
-                  0,
-                  offSet,
-                  numMappers,
-                  numPartitions);
-          mapStatusLengths[currentPartition].add(bytesWritten);
-          afterPush.accept(bytesWritten);
-          currentPartition = partition;
-          offSet = 0;
-        }
-      }
-      final long recordPointer = sortedRecords.packedRecordPointer.getRecordPointer();
-      final Object recordPage = taskMemoryManager.getPage(recordPointer);
-      final long recordOffsetInPage = taskMemoryManager.getOffsetInPage(recordPointer);
-      int recordSize = UnsafeAlignedOffset.getSize(recordPage, recordOffsetInPage);
-
-      if (offSet + recordSize > dataBuf.length) {
-        dataPusher.addTask(partition, dataBuf, offSet);
-        offSet = 0;
-      }
-
-      long recordReadPosition = recordOffsetInPage + uaoSize;
-      Platform.copyMemory(
-          recordPage, recordReadPosition, dataBuf, Platform.BYTE_ARRAY_OFFSET + offSet, recordSize);
-      offSet += recordSize;
-    }
-    if (offSet > 0) {
-      dataPusher.addTask(currentPartition, dataBuf, offSet);
-    }
-
-    long freedBytes = freeMemory();
-    inMemSorter.freeMemory();
-    return freedBytes;
-  }
-
-  public void insertRecord(
+  public boolean insertRecord(
       Object recordBase, long recordOffset, int recordSize, int partitionId, boolean copySize)
       throws IOException {
 
@@ -185,11 +220,11 @@ public class SortBasedPusher extends MemoryConsumer {
         && pageCursor + Utils.byteStringAsBytes("8k")
             > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
-          "Memory Used across threshold, trigger push. Memory: "
+          "Memory Used across threshold, need to trigger push. Memory: "
               + getUsed()
               + ", currentPage size: "
               + currentPage.size());
-      pushData();
+      return false;
     }
 
     final int uaoSize = UnsafeAlignedOffset.getUaoSize();
@@ -218,7 +253,35 @@ public class SortBasedPusher extends MemoryConsumer {
       Platform.copyMemory(recordBase, recordOffset, base, pageCursor, recordSize);
       pageCursor += recordSize;
     }
-    inMemSorter.insertRecord(recordAddress, partitionId);
+    inMemSorter.insertRecord(recordAddress, shuffledPartitions[partitionId]);
+
+    return true;
+  }
+
+  public void triggerPush() throws IOException {
+    dataPusher.checkException();
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                pushData();
+              } catch (IOException ie) {
+                dataPusher.setException(ie);
+              }
+            });
+    thread.start();
+  }
+
+  /**
+   * Since this method and pushData() are synchronized When this method returns, it means pushData
+   * has released lock
+   *
+   * @throws IOException
+   */
+  public void waitPushFinish() throws IOException {
+    synchronized (pushLock) {
+      dataPusher.checkException();
+    }
   }
 
   private void growPointerArrayIfNecessary() throws IOException {
@@ -316,11 +379,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
   @Override
   public long spill(long l, MemoryConsumer memoryConsumer) throws IOException {
-    logger.info("Pushdata in spill, memory used " + getUsed());
-    if (getUsed() != 0) {
-      logger.info("Pushdata is not empty , do push.");
-      return pushData();
-    }
+    logger.warn("SortBasedPusher not support spill yet");
     return 0;
   }
 
