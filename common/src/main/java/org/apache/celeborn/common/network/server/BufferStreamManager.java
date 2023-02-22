@@ -256,8 +256,7 @@ public class BufferStreamManager {
     public void recycle(ByteBuf buffer, Queue<ByteBuf> bufferQueue) {
       buffer.clear();
       bufferQueue.add(buffer);
-      // avoid unnecessary thread switch
-      readBuffers();
+      triggerRead();
     }
 
     public synchronized void readBuffers() {
