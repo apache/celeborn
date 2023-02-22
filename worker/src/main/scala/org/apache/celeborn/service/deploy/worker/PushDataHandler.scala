@@ -505,7 +505,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
       callbackWithTimer.onFailure(new Exception(
-        s"$message! ${partitionIdToLocations.head}",
+        s"$message! ${partitionIdToLocations.head._2}",
         exception))
       return
     }
@@ -567,12 +567,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage)) {
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head} timeout: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head._2} timeout: ${e.getMessage}",
                   e))
               } else {
                 // Throw by connection
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head} failed: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head._2} failed: ${e.getMessage}",
                   e))
               }
             }
