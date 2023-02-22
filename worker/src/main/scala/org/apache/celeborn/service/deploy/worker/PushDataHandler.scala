@@ -491,7 +491,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    val fileWriters = partitionIdToLocations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
+    val fileWriters =
+      partitionIdToLocations.map(_._2).map(_.asInstanceOf[WorkingPartition].getFileWriter)
     val fileWriterWithException = fileWriters.find(_.getException != null)
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
