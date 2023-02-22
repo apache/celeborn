@@ -415,11 +415,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
-        logError(s"OfferSlots RPC request failed for $shuffleId!")
+        logDebug(s"OfferSlots RPC request failed for $shuffleId!")
         reply(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
-        logError(s"OfferSlots for $shuffleId failed!")
+        logDebug(s"OfferSlots for $shuffleId failed!")
         reply(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
