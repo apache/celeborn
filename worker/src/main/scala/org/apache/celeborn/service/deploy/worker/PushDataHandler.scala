@@ -427,19 +427,20 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    val locations = pushMergedData.partitionUniqueIds.map { id =>
+    val partitionIdToLocations = pushMergedData.partitionUniqueIds.map { id =>
       if (isMaster) {
-        partitionLocationInfo.getMasterLocation(shuffleKey, id)
+        id -> partitionLocationInfo.getMasterLocation(shuffleKey, id)
       } else {
-        partitionLocationInfo.getSlaveLocation(shuffleKey, id)
+        id -> partitionLocationInfo.getSlaveLocation(shuffleKey, id)
       }
     }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate = locations.head != null && locations.head.getPeer != null && isMaster
+    val doReplicate =
+      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.getPeer != null && isMaster
 
     // find FileWriters responsible for the data
-    locations.foreach { loc =>
+    partitionIdToLocations.foreach { case (id, loc) =>
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
@@ -473,7 +474,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           } else {
             val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
-              s" attempt $attemptId, uniqueId ${loc.getUniqueId})."
+              s" attempt $attemptId, uniqueId $id)."
             logWarning(s"[handlePushMergedData] $msg")
             callbackWithTimer.onFailure(
               new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
@@ -490,7 +491,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    val fileWriters = locations.map(_.asInstanceOf[WorkingPartition].getFileWriter)
+    val fileWriters =
+      partitionIdToLocations.map(_._2).map(_.asInstanceOf[WorkingPartition].getFileWriter)
     val fileWriterWithException = fileWriters.find(_.getException != null)
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
@@ -502,7 +504,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
         }
-      callbackWithTimer.onFailure(new Exception(s"$message! ${locations.head}", exception))
+      callbackWithTimer.onFailure(new Exception(
+        s"$message! ${partitionIdToLocations.head._2}",
+        exception))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
@@ -512,7 +516,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       pushMergedData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
-          val location = locations.head
+          val location = partitionIdToLocations.head._2
           val peer = location.getPeer
           val peerWorker = new WorkerInfo(
             peer.getHost,
@@ -563,12 +567,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage)) {
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${locations.head} timeout: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head._2} timeout: ${e.getMessage}",
                   e))
               } else {
                 // Throw by connection
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of ${locations.head} failed: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head._2} failed: ${e.getMessage}",
                   e))
               }
             }
