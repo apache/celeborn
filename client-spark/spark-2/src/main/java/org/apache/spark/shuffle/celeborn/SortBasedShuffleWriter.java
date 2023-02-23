@@ -309,8 +309,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void close() throws IOException {
     if (pipelined) {
-      logger.info(
-          "Pushdata in close, memory used {}", (pushers[0].getUsed() + pushers[1].getUsed()));
+      logger.info("Pushdata in close, memory used {}",
+        (pushers[0].getUsed() + pushers[1].getUsed()));
     } else {
       logger.info("Pushdata in close, memory used {}", currentPusher.getUsed());
     }
