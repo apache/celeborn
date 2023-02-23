@@ -131,7 +131,6 @@ public class TransportClientFactory implements Closeable {
 
     int clientIndex =
         partitionId < 0 ? rand.nextInt(numConnectionsPerPeer) : partitionId % numConnectionsPerPeer;
-    System.out.println("numConnectionsPerPeer " + numConnectionsPerPeer + ", clientIndex " + clientIndex);
     TransportClient cachedClient = clientPool.clients[clientIndex];
 
     if (cachedClient != null && cachedClient.isActive()) {

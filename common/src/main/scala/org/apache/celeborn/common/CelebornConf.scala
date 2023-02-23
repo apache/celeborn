@@ -497,6 +497,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
+  def workerReplicateRandomConnection: Boolean = get(WORKER_REPLICATE_RANDOM_CONNECTION)
   def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
@@ -659,6 +660,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
   def pushMaxReviveTimes: Int = get(PUSH_MAX_REVIVE_TIMES)
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
+  def pushSortPipelineEnabled: Boolean = get(PUSH_SORT_PIPELINE_ENABLED)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
@@ -1857,6 +1859,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
+  val WORKER_REPLICATE_RANDOM_CONNECTION: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.replicate.randomConnection")
+      .categories("worker")
+      .doc("Whether worker will create random connection to peer when replicate data.")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
+
   val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.disk.check.timeout")
       .withAlternative("rss.worker.status.check.timeout")
@@ -2233,6 +2243,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
+
+  val PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.pipeline.enabled")
+      .categories("client")
+      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
+        " will be used to pipeline push")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
 
   val PUSH_RETRY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.push.retry.threads")

@@ -84,6 +84,7 @@ public class SortBasedPusher extends MemoryConsumer {
       CelebornConf conf,
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths,
+      long pushSortMemoryThreshold,
       Object pushLock)
       throws IOException {
     super(
@@ -133,7 +134,7 @@ public class SortBasedPusher extends MemoryConsumer {
             mapStatusLengths);
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
-    pushSortMemoryThreshold = conf.pushSortMemoryThreshold();
+    this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
     this.pushLock = pushLock;
