@@ -2257,8 +2257,9 @@ object CelebornConf extends Logging {
   val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.push.randomizePartitionId.enabled")
       .categories("client")
-      .doc("Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
-        "when sort data to avoid skew when push to worker")
+      .doc(
+        "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
+          "when sort data to avoid skew when push to worker")
       .version("0.2.1")
       .booleanConf
       .createWithDefault(false)

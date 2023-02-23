@@ -18,9 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.LongAdder;
@@ -56,6 +54,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
+  final long bytes8K = Utils.byteStringAsBytes("8k");
 
   String appId;
   int shuffleId;
@@ -67,7 +66,8 @@ public class SortBasedPusher extends MemoryConsumer {
   CelebornConf conf;
   Consumer<Integer> afterPush;
   LongAdder[] mapStatusLengths;
-  Object pushLock;
+  Object globalPushLock;
+  volatile boolean asyncPushing = false;
   int[] shuffledPartitions;
   int[] reverseShuffledPartitions;
 
@@ -85,7 +85,7 @@ public class SortBasedPusher extends MemoryConsumer {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
-      Object pushLock)
+      Object globalPushLock)
       throws IOException {
     super(
         memoryManager,
@@ -139,12 +139,12 @@ public class SortBasedPusher extends MemoryConsumer {
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
-    this.pushLock = pushLock;
+    this.globalPushLock = globalPushLock;
   }
 
   public long pushData() throws IOException {
     // pushData should be synchronized between pushers
-    synchronized (pushLock) {
+    synchronized (globalPushLock) {
       final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
           inMemSorter.getSortedIterator();
 
@@ -153,7 +153,8 @@ public class SortBasedPusher extends MemoryConsumer {
       int currentPartition = -1;
       while (sortedRecords.hasNext()) {
         sortedRecords.loadNext();
-        final int partition = reverseShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
+        final int partition =
+            reverseShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
         assert (partition >= currentPartition);
         if (partition != currentPartition) {
           if (currentPartition == -1) {
@@ -202,6 +203,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
       long freedBytes = freeMemory();
       inMemSorter.freeMemory();
+
       return freedBytes;
     }
   }
@@ -220,8 +222,7 @@ public class SortBasedPusher extends MemoryConsumer {
       throws IOException {
 
     if (getUsed() > pushSortMemoryThreshold
-        && pageCursor + Utils.byteStringAsBytes("8k")
-            > currentPage.getBaseOffset() + currentPage.size()) {
+        && pageCursor + bytes8K > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
           "Memory Used across threshold, need to trigger push. Memory: "
               + getUsed()
@@ -230,7 +231,6 @@ public class SortBasedPusher extends MemoryConsumer {
       return false;
     }
 
-    final int uaoSize = UnsafeAlignedOffset.getUaoSize();
     int required;
     // Need 4 or 8 bytes to store the record recordSize.
     if (copySize) {
@@ -262,12 +262,14 @@ public class SortBasedPusher extends MemoryConsumer {
   }
 
   public void triggerPush() throws IOException {
+    asyncPushing = true;
     dataPusher.checkException();
     Thread thread =
         new Thread(
             () -> {
               try {
                 pushData();
+                asyncPushing = false;
               } catch (IOException ie) {
                 dataPusher.setException(ie);
               }
@@ -282,8 +284,13 @@ public class SortBasedPusher extends MemoryConsumer {
    * @throws IOException
    */
   public void waitPushFinish() throws IOException {
-    synchronized (pushLock) {
-      dataPusher.checkException();
+    dataPusher.checkException();
+    while (asyncPushing) {
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e) {
+        throw new IOException("Interrupted when waitPushFinish", e);
+      }
     }
   }
 

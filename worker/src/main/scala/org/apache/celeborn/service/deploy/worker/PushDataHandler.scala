@@ -20,8 +20,10 @@ package org.apache.celeborn.service.deploy.worker
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
+
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
