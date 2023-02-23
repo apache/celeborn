@@ -187,11 +187,30 @@ public class ShuffleClientImpl extends ShuffleClient {
           new CelebornIOException("Revive Failed, remain revive times " + remainReviveTimes));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
-          "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
+          "Revive for push data success, but the mapper already ended for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " partitionId "
+              + partitionId
+              + ".");
       pushState.removeBatch(batchId, loc.hostAndPushPort());
     } else {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
-      logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
+      logger.info(
+          "Revive for push data success, new location for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " partitionId "
+              + partitionId
+              + " is location "
+              + newLoc
+              + ".");
       try {
         if (!testRetryRevive || remainReviveTimes < 1) {
           TransportClient client =
@@ -207,12 +226,20 @@ public class ShuffleClientImpl extends ShuffleClient {
               "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
         }
       } catch (Exception e) {
-        logger.warn(
-            "Exception raised while pushing data for shuffle {} map {} attempt {}" + " batch {}.",
-            shuffleId,
-            mapId,
-            attemptId,
-            batchId,
+        logger.error(
+            "Exception raised while pushing data for shuffle "
+                + shuffleId
+                + " map "
+                + mapId
+                + " attempt "
+                + attemptId
+                + " partitionId "
+                + partitionId
+                + " batch "
+                + batchId
+                + " location "
+                + newLoc
+                + ".",
             e);
         wrappedCallback.onFailure(
             new Exception(
@@ -260,10 +287,29 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       } else if (mapperEnded(shuffleId, mapId, attemptId)) {
         logger.debug(
-            "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
+            "Revive for push merged data success, but the mapper already ended for shuffle "
+                + shuffleId
+                + " map "
+                + mapId
+                + " attempt "
+                + attemptId
+                + " partitionId "
+                + partitionId
+                + ".");
       } else {
         PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
-        logger.info("Revive success, new location for reduce {} is {}.", partitionId, newLoc);
+        logger.info(
+            "Revive for push merged data success, new location for shuffle "
+                + shuffleId
+                + " map "
+                + mapId
+                + " attempt "
+                + attemptId
+                + " partitionId "
+                + partitionId
+                + " is location "
+                + newLoc
+                + ".");
         DataBatches newDataBatches =
             newDataBatchesMap.computeIfAbsent(genAddressPair(newLoc), (s) -> new DataBatches());
         newDataBatches.addDataBatch(newLoc, batch.batchId, batch.body);
@@ -330,10 +376,15 @@ public class ShuffleClientImpl extends ShuffleClient {
       String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException {
     int partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
     logger.info(
-        "register mapPartitionTask, mapId: {}, attemptId: {}, partitionId: {}",
-        mapId,
-        attemptId,
-        partitionId);
+        "Register MapPartition task for shuffle "
+            + shuffleId
+            + " map "
+            + mapId
+            + " attemptId "
+            + attemptId
+            + " partitionId "
+            + partitionId
+            + ".");
     ConcurrentHashMap<Integer, PartitionLocation> partitionLocationMap =
         registerShuffleInternal(
             shuffleId,
@@ -402,10 +453,13 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       } catch (Exception e) {
         logger.error(
-            "Exception raised while registering shuffle {} with {} mapper and {} partitions.",
-            shuffleId,
-            numMappers,
-            numPartitions,
+            "Exception raised while registering shuffle "
+                + shuffleId
+                + " with "
+                + numMappers
+                + " mapper and "
+                + numPartitions
+                + " partitions.",
             e);
         break;
       }
@@ -426,7 +480,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     boolean reachLimit = pushState.limitMaxInFlight(hostAndPushPort);
 
     if (reachLimit) {
-      throw new CelebornIOException("wait timeout for task " + mapKey, pushState.exception.get());
+      throw new CelebornIOException(
+          "Waiting timeout for task " + mapKey, pushState.exception.get());
     }
   }
 
@@ -434,7 +489,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     boolean reachLimit = pushState.limitZeroInFlight();
 
     if (reachLimit) {
-      throw new CelebornIOException("wait timeout for task " + mapKey, pushState.exception.get());
+      throw new CelebornIOException(
+          "Waiting timeout for task " + mapKey, pushState.exception.get());
     }
   }
 
@@ -450,7 +506,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       try {
         TimeUnit.MILLISECONDS.sleep(sleepTimeMs);
       } catch (InterruptedException e) {
-        logger.warn("Wait revived location interrupted", e);
+        logger.error("Waiting revived location was interrupted.", e);
         Thread.currentThread().interrupt();
       }
     }
@@ -471,21 +527,31 @@ public class ShuffleClientImpl extends ShuffleClient {
     ConcurrentHashMap<Integer, PartitionLocation> map = reducePartitionMap.get(shuffleId);
     if (waitRevivedLocation(map, partitionId, epoch)) {
       logger.debug(
-          "Has already revived for shuffle {} map {} reduce {} epoch {},"
-              + " just return(Assume revive successfully).",
-          shuffleId,
-          mapId,
-          partitionId,
-          epoch);
+          "Revive already success for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " partitionId "
+              + partitionId
+              + " epoch "
+              + epoch
+              + ", just return(Assume revive successfully).");
       return true;
     }
     String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
-          "The mapper(shuffle {} map {}) has already ended, just return(Assume"
-              + " revive successfully).",
-          shuffleId,
-          mapId);
+          "Revive success, but the mapper ended for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " partitionId "
+              + partitionId
+              + ", just return (Assume revive successfully).");
       return true;
     }
 
@@ -516,10 +582,17 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     } catch (Exception e) {
       logger.error(
-          "Exception raised while reviving for shuffle {} reduce {} epoch {}.",
-          shuffleId,
-          partitionId,
-          epoch,
+          "Exception raised while reviving for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " partition "
+              + partitionId
+              + " epoch "
+              + epoch
+              + ".",
           e);
       return false;
     }
@@ -544,10 +617,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     // return if shuffle stage already ended
     if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
-          "The mapper(shuffle {} map {} attempt {}) has already ended while" + " pushing data.",
-          shuffleId,
-          mapId,
-          attemptId);
+          "Push or merge data ignored because mapper already ended for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + ".");
       PushState pushState = pushStates.get(mapKey);
       if (pushState != null) {
         pushState.cleanup();
@@ -559,7 +635,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         getPartitionLocation(applicationId, shuffleId, numMappers, numPartitions);
 
     if (map == null) {
-      throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleKey);
+      throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleKey + ".");
     }
 
     // get location
@@ -581,10 +657,13 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
-          "The mapper(shuffle {} map {} attempt {}) has already ended while" + " pushing data.",
-          shuffleId,
-          mapId,
-          attemptId);
+          "Push or merge data ignored because mapper already ended for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + ".");
       PushState pushState = pushStates.get(mapKey);
       if (pushState != null) {
         pushState.cleanup();
@@ -622,14 +701,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         compressor.getCompressedBuffer(), 0, body, BATCH_HEADER_SIZE, compressedTotalSize);
 
     if (doPush) {
-      logger.debug(
-          "Do push data for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
-          applicationId,
-          shuffleId,
-          mapId,
-          attemptId,
-          partitionId,
-          nextBatchId);
       // check limit
       limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
 
@@ -654,12 +725,17 @@ public class ShuffleClientImpl extends ShuffleClient {
                     .add(mapKey);
               }
               logger.debug(
-                  "Push data to {}:{} success for map {} attempt {} batch {}.",
-                  loc.getHost(),
-                  loc.getPushPort(),
-                  mapId,
-                  attemptId,
-                  nextBatchId);
+                  "Push data to "
+                      + loc.hostAndPushPort()
+                      + " success for shuffle "
+                      + shuffleId
+                      + " map "
+                      + mapId
+                      + " attempt "
+                      + attemptId
+                      + " batch "
+                      + nextBatchId
+                      + ".");
             }
 
             @Override
@@ -667,12 +743,17 @@ public class ShuffleClientImpl extends ShuffleClient {
               pushState.exception.compareAndSet(
                   null, new CelebornIOException("Revived PushData failed!", e));
               logger.error(
-                  "Push data to {}:{} failed for map {} attempt {} batch {}.",
-                  loc.getHost(),
-                  loc.getPushPort(),
-                  mapId,
-                  attemptId,
-                  nextBatchId,
+                  "Push data to "
+                      + loc.hostAndPushPort()
+                      + " failed for shuffle "
+                      + shuffleId
+                      + " map "
+                      + mapId
+                      + " attempt "
+                      + attemptId
+                      + " batch "
+                      + nextBatchId
+                      + ".",
                   e);
             }
           };
@@ -687,19 +768,33 @@ public class ShuffleClientImpl extends ShuffleClient {
                 byte reason = response.get();
                 if (reason == StatusCode.SOFT_SPLIT.getValue()) {
                   logger.debug(
-                      "Push data split required for map {} attempt {} batch {}",
-                      mapId,
-                      attemptId,
-                      nextBatchId);
+                      "Push data to "
+                          + loc.hostAndPushPort()
+                          + " soft split required for shuffle "
+                          + shuffleId
+                          + " map "
+                          + mapId
+                          + " attempt "
+                          + attemptId
+                          + " batch "
+                          + nextBatchId
+                          + ".");
                   splitPartition(shuffleId, partitionId, applicationId, loc);
                   pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
-                      "Push data split for map {} attempt {} batch {}.",
-                      mapId,
-                      attemptId,
-                      nextBatchId);
+                      "Push data to "
+                          + loc.hostAndPushPort()
+                          + " hard split required for shuffle "
+                          + shuffleId
+                          + " map "
+                          + mapId
+                          + " attempt "
+                          + attemptId
+                          + " batch "
+                          + nextBatchId
+                          + ".");
                   pushDataRetryPool.submit(
                       () ->
                           submitRetryPushData(
@@ -716,18 +811,32 @@ public class ShuffleClientImpl extends ShuffleClient {
                               remainReviveTimes));
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data split for map {} attempt {} batch {} return master congested.",
-                      mapId,
-                      attemptId,
-                      nextBatchId);
+                      "Push data to "
+                          + loc.hostAndPushPort()
+                          + " master congestion required for shuffle "
+                          + shuffleId
+                          + " map "
+                          + mapId
+                          + " attempt "
+                          + attemptId
+                          + " batch "
+                          + nextBatchId
+                          + ".");
                   pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data split for map {} attempt {} batch {} return slave congested.",
-                      mapId,
-                      attemptId,
-                      nextBatchId);
+                      "Push data to "
+                          + loc.hostAndPushPort()
+                          + " slave congestion required for shuffle "
+                          + shuffleId
+                          + " map "
+                          + mapId
+                          + " attempt "
+                          + attemptId
+                          + " batch "
+                          + nextBatchId
+                          + ".");
                   pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else {
@@ -763,12 +872,17 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
 
               logger.error(
-                  "Push data to {}:{} failed for map {} attempt {} batch {}.",
-                  loc.getHost(),
-                  loc.getPushPort(),
-                  mapId,
-                  attemptId,
-                  nextBatchId,
+                  "Push data to "
+                      + loc.hostAndPushPort()
+                      + "  failed for shuffle "
+                      + shuffleId
+                      + " map "
+                      + mapId
+                      + " attempt "
+                      + attemptId
+                      + " batch "
+                      + nextBatchId
+                      + ".",
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
@@ -790,11 +904,17 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
                 logger.info(
-                    "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
-                    shuffleId,
-                    mapId,
-                    attemptId,
-                    nextBatchId);
+                    "Push data to "
+                        + loc.hostAndPushPort()
+                        + " failed but mapper already ended for shuffle "
+                        + shuffleId
+                        + " map "
+                        + mapId
+                        + " attempt "
+                        + attemptId
+                        + " batch "
+                        + nextBatchId
+                        + ".");
               }
             }
           };
@@ -812,7 +932,19 @@ public class ShuffleClientImpl extends ShuffleClient {
                   new RuntimeException("Mock push data first time failed.")));
         }
       } catch (Exception e) {
-        logger.warn("PushData failed", e);
+        logger.error(
+            "Exception raised while pushing data for shuffle "
+                + shuffleId
+                + " map "
+                + mapId
+                + " attempt "
+                + attemptId
+                + " batch "
+                + nextBatchId
+                + " location "
+                + loc
+                + ".",
+            e);
         wrappedCallback.onFailure(
             new Exception(
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
@@ -1004,10 +1136,17 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onSuccess(ByteBuffer response) {
             logger.debug(
-                "Push data success for map {} attempt {} grouped batch {}.",
-                mapId,
-                attemptId,
-                groupedBatchId);
+                "Push merged data to "
+                    + hostPort
+                    + " success for shuffle "
+                    + shuffleId
+                    + " map "
+                    + mapId
+                    + " attempt "
+                    + attemptId
+                    + " grouped batch "
+                    + groupedBatchId
+                    + ".");
             pushState.removeBatch(groupedBatchId, hostPort);
             // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
@@ -1036,7 +1175,17 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (logger.isDebugEnabled()) {
               for (int batchId : batchIds) {
                 logger.debug(
-                    "Push data failed for map {} attempt {} batch {}.", mapId, attemptId, batchId);
+                    "Push merged data to "
+                        + hostPort
+                        + " failed for shuffle "
+                        + shuffleId
+                        + " map "
+                        + mapId
+                        + " attempt "
+                        + attemptId
+                        + " grouped batch "
+                        + batchId
+                        + ".");
               }
             }
           }
@@ -1050,7 +1199,11 @@ public class ShuffleClientImpl extends ShuffleClient {
               byte reason = response.get();
               if (reason == StatusCode.HARD_SPLIT.getValue()) {
                 logger.info(
-                    "Push merged data return hard split for map "
+                    "Push merged data to "
+                        + hostPort
+                        + " hard split required for shuffle "
+                        + shuffleId
+                        + " map "
                         + mapId
                         + " attempt "
                         + attemptId
@@ -1071,18 +1224,32 @@ public class ShuffleClientImpl extends ShuffleClient {
                             remainReviveTimes));
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push data split for map {} attempt {} batchs {} return master congested.",
-                    mapId,
-                    attemptId,
-                    Arrays.toString(batchIds));
+                    "Push merged data to "
+                        + hostPort
+                        + " master congestion required for shuffle "
+                        + shuffleId
+                        + " map "
+                        + mapId
+                        + " attempt "
+                        + attemptId
+                        + " batches "
+                        + Arrays.toString(batchIds)
+                        + ".");
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push data split for map {} attempt {} batchs {} return slave congested.",
-                    mapId,
-                    attemptId,
-                    Arrays.toString(batchIds));
+                    "Push merged data to "
+                        + hostPort
+                        + " slave congestion required for shuffle "
+                        + shuffleId
+                        + " map "
+                        + mapId
+                        + " attempt "
+                        + attemptId
+                        + " batches "
+                        + Arrays.toString(batchIds)
+                        + ".");
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else {
@@ -1117,10 +1284,10 @@ public class ShuffleClientImpl extends ShuffleClient {
             }
             logger.error(
                 "Push merged data to "
-                    + host
-                    + ":"
-                    + port
-                    + " failed for map "
+                    + hostPort
+                    + " failed for shuffle "
+                    + shuffleId
+                    + " map "
                     + mapId
                     + " attempt "
                     + attemptId
@@ -1157,7 +1324,19 @@ public class ShuffleClientImpl extends ShuffleClient {
                 new RuntimeException("Mock push merge data failed.")));
       }
     } catch (Exception e) {
-      logger.warn("PushMergedData failed", e);
+      logger.error(
+          "Exception raised while pushing merged data for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " batchIds "
+              + Arrays.toString(batchIds)
+              + " location "
+              + hostPort
+              + ".",
+          e);
       wrappedCallback.onFailure(
           new Exception(
               StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
@@ -1236,7 +1415,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.
-        logger.warn("Send UnregisterShuffle failed, ignore.", e);
+        logger.error("Send UnregisterShuffle failed, ignore.", e);
       }
     }
 
@@ -1312,7 +1491,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
     ReduceFileGroups reduceFileGroups = updateFileGroup(applicationId, shuffleKey, shuffleId);
     if (reduceFileGroups == null) {
-      String msg = "Shuffle data lost for shuffle " + shuffleId + " reduce " + partitionId + "!";
+      String msg = "Shuffle data lost for shuffle " + shuffleId + " partition " + partitionId + "!";
       logger.error(msg);
       throw new CelebornIOException(msg);
     }
@@ -1333,7 +1512,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
-      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
+      logger.warn(
+          "Shuffle data is empty for shuffle " + shuffleId + " partitionId " + partitionId + ".");
       return RssInputStream.empty();
     } else {
       return RssInputStream.create(
@@ -1390,7 +1570,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private StatusCode getPushDataFailCause(String message) {
-    logger.info("[getPushDataFailCause] message: " + message);
+    logger.debug("Push data failed cause message: " + message);
     StatusCode cause;
     if (message.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage())) {
       cause = StatusCode.PUSH_DATA_FAIL_SLAVE;
@@ -1439,12 +1619,16 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     // return if shuffle stage already ended
     if (mapperEnded(shuffleId, mapId, attemptId)) {
-      logger.debug(
-          "The mapper(shuffle {} map {} attempt {}) has already ended while"
-              + " pushing data byteBuf.",
-          shuffleId,
-          mapId,
-          attemptId);
+      logger.info(
+          "Push data byteBuf to location "
+              + location.hostAndPushPort()
+              + " ignored because mapper already ended for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + ".");
       PushState pushState = pushStates.get(mapKey);
       if (pushState != null) {
         pushState.cleanup();
@@ -1516,20 +1700,31 @@ public class ShuffleClientImpl extends ShuffleClient {
               pushState.exception.compareAndSet(
                   null, new CelebornIOException("PushData byteBuf failed!", e));
               logger.error(
-                  "Push data byteBuf to {}:{} failed for map {} attempt {} batch {}.",
-                  location.getHost(),
-                  location.getPushPort(),
-                  mapId,
-                  attemptId,
-                  nextBatchId,
+                  "Push data to "
+                      + location.hostAndPushPort()
+                      + " failed for shuffle "
+                      + shuffleId
+                      + " map "
+                      + mapId
+                      + " attempt "
+                      + attemptId
+                      + " batch "
+                      + nextBatchId
+                      + ".",
                   e);
             } else {
               logger.warn(
-                  "Mapper shuffleId:{} mapId:{} attempt:{} already ended, remove batchId:{}.",
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  nextBatchId);
+                  "Push data to "
+                      + location.hostAndPushPort()
+                      + " failed but mapper already ended for shuffle "
+                      + shuffleId
+                      + " map "
+                      + mapId
+                      + " attempt "
+                      + attemptId
+                      + " batch "
+                      + nextBatchId
+                      + ".");
             }
           }
         };
@@ -1673,10 +1868,13 @@ public class ShuffleClientImpl extends ShuffleClient {
             } else {
               // throw exception
               logger.error(
-                  "Exception raised while reviving for shuffle {} reduce {} epoch {}.",
-                  shuffleId,
-                  location.getId(),
-                  location.getEpoch());
+                  "Exception raised while reviving for shuffle "
+                      + shuffleId
+                      + " partition "
+                      + location.getId()
+                      + " epoch "
+                      + location.getEpoch()
+                      + ".");
               throw new CelebornIOException("regiontstart revive failed");
             }
           }
@@ -1726,11 +1924,16 @@ public class ShuffleClientImpl extends ShuffleClient {
       final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
       // return if shuffle stage already ended
       if (mapperEnded(shuffleId, mapId, attemptId)) {
-        logger.debug(
-            "The mapper(shuffle {} map {} attempt {}) has already ended while" + " pushing data.",
-            shuffleId,
-            mapId,
-            attemptId);
+        logger.info(
+            "Send message to "
+                + location.hostAndPushPort()
+                + " ignored because mapper already ended for shuffle "
+                + shuffleId
+                + " map "
+                + mapId
+                + " attempt "
+                + attemptId
+                + ".");
         return null;
       }
       pushState = getPushState(mapKey);
