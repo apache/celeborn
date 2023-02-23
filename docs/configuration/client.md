@@ -35,14 +35,14 @@ license: |
 | celeborn.push.limit.inFlight.timeout | &lt;undefined&gt; | Timeout for netty in-flight requests to be done.Default value should be `celeborn.push.data.timeout * 2`. | 0.2.0 | 
 | celeborn.push.limit.strategy | SIMPLE | The strategy used to control the push speed. Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with congest control mechanism in the worker side. | 0.3.0 | 
 | celeborn.push.maxReqsInFlight | 4 | Amount of Netty in-flight requests per worker. The maximum memory is `celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib | 0.2.0 | 
-| celeborn.push.pipeline.enabled | false | Whether to enable pipelining for sort based shuffle writer. If true, double buffering will be used to pipeline push | 0.2.1 | 
 | celeborn.push.queue.capacity | 512 | Push buffer queue size for a task. The maximum memory is `celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, default: 64KiB * 512 = 32MiB | 0.2.0 | 
-| celeborn.push.randomizePartitionId.enabled | false | Whether to randomize partitionId in push sorter. If true, partitionId will be randomized when sort data to avoid skew when push to worker | 0.2.1 | 
 | celeborn.push.replicate.enabled | true | When true, Celeborn worker will replicate shuffle data to another Celeborn worker asynchronously to ensure the pushed shuffle data won't be lost after the node failure. | 0.2.0 | 
 | celeborn.push.retry.threads | 8 | Thread number to process shuffle re-send push data requests. | 0.2.0 | 
 | celeborn.push.revive.maxRetries | 5 | Max retry times for reviving when celeborn push data failed. | 0.3.0 | 
 | celeborn.push.slowStart.initialSleepTime | 500ms | The initial sleep time if the current max in flight requests is 0 | 0.3.0 | 
 | celeborn.push.slowStart.maxSleepTime | 2s | If celeborn.push.limit.strategy is set to SLOWSTART, push side will take a sleep strategy for each batch of requests, this controls the max sleep time if the max in flight requests limit is 1 for a long time | 0.3.0 | 
+| celeborn.push.sort.pipeline.enabled | false | Whether to enable pipelining for sort based shuffle writer. If true, double buffering will be used to pipeline push | 0.2.1 | 
+| celeborn.push.sort.randomizePartitionId.enabled | false | Whether to randomize partitionId in push sorter. If true, partitionId will be randomized when sort data to avoid skew when push to worker | 0.2.1 | 
 | celeborn.push.sortMemory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.push.stageEnd.timeout | &lt;undefined&gt; | Timeout for waiting StageEnd. Default value should be `celeborn.rpc.askTimeout * (celeborn.rpc.requestCommitFiles.maxRetries + 1)`. | 0.2.0 | 
