@@ -65,9 +65,8 @@ class RssSortSuite extends AnyFunSuite
 
   test("celeborn spark integration test - pipeline sort") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-      .set("spark.celeborn.push.sortMemory.threshold", "1m")
-      .set("spark.celeborn.push.pipeline.enabled", "true")
-      .set("spark.celeborn.push.randomizePartitionId.enabled", "true")
+      .set("spark.celeborn.push.sort.pipeline.enabled", "true")
+      .set("spark.celeborn.push.sort.randomizePartitionId.enabled", "true")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, true)).getOrCreate()
     val value = Range(1, 10000).mkString(",")
     val tuples = ss.sparkContext.parallelize(1 to 10000, 2)
