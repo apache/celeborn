@@ -1866,7 +1866,7 @@ object CelebornConf extends Logging {
       .doc("Whether worker will create random connection to peer when replicate data.")
       .version("0.2.1")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.disk.check.timeout")
@@ -2252,7 +2252,7 @@ object CelebornConf extends Logging {
         " will be used to pipeline push")
       .version("0.2.1")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.push.sort.randomizePartitionId.enabled")
@@ -2262,7 +2262,7 @@ object CelebornConf extends Logging {
           "when sort data to avoid skew when push to worker")
       .version("0.2.1")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val PUSH_RETRY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.push.retry.threads")
