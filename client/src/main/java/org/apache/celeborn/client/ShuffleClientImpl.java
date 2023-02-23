@@ -176,14 +176,14 @@ public class ShuffleClientImpl extends ShuffleClient {
       byte[] body,
       int batchId,
       PartitionLocation loc,
-      RpcResponseCallback callback,
+      RpcResponseCallback wrappedCallback,
       PushState pushState,
       StatusCode cause,
       int remainReviveTimes) {
     int partitionId = loc.getId();
     if (!revive(
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
-      callback.onFailure(
+      wrappedCallback.onFailure(
           new CelebornIOException("Revive Failed, remain revive times " + remainReviveTimes));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
@@ -201,20 +201,26 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           PushData newPushData =
               new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-          client.pushData(newPushData, pushDataTimeout, callback);
+          client.pushData(newPushData, pushDataTimeout, wrappedCallback);
         } else {
           throw new RuntimeException(
               "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
         }
-      } catch (Exception ex) {
+      } catch (Exception e) {
         logger.warn(
             "Exception raised while pushing data for shuffle {} map {} attempt {}" + " batch {}.",
             shuffleId,
             mapId,
             attemptId,
             batchId,
-            ex);
-        callback.onFailure(ex);
+            e);
+        wrappedCallback.onFailure(
+            new Exception(
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
+                    + "! "
+                    + e.getMessage()
+                    + ". "
+                    + newLoc));
       }
     }
   }
