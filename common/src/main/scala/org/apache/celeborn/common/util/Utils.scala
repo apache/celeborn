@@ -46,7 +46,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.{JavaUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
@@ -499,6 +499,9 @@ object Utils extends Logging {
     val numThreads = defaultNumThreads(numUsableCores)
     conf.setIfMissing(s"celeborn.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    if (TransportModuleConstants.PUSH_MODULE == module) {
+      conf.setIfMissing(s"celeborn.$module.io.numConnectionsPerPeer", numThreads.toString)
+    }
     // TODO remove after releasing 0.2.0
     conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
