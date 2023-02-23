@@ -19,8 +19,6 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -75,15 +73,10 @@ public class RssBufferStream {
         clientFactory.createClient(
             locations[currentLocationIndex].getHost(),
             locations[currentLocationIndex].getFetchPort());
+
+    String fileName = locations[currentLocationIndex].getFileName();
     OpenStreamWithCredit openBufferStream =
-        new OpenStreamWithCredit(
-            shuffleKey,
-            locations[currentLocationIndex].getFileName(),
-            subIndexStart,
-            subIndexEnd,
-            initialCredit);
-    long timeoutMs = conf.fetchTimeoutMs();
-    CountDownLatch latch = new CountDownLatch(1);
+        new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
     client.sendRpc(
         openBufferStream.toByteBuffer(),
         new RpcResponseCallback() {
@@ -96,7 +89,7 @@ public class RssBufferStream {
             mapShuffleClient
                 .getReadClientHandler()
                 .registerHandler(streamId, messageConsumer, client);
-            latch.countDown();
+            logger.debug("open stream success stream id:{}, fileName: {}", streamId, fileName);
           }
 
           @Override
@@ -104,10 +97,6 @@ public class RssBufferStream {
             throw new RuntimeException("OpenStream failed.", e);
           }
         });
-    if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) {
-      throw new IOException("Send openStream RPC failed to " + client.getSocketAddress());
-    }
-    logger.debug("rssbufferstream streamid:{}", streamId);
   }
 
   public void addCredit(ReadAddCredit addCredit) {
