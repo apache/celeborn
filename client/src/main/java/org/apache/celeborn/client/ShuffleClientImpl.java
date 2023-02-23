@@ -193,8 +193,10 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
-              + " partitionId "
+              + " partition "
               + partitionId
+              + " batch "
+              + batchId
               + ".");
       pushState.removeBatch(batchId, loc.hostAndPushPort());
     } else {
@@ -206,8 +208,10 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
-              + " partitionId "
+              + " partition "
               + partitionId
+              + " batch "
+              + batchId
               + " is location "
               + newLoc
               + ".");
@@ -233,7 +237,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 + mapId
                 + " attempt "
                 + attemptId
-                + " partitionId "
+                + " partition "
                 + partitionId
                 + " batch "
                 + batchId
@@ -293,8 +297,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                 + mapId
                 + " attempt "
                 + attemptId
-                + " partitionId "
+                + " partition "
                 + partitionId
+                + " batch "
+                + oldGroupedBatchId
                 + ".");
       } else {
         PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
@@ -305,8 +311,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                 + mapId
                 + " attempt "
                 + attemptId
-                + " partitionId "
+                + " partition "
                 + partitionId
+                + " batch "
+                + oldGroupedBatchId
                 + " is location "
                 + newLoc
                 + ".");
@@ -380,11 +388,13 @@ public class ShuffleClientImpl extends ShuffleClient {
             + shuffleId
             + " map "
             + mapId
-            + " attemptId "
+            + " attempt "
             + attemptId
-            + " partitionId "
+            + " partition  "
             + partitionId
-            + ".");
+            + " with "
+            + numMappers
+            + " mapper.");
     ConcurrentHashMap<Integer, PartitionLocation> partitionLocationMap =
         registerShuffleInternal(
             shuffleId,
@@ -533,7 +543,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
-              + " partitionId "
+              + " partition "
               + partitionId
               + " epoch "
               + epoch
@@ -549,7 +559,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
-              + " partitionId "
+              + " partition "
               + partitionId
               + ", just return (Assume revive successfully).");
       return true;
@@ -623,6 +633,8 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
+              + " partition "
+              + partitionId
               + ".");
       PushState pushState = pushStates.get(mapKey);
       if (pushState != null) {
@@ -651,7 +663,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           null,
           StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
         throw new CelebornIOException(
-            "Revive for shuffle " + shuffleKey + " partitionId " + partitionId + " failed.");
+            "Revive for shuffle " + shuffleKey + " partition " + partitionId + " failed.");
       }
     }
 
@@ -663,6 +675,8 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
+              + " partition "
+              + partitionId
               + ".");
       PushState pushState = pushStates.get(mapKey);
       if (pushState != null) {
@@ -733,6 +747,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                       + mapId
                       + " attempt "
                       + attemptId
+                      + " partition "
+                      + partitionId
                       + " batch "
                       + nextBatchId
                       + ".");
@@ -751,6 +767,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                       + mapId
                       + " attempt "
                       + attemptId
+                      + " partition "
+                      + partitionId
                       + " batch "
                       + nextBatchId
                       + ".",
@@ -776,6 +794,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                           + mapId
                           + " attempt "
                           + attemptId
+                          + " partition "
+                          + partitionId
                           + " batch "
                           + nextBatchId
                           + ".");
@@ -792,6 +812,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                           + mapId
                           + " attempt "
                           + attemptId
+                          + " partition "
+                          + partitionId
                           + " batch "
                           + nextBatchId
                           + ".");
@@ -819,6 +841,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                           + mapId
                           + " attempt "
                           + attemptId
+                          + " partition "
+                          + partitionId
                           + " batch "
                           + nextBatchId
                           + ".");
@@ -834,6 +858,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                           + mapId
                           + " attempt "
                           + attemptId
+                          + " partition "
+                          + partitionId
                           + " batch "
                           + nextBatchId
                           + ".");
@@ -880,6 +906,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                       + mapId
                       + " attempt "
                       + attemptId
+                      + " partition "
+                      + partitionId
                       + " batch "
                       + nextBatchId
                       + ".",
@@ -912,6 +940,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + mapId
                         + " attempt "
                         + attemptId
+                        + " partition "
+                        + partitionId
                         + " batch "
                         + nextBatchId
                         + ".");
@@ -939,6 +969,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                 + mapId
                 + " attempt "
                 + attemptId
+                + " partition "
+                + partitionId
                 + " batch "
                 + nextBatchId
                 + " location "
@@ -984,7 +1016,11 @@ public class ShuffleClientImpl extends ShuffleClient {
     synchronized (splittingSet) {
       if (splittingSet.contains(partitionId)) {
         logger.debug(
-            "shuffle {} partitionId {} is splitting, skip split request ", shuffleId, partitionId);
+            "Splitting for shuffle "
+                + shuffleId
+                + " partition "
+                + partitionId
+                + ", skip split request.");
         return;
       }
       splittingSet.add(partitionId);
@@ -1113,6 +1149,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushState.addBatch(groupedBatchId, hostPort);
 
     final int numBatches = batches.size();
+    final Integer[] partitionIds = new Integer[numBatches];
     final String[] partitionUniqueIds = new String[numBatches];
     final int[] offsets = new int[numBatches];
     final int[] batchIds = new int[numBatches];
@@ -1120,6 +1157,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     CompositeByteBuf byteBuf = Unpooled.compositeBuffer();
     for (int i = 0; i < numBatches; i++) {
       DataBatches.DataBatch batch = batches.get(i);
+      partitionIds[i] = batch.loc.getId();
       partitionUniqueIds[i] = batch.loc.getUniqueId();
       offsets[i] = currentSize;
       batchIds[i] = batch.batchId;
@@ -1144,7 +1182,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + mapId
                     + " attempt "
                     + attemptId
-                    + " grouped batch "
+                    + " partition "
+                    + Arrays.toString(partitionIds)
+                    + " batch "
                     + groupedBatchId
                     + ".");
             pushState.removeBatch(groupedBatchId, hostPort);
@@ -1166,12 +1206,14 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + mapId
                     + " attempt "
                     + attemptId
-                    + " batches "
+                    + " partition "
+                    + Arrays.toString(partitionIds)
+                    + " batche "
                     + Arrays.toString(batchIds)
                     + ".";
             pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             if (logger.isDebugEnabled()) {
-              for (int batchId : batchIds) {
+              for (int i = 0; i < numBatches; i++) {
                 logger.debug(
                     "Push merged data to "
                         + hostPort
@@ -1181,8 +1223,11 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + mapId
                         + " attempt "
                         + attemptId
-                        + " grouped batch "
-                        + batchId
+                        + " partition "
+                        + partitionIds[i]
+                        + Arrays.toString(partitionIds)
+                        + " batch "
+                        + batchIds[i]
                         + ".");
               }
             }
@@ -1205,7 +1250,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + mapId
                         + " attempt "
                         + attemptId
-                        + " batches "
+                        + " partition "
+                        + Arrays.toString(partitionIds)
+                        + " batche "
                         + Arrays.toString(batchIds)
                         + ".");
                 pushDataRetryPool.submit(
@@ -1230,7 +1277,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + mapId
                         + " attempt "
                         + attemptId
-                        + " batches "
+                        + " partition "
+                        + Arrays.toString(partitionIds)
+                        + " batche "
                         + Arrays.toString(batchIds)
                         + ".");
                 pushState.onCongestControl(hostPort);
@@ -1245,7 +1294,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + mapId
                         + " attempt "
                         + attemptId
-                        + " batches "
+                        + " partition "
+                        + Arrays.toString(partitionIds)
+                        + " batche "
                         + Arrays.toString(batchIds)
                         + ".");
                 pushState.onCongestControl(hostPort);
@@ -1289,7 +1340,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + mapId
                     + " attempt "
                     + attemptId
-                    + " batches "
+                    + " partition "
+                    + Arrays.toString(partitionIds)
+                    + " batche "
                     + Arrays.toString(batchIds)
                     + ".",
                 e);
@@ -1329,7 +1382,9 @@ public class ShuffleClientImpl extends ShuffleClient {
               + mapId
               + " attempt "
               + attemptId
-              + " batchIds "
+              + " partition "
+              + Arrays.toString(partitionIds)
+              + " batch  "
               + Arrays.toString(batchIds)
               + " location "
               + hostPort
@@ -1681,12 +1736,17 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
             }
             logger.debug(
-                "Push data byteBuf to {}:{} success for map {} attempt {} batch {}.",
-                location.getHost(),
-                location.getPushPort(),
-                mapId,
-                attemptId,
-                nextBatchId);
+                "Push data byteBuf to "
+                    + location.hostAndPushPort()
+                    + " success for shuffle "
+                    + shuffleId
+                    + " map "
+                    + mapId
+                    + " attemptId "
+                    + attemptId
+                    + " batch "
+                    + nextBatchId
+                    + ".");
           }
 
           @Override
@@ -1732,7 +1792,21 @@ public class ShuffleClientImpl extends ShuffleClient {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
       client.pushData(pushData, pushDataTimeout, callback, closeCallBack);
     } catch (Exception e) {
-      logger.warn("PushData byteBuf failed", e);
+      logger.error(
+          "Exception raised while pushing data byteBuf for shuffle "
+              + shuffleId
+              + " map "
+              + mapId
+              + " attempt "
+              + attemptId
+              + " partitionId "
+              + partitionId
+              + " batch "
+              + nextBatchId
+              + " location "
+              + location
+              + ".",
+          e);
       callback.onFailure(
           new Exception(
               StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
@@ -1822,12 +1896,16 @@ public class ShuffleClientImpl extends ShuffleClient {
         () -> {
           String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
-              "regionStart regionId:{}, shuffleKey:{}, attemptId:{}, locationId:{}",
-              currentRegionIdx,
-              shuffleKey,
-              attemptId,
-              location.getUniqueId());
-          logger.debug("regionStart location:{}", location.toString());
+              "RegionStart for shuffle "
+                  + shuffleId
+                  + " regionId "
+                  + currentRegionIdx
+                  + " attemptId "
+                  + attemptId
+                  + " locationId "
+                  + location.getUniqueId()
+                  + ".");
+          logger.debug("RegionStart  for location " + location.toString() + ".");
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionStart regionStart =
               new RegionStart(
