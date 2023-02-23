@@ -108,7 +108,9 @@ public class SortBasedPusher extends MemoryConsumer {
     for (int i = 0; i < numPartitions; i++) {
       list.add(i);
     }
-    Collections.shuffle(list);
+    if (conf.pushSortRandomizePartitionIdEnabled()) {
+      Collections.shuffle(list);
+    }
     for (int i = 0; i < numPartitions; i++) {
       int mapped = list.get(i);
       shuffledPartitions[i] = mapped;

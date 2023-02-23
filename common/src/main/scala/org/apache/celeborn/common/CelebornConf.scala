@@ -661,6 +661,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushMaxReviveTimes: Int = get(PUSH_MAX_REVIVE_TIMES)
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
   def pushSortPipelineEnabled: Boolean = get(PUSH_SORT_PIPELINE_ENABLED)
+  def pushSortRandomizePartitionIdEnabled: Boolean = get(PUSH_SORT_RANDOMIZE_PARITION_ENABLED)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
@@ -2249,6 +2250,15 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
         " will be used to pipeline push")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.randomizePartitionId.enabled")
+      .categories("client")
+      .doc("Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
+        "when sort data to avoid skew when push to worker")
       .version("0.2.1")
       .booleanConf
       .createWithDefault(false)
