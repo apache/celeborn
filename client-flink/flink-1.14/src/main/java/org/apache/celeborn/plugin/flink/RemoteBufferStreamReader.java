@@ -45,7 +45,7 @@ public class RemoteBufferStreamReader extends CreditListener {
   private Consumer<ByteBuf> dataListener;
   private Consumer<Throwable> failureListener;
   private RssBufferStream bufferStream;
-  private boolean closed = false;
+  private volatile boolean closed = false;
   private Consumer<RequestMessage> messageConsumer;
 
   public RemoteBufferStreamReader(
@@ -91,8 +91,17 @@ public class RemoteBufferStreamReader extends CreditListener {
 
   public void close() {
     isOpen = false;
-    client.getReadClientHandler().removeHandler(this.bufferStream.getStreamId());
-    bufferStream.close();
+    // need set closed first before remove Handler
+    closed = true;
+    if (this.bufferStream != null) {
+      client.getReadClientHandler().removeHandler(this.bufferStream.getStreamId());
+      bufferStream.close();
+    } else {
+      logger.warn(
+          "bufferStream is null when closed, shuffleId: {}, partitionId: {}",
+          shuffleId,
+          partitionId);
+    }
   }
 
   public boolean isOpened() {
@@ -100,8 +109,10 @@ public class RemoteBufferStreamReader extends CreditListener {
   }
 
   public void notifyAvailableCredits(int numCredits) {
-    ReadAddCredit addCredit = new ReadAddCredit(this.bufferStream.getStreamId(), numCredits);
-    bufferStream.addCredit(addCredit);
+    if (!closed) {
+      ReadAddCredit addCredit = new ReadAddCredit(this.bufferStream.getStreamId(), numCredits);
+      bufferStream.addCredit(addCredit);
+    }
   }
 
   public ByteBuf requestBuffer() {
@@ -109,7 +120,9 @@ public class RemoteBufferStreamReader extends CreditListener {
   }
 
   public void backlogReceived(int backlog) {
-    bufferPool.reserveBuffers(this, backlog);
+    if (!closed) {
+      bufferPool.reserveBuffers(this, backlog);
+    }
   }
 
   public void dataReceived(ReadData readData) {
