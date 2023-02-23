@@ -220,7 +220,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + "! "
                     + e.getMessage()
                     + ". "
-                    + loc));
+                    + newLoc));
       }
     }
   }
