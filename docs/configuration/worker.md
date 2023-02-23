@@ -87,6 +87,7 @@ license: |
 | celeborn.worker.replicate.fastFail.duration | 60s | If a replicate request not replied during the duration, worker will mark the replicate data request as failed. | 0.2.0 | 
 | celeborn.worker.replicate.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to replicate shuffle data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.replicate.port | 0 | Server port for Worker to receive replicate data request from other Workers. | 0.2.0 | 
+| celeborn.worker.replicate.randomConnection | false | Whether worker will create random connection to peer when replicate data. | 0.2.1 | 
 | celeborn.worker.replicate.threads | 64 | Thread number of worker to replicate shuffle data. | 0.2.0 | 
 | celeborn.worker.rpc.port | 0 | Server port for Worker to receive RPC request. | 0.2.0 | 
 | celeborn.worker.shuffle.commit.timeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for a Celeborn worker to commit files of a shuffle. | 0.2.0 | 
