@@ -214,12 +214,13 @@ public class ShuffleClientImpl extends ShuffleClient {
             attemptId,
             batchId,
             e);
-        wrappedCallback.onFailure(new Exception(
-            StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
-                + "! "
-                + e.getMessage()
-                + ". "
-                + loc));
+        wrappedCallback.onFailure(
+            new Exception(
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.getMessage()
+                    + "! "
+                    + e.getMessage()
+                    + ". "
+                    + loc));
       }
     }
   }
