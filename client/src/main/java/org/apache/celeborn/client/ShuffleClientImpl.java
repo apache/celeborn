@@ -874,7 +874,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               logger.error(
                   "Push data to "
                       + loc.hostAndPushPort()
-                      + "  failed for shuffle "
+                      + " failed for shuffle "
                       + shuffleId
                       + " map "
                       + mapId
@@ -1161,9 +1161,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             String errorMsg =
                 (remainReviveTimes < maxReviveTimes ? "Revived push" : "Push")
                     + " merged data to "
-                    + host
-                    + ":"
-                    + port
+                    + hostPort
                     + " failed for map "
                     + mapId
                     + " attempt "
@@ -1491,7 +1489,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
     ReduceFileGroups reduceFileGroups = updateFileGroup(applicationId, shuffleKey, shuffleId);
     if (reduceFileGroups == null) {
-      String msg = "Shuffle data lost for shuffle " + shuffleId + " partition " + partitionId + "!";
+      String msg =
+          "Shuffle data lost for shuffle " + shuffleId + " partitionId " + partitionId + "!";
       logger.error(msg);
       throw new CelebornIOException(msg);
     }
@@ -1700,7 +1699,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               pushState.exception.compareAndSet(
                   null, new CelebornIOException("PushData byteBuf failed!", e));
               logger.error(
-                  "Push data to "
+                  "Push data byteBuf to "
                       + location.hostAndPushPort()
                       + " failed for shuffle "
                       + shuffleId
@@ -1870,6 +1869,10 @@ public class ShuffleClientImpl extends ShuffleClient {
               logger.error(
                   "Exception raised while reviving for shuffle "
                       + shuffleId
+                      + " map "
+                      + mapId
+                      + " attemptId "
+                      + attemptId
                       + " partition "
                       + location.getId()
                       + " epoch "
@@ -1897,11 +1900,16 @@ public class ShuffleClientImpl extends ShuffleClient {
         () -> {
           final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
-              "regionFinish shuffleKey:{}, attemptId:{}, locationId:{}",
-              shuffleKey,
-              attemptId,
-              location.getUniqueId());
-          logger.debug("regionFinish location:{}", location.toString());
+              "RegionFinish for shuffle "
+                  + shuffleId
+                  + " map "
+                  + mapId
+                  + " attemptId "
+                  + attemptId
+                  + " locationId "
+                  + location.getUniqueId()
+                  + ".");
+          logger.debug("RegionFinish for location " + location.toString() + ".");
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionFinish regionFinish =
               new RegionFinish(MASTER_MODE, shuffleKey, location.getUniqueId(), attemptId);
@@ -1924,7 +1932,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
       // return if shuffle stage already ended
       if (mapperEnded(shuffleId, mapId, attemptId)) {
-        logger.info(
+        logger.debug(
             "Send message to "
                 + location.hostAndPushPort()
                 + " ignored because mapper already ended for shuffle "
