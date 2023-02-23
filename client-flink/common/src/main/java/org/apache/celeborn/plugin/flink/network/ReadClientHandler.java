@@ -66,10 +66,11 @@ public class ReadClientHandler extends BaseMessageHandler {
       case BACKLOG_ANNOUNCEMENT:
         BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
         streamId = backlogAnnouncement.getStreamId();
-        if (streamHandlers.containsKey(streamId)) {
+        Consumer<RequestMessage> consumer = streamHandlers.get(streamId);
+        if (consumer != null) {
           logger.debug(
               "received streamId: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
-          streamHandlers.get(streamId).accept(msg);
+          consumer.accept(msg);
         } else {
           logger.warn("Unexpected streamId received: {}", streamId);
         }
