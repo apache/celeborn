@@ -127,6 +127,8 @@ public class DataPusher {
                 }
                 pushData(task);
                 reclaimTask(task);
+              } catch (CelebornIOException e) {
+                exceptionRef.set(e);
               } catch (InterruptedException | IOException e) {
                 exceptionRef.set(new CelebornIOException(e));
               }
