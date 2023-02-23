@@ -2246,7 +2246,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("64m")
 
   val PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.pipeline.enabled")
+    buildConf("celeborn.push.sort.pipeline.enabled")
       .categories("client")
       .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
         " will be used to pipeline push")
@@ -2255,7 +2255,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.randomizePartitionId.enabled")
+    buildConf("celeborn.push.sort.randomizePartitionId.enabled")
       .categories("client")
       .doc(
         "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
