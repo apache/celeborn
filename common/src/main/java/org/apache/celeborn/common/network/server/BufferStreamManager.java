@@ -21,7 +21,16 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -97,7 +106,12 @@ public class BufferStreamManager {
   }
 
   public long registerStream(
-      Channel channel, int initialCredit, int startSubIndex, int endSubIndex, FileInfo fileInfo)
+      Consumer<Long> callback,
+      Channel channel,
+      int initialCredit,
+      int startSubIndex,
+      int endSubIndex,
+      FileInfo fileInfo)
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     streams.put(streamId, new StreamState(channel, fileInfo.getBufferSize()));
@@ -109,6 +123,8 @@ public class BufferStreamManager {
       mapDataPartition.addStream(streamId);
       addCredit(initialCredit, streamId);
       servingStreams.put(streamId, mapDataPartition);
+      // response streamId to channel first
+      callback.accept(streamId);
       mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId);
     }
 

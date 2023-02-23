@@ -18,10 +18,10 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.io.{FileNotFoundException, IOException}
-import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.function.Consumer
 
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
@@ -143,17 +143,25 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           val initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
           val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
           val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
-          val streamId =
-            bufferStreamManager.registerStream(
-              client.getChannel,
-              initialCredit,
-              startIndex,
-              endIndex,
-              fileInfo)
-          val bufferStreamHandle = new StreamHandle(streamId, 0)
-          client.getChannel.writeAndFlush(new RpcResponse(
-            request.requestId,
-            new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
+
+          val callback = new Consumer[java.lang.Long] {
+            override def accept(streamId: java.lang.Long): Unit = {
+              val bufferStreamHandle = new StreamHandle(streamId, 0)
+              client.getChannel.writeAndFlush(new RpcResponse(
+                request.requestId,
+                new NioManagedBuffer(bufferStreamHandle
+                  .toByteBuffer)))
+            }
+          }
+
+          bufferStreamManager.registerStream(
+            callback,
+            client.getChannel,
+            initialCredit,
+            startIndex,
+            endIndex,
+            fileInfo)
+
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
