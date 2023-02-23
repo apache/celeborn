@@ -156,7 +156,6 @@ public class SortBasedPusher extends MemoryConsumer {
         sortedRecords.loadNext();
         final int partition =
             reverseShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
-        assert (partition >= currentPartition);
         if (partition != currentPartition) {
           if (currentPartition == -1) {
             currentPartition = partition;
