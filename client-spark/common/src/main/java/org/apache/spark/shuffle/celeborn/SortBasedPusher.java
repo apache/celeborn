@@ -138,7 +138,8 @@ public class SortBasedPusher extends MemoryConsumer {
     pushBufferMaxSize = conf.pushBufferMaxSize();
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
-    inMemSorter = new ShuffleInMemorySorter(this, 4 * 1024 * 1024);
+    int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 4 * 1024 * 1024);
+    inMemSorter = new ShuffleInMemorySorter(this, initialSize);
     this.globalPushLock = globalPushLock;
   }
 
