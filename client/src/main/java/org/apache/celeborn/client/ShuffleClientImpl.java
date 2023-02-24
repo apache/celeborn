@@ -186,7 +186,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       wrappedCallback.onFailure(
           new CelebornIOException(
               StatusCode.REVIVE_FAILED.getMessage()
-                  + " for retry push data! remain revive times "
+                  + " for retry push data! Remain revive times "
                   + remainReviveTimes
                   + "."));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
