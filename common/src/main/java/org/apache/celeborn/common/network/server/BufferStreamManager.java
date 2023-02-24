@@ -119,7 +119,7 @@ public class BufferStreamManager {
 
     synchronized (activeMapPartitions) {
       MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
-      if (fileInfo == null) {
+      if (mapDataPartition == null) {
         mapDataPartition = new MapDataPartition(fileInfo);
         activeMapPartitions.put(fileInfo, mapDataPartition);
       }
