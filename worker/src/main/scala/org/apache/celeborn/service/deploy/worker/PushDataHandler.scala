@@ -25,7 +25,7 @@ import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.AlreadyClosedException
+import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.source.{RPCSource, Source}
@@ -201,7 +201,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
           logWarning(s"[handlePushData] $msg")
           callbackWithTimer.onFailure(
-            new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()))
+            new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
         }
       }
       return
@@ -225,7 +225,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE
         }
-      callbackWithTimer.onFailure(new Exception(s"$message! $location", exception))
+      callbackWithTimer.onFailure(new CelebornIOException(s"$message! $location", exception))
       return
     }
     val diskFull =
@@ -263,7 +263,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
             callbackWithTimer.onFailure(
-              new Exception(
+              new CelebornIOException(
                 s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
@@ -309,12 +309,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
-                callbackWithTimer.onFailure(new Exception(
+                callbackWithTimer.onFailure(new CelebornIOException(
                   s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE}! Push data to peer of $location timeout: ${e.getMessage}",
                   e))
               } else {
                 // Throw by connection
-                callbackWithTimer.onFailure(new Exception(
+                callbackWithTimer.onFailure(new CelebornIOException(
                   s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE}! Push data to peer of $location failed: ${e.getMessage}",
                   e))
               }
@@ -335,7 +335,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               callbackWithTimer.onFailure(
-                new Exception(
+                new CelebornIOException(
                   s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location",
                   e))
           }
@@ -477,7 +477,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               s" attempt $attemptId, uniqueId $id)."
             logWarning(s"[handlePushMergedData] $msg")
             callbackWithTimer.onFailure(
-              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()))
+              new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
           }
         }
         return
@@ -504,7 +504,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         } else {
           StatusCode.PUSH_DATA_FAIL_SLAVE
         }
-      callbackWithTimer.onFailure(new Exception(
+      callbackWithTimer.onFailure(new CelebornIOException(
         s"$message! ${partitionIdToLocations.head._2}",
         exception))
       return
@@ -527,7 +527,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
-            callbackWithTimer.onFailure(new Exception(
+            callbackWithTimer.onFailure(new CelebornIOException(
               s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
@@ -566,12 +566,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
-                callbackWithTimer.onFailure(new Exception(
+                callbackWithTimer.onFailure(new CelebornIOException(
                   s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE}! Push data to peer of ${partitionIdToLocations.head._2} timeout: ${e.getMessage}",
                   e))
               } else {
                 // Throw by connection
-                callbackWithTimer.onFailure(new Exception(
+                callbackWithTimer.onFailure(new CelebornIOException(
                   s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE}! Push data to peer of ${partitionIdToLocations.head._2} failed: ${e.getMessage}",
                   e))
               }
@@ -599,7 +599,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               callbackWithTimer.onFailure(
-                new Exception(
+                new CelebornIOException(
                   s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location",
                   e))
           }
@@ -929,7 +929,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
     } catch {
       case t: Throwable =>
-        callback.onFailure(new Exception(s"$messageType failed", t))
+        callback.onFailure(new CelebornIOException(s"$messageType failed", t))
     }
   }
 
@@ -967,18 +967,18 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
           workerSource.incCounter(WorkerSource.PushDataHandshakeFailCount)
-          callback.onFailure(new Exception(
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE.name(),
+          callback.onFailure(new CelebornIOException(
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE,
             e))
         case Type.REGION_START =>
           workerSource.incCounter(WorkerSource.RegionStartFailCount)
-          callback.onFailure(new Exception(StatusCode.REGION_START_FAIL_SLAVE.name(), e))
+          callback.onFailure(new CelebornIOException(StatusCode.REGION_START_FAIL_SLAVE, e))
         case Type.REGION_FINISH =>
           workerSource.incCounter(WorkerSource.RegionFinishFailCount)
-          callback.onFailure(new Exception(StatusCode.REGION_FINISH_FAIL_SLAVE.name(), e))
+          callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_SLAVE, e))
         case _ =>
           workerSource.incCounter(WorkerSource.PushDataFailCount)
-          callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.name(), e))
+          callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_FAIL_SLAVE, e))
       }
     }
   }
@@ -1004,9 +1004,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           s"attempt $attemptId, uniqueId $partitionUniqueId)."
         logWarning(s"[handle$messageType] $msg")
         messageType match {
-          case Type.PUSH_MERGED_DATA => callback.onFailure(new Exception(msg))
+          case Type.PUSH_MERGED_DATA => callback.onFailure(new CelebornIOException(msg))
           case _ => callback.onFailure(
-              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()))
+              new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
         }
       }
       return true
@@ -1038,8 +1038,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             StatusCode.REGION_FINISH_FAIL_MASTER,
             StatusCode.REGION_FINISH_FAIL_SLAVE)
       }
-    callback.onFailure(new Exception(
-      if (isMaster) messageMaster.name() else messageSlave.name(),
+    callback.onFailure(new CelebornIOException(
+      if (isMaster) messageMaster else messageSlave,
       fileWriter.getException))
   }
 

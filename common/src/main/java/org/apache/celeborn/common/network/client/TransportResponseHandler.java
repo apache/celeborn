@@ -29,6 +29,7 @@ import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.MessageHandler;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -92,9 +93,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           // When module name equals to DATA_MODULE, mean shuffle client push data, else means
           // do data replication.
           if (TransportModuleConstants.DATA_MODULE.equals(conf.getModuleName())) {
-            info.callback.onFailure(new IOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER.name()));
+            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER));
           } else if (TransportModuleConstants.PUSH_MODULE.equals(conf.getModuleName())) {
-            info.callback.onFailure(new IOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name()));
+            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE));
           }
           info.channelFuture = null;
           info.callback = null;
