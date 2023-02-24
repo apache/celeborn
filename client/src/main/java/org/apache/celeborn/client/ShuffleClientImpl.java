@@ -184,7 +184,11 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (!revive(
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
       wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.REVIVE_FAILED.getMessage() + " for retry push data! remain revive times " + remainReviveTimes + "."));
+          new CelebornIOException(
+              StatusCode.REVIVE_FAILED.getMessage()
+                  + " for retry push data! remain revive times "
+                  + remainReviveTimes
+                  + "."));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
           "Retrying push data, but the mapper(map {} attempt {}) has ended.", mapId, attemptId);
@@ -255,7 +259,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState.exception.compareAndSet(
               null,
               new CelebornIOException(
-                  StatusCode.REVIVE_FAILED.getMessage() + " for retry push merged data location: " + batch.loc));
+                  StatusCode.REVIVE_FAILED.getMessage()
+                      + " for retry push merged data location: "
+                      + batch.loc));
           return;
         }
       } else if (mapperEnded(shuffleId, mapId, attemptId)) {
