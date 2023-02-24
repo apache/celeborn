@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.SparkOutOfMemoryError;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -105,17 +106,14 @@ public class SortBasedPusher extends MemoryConsumer {
 
     shuffledPartitions = new int[numPartitions];
     reverseShuffledPartitions = new int[numPartitions];
-    ArrayList<Integer> list = new ArrayList(numPartitions);
     for (int i = 0; i < numPartitions; i++) {
-      list.add(i);
+      shuffledPartitions[i] = i;
     }
     if (conf.pushSortRandomizePartitionIdEnabled()) {
-      Collections.shuffle(list);
-    }
-    for (int i = 0; i < numPartitions; i++) {
-      int mapped = list.get(i);
-      shuffledPartitions[i] = mapped;
-      reverseShuffledPartitions[mapped] = i;
+      JavaUtils.randomizeInPlace(shuffledPartitions);
+      for (int i = 0; i < numPartitions; i++) {
+        reverseShuffledPartitions[shuffledPartitions[i]] = i;
+      }
     }
 
     this.conf = conf;

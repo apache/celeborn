@@ -69,7 +69,7 @@ import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
-import org.apache.celeborn.common.network.util.JavaUtils;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;

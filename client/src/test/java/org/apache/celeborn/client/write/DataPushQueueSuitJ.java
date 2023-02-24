@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.DummyShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.util.JavaUtils;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;

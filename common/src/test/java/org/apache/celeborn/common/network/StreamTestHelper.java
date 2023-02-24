@@ -28,7 +28,7 @@ import com.google.common.io.Files;
 import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
-import org.apache.celeborn.common.network.util.JavaUtils;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 class StreamTestHelper {
