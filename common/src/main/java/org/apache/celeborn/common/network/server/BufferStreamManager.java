@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.network.server;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -118,7 +119,20 @@ public class BufferStreamManager {
 
     synchronized (activeMapPartitions) {
       MapDataPartition mapDataPartition =
-          activeMapPartitions.computeIfAbsent(fileInfo, (f) -> new MapDataPartition(fileInfo));
+          activeMapPartitions.computeIfAbsent(
+              fileInfo,
+              (f) -> {
+                try {
+                  return new MapDataPartition(fileInfo);
+                } catch (FileNotFoundException e) {
+                  throw new RuntimeException(
+                      "Register stream: "
+                          + streamId
+                          + " failed by open file "
+                          + fileInfo.getFilePath()
+                          + " failed");
+                }
+              });
 
       mapDataPartition.addStream(streamId);
       addCredit(initialCredit, streamId);
@@ -214,6 +228,7 @@ public class BufferStreamManager {
             memoryManager.recycleReadBuffer(buffer);
           }
           activeMapPartitions.remove(fileInfo);
+          mapDataPartition.close();
         }
       }
     }
@@ -231,16 +246,21 @@ public class BufferStreamManager {
     /** All available buffers can be used by the partition readers for reading. */
     protected Queue<ByteBuf> buffers;
 
-    public MapDataPartition(FileInfo fileInfo) {
+    protected FileChannel dataFileChanel;
+    protected FileChannel indexChannel;
+
+    public MapDataPartition(FileInfo fileInfo) throws FileNotFoundException {
       this.fileInfo = fileInfo;
       readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getMountPoint());
+      this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
+      this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
     }
 
     public synchronized void setupDataPartitionReader(
         int startSubIndex, int endSubIndex, long streamId) throws IOException {
       DataPartitionReader dataPartitionReader =
           new DataPartitionReader(startSubIndex, endSubIndex, fileInfo, streamId);
-      dataPartitionReader.open();
+      dataPartitionReader.open(dataFileChanel, indexChannel);
       // allocate resources when the first reader is registered
       boolean allocateResources = readers.isEmpty();
       readers.add(dataPartitionReader);
@@ -305,6 +325,11 @@ public class BufferStreamManager {
     public synchronized void removeStream(long streamId) {
       activeStreamIds.remove(streamId);
     }
+
+    public void close() {
+      IOUtils.closeQuietly(dataFileChanel);
+      IOUtils.closeQuietly(indexChannel);
+    }
   }
 
   private class Buffer {
@@ -324,8 +349,6 @@ public class BufferStreamManager {
     private final int startPartitionIndex;
     private final int endPartitionIndex;
     private int numRegions;
-    private FileChannel dataFileChannel;
-    private FileChannel indexFileChannel;
     private int numRemainingPartitions;
     private int currentDataRegion = -1;
     private long dataConsumingOffset;
@@ -355,6 +378,9 @@ public class BufferStreamManager {
     @GuardedBy("lock")
     protected boolean isError;
 
+    private FileChannel dataFileChannel;
+    private FileChannel indexFileChannel;
+
     public DataPartitionReader(
         int startPartitionIndex, int endPartitionIndex, FileInfo fileInfo, long streamId) {
       this.startPartitionIndex = startPartitionIndex;
@@ -370,10 +396,9 @@ public class BufferStreamManager {
       this.isClosed = false;
     }
 
-    public void open() throws IOException {
-      this.dataFileChannel = new FileInputStream(fileInfo.getFile()).getChannel();
-      this.indexFileChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
-
+    public void open(FileChannel dataFileChannel, FileChannel indexFileChannel) throws IOException {
+      this.dataFileChannel = dataFileChannel;
+      this.indexFileChannel = indexFileChannel;
       long indexFileSize = indexFileChannel.size();
       // index is (offset,length)
       long indexRegionSize = fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
@@ -638,8 +663,6 @@ public class BufferStreamManager {
 
     public void closeReader() {
       isClosed = true;
-      IOUtils.closeQuietly(indexFileChannel);
-      IOUtils.closeQuietly(dataFileChannel);
       logger.debug("Closed read for stream {}", this.streamId);
     }
 
