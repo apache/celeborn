@@ -414,17 +414,17 @@ public class ShuffleClientImpl extends ShuffleClient {
           return result;
         } else if (StatusCode.SLOT_NOT_AVAILABLE.equals(respStatus)) {
           logger.error(
-              "LifecycleManager request slots return {}, retry again, remain retry times {}",
+              "LifecycleManager request slots return {}, retry again, remain retry times {}.",
               StatusCode.SLOT_NOT_AVAILABLE,
               numRetries - 1);
         } else if (StatusCode.RESERVE_SLOTS_FAILED.equals(respStatus)) {
           logger.error(
-              "LifecycleManager request slots return {}, retry again, remain retry times {}",
+              "LifecycleManager request slots return {}, retry again, remain retry times {}.",
               StatusCode.RESERVE_SLOTS_FAILED,
               numRetries - 1);
         } else {
           logger.error(
-              "LifecycleManager request slots return {}, retry again, remain retry times {}",
+              "LifecycleManager request slots return {}, retry again, remain retry times {}.",
               StatusCode.REQUEST_FAILED,
               numRetries - 1);
         }
@@ -501,7 +501,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     ConcurrentHashMap<Integer, PartitionLocation> map = reducePartitionMap.get(shuffleId);
     if (waitRevivedLocation(map, partitionId, epoch)) {
       logger.debug(
-          "Revive already success for shuffle {} map {} attempt {} partition {} epoch {}, just return(Assume revive successfully).",
+          "Revive already success for shuffle {} map {} attempt {} partition {} epoch {}, just return true(Assume revive successfully).",
           shuffleId,
           mapId,
           attemptId,
@@ -512,7 +512,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
-          "Revive success, but the mapper ended for shuffle {} map {} attempt {} partition {}, just return (Assume revive successfully).",
+          "Revive success, but the mapper ended for shuffle {} map {} attempt {} partition {}, just return true(Assume revive successfully).",
           shuffleId,
           mapId,
           attemptId,
@@ -540,6 +540,12 @@ public class ShuffleClientImpl extends ShuffleClient {
         map.put(partitionId, PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
         return true;
       } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
+        logger.debug(
+            "Revive success, but the mapper ended for shuffle {} map {} attempt {} partition {}, just return true(Assume revive successfully).",
+            shuffleId,
+            mapId,
+            attemptId,
+            partitionId);
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapKey);
         return true;
       } else {
@@ -1164,7 +1170,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 // Should not happen in current architecture.
                 response.rewind();
-                logger.error("Push merged data should not receive this response");
+                logger.error("Push merged data should not receive this response.");
                 pushState.onSuccess(hostPort);
                 callback.onSuccess(response);
               }
@@ -1359,26 +1365,26 @@ public class ShuffleClientImpl extends ShuffleClient {
 
         if (response.status() == StatusCode.SUCCESS) {
           logger.info(
-              "Shuffle {} request reducer file group success using time:{} ms, result partition ids: {}",
+              "Shuffle {} request reducer file group success using {} ms, result partition ids {}.",
               shuffleId,
               (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
               response.fileGroup().keySet());
           return new ReduceFileGroups(response.fileGroup(), response.attempts());
         } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
           logger.warn(
-              "Request {} return {} for {}",
+              "Request {} return {} for {}.",
               getReducerFileGroup,
               StatusCode.STAGE_END_TIME_OUT.toString(),
               shuffleKey);
         } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
           logger.warn(
-              "Request {} return {} for {}",
+              "Request {} return {} for {}.",
               getReducerFileGroup,
               StatusCode.SHUFFLE_DATA_LOST.toString(),
               shuffleKey);
         }
       } catch (Exception e) {
-        logger.error("Exception raised while call GetReducerFileGroup for " + shuffleKey + ".", e);
+        logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleKey, e);
       }
       return null;
     }
@@ -1416,8 +1422,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
-      logger.warn(
-          "Shuffle data is empty for shuffle " + shuffleId + " partitionId " + partitionId + ".");
+      logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
       return RssInputStream.empty();
     } else {
       return RssInputStream.create(
@@ -1681,11 +1686,11 @@ public class ShuffleClientImpl extends ShuffleClient {
         () -> {
           String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
           logger.info(
-              "pushDataHandShake shuffleKey:{}, attemptId:{}, locationId:{}",
+              "PushDataHandShake shuffleKey {} attemptId {} locationId {}",
               shuffleKey,
               attemptId,
               location.getUniqueId());
-          logger.debug("pushDataHandShake location:{}", location.toString());
+          logger.debug("PushDataHandShake location {}", location.toString());
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           PushDataHandShake handShake =
               new PushDataHandShake(
@@ -1772,7 +1777,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   attemptId,
                   location.getId(),
                   location.getEpoch());
-              throw new CelebornIOException("regiontstart revive failed");
+              throw new CelebornIOException("RegionStart revive failed");
             }
           }
           return Optional.empty();
@@ -1799,7 +1804,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               mapId,
               attemptId,
               location.getUniqueId());
-          logger.debug("RegionFinish for location " + location.toString() + ".");
+          logger.debug("RegionFinish for location {}.", location.toString());
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionFinish regionFinish =
               new RegionFinish(MASTER_MODE, shuffleKey, location.getUniqueId(), attemptId);
@@ -1860,7 +1865,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (!Thread.currentThread().isInterrupted()
         && !isSuccess
         && retryTimes < conf.networkIoMaxRetries(TransportModuleConstants.PUSH_MODULE)) {
-      logger.debug("retrySendMessage times: {}", retryTimes);
+      logger.debug("RetrySendMessage  retry times {}.", retryTimes);
       try {
         result = supplier.get();
         isSuccess = true;
