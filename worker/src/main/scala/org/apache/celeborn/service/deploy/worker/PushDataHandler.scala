@@ -201,7 +201,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
           logWarning(s"[handlePushData] $msg")
           callbackWithTimer.onFailure(
-            new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+            new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()))
         }
       }
       return
@@ -221,9 +221,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
       val message =
         if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
+          StatusCode.PUSH_DATA_FAIL_MASTER
         } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
+          StatusCode.PUSH_DATA_FAIL_SLAVE
         }
       callbackWithTimer.onFailure(new Exception(s"$message! $location", exception))
       return
@@ -264,7 +264,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             workerSource.incCounter(WorkerSource.PushDataFailCount)
             callbackWithTimer.onFailure(
               new Exception(
-                s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
+                s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
 
@@ -306,16 +306,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               // Throw by slave peer worker
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage)) {
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of $location timeout: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE}! Push data to peer of $location timeout: ${e.getMessage}",
                   e))
               } else {
                 // Throw by connection
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of $location failed: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE}! Push data to peer of $location failed: ${e.getMessage}",
                   e))
               }
             }
@@ -336,7 +336,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               callbackWithTimer.onFailure(
                 new Exception(
-                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
+                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location",
                   e))
           }
         }
@@ -477,7 +477,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               s" attempt $attemptId, uniqueId $id)."
             logWarning(s"[handlePushMergedData] $msg")
             callbackWithTimer.onFailure(
-              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()))
           }
         }
         return
@@ -500,9 +500,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         s" has Exception $exception")
       val message =
         if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER.getMessage()
+          StatusCode.PUSH_DATA_FAIL_MASTER
         } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage()
+          StatusCode.PUSH_DATA_FAIL_SLAVE
         }
       callbackWithTimer.onFailure(new Exception(
         s"$message! ${partitionIdToLocations.head._2}",
@@ -528,7 +528,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
             callbackWithTimer.onFailure(new Exception(
-              s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Peer $peerWorker unavailable for $location!"))
+              s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
             return
           }
 
@@ -563,16 +563,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             override def onFailure(e: Throwable): Unit = {
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               // Throw by slave peer worker
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage)) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage)) {
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head._2} timeout: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE}! Push data to peer of ${partitionIdToLocations.head._2} timeout: ${e.getMessage}",
                   e))
               } else {
                 // Throw by connection
                 callbackWithTimer.onFailure(new Exception(
-                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.getMessage}! Push data to peer of ${partitionIdToLocations.head._2} failed: ${e.getMessage}",
+                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE}! Push data to peer of ${partitionIdToLocations.head._2} failed: ${e.getMessage}",
                   e))
               }
             }
@@ -600,7 +600,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               callbackWithTimer.onFailure(
                 new Exception(
-                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.getMessage}! Create connection to peer $peerWorker failed for $location",
+                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location",
                   e))
           }
         }
@@ -968,17 +968,17 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case Type.PUSH_DATA_HAND_SHAKE =>
           workerSource.incCounter(WorkerSource.PushDataHandshakeFailCount)
           callback.onFailure(new Exception(
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE.getMessage,
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE.name(),
             e))
         case Type.REGION_START =>
           workerSource.incCounter(WorkerSource.RegionStartFailCount)
-          callback.onFailure(new Exception(StatusCode.REGION_START_FAIL_SLAVE.getMessage, e))
+          callback.onFailure(new Exception(StatusCode.REGION_START_FAIL_SLAVE.name(), e))
         case Type.REGION_FINISH =>
           workerSource.incCounter(WorkerSource.RegionFinishFailCount)
-          callback.onFailure(new Exception(StatusCode.REGION_FINISH_FAIL_SLAVE.getMessage, e))
+          callback.onFailure(new Exception(StatusCode.REGION_FINISH_FAIL_SLAVE.name(), e))
         case _ =>
           workerSource.incCounter(WorkerSource.PushDataFailCount)
-          callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage, e))
+          callback.onFailure(new Exception(StatusCode.PUSH_DATA_FAIL_SLAVE.name(), e))
       }
     }
   }
@@ -1006,7 +1006,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         messageType match {
           case Type.PUSH_MERGED_DATA => callback.onFailure(new Exception(msg))
           case _ => callback.onFailure(
-              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.getMessage()))
+              new Exception(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()))
         }
       }
       return true
@@ -1026,20 +1026,20 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       messageType match {
         case Type.PUSH_DATA | Type.PUSH_DATA_HAND_SHAKE =>
           (
-            StatusCode.PUSH_DATA_FAIL_MASTER.getMessage(),
-            StatusCode.PUSH_DATA_FAIL_SLAVE.getMessage())
+            StatusCode.PUSH_DATA_FAIL_MASTER,
+            StatusCode.PUSH_DATA_FAIL_SLAVE)
         case Type.PUSH_DATA_HAND_SHAKE => (
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_MASTER.getMessage,
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE.getMessage)
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_MASTER,
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE)
         case Type.REGION_START => (
-            StatusCode.REGION_START_FAIL_MASTER.getMessage,
-            StatusCode.REGION_START_FAIL_SLAVE.getMessage)
+            StatusCode.REGION_START_FAIL_MASTER,
+            StatusCode.REGION_START_FAIL_SLAVE)
         case Type.REGION_FINISH => (
-            StatusCode.REGION_FINISH_FAIL_MASTER.getMessage,
-            StatusCode.REGION_FINISH_FAIL_SLAVE.getMessage)
+            StatusCode.REGION_FINISH_FAIL_MASTER,
+            StatusCode.REGION_FINISH_FAIL_SLAVE)
       }
     callback.onFailure(new Exception(
-      if (isMaster) messageMaster else messageSlave,
+      if (isMaster) messageMaster.name() else messageSlave.name(),
       fileWriter.getException))
   }
 
