@@ -30,10 +30,11 @@ import java.util.regex.Pattern;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.Unpooled;
-import org.apache.celeborn.common.network.util.ByteUnit;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.network.util.ByteUnit;
 
 /**
  * General utilities available in the network package. Many of these are sourced from Spark's own
@@ -391,10 +392,10 @@ public class JavaUtils {
   }
 
   /**
-   * Shuffle the elements of an array into a random order, modifying the
-   * original array. Returns the original array.
+   * Shuffle the elements of an array into a random order, modifying the original array. Returns the
+   * original array.
    */
-  public static void randomizeInPlace(int[] arr)  {
+  public static void randomizeInPlace(int[] arr) {
     Random rand = new Random();
     for (int i = arr.length - 1; i >= 1; i--) {
       int j = rand.nextInt(i + 1);

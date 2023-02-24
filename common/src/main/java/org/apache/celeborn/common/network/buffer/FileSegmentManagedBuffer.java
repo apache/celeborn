@@ -26,9 +26,9 @@ import com.google.common.base.Objects;
 import com.google.common.io.ByteStreams;
 import io.netty.channel.DefaultFileRegion;
 
-import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.network.util.LimitedInputStream;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /** A {@link ManagedBuffer} backed by a segment in a file. */
 public final class FileSegmentManagedBuffer extends ManagedBuffer {

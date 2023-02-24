@@ -32,8 +32,8 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
-import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class TransportClientFactorySuiteJ {
   private TransportContext context;

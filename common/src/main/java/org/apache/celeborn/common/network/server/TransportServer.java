@@ -28,13 +28,13 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.util.*;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /** Server for the efficient, low-level streaming service. */
 public class TransportServer implements Closeable {
