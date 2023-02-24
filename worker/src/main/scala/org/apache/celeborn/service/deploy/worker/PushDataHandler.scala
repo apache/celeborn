@@ -35,7 +35,7 @@ import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataH
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.protocol.message.StatusCode._
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.PackedPartitionId
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
@@ -92,11 +92,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           pushData.requestId,
           () => {
             val callback = new SimpleRpcResponseCallback(
-              Type.PUSH_DATA,
               client,
               pushData.requestId,
-              pushData.shuffleKey,
-              pushData.partitionUniqueId)
+              pushData.shuffleKey)
             shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE) match {
               case PartitionType.REDUCE => handlePushData(
                   pushData,
@@ -115,11 +113,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             handlePushMergedData(
               pushMergedData,
               new SimpleRpcResponseCallback(
-                Type.PUSH_MERGED_DATA,
                 client,
                 pushMergedData.requestId,
-                pushMergedData.shuffleKey,
-                pushMergedData.partitionUniqueIds.mkString(","))))
+                pushMergedData.shuffleKey)))
       }
       case rpcRequest: RpcRequest => handleRpcRequest(client, rpcRequest)
     }
@@ -180,28 +176,26 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           // partition data has already been committed
           logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
             s" attempt $attemptId), but this mapper has already been ended.")
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](STAGE_ENDED.getValue)))
         } else {
           logInfo(
             s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
               s"map $mapId attempt $attemptId)")
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
         }
       } else {
         if (storageManager.shuffleKeySet().contains(shuffleKey)) {
           // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
           // in StorageManager. This partition should be HARD_SPLIT partition and
           // after worker restart, some task still push data to this HARD_SPLIT partition.
-          logInfo(
-            s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
-              s"map $mapId attempt $attemptId)")
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          logInfo(s"Receive push data for committed hard split partition of " +
+            s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
+          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
         } else {
-          val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
-            s"attempt $attemptId, uniqueId ${pushData.partitionUniqueId})."
-          logWarning(s"[handlePushData] $msg")
+          logWarning(s"While handle PushData, Partition location wasn't found for " +
+            s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId, uniqueId ${pushData.partitionUniqueId}).")
           callbackWithTimer.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
+            new CelebornIOException(PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
         }
       }
       return
@@ -211,21 +205,18 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     // This should before return exception to make current push data can revive and retry.
     if (shutdown.get()) {
       logInfo(s"Push data return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
-      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
       return
     }
 
     val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
     val exception = fileWriter.getException
     if (exception != null) {
-      logWarning(s"[handlePushData] fileWriter $fileWriter has Exception $exception")
-      val message =
-        if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER
-        } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE
-        }
-      callbackWithTimer.onFailure(new CelebornIOException(s"$message! $location", exception))
+      val cause = if (isMaster) { PUSH_DATA_FAIL_MASTER } else { PUSH_DATA_FAIL_SLAVE }
+      logError(
+        s"While handling PushData, throw $cause, fileWriter $fileWriter has exception.",
+        exception)
+      callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
     val diskFull =
@@ -241,7 +232,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
         softSplit.set(true)
       } else {
-        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
         return
       }
     }
@@ -262,9 +253,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
+            logError(
+              s"PushData replicate failed by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
-              new CelebornIOException(
-                s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
+              new CelebornIOException(PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
             return
           }
 
@@ -282,7 +274,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 // in the long term, especially if this issue could frequently happen, we may need to return
                 // congest&softSplit status together
                 callbackWithTimer.onSuccess(
-                  ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+                  ByteBuffer.wrap(Array[Byte](SOFT_SPLIT.getValue)))
               } else {
                 Option(CongestionController.instance()) match {
                   case Some(congestionController) =>
@@ -292,7 +284,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                       // it(the response is empty)
                       callbackWithTimer.onSuccess(
                         ByteBuffer.wrap(
-                          Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                          Array[Byte](PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
                     } else {
                       callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                     }
@@ -303,20 +295,18 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             }
 
             override def onFailure(e: Throwable): Unit = {
-              logError(s"[handlePushData.onFailure] partitionLocation: $location", e)
+              logError(s"PushData replicate failed for partitionLocation: $location", e)
               workerSource.incCounter(WorkerSource.PushDataFailCount)
-              // Throw by slave peer worker
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
+              // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+              if (e.getMessage.startsWith(PUSH_DATA_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
-                callbackWithTimer.onFailure(new CelebornIOException(
-                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE}! Push data to peer of $location timeout: ${e.getMessage}",
-                  e))
+              } else if (e.getMessage.startsWith(PUSH_DATA_TIMEOUT_SLAVE.name())) {
+                callbackWithTimer.onFailure(e)
               } else {
-                // Throw by connection
-                callbackWithTimer.onFailure(new CelebornIOException(
-                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE}! Push data to peer of $location failed: ${e.getMessage}",
-                  e))
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
               }
             }
           }
@@ -334,10 +324,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
+              logError(
+                s"PushData replicate failed by connect peer for partitionLocation: $location",
+                e)
               callbackWithTimer.onFailure(
-                new CelebornIOException(
-                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location",
-                  e))
+                new CelebornIOException(PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
           }
         }
       })
@@ -350,7 +341,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       // in the long term, especially if this issue could frequently happen, we may need to return
       // congest&softSplit status together
       if (softSplit.get()) {
-        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](SOFT_SPLIT.getValue)))
       } else {
         Option(CongestionController.instance()) match {
           case Some(congestionController) =>
@@ -358,11 +349,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               if (isMaster) {
                 callbackWithTimer.onSuccess(
                   ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                    Array[Byte](PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
               } else {
                 callbackWithTimer.onSuccess(
                   ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+                    Array[Byte](PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
               }
             } else {
               callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -449,35 +440,31 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         // it's probably because commitFiles for Had-Split happens.
         if (shuffleMapperAttempts.containsKey(shuffleKey)) {
           if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
-            val msg =
-              s"Receive push merged data from speculative task(shuffle $shuffleKey, map $mapId," +
-                s" attempt $attemptId), but this mapper has already been ended."
-            logInfo(msg)
+            logInfo(s"Receive push merged data from speculative " +
+              s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId), " +
+              s"but this mapper has already been ended.")
             callbackWithTimer.onSuccess(
-              ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+              ByteBuffer.wrap(Array[Byte](STAGE_ENDED.getValue)))
           } else {
-            logInfo(
-              s"Receive push merged data for committed hard split partition of (shuffle $shuffleKey, " +
-                s"map $mapId attempt $attemptId)")
+            logInfo(s"Receive push merged data for committed hard split partition of " +
+              s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
-              ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+              ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
           }
         } else {
           if (storageManager.shuffleKeySet().contains(shuffleKey)) {
             // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
             // in StorageManager. This partition should be HARD_SPLIT partition and
             // after worker restart, some task still push data to this HARD_SPLIT partition.
-            logInfo(
-              s"Receive push merged data for committed hard split partition of (shuffle $shuffleKey, " +
-                s"map $mapId attempt $attemptId)")
+            logInfo(s"Receive push merged data for committed hard split partition of " +
+              s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
-              ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+              ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
           } else {
-            val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId," +
-              s" attempt $attemptId, uniqueId $id)."
-            logWarning(s"[handlePushMergedData] $msg")
+            logWarning(s"While handling PushMergedData, Partition location wasn't found for " +
+              s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId, uniqueId $id).")
             callbackWithTimer.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
+              new CelebornIOException(PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
           }
         }
         return
@@ -487,7 +474,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
     // This should before return exception to make current push data can revive and retry.
     if (shutdown.get()) {
-      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
       return
     }
 
@@ -496,17 +483,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val fileWriterWithException = fileWriters.find(_.getException != null)
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
-      logDebug(s"[handlePushMergedData] fileWriter ${fileWriterWithException}" +
-        s" has Exception $exception")
-      val message =
-        if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER
-        } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE
-        }
-      callbackWithTimer.onFailure(new CelebornIOException(
-        s"$message! ${partitionIdToLocations.head._2}",
-        exception))
+      val cause = if (isMaster)  { PUSH_DATA_FAIL_MASTER } else { PUSH_DATA_FAIL_SLAVE }
+      logError(
+        s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
+        exception)
+      callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
@@ -527,8 +508,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
-            callbackWithTimer.onFailure(new CelebornIOException(
-              s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Peer $peerWorker unavailable for $location!"))
+            logError(
+              s"PushData replicate failed by unavailable peer for partitionLocation: $location")
+            callbackWithTimer.onFailure(
+              new CelebornIOException(PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
             return
           }
 
@@ -549,8 +532,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                       // Check whether master congest the data though the replicas doesn't congest
                       // it(the response is empty)
                       callbackWithTimer.onSuccess(
-                        ByteBuffer.wrap(
-                          Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                        ByteBuffer.wrap(Array[Byte](PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
                     } else {
                       callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                     }
@@ -561,19 +543,17 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             }
 
             override def onFailure(e: Throwable): Unit = {
+              logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
               workerSource.incCounter(WorkerSource.PushDataFailCount)
-              // Throw by slave peer worker
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
+              // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+              if (e.getMessage.startsWith(PUSH_DATA_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
-                callbackWithTimer.onFailure(new CelebornIOException(
-                  s"${StatusCode.PUSH_DATA_TIMEOUT_SLAVE}! Push data to peer of ${partitionIdToLocations.head._2} timeout: ${e.getMessage}",
-                  e))
+              } else if (e.getMessage.startsWith(PUSH_DATA_TIMEOUT_SLAVE.name())) {
+                callbackWithTimer.onFailure(e)
               } else {
-                // Throw by connection
-                callbackWithTimer.onFailure(new CelebornIOException(
-                  s"${StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE}! Push data to peer of ${partitionIdToLocations.head._2} failed: ${e.getMessage}",
-                  e))
+                callbackWithTimer.onFailure(new CelebornIOException(PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
               }
             }
           }
@@ -598,10 +578,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
+              logError(
+                s"PushData replicate failed by connect peer for partitionLocation: $location",
+                e)
               callbackWithTimer.onFailure(
-                new CelebornIOException(
-                  s"${StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE}! Create connection to peer $peerWorker failed for $location",
-                  e))
+                new CelebornIOException(PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
           }
         }
       })
@@ -616,10 +597,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             if (isMaster) {
               callbackWithTimer.onSuccess(
                 ByteBuffer.wrap(
-                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                  Array[Byte](PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
             } else {
               callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+                ByteBuffer.wrap(Array[Byte](PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
             }
           } else {
             callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -699,11 +680,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   class SimpleRpcResponseCallback(
-      messageType: Message.Type,
       client: TransportClient,
       requestId: Long,
-      shuffleKey: String,
-      partitionUniqueId: String)
+      shuffleKey: String)
     extends RpcResponseCallback {
     override def onSuccess(response: ByteBuffer): Unit = {
       client.getChannel.writeAndFlush(new RpcResponse(
@@ -712,9 +691,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
 
     override def onFailure(e: Throwable): Unit = {
-      logError(
-        s"[process$messageType] Process $messageType onFailure! ShuffleKey:$shuffleKey , partitionUniqueId: $partitionUniqueId",
-        e)
       client.getChannel.writeAndFlush(new RpcFailure(requestId, e.getMessage))
     }
   }
@@ -782,7 +758,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     // This should before return exception to make current push data can revive and retry.
     if (shutdown.get()) {
       logInfo(s"Push data return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
       return
     }
 
@@ -843,11 +819,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           requestId,
           isCheckSplit,
           new SimpleRpcResponseCallback(
-            msg.`type`(),
             client,
             requestId,
-            shuffleKey,
-            partitionUniqueId)))
+            shuffleKey)))
 
   }
 
@@ -1078,7 +1052,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
         softSplit.set(true)
       } else {
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](HARD_SPLIT.getValue)))
         return true
       }
     }
