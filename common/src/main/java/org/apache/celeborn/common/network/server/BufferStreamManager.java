@@ -532,8 +532,8 @@ public class BufferStreamManager {
 
     public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Consumer<ByteBuf> consumer)
         throws IOException {
-      boolean hasReaming = hasRemaining();
-      boolean continueReading = hasReaming;
+      boolean hasRemaing = hasRemaining();
+      boolean continueReading = hasRemaing;
       int numDataBuffers = 0;
       while (continueReading) {
 
@@ -552,19 +552,19 @@ public class BufferStreamManager {
           throw throwable;
         }
 
-        hasReaming = hasRemaining();
-        addBuffer(buffer, hasReaming, consumer);
+        hasRemaing = hasRemaining();
+        addBuffer(buffer, hasRemaing, consumer);
         ++numDataBuffers;
       }
       if (numDataBuffers > 0) {
         notifyBacklog(numDataBuffers);
       }
 
-      if (!hasReaming) {
+      if (!hasRemaing) {
         closeReader();
       }
 
-      return hasReaming;
+      return hasRemaing;
     }
 
     protected void addBuffer(ByteBuf buffer, boolean hasRemaining, Consumer<ByteBuf> consumer) {
