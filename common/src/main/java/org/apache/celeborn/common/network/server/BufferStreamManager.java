@@ -118,21 +118,11 @@ public class BufferStreamManager {
     streams.put(streamId, new StreamState(channel, fileInfo.getBufferSize()));
 
     synchronized (activeMapPartitions) {
-      MapDataPartition mapDataPartition =
-          activeMapPartitions.computeIfAbsent(
-              fileInfo,
-              (f) -> {
-                try {
-                  return new MapDataPartition(fileInfo);
-                } catch (FileNotFoundException e) {
-                  throw new RuntimeException(
-                      "Register stream "
-                          + streamId
-                          + " failed by open file "
-                          + fileInfo.getFilePath()
-                          + " failed");
-                }
-              });
+      MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
+      if (fileInfo == null) {
+        mapDataPartition = new MapDataPartition(fileInfo);
+        activeMapPartitions.put(fileInfo, mapDataPartition);
+      }
       mapDataPartition.addStream(streamId);
       addCredit(initialCredit, streamId);
       servingStreams.put(streamId, mapDataPartition);
