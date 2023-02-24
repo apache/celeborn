@@ -183,16 +183,23 @@ public class ShuffleClientImpl extends ShuffleClient {
     int partitionId = loc.getId();
     if (!revive(
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
-      wrappedCallback.onFailure(
-          new CelebornIOException("Revive Failed, remain revive times " + remainReviveTimes));
-    } else if (mapperEnded(shuffleId, mapId, attemptId)) {
-      logger.debug(
-          "Revive for push data success, but the mapper already ended for shuffle {} map {} attempt {} partition {} batch {}.",
+      logger.error(
+          "Revive for push data failed for shuffle {} map {} attempt {} partition {} batch {} location {}.",
           shuffleId,
           mapId,
           attemptId,
           partitionId,
-          batchId);
+          batchId,
+          loc);
+      wrappedCallback.onFailure(new CelebornIOException(StatusCode.REVIVE_FAILED));
+    } else if (mapperEnded(shuffleId, mapId, attemptId)) {
+      logger.debug(
+          "Revive for push data success, but the mapper already ended for shuffle {} map {} attempt {} partition {} batch {} location {}.",
+          shuffleId,
+          mapId,
+          attemptId,
+          partitionId,
+          batchId, loc);
       pushState.removeBatch(batchId, loc.hostAndPushPort());
     } else {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
@@ -228,13 +235,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             batchId,
             newLoc,
             e);
-        wrappedCallback.onFailure(
-            new Exception(
-                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
-                    + "! "
-                    + e.getMessage()
-                    + ". "
-                    + newLoc));
+        wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
       }
     }
   }
@@ -266,10 +267,16 @@ public class ShuffleClientImpl extends ShuffleClient {
         if (remainReviveTimes > 0) {
           reviveFailedBatchesMap.add(batch);
         } else {
-          pushState.exception.compareAndSet(
-              null,
-              new CelebornIOException(
-                  "Revive Failed in retry push merged data for location: " + batch.loc));
+          String errorMsg = String.format(
+              "Revive failed while pushing merged for shuffle {} map {} attempt {} partition {} batch {} location {}.",
+              shuffleId,
+              mapId,
+              attemptId,
+              partitionId,
+              oldGroupedBatchId,
+              batch.loc);
+          logger.debug(errorMsg);
+          pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg));
           return;
         }
       } else if (mapperEnded(shuffleId, mapId, attemptId)) {
@@ -376,7 +383,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (partitionLocationMap == null) {
       String shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
-      throw new IOException("Register shuffle failed for shuffle " + shuffleKey);
+      throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleKey);
     }
 
     return partitionLocationMap.get(partitionId);
@@ -615,7 +622,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           null,
           StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
         throw new CelebornIOException(
-            "Revive for shuffle " + shuffleKey + " partition " + partitionId + " failed.");
+            String.format("Revive for shuffle {} partition {} failed.", shuffleKey, partitionId));
       }
     }
 
@@ -636,11 +643,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     final PartitionLocation loc = map.get(partitionId);
     if (loc == null) {
       throw new CelebornIOException(
-          "Partition location for shuffle "
-              + shuffleKey
-              + " partitionId "
-              + partitionId
-              + " is NULL!");
+          String.format(
+              "Partition location for shuffle {} partition {} is NULL!",
+              shuffleKey,
+              partitionId));
     }
 
     PushState pushState = getPushState(mapKey);
@@ -698,17 +704,17 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void onFailure(Throwable e) {
-              pushState.exception.compareAndSet(
-                  null, new CelebornIOException("Revived PushData failed!", e));
-              logger.error(
-                  "Push data to {} failed for shuffle {} map {} attempt {} partition {} batch {}.",
-                  loc.hostAndPushPort(),
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  partitionId,
-                  nextBatchId,
-                  e);
+              String errorMsg =
+                  String.format(
+                      "Push data to {} failed for shuffle {} map {} attempt {} partition {} batch {}.",
+                      shuffleId,
+                      loc,
+                      mapId,
+                      attemptId,
+                      partitionId,
+                      nextBatchId);
+              pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
+              logger.error(errorMsg, e);
             }
           };
 
@@ -797,15 +803,11 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
 
               if (remainReviveTimes <= 0) {
-                callback.onFailure(
-                    new Exception(
-                        cause
-                            + "! Push data to master worker of "
-                            + loc
-                            + " failed: "
-                            + e.getMessage(),
-                        e));
-
+                if (e instanceof CelebornIOException) {
+                  callback.onFailure(e);
+                } else {
+                  callback.onFailure(new CelebornIOException(cause, e));
+                }
                 return;
               }
 
@@ -857,8 +859,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           client.pushData(pushData, pushDataTimeout, wrappedCallback);
         } else {
           wrappedCallback.onFailure(
-              new Exception(
-                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.toString(),
+              new CelebornIOException(
+                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
                   new RuntimeException("Mock push data first time failed.")));
         }
       } catch (Exception e) {
@@ -871,13 +873,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             nextBatchId,
             loc,
             e);
-        wrappedCallback.onFailure(
-            new Exception(
-                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
-                    + "! "
-                    + e.getMessage()
-                    + ". "
-                    + loc));
+        wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
       }
     } else {
       // add batch data
@@ -1084,20 +1080,16 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onFailure(Throwable e) {
             String errorMsg =
-                (remainReviveTimes < maxReviveTimes ? "Revived push" : "Push")
-                    + " merged data to "
-                    + hostPort
-                    + " failed for map "
-                    + mapId
-                    + " attempt "
-                    + attemptId
-                    + " partition "
-                    + Arrays.toString(partitionIds)
-                    + " groupedBatch "
-                    + groupedBatchId
-                    + " batch "
-                    + Arrays.toString(batchIds)
-                    + ".";
+                String.format(
+                    "{} merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    remainReviveTimes < maxReviveTimes ? "Revived push" : "Push",
+                    hostPort,
+                    shuffleId,
+                    mapId,
+                    attemptId,
+                    Arrays.toString(partitionIds),
+                    groupedBatchId,
+                    Arrays.toString(batchIds));
             pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             if (logger.isDebugEnabled()) {
               for (int i = 0; i < numBatches; i++) {
@@ -1187,14 +1179,11 @@ public class ShuffleClientImpl extends ShuffleClient {
               return;
             }
             if (remainReviveTimes <= 0) {
-              callback.onFailure(
-                  new Exception(
-                      cause
-                          + "! Push data to master worker of "
-                          + hostPort
-                          + " failed: "
-                          + e.getMessage(),
-                      e));
+              if (e instanceof CelebornIOException) {
+                callback.onFailure(e);
+              } else {
+                callback.onFailure(new CelebornIOException(cause, e));
+              }
               return;
             }
             logger.error(
@@ -1231,8 +1220,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
       } else {
         wrappedCallback.onFailure(
-            new Exception(
-                StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.toString(),
+            new CelebornIOException(
+                StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
                 new RuntimeException("Mock push merge data failed.")));
       }
     } catch (Exception e) {
@@ -1247,12 +1236,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           hostPort,
           e);
       wrappedCallback.onFailure(
-          new Exception(
-              StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
-                  + "! "
-                  + e.getMessage()
-                  + ". "
-                  + hostPort));
+          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
     }
   }
 
@@ -1601,16 +1585,15 @@ public class ShuffleClientImpl extends ShuffleClient {
               return;
             }
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
-              pushState.exception.compareAndSet(
-                  null, new CelebornIOException("PushData byteBuf failed!", e));
-              logger.error(
+              String errorMsg = String.format(
                   "Push data byteBuf to {} failed for shuffle {} map {} attempt {} batch {}.",
                   location.hostAndPushPort(),
                   shuffleId,
                   mapId,
                   attemptId,
-                  nextBatchId,
-                  e);
+                  nextBatchId);
+              pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
+              logger.error(errorMsg, e);
             } else {
               logger.warn(
                   "Push data to {} failed but mapper already ended for shuffle {} map {} attempt {} batch {}.",
@@ -1636,13 +1619,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           nextBatchId,
           location,
           e);
-      callback.onFailure(
-          new Exception(
-              StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
-                  + "! "
-                  + e.getMessage()
-                  + ". "
-                  + location));
+      callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
     }
     return totalLength;
   }
