@@ -1863,7 +1863,10 @@ object CelebornConf extends Logging {
   val WORKER_REPLICATE_RANDOM_CONNECTION: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.replicate.randomConnection")
       .categories("worker")
-      .doc("Whether worker will create random connection to peer when replicate data.")
+      .doc("Whether worker will create random connection to peer when replicate data. When false, worker tend to " +
+        "reuse the same cached TransportClient to a specific replicate worker; when true, worker tend to use " +
+        "different cached TransportClient. Netty will use the same thread to serve the same connection, so " +
+        "with more connections replicate server can leverage more netty threads")
       .version("0.2.1")
       .booleanConf
       .createWithDefault(true)

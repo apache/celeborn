@@ -54,7 +54,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
-  final long bytes8K = Utils.byteStringAsBytes("8k");
+  static final long bytes8K = Utils.byteStringAsBytes("8k");
 
   String appId;
   int shuffleId;
@@ -66,7 +66,8 @@ public class SortBasedPusher extends MemoryConsumer {
   CelebornConf conf;
   Consumer<Integer> afterPush;
   LongAdder[] mapStatusLengths;
-  Object globalPushLock;
+  // this lock is shared between different SortBasedPushers to synchronize pushData
+  Object sharedPushLock;
   volatile boolean asyncPushing = false;
   int[] shuffledPartitions;
   int[] reverseShuffledPartitions;
@@ -85,7 +86,7 @@ public class SortBasedPusher extends MemoryConsumer {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
-      Object globalPushLock)
+      Object sharedPushLock)
       throws IOException {
     super(
         memoryManager,
@@ -140,12 +141,12 @@ public class SortBasedPusher extends MemoryConsumer {
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
     inMemSorter = new ShuffleInMemorySorter(this, initialSize);
-    this.globalPushLock = globalPushLock;
+    this.sharedPushLock = sharedPushLock;
   }
 
   public long pushData() throws IOException {
     // pushData should be synchronized between pushers
-    synchronized (globalPushLock) {
+    synchronized (sharedPushLock) {
       final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
           inMemSorter.getSortedIterator();
 

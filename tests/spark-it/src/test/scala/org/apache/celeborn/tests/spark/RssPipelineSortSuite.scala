@@ -24,7 +24,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 
-class RssSortSuite extends AnyFunSuite
+class RssPipelineSortSuite extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
@@ -36,30 +36,21 @@ class RssSortSuite extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - sort") {
+  test("celeborn spark integration test - pipeline sort") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
-    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-    val combineResult = combine(sparkSession)
-    val groupbyResult = groupBy(sparkSession)
-    val repartitionResult = repartition(sparkSession)
-    val sqlResult = runsql(sparkSession)
+      .set("spark.celeborn.push.sort.pipeline.enabled", "true")
+      .set("spark.celeborn.push.sort.randomizePartitionId.enabled", "true")
+    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, true)).getOrCreate()
+    val value = Range(1, 10000).mkString(",")
+    val tuples = ss.sparkContext.parallelize(1 to 10000, 2)
+      .map { i => (i, value) }.groupByKey(16).collect()
 
-    Thread.sleep(3000L)
-    sparkSession.stop()
+    // verify result
+    assert(tuples.length == 10000)
+    for (elem <- tuples) {
+      assert(elem._2.mkString(",").equals(value))
+    }
 
-    val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, true)).getOrCreate()
-    val rssCombineResult = combine(rssSparkSession)
-    val rssGroupbyResult = groupBy(rssSparkSession)
-    val rssRepartitionResult = repartition(rssSparkSession)
-    val rssSqlResult = runsql(rssSparkSession)
-
-    assert(combineResult.equals(rssCombineResult))
-    assert(groupbyResult.equals(rssGroupbyResult))
-    assert(repartitionResult.equals(rssRepartitionResult))
-    assert(combineResult.equals(rssCombineResult))
-    assert(sqlResult.equals(rssSqlResult))
-
-    rssSparkSession.stop()
+    ss.stop()
   }
 }

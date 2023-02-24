@@ -70,7 +70,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numPartitions;
 
   private final long pushBufferMaxSize;
-  private final Object globalPushLock = new Object();
+  // this lock is shared between different SortBasedPushers to synchronize pushData
+  private final Object sharedPushLock = new Object();
   private final boolean pipelined;
   private SortBasedPusher[] pushers = new SortBasedPusher[2];
   private SortBasedPusher currentPusher;
@@ -144,7 +145,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 writeMetrics::incBytesWritten,
                 mapStatusLengths,
                 conf.pushSortMemoryThreshold() / 2,
-                globalPushLock);
+                sharedPushLock);
       }
       currentPusher = pushers[0];
     } else {
@@ -163,7 +164,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               writeMetrics::incBytesWritten,
               mapStatusLengths,
               conf.pushSortMemoryThreshold(),
-              globalPushLock);
+              sharedPushLock);
     }
   }
 
