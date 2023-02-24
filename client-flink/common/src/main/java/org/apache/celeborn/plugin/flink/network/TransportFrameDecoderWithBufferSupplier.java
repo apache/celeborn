@@ -150,7 +150,11 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       }
     } catch (Exception e) {
       logger.error(
-          "decode msg failed type {} curMsg {} size {}", curType, curMsg, nettyBuf.readableBytes());
+          "decode msg failed type {} curMsg {} size {} with error {}",
+          curType,
+          curMsg,
+          nettyBuf.readableBytes(),
+          e);
     } finally {
       if (nettyBuf != null) {
         nettyBuf.release();
