@@ -212,7 +212,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
     val exception = fileWriter.getException
     if (exception != null) {
-      val cause = if (isMaster) { PUSH_DATA_FAIL_MASTER } else { PUSH_DATA_FAIL_SLAVE }
+      val cause =
+        if (isMaster) {
+          PUSH_DATA_FAIL_MASTER
+        } else {
+          PUSH_DATA_FAIL_SLAVE
+        }
       logError(
         s"While handling PushData, throw $cause, fileWriter $fileWriter has exception.",
         exception)
@@ -483,7 +488,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val fileWriterWithException = fileWriters.find(_.getException != null)
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
-      val cause = if (isMaster)  { PUSH_DATA_FAIL_MASTER } else { PUSH_DATA_FAIL_SLAVE }
+      val cause =
+        if (isMaster) {
+          PUSH_DATA_FAIL_MASTER
+        } else {
+          PUSH_DATA_FAIL_SLAVE
+        }
       logError(
         s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
         exception)
@@ -553,7 +563,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               } else if (e.getMessage.startsWith(PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else {
-                callbackWithTimer.onFailure(new CelebornIOException(PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
               }
             }
           }
