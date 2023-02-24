@@ -1058,13 +1058,14 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onSuccess(ByteBuffer response) {
             logger.debug(
-                "Push merged data to {} success for shuffle {} map {} attempt {} partition {} batch {}.",
+                "Push merged data to {} success for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                 hostPort,
                 shuffleId,
                 mapId,
                 attemptId,
                 Arrays.toString(partitionIds),
-                groupedBatchId);
+                groupedBatchId,
+                Arrays.toString(batchIds));
             pushState.removeBatch(groupedBatchId, hostPort);
             // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
@@ -1086,6 +1087,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                     + attemptId
                     + " partition "
                     + Arrays.toString(partitionIds)
+                    + " groupedBatch "
+                    + groupedBatchId
                     + " batch "
                     + Arrays.toString(batchIds)
                     + ".";
@@ -1093,12 +1096,13 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (logger.isDebugEnabled()) {
               for (int i = 0; i < numBatches; i++) {
                 logger.debug(
-                    "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} batch {}.",
+                    "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     hostPort,
                     shuffleId,
                     mapId,
                     attemptId,
                     partitionIds[i],
+                    groupedBatchId,
                     batchIds[i]);
               }
             }
@@ -1113,12 +1117,13 @@ public class ShuffleClientImpl extends ShuffleClient {
               byte reason = response.get();
               if (reason == StatusCode.HARD_SPLIT.getValue()) {
                 logger.info(
-                    "Push merged data to {} hard split required for shuffle {} map {} attempt {} partition {} batch {}.",
+                    "Push merged data to {} hard split required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     hostPort,
                     shuffleId,
                     mapId,
                     attemptId,
                     Arrays.toString(partitionIds),
+                    groupedBatchId,
                     Arrays.toString(batchIds));
                 pushDataRetryPool.submit(
                     () ->
@@ -1134,23 +1139,25 @@ public class ShuffleClientImpl extends ShuffleClient {
                             remainReviveTimes));
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push merged data to {} master congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                    "Push merged data to {} master congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     hostPort,
                     shuffleId,
                     mapId,
                     attemptId,
                     Arrays.toString(partitionIds),
+                    groupedBatchId,
                     Arrays.toString(batchIds));
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push merged data to {} slave congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                    "Push merged data to {} slave congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     hostPort,
                     shuffleId,
                     mapId,
                     attemptId,
                     Arrays.toString(partitionIds),
+                    groupedBatchId,
                     Arrays.toString(batchIds));
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
@@ -1185,12 +1192,13 @@ public class ShuffleClientImpl extends ShuffleClient {
               return;
             }
             logger.error(
-                "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} batch {}.",
+                "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                 hostPort,
                 shuffleId,
                 mapId,
                 attemptId,
                 Arrays.toString(partitionIds),
+                groupedBatchId,
                 Arrays.toString(batchIds),
                 e);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
@@ -1223,11 +1231,12 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     } catch (Exception e) {
       logger.error(
-          "Exception raised while pushing merged data for shuffle {} map {} attempt {} partition {} batch  {} location {}.",
+          "Exception raised while pushing merged data for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {} location {}.",
           shuffleId,
           mapId,
           attemptId,
           Arrays.toString(partitionIds),
+          groupedBatchId,
           Arrays.toString(batchIds),
           hostPort,
           e);
