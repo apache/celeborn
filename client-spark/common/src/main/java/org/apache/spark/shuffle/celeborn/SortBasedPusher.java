@@ -69,7 +69,7 @@ public class SortBasedPusher extends MemoryConsumer {
   Object sharedPushLock;
   volatile boolean asyncPushing = false;
   int[] shuffledPartitions;
-  int[] reverseShuffledPartitions;
+  int[] inversedShuffledPartitions;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -103,15 +103,12 @@ public class SortBasedPusher extends MemoryConsumer {
     this.numPartitions = numPartitions;
 
     shuffledPartitions = new int[numPartitions];
-    reverseShuffledPartitions = new int[numPartitions];
+    inversedShuffledPartitions = new int[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       shuffledPartitions[i] = i;
     }
     if (conf.pushSortRandomizePartitionIdEnabled()) {
-      JavaUtils.randomizeInPlace(shuffledPartitions);
-      for (int i = 0; i < numPartitions; i++) {
-        reverseShuffledPartitions[shuffledPartitions[i]] = i;
-      }
+      JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
     }
 
     this.conf = conf;
@@ -152,7 +149,7 @@ public class SortBasedPusher extends MemoryConsumer {
       while (sortedRecords.hasNext()) {
         sortedRecords.loadNext();
         final int partition =
-            reverseShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
+            inversedShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
         if (partition != currentPartition) {
           if (currentPartition == -1) {
             currentPartition = partition;

@@ -404,4 +404,15 @@ public class JavaUtils {
       arr[i] = tmp;
     }
   }
+
+  public static void shuffleArray(int[] arr, int[] inversed) {
+    if (arr == null || inversed == null) {
+      return;
+    } else {
+      JavaUtils.randomizeInPlace(arr);
+      for (int i = 0; i < arr.length; i++) {
+        inversed[arr[i]] = i;
+      }
+    }
+  }
 }
