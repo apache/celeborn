@@ -302,7 +302,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   mapId,
                   attemptId,
                   reviveFailedBatchesMap,
-                  StatusCode.REVIVE_FAILED,
+                  cause,
                   oldGroupedBatchId,
                   remainReviveTimes - 1));
     }
