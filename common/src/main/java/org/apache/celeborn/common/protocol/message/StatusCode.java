@@ -122,6 +122,8 @@ public enum StatusCode {
       msg = "PushDataTimeoutMaster";
     } else if (value == PUSH_DATA_TIMEOUT_SLAVE.getValue()) {
       msg = "PushDataTimeoutSlave";
+    } else if (value == REVIVE_FAILED.getValue()) {
+      msg = "ReviveFailed";
     }
 
     return msg;
