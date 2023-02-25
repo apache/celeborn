@@ -68,7 +68,6 @@ public class ReadBufferDispatcher extends Thread {
           if (memoryManager.readBufferAvailable(bufferSize)) {
             memoryManager.incrementDiskBuffer(bufferSize);
             ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
-            buf.retain();
             buffers.add(buf);
           } else {
             try {
@@ -86,7 +85,6 @@ public class ReadBufferDispatcher extends Thread {
             && buffers.size() < request.getMax()) {
           memoryManager.changeReadBufferCounter(bufferSize);
           ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
-          buf.retain();
           buffers.add(buf);
         }
         request.getBufferListener().notifyBuffers(buffers, null);
