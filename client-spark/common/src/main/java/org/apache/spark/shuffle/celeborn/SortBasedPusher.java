@@ -52,6 +52,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
+  static final long size8k = Utils.byteStringAsBytes("8k");
 
   String appId;
   int shuffleId;
@@ -182,7 +183,7 @@ public class SortBasedPusher extends MemoryConsumer {
       throws IOException {
 
     if (getUsed() > pushSortMemoryThreshold
-        && pageCursor + Utils.byteStringAsBytes("8k")
+        && pageCursor + size8k
             > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
           "Memory Used across threshold, trigger push. Memory: "
