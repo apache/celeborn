@@ -109,6 +109,10 @@ public class SortBasedPusher extends MemoryConsumer {
     }
     if (conf.pushSortRandomizePartitionIdEnabled()) {
       JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
+    } else {
+      for (int i = 0; i < numPartitions; i++) {
+        inversedShuffledPartitions[i] = i;
+      }
     }
 
     this.conf = conf;
