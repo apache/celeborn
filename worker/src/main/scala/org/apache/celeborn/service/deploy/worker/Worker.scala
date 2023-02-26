@@ -432,6 +432,7 @@ private[celeborn] class Worker(
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
+      partitionLocationInfo.removeShuffle(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
       shufflePushDataTimeout.remove(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)
