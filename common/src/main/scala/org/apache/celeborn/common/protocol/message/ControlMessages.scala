@@ -255,7 +255,8 @@ object ControlMessages extends Logging {
   case class GetReducerFileGroupResponse(
       status: StatusCode,
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
-      attempts: Array[Int])
+      attempts: Array[Int],
+      partitionIds: util.Set[Integer] = new util.HashSet[Integer]())
     extends MasterMessage
 
   object WorkerLost {
@@ -549,7 +550,7 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
-    case GetReducerFileGroupResponse(status, fileGroup, attempts) =>
+    case GetReducerFileGroupResponse(status, fileGroup, attempts, partitionIds) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
@@ -561,6 +562,7 @@ object ControlMessages extends Logging {
               .toPbPartitionLocation).toList.asJava).build())
         }.asJava)
       builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
+      builder.addAllPartitionIds(partitionIds)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
@@ -912,10 +914,12 @@ object ControlMessages extends Logging {
         }.asJava
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
+        val partitionIds = new util.HashSet(pbGetReducerFileGroupResponse.getPartitionIdsList)
         GetReducerFileGroupResponse(
           Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
           fileGroup,
-          attempts)
+          attempts,
+          partitionIds)
 
       case UNREGISTER_SHUFFLE =>
         PbUnregisterShuffle.parseFrom(message.getPayload)

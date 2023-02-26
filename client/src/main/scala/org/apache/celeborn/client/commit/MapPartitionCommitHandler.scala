@@ -54,8 +54,10 @@ class MapPartitionCommitHandler(
   extends CommitHandler(appId, conf, allocatedWorkers, committedPartitionInfo)
   with Logging {
 
+  private val shuffleSuccessPartitionIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
+
   // shuffleId -> in processing partitionId set
-  private val inProcessMapPartitionEndIds = new ConcurrentHashMap[Int, util.Set[Int]]()
+  private val inProcessMapPartitionEndIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
 
   override def getPartitionType(): PartitionType = {
     PartitionType.MAP
@@ -189,7 +191,9 @@ class MapPartitionCommitHandler(
       partitionId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
     val inProcessingPartitionIds =
-      inProcessMapPartitionEndIds.computeIfAbsent(shuffleId, (k: Int) => new util.HashSet[Int]())
+      inProcessMapPartitionEndIds.computeIfAbsent(
+        shuffleId,
+        (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
     inProcessingPartitionIds.add(partitionId)
 
     val partitionAllocatedWorkers = allocatedWorkers.get(shuffleId).asScala.filter(p =>
@@ -212,6 +216,14 @@ class MapPartitionCommitHandler(
     }
 
     inProcessingPartitionIds.remove(partitionId)
+    if (dataCommitSuccess) {
+      val resultPartitions =
+        shuffleSuccessPartitionIds.computeIfAbsent(
+          shuffleId,
+          (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
+      resultPartitions.add(partitionId)
+    }
+
     (dataCommitSuccess, false)
   }
 
@@ -219,6 +231,7 @@ class MapPartitionCommitHandler(
     context.reply(GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
       reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
-      getMapperAttempts(shuffleId)))
+      getMapperAttempts(shuffleId),
+      shuffleSuccessPartitionIds.get(shuffleId)))
   }
 }
