@@ -46,7 +46,7 @@ class RetryCommitFilesTest extends AnyFunSuite
   test("celeborn spark integration test - retry commit files") {
     val sparkConf = new SparkConf()
       .set("spark.celeborn.test.retryCommitFiles", "true")
-      .setAppName("rss-demo").setMaster("local[4]")
+      .setAppName("rss-demo").setMaster("local[2]")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
     ss.sparkContext.parallelize(1 to 1000, 2)
       .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()

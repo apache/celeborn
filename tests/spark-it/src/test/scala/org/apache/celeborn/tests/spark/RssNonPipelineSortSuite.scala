@@ -37,7 +37,7 @@ class RssNonPipelineSortSuite extends AnyFunSuite
   }
 
   test("celeborn spark integration test - non pipeline sort") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set("spark.celeborn.push.sort.pipeline.enabled", "false")
       .set("spark.celeborn.push.sort.randomizePartitionId.enabled", "false")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()

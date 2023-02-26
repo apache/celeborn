@@ -49,7 +49,7 @@ class RssHashCheckDiskSuite extends AnyFunSuite
   }
 
   test("celeborn spark integration test - hash-checkDiskFull") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]").set(
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]").set(
       "spark.celeborn.shuffle.expired.checkInterval",
       "5s")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
