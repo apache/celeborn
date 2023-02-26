@@ -68,8 +68,8 @@ public class SortBasedPusher extends MemoryConsumer {
   // this lock is shared between different SortBasedPushers to synchronize pushData
   Object sharedPushLock;
   volatile boolean asyncPushing = false;
-  int[] shuffledPartitions;
-  int[] inversedShuffledPartitions;
+  int[] shuffledPartitions = null;
+  int[] inversedShuffledPartitions = null;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -102,17 +102,13 @@ public class SortBasedPusher extends MemoryConsumer {
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
 
-    shuffledPartitions = new int[numPartitions];
-    inversedShuffledPartitions = new int[numPartitions];
-    for (int i = 0; i < numPartitions; i++) {
-      shuffledPartitions[i] = i;
-    }
     if (conf.pushSortRandomizePartitionIdEnabled()) {
-      JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
-    } else {
+      shuffledPartitions = new int[numPartitions];
+      inversedShuffledPartitions = new int[numPartitions];
       for (int i = 0; i < numPartitions; i++) {
-        inversedShuffledPartitions[i] = i;
+        shuffledPartitions[i] = i;
       }
+      JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
     }
 
     this.conf = conf;
@@ -153,7 +149,9 @@ public class SortBasedPusher extends MemoryConsumer {
       while (sortedRecords.hasNext()) {
         sortedRecords.loadNext();
         final int partition =
-            inversedShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()];
+            shuffledPartitions != null
+                ? inversedShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()]
+                : sortedRecords.packedRecordPointer.getPartitionId();
         if (partition != currentPartition) {
           if (currentPartition == -1) {
             currentPartition = partition;
@@ -254,7 +252,11 @@ public class SortBasedPusher extends MemoryConsumer {
       Platform.copyMemory(recordBase, recordOffset, base, pageCursor, recordSize);
       pageCursor += recordSize;
     }
-    inMemSorter.insertRecord(recordAddress, shuffledPartitions[partitionId]);
+    if (shuffledPartitions != null) {
+      inMemSorter.insertRecord(recordAddress, shuffledPartitions[partitionId]);
+    } else {
+      inMemSorter.insertRecord(recordAddress, partitionId);
+    }
 
     return true;
   }
