@@ -2255,7 +2255,7 @@ object CelebornConf extends Logging {
         " will be used to pipeline push")
       .version("0.2.1")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.push.sort.randomizePartitionId.enabled")
@@ -2265,7 +2265,7 @@ object CelebornConf extends Logging {
           "when sort data to avoid skew when push to worker")
       .version("0.2.1")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val PUSH_RETRY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.push.retry.threads")

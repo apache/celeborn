@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
@@ -70,6 +71,7 @@ public class SortBasedPusher extends MemoryConsumer {
   volatile boolean asyncPushing = false;
   int[] shuffledPartitions = null;
   int[] inversedShuffledPartitions = null;
+  ExecutorService executorService = null;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -85,7 +87,8 @@ public class SortBasedPusher extends MemoryConsumer {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
-      Object sharedPushLock)
+      Object sharedPushLock,
+      ExecutorService executorService)
       throws IOException {
     super(
         memoryManager,
@@ -135,6 +138,7 @@ public class SortBasedPusher extends MemoryConsumer {
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
     inMemSorter = new ShuffleInMemorySorter(this, initialSize);
     this.sharedPushLock = sharedPushLock;
+    this.executorService = executorService;
   }
 
   public long pushData() throws IOException {
@@ -264,17 +268,18 @@ public class SortBasedPusher extends MemoryConsumer {
   public void triggerPush() throws IOException {
     asyncPushing = true;
     dataPusher.checkException();
-    Thread thread =
-        new Thread(
-            () -> {
-              try {
-                pushData();
-                asyncPushing = false;
-              } catch (IOException ie) {
-                dataPusher.setException(ie);
-              }
-            });
-    thread.start();
+    executorService.submit(
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              pushData();
+              asyncPushing = false;
+            } catch (IOException ie) {
+              dataPusher.setException(ie);
+            }
+          }
+        });
   }
 
   /**

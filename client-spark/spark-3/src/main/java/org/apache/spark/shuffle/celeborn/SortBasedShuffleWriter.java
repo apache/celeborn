@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 @Private
 public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -74,6 +76,14 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final Object sharedPushLock = new Object();
   private final boolean pipelined;
   private SortBasedPusher[] pushers = new SortBasedPusher[2];
+  private static ExecutorService[] executorServices = new ExecutorService[8];
+
+  static {
+    for (int i = 0; i < executorServices.length; i++) {
+      executorServices[i] = ThreadUtils.newDaemonSingleThreadExecutor("async-pusher-" + i);
+    }
+  }
+
   private SortBasedPusher currentPusher;
 
   @Nullable private long peakMemoryUsedBytes = 0;
@@ -145,7 +155,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 writeMetrics::incBytesWritten,
                 mapStatusLengths,
                 conf.pushSortMemoryThreshold() / 2,
-                sharedPushLock);
+                sharedPushLock,
+                executorServices[(taskContext.partitionId() + i) % 8]);
       }
       currentPusher = pushers[0];
     } else {
@@ -164,7 +175,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               writeMetrics::incBytesWritten,
               mapStatusLengths,
               conf.pushSortMemoryThreshold(),
-              sharedPushLock);
+              sharedPushLock,
+              null);
     }
   }
 
@@ -313,10 +325,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void close() throws IOException {
     if (pipelined) {
-      logger.info(
-          "Pushdata in close, memory used {}", (pushers[0].getUsed() + pushers[1].getUsed()));
+      logger.info("Memory used {}", (pushers[0].getUsed() + pushers[1].getUsed()));
     } else {
-      logger.info("Pushdata in close, memory used {}", currentPusher.getUsed());
+      logger.info("Memory used {}", currentPusher.getUsed());
     }
     long pushStartTime = System.nanoTime();
     if (pipelined) {
