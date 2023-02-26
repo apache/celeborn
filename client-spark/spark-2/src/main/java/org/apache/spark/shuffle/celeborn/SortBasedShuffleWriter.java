@@ -71,6 +71,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final Object globalPushLock = new Object();
   private final boolean pipelined;
   private SortBasedPusher[] pushers = new SortBasedPusher[2];
+  private ExecutorService executorService =
+      ThreadUtils.newDaemonSingleThreadExecutor("async-pusher");
   private SortBasedPusher currentPusher;
   private long peakMemoryUsedBytes = 0;
 
@@ -140,7 +142,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 writeMetrics::incBytesWritten,
                 mapStatusLengths,
                 conf.pushSortMemoryThreshold() / 2,
-                globalPushLock);
+                globalPushLock,
+                executorService);
       }
       currentPusher = pushers[0];
     } else {
@@ -159,7 +162,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               writeMetrics::incBytesWritten,
               mapStatusLengths,
               conf.pushSortMemoryThreshold(),
-              globalPushLock);
+              globalPushLock,
+              null);
     }
   }
 

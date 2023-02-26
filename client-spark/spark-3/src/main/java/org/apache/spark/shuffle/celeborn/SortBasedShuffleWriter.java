@@ -76,13 +76,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final Object sharedPushLock = new Object();
   private final boolean pipelined;
   private SortBasedPusher[] pushers = new SortBasedPusher[2];
-  private static ExecutorService[] executorServices = new ExecutorService[8];
-
-  static {
-    for (int i = 0; i < executorServices.length; i++) {
-      executorServices[i] = ThreadUtils.newDaemonSingleThreadExecutor("async-pusher-" + i);
-    }
-  }
+  private ExecutorService executorService =
+      ThreadUtils.newDaemonSingleThreadExecutor("async-pusher");
 
   private SortBasedPusher currentPusher;
 
@@ -156,7 +151,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 mapStatusLengths,
                 conf.pushSortMemoryThreshold() / 2,
                 sharedPushLock,
-                executorServices[(taskContext.partitionId() + i) % 8]);
+                executorService);
       }
       currentPusher = pushers[0];
     } else {
