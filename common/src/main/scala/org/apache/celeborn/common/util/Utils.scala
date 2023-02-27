@@ -869,9 +869,9 @@ object Utils extends Logging {
       case 17 =>
         StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
       case 18 =>
-        StatusCode.PUSH_DATA_FAIL_SLAVE
+        StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
       case 19 =>
-        StatusCode.PUSH_DATA_FAIL_MASTER
+        StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
       case 20 =>
         StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
       case 21 =>

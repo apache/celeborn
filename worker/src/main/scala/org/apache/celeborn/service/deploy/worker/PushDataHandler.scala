@@ -214,9 +214,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (exception != null) {
       val cause =
         if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER
+          StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
         } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE
+          StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
         }
       logError(
         s"While handling PushData, throw $cause, fileWriter $fileWriter has exception.",
@@ -305,7 +305,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
@@ -490,9 +490,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       val exception = fileWriterWithException.get.getException
       val cause =
         if (isMaster) {
-          StatusCode.PUSH_DATA_FAIL_MASTER
+          StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
         } else {
-          StatusCode.PUSH_DATA_FAIL_SLAVE
+          StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
         }
       logError(
         s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
@@ -559,7 +559,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_FAIL_SLAVE.name())) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
@@ -964,7 +964,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_SLAVE, e))
         case _ =>
           workerSource.incCounter(WorkerSource.PushDataFailCount)
-          callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_FAIL_SLAVE, e))
+          callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE, e))
       }
     }
   }
@@ -1012,8 +1012,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       messageType match {
         case Type.PUSH_DATA | Type.PUSH_DATA_HAND_SHAKE =>
           (
-            StatusCode.PUSH_DATA_FAIL_MASTER,
-            StatusCode.PUSH_DATA_FAIL_SLAVE)
+            StatusCode.PUSH_DATA_WRITE_FAIL_MASTER,
+            StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case Type.PUSH_DATA_HAND_SHAKE => (
             StatusCode.PUSH_DATA_HANDSHAKE_FAIL_MASTER,
             StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE)
