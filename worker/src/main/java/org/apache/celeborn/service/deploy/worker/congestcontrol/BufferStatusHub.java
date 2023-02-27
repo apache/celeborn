@@ -71,4 +71,12 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
   protected BufferStatusNode newEmptyNode() {
     return new BufferStatusNode();
   }
+
+  public long avgBytes() {
+    long currentNumBytes = sum().numBytes();
+    if (currentNumBytes > 0) {
+      return currentNumBytes / (long) getCurrentTimeWindowsInMills();
+    }
+    return 0L;
+  }
 }

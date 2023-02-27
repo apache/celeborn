@@ -42,7 +42,7 @@ public class TestCongestionController {
   public void initialize() {
     // Make sampleTimeWindow a bit larger in case the tests run time exceed this window.
     controller =
-        new CongestionController(source, 10, 1000, 500, userInactiveTimeMills) {
+        new CongestionController(source, 10, 10000, 5000, userInactiveTimeMills) {
           @Override
           public long getTotalPendingBytes() {
             return pendingBytes;
@@ -67,11 +67,11 @@ public class TestCongestionController {
 
     Assert.assertFalse(controller.isUserCongested(userIdentifier));
 
-    controller.produceBytes(userIdentifier, 1001);
-    pendingBytes = 1001;
+    controller.produceBytes(userIdentifier, 10001);
+    pendingBytes = 10001;
     Assert.assertTrue(controller.isUserCongested(userIdentifier));
 
-    controller.consumeBytes(1001);
+    controller.consumeBytes(10001);
     pendingBytes = 0;
     Assert.assertFalse(controller.isUserCongested(userIdentifier));
   }
@@ -87,18 +87,18 @@ public class TestCongestionController {
 
     // If pendingBytes exceed the high watermark, user1 produce speed > avg consume speed
     // While user2 produce speed < avg consume speed
-    controller.produceBytes(user1, 800);
-    controller.produceBytes(user2, 201);
-    controller.consumeBytes(500);
-    pendingBytes = 1001;
+    controller.produceBytes(user1, 8000);
+    controller.produceBytes(user2, 2001);
+    controller.consumeBytes(5000);
+    pendingBytes = 10001;
     Assert.assertTrue(controller.isUserCongested(user1));
     Assert.assertFalse(controller.isUserCongested(user2));
 
     // If both users higher than the avg consume speed, should congest them all.
-    controller.produceBytes(user1, 800);
-    controller.produceBytes(user2, 800);
-    controller.consumeBytes(500);
-    pendingBytes = 1600;
+    controller.produceBytes(user1, 8000);
+    controller.produceBytes(user2, 8000);
+    controller.consumeBytes(5000);
+    pendingBytes = 16000;
     Assert.assertTrue(controller.isUserCongested(user1));
     Assert.assertTrue(controller.isUserCongested(user2));
 

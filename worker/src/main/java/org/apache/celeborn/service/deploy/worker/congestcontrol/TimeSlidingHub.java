@@ -144,6 +144,10 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
   protected abstract N newEmptyNode();
 
+  protected int getCurrentTimeWindowsInMills() {
+    return _deque.size() * intervalPerBucketInMills;
+  }
+
   @VisibleForTesting
   protected long currentTimeMillis() {
     return System.currentTimeMillis();
