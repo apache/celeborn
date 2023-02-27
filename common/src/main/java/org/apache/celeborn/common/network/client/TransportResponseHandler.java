@@ -269,7 +269,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               NettyUtils.getRemoteAddress(channel),
               resp.errorString);
         } else {
-          listener.onFailure(new CelebornIOException(resp.errorString));
+          listener.onFailure(new IOException(resp.errorString));
         }
       } else {
         info.callback.onFailure(new CelebornIOException(resp.errorString));
