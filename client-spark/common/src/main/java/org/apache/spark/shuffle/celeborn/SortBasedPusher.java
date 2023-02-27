@@ -205,15 +205,6 @@ public class SortBasedPusher extends MemoryConsumer {
     }
   }
 
-  /**
-   * @param recordBase
-   * @param recordOffset
-   * @param recordSize
-   * @param partitionId
-   * @param copySize
-   * @return false if reaches capacity threshold
-   * @throws IOException
-   */
   public boolean insertRecord(
       Object recordBase, long recordOffset, int recordSize, int partitionId, boolean copySize)
       throws IOException {

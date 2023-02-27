@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import scala.Option;
 import scala.Product2;
 import scala.reflect.ClassTag;
@@ -231,7 +232,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               currentPusher.insertRecord(
                   row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
           if (!success) {
-            throw new IOException("Unable to push after switching pusher!");
+            throw new CelebornIOException("Unable to push after switching pusher!");
           }
         }
         writeMetrics.incWriteTime(System.nanoTime() - insertStartTime);

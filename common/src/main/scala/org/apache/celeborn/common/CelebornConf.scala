@@ -497,7 +497,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
-  def workerReplicateRandomConnection: Boolean = get(WORKER_REPLICATE_RANDOM_CONNECTION)
+  def workerReplicateRandomConnectionEnabled: Boolean = get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
   def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
@@ -1860,8 +1860,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val WORKER_REPLICATE_RANDOM_CONNECTION: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.replicate.randomConnection")
+  val WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.replicate.randomConnection.enabled")
       .categories("worker")
       .doc("Whether worker will create random connection to peer when replicate data. When false, worker tend to " +
         "reuse the same cached TransportClient to a specific replicate worker; when true, worker tend to use " +

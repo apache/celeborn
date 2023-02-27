@@ -1088,7 +1088,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   private def getClient(host: String, port: Int, partitionId: Int): TransportClient = {
-    if (conf.workerReplicateRandomConnection) {
+    if (conf.workerReplicateRandomConnectionEnabled) {
       pushClientFactory.createClient(host, port)
     } else {
       pushClientFactory.createClient(host, port, partitionId)
