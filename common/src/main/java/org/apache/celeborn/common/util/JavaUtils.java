@@ -406,9 +406,12 @@ public class JavaUtils {
   }
 
   public static void shuffleArray(int[] arr, int[] inversed) {
-    if (arr == null || inversed == null) {
+    if (arr == null || inversed == null || arr.length != inversed.length) {
       return;
     } else {
+      for (int i = 0; i < arr.length; i++) {
+        arr[i] = i;
+      }
       JavaUtils.randomizeInPlace(arr);
       for (int i = 0; i < arr.length; i++) {
         inversed[arr[i]] = i;

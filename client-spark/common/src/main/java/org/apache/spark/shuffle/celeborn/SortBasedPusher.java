@@ -71,7 +71,7 @@ public class SortBasedPusher extends MemoryConsumer {
   volatile boolean asyncPushing = false;
   int[] shuffledPartitions = null;
   int[] inversedShuffledPartitions = null;
-  ExecutorService executorService = null;
+  ExecutorService executorService;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -108,9 +108,6 @@ public class SortBasedPusher extends MemoryConsumer {
     if (conf.pushSortRandomizePartitionIdEnabled()) {
       shuffledPartitions = new int[numPartitions];
       inversedShuffledPartitions = new int[numPartitions];
-      for (int i = 0; i < numPartitions; i++) {
-        shuffledPartitions[i] = i;
-      }
       JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
     }
 
@@ -269,15 +266,12 @@ public class SortBasedPusher extends MemoryConsumer {
     asyncPushing = true;
     dataPusher.checkException();
     executorService.submit(
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              pushData();
-              asyncPushing = false;
-            } catch (IOException ie) {
-              dataPusher.setException(ie);
-            }
+        () -> {
+          try {
+            pushData();
+            asyncPushing = false;
+          } catch (IOException ie) {
+            dataPusher.setException(ie);
           }
         });
   }

@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.util.ThreadUtils;
 
 @Private
 public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -76,9 +75,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final Object sharedPushLock = new Object();
   private final boolean pipelined;
   private SortBasedPusher[] pushers = new SortBasedPusher[2];
-  private ExecutorService executorService =
-      ThreadUtils.newDaemonSingleThreadExecutor("async-pusher");
-
   private SortBasedPusher currentPusher;
 
   @Nullable private long peakMemoryUsedBytes = 0;
@@ -106,7 +102,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       TaskContext taskContext,
       CelebornConf conf,
       ShuffleClient client,
-      ShuffleWriteMetricsReporter metrics)
+      ShuffleWriteMetricsReporter metrics,
+      ExecutorService executorService)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;

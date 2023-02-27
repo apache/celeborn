@@ -19,6 +19,8 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
@@ -31,6 +33,7 @@ import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class RssShuffleManager implements ShuffleManager {
 
@@ -51,11 +54,23 @@ public class RssShuffleManager implements ShuffleManager {
       ConcurrentHashMap.newKeySet();
   private final RssShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
+  private final ExecutorService[] asyncPushers;
+  private AtomicInteger pusherIdx = new AtomicInteger(0);
+
   public RssShuffleManager(SparkConf conf) {
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
     this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(celebornConf);
+    if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
+        && celebornConf.pushSortPipelineEnabled()) {
+      asyncPushers = new ExecutorService[cores];
+      for (int i = 0; i < asyncPushers.length; i++) {
+        asyncPushers[i] = ThreadUtils.newDaemonSingleThreadExecutor("async-pusher-" + i);
+      }
+    } else {
+      asyncPushers = null;
+    }
   }
 
   private boolean isDriver() {
@@ -161,7 +176,14 @@ public class RssShuffleManager implements ShuffleManager {
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           return new SortBasedShuffleWriter<>(
-              h.dependency(), h.newAppId(), h.numMappers(), context, celebornConf, client, metrics);
+              h.dependency(),
+              h.newAppId(),
+              h.numMappers(),
+              context,
+              celebornConf,
+              client,
+              metrics,
+              getPusherThread());
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, context, celebornConf, client, metrics, SendBufferPool.get(cores));
@@ -266,5 +288,11 @@ public class RssShuffleManager implements ShuffleManager {
         endPartition,
         context,
         metrics);
+  }
+
+  private ExecutorService getPusherThread() {
+    ExecutorService pusherThread = asyncPushers[pusherIdx.get() % asyncPushers.length];
+    pusherIdx.incrementAndGet();
+    return pusherThread;
   }
 }
