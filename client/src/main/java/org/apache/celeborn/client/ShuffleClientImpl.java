@@ -271,7 +271,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else {
           String errorMsg =
               String.format(
-                  "Revive failed while pushing merged for shuffle {} map {} attempt {} partition {} batch {} location {}.",
+                  "Revive failed while pushing merged for shuffle %d map %d attempt %d partition %d batch %d location %s.",
                   shuffleId,
                   mapId,
                   attemptId,
@@ -624,7 +624,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           null,
           StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
         throw new CelebornIOException(
-            String.format("Revive for shuffle {} partition {} failed.", shuffleKey, partitionId));
+            String.format("Revive for shuffle %d partition %d failed.", shuffleKey, partitionId));
       }
     }
 
@@ -646,7 +646,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (loc == null) {
       throw new CelebornIOException(
           String.format(
-              "Partition location for shuffle {} partition {} is NULL!", shuffleKey, partitionId));
+              "Partition location for shuffle %d partition %d is NULL!", shuffleKey, partitionId));
     }
 
     PushState pushState = getPushState(mapKey);
@@ -706,9 +706,9 @@ public class ShuffleClientImpl extends ShuffleClient {
             public void onFailure(Throwable e) {
               String errorMsg =
                   String.format(
-                      "Push data to {} failed for shuffle {} map {} attempt {} partition {} batch {}.",
-                      shuffleId,
+                      "Push data to %s failed for shuffle $d map %d attempt %d partition %d batch %d.",
                       loc,
+                      shuffleId,
                       mapId,
                       attemptId,
                       partitionId,
@@ -1083,7 +1083,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           public void onFailure(Throwable e) {
             String errorMsg =
                 String.format(
-                    "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    "Push merged data to %s failed for shuffle %d map %d attempt %d partition %s groupedBatch %d batch %s.",
                     addressPair,
                     shuffleId,
                     mapId,
@@ -1176,6 +1176,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onFailure(Throwable e) {
             StatusCode cause = getPushDataFailCause(e.getMessage());
+
             if (pushState.exception.get() != null) {
               return;
             }
@@ -1588,7 +1589,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               String errorMsg =
                   String.format(
-                      "Push data byteBuf to {} failed for shuffle {} map {} attempt {} batch {}.",
+                      "Push data byteBuf to %s failed for shuffle %d map %d attempt %d batch %d.",
                       location.hostAndPushPort(),
                       shuffleId,
                       mapId,
