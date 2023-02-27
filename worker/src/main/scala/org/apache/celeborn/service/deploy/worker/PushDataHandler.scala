@@ -519,7 +519,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
             logError(
-              s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
+              s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
             return
