@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
 
-import org.apache.celeborn.common.exception.CelebornIOException;
 import scala.Option;
 import scala.Product2;
 import scala.reflect.ClassTag;
@@ -51,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 
 @Private
 public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {

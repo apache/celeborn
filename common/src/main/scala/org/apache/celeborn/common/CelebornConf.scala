@@ -497,7 +497,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
-  def workerReplicateRandomConnectionEnabled: Boolean = get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
+  def workerReplicateRandomConnectionEnabled: Boolean =
+    get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
   def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
