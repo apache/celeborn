@@ -207,8 +207,8 @@ public class CongestionController {
   }
 
   /**
-   * Get avg consumed bytes in a configured time window, and divide with the
-   * number of active users to determine the potential consume speed.
+   * Get avg consumed bytes in a configured time window, and divide with the number of active users
+   * to determine the potential consume speed.
    */
   public long getPotentialConsumeSpeed() {
     if (userBufferStatuses.size() == 0) {
@@ -218,9 +218,7 @@ public class CongestionController {
     return consumedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
   }
 
-  /**
-   * Get the avg user produce speed, the unit is bytes/sec.
-   */
+  /** Get the avg user produce speed, the unit is bytes/sec. */
   private long getUserProduceSpeed(UserBufferInfo userBufferInfo) {
     if (userBufferInfo != null) {
       return userBufferInfo.getBufferStatusHub().avgBytesPerSec();
