@@ -175,6 +175,8 @@ public class RssShuffleManager implements ShuffleManager {
             ShuffleClient.get(
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
+          ExecutorService pushThread =
+              celebornConf.pushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
               h.dependency(),
               h.newAppId(),
@@ -183,7 +185,7 @@ public class RssShuffleManager implements ShuffleManager {
               celebornConf,
               client,
               metrics,
-              getPusherThread());
+              pushThread);
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, context, celebornConf, client, metrics, SendBufferPool.get(cores));
