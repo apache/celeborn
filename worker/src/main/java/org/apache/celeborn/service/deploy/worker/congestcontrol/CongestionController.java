@@ -135,8 +135,6 @@ public class CongestionController {
     }
 
     long pendingConsumed = getTotalPendingBytes();
-
-    // The potential consume speed in average
     long avgConsumeSpeed = getPotentialConsumeSpeed();
 
     if (pendingConsumed > highWatermark && overHighWatermark.compareAndSet(false, true)) {
@@ -208,21 +206,22 @@ public class CongestionController {
     MemoryManager.instance().trimAllListeners();
   }
 
+  /**
+   * Get avg consumed bytes in a configured time window, and divide with the number of active users
+   * to determine the potential consume speed.
+   */
   public long getPotentialConsumeSpeed() {
     if (userBufferStatuses.size() == 0) {
       return 0;
     }
 
-    BufferStatusHub.BufferStatusNode totalBufferStatus = consumedBufferStatusHub.sum();
-    // The potential consume speed in average
-    return totalBufferStatus.numBytes()
-        / ((long) sampleTimeWindowSeconds * userBufferStatuses.size());
+    return consumedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
   }
 
+  /** Get the avg user produce speed, the unit is bytes/sec. */
   private long getUserProduceSpeed(UserBufferInfo userBufferInfo) {
     if (userBufferInfo != null) {
-      BufferStatusHub.BufferStatusNode userBufferStatus = userBufferInfo.getBufferStatusHub().sum();
-      return userBufferStatus.numBytes() / sampleTimeWindowSeconds;
+      return userBufferInfo.getBufferStatusHub().avgBytesPerSec();
     }
 
     return 0L;
