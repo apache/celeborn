@@ -183,14 +183,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     int partitionId = loc.getId();
     if (!revive(
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
-      logger.error(
-          "Revive for push data failed for shuffle {} map {} attempt {} partition {} batch {} location {}.",
-          shuffleId,
-          mapId,
-          attemptId,
-          partitionId,
-          batchId,
-          loc);
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.REVIVE_FAILED));
     } else if (mapperEnded(shuffleId, mapId, attemptId)) {
       logger.debug(
@@ -273,7 +265,6 @@ public class ShuffleClientImpl extends ShuffleClient {
               String.format(
                   "Revive failed while pushing merged for shuffle %d map %d attempt %d partition %d batch %d location %s.",
                   shuffleId, mapId, attemptId, partitionId, oldGroupedBatchId, batch.loc);
-          logger.debug(errorMsg);
           pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg));
           return;
         }
@@ -704,7 +695,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                       "Push data to %s failed for shuffle $d map %d attempt %d partition %d batch %d.",
                       loc, shuffleId, mapId, attemptId, partitionId, nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
-              logger.error(errorMsg, e);
             }
           };
 
@@ -802,13 +792,14 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
 
               logger.error(
-                  "Push data to {} failed for shuffle {} map {} attempt {} partition {} batch {}.",
+                  "Push data to {} failed for shuffle {} map {} attempt {} partition {} batch {}, remain revive times {}.",
                   loc.hostAndPushPort(),
                   shuffleId,
                   mapId,
                   attemptId,
                   partitionId,
                   nextBatchId,
+                  remainReviveTimes,
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
@@ -830,13 +821,14 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
                 logger.info(
-                    "Push data to {} failed but mapper already ended for shuffle {} map {} attempt {} partition {} batch {}.",
+                    "Push data to {} failed but mapper already ended for shuffle {} map {} attempt {} partition {} batch {}, remain revive times {}.",
                     loc.hostAndPushPort(),
                     shuffleId,
                     mapId,
                     attemptId,
                     partitionId,
-                    nextBatchId);
+                    nextBatchId,
+                    remainReviveTimes);
               }
             }
           };
@@ -1073,26 +1065,28 @@ public class ShuffleClientImpl extends ShuffleClient {
           public void onFailure(Throwable e) {
             String errorMsg =
                 String.format(
-                    "Push merged data to %s failed for shuffle %d map %d attempt %d partition %s groupedBatch %d batch %s.",
+                    "Push merged data to %s failed for shuffle %d map %d attempt %d partition %s groupedBatch %d batch %s, remain revive times %d.",
                     addressPair,
                     shuffleId,
                     mapId,
                     attemptId,
                     Arrays.toString(partitionIds),
                     groupedBatchId,
-                    Arrays.toString(batchIds));
+                    Arrays.toString(batchIds),
+                    remainReviveTimes);
             pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             if (logger.isDebugEnabled()) {
               for (int i = 0; i < numBatches; i++) {
                 logger.debug(
-                    "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}, remain revive times {}.",
                     addressPair,
                     shuffleId,
                     mapId,
                     attemptId,
                     partitionIds[i],
                     groupedBatchId,
-                    batchIds[i]);
+                    batchIds[i],
+                    remainReviveTimes);
               }
             }
           }
@@ -1179,7 +1173,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               return;
             }
             logger.error(
-                "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                "Push merged data to {} failed for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}, remain revive times {}.",
                 addressPair,
                 shuffleId,
                 mapId,
@@ -1187,6 +1181,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 Arrays.toString(partitionIds),
                 groupedBatchId,
                 Arrays.toString(batchIds),
+                remainReviveTimes,
                 e);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               pushDataRetryPool.submit(
@@ -1582,7 +1577,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                       "Push data byteBuf to %s failed for shuffle %d map %d attempt %d batch %d.",
                       location.hostAndPushPort(), shuffleId, mapId, attemptId, nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
-              logger.error(errorMsg, e);
             } else {
               logger.warn(
                   "Push data to {} failed but mapper already ended for shuffle {} map {} attempt {} batch {}.",

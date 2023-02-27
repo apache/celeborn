@@ -305,9 +305,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
-                callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name()) ||
+                e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else {
                 callbackWithTimer.onFailure(
@@ -559,9 +558,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
-                callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name()) ||
+                e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
                 callbackWithTimer.onFailure(e)
               } else {
                 callbackWithTimer.onFailure(
