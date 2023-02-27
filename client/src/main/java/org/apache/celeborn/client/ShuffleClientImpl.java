@@ -272,12 +272,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           String errorMsg =
               String.format(
                   "Revive failed while pushing merged for shuffle %d map %d attempt %d partition %d batch %d location %s.",
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  partitionId,
-                  oldGroupedBatchId,
-                  batch.loc);
+                  shuffleId, mapId, attemptId, partitionId, oldGroupedBatchId, batch.loc);
           logger.debug(errorMsg);
           pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg));
           return;
@@ -707,12 +702,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               String errorMsg =
                   String.format(
                       "Push data to %s failed for shuffle $d map %d attempt %d partition %d batch %d.",
-                      loc,
-                      shuffleId,
-                      mapId,
-                      attemptId,
-                      partitionId,
-                      nextBatchId);
+                      loc, shuffleId, mapId, attemptId, partitionId, nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
               logger.error(errorMsg, e);
             }
@@ -1590,11 +1580,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               String errorMsg =
                   String.format(
                       "Push data byteBuf to %s failed for shuffle %d map %d attempt %d batch %d.",
-                      location.hostAndPushPort(),
-                      shuffleId,
-                      mapId,
-                      attemptId,
-                      nextBatchId);
+                      location.hostAndPushPort(), shuffleId, mapId, attemptId, nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
               logger.error(errorMsg, e);
             } else {
