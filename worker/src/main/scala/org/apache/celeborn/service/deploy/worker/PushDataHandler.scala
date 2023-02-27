@@ -259,7 +259,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
             logError(
-              s"PushData replicate failed by unavailable peer for partitionLocation: $location")
+              s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
             return
@@ -300,7 +300,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             }
 
             override def onFailure(e: Throwable): Unit = {
-              logError(s"PushData replicate failed for partitionLocation: $location", e)
+              logError(s"PushData replication failed for partitionLocation: $location", e)
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
@@ -330,7 +330,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               logError(
-                s"PushData replicate failed by connect peer for partitionLocation: $location",
+                s"PushData replication failed during connecting peer for partitionLocation: $location",
                 e)
               callbackWithTimer.onFailure(
                 new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
@@ -519,7 +519,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.PushDataFailCount)
             logError(
-              s"PushData replicate failed by unavailable peer for partitionLocation: $location")
+              s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
             return
@@ -591,7 +591,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.PushDataFailCount)
               logError(
-                s"PushData replicate failed by connect peer for partitionLocation: $location",
+                s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
                 e)
               callbackWithTimer.onFailure(
                 new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
