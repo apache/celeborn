@@ -962,7 +962,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_SLAVE, e))
         case _ =>
           workerSource.incCounter(WorkerSource.PushDataFailCount)
-          callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE, e))
+          if (e.isInstanceOf[CelebornIOException]) {
+            callback.onFailure(e)
+          } else {
+            callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE, e))
+          }
       }
     }
   }
