@@ -98,12 +98,9 @@ public class TransportClientFactory implements Closeable {
   /**
    * Create a {@link TransportClient} connecting to the given remote host / port.
    *
-   * <p>We maintains an array of clients (size determined by spark.shuffle.io.numConnectionsPerPeer)
+   * <p>We maintains an array of clients (size determined by celeborn.$module.io.numConnectionsPerPeer)
    * and randomly picks one to use. If no client was previously created in the randomly selected
    * spot, this function creates a new client and places it there.
-   *
-   * <p>Prior to the creation of a new TransportClient, we will execute all {@link
-   * TransportClientBootstrap}s that are registered with this factory.
    *
    * <p>This blocks until a connection is successfully established and fully bootstrapped.
    *
