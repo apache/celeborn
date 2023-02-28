@@ -144,7 +144,7 @@ public class RemoteShuffleResultPartitionFactory {
       int numMappers) {
 
     // in flink1.14/1.15, just support LZ4
-    if (!compressionCodec.equals(CompressionCodec.LZ4)) {
+    if (!compressionCodec.equals(CompressionCodec.LZ4.name())) {
       throw new IllegalStateException("Unknown CompressionMethod " + compressionCodec);
     }
     final BufferCompressor bufferCompressor =
