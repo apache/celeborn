@@ -64,9 +64,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
   test("multi-thread modify same WorkerInfo.") {
     val numSlots = 10000
     val disks = new util.HashMap[String, DiskInfo]()
-    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 0))
-    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 0))
-    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 0))
+    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 0))
+    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 1, 0))
+    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 1, 0))
     val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(UserIdentifier("tenant1", "name1"), ResourceConsumption(1, 1, 1, 1))
     val worker =
@@ -224,9 +224,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
       null)
 
     val disks = new util.HashMap[String, DiskInfo]()
-    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 10))
-    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 2, 20))
-    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 3, 30))
+    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 10))
+    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 2, 2, 20))
+    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 3, 2, 30))
     val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(
       UserIdentifier("tenant1", "name1"),

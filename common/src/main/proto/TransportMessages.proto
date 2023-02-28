@@ -105,6 +105,7 @@ message PbDiskInfo {
   int64 avgFlushTime = 3;
   int64 usedSlots = 4;
   int32 status = 5;
+  int64 avgFetchTime = 6;
 }
 
 message PbWorkerInfo {

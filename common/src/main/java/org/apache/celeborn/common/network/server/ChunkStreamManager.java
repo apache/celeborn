@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileManagedBuffers;
+import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 
 /**
@@ -49,17 +50,15 @@ public class ChunkStreamManager {
   protected static class StreamState {
     final FileManagedBuffers buffers;
     final String shuffleKey;
-
-    // Used to keep track of the index of the buffer that the user has retrieved, just to ensure
-    // that the caller only requests each chunk one at a time, in order.
-    int curChunk = 0;
+    final TimeWindow fetchTimeMetric;
 
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String shuffleKey, FileManagedBuffers buffers) {
+    StreamState(String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.shuffleKey = shuffleKey;
+      this.fetchTimeMetric = fetchTimeMetric;
     }
   }
 
@@ -102,6 +101,15 @@ public class ChunkStreamManager {
     }
 
     return nextChunk;
+  }
+
+  public TimeWindow getFetchTimeMetric(long streamId) {
+    StreamState state = streams.get(streamId);
+    if (state != null) {
+      return state.fetchTimeMetric;
+    } else {
+      return null;
+    }
   }
 
   public static String genStreamChunkId(long streamId, int chunkId) {
@@ -152,9 +160,10 @@ public class ChunkStreamManager {
    * <p>This stream could be reused again when other channel of the client is reconnected. If a
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
-  public long registerStream(String shuffleKey, FileManagedBuffers buffers) {
+  public long registerStream(
+      String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    streams.put(myStreamId, new StreamState(shuffleKey, buffers));
+    streams.put(myStreamId, new StreamState(shuffleKey, buffers, fetchTimeMetric));
     shuffleStreamIds.compute(
         shuffleKey,
         (key, value) -> {
