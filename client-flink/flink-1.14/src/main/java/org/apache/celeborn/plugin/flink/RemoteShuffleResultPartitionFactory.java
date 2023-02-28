@@ -105,6 +105,7 @@ public class RemoteShuffleResultPartitionFactory {
     }
     this.compressionCodec =
         PluginConf.colesce(flinkConf, celebornConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC);
+    celebornConf.set(PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC.alterName, compressionCodec);
   }
 
   public ResultPartition create(

@@ -26,10 +26,7 @@ public enum PluginConf {
   MIN_MEMORY_PER_GATE("remote-shuffle.job.min.memory-per-gate", "", "8m"),
   NUM_CONCURRENT_READINGS(
       "remote-shuffle.job.concurrent-readings-per-gate", "", String.valueOf(Integer.MAX_VALUE)),
-  MEMORY_PER_RESULT_PARTITION(
-      "remote-shuffle.job.memory-per-partition",
-      CelebornConf.MEMORY_PER_RESULT_PARTITION().key(),
-      "64m"),
+  MEMORY_PER_RESULT_PARTITION("remote-shuffle.job.memory-per-partition", "", "64m"),
   MEMORY_PER_INPUT_GATE("remote-shuffle.job.memory-per-gate", "", "32m"),
   ENABLE_DATA_COMPRESSION("remote-shuffle.job.enable-data-compression", "", "true"),
   REMOTE_SHUFFLE_COMPRESSION_CODEC(
