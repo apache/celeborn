@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.EndOfStream;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -76,7 +77,14 @@ public class ReadClientHandler extends BaseMessageHandler {
         }
         break;
       case END_OF_STREAM:
-        streamHandlers.get(streamId).accept(msg);
+        streamId = ((EndOfStream) msg).getStreamId();
+        if (streamHandlers.containsKey(streamId)) {
+          streamHandlers.get(streamId).accept(msg);
+        } else {
+          // This means that the input gate is closed already.
+          logger.info("Unnecessary endOfStream received: {}", streamId);
+        }
+        break;
       case ONE_WAY_MESSAGE:
         // ignore it.
         break;

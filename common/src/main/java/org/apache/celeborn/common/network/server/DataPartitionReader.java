@@ -446,6 +446,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   public void notifyEndOfStream(long streamId) {
+    logger.info("End stream {}, notify client", streamId);
     this.associatedChannel.writeAndFlush(new EndOfStream(streamId));
   }
 }

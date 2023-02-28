@@ -20,6 +20,8 @@ package org.apache.celeborn.plugin.flink.network;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
@@ -27,6 +29,8 @@ import org.apache.celeborn.plugin.flink.buffer.FlinkNettyManagedBuffer;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class MessageDecoderExt {
+  static Logger logger = LoggerFactory.getLogger(MessageDecoderExt.class);
+
   public static Message decode(Message.Type type, ByteBuf in, boolean decodeBody) {
     long requestId;
     // cannot use actual class decode method because common module cannot refer flink shaded netty.
@@ -83,6 +87,7 @@ public class MessageDecoderExt {
 
       case END_OF_STREAM:
         streamId = in.readLong();
+        logger.info("received endOfStream with {}", streamId);
         return new EndOfStream(streamId);
 
       default:
